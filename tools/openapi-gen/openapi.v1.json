@@ -49,12 +49,116 @@
         ],
         "type": "object"
       },
+      "AuditChangeLine": {
+        "description": "One \"What changed\" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed.",
+        "properties": {
+          "field": {
+            "description": "One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`.",
+            "type": "string"
+          },
+          "from": {
+            "description": "The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a category name, a tone); null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fromPerson": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "For `payer`: the old payer."
+              }
+            ]
+          },
+          "to": {
+            "description": "The new value; null when there is none or the field is a text field.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toPerson": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "For `payer`: the new payer."
+              }
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to",
+          "fromPerson",
+          "toPerson"
+        ],
+        "type": "object"
+      },
+      "AuditExpenseSnapshot": {
+        "description": "The facts of an expense as an entry saw it: added, deleted, restored or permanently deleted.",
+        "properties": {
+          "amount": {
+            "description": "The amount.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "category": {
+            "description": "The category's current name; null when the category is gone.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "description": "The expense date.",
+            "format": "date",
+            "type": "string"
+          },
+          "payer": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The payer."
+              }
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "category",
+          "amount",
+          "payer"
+        ],
+        "type": "object"
+      },
       "AuditLogItem": {
         "description": "One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40).",
         "properties": {
           "action": {
             "description": "The action code, for example `user.deactivated`.",
             "type": "string"
+          },
+          "changes": {
+            "description": "The typed \"What changed\" lines of an expense or category entry; empty for every other entry (D-27).",
+            "items": {
+              "$ref": "#/components/schemas/AuditChangeLine"
+            },
+            "type": "array"
           },
           "detail": {
             "description": "The stored detail; null when none.",
@@ -109,6 +213,17 @@
           "reference": {
             "description": "The correlation id, to find the request's log lines.",
             "type": "string"
+          },
+          "snapshot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditExpenseSnapshot",
+                "description": "The facts of an added, deleted, restored or permanently deleted expense; null otherwise (D-27)."
+              }
+            ]
           }
         },
         "required": [
@@ -120,7 +235,9 @@
           "detail",
           "ipPrefix",
           "device",
-          "reference"
+          "reference",
+          "changes",
+          "snapshot"
         ],
         "type": "object"
       },
@@ -218,6 +335,370 @@
         ],
         "type": "object"
       },
+      "CompanyExpenseDetailResponse": {
+        "description": "One company expense with who recorded it, who last changed it, its version and whether the caller may edit it (CEXP-02, CEXP-04).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "canEdit": {
+            "description": "True when the caller may edit it (D-26).",
+            "type": "boolean"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "date": {
+            "description": "The day the money was spent.",
+            "format": "date",
+            "type": "string"
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The expense id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
+          "notes": {
+            "description": "The notes; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The payer."
+          },
+          "paidByActive": {
+            "description": "True while the payer can still be chosen (D-32).",
+            "type": "boolean"
+          },
+          "recordedAt": {
+            "description": "When it was recorded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded it; null reads as System."
+              }
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "category",
+          "description",
+          "amount",
+          "notes",
+          "paidBy",
+          "paidByActive",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt",
+          "version",
+          "canEdit"
+        ],
+        "type": "object"
+      },
+      "CompanyExpenseKpisResponse": {
+        "description": "The month figures for the expenses page (CEXP-03). They ignore the list filters.",
+        "properties": {
+          "lastMonth": {
+            "$ref": "#/components/schemas/MonthKpi",
+            "description": "The month before it."
+          },
+          "thisMonth": {
+            "$ref": "#/components/schemas/MonthKpi",
+            "description": "The business month that holds today."
+          },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
+          "topCategory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TopCategoryKpi",
+                "description": "The top category this month; null when this month has no expenses."
+              }
+            ]
+          }
+        },
+        "required": [
+          "today",
+          "thisMonth",
+          "lastMonth",
+          "topCategory"
+        ],
+        "type": "object"
+      },
+      "CompanyExpenseListItem": {
+        "description": "One expense in the list. It carries no notes (D-19).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "canEdit": {
+            "description": "True when the caller may edit it (D-26).",
+            "type": "boolean"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "date": {
+            "description": "The day the money was spent.",
+            "format": "date",
+            "type": "string"
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The expense id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "paidBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The payer."
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded it; null reads as System."
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "category",
+          "description",
+          "amount",
+          "paidBy",
+          "recordedBy",
+          "canEdit"
+        ],
+        "type": "object"
+      },
+      "CompanyExpenseListResponse": {
+        "description": "One page of the expense list with the figures over every page and the window the server applied.",
+        "properties": {
+          "from": {
+            "description": "The first day of the window used.",
+            "format": "date",
+            "type": "string"
+          },
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/CompanyExpenseListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "periodTotal": {
+            "description": "The sum of the matching amounts across all pages; 0.00 when none match.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "to": {
+            "description": "The last day of the window used.",
+            "format": "date",
+            "type": "string"
+          },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
+          "total": {
+            "description": "How many expenses match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "periodTotal",
+          "from",
+          "to",
+          "today"
+        ],
+        "type": "object"
+      },
+      "CreateCompanyExpenseRequest": {
+        "description": "The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is\nignored: who recorded the expense and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "categoryId": {
+            "description": "The category.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "description": "The day the money was spent, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "description": "Optional notes.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidByUserId": {
+            "description": "The staff member who paid.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "categoryId",
+          "description",
+          "amount",
+          "paidByUserId",
+          "notes"
+        ],
+        "type": "object"
+      },
+      "CreateExpenseCategoryRequest": {
+        "description": "The Add Category form (D-08, D-13). Any other member in the body is ignored: who added the category and when come from the\ntoken and the clock (SEC-08).",
+        "properties": {
+          "name": {
+            "description": "The name; required after trimming, at most 40 characters, unique among all categories.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "tone"
+        ],
+        "type": "object"
+      },
       "CreateUserRequest": {
         "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
         "properties": {
@@ -288,6 +769,115 @@
         ],
         "type": "object"
       },
+      "DeletedExpenseListItem": {
+        "description": "One deleted expense in the deleted list. It carries no notes (D-19).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "date": {
+            "description": "The day the money was spent.",
+            "format": "date",
+            "type": "string"
+          },
+          "deletedAt": {
+            "description": "When it was deleted.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted it; null reads as System."
+              }
+            ]
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The expense id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "paidBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The payer."
+          }
+        },
+        "required": [
+          "id",
+          "deletedAt",
+          "deletedBy",
+          "date",
+          "category",
+          "description",
+          "amount",
+          "paidBy"
+        ],
+        "type": "object"
+      },
+      "DeletedExpenseListResponse": {
+        "description": "One page of the deleted list (D-07). There is no period total.",
+        "properties": {
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/DeletedExpenseListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many deleted expenses match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "DoneBy": {
         "description": "Who did it (D-27).",
         "properties": {
@@ -339,6 +929,167 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "ExpenseCategoryDetailResponse": {
+        "description": "One category with its usage count, who recorded and last changed it, and the version a save must send back (CEXP-02, SEC-07, D-10).",
+        "properties": {
+          "expenseCount": {
+            "description": "How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "id": {
+            "description": "The category id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isOthers": {
+            "description": "True only for the catch-all Others category.",
+            "type": "boolean"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until a change."
+              }
+            ]
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System (the seeded categories)."
+              }
+            ]
+          },
+          "status": {
+            "description": "`active` or `retired`.",
+            "type": "string"
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "status",
+          "isOthers",
+          "expenseCount",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ExpenseCategoryListItem": {
+        "description": "One category in the list the Add picker, the list filter and the Settings page read (D-10, D-11, D-15).",
+        "properties": {
+          "expenseCount": {
+            "description": "How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "id": {
+            "description": "The category id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isOthers": {
+            "description": "True only for the catch-all Others category.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "status": {
+            "description": "`active`, or `retired` so the Add picker can hide it while the list filter keeps it.",
+            "type": "string"
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "status",
+          "isOthers",
+          "expenseCount"
+        ],
+        "type": "object"
+      },
+      "ExpenseCategoryRef": {
+        "description": "The category an expense shows: its name and badge tone, and whether it is retired (D-11).",
+        "properties": {
+          "id": {
+            "description": "The category id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "retired": {
+            "description": "True once the category is retired.",
+            "type": "boolean"
+          },
+          "tone": {
+            "description": "One of the six colour tones.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "retired"
         ],
         "type": "object"
       },
@@ -394,6 +1145,40 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "MonthKpi": {
+        "description": "One month of the KPI row.",
+        "properties": {
+          "count": {
+            "description": "How many expenses the month holds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "month": {
+            "description": "The first day of the month, in the business zone.",
+            "format": "date",
+            "type": "string"
+          },
+          "total": {
+            "description": "The sum of the month's expenses by expense date; 0.00 when none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "total",
+          "count"
         ],
         "type": "object"
       },
@@ -856,6 +1641,159 @@
           "addressLine",
           "facebookUrl",
           "rowVersion"
+        ],
+        "type": "object"
+      },
+      "StaffMember": {
+        "description": "One person who can be named as the payer (CEXP-05): an id and a name, nothing else.",
+        "properties": {
+          "id": {
+            "description": "The account id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The first and last name as saved, joined by one space.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "TopCategoryKpi": {
+        "description": "The category with the highest total this month.",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ExpenseCategoryRef",
+            "description": "The category."
+          },
+          "sharePercent": {
+            "description": "Its share of this month's total, rounded half away from zero to a whole percent.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "Its total this month.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "category",
+          "total",
+          "sharePercent"
+        ],
+        "type": "object"
+      },
+      "UpdateCompanyExpenseRequest": {
+        "description": "The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a\nforged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when\ncome from the token and the clock (SEC-08).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "categoryId": {
+            "description": "The category.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "description": "The day the money was spent, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "What it was for.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "description": "Optional notes.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidByUserId": {
+            "description": "The staff member who paid.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "categoryId",
+          "description",
+          "amount",
+          "paidByUserId",
+          "notes",
+          "version"
+        ],
+        "type": "object"
+      },
+      "UpdateExpenseCategoryRequest": {
+        "description": "The Edit Category form (D-12, D-13, SEC-07). It carries the version the form was opened with. Any other member in the body, such as\na forged `createdById` or `updatedAt`, is ignored: who changed the category and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "name": {
+            "description": "The name; required after trimming, at most 40 characters, unique among all categories. Others keeps its name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "tone",
+          "version"
         ],
         "type": "object"
       },
@@ -2261,6 +3199,1231 @@
         ]
       }
     },
+    "/api/v1/company-expenses": {
+      "get": {
+        "operationId": "ListCompanyExpenses",
+        "parameters": [
+          {
+            "description": "Search text for the description or the payer's or recorder's name; blank means no search.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A category id; none means all.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The first expense date as `yyyy-MM-dd`; send it with `to` or not at all.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last expense date as `yyyy-MM-dd`; send it with `from` or not at all.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs\nfrom 30 days before to 30 days after today in the business zone, and the answer says which dates and which today it used.\nThe total and the period total cover every page of the filter. Both roles see every expense; `canEdit` says whether the\ncaller may edit a row. Notes are never listed or searched.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      },
+      "post": {
+        "operationId": "CreateCompanyExpense",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseDetailResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above\n0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has signed in at least once.\nA retired category is refused. Who recorded it and when come from the token and the clock; any such member in the\nbody is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/deleted": {
+      "get": {
+        "operationId": "ListDeletedCompanyExpenses",
+        "parameters": [
+          {
+            "description": "Search text for the description or the payer's or recorder's name; blank means no search.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A category id; none means all.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedExpenseListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists the deleted expenses, Managers only, most recently deleted first and then by id. Each row says who deleted it and when.\nThe total covers every page of the filter. There is no period total, and notes are never listed or searched.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/kpis": {
+      "get": {
+        "operationId": "GetCompanyExpenseKpis",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseKpisResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the month figures for the expenses page: this month and last month, each with its total and count, and this month's top\ncategory with its share. Months follow the business zone, expenses count by their date (upcoming ones included) and deleted\nexpenses never count. The list filters do not apply.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/{id}": {
+      "delete": {
+        "operationId": "DeleteCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes one expense, Managers only. The expense stays in the database but leaves the list, its total, the month KPIs and the\ndetail, and an edit of it answers 404. Who deleted it and when are recorded, and Last changed by follows. It takes no version:\nit acts on the latest state, and deleting an expense that is already deleted is a 404 that changes nothing.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      },
+      "get": {
+        "operationId": "GetCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateCompanyExpenseRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyExpenseDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves an edit of one expense with the version the form was opened with. The field rules are the same as when recording. A\nversion that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A Manager\nmay edit any expense and an Admin only one they recorded or paid. A payer who is changed must be an active Admin or Manager\nwho has signed in at least once, and a category that is changed must not be retired; a saved payer or category may stay. Who changed it\nand when come from the token and the clock; any such member in the body is ignored. A form with no change saves nothing.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/{id}/permanent": {
+      "delete": {
+        "operationId": "PermanentlyDeleteCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes one expense for good, Managers only, whether or not it was deleted before. The row is removed from the database and there\nis no way back. The audit log keeps one entry with the date, category, amount and payer, and never the description or notes. It\ntakes no version, and removing an expense that is already gone is a 404 that changes nothing.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/company-expenses/{id}/restore": {
+      "post": {
+        "operationId": "RestoreCompanyExpense",
+        "parameters": [
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by\nis the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no\nversion, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/expense-categories": {
+      "get": {
+        "operationId": "ListExpenseCategories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExpenseCategoryListItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id. Each item\nsays how many expenses use the category, soft-deleted ones included. The Add picker hides retired ones; the list filter keeps them.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      },
+      "post": {
+        "operationId": "CreateExpenseCategory",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryListItem"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Adds a category, Managers only. The name is required, at most 40 characters and unique among all categories, retired ones\nincluded, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Who added it and when come from the token and the clock; any such member in the body is\nignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds nothing more.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/expense-categories/{id}": {
+      "delete": {
+        "operationId": "DeleteExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes a category, Managers only, while no expense uses it. An expense uses it when a row exists, soft-deleted ones included;\nonce every expense in it is deleted for good it can be deleted again. A used category answers 422\n`expense-categories.in-use` and should be retired instead. Others can never be deleted. It takes no version.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      },
+      "get": {
+        "operationId": "GetExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one category with how many expenses use it, who recorded and last changed it, and the version a save must send back. Managers only.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateExpenseCategoryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseCategoryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Renames and recolors one category with the version the form was opened with, Managers only. The new name shows on every\nexpense, past ones included. The name and tone follow the same rules as when adding. Others keeps its name but may change\ncolour. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried.\nA form with no change saves nothing and keeps the version. Who changed it and when come from the token and the clock; any such\nmember in the body is ignored.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/expense-categories/{id}/reactivate": {
+      "post": {
+        "operationId": "ReactivateExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Brings a retired category back, Managers only: it can be chosen on a new expense again. Bringing back an active category is a\n204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the\nstored 204.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/expense-categories/{id}/retire": {
+      "post": {
+        "operationId": "RetireExpenseCategory",
+        "parameters": [
+          {
+            "description": "The category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Retires a category, Managers only: it can no longer be chosen on a new expense but stays in the list and the list filter,\nmarked `retired`, and old expenses keep it. Others can never be retired. Retiring a retired category is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "ExpenseCategories"
+        ]
+      }
+    },
     "/api/v1/profile": {
       "get": {
         "operationId": "GetProfile",
@@ -2963,6 +5126,40 @@
         "summary": "Returns the site settings.",
         "tags": [
           "SiteSettings"
+        ]
+      }
+    },
+    "/api/v1/staff": {
+      "get": {
+        "operationId": "ListStaff",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffMember"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted\nand has signed in at least once (entered a sign-in code or accepted an invite). Someone a Manager just added with a\ntemporary password appears after their first sign-in code. Sorted by first name, last name, then id.",
+        "tags": [
+          "Staff"
         ]
       }
     },
@@ -4100,6 +6297,12 @@
       "name": "AuthSession"
     },
     {
+      "name": "CompanyExpenses"
+    },
+    {
+      "name": "ExpenseCategories"
+    },
+    {
       "name": "Invite"
     },
     {
@@ -4116,6 +6319,9 @@
     },
     {
       "name": "SiteSettings"
+    },
+    {
+      "name": "Staff"
     },
     {
       "name": "Users"

@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using FluentValidation;
 
 namespace Csps.Application.Profile;
@@ -24,7 +25,7 @@ public sealed class UpdateProfileNameRequestValidator : AbstractValidator<Update
     public const string LastNameTooLong = "Last name must be 100 characters or fewer.";
 
     /// <summary>The message for a missing or malformed version.</summary>
-    public const string VersionInvalid = "Reload the form and try again.";
+    public const string VersionInvalid = RowVersions.InvalidMessage;
 
     /// <summary>Creates the validator.</summary>
     public UpdateProfileNameRequestValidator()

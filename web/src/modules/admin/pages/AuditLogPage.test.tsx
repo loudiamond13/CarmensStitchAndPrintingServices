@@ -33,6 +33,8 @@ function entry(id: number, overrides: Partial<AuditLogItem> = {}): AuditLogItem 
     ipPrefix: '203.0.113.0/24',
     device: 'Chrome on Android',
     reference: `ref-${String(id)}`,
+    changes: [],
+    snapshot: null,
     ...overrides,
   };
 }
@@ -178,7 +180,7 @@ describe('A1 the header', () => {
     expect(screen.getByText('Manager only')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Every sign-in, security and staff account change, newest first. Times are Manila time. Entries are kept for 8 months.',
+        'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /export|download/i })).toBeNull();
@@ -730,15 +732,47 @@ describe('A1 Done by, Action and Done to (D-26)', () => {
     expect(screen.getByText('Done by: System')).toBeInTheDocument();
   });
 
-  it('groups the actions under Sign-in and security, Staff accounts and Profile changes', async () => {
+  it('groups the actions under the five groups, the expense ones with their labels', async () => {
     backend();
     await openPage();
 
     const select = screen.getByLabelText('Action');
     expect(within(select).getByRole('option', { name: 'All actions' })).toBeInTheDocument();
-    for (const group of ['Sign-in and security', 'Staff accounts', 'Profile changes']) {
+    for (const group of [
+      'Sign-in and security',
+      'Staff accounts',
+      'Profile changes',
+      'Company expenses',
+      'Expense categories',
+    ]) {
       expect(within(select).getByRole('group', { name: group })).toBeInTheDocument();
     }
+    const expenses = within(select).getByRole('group', { name: 'Company expenses' });
+    expect(
+      within(expenses)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual([
+      'Expense added',
+      'Expense changed',
+      'Expense payer changed',
+      'Expense deleted',
+      'Expense restored',
+      'Expense permanently deleted',
+    ]);
+    const categories = within(select).getByRole('group', { name: 'Expense categories' });
+    expect(
+      within(categories)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual([
+      'Category added',
+      'Category renamed',
+      'Category color changed',
+      'Category retired',
+      'Category back in use',
+      'Category deleted',
+    ]);
     const staff = within(select).getByRole('group', { name: 'Staff accounts' });
     expect(within(staff).getByRole('option', { name: 'User deactivated' })).toBeInTheDocument();
   });
@@ -851,6 +885,80 @@ describe('A1 Done by, Action and Done to (D-26)', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Done by')).toBeEnabled();
     });
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+const NO_PERSON = { fromPerson: null, toPerson: null } as const;
+
+const EXPENSE_ITEMS: AuditLogItem[] = [
+  entry(12, {
+    action: 'expense-category.renamed',
+    doneTo: null,
+    detail: 'name=Supplies>Office%20supplies',
+    changes: [{ field: 'name', from: 'Supplies', to: 'Office supplies', ...NO_PERSON }],
+  }),
+  entry(11, {
+    action: 'company-expense.payer-changed',
+    doneTo: PAOLO,
+    detail: `payer=${CARMEN.id}>${PAOLO.id}`,
+    changes: [{ field: 'payer', from: null, to: null, fromPerson: CARMEN, toPerson: PAOLO }],
+  }),
+  entry(10, {
+    action: 'company-expense.changed',
+    doneTo: PAOLO,
+    detail: 'date=2026-10-05>2026-10-06;fields=notes;payer=x',
+    changes: [
+      { field: 'date', from: '2026-10-05', to: '2026-10-06', ...NO_PERSON },
+      { field: 'category', from: 'Supplies', to: null, ...NO_PERSON },
+      { field: 'notes', from: null, to: null, ...NO_PERSON },
+    ],
+  }),
+  entry(9, {
+    action: 'company-expense.added',
+    doneTo: PAOLO,
+    detail: 'date=2026-10-05',
+    snapshot: { date: '2026-10-05', category: 'Utilities', amount: 8642.35, payer: PAOLO },
+  }),
+];
+
+describe('A1 expense and category entries (D-27)', () => {
+  it('names the payer as Done to for an expense entry and shows the empty-value icon for a category entry', async () => {
+    backend(EXPENSE_ITEMS);
+    await openPage();
+
+    expect(cellOf(rowOf('Expense changed'), 'Done to')).toHaveTextContent('Paolo Garcia');
+    const category = cellOf(rowOf('Category renamed'), 'Done to');
+    expect(within(category).getByText('Not set')).toBeInTheDocument();
+  });
+
+  it('reads the change lines and the snapshot of each entry as fixed sentences, never the stored detail', async () => {
+    backend(EXPENSE_ITEMS);
+    const user = userEvent.setup();
+    const { container } = await openPage();
+
+    for (const action of ['Category renamed', 'Expense payer changed', 'Expense changed', 'Expense added']) {
+      await user.click(within(rowOf(action)).getByRole('button', { name: new RegExp(`^Show details for ${action}`) }));
+    }
+
+    expect(screen.getByText('Name: Supplies to Office supplies')).toBeInTheDocument();
+    expect(screen.getByText('Paid by: Carmen Reyes to Paolo Garcia')).toBeInTheDocument();
+    expect(screen.getByText('Date: Oct 5, 2026 to Oct 6, 2026')).toBeInTheDocument();
+    expect(screen.getByText('Category: Supplies to a deleted category')).toBeInTheDocument();
+    expect(screen.getByText('Notes changed')).toBeInTheDocument();
+    expect(screen.getByText('Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by Paolo Garcia')).toBeInTheDocument();
+    expect(container).not.toHaveTextContent('Office%20supplies');
+    expect(container).not.toHaveTextContent('payer=');
+  });
+
+  it('has no axe violations with the expense entries open', async () => {
+    vi.useRealTimers();
+    backend(EXPENSE_ITEMS);
+    const user = userEvent.setup();
+    const { container } = await openPage();
+    await user.click(screen.getByRole('button', { name: /^Show details for Expense changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Expense added/ }));
 
     await expectNoAxeViolations(container);
   });

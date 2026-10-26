@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-19T03:30:00-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-25T04:27:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -113,11 +113,12 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Company Expenses (CEXP)
 
-- [ ] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
-- [ ] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
-- [ ] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
-- [ ] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
-- [ ] **CEXP-05**: Every company expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it on create and edit: it must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for the payment receiver (ORD-22). A saved expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The form has a required "Paid by" picker of active staff, the list shows a Paid by column, and CEXP-01's staff-name search also matches it; the UI spec's modal and table lack the field, so both are marked SPEC-GAP. This phase builds the staff lookup (id and display name of active Admins and Managers, open to both roles because the USER-01 roster is Manager-only) that ORD-22 and ORD-23 reuse. Paid by is separate from Recorded by (CEXP-04, SEC-08): Paid by is whose money paid the expense, Recorded by is who entered it ⚑ OD-16, OD-21
+- [x] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
+  - *Phase 6 note (owner decision D-23, 2026-10-25; the requirement text above is unchanged):* the "last 30 days" default is superseded by a window from 30 days before to 30 days after the business today, so early-recorded expenses still show. See `phases/06-company-expenses/06-CONTEXT.md` D-23.
+- [x] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
+- [x] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
+- [x] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
+- [x] **CEXP-05**: Every company expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it on create and edit: it must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for the payment receiver (ORD-22). A saved expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The form has a required "Paid by" picker of active staff, the list shows a Paid by column, and CEXP-01's staff-name search also matches it; the UI spec's modal and table lack the field, so both are marked SPEC-GAP. This phase builds the staff lookup (id and display name of active Admins and Managers, open to both roles because the USER-01 roster is Manager-only) that ORD-22 and ORD-23 reuse. Paid by is separate from Recorded by (CEXP-04, SEC-08): Paid by is whose money paid the expense, Recorded by is who entered it ⚑ OD-16, OD-21
 
 ### Orders (ORD)
 
@@ -248,7 +249,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [x] **PERF-01**: Bundle budgets are enforced in CI from the first build: public route initial JS ≤ 150 KB gz, admin ≤ 250 KB gz, total CSS ≤ 35 KB gz
 - [x] **PERF-02**: Public pages score ≥ 95 in every Lighthouse category on the mobile profile, with LCP < 2.0 s, CLS < 0.05 and INP < 200 ms (Lighthouse CI)
 - [x] **PERF-03**: Every screen works from 320 px to 1920 px in portrait and landscape (verified at 320/375/414/768/1024/1280/1536/1920) with no horizontal scrolling, touch targets ≥ 44 px, ≥ 16 px inputs and correct `inputmode`/`type`
-- [ ] **PERF-04**: List endpoints meet API p95 < 300 ms on the target host with `AsNoTracking` projections, indexes on every filter/sort column, compiled queries on hot paths, and query-count tests guarding against N+1
+- [x] **PERF-04**: List endpoints meet API p95 < 300 ms on the target host with `AsNoTracking` projections, indexes on every filter/sort column, compiled queries on hot paths, and query-count tests guarding against N+1
 - [x] **PERF-05**: Fonts are self-hosted woff2, subset, `font-display: swap`, with the primary font preloaded and metric-matched fallbacks. The ₱ glyph renders in the brand font
 - [ ] **PERF-06**: Staff can install the admin portal as a PWA (manifest + icons). The service worker caches only static assets and the app shell, never API or authenticated responses, and shows a "new version available — reload" prompt
 - [ ] **PERF-07**: Route transitions use the View Transitions API as a progressive enhancement, and all motion is disabled under `prefers-reduced-motion`
@@ -398,11 +399,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-08 | Phase 5 | Complete |
 | AUDIT-01 | Phase 4 | Partial: auth events done in Phase 4; user, order, expense and content events with their features |
 | AUDIT-02 | Phase 5 | Complete |
-| CEXP-01 | Phase 6 | Pending |
-| CEXP-02 | Phase 6 | Pending |
-| CEXP-03 | Phase 6 | Pending |
-| CEXP-04 | Phase 6 | Pending |
-| CEXP-05 | Phase 6 | Pending |
+| CEXP-01 | Phase 6 | Complete |
+| CEXP-02 | Phase 6 | Complete |
+| CEXP-03 | Phase 6 | Complete |
+| CEXP-04 | Phase 6 | Complete |
+| CEXP-05 | Phase 6 | Complete |
 | ORD-01 | Phase 8 | Pending |
 | ORD-02 | Phase 8 | Pending |
 | ORD-03 | Phase 7 | Pending |
@@ -492,7 +493,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERF-01 | Phase 2 | Complete |
 | PERF-02 | Phase 2 | Complete |
 | PERF-03 | Phase 2 | Complete |
-| PERF-04 | Phase 6 | Pending |
+| PERF-04 | Phase 6 | Complete |
 | PERF-05 | Phase 2 | Complete |
 | PERF-06 | Phase 14 | Pending |
 | PERF-07 | Phase 14 | Pending |

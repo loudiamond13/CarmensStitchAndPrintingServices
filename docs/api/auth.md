@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-10-19T04:05:00-05:00
+updated: 2026-10-25T21:59:00-05:00
 ---
 
 # The authentication and sessions API
@@ -135,7 +135,7 @@ or re-scoping the refresh cookie signs every device out once.
 |---|---|---|
 | `Authorization: Bearer <accessToken>` | request | Needed by every Staff call. |
 | `X-CSPS-CSRF: 1` | request | Needed by every call that reads an auth cookie: verify, resend, refresh, sign-out and set-new. A cross-site page cannot add it. Without it the answer is `403` `auth.csrf-check-failed`. A `Sec-Fetch-Site` header, when the browser sends one, must be `same-origin`. |
-| `Idempotency-Key: <uuid>` | request | Needed by every `POST` and `DELETE` that changes something and is not on the allow-list. Send a fresh UUID per user action and **reuse it when you retry the same action**. The same key with the same body returns the stored answer; the same key with another body is `422` `idempotency.key-mismatch`; a duplicate while the first still runs is `409` `idempotency.in-progress`; a missing or non-UUID key is `400` `idempotency.key-missing`. |
+| `Idempotency-Key: <uuid>` | request | Needed by every `POST` and `DELETE` that changes something and is not on the allow-list. Send a fresh UUID per user action and **reuse it when you retry the same action**. The same key with the same body returns the stored answer; the same key with another body is `422` `idempotency.key-mismatch`; a duplicate while the first still runs is `409` `idempotency.in-progress`; a missing or non-UUID key is `400` `idempotency.key-missing`. If the server stops in the middle of a request, the same key answers `409` `idempotency.in-progress` for up to 2 minutes, then runs again. |
 | `Idempotent-Replayed: true` | response | The answer is the stored one from an earlier call with this key. |
 | `Retry-After: <seconds>` | response | Sent with a `429` that has a wait time (the resend cooldown and the per-address limits). The hourly resend cap sends none. |
 

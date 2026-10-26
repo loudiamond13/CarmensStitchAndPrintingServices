@@ -267,6 +267,243 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/company-expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists expenses, newest first by expense date, then by when they were recorded, then by id. With neither date the window runs
+         *     from 30 days before to 30 days after today in the business zone, and the answer says which dates and which today it used.
+         *     The total and the period total cover every page of the filter. Both roles see every expense; `canEdit` says whether the
+         *     caller may edit a row. Notes are never listed or searched.
+         */
+        get: operations["ListCompanyExpenses"];
+        put?: never;
+        /**
+         * Records an expense. The date may be any past day and up to 30 days after today in the business zone, the amount is above
+         *     0.00 and at most 1,000,000.00 with two decimal places, and the payer must be an active Admin or Manager who has signed in at least once.
+         *     A retired category is refused. Who recorded it and when come from the token and the clock; any such member in the
+         *     body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.
+         */
+        post: operations["CreateCompanyExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company-expenses/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the deleted expenses, Managers only, most recently deleted first and then by id. Each row says who deleted it and when.
+         *     The total covers every page of the filter. There is no period total, and notes are never listed or searched.
+         */
+        get: operations["ListDeletedCompanyExpenses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company-expenses/kpis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the month figures for the expenses page: this month and last month, each with its total and count, and this month's top
+         *     category with its share. Months follow the business zone, expenses count by their date (upcoming ones included) and deleted
+         *     expenses never count. The list filters do not apply.
+         */
+        get: operations["GetCompanyExpenseKpis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company-expenses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one expense with its version, who recorded it and last changed it, and whether the caller may edit it. */
+        get: operations["GetCompanyExpense"];
+        /**
+         * Saves an edit of one expense with the version the form was opened with. The field rules are the same as when recording. A
+         *     version that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A Manager
+         *     may edit any expense and an Admin only one they recorded or paid. A payer who is changed must be an active Admin or Manager
+         *     who has signed in at least once, and a category that is changed must not be retired; a saved payer or category may stay. Who changed it
+         *     and when come from the token and the clock; any such member in the body is ignored. A form with no change saves nothing.
+         */
+        put: operations["UpdateCompanyExpense"];
+        post?: never;
+        /**
+         * Deletes one expense, Managers only. The expense stays in the database but leaves the list, its total, the month KPIs and the
+         *     detail, and an edit of it answers 404. Who deleted it and when are recorded, and Last changed by follows. It takes no version:
+         *     it acts on the latest state, and deleting an expense that is already deleted is a 404 that changes nothing.
+         */
+        delete: operations["DeleteCompanyExpense"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company-expenses/{id}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Deletes one expense for good, Managers only, whether or not it was deleted before. The row is removed from the database and there
+         *     is no way back. The audit log keeps one entry with the date, category, amount and payer, and never the description or notes. It
+         *     takes no version, and removing an expense that is already gone is a 404 that changes nothing.
+         */
+        delete: operations["PermanentlyDeleteCompanyExpense"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company-expenses/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by
+         *     is the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no
+         *     version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RestoreCompanyExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every category, retired ones included with status `retired`, A to Z with Others always last, then by id. Each item
+         *     says how many expenses use the category, soft-deleted ones included. The Add picker hides retired ones; the list filter keeps them.
+         */
+        get: operations["ListExpenseCategories"];
+        put?: never;
+        /**
+         * Adds a category, Managers only. The name is required, at most 40 characters and unique among all categories, retired ones
+         *     included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Who added it and when come from the token and the clock; any such member in the body is
+         *     ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds nothing more.
+         */
+        post: operations["CreateExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one category with how many expenses use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetExpenseCategory"];
+        /**
+         * Renames and recolors one category with the version the form was opened with, Managers only. The new name shows on every
+         *     expense, past ones included. The name and tone follow the same rules as when adding. Others keeps its name but may change
+         *     colour. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried.
+         *     A form with no change saves nothing and keeps the version. Who changed it and when come from the token and the clock; any such
+         *     member in the body is ignored.
+         */
+        put: operations["UpdateExpenseCategory"];
+        post?: never;
+        /**
+         * Deletes a category, Managers only, while no expense uses it. An expense uses it when a row exists, soft-deleted ones included;
+         *     once every expense in it is deleted for good it can be deleted again. A used category answers 422
+         *     `expense-categories.in-use` and should be retired instead. Others can never be deleted. It takes no version.
+         */
+        delete: operations["DeleteExpenseCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-categories/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Brings a retired category back, Managers only: it can be chosen on a new expense again. Bringing back an active category is a
+         *     204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the
+         *     stored 204.
+         */
+        post: operations["ReactivateExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-categories/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retires a category, Managers only: it can no longer be chosen on a new expense but stays in the list and the list filter,
+         *     marked `retired`, and old expenses keep it. Others can never be retired. Retiring a retired category is a 204 that
+         *     changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RetireExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -429,6 +666,27 @@ export interface paths {
         };
         /** Returns the site settings. */
         get: operations["GetSiteSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted
+         *     and has signed in at least once (entered a sign-in code or accepted an invite). Someone a Manager just added with a
+         *     temporary password appears after their first sign-in code. Sorted by first name, last name, then id.
+         */
+        get: operations["ListStaff"];
         put?: never;
         post?: never;
         delete?: never;
@@ -688,10 +946,39 @@ export interface components {
             /** @description The actor's name, first then last. */
             name: string;
         };
+        /** @description One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed. */
+        AuditChangeLine: {
+            /** @description One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`. */
+            field: string;
+            /** @description The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a category name, a tone); null when there is none. */
+            from: null | string;
+            fromPerson: null | components["schemas"]["ActorRef"];
+            /** @description The new value; null when there is none or the field is a text field. */
+            to: null | string;
+            toPerson: null | components["schemas"]["ActorRef"];
+        };
+        /** @description The facts of an expense as an entry saw it: added, deleted, restored or permanently deleted. */
+        AuditExpenseSnapshot: {
+            /**
+             * Format: double
+             * @description The amount.
+             */
+            amount: number | string;
+            /** @description The category's current name; null when the category is gone. */
+            category: null | string;
+            /**
+             * Format: date
+             * @description The expense date.
+             */
+            date: string;
+            payer: null | components["schemas"]["ActorRef"];
+        };
         /** @description One audit entry as the viewer shows it (D-27). The detail is the stored fixed words: field names and role values, never names or emails (D-40). */
         AuditLogItem: {
             /** @description The action code, for example `user.deactivated`. */
             action: string;
+            /** @description The typed "What changed" lines of an expense or category entry; empty for every other entry (D-27). */
+            changes: components["schemas"]["AuditChangeLine"][];
             /** @description The stored detail; null when none. */
             detail: null | string;
             /** @description The browser family; null when unknown. */
@@ -713,6 +1000,7 @@ export interface components {
             occurredAt: string;
             /** @description The correlation id, to find the request's log lines. */
             reference: string;
+            snapshot: null | components["schemas"]["AuditExpenseSnapshot"];
         };
         /** @description One page of the audit log, newest first (AUDIT-02). */
         AuditLogResponse: {
@@ -753,6 +1041,167 @@ export interface components {
             /** @description The new password as typed. */
             newPassword: null | string;
         };
+        /** @description One company expense with who recorded it, who last changed it, its version and whether the caller may edit it (CEXP-02, CEXP-04). */
+        CompanyExpenseDetailResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description True when the caller may edit it (D-26). */
+            canEdit: boolean;
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: date
+             * @description The day the money was spent.
+             */
+            date: string;
+            /** @description What it was for. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The notes; null when none. */
+            notes: null | string;
+            /** @description The payer. */
+            paidBy: components["schemas"]["ActorRef"];
+            /** @description True while the payer can still be chosen (D-32). */
+            paidByActive: boolean;
+            /**
+             * Format: date-time
+             * @description When it was recorded.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
+        /** @description The month figures for the expenses page (CEXP-03). They ignore the list filters. */
+        CompanyExpenseKpisResponse: {
+            /** @description The month before it. */
+            lastMonth: components["schemas"]["MonthKpi"];
+            /** @description The business month that holds today. */
+            thisMonth: components["schemas"]["MonthKpi"];
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
+            topCategory: null | components["schemas"]["TopCategoryKpi"];
+        };
+        /** @description One expense in the list. It carries no notes (D-19). */
+        CompanyExpenseListItem: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description True when the caller may edit it (D-26). */
+            canEdit: boolean;
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: date
+             * @description The day the money was spent.
+             */
+            date: string;
+            /** @description What it was for. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /** @description The payer. */
+            paidBy: components["schemas"]["ActorRef"];
+            recordedBy: null | components["schemas"]["ActorRef"];
+        };
+        /** @description One page of the expense list with the figures over every page and the window the server applied. */
+        CompanyExpenseListResponse: {
+            /**
+             * Format: date
+             * @description The first day of the window used.
+             */
+            from: string;
+            /** @description The rows of this page. */
+            items: components["schemas"]["CompanyExpenseListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: double
+             * @description The sum of the matching amounts across all pages; 0.00 when none match.
+             */
+            periodTotal: number | string;
+            /**
+             * Format: date
+             * @description The last day of the window used.
+             */
+            to: string;
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
+            /**
+             * Format: int32
+             * @description How many expenses match, across all pages.
+             */
+            total: number | string;
+        };
+        /**
+         * @description The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is
+         *     ignored: who recorded the expense and when come from the token and the clock (SEC-08).
+         */
+        CreateCompanyExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /**
+             * Format: uuid
+             * @description The category.
+             */
+            categoryId: null | string;
+            /** @description The day the money was spent, `yyyy-MM-dd`. */
+            date: null | string;
+            /** @description What it was for. */
+            description: null | string;
+            /** @description Optional notes. */
+            notes: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+        };
+        /**
+         * @description The Add Category form (D-08, D-13). Any other member in the body is ignored: who added the category and when come from the
+         *     token and the clock (SEC-08).
+         */
+        CreateExpenseCategoryRequest: {
+            /** @description The name; required after trimming, at most 40 characters, unique among all categories. */
+            name: null | string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: null | string;
+        };
         /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
          *     body, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).
@@ -779,6 +1228,56 @@ export interface components {
              */
             id: string;
         };
+        /** @description One deleted expense in the deleted list. It carries no notes (D-19). */
+        DeletedExpenseListItem: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: date
+             * @description The day the money was spent.
+             */
+            date: string;
+            /**
+             * Format: date-time
+             * @description When it was deleted.
+             */
+            deletedAt: string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description What it was for. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /** @description The payer. */
+            paidBy: components["schemas"]["ActorRef"];
+        };
+        /** @description One page of the deleted list (D-07). There is no period total. */
+        DeletedExpenseListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["DeletedExpenseListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many deleted expenses match, across all pages.
+             */
+            total: number | string;
+        };
         /** @description Who did it (D-27). */
         DoneBy: {
             /** @description One of DoneByKinds. */
@@ -794,6 +1293,76 @@ export interface components {
         EmailChangeTokenRequest: {
             /** @description The 43-character token. */
             token: null | string;
+        };
+        /** @description One category with its usage count, who recorded and last changed it, and the version a save must send back (CEXP-02, SEC-07, D-10). */
+        ExpenseCategoryDetailResponse: {
+            /**
+             * Format: int32
+             * @description How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).
+             */
+            expenseCount: number | string;
+            /**
+             * Format: uuid
+             * @description The category id.
+             */
+            id: string;
+            /** @description True only for the catch-all Others category. */
+            isOthers: boolean;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until a change.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The display name. */
+            name: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description `active` or `retired`. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
+        /** @description One category in the list the Add picker, the list filter and the Settings page read (D-10, D-11, D-15). */
+        ExpenseCategoryListItem: {
+            /**
+             * Format: int32
+             * @description How many expenses use the category, soft-deleted ones included; a category with none can be deleted (D-10, D-30).
+             */
+            expenseCount: number | string;
+            /**
+             * Format: uuid
+             * @description The category id.
+             */
+            id: string;
+            /** @description True only for the catch-all Others category. */
+            isOthers: boolean;
+            /** @description The display name. */
+            name: string;
+            /** @description `active`, or `retired` so the Add picker can hide it while the list filter keeps it. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
+        };
+        /** @description The category an expense shows: its name and badge tone, and whether it is retired (D-11). */
+        ExpenseCategoryRef: {
+            /**
+             * Format: uuid
+             * @description The category id.
+             */
+            id: string;
+            /** @description The display name. */
+            name: string;
+            /** @description True once the category is retired. */
+            retired: boolean;
+            /** @description One of the six colour tones. */
+            tone: string;
         };
         /** @description The forgot-password form: the email the reset link goes to (D-16). */
         ForgotPasswordRequest: {
@@ -813,6 +1382,24 @@ export interface components {
         InviteTokenRequest: {
             /** @description The 43-character token. */
             token: null | string;
+        };
+        /** @description One month of the KPI row. */
+        MonthKpi: {
+            /**
+             * Format: int32
+             * @description How many expenses the month holds.
+             */
+            count: number | string;
+            /**
+             * Format: date
+             * @description The first day of the month, in the business zone.
+             */
+            month: string;
+            /**
+             * Format: double
+             * @description The sum of the month's expenses by expense date; 0.00 when none.
+             */
+            total: number | string;
         };
         ProblemDetails: {
             detail?: null | string;
@@ -1003,6 +1590,73 @@ export interface components {
             rowVersion: string;
             /** @description The business time zone id. */
             timeZoneId: string;
+        };
+        /** @description One person who can be named as the payer (CEXP-05): an id and a name, nothing else. */
+        StaffMember: {
+            /**
+             * Format: uuid
+             * @description The account id.
+             */
+            id: string;
+            /** @description The first and last name as saved, joined by one space. */
+            name: string;
+        };
+        /** @description The category with the highest total this month. */
+        TopCategoryKpi: {
+            /** @description The category. */
+            category: components["schemas"]["ExpenseCategoryRef"];
+            /**
+             * Format: int32
+             * @description Its share of this month's total, rounded half away from zero to a whole percent.
+             */
+            sharePercent: number | string;
+            /**
+             * Format: double
+             * @description Its total this month.
+             */
+            total: number | string;
+        };
+        /**
+         * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
+         *     forged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when
+         *     come from the token and the clock (SEC-08).
+         */
+        UpdateCompanyExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /**
+             * Format: uuid
+             * @description The category.
+             */
+            categoryId: null | string;
+            /** @description The day the money was spent, `yyyy-MM-dd`. */
+            date: null | string;
+            /** @description What it was for. */
+            description: null | string;
+            /** @description Optional notes. */
+            notes: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Category form (D-12, D-13, SEC-07). It carries the version the form was opened with. Any other member in the body, such as
+         *     a forged `createdById` or `updatedAt`, is ignored: who changed the category and when come from the token and the clock (SEC-08).
+         */
+        UpdateExpenseCategoryRequest: {
+            /** @description The name; required after trimming, at most 40 characters, unique among all categories. Others keeps its name. */
+            name: null | string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
         };
         /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
         UpdateProfileNameRequest: {
@@ -1840,6 +2494,883 @@ export interface operations {
             };
         };
     };
+    ListCompanyExpenses: {
+        parameters: {
+            query?: {
+                /** @description Search text for the description or the payer's or recorder's name; blank means no search. */
+                q?: string;
+                /** @description A category id; none means all. */
+                category?: string;
+                /** @description The first expense date as `yyyy-MM-dd`; send it with `to` or not at all. */
+                from?: string;
+                /** @description The last expense date as `yyyy-MM-dd`; send it with `from` or not at all. */
+                to?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateCompanyExpenseRequest"];
+                "application/json": null | components["schemas"]["CreateCompanyExpenseRequest"];
+                "text/json": null | components["schemas"]["CreateCompanyExpenseRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListDeletedCompanyExpenses: {
+        parameters: {
+            query?: {
+                /** @description Search text for the description or the payer's or recorder's name; blank means no search. */
+                q?: string;
+                /** @description A category id; none means all. */
+                category?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedExpenseListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCompanyExpenseKpis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseKpisResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateCompanyExpenseRequest"];
+                "application/json": null | components["schemas"]["UpdateCompanyExpenseRequest"];
+                "text/json": null | components["schemas"]["UpdateCompanyExpenseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExpenseDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PermanentlyDeleteCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RestoreCompanyExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The expense id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListExpenseCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateExpenseCategoryRequest"];
+                "application/json": null | components["schemas"]["CreateExpenseCategoryRequest"];
+                "text/json": null | components["schemas"]["CreateExpenseCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryListItem"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateExpenseCategoryRequest"];
+                "application/json": null | components["schemas"]["UpdateExpenseCategoryRequest"];
+                "text/json": null | components["schemas"]["UpdateExpenseCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivateExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetireExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetProfile: {
         parameters: {
             query?: never;
@@ -2337,6 +3868,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteSettingsDto"];
+                };
+            };
+        };
+    };
+    ListStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMember"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

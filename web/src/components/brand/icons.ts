@@ -1,11 +1,13 @@
 // SPEC-DEVIATION: D-10 lucide-react wrapper (lucide-react 1.53.0, D-34); drawings approved D-32
 // App. D.5 shipped Lucide 0.460.0 node data for these icons; the design system draws them with lucide-react's own
 // components instead (per-icon named imports, so unused icons are tree-shaken). The keys are the 56 App. D.5 names (the
-// spec prose says 57; its ICONS object holds 56), then `minus`, the owner's empty-value icon (OR-4), and the six Phase 5 icons (copy, lock-open, key-round, user-x,
-// user-check, history; UI-SPEC OQ-9). The 20 redrawn icons are owner-approved as the new
+// spec prose says 57; its ICONS object holds 56), then `minus`, the owner's empty-value icon (OR-4), the six Phase 5 icons (copy, lock-open, key-round, user-x,
+// user-check, history; UI-SPEC OQ-9) and the five Phase 6 icons (settings, rotate-ccw, archive, archive-restore, eraser; UI-SPEC OQ-12). The 20 redrawn icons are owner-approved as the new
 // drawing (D-32). Two spec names are lucide aliases and keep their spec name here: `trash-2` draws lucide's Trash
 // and `filter` draws lucide's Funnel (D-32).
 import {
+  Archive,
+  ArchiveRestore,
   ArrowRight,
   ArrowUpRight,
   Calendar,
@@ -19,6 +21,7 @@ import {
   CloudUpload,
   Copy,
   Ellipsis,
+  Eraser,
   Eye,
   EyeOff,
   Funnel,
@@ -50,9 +53,11 @@ import {
   Printer,
   Quote,
   Receipt,
+  RotateCcw,
   Ruler,
   Scissors,
   Search,
+  Settings,
   ShieldCheck,
   Shirt,
   Star,
@@ -137,6 +142,11 @@ export const ICONS = {
   'user-x': UserX,
   'user-check': UserCheck,
   history: History,
+  settings: Settings,
+  'rotate-ccw': RotateCcw,
+  archive: Archive,
+  'archive-restore': ArchiveRestore,
+  eraser: Eraser,
 } as const satisfies Record<string, LucideIcon>;
 
 /** The icon names the design uses; `<Icon name="trahs-2" />` is a compile error. */

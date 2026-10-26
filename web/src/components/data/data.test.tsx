@@ -135,6 +135,13 @@ describe('OrderCard (App. D.3)', () => {
     expect(screen.queryByText('Fully Paid')).toBeNull();
   });
 
+  it('shows a large image count with a thousands separator in the cover name and chip', () => {
+    const images = Array.from({ length: 1200 }, (_, index) => ({ id: `img-${String(index)}` }));
+    render(<OrderCard order={{ ...order0148, images }} />);
+    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 1,200 images' });
+    expect(media.textContent).toContain('1,200');
+  });
+
   it('makes the cover a button named with the order, its status and image count, holding all three (UI-WR-12)', () => {
     render(<OrderCard order={order0148} />);
     const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 4 images' });

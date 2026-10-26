@@ -19,6 +19,15 @@ export const fieldClasses = tw(
   'flex min-w-0 flex-col gap-1.5 in-data-[ui=s-toolbar]:flex-[0_1_180px] pg-phone:in-data-[ui=s-toolbar]:flex-[1_1_140px] pg-tablet:in-data-[ui=s-toolbar]:flex-[1_1_150px]',
 );
 
+/** The row that holds a field's control box and its `beside` content. */
+export const fieldRowClasses = tw('flex min-w-0 items-center gap-2');
+
+/** The control box inside that row: it takes the width the beside content leaves. */
+export const fieldBesideBoxClasses = tw('min-w-0 flex-1');
+
+/** The chosen date written out beside a date box: the hint's size and colour, one line, never shrinking. */
+export const dateReadableClasses = tw('shrink-0 text-[12px] leading-4 whitespace-nowrap text-ink-muted');
+
 /** `.csp-label` (14/20, 600, --ink), and `.s-toolbar .csp-label` (12/16, --ink-muted). */
 export const labelClasses = tw(
   'text-[14px] leading-5 font-semibold text-ink in-data-[ui=s-toolbar]:text-[12px] in-data-[ui=s-toolbar]:leading-4 in-data-[ui=s-toolbar]:text-ink-muted',

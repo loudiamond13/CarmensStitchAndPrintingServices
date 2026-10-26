@@ -20,6 +20,8 @@ function entry(overrides: Partial<AuditLogItem> = {}): AuditLogItem {
     ipPrefix: '203.0.113.0/24',
     device: 'Chrome on Android',
     reference: 'c0ffee00-1111-4222-8333-444455556666',
+    changes: [],
+    snapshot: null,
     ...overrides,
   };
 }
@@ -99,6 +101,30 @@ describe('AuditDetail', () => {
 
     expect(screen.queryByText(/@/)).toBeNull();
     expect(screen.queryByText('What changed')).toBeNull();
+  });
+
+  it('lists the change lines of an expense entry and never the raw detail (D-27)', () => {
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'company-expense.changed',
+          detail: 'amount=1200.00>1250.00;fields=description;payer=00000000-0000-4000-8000-000000000002',
+          changes: [
+            { field: 'amount', from: '1200.00', to: '1250.00', fromPerson: null, toPerson: null },
+            { field: 'description', from: null, to: null, fromPerson: null, toPerson: null },
+          ],
+        })}
+      />,
+    );
+
+    const value = valueOf(container, 'What changed');
+    expect(
+      within(value)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Amount: ₱1,200.00 to ₱1,250.00', 'Description changed']);
+    expect(container).not.toHaveTextContent('1200.00>1250.00');
+    expect(container).not.toHaveTextContent('payer=');
   });
 
   it('has no axe violations', async () => {

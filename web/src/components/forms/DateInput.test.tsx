@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { DateInput } from '@/components';
 import * as forms from '@/components/forms';
-import { fieldInputClasses } from './field.recipe';
+import { dateReadableClasses, fieldInputClasses } from './field.recipe';
 
 // DateInput (SPEC-GAP, first needed by the Audit Log range filter, plan 05-32; UI-SPEC "DateInput"): a Field with a native
 // date input, the field-control look (44px, 16px text), min and max, and a YYYY-MM-DD value in business time. Range and
@@ -88,6 +88,64 @@ describe('DateInput (SPEC-GAP)', () => {
     render(<DateInput label="From" value="" onChange={() => undefined} disabled required />);
     expect(dateInput('From')).toBeDisabled();
     expect(dateInput('From')).toBeRequired();
+  });
+
+  it('renders no readable date unless asked', () => {
+    const { container } = render(<DateInput label="From" value="2026-09-26" onChange={() => undefined} />);
+
+    expect(container).not.toHaveTextContent('Sep 26, 2026');
+    expect([...(container.firstElementChild?.children ?? [])].map((child) => child.localName)).toEqual([
+      'label',
+      'div',
+    ]);
+  });
+
+  it('shows the date as "Sep 26, 2026" beside the box, hidden from assistive technology', () => {
+    const { container } = render(
+      <DateInput label="From" value="2026-09-26" onChange={() => undefined} readableDate hint="Hint." />,
+    );
+    const readable = screen.getByText('Sep 26, 2026');
+
+    expect(readable).toHaveAttribute('aria-hidden', 'true');
+    expect([...readable.classList].sort()).toEqual(dateReadableClasses.split(/\s+/).filter(Boolean).sort());
+    expect(readable.parentElement).toBe(dateInput('From').parentElement?.parentElement);
+    expect(container.firstElementChild?.querySelector('label')).toHaveTextContent(/^From$/);
+    expect(dateInput('From')).toHaveAccessibleName('From');
+    expect(dateInput('From')).toHaveAccessibleDescription('Hint.');
+  });
+
+  it.for(['', '2026-09', '2026-02-30'])('shows nothing beside the box for %j', (value) => {
+    const { container } = render(<DateInput label="From" value={value} onChange={() => undefined} readableDate />);
+    const readable = container.querySelector('[aria-hidden="true"]');
+
+    expect(readable).not.toBeNull();
+    expect(readable?.textContent).toBe('');
+  });
+
+  it('keeps the same input element while the value goes from empty to a date and on', () => {
+    const { rerender } = render(<DateInput label="From" value="" onChange={() => undefined} readableDate />);
+    const input = dateInput('From');
+    input.focus();
+
+    rerender(<DateInput label="From" value="2026-09-26" onChange={() => undefined} readableDate />);
+    expect(dateInput('From')).toBe(input);
+    expect(input).toHaveFocus();
+    expect(screen.getByText('Sep 26, 2026')).toBeInTheDocument();
+
+    rerender(<DateInput label="From" value="2026-09-27" onChange={() => undefined} readableDate />);
+    expect(dateInput('From')).toBe(input);
+    expect(screen.getByText('Sep 27, 2026')).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the readable date, plain, with an error and required', async () => {
+    const view = render(
+      <div>
+        <DateInput label="From" value="2026-09-26" onChange={() => undefined} readableDate />
+        <DateInput label="To" value="" onChange={() => undefined} readableDate error="Enter a date." />
+        <DateInput label="On" value="2026-09-26" onChange={() => undefined} readableDate required />
+      </div>,
+    );
+    await expectNoAxeViolations(view.container);
   });
 
   it('has no axe violations, plain or with an error', async () => {

@@ -2,8 +2,20 @@
 // in JSX. The page strings and the action labels are SPEC-GAP wording that the owner reviews before approving it (D-48). The
 // labels cover every action code the API can send, including the ones added after the UI-SPEC table (D-28). No long dash (OR-4).
 
-/** The three groups of the Action select, in the order the UI-SPEC lists them. */
-export const AUDIT_GROUPS = ['Sign-in and security', 'Staff accounts', 'Profile changes'] as const;
+import { RECORD_META_COPY } from '@/components/data';
+import { CATEGORY_TONE_LABEL, isCategoryTone } from '@/components/status';
+import type { components } from '@/types/api.generated';
+import { formatPeso } from '@/utils/csps';
+import { formatCalendarDate } from '@/utils/format';
+
+/** The groups of the Action select, in the order the UI-SPEC lists them (A1; the two expense groups are Phase 6). */
+export const AUDIT_GROUPS = [
+  'Sign-in and security',
+  'Staff accounts',
+  'Profile changes',
+  'Company expenses',
+  'Expense categories',
+] as const;
 export type AuditGroup = (typeof AUDIT_GROUPS)[number];
 
 export interface AuditActionLabel {
@@ -16,6 +28,8 @@ export interface AuditActionLabel {
 const SIGN_IN = AUDIT_GROUPS[0];
 const STAFF = AUDIT_GROUPS[1];
 const PROFILE = AUDIT_GROUPS[2];
+const EXPENSES = AUDIT_GROUPS[3];
+const CATEGORIES = AUDIT_GROUPS[4];
 
 /** Every action code with its plain-English label and group, in the order the select lists them. */
 export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
@@ -56,6 +70,18 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'profile.email-change-requested', label: 'Email change requested', group: PROFILE },
   { code: 'profile.email-changed', label: 'Email changed', group: PROFILE },
   { code: 'profile.email-change-canceled', label: 'Email change canceled', group: PROFILE },
+  { code: 'company-expense.added', label: 'Expense added', group: EXPENSES },
+  { code: 'company-expense.changed', label: 'Expense changed', group: EXPENSES },
+  { code: 'company-expense.payer-changed', label: 'Expense payer changed', group: EXPENSES },
+  { code: 'company-expense.deleted', label: 'Expense deleted', group: EXPENSES },
+  { code: 'company-expense.restored', label: 'Expense restored', group: EXPENSES },
+  { code: 'company-expense.permanently-deleted', label: 'Expense permanently deleted', group: EXPENSES },
+  { code: 'expense-category.added', label: 'Category added', group: CATEGORIES },
+  { code: 'expense-category.renamed', label: 'Category renamed', group: CATEGORIES },
+  { code: 'expense-category.recolored', label: 'Category color changed', group: CATEGORIES },
+  { code: 'expense-category.retired', label: 'Category retired', group: CATEGORIES },
+  { code: 'expense-category.reactivated', label: 'Category back in use', group: CATEGORIES },
+  { code: 'expense-category.deleted', label: 'Category deleted', group: CATEGORIES },
 ];
 
 /** The codes the Action filter accepts in the URL. */
@@ -171,6 +197,80 @@ export function describeAuditDetail(action: string, detail: string | null): stri
   return REASONS.get(action)?.get(detail) ?? null;
 }
 
+type AuditChangeLine = components['schemas']['AuditChangeLine'];
+type AuditExpenseSnapshot = components['schemas']['AuditExpenseSnapshot'];
+type AuditPerson = components['schemas']['ActorRef'];
+
+/** What a category reads as once it has been deleted. */
+const DELETED_CATEGORY = 'a deleted category';
+
+/** A person's name, then " (former staff)" for an account that was deleted. */
+function personText(person: AuditPerson): string {
+  return `${person.name}${person.formerStaff ? RECORD_META_COPY.formerStaff : ''}`;
+}
+
+function categoryText(name: string | null): string {
+  return name ?? DELETED_CATEGORY;
+}
+
+/** "Blue" for a stored tone word; null for a word this viewer does not know. */
+function toneText(tone: string | null): string | null {
+  return tone !== null && isCategoryTone(tone) ? CATEGORY_TONE_LABEL[tone] : null;
+}
+
+/** "Label: old to new", or "Label: new" when there was no old value. */
+function pair(label: string, from: string | null, to: string): string {
+  return from === null ? `${label}: ${to}` : `${label}: ${from} to ${to}`;
+}
+
+/**
+ * One typed change line as a fixed sentence (D-27, UI-SPEC A1): amounts in pesos, dates in the Manila style, categories and
+ * payers by name. A description or notes change says only that it changed, because their text is never stored in the log
+ * (05 D-40). A value the viewer cannot read gives null and the line is left out.
+ */
+export function describeAuditChange(line: AuditChangeLine): string | null {
+  switch (line.field) {
+    case 'amount':
+      return line.from === null || line.to === null ? null : pair('Amount', formatPeso(line.from), formatPeso(line.to));
+    case 'date': {
+      const from = line.from === null ? null : formatCalendarDate(line.from);
+      const to = line.to === null ? null : formatCalendarDate(line.to);
+      return from === null || to === null ? null : pair('Date', from, to);
+    }
+    case 'category':
+      return pair('Category', categoryText(line.from), categoryText(line.to));
+    case 'payer':
+      return line.fromPerson === null || line.toPerson === null
+        ? null
+        : pair('Paid by', personText(line.fromPerson), personText(line.toPerson));
+    case 'description':
+      return 'Description changed';
+    case 'notes':
+      return 'Notes changed';
+    case 'name':
+      return line.to === null ? null : pair('Name', line.from, line.to);
+    case 'tone': {
+      const to = toneText(line.to);
+      const from = line.from === null ? null : toneText(line.from);
+      return to === null || (line.from !== null && from === null) ? null : pair('Color', from, to);
+    }
+    default:
+      return null;
+  }
+}
+
+/** "Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by Ana Reyes": the facts of an expense an entry names (D-27). */
+export function describeAuditSnapshot(snapshot: AuditExpenseSnapshot): string {
+  return [
+    formatCalendarDate(snapshot.date) ?? snapshot.date,
+    categoryText(snapshot.category),
+    formatPeso(snapshot.amount),
+    snapshot.payer === null ? null : `Paid by ${personText(snapshot.payer)}`,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' · ');
+}
+
 /** One "What changed" sentence: the action and the stored word that give it. */
 export interface AuditDetailSentence {
   readonly action: string;
@@ -215,7 +315,7 @@ export const AUDIT_COPY = {
   title: 'Audit Log',
   badge: 'Manager only',
   subline:
-    'Every sign-in, security and staff account change, newest first. Times are Manila time. Entries are kept for 8 months.',
+    'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
   columns: { when: 'When', doneBy: 'Done by', action: 'Action', doneTo: 'Done to', actions: 'Actions' },
   /** Done by for a failed sign-in with no matching account. */
   unknownAccount: 'Unknown account',

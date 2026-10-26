@@ -9,10 +9,8 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { createStaff } from './testing-api.ts';
-
-/** True when the page does not scroll sideways (a page script: the node program has no DOM). */
-const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
+import { manilaDate, NO_SIDEWAYS_SCROLL, press, SUPPLIES } from './helpers.ts';
+import { createExpense, createStaff } from './testing-api.ts';
 
 function query(page: Page): URLSearchParams {
   return new URL(page.url()).searchParams;
@@ -31,12 +29,6 @@ async function centerFirstEntry(page: Page): Promise<void> {
 /** The description-list value that follows a term inside one expanded detail. */
 function detailValue(scope: Locator, term: string): Locator {
   return scope.locator('dt', { hasText: new RegExp(`^${term}$`) }).locator('xpath=following-sibling::dd[1]');
-}
-
-/** Presses a button from the keyboard: Safari does not focus a button on click, and the focus return is part of what is proved. */
-async function press(page: Page, button: Locator): Promise<void> {
-  await button.focus();
-  await page.keyboard.press('Enter');
 }
 
 /**
@@ -102,7 +94,7 @@ test('@audit a Manager finds a deactivation by Action and Done to, reads its det
   await expect(page.getByText('Manager only')).toBeVisible();
   await expect(
     page.getByText(
-      'Every sign-in, security and staff account change, newest first. Times are Manila time. Entries are kept for 8 months.',
+      'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
     ),
   ).toBeVisible();
   await expect(page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]')).toContainText('Audit Log');
@@ -253,6 +245,91 @@ test('@audit the Edit User panel links to the log filtered to that person, and a
   expect(value?.y ?? 0).toBeGreaterThan((term?.y ?? 0) + (term?.height ?? 0) - 1);
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
   await expectNoAxeViolations(page);
+});
+
+test('@audit a Manager edits an expense amount and payer, then finds both entries by Action and Done to with the amount and payer lines and no description', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mira', lastName: `Edit${token}` });
+  const oldPayer = await createStaff(request, 'Admin', undefined, { firstName: 'Ana', lastName: `Old${token}` });
+  const newPayer = await createStaff(request, 'Admin', undefined, { firstName: 'Bea', lastName: `New${token}` });
+  const oldName = `Ana Old${token}`;
+  const newName = `Bea New${token}`;
+  const description = `E2E audit ${token}`;
+  await createExpense(request, {
+    paidByUserId: oldPayer.userId,
+    recordedByUserId: manager.userId,
+    date: manilaDate(-1),
+    categoryId: SUPPLIES,
+    description,
+    amount: 1200,
+    notes: `Private note ${token}`,
+  });
+  await signInAs(page, request, manager);
+
+  // The Manager edits the amount and the payer in the Edit modal from the row.
+  await page.goto('/admin/expenses');
+  await page.getByPlaceholder('Description or staff name').fill(token);
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  const edit = page
+    .locator('tbody tr')
+    .first()
+    .getByRole('button', { name: new RegExp(`^Edit ${description}, `) });
+  await press(page, edit);
+  const dialog = page.getByRole('dialog', { name: 'Edit Expense' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox', { name: /^Amount/ }).fill('1250');
+  await dialog.getByRole('combobox', { name: /^Paid by/ }).selectOption({ label: newName });
+  await dialog.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Expense updated')).toBeVisible();
+
+  // Done to = the old payer and Action = Expense payer changed finds the one entry, with both people in its line.
+  await page.goto('/admin/audit-log');
+  await expect(page.getByRole('heading', { level: 1, name: 'Audit Log' })).toBeVisible();
+  await expect(page.getByLabel('Done to', { exact: true })).toBeEnabled();
+  await page.getByLabel('Action', { exact: true }).selectOption('company-expense.payer-changed');
+  await page.getByLabel('Done to', { exact: true }).selectOption(oldPayer.userId.toLowerCase());
+  await expect(page.getByText('Action: Expense payer changed')).toBeVisible();
+  await expect(page.getByText(`Done to: ${oldName}`)).toBeVisible();
+  await expect(entryRows(page)).toHaveCount(1);
+  const payerEntry = entryRows(page).first();
+  await expect(payerEntry.locator('td[data-label="Action"]')).toHaveText('Expense payer changed');
+  await expect(payerEntry.locator('td[data-label="Done to"]')).toContainText(newName);
+  await centerFirstEntry(page);
+  await press(page, payerEntry.getByRole('button', { name: /^Show details for Expense payer changed, / }));
+  const open = payerEntry.getByRole('button', { name: /^Hide details for Expense payer changed, / });
+  await expect(open).toHaveAttribute('aria-expanded', 'true');
+  const payerDetail = page.locator(`#${(await open.getAttribute('aria-controls')) ?? 'missing'}`);
+  await expect(detailValue(payerDetail, 'What changed')).toHaveText(`Paid by: ${oldName} to ${newName}`);
+  await centerFirstEntry(page);
+  await expectNoAxeViolations(page);
+
+  // The same save also wrote Expense changed, about the current payer, with the amount line and no description line.
+  await page.getByLabel('Action', { exact: true }).selectOption('company-expense.changed');
+  await page.getByLabel('Done to', { exact: true }).selectOption(newPayer.userId.toLowerCase());
+  await expect(page.getByText('Action: Expense changed')).toBeVisible();
+  await expect(entryRows(page)).toHaveCount(1);
+  const changedEntry = entryRows(page).first();
+  await expect(changedEntry.locator('td[data-label="Done to"]')).toContainText(newName);
+  await centerFirstEntry(page);
+  await press(page, changedEntry.getByRole('button', { name: /^Show details for Expense changed, / }));
+  const openChanged = changedEntry.getByRole('button', { name: /^Hide details for Expense changed, / });
+  const changedDetail = page.locator(`#${(await openChanged.getAttribute('aria-controls')) ?? 'missing'}`);
+  await expect(detailValue(changedDetail, 'What changed')).toHaveText('Amount: ₱1,200.00 to ₱1,250.00');
+  await expect(changedDetail).not.toContainText('Description changed');
+  await centerFirstEntry(page);
+  await expectNoAxeViolations(page);
+
+  // No description or notes text is on the page, and the address holds ids only.
+  await expect(page.locator('body')).not.toContainText(description);
+  await expect(page.locator('body')).not.toContainText(`Private note ${token}`);
+  expect(page.url()).not.toContain(token);
 });
 
 test('@audit an Admin who opens /admin/audit-log is sent on to /admin and never sees the log', async ({

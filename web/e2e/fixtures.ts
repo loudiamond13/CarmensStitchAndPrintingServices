@@ -224,8 +224,22 @@ export const test = base.extend<{ guard: Guard }>({
 });
 
 /**
- * Runs axe over the whole page with the A11Y-01 tags (src/test/axeTags.ts, shared with the component tests). The
- * contrast rule stays on here, unlike in jsdom. Rejects with one `<rule id>: <targets>` line per violation, sorted.
+ * The axe run every e2e check uses: the A11Y-01 tags (src/test/axeTags.ts), every rule on every node, full detail for
+ * violations only. The default run gives every passing node a unique selector before it trims anything, which took about
+ * 25 s per check in WebKit on a picker of 2,300 options (debug session expenses-add-save-slow). Legacy mode runs axe in
+ * the page, where passes are trimmed first. It skips cross-origin frames; the app has none.
+ */
+export function pageAxe(page: Page): AxeBuilder {
+  // options() replaces every option set before it, so it goes before withTags.
+  return new AxeBuilder({ page })
+    .options({ resultTypes: ['violations'] })
+    .withTags([...AXE_TAGS])
+    .setLegacyMode();
+}
+
+/**
+ * Runs axe over the whole page with pageAxe. The contrast rule stays on here, unlike in jsdom. Rejects with one
+ * `<rule id>: <targets>` line per violation, sorted.
  */
 export async function expectNoAxeViolations(page: Page): Promise<void> {
   // Axe reads colors as painted, so a toast or dialog still fading in fails contrast. Finite animations finish first.
@@ -234,7 +248,7 @@ export async function expectNoAxeViolations(page: Page): Promise<void> {
     await Promise.allSettled(running.map((animation) => animation.finished));
     return true;
   })()`);
-  const results = await new AxeBuilder({ page }).withTags([...AXE_TAGS]).analyze();
+  const results = await pageAxe(page).analyze();
   const lines = results.violations
     .map((violation) => ({
       id: violation.id,

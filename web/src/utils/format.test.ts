@@ -7,6 +7,8 @@ import {
   formatBusinessDateTime,
   formatBusinessTime,
   formatCalendarDate,
+  formatCount,
+  formatMonthShort,
   isMoneyText,
   MONEY_TEXT,
   moneyTextToCentavos,
@@ -346,5 +348,41 @@ describe('centavosToMoneyText', () => {
       const padded = padMoneyOnBlur(typed);
       expect(centavosToMoneyText(moneyTextToCentavos(padded))).toBe(padded);
     }
+  });
+});
+
+describe('formatMonthShort', () => {
+  it.for([
+    ['2026-11-01', 'Nov'],
+    ['2026-09-01', 'Sep'],
+    ['2027-01-01', 'Jan'],
+    ['2026-12-31', 'Dec'],
+  ] as const)('shows %s as the short month name', ([ymd, month]) => {
+    expect(formatMonthShort(ymd)).toBe(month);
+  });
+
+  it.for(MACHINE_ZONES)('does not move with a machine in %s', (zone) => {
+    useMachineZone(zone);
+    expect(formatMonthShort('2026-11-01')).toBe('Nov');
+  });
+
+  it.for(['2026-02-30', '2026-13-01', '', 'not a date', '2026-11', '2026-11-01T00:00:00Z'])(
+    'gives null for %j',
+    (value) => {
+      expect(formatMonthShort(value)).toBeNull();
+    },
+  );
+});
+
+describe('formatCount', () => {
+  it.for([
+    [0, '0'],
+    [7, '7'],
+    [999, '999'],
+    [1235, '1,235'],
+    [1687, '1,687'],
+    [1234567, '1,234,567'],
+  ] as const)('shows %s as %s', ([count, text]) => {
+    expect(formatCount(count)).toBe(text);
   });
 });

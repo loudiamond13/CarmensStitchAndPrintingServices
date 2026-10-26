@@ -261,6 +261,35 @@ public sealed partial class ForgotPasswordTests(CspsDatabase database) : IClassF
         rows.Count(row => row.RevokedAt is not null).ShouldBe(1);
     }
 
+    [Fact]
+    public async Task TwoRequestsForTheSamePersonAtTheSameMomentLeaveOneUsableLinkEveryRound()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var first = AuthClient.CreateClient(factory);
+        using var second = AuthClient.CreateClient(factory);
+
+        for (var round = 0; round < 10; round++)
+        {
+            var staff = await AuthClient.CreateStaffAsync(factory);
+
+            var (one, two) = await ConcurrentRequests.SendTogetherAsync(
+                () => AuthClient.ForgotPasswordAsync(first, staff.Email),
+                () => AuthClient.ForgotPasswordAsync(second, staff.Email));
+            using (one)
+            using (two)
+            {
+                one.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+                two.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+            }
+
+            await using var context = database.CreateContext();
+            var rows = await context.AccountTokens.AsNoTracking().Where(t => t.UserId == staff.Id).ToListAsync(TestContext.Current.CancellationToken);
+            rows.Count.ShouldBe(2, $"round {round}");
+            rows.Count(row => row.IsUsable(TimeProvider.System.GetUtcNow())).ShouldBe(1, $"round {round}");
+            rows.Count(row => row.RevokedAt is not null).ShouldBe(1, $"round {round}");
+        }
+    }
+
     [GeneratedRegex(@"#token=([A-Za-z0-9_-]+)")]
     private static partial Regex TokenInLink();
 }

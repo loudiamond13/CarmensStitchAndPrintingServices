@@ -4,6 +4,7 @@ import {
   clampPage,
   dateRangeParsers,
   dateRangeValues,
+  guidParser,
   literalParser,
   normalizeSearch,
   PAGE_SIZES,
@@ -12,21 +13,39 @@ import {
   parseAsBusinessDate,
   resolveDateRange,
   resolveRangePreset,
+  MAX_PAGE,
   SEARCH_MAX_LENGTH,
   searchParser,
 } from './parsers';
 
 describe('pageParser', () => {
-  it.each(['1', '2', '999999'])('accepts the plain base-10 integer %j', (query) => {
+  it.each(['1', '2', '100000'])('accepts the plain base-10 integer %j up to the server cap', (query) => {
     expect(pageParser.parse(query)).toBe(Number(query));
   });
 
-  it.each(['0', '-3', '-1', '1.5', '2.5', '1e3', ' 2', '2 ', '0x10', '01', 'abc', '', '9007199254740993'])(
-    'rejects %j',
-    (query) => {
-      expect(pageParser.parse(query)).toBeNull();
-    },
-  );
+  it.each([
+    '0',
+    '-3',
+    '-1',
+    '1.5',
+    '2.5',
+    '1e3',
+    ' 2',
+    '2 ',
+    '0x10',
+    '01',
+    'abc',
+    '',
+    '100001',
+    '999999',
+    '9007199254740993',
+  ])('rejects %j', (query) => {
+    expect(pageParser.parse(query)).toBeNull();
+  });
+
+  it('caps at the server page limit', () => {
+    expect(MAX_PAGE).toBe(100_000);
+  });
 
   it('defaults to page 1 and serializes as plain digits', () => {
     expect(pageParser.defaultValue).toBe(1);
@@ -249,5 +268,30 @@ describe('businessToday', () => {
 
   it('uses the given zone', () => {
     expect(businessToday(new Date('2026-10-05T16:30:00Z'), 'UTC')).toBe('2026-10-05');
+  });
+});
+
+describe('guidParser', () => {
+  it('accepts a dashed GUID and lower-cases it', () => {
+    expect(guidParser.parse('6869715C-A01F-4053-87D8-8FD39FEEBEBC')).toBe('6869715c-a01f-4053-87d8-8fd39feebebc');
+    expect(guidParser.parse('6869715c-a01f-4053-87d8-8fd39feebebc')).toBe('6869715c-a01f-4053-87d8-8fd39feebebc');
+  });
+
+  it.each([
+    'abc',
+    '',
+    '6869715ca01f405387d88fd39feebebc',
+    'person@example.com',
+    '6869715c-a01f-4053-87d8-8fd39feebebc ',
+    '{6869715c-a01f-4053-87d8-8fd39feebebc}',
+    '6869715c-a01f-4053-87d8-8fd39feebebz',
+    '../../etc/passwd',
+    '00000000-0000-0000-0000-000000000000',
+  ])('refuses %j', (query) => {
+    expect(guidParser.parse(query)).toBeNull();
+  });
+
+  it('serializes the id unchanged', () => {
+    expect(guidParser.serialize('6869715c-a01f-4053-87d8-8fd39feebebc')).toBe('6869715c-a01f-4053-87d8-8fd39feebebc');
   });
 });

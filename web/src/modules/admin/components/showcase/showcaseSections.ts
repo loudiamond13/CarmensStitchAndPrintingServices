@@ -2,8 +2,8 @@
 // in the UI-SPEC group order (1 Brand & icons … 7 Media), then three the UI-SPEC list predates, so that every shared
 // building block appears: Navigation (Sidebar, SiteHeader, Topbar, and the plan 02-32 user menu and drawer),
 // Marketing (CategoryCard, ProcessSteps, TestimonialCard) and Sign-in and devices (plan 04-32: the S1 to S6 cards, S7,
-// the sign-out dialogs, the four-item user menu, the session toasts and the Note uses) and Staff and audit (plan 05-42: no
-// scenarios, only the live demos of the Phase 5 pieces). A section takes whole scenario groups (the groups/*.ts
+// the sign-out dialogs, the four-item user menu, the session toasts and the Note uses), Staff and audit (plan 05-42: no
+// scenarios, only the live demos of the Phase 5 pieces) and Expenses and settings (plan 06-18: the same for the Phase 6 pieces). A section takes whole scenario groups (the groups/*.ts
 // files) in the order listed, except the scenarios an id prefix moves to another section (LazyImage and
 // MediaPlaceholder belong to Media). The whole-page layout groups are left out: each is a page with its own h1, main
 // and skip link, shown by its own route (/, /admin/…), never inside this page.
@@ -21,6 +21,7 @@ export const SHOWCASE_SECTIONS = [
   { id: 'marketing', title: 'Marketing', groups: ['marketing'] },
   { id: 'auth', title: 'Sign-in and devices', groups: ['auth-gaps'] },
   { id: 'staff', title: 'Staff and audit', groups: [] },
+  { id: 'expenses', title: 'Expenses and settings', groups: [] },
 ] as const;
 
 export type ShowcaseSectionId = (typeof SHOWCASE_SECTIONS)[number]['id'];

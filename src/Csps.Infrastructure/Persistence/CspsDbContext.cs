@@ -1,9 +1,11 @@
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
+using Csps.Domain.Expenses;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Persistence.Locking;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -45,6 +47,15 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>The stored answers of idempotent POSTs, kept 24 hours (SEC-06, D-40).</summary>
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+
+    /// <summary>The company expense categories, ten of them seeded by the migration (D-08, D-09).</summary>
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
+
+    /// <summary>The company expenses; soft-deleted rows are hidden by the named <c>SoftDelete</c> query filter (CEXP-02, D-01).</summary>
+    public DbSet<CompanyExpense> CompanyExpenses => Set<CompanyExpense>();
+
+    /// <summary>The database lock rows: 65 standing locks and short-lived idempotency claims (D-50).</summary>
+    public DbSet<DatabaseLock> DatabaseLocks => Set<DatabaseLock>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

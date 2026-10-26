@@ -1,0 +1,244 @@
+// The words of Company Expenses (UI-SPEC Copywriting Contract, E1; plan 06-04): one module, no wording in JSX. App. E.11
+// strings are verbatim except where OQ-13 amends them; the rest are SPEC-GAP wording the owner reviews. No long dash (OR-4).
+import { formatCount } from '@/utils/format';
+
+export const EXPENSES_COPY = {
+  /** The document title is "{title} · CSPS Admin". */
+  documentTitle: 'Company Expenses',
+  title: 'Company Expenses',
+  // SPEC-DEVIATION: OQ-13 the subline names the order-expense split in plain words (§8.8 had a dash).
+  subline:
+    'General business costs like rent, bills, payroll and supplies. Costs for a specific order go inside that order.',
+  /** The table's name for assistive technology, and the plural and singular nouns of the list. */
+  tableCaption: 'Company expenses',
+  thing: 'expense',
+  things: 'expenses',
+  /** The result bar reads "Showing 12 expenses · newest first". */
+  orderNote: 'newest first',
+  // SPEC-GAP: the badge under the date of an expense that is still ahead (D-23).
+  upcoming: 'Upcoming',
+  /** The toolbar's search (App. E.11): it matches the description and the Recorded by and Paid by names. */
+  search: { label: 'Search', placeholder: 'Description or staff name' },
+  category: {
+    label: 'Category',
+    all: 'All categories',
+    loading: 'Loading categories…',
+    /** A retired category stays in the filter, marked (D-11). */
+    retired: (name: string): string => `${name} (retired)`,
+    // SPEC-GAP: the chip's value for an id the list could not name (the categories failed to load).
+    unknown: 'Unknown category',
+  },
+  dates: {
+    from: 'From',
+    to: 'To',
+    chip: 'Dates',
+    /** The chip's value: "Oct 1, 2026 to Oct 31, 2026". */
+    range: (from: string, to: string): string => `${from} to ${to}`,
+  },
+  /** What the no-matches message names after the search: "category Rent and dates Oct 1, 2026 to Oct 31, 2026". */
+  filterSummary: (category: string | null, dates: string | null): string =>
+    [category === null ? null : `category ${category}`, dates === null ? null : `dates ${dates}`]
+      .filter((part): part is string => part !== null)
+      .join(' and '),
+  /**
+   * Inline errors (UI-SPEC Validation): under the From and To inputs, and under the form's fields, where the words are the
+   * server's own (ExpenseRules.cs).
+   */
+  errors: {
+    notReal: 'Enter a real date.',
+    rangeOrder: 'The start date must be on or before the end date.',
+    dateRequired: 'Enter the date.',
+    /** "Choose a date up to 30 days from today, Nov 24, 2026 at the latest." */
+    dateTooFar: (latest: string): string => `Choose a date up to 30 days from today, ${latest} at the latest.`,
+    categoryRequired: 'Choose a category.',
+    descriptionRequired: 'Add a short description so others know what this was for.',
+    descriptionTooLong: 'Keep the description to 200 characters or fewer.',
+    amountTooSmall: 'Enter an amount greater than ₱0.00.',
+    amountTooLarge: 'Enter an amount of ₱1,000,000.00 or less.',
+    amountDecimals: 'Use at most 2 decimal places.',
+    paidByRequired: 'Choose who paid.',
+    notesTooLong: 'Keep notes to 1,000 characters or fewer.',
+  },
+  columns: {
+    date: 'Date',
+    category: 'Category',
+    description: 'Description',
+    amount: 'Amount',
+    paidBy: 'Paid by',
+    recordedBy: 'Recorded by',
+    /** The actions column's header is visually hidden. */
+    actions: 'Actions',
+  },
+  /** A row's actions are named with the description and date so each is unique on the page (OQ-11). */
+  rowActions: {
+    edit: (description: string, date: string): string => `Edit ${description}, ${date}`,
+    // SPEC-GAP: OQ-8 an Admin opens the expenses they cannot edit read-only.
+    view: (description: string, date: string): string => `View ${description}, ${date}`,
+  },
+  footer: {
+    /** The phone label of the period total (OQ-13: it covers every page, so "Total shown" would mislead). */
+    totalLabel: 'Total',
+    /** "45 expenses · Sep 25, 2026 to Nov 24, 2026" */
+    summary: (count: number, thing: string, things: string, from: string, to: string): string =>
+      `${formatCount(count)} ${count === 1 ? thing : things} · ${from} to ${to}`,
+  },
+  // SPEC-DEVIATION: OQ-13 the first-use message names the window the server used; its action is Add Expense (OQ-14, plan 06-12).
+  empty: {
+    title: 'No expenses recorded',
+    message: (from: string, to: string): string =>
+      `Nothing is recorded from ${from} to ${to}. Log rent, bills, payroll and supplies here to see monthly totals and where the money goes.`,
+  },
+  /** The month KPI cards (App. E.11); the feet for one and for no entries are SPEC-GAP wording. The month is the server's. */
+  kpis: {
+    thisMonth: (month: string | null): string => (month === null ? 'This month' : `This month · ${month}`),
+    lastMonth: (month: string | null): string => (month === null ? 'Last month' : `Last month · ${month}`),
+    topCategory: (month: string | null): string => (month === null ? 'Top category' : `Top category · ${month}`),
+    entries: (count: number): string =>
+      count === 0 ? 'No entries yet' : count === 1 ? '1 entry so far' : `${formatCount(count)} entries so far`,
+    fullMonth: 'Full month',
+    /** "₱18,000.00 · 47% of this month" */
+    topFoot: (amount: string, percent: number): string => `${amount} · ${String(percent)}% of this month`,
+    /** The foot of the Top category card when the month has no expenses. */
+    noExpenses: 'No expenses this month',
+    /** The failure banner reads "Couldn't load this month's totals." over the shared reassurance line. */
+    errorThings: "this month's totals",
+  },
+  // SPEC-GAP: the caption under the table.
+  caption: 'The total covers every page of this list for the filters above. Deleted expenses never count.',
+  /** The Add Expense button and modal (E2, App. E.11; plan 06-12). */
+  add: {
+    open: 'Add Expense',
+    title: 'Add Expense',
+    description: 'A general business cost, not tied to any order.',
+    save: 'Save Expense',
+    saving: 'Saving',
+    cancel: 'Cancel',
+    toast: {
+      title: 'Expense added',
+      /** "₱640.00 · Supplies" */
+      message: (amount: string, category: string): string => `${amount} · ${category}`,
+      // SPEC-GAP: said when the new expense does not match the current search, category or dates.
+      outsideFilters: " It's outside the current filters, so it isn't listed.",
+    },
+  },
+  /** The Edit Expense modal (E2, App. E.11; plan 06-14). */
+  edit: {
+    title: 'Edit Expense',
+    save: 'Save Changes',
+    saving: 'Saving',
+    cancel: 'Cancel',
+    /** The loading region reads "Loading expense…" and then "Expense loaded.". */
+    things: 'expense',
+    /** The load-failure banner reads "Couldn't load this expense." */
+    loadFailedThing: 'this expense',
+    toast: { title: 'Expense updated' },
+    // The polite line after Load Latest (the banner itself is the shared ConflictBanner, 05 D-20).
+    latestLoaded: 'Latest version loaded. Make your changes again.',
+    // SPEC-GAP: the banners an Admin and a deleted expense meet while editing.
+    forbidden: {
+      title: "You can't edit this expense.",
+      body: 'Admins can edit only the expenses they recorded or paid. Ask a Manager to change it.',
+    },
+    deleted: { title: 'This expense was deleted.', body: 'Close this and refresh the list.' },
+    // SPEC-GAP: D-26 warns an Admin who would lose edit access by moving Paid by away from themselves.
+    accessNote:
+      "After you save, you can't edit this expense any more. Only the person who recorded it, the person who paid it, or a Manager can.",
+  },
+  // SPEC-GAP: OQ-8 the read-only modal for an expense the caller cannot edit.
+  view: { title: 'Expense details', close: 'Close' },
+  /** Delete (E3, D-01, D-05; plan 06-16): the shared ConfirmDialog, Cancel focused, no type-to-confirm. The quotes are typographic. */
+  remove: {
+    rowDelete: (description: string, date: string): string => `Delete ${description}, ${date}`,
+    title: (description: string, amount: string): string => `Delete “${description}” (${amount})?`,
+    message:
+      "It won't count in the expense list, totals or the payer's balance. You can restore it later from Deleted Expenses.",
+    confirm: 'Delete Expense',
+    pending: 'Deleting',
+    toast: {
+      title: 'Expense deleted',
+      message: (description: string): string => `${description}. You can restore it from Deleted Expenses.`,
+    },
+  },
+  /** Delete permanently (E3, D-04, D-05, D-06, OQ-1; plan 06-16): the same plain dialog, with the can't-be-undone warning. */
+  purge: {
+    rowLabel: (description: string, date: string): string => `Delete ${description}, ${date} permanently`,
+    title: (description: string, amount: string): string => `Delete “${description}” (${amount}) permanently?`,
+    message:
+      "This removes the expense for good. It can't be restored, and this can't be undone. The audit log keeps its date, category, amount and payer.",
+    confirm: 'Delete Permanently',
+    pending: 'Deleting',
+    toast: { title: 'Expense permanently deleted', message: (description: string): string => description },
+  },
+  // SPEC-GAP: OQ-2 a Manager reaches the deleted expenses by this secondary link in the E1 header.
+  deletedLink: 'Deleted Expenses',
+  // SPEC-GAP: E4 DeletedExpensesPage (D-03, D-07, OQ-2, OQ-5; plan 06-16). Every string here is wording the owner reviews.
+  deleted: {
+    documentTitle: 'Deleted Expenses',
+    title: 'Deleted Expenses',
+    badge: 'Manager only',
+    back: 'Back to Company Expenses',
+    subline:
+      "Deleted expenses don't count in lists, totals or balances. Restore one to count it again, or delete it permanently.",
+    tableCaption: 'Deleted expenses',
+    thing: 'deleted expense',
+    things: 'deleted expenses',
+    orderNote: 'most recently deleted first',
+    columns: {
+      deleted: 'Deleted',
+      date: 'Date',
+      category: 'Category',
+      description: 'Description',
+      amount: 'Amount',
+      paidBy: 'Paid by',
+      deletedBy: 'Deleted by',
+      actions: 'Actions',
+    },
+    empty: {
+      title: 'No deleted expenses',
+      message: "When a Manager deletes an expense, it shows here until it's restored or deleted permanently.",
+    },
+    /** Restore acts at once (OQ-5): no confirmation, and the toast states the effect. */
+    restore: {
+      label: (description: string, date: string): string => `Restore ${description}, ${date}`,
+      toast: {
+        title: 'Expense restored',
+        message: (description: string): string => `${description} counts in totals again.`,
+      },
+      failed: (description: string): string => `Couldn't restore ${description}`,
+    },
+  },
+  /** A delete that meets an expense someone else removed first (404): the dialog closes and the list is read again. */
+  alreadyGone: {
+    title: 'Already deleted',
+    message: 'Someone else deleted this expense. The list is up to date.',
+  },
+  /** The fields of the expense form (E2). The labels, hints and placeholders are App. E.11 or SPEC-GAP wording the owner reviews. */
+  form: {
+    date: { label: 'Date', hint: "Up to 30 days ahead is fine for a cost you'll pay soon." },
+    category: {
+      label: 'Category',
+      // SPEC-GAP: the picker's placeholder; nothing is preselected (OQ-9).
+      placeholder: 'Choose a category',
+      // SPEC-GAP: the picker could not read the category list.
+      loadFailed: "Couldn't load the categories. Close this form and try again.",
+    },
+    description: { label: 'Description', placeholder: 'e.g. Meralco bill for October' },
+    amount: { label: 'Amount' },
+    // SPEC-GAP: Paid by is the staff picker Phase 7 reuses (CEXP-05, D-18, D-32).
+    paidBy: {
+      label: 'Paid by',
+      hint: 'The staff member whose money paid for this.',
+      loading: 'Loading staff…',
+      loadFailed: "Couldn't load the staff list. Close this form and try again.",
+      /** "Carmen Reyes (you)" */
+      you: (name: string): string => `${name} (you)`,
+      /** A saved payer who can no longer be chosen stays selected in an edit (OQ-7). */
+      inactive: (name: string): string => `${name} (inactive)`,
+      formerStaff: (name: string): string => `${name} (former staff)`,
+    },
+    // SPEC-DEVIATION: D-19 the notes field is new to App. E.11.
+    notes: { label: 'Notes', hint: "Optional. Shown only here. Search doesn't look in notes." },
+    // SPEC-GAP: Recorded by in Add comes from App. E.11, a read-only dashed control that shows the signed-in user.
+    recordedBy: { label: 'Recorded by' },
+  },
+} as const;

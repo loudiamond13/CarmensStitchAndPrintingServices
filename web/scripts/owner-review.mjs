@@ -19,7 +19,10 @@
 //   9. Plan 05-37: signs a seeded Manager in through the Testing staff fixture and the mail sink (the Testing host the
 //      Playwright E2E run uses) and photographs the real Phase 5 screens: Users, My Profile, the Audit Log, the slide-overs,
 //      the dialogs and the confirm-email page, with a rulings page that lists only what is still open for the owner.
-//  10. Stops the host it started (that child and its own children, nothing else) and writes
+//  10. Plan 06-19: photographs the real Phase 6 screens the same way, as a Manager and as an Admin: Company Expenses and its
+//      states, the Add, Edit and View windows, both delete confirmations, Deleted Expenses, Settings and the Audit Log with an
+//      expense entry open, with a rulings page that lists what is still open for the owner and a table of every new sentence.
+//  11. Stops the host it started (that child and its own children, nothing else) and writes
 //      artifacts/owner-review/index.html, a plain-words page that shows every picture.
 // It writes nowhere but artifacts/owner-review/ (assertWritable), never into src/, web/src or the server's wwwroot.
 // Guide: docs/web/owner-review.md.
@@ -31,12 +34,14 @@ import { fileURLToPath } from 'node:url';
 import {
   acquireLock,
   E2E_PORT,
+  LOCALDB_E2E_CONNECTION,
   LOCK_PATH,
   lockTimeoutMessage,
   PORT_BUSY_MESSAGE,
   REPO_ROOT,
   WEB_DIRECTORY,
 } from './e2e.mjs';
+import { manilaDate, RENT as SEEDED_RENT, SUPPLIES as SEEDED_SUPPLIES } from '../e2e/helpers.ts';
 import { portIsBusy, startHost, stopRunningHostsSync } from './lighthouse.mjs';
 import { waitForSharedMachine } from './shared-machine.mjs';
 import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentional-differences.ts';
@@ -48,10 +53,10 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly kind: 'refuse', readonly name: 'output-not-ignored' | 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
- * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[], readonly phase5Review: readonly Phase5ReviewShot[] }} CaptureStep
+ * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[], readonly phase5Review: readonly Phase5ReviewShot[], readonly phase6Review: readonly Phase6ReviewShot[] }} CaptureStep
  * @typedef {{ readonly kind: 'report', readonly name: 'report', readonly file: string, readonly parityResults: string, readonly differencesGuide: string }} ReportStep
  * @typedef {RefuseStep | RunStep | HostStep | CaptureStep | ReportStep} Step
- * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly phase5Review?: readonly Phase5ReviewShot[], readonly problems: readonly string[] }} CaptureResult
+ * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly phase5Review?: readonly Phase5ReviewShot[], readonly phase6Review?: readonly Phase6ReviewShot[], readonly problems: readonly string[] }} CaptureResult
  * @typedef {{ readonly id: string, readonly label: string }} SpecGapCase
  * @typedef {{ readonly id: string, readonly label: string, readonly theme: Theme, readonly width: number, readonly file: string }} SpecGapShot
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly kind: 'frame' | 'menu' | 'dialog' }} AuthReviewCase
@@ -59,6 +64,10 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly id: string, readonly question: string, readonly default: string }} AuthReviewRuling
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[] }} Phase5ReviewCase
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly theme: Theme, readonly width: number, readonly file: string }} Phase5ReviewShot
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly signedInAs: 'Manager' | 'Admin' }} Phase6ReviewCase
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly signedInAs: 'Manager' | 'Admin', readonly theme: Theme, readonly width: number, readonly file: string }} Phase6ReviewShot
+ * @typedef {{ readonly label: string, readonly text: string, readonly recommended: boolean, readonly built: boolean }} Phase6Option
+ * @typedef {{ readonly id: string, readonly status: 'open' | 'ruled', readonly topic: string, readonly options: readonly Phase6Option[], readonly ruling?: string, readonly whereItChanges?: string }} Phase6Ruling
  * @typedef {{ readonly key: string, readonly role: 'Admin' | 'Manager', readonly state: string, readonly firstName: string, readonly lastName: string }} Phase5SeedPerson
  * @typedef {{ readonly id: string, readonly topic: string, readonly ruling: string, readonly ruledIn: string }} Phase5Ruled
  * @typedef {{ readonly id: string, readonly title: string, readonly what: string, readonly how: string }} Phase5OpenItem
@@ -92,9 +101,9 @@ const BLUSH_ONLY = Object.freeze(/** @type {Theme[]} */ (['light']));
 
 /**
  * Every page the e2e bundle serves (web/e2e/sweep.ts lists the Phase 2 ones): the public shell in Blush only (D-14), the
- * three dev-only admin preview pages (D-20), the Component Showcase, and, since plan 05-37, the three real guarded
- * pages (Users, My Profile, the Audit Log), photographed signed in as a Manager. The admin pages and the showcase are
- * shown in Blush and Espresso (D-13).
+ * two dev-only admin preview pages (D-20), the Component Showcase, and the real guarded pages (Company Expenses, Users, My
+ * Profile, the Audit Log, and, since plan 06-19, Deleted Expenses and Settings), photographed signed in as a Manager. The
+ * admin pages and the showcase are shown in Blush and Espresso (D-13).
  * @type {readonly ReviewTarget[]}
  */
 export const REVIEW_TARGETS = Object.freeze([
@@ -113,6 +122,7 @@ export const REVIEW_TARGETS = Object.freeze([
     title: 'Admin: Company Expenses',
     h1: 'Company Expenses',
     themes: BOTH,
+    signedIn: true,
   },
   { path: '/admin/users', slug: 'admin-users', title: 'Admin: Users', h1: 'Users', themes: BOTH, signedIn: true },
   {
@@ -128,6 +138,22 @@ export const REVIEW_TARGETS = Object.freeze([
     slug: 'admin-audit-log',
     title: 'Admin: Audit Log',
     h1: 'Audit Log',
+    themes: BOTH,
+    signedIn: true,
+  },
+  {
+    path: '/admin/expenses/deleted',
+    slug: 'admin-expenses-deleted',
+    title: 'Admin: Deleted Expenses',
+    h1: 'Deleted Expenses',
+    themes: BOTH,
+    signedIn: true,
+  },
+  {
+    path: '/admin/settings',
+    slug: 'admin-settings',
+    title: 'Admin: Settings',
+    h1: 'Settings',
     themes: BOTH,
     signedIn: true,
   },
@@ -163,7 +189,7 @@ const HOST_ENV = Object.freeze({
   Csps__Testing__LoadUserSecrets: 'true',
   App__PublicBaseUrl: ORIGIN,
   Email__Dispatcher__SweepInterval: '00:00:01',
-  ConnectionStrings__Csps: 'Server=(localdb)\\MSSQLLocalDB;Database=CSPS_E2E;Integrated Security=true',
+  ConnectionStrings__Csps: LOCALDB_E2E_CONNECTION,
   RateLimits__Auth__SignIn__PermitLimit: NO_THROTTLE,
   RateLimits__Auth__Verify__PermitLimit: NO_THROTTLE,
   RateLimits__Auth__Resend__PermitLimit: NO_THROTTLE,
@@ -283,6 +309,7 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
       beforeAfter: planBeforeAfterShots(),
       authReview: planAuthReviewShots(),
       phase5Review: planPhase5ReviewShots(),
+      phase6Review: planPhase6ReviewShots(),
     },
     {
       kind: 'report',
@@ -406,6 +433,8 @@ const REPORT_CSS = `
   td.n { text-align: right; }
   tr.bad td { background: #fde2e2; }
   ul.problems li { color: #8a1c1c; }
+  ul.options { list-style: none; margin: 0; padding: 0; }
+  ul.options li { margin: 0 0 6px; }
 `;
 
 /** The engine names a non-developer knows. */
@@ -612,7 +641,7 @@ pixel tolerances: ${escapeHtml(tolerances)}.</p>
 
 /**
  * The report page: plain words, the pictures as relative links, no script and no remote address.
- * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], phase5Review?: readonly Phase5ReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
+ * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], phase5Review?: readonly Phase5ReviewShot[], phase6Review?: readonly Phase6ReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
  * @returns {string}
  */
 export function renderIndex({
@@ -623,6 +652,7 @@ export function renderIndex({
   beforeAfter = [],
   authReview = [],
   phase5Review = [],
+  phase6Review = [],
   parity,
   otherReports = [],
 }) {
@@ -660,6 +690,7 @@ ${pageSections(shots)}
 ${beforeAfterSection(beforeAfter)}
 ${authReviewSection(authReview)}
 ${phase5ReviewSection(phase5Review)}
+${phase6ReviewSection(phase6Review)}
 ${specGapSection(specGap)}
 ${paritySection(parity)}
 </main>
@@ -1622,19 +1653,67 @@ export const PHASE5_OPEN_ITEMS = Object.freeze([
   },
 ]);
 
-// The Phase 5 copy is plain data too, loaded by address (see AUTH_COPY above).
-/** @type {unknown} */
-const usersCopyModule = await import(new URL('../src/modules/admin/usersCopy.ts', import.meta.url).href);
-/** @type {unknown} */
-const profileCopyModule = await import(new URL('../src/modules/admin/profileCopy.ts', import.meta.url).href);
-/** @type {unknown} */
-const auditCopyModule = await import(new URL('../src/modules/admin/auditCopy.ts', import.meta.url).href);
-/** @type {unknown} */
-const recordMetaCopyModule = await import(new URL('../src/components/data/copy.ts', import.meta.url).href);
-/** @type {unknown} */
-const statesCopyModule = await import(new URL('../src/components/states/copy.ts', import.meta.url).href);
-/** @type {unknown} */
-const temporaryPasswordModule = await import(new URL('../src/utils/temporaryPassword.ts', import.meta.url).href);
+// The Phase 5 and Phase 6 copy is plain data too, loaded by address (see AUTH_COPY above).
+
+/** @param {unknown} error @returns {boolean} true for Node's "cannot find that module or package". */
+function isModuleNotFound(error) {
+  return error instanceof Error && 'code' in error && error.code === 'ERR_MODULE_NOT_FOUND';
+}
+
+/**
+ * Loads the app's copy modules. A copy module that imports the app through "@/" cannot be read by plain Node (npm run review),
+ * which knows no such path; then every module is read through one short-lived Vite server that has the same alias. Under
+ * Vitest the plain import already works. The server holds no port and no watcher, and is closed before this returns.
+ * @param {readonly string[]} files paths from web/src, like 'modules/admin/usersCopy.ts'.
+ * @returns {Promise<readonly unknown[]>} the modules, in the order asked.
+ */
+async function loadCopyModules(files) {
+  const urls = files.map((file) => new URL(`../src/${file}`, import.meta.url));
+  try {
+    /** @type {unknown[]} */
+    const loaded = await Promise.all(urls.map((url) => import(url.href)));
+    return loaded;
+  } catch (error) {
+    if (!isModuleNotFound(error)) {
+      throw error;
+    }
+  }
+  const { createServer } = await import('vite');
+  const server = await createServer({
+    configFile: false,
+    root: WEB_DIRECTORY,
+    appType: 'custom',
+    logLevel: 'error',
+    resolve: { alias: { '@': path.join(WEB_DIRECTORY, 'src') } },
+    server: { middlewareMode: true, hmr: false, watch: null },
+    optimizeDeps: { noDiscovery: true, include: [] },
+  });
+  try {
+    return await Promise.all(files.map((file) => server.ssrLoadModule(`/src/${file}`)));
+  } finally {
+    await server.close();
+  }
+}
+
+const [
+  usersCopyModule,
+  profileCopyModule,
+  auditCopyModule,
+  recordMetaCopyModule,
+  statesCopyModule,
+  temporaryPasswordModule,
+  expensesCopyModule,
+  settingsCopyModule,
+] = await loadCopyModules([
+  'modules/admin/usersCopy.ts',
+  'modules/admin/profileCopy.ts',
+  'modules/admin/auditCopy.ts',
+  'components/data/copy.ts',
+  'components/states/copy.ts',
+  'utils/temporaryPassword.ts',
+  'modules/admin/expensesCopy.ts',
+  'modules/admin/settingsCopy.ts',
+]);
 
 /**
  * The 40 words a suggested temporary password is built from (plan 05-22).
@@ -1776,6 +1855,683 @@ slide-overs, dialogs and special states are below. Nothing here is approved unti
 <h3>Words on the Phase 5 screens</h3>
 <p class="note">Every sentence the Phase 5 screens say. <strong>{email}</strong> stands for an address; <strong>{x}</strong>,
 <strong>{y}</strong> and <strong>{z}</strong> are values the app fills in (a name, a role, a time).</p>
+<table><thead><tr><th>Where</th><th>Words</th></tr></thead><tbody>${words}</tbody></table>
+${sections}</section>`;
+}
+
+// ───────────── Plan 06-19: the Phase 6 screens (Company Expenses, Deleted Expenses, Settings, the Audit Log) ─────────────
+
+/**
+ * The one person the Phase 6 pictures add, made through the Testing-only staff fixture: an Admin who pays and records an
+ * expense and is then deleted, so the lists read "Dario Lim (former staff)" (OQ-7, OQ-8). The fixture gives the address.
+ * @type {readonly Phase5SeedPerson[]}
+ */
+export const PHASE6_SEED_PEOPLE = Object.freeze([
+  { key: 'dario', role: 'Admin', state: 'active', firstName: 'Dario', lastName: 'Lim' },
+]);
+
+/**
+ * @param {string} id
+ * @param {string} label
+ * @param {string} group
+ * @param {'Manager' | 'Admin'} [signedInAs]
+ * @returns {Phase6ReviewCase}
+ */
+function phase6Case(id, label, group, signedInAs = 'Manager') {
+  return { id, label, group, themes: BOTH, signedInAs };
+}
+
+/**
+ * The UI-SPEC "Visual Review" set for Phase 6, beyond the plain pages in REVIEW_TARGETS: the states a page alone does not
+ * show. Each is a picture of the real screen with the real server behind it, in Blush and Espresso at 390, 820 and 1440 px.
+ * The three Admin cases are signed in as an Admin; every other one as a Manager.
+ * @type {readonly Phase6ReviewCase[]}
+ */
+export const PHASE6_REVIEW_CASES = Object.freeze([
+  phase6Case(
+    'e1-manager-list',
+    'E1 as a Manager: an Upcoming row, a row by a former staff member, a retired category, and the total for both pages (10 a page)',
+    'E1 Company Expenses',
+  ),
+  phase6Case(
+    'e1-manager-empty-top-category',
+    'E1 as a Manager in a month with no expenses: the month cards with the empty Top category',
+    'E1 Company Expenses',
+  ),
+  phase6Case('e1-empty', 'E1 when nothing is recorded yet (first use)', 'E1 Company Expenses'),
+  phase6Case('e1-no-matches', 'E1 when the search matches nothing', 'E1 Company Expenses'),
+  phase6Case(
+    'e1-admin-list',
+    'E1 as an Admin: Edit on the expense they paid, View on the others, no Deleted Expenses link',
+    'E1 Company Expenses',
+    'Admin',
+  ),
+  phase6Case('e2-add', 'E2 Add Expense: Paid by starts as the signed-in person, marked "(you)"', 'E2 Expense window'),
+  phase6Case(
+    'e2-edit-record-meta',
+    'E2 Edit Expense: Recorded by and Last changed by at the bottom',
+    'E2 Expense window',
+  ),
+  phase6Case(
+    'e2-edit-access-note',
+    'E2 Edit Expense as an Admin: the note shown after Paid by is moved to someone else (D-26)',
+    'E2 Expense window',
+    'Admin',
+  ),
+  phase6Case(
+    'e2-edit-conflict',
+    'E2 Edit Expense: the banner when someone else saved first (409)',
+    'E2 Expense window',
+  ),
+  phase6Case(
+    'e2-view',
+    'E2 Expense details (View): an Admin reading a coworker’s expense',
+    'E2 Expense window',
+    'Admin',
+  ),
+  phase6Case('e3-delete', 'E3 Delete Expense: the confirmation', 'E3 Delete confirmations'),
+  phase6Case('e3-purge', 'E3 Delete Permanently: the confirmation with the warning', 'E3 Delete confirmations'),
+  phase6Case(
+    'e4-rows',
+    'E4 Deleted Expenses with deleted rows (Restore and Delete Permanently)',
+    'E4 Deleted Expenses',
+  ),
+  phase6Case('e4-empty', 'E4 Deleted Expenses with nothing deleted', 'E4 Deleted Expenses'),
+  phase6Case(
+    's1-categories',
+    'S1 Expense Categories: an active, a retired, a never-used and the Others row',
+    'S1 and S2 Settings',
+  ),
+  phase6Case('s2-add-category', 'S2 Add Category: the colour choices and the live badge preview', 'S1 and S2 Settings'),
+  phase6Case(
+    'audit-expense-expanded',
+    'A1 Audit Log: an "Expense changed" entry opened, with its change lines',
+    'A1 Audit Log',
+  ),
+]);
+
+/**
+ * One picture per case, per theme, at 390, 820 and 1440 px.
+ * @param {readonly Phase6ReviewCase[]} [cases]
+ * @returns {Phase6ReviewShot[]}
+ */
+export function planPhase6ReviewShots(cases = PHASE6_REVIEW_CASES) {
+  return cases.flatMap((entry) =>
+    entry.themes.flatMap((theme) =>
+      REVIEW_WIDTHS.map((width) => ({
+        id: entry.id,
+        label: entry.label,
+        group: entry.group,
+        signedInAs: entry.signedInAs,
+        theme,
+        width,
+        file: `phase6-review/${entry.id}-${theme}-${String(width)}.png`,
+      })),
+    ),
+  );
+}
+
+/**
+ * @param {string} label
+ * @param {string} text
+ * @param {{ recommended?: boolean, built?: boolean }} [flags]
+ * @returns {Phase6Option}
+ */
+function option(label, text, { recommended = false, built = false } = {}) {
+  return { label, text, recommended, built };
+}
+
+/**
+ * Everything the Phase 6 build leaves for the owner, in the order the review pack asks it (UI-SPEC "Owner Rulings Needed"
+ * OQ-1 to OQ-15, the assumptions A-06-01 and A-06-02, the inline SQL item and the research questions 2 and 5). Each entry
+ * names its options, recommended first, and marks the one that is built. Nothing here is approved: an `open` entry waits for
+ * the owner's ruling and the built default stands; a `ruled` entry carries the owner's ruling, which the build has still to
+ * follow. The wording of the screens is not here: it is the table "Words on the Phase 6 screens".
+ * @type {readonly Phase6Ruling[]}
+ */
+export const PHASE6_RULINGS = Object.freeze([
+  {
+    id: 'OQ-1',
+    status: 'open',
+    topic: 'Where "Delete permanently" sits on the main list',
+    options: [
+      option(
+        'A',
+        'A third row icon (an eraser), named "Delete {description}, {date} permanently", for Managers only. It is one tap away, and the Users list already has three icons.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'No third icon: a "Delete Permanently" button in the Edit window footer for Managers.'),
+    ],
+  },
+  {
+    id: 'OQ-2',
+    status: 'open',
+    topic: 'How Managers reach deleted expenses',
+    options: [
+      option('A', 'A separate page, Deleted Expenses, reached by a secondary button in the Company Expenses header.', {
+        recommended: true,
+        built: true,
+      }),
+      option('B', '"All" and "Deleted" tabs on the Company Expenses page.'),
+    ],
+  },
+  {
+    id: 'OQ-3',
+    status: 'open',
+    topic: 'The Settings item in the side menu',
+    options: [
+      option(
+        'A',
+        '"Settings" with a gear icon after Audit Log, tagged Manager, in the phone drawer but not in the tab bar.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Under My Profile at the bottom.'),
+    ],
+  },
+  {
+    id: 'OQ-4',
+    status: 'open',
+    topic: 'Can a retired category be used again?',
+    options: [
+      option('A', 'Yes: "Use {name} again" brings it back to the Add form.', { recommended: true, built: true }),
+      option('B', 'No: retiring is final.'),
+    ],
+  },
+  {
+    id: 'OQ-5',
+    status: 'open',
+    topic: 'Confirm before Restore, Retire and Use again?',
+    options: [
+      option('A', 'No confirmation. Each can be undone, and the toast says what happened.', {
+        recommended: true,
+        built: true,
+      }),
+      option('B', 'A confirmation dialog for each.'),
+    ],
+  },
+  {
+    id: 'OQ-6',
+    status: 'open',
+    topic: 'Protect the Others category',
+    options: [
+      option(
+        'A',
+        'Others can change colour but cannot be renamed, retired or deleted, so it always sorts last and every expense has a fallback.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Others behaves like any other category.'),
+    ],
+  },
+  {
+    id: 'OQ-7',
+    status: 'open',
+    topic: 'Editing an expense whose payer is no longer active',
+    options: [
+      option(
+        'A',
+        'Keeping the saved payer is allowed; only a new or changed payer must be active. The old payer shows as "(inactive)" or "(former staff)".',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Every save needs an active payer.'),
+    ],
+  },
+  {
+    id: 'OQ-8',
+    status: 'open',
+    topic: 'Expenses an Admin cannot edit',
+    options: [
+      option(
+        'A',
+        'An eye "View" action opens the same window read-only (Notes, Paid by, Recorded by, Last changed by).',
+        { recommended: true, built: true },
+      ),
+      option('B', 'No action on those rows.'),
+    ],
+  },
+  {
+    id: 'OQ-9',
+    status: 'open',
+    topic: 'Category in the Add form',
+    options: [
+      option('A', 'Nothing is preselected: the placeholder "Choose a category", and the field is required.', {
+        recommended: true,
+        built: true,
+      }),
+      option('B', 'Preselect the first category, A to Z.'),
+    ],
+  },
+  {
+    id: 'OQ-10',
+    status: 'open',
+    topic: 'Length limits the PRD does not set',
+    options: [
+      option('A', 'Description 200 characters, category name 40 characters.', { recommended: true, built: true }),
+      option('B', 'Other limits you name.'),
+    ],
+  },
+  {
+    id: 'OQ-11',
+    status: 'open',
+    topic: 'Names of the row buttons',
+    options: [
+      option(
+        'Default',
+        'Each button is named by its row, like "Edit {description}, {date}", as the Users list does, so a screen reader can tell them apart.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'OQ-12',
+    status: 'open',
+    topic: 'Five new icons',
+    options: [
+      option(
+        'Default',
+        'Add settings, rotate-ccw (Restore), archive (Retire), archive-restore (Use again) and eraser (Delete permanently) from the installed icon set.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'OQ-13',
+    status: 'open',
+    topic: 'Amended wording of the design spec',
+    options: [
+      option(
+        'Default',
+        'Dashes become plain punctuation and "to"; the Delete message says the expense can be restored; the toast says where to restore it; "Total shown" becomes "Total" because it covers every page; the empty message names the dates; the Audit Log subline adds expenses. Built as written.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'OQ-14',
+    status: 'open',
+    topic: 'Two primary buttons in the first-use empty state',
+    options: [
+      option(
+        'A',
+        'Keep the drawing in the design: Add Expense in the header and in the empty state, both primary, both doing the same thing.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Make the empty-state button secondary.'),
+    ],
+  },
+  {
+    id: 'OQ-15',
+    status: 'open',
+    topic: 'Every wording gap in the contract, including the audit labels',
+    options: [
+      option(
+        'Default',
+        'Built as written and reviewed before release. Every sentence is in the table "Words on the Phase 6 screens" below.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'A-06-01',
+    status: 'ruled',
+    topic: 'Paid by and a temporary password (assumption A-06-01, D-32)',
+    options: [
+      option(
+        '1',
+        'They can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable.',
+        { recommended: true, built: true },
+      ),
+      option(
+        '2',
+        'Keep the rule as written ("has a password"), so a person a Manager created with a temporary password can be chosen before their first sign-in.',
+      ),
+      option(
+        '3',
+        'Hide anyone who still has to change a temporary password. This also hides long-time staff after a Manager resets their password, until they sign in again.',
+      ),
+    ],
+    ruling:
+      'Option 1 (D-49, owner, 2026-10-25). Plan 06-20 built it: a person a Manager adds with a temporary password can be chosen as Paid by only after their first sign-in code, and staff whose password a Manager reset stay choosable.',
+    whereItChanges:
+      'The set-up check in src/Csps.Infrastructure/Identity/StaffDirectory.cs (two clauses), src/Csps.Infrastructure/Expenses/CompanyExpenseReader.cs and src/Csps.Infrastructure/Seeding/CompanyExpensesSeedStep.cs. The test StaffLookupEndpointTests.ATemporaryPasswordPersonWhoHasNotSignedInIsNotListed pins option 1.',
+  },
+  {
+    id: 'A-06-02',
+    status: 'open',
+    topic: 'Month cards at the edges (assumption A-06-02, CEXP-03)',
+    options: [
+      option(
+        '1',
+        'Confirm: the cards follow the business time zone in Site settings, which is Asia/Manila today. They are tested at the change of month in Manila time, for an empty month, for ties, for upcoming dates and for deleted expenses.',
+        { recommended: true, built: true },
+      ),
+      option('2', 'Name another case you want tested before release.'),
+    ],
+  },
+  {
+    id: 'SQL-06-11',
+    status: 'ruled',
+    topic: 'Hand-written SQL in three existing files (the 06-11 item, your rule on inline SQL)',
+    options: [
+      option(
+        '1',
+        'Approve IdempotencyGate.cs, AccountTokenStore.cs and ManagerRosterLock.cs by name. Each runs one short SQL line that takes a database lock, so two requests at the same moment cannot collide. Nothing changes.',
+        { recommended: true },
+      ),
+      option(
+        '2',
+        'Rework the three without hand-written SQL: each lock is rebuilt with EF’s own tools (for example a lock row updated inside the same transaction). More code, and possibly a small new table.',
+        { built: true },
+      ),
+    ],
+    ruling:
+      'Option 2 (D-50, owner, 2026-10-25): no inline SQL, not even these three. Plan 06-21 built it: each lock is now a row in the new DatabaseLocks table, taken with EF’s own tools, and the guard test allows no file.',
+    whereItChanges:
+      'src/Csps.Infrastructure/Idempotency/IdempotencyGate.cs, src/Csps.Infrastructure/Identity/AccountTokenStore.cs and src/Csps.Infrastructure/Identity/ManagerRosterLock.cs, over the new DatabaseLocks table (migration AddDatabaseLocks). The guard test is tests/Csps.ArchitectureTests/NoInlineSqlTests.cs.',
+  },
+  {
+    id: 'RQ-2',
+    status: 'open',
+    topic: 'How the Audit Log shows expense values (research question 2)',
+    options: [
+      option(
+        'A',
+        'The server turns an expense event’s stored detail into change lines and names the payer and the category. The "Done to" filter also matches an expense by its payer, current, old or new. No schema change.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'The web parses the stored detail itself and asks the people list for names.'),
+    ],
+  },
+  {
+    id: 'RQ-5',
+    status: 'open',
+    topic: 'How much data the speed test uses (research question 5)',
+    options: [
+      option(
+        'Default',
+        'About 20 expenses a day for 5 years, about 36,500 rows. Tell us if the shop’s real rate is higher.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'SNAP-06-15',
+    status: 'open',
+    topic: 'The snapshot line on deleted, restored and permanently deleted entries',
+    options: [
+      option(
+        'Default',
+        'Each of these Audit Log entries shows one line with the facts of the expense: date, category, amount and who paid, like "Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by Ana Reyes". The description and the notes are never stored. A payer who has left reads "(former staff)".',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+]);
+
+/**
+ * What the screenshots and tests could not show, left for the owner's own eyes (plans 06-18 and 06-19, STATE.md Owner backlog).
+ * @type {readonly { readonly id: string, readonly title: string, readonly what: string, readonly how: string }[]}
+ */
+export const PHASE6_LOOK_AT = Object.freeze([
+  {
+    id: 'total-999',
+    title: 'A very large period total on the real list',
+    what: 'The footer total ₱999,999,999.99 fits its card at 320 px on the Component Showcase. On the real list it would need about a thousand rows, so it is proved there only. Money figures of 15 characters or more are drawn smaller than the other cards on purpose.',
+    how: 'Open the Component Showcase section "Expenses and settings" and look at the month cards and the footer total.',
+  },
+  {
+    id: 'former-staff-real',
+    title: 'A former staff member on the real pages',
+    what: 'The pictures above show "(former staff)" on the real list (Dario Lim). A 100-character name with that mark is proved on the Component Showcase only.',
+    how: 'Look at the Paid by and Recorded by cells.',
+  },
+  {
+    id: 'zoom',
+    title: '200% zoom',
+    what: 'The tests emulate 200% zoom with a 640 x 360 window. They do not use the browser’s own zoom.',
+    how: 'Zoom your browser to 200% on Company Expenses and Settings and tell us if anything is cut off.',
+  },
+  {
+    id: 'ci-speed',
+    title: 'The speed check on the CI runner (A-06-03)',
+    what: 'The five-year list test passes here with room (worst case 197.8 ms against 300 ms). It cannot be confirmed here that it also passes in CI with the SQL container.',
+    how: 'After the first CI run of this branch, read the printed numbers. If the margin is thin, pick: keep 300 ms and run alone first, or allow a CI-only margin.',
+  },
+]);
+
+/**
+ * @param {unknown} value
+ * @param {string} name
+ * @returns {unknown} the module's export.
+ */
+function exportOf(value, name) {
+  return /** @type {Record<string, unknown>} */ (value)[name];
+}
+
+/** The placeholders a copy function is shown with: a name, a role, a time, a count. */
+const COPY_PLACEHOLDERS = Object.freeze(['{x}', '{y}', '{z}', '{u}', '{v}']);
+
+/**
+ * Walks plain copy (strings, functions and nested objects) into rows. A function is called with one placeholder per declared
+ * parameter and gives a row when it returns text.
+ * @param {unknown} value
+ * @param {readonly string[]} trail
+ * @param {{ place: string, text: string }[]} rows
+ */
+function collectCopyRows(value, trail, rows) {
+  const place = trail.join(' > ');
+  if (typeof value === 'string') {
+    rows.push({ place, text: value });
+  } else if (typeof value === 'function') {
+    const words = /** @type {(...args: string[]) => unknown} */ (/** @type {unknown} */ (value));
+    try {
+      /** @type {unknown} */
+      const text = words(...COPY_PLACEHOLDERS.slice(0, words.length));
+      if (typeof text === 'string') {
+        rows.push({ place, text });
+      }
+    } catch {
+      // A function that needs real data has no fixed words to show.
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    for (const [key, child] of Object.entries(value)) {
+      if (key !== 'icon') {
+        collectCopyRows(child, [...trail, key], rows);
+      }
+    }
+  }
+}
+
+/** @type {readonly { readonly place: string, readonly line: Record<string, unknown> }[]} */
+const AUDIT_CHANGE_SAMPLES = Object.freeze([
+  { place: 'amount', line: { field: 'amount', from: '8642.35', to: '9100.00', fromPerson: null, toPerson: null } },
+  { place: 'date', line: { field: 'date', from: '2026-10-05', to: '2026-10-06', fromPerson: null, toPerson: null } },
+  { place: 'category', line: { field: 'category', from: '{x}', to: '{y}', fromPerson: null, toPerson: null } },
+  {
+    place: 'category that is gone',
+    line: { field: 'category', from: '{x}', to: null, fromPerson: null, toPerson: null },
+  },
+  {
+    place: 'payer',
+    line: {
+      field: 'payer',
+      from: null,
+      to: null,
+      fromPerson: { id: 'x', name: '{x}', formerStaff: false },
+      toPerson: { id: 'y', name: '{y}', formerStaff: false },
+    },
+  },
+  {
+    place: 'payer who has left',
+    line: {
+      field: 'payer',
+      from: null,
+      to: null,
+      fromPerson: { id: 'x', name: '{x}', formerStaff: true },
+      toPerson: { id: 'y', name: '{y}', formerStaff: false },
+    },
+  },
+  { place: 'description', line: { field: 'description', from: null, to: null, fromPerson: null, toPerson: null } },
+  { place: 'notes', line: { field: 'notes', from: null, to: null, fromPerson: null, toPerson: null } },
+  { place: 'category added', line: { field: 'name', from: null, to: '{x}', fromPerson: null, toPerson: null } },
+  { place: 'category renamed', line: { field: 'name', from: '{x}', to: '{y}', fromPerson: null, toPerson: null } },
+  { place: 'category added, color', line: { field: 'tone', from: null, to: 'info', fromPerson: null, toPerson: null } },
+  {
+    place: 'category recolored',
+    line: { field: 'tone', from: 'info', to: 'success', fromPerson: null, toPerson: null },
+  },
+]);
+
+/**
+ * Every sentence of the Phase 6 screens: the Company Expenses and Settings copy (one row per string), then the Phase 6
+ * additions of the Audit Log copy: the two action groups, the twelve expense and category labels, the change lines and the
+ * snapshot line, for the owner's wording review (05 D-48). A function shows its placeholders as `{x}`, `{y}`, `{z}`.
+ * @returns {{ place: string, text: string }[]}
+ */
+export function phase6Words() {
+  /** @type {{ place: string, text: string }[]} */
+  const rows = [];
+  const expenses = exportOf(expensesCopyModule, 'EXPENSES_COPY');
+  collectCopyRows(expenses, ['Company Expenses'], rows);
+  const kpis = /** @type {{ entries: (count: number) => string, thisMonth: (month: string | null) => string }} */ (
+    /** @type {{ kpis: unknown }} */ (expenses).kpis
+  );
+  rows.push(
+    { place: 'Company Expenses > kpis > entries (none)', text: kpis.entries(0) },
+    { place: 'Company Expenses > kpis > entries (one)', text: kpis.entries(1) },
+    { place: 'Company Expenses > kpis > thisMonth (month not known yet)', text: kpis.thisMonth(null) },
+  );
+  collectCopyRows(exportOf(settingsCopyModule, 'SETTINGS_COPY'), ['Settings'], rows);
+
+  const groups = /** @type {readonly string[]} */ (exportOf(auditCopyModule, 'AUDIT_GROUPS'));
+  for (const group of groups.filter((name) => name === 'Company expenses' || name === 'Expense categories')) {
+    rows.push({ place: 'Audit Log > action group', text: group });
+  }
+  const actions = /** @type {readonly { code: string, label: string }[]} */ (
+    exportOf(auditCopyModule, 'AUDIT_ACTIONS')
+  );
+  for (const action of actions.filter(
+    (entry) => entry.code.startsWith('company-expense.') || entry.code.startsWith('expense-category.'),
+  )) {
+    rows.push({ place: `Audit Log > action label > ${action.code}`, text: action.label });
+  }
+  const describeChange = /** @type {(line: Record<string, unknown>) => string | null} */ (
+    exportOf(auditCopyModule, 'describeAuditChange')
+  );
+  for (const sample of AUDIT_CHANGE_SAMPLES) {
+    const text = describeChange(sample.line);
+    if (text !== null) {
+      rows.push({ place: `Audit Log > What changed > ${sample.place}`, text });
+    }
+  }
+  const describeSnapshot = /** @type {(snapshot: Record<string, unknown>) => string} */ (
+    exportOf(auditCopyModule, 'describeAuditSnapshot')
+  );
+  rows.push(
+    {
+      place: 'Audit Log > snapshot on deleted, restored and permanently deleted entries',
+      text: describeSnapshot({
+        date: '2026-10-05',
+        category: '{x}',
+        amount: '8642.35',
+        payer: { id: 'x', name: '{y}', formerStaff: false },
+      }),
+    },
+    {
+      place: 'Audit Log > snapshot, category gone and payer who has left',
+      text: describeSnapshot({
+        date: '2026-10-05',
+        category: null,
+        amount: '8642.35',
+        payer: { id: 'x', name: '{y}', formerStaff: true },
+      }),
+    },
+  );
+  return rows;
+}
+
+/** @param {Phase6Option} entry @returns {string} */
+function phase6OptionItem(entry) {
+  const marks = [entry.recommended ? ' <em>(recommended)</em>' : '', entry.built ? ' <em>(built now)</em>' : ''].join(
+    '',
+  );
+  return `<li><strong>${escapeHtml(entry.label)}.</strong> ${escapeHtml(entry.text)}${marks}</li>`;
+}
+
+/**
+ * The Phase 6 section: the rulings page first (what is still open, then what the owner has ruled since), the things to look at
+ * by eye, then the words, then every picture grouped by screen.
+ * @param {readonly Phase6ReviewShot[]} phase6Review
+ * @returns {string}
+ */
+function phase6ReviewSection(phase6Review) {
+  if (phase6Review.length === 0) {
+    return '';
+  }
+  const optionList = (/** @type {Phase6Ruling} */ entry) =>
+    `<ul class="options">${entry.options.map(phase6OptionItem).join('')}</ul>`;
+  const open = PHASE6_RULINGS.filter((entry) => entry.status === 'open')
+    .map(
+      (entry) =>
+        `<tr><td>${escapeHtml(entry.id)}</td><td>${escapeHtml(entry.topic)}</td><td>${optionList(entry)}</td></tr>`,
+    )
+    .join('');
+  const ruled = PHASE6_RULINGS.filter((entry) => entry.status === 'ruled')
+    .map(
+      (entry) =>
+        `<tr><td>${escapeHtml(entry.id)}</td><td>${escapeHtml(entry.topic)}</td><td>${optionList(entry)}</td><td>${escapeHtml(entry.ruling ?? '')}</td><td>${escapeHtml(entry.whereItChanges ?? '')}</td></tr>`,
+    )
+    .join('');
+  const lookAt = PHASE6_LOOK_AT.map(
+    (item) =>
+      `<tr><td><strong>${escapeHtml(item.title)}</strong></td><td>${escapeHtml(item.what)}</td><td>${escapeHtml(item.how)}</td></tr>`,
+  ).join('');
+  const words = phase6Words()
+    .map((row) => `<tr><td>${escapeHtml(row.place)}</td><td>${escapeHtml(row.text)}</td></tr>`)
+    .join('');
+  const groups = [...new Set(phase6Review.map((shot) => shot.group))];
+  const sections = groups
+    .map((group) => {
+      const ids = [...new Set(phase6Review.filter((shot) => shot.group === group).map((shot) => shot.id))];
+      const cases = ids
+        .map((id) => {
+          const ofCase = phase6Review.filter((shot) => shot.id === id);
+          const label = ofCase[0]?.label ?? id;
+          const role = ofCase[0]?.signedInAs ?? 'Manager';
+          const figures = ofCase
+            .map(
+              (shot) =>
+                `<figure class="gap"><figcaption>${escapeHtml(themeName(shot.theme))}, ${String(shot.width)} px</figcaption>` +
+                `<a href="${escapeHtml(shot.file)}"><img src="${escapeHtml(shot.file)}" alt="${escapeHtml(
+                  `${label}, ${themeName(shot.theme)}, ${String(shot.width)} px`,
+                )}"></a></figure>`,
+            )
+            .join('');
+          return `<h4>${escapeHtml(label)}</h4><p class="note">Signed in as ${escapeHtml(role === 'Admin' ? 'an Admin' : 'a Manager')}.</p><div class="row">${figures}</div>`;
+        })
+        .join('\n');
+      return `<h3>${escapeHtml(group)}</h3>\n${cases}`;
+    })
+    .join('\n');
+  return `<section><h2>Company expenses and settings (Phase 6)</h2>
+<p class="note">These pictures show the real screens, signed in as a Manager and as an Admin, with expenses made for the run (a row
+that is still ahead, a row by a member of staff who has left, a retired category, deleted expenses). Company Expenses, Deleted
+Expenses and Settings are also in the page list near the top of this report (Admin: Company Expenses, Admin: Deleted Expenses,
+Admin: Settings); the windows, dialogs and special states are below. The month cards at the top of Company Expenses count every
+expense in the test database CSPS_E2E, earlier test runs included, so their figures are not the shop’s. Nothing here is approved
+until you say so.</p>
+<h3>Phase 6: still open for you</h3>
+<p class="note">The build uses the option marked "built now" for each of these. Say "approved" with any changes, or name the
+option you want instead. The recommended option is listed first when it is not the one built.</p>
+<table><thead><tr><th>#</th><th>What</th><th>The options</th></tr></thead><tbody>${open}</tbody></table>
+<h3>Phase 6: ruled by you since the plan was written</h3>
+<p class="note">You have ruled these. The build still has to follow the ruling; until then the option marked "built now" is what the
+app does.</p>
+<table><thead><tr><th>#</th><th>What</th><th>The options</th><th>Your ruling</th><th>Where it changes</th></tr></thead><tbody>${ruled}</tbody></table>
+<h3>Also look at</h3>
+<table><thead><tr><th>What</th><th>What it is</th><th>What you do</th></tr></thead><tbody>${lookAt}</tbody></table>
+<h3>Words on the Phase 6 screens</h3>
+<p class="note">Every sentence the Company Expenses, Deleted Expenses and Settings screens say, and the new Audit Log lines.
+<strong>{x}</strong>, <strong>{y}</strong> and <strong>{z}</strong> are values the app fills in (a name, an amount, a date).</p>
 <table><thead><tr><th>Where</th><th>Words</th></tr></thead><tbody>${words}</tbody></table>
 ${sections}</section>`;
 }
@@ -1988,6 +2744,10 @@ export async function openReviewPage(browser, origin, target, problems, signedIn
     throw new Error(`${where} answered ${String(response?.status())}, not 200.`);
   }
   await page.locator('h1', { hasText: target.h1 }).first().waitFor({ timeout: 30_000 });
+  if (signedIn !== undefined) {
+    // A signed-in page loads its list after the first paint; the picture is taken once those answers are in.
+    await page.waitForLoadState('networkidle');
+  }
   await page.evaluate('document.fonts.ready.then(() => true)');
   await page.evaluate(SETTLE);
   return {
@@ -2425,9 +3185,10 @@ async function seedPhase5(browser, request, origin) {
  * @param {Phase5Seed} seed
  * @param {{ theme: Theme, width: number }} view
  * @param {string[]} problems
+ * @param {string} [who] the key of the seeded person to sign in as; the Manager unless an Admin's screen is photographed.
  * @returns {Promise<{ page: Page, close(): Promise<void> }>}
  */
-async function openSignedIn(browser, request, origin, seed, view, problems) {
+async function openSignedIn(browser, request, origin, seed, view, problems, who = 'manager') {
   const context = await browser.newContext({
     viewport: { width: view.width, height: windowHeight(view.width) },
     ignoreHTTPSErrors: true,
@@ -2437,15 +3198,18 @@ async function openSignedIn(browser, request, origin, seed, view, problems) {
     await context.addInitScript({ content: `try { localStorage.setItem('csps-theme', 'dark'); } catch {}` });
   }
   const page = await context.newPage();
-  const manager = seed.people.manager;
-  if (manager === undefined) {
-    throw new Error('The seed has no Manager.');
+  const person = seed.people[who];
+  if (person === undefined) {
+    throw new Error(`The seed has no person "${who}".`);
   }
-  await signIn(page, request, origin, manager);
+  await signIn(page, request, origin, person);
   const where = `(${themeName(view.theme)}, ${String(view.width)} px)`;
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
-      problems.push(`${where}: ${message.text()}`);
+      const text = message.text();
+      if (!(EXPECTED_CONSOLE.get(page) ?? []).some((expected) => expected.test(text))) {
+        problems.push(`${where}: ${text}`);
+      }
     }
   });
   page.on('pageerror', (error) => {
@@ -2789,6 +3553,510 @@ async function capturePhase5Review(browser, request, origin, seed, shots, proble
   }
 }
 
+// ───────────── Plan 06-19: capturing the Phase 6 screens signed in as a Manager and as an Admin ─────────────
+
+/**
+ * @typedef {{
+ *   readonly dario: MadeStaff,
+ *   readonly rows: Readonly<Record<'upcoming' | 'former' | 'retired' | 'adminPaid' | 'notes' | 'edited', string>>,
+ *   readonly editedId: string,
+ * }} Phase6Seed
+ */
+/** @typedef {CaseContext & { six: Phase6Seed }} Phase6Context */
+
+/**
+ * The id in an API answer.
+ * @param {unknown} body
+ * @returns {string}
+ */
+function idOf(body) {
+  if (!isRecord(body) || typeof body.id !== 'string') {
+    throw new Error('The API answer has no id.');
+  }
+  return body.id;
+}
+
+/**
+ * Seeds one company expense through the Testing-only expense fixture (a chosen payer, recorder, date and delete state).
+ * @param {ApiRequest} request
+ * @param {Record<string, unknown>} input
+ * @returns {Promise<void>}
+ */
+async function seedExpense(request, input) {
+  const response = await request.post('/api/testing/expenses', { data: input });
+  if (response.status() !== 201) {
+    throw new Error(`The expense fixture answered ${String(response.status())}, not 201.`);
+  }
+}
+
+/**
+ * Makes what the Phase 6 pictures show, in the Testing database CSPS_E2E, all marked with this run's tag so a search finds only
+ * them: three categories (one used and active, one used and then retired, one never used), thirteen live expenses (one still
+ * ahead, one by a payer who is then deleted, one in the retired category, one the Admin pays but a Manager recorded, one with
+ * notes, and filler so the list has two pages at 10 a page), one expense a Manager adds and edits through the API (so the audit
+ * log has "added" and "changed" entries and Last changed by is filled) and three deleted expenses.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @returns {Promise<Phase6Seed>}
+ */
+async function seedPhase6(browser, request, origin, seed) {
+  const { tag } = seed;
+  const manager = seed.people.manager;
+  const admin = seed.people.ana;
+  const person = PHASE6_SEED_PEOPLE[0];
+  if (manager === undefined || admin === undefined || person === undefined) {
+    throw new Error('The seed has no Manager, Admin or Phase 6 payer.');
+  }
+  const managerToken = await tokenFor(browser, request, origin, manager);
+  const dario = await makeStaff(request, person, tag);
+  /** @param {string} name @param {string} tone @returns {Promise<string>} */
+  const makeCategory = async (name, tone) =>
+    idOf(await callApi(request, managerToken, 'POST', '/api/v1/expense-categories', { name: `${name} ${tag}`, tone }));
+  const apparel = await makeCategory('Apparel', 'success');
+  const abaca = await makeCategory('Abaca', 'info');
+  await makeCategory('Applique', 'warning');
+  const rows = {
+    upcoming: `Shop rent for next week ${tag}`,
+    former: `Thread and zippers ${tag}`,
+    retired: `Banner cloth ${tag}`,
+    adminPaid: `Courier fee ${tag}`,
+    notes: `Printer toner ${tag}`,
+    edited: `Sticker paper ${tag}`,
+  };
+  const by = (/** @type {MadeStaff} */ payer, /** @type {MadeStaff} */ recorder) => ({
+    paidByUserId: payer.userId,
+    recordedByUserId: recorder.userId,
+  });
+  await seedExpense(request, {
+    ...by(manager, manager),
+    date: manilaDate(6),
+    categoryId: SEEDED_RENT,
+    description: rows.upcoming,
+    amount: 18000,
+  });
+  await seedExpense(request, {
+    ...by(dario, dario),
+    date: manilaDate(-3),
+    categoryId: SEEDED_SUPPLIES,
+    description: rows.former,
+    amount: 2450.5,
+  });
+  await seedExpense(request, {
+    ...by(manager, manager),
+    date: manilaDate(-5),
+    categoryId: abaca,
+    description: rows.retired,
+    amount: 1320,
+  });
+  await seedExpense(request, {
+    ...by(admin, manager),
+    date: manilaDate(-2),
+    categoryId: SEEDED_SUPPLIES,
+    description: rows.adminPaid,
+    amount: 380.75,
+  });
+  await seedExpense(request, {
+    ...by(manager, manager),
+    date: manilaDate(-4),
+    categoryId: SEEDED_SUPPLIES,
+    description: rows.notes,
+    amount: 4200,
+    notes: 'Bought in bulk for the October team orders.',
+  });
+  for (let index = 1; index <= 7; index += 1) {
+    await seedExpense(request, {
+      ...by(manager, manager),
+      date: manilaDate(-5 - index),
+      categoryId: index % 2 === 0 ? SEEDED_SUPPLIES : apparel,
+      description: `Office supplies ${String(index)} ${tag}`,
+      amount: 100 * index + 25.5,
+    });
+  }
+  for (const [index, name] of ['Old tarpaulin', 'Spare needles', 'Damaged rolls'].entries()) {
+    await seedExpense(request, {
+      ...by(manager, manager),
+      date: manilaDate(-7 - index),
+      categoryId: SEEDED_SUPPLIES,
+      description: `${name} ${tag}`,
+      amount: 250 + index * 100,
+      deleted: true,
+    });
+  }
+  // An expense a Manager adds and then edits, so the Audit Log holds both entries and Last changed by names a person.
+  const edited = await callApi(request, managerToken, 'POST', '/api/v1/company-expenses', {
+    date: manilaDate(-1),
+    categoryId: apparel,
+    description: rows.edited,
+    amount: 640,
+    paidByUserId: manager.userId,
+    notes: null,
+  });
+  const editedId = idOf(edited);
+  const version = isRecord(edited) && typeof edited.version === 'string' ? edited.version : '';
+  await callApi(request, managerToken, 'PUT', `/api/v1/company-expenses/${editedId}`, {
+    date: manilaDate(-1),
+    categoryId: apparel,
+    description: rows.edited,
+    amount: 700,
+    paidByUserId: manager.userId,
+    notes: 'Reprinted after a smudge.',
+    version,
+  });
+  await callApi(request, managerToken, 'POST', `/api/v1/expense-categories/${abaca}/retire`);
+  // Last, so the payer's expenses were saved while they were active; the lists then read "Dario Lim (former staff)".
+  await callApi(request, managerToken, 'DELETE', `/api/v1/users/${dario.userId}`);
+  return { dario, rows, editedId };
+}
+
+/** The console messages a case expects (the 409 of the stale-save picture), by page. */
+const EXPECTED_CONSOLE = /** @type {WeakMap<Page, RegExp[]>} */ (new WeakMap());
+
+/**
+ * Tells the console collector of a page that a message is expected and is not a problem. Call the returned function when the
+ * step that expects it is over, so a later message that happens to match is reported again.
+ * @param {Page} page
+ * @param {RegExp} pattern
+ * @returns {() => void}
+ */
+function allowConsole(page, pattern) {
+  EXPECTED_CONSOLE.set(page, [...(EXPECTED_CONSOLE.get(page) ?? []), pattern]);
+  return () => {
+    EXPECTED_CONSOLE.set(
+      page,
+      (EXPECTED_CONSOLE.get(page) ?? []).filter((expected) => expected !== pattern),
+    );
+  };
+}
+
+/**
+ * Answers one API path with the real answer, changed. The answer is fetched from the server first, so its shape stays the
+ * server's own; only the part the picture needs is replaced. Call the returned function to restore the page.
+ * @param {Page} page
+ * @param {string} pathname
+ * @param {(body: Record<string, unknown>) => void} change
+ * @returns {Promise<() => Promise<void>>}
+ */
+async function answerChanged(page, pathname, change) {
+  /** @param {URL} url */
+  const matches = (url) => url.pathname === pathname;
+  /** @param {import('@playwright/test').Route} route */
+  const handler = async (route) => {
+    const response = await route.fetch();
+    /** @type {unknown} */
+    const body = await response.json();
+    if (isRecord(body)) {
+      change(body);
+    }
+    await route.fulfill({ response, json: body });
+  };
+  await page.route(matches, handler);
+  return () => page.unroute(matches, handler);
+}
+
+/**
+ * Opens a Phase 6 page and waits until its data and fonts have arrived and its motion is done.
+ * @param {Phase6Context} c
+ * @param {string} address path and query
+ * @param {string} h1
+ * @param {{ rows?: boolean }} [options] false for a page that shows no table row.
+ */
+async function openPhase6(c, address, h1, { rows = true } = {}) {
+  await c.page.goto(`${c.origin}${address}`);
+  await pageReady(c.page, h1);
+  if (rows) {
+    await c.page.locator('tbody tr').first().waitFor({ timeout: 30_000 });
+  }
+  await c.page.waitForLoadState('networkidle');
+  await c.page.evaluate(SETTLE);
+}
+
+/** @param {Phase6Context} c @returns {string} this run's expenses, 10 a page. */
+function listAddress(c) {
+  return `/admin/expenses?q=${c.seed.tag}&size=10`;
+}
+
+/**
+ * A row's action button by its name's first words and the row's description.
+ * @param {Phase6Context} c
+ * @param {string} verb Edit, View or Delete
+ * @param {string} description
+ */
+function rowAction(c, verb, description) {
+  return c.page.getByRole('button', { name: new RegExp(`^${verb} ${description}, [A-Z][a-z]{2} \\d{1,2}, \\d{4}$`) });
+}
+
+/**
+ * Opens the Edit window of a row once the expense has loaded (Recorded by shows only then).
+ * @param {Phase6Context} c
+ * @param {string} description
+ */
+async function openEditWindow(c, description) {
+  await openPhase6(c, listAddress(c), 'Company Expenses');
+  await rowAction(c, 'Edit', description).click();
+  const dialog = c.page.getByRole('dialog', { name: 'Edit Expense' });
+  await dialog.getByText('Recorded by', { exact: true }).waitFor({ timeout: 30_000 });
+  await c.page.evaluate(SETTLE);
+  return dialog;
+}
+
+/**
+ * How each Phase 6 case is photographed. Every function leaves the page where the next case can start from a page load:
+ * windows and dialogs are closed again, and a page whose answer was changed is restored.
+ * @type {Readonly<Record<string, (c: Phase6Context) => Promise<void>>>}
+ */
+const PHASE6_CAPTURES = Object.freeze({
+  'e1-manager-list': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await shootFullPage(c);
+  },
+  'e1-manager-empty-top-category': async (c) => {
+    const restore = await answerChanged(c.page, '/api/v1/company-expenses/kpis', (body) => {
+      const month = body.thisMonth;
+      body.thisMonth = isRecord(month) ? { ...month, count: 0, total: 0 } : month;
+      body.topCategory = null;
+    });
+    try {
+      await openPhase6(c, listAddress(c), 'Company Expenses');
+      await c.page.getByText('No expenses this month').first().waitFor({ timeout: 30_000 });
+      await shootFullPage(c);
+    } finally {
+      await restore();
+    }
+  },
+  'e1-empty': async (c) => {
+    const restore = await answerChanged(c.page, '/api/v1/company-expenses', (body) => {
+      body.items = [];
+      body.total = 0;
+      body.periodTotal = 0;
+    });
+    try {
+      await openPhase6(c, '/admin/expenses', 'Company Expenses', { rows: false });
+      await c.page.getByText('No expenses recorded').first().waitFor({ timeout: 30_000 });
+      await shootFullPage(c);
+    } finally {
+      await restore();
+    }
+  },
+  'e1-no-matches': async (c) => {
+    await openPhase6(c, `/admin/expenses?q=nothing-${c.seed.tag}`, 'Company Expenses', { rows: false });
+    await c.page.getByRole('heading', { name: 'No matches' }).waitFor({ timeout: 30_000 });
+    await shootFullPage(c);
+  },
+  'e1-admin-list': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await shootFullPage(c);
+  },
+  'e2-add': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await c.page.getByRole('button', { name: 'Add Expense' }).first().click();
+    const dialog = c.page.getByRole('dialog', { name: 'Add Expense' });
+    await dialog.getByRole('combobox', { name: /^Paid by/ }).waitFor({ timeout: 30_000 });
+    await c.page.evaluate(SETTLE);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'e2-edit-record-meta': async (c) => {
+    const dialog = await openEditWindow(c, c.six.rows.edited);
+    await dialog.getByText('Recorded by', { exact: true }).scrollIntoViewIfNeeded();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'e2-edit-access-note': async (c) => {
+    const dialog = await openEditWindow(c, c.six.rows.adminPaid);
+    await dialog.getByRole('combobox', { name: /^Paid by/ }).selectOption({ index: 1 });
+    const note = dialog.getByText('After you save', { exact: false }).first();
+    await note.waitFor({ timeout: 30_000 });
+    await note.scrollIntoViewIfNeeded();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'e2-edit-conflict': async (c) => {
+    // Only this step expects the 409 in the console.
+    const stopAllowing = allowConsole(c.page, /409/);
+    try {
+      const dialog = await openEditWindow(c, c.six.rows.edited);
+      // Someone else saves first, from a second sign-in, so the window above holds an old version.
+      const manager = c.seed.people.manager;
+      if (manager === undefined) {
+        throw new Error('The seed has no Manager.');
+      }
+      const token = await tokenFor(c.browser, c.request, c.origin, manager);
+      const address = `/api/v1/company-expenses/${c.six.editedId}`;
+      const current = await callApi(c.request, token, 'GET', address);
+      if (!isRecord(current) || !isRecord(current.category) || !isRecord(current.paidBy)) {
+        throw new Error('The expense answer has an unexpected shape.');
+      }
+      const original = {
+        date: current.date,
+        categoryId: current.category.id,
+        description: current.description,
+        amount: Number(current.amount),
+        paidByUserId: current.paidBy.id,
+        notes: current.notes,
+      };
+      // A fixed rival amount, so every view makes the same change; the seeded values are put back after the picture.
+      const rival = await callApi(c.request, token, 'PUT', address, {
+        ...original,
+        amount: original.amount === 705 ? 710 : 705,
+        version: current.version,
+      });
+      try {
+        await dialog.getByRole('textbox', { name: /^Amount/ }).fill('999');
+        await dialog.getByRole('button', { name: 'Save Changes' }).click();
+        await dialog.getByText('This was changed by someone else.').waitFor({ timeout: 30_000 });
+        await c.page.evaluate(SETTLE);
+        await shoot(c);
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+      } finally {
+        // The list, the month cards and the next view then show the same figures as before this step.
+        const version = isRecord(rival) && typeof rival.version === 'string' ? rival.version : '';
+        await callApi(c.request, token, 'PUT', address, { ...original, version });
+      }
+    } finally {
+      stopAllowing();
+    }
+  },
+  'e2-view': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await rowAction(c, 'View', c.six.rows.notes).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Expense details' });
+    await dialog.getByText('Recorded by', { exact: true }).waitFor({ timeout: 30_000 });
+    await c.page.evaluate(SETTLE);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Close' }).last().click();
+  },
+  'e3-delete': async (c) => {
+    await openPhase6(c, listAddress(c), 'Company Expenses');
+    await rowAction(c, 'Delete', c.six.rows.notes).click();
+    const dialog = c.page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Delete Expense' }).waitFor({ timeout: 30_000 });
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  },
+  'e3-purge': async (c) => {
+    await openPhase6(c, `/admin/expenses/deleted?q=${c.seed.tag}`, 'Deleted Expenses');
+    await c.page
+      .getByRole('button', { name: /^Delete .*permanently$/ })
+      .first()
+      .click();
+    const dialog = c.page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Delete Permanently' }).waitFor({ timeout: 30_000 });
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  },
+  'e4-rows': async (c) => {
+    await openPhase6(c, `/admin/expenses/deleted?q=${c.seed.tag}`, 'Deleted Expenses');
+    await shootFullPage(c);
+  },
+  'e4-empty': async (c) => {
+    const restore = await answerChanged(c.page, '/api/v1/company-expenses/deleted', (body) => {
+      body.items = [];
+      body.total = 0;
+    });
+    try {
+      await openPhase6(c, '/admin/expenses/deleted', 'Deleted Expenses', { rows: false });
+      await c.page.getByText('No deleted expenses').first().waitFor({ timeout: 30_000 });
+      await shootFullPage(c);
+    } finally {
+      await restore();
+    }
+  },
+  's1-categories': async (c) => {
+    await openPhase6(c, '/admin/settings', 'Settings');
+    await shootFullPage(c);
+  },
+  's2-add-category': async (c) => {
+    await openPhase6(c, '/admin/settings', 'Settings');
+    await c.page.getByRole('button', { name: 'Add Category' }).first().click();
+    const dialog = c.page.getByRole('dialog', { name: 'Add Category' });
+    await dialog.getByRole('textbox', { name: /^Name/ }).fill('Embroidery thread');
+    await dialog.getByRole('radio', { name: 'Blue' }).check();
+    await c.page.evaluate(SETTLE);
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  },
+  'audit-expense-expanded': async (c) => {
+    const manager = c.seed.people.manager;
+    if (manager === undefined) {
+      throw new Error('The seed has no Manager.');
+    }
+    await openPhase6(
+      c,
+      `/admin/audit-log?range=all&action=company-expense.changed&target=${manager.userId.toLowerCase()}`,
+      'Audit Log',
+    );
+    await c.page
+      .getByRole('button', { name: /^Show details for Expense changed, / })
+      .first()
+      .click();
+    await c.page.evaluate(SETTLE);
+    await shootFullPage(c);
+  },
+});
+
+/**
+ * Takes the Phase 6 pictures: one signed-in browser context per theme, width and role, and the cases in order inside it.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @param {Phase6Seed} six
+ * @param {readonly Phase6ReviewShot[]} shots
+ * @param {string[]} problems
+ * @returns {Promise<void>}
+ */
+async function capturePhase6Review(browser, request, origin, seed, six, shots, problems) {
+  const views = [...new Set(shots.map((shot) => `${shot.theme}|${String(shot.width)}|${shot.signedInAs}`))];
+  for (const key of views) {
+    const [theme, width, role] = key.split('|');
+    const group = shots.filter(
+      (shot) => shot.theme === theme && String(shot.width) === width && shot.signedInAs === role,
+    );
+    const first = group[0];
+    if (first === undefined) {
+      continue;
+    }
+    const opened = await openSignedIn(
+      browser,
+      request,
+      origin,
+      seed,
+      { theme: first.theme, width: first.width },
+      problems,
+      first.signedInAs === 'Admin' ? 'ana' : 'manager',
+    );
+    try {
+      for (const shot of group) {
+        const capture = PHASE6_CAPTURES[shot.id];
+        if (capture === undefined) {
+          throw new Error(`No capture is written for the Phase 6 case "${shot.id}"; update PHASE6_CAPTURES.`);
+        }
+        try {
+          await capture({
+            page: opened.page,
+            request,
+            origin,
+            seed,
+            six,
+            browser,
+            target: assertWritable(path.join(OUTPUT_DIR, shot.file)),
+          });
+          process.stdout.write(`review: ${shot.file}\n`);
+        } catch (error) {
+          // One picture that cannot be taken is reported in the page's list of problems; the rest are still taken.
+          const reason = error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error);
+          problems.push(`${shot.file} could not be taken: ${reason}`);
+          process.stdout.write(`review: ${shot.file} FAILED: ${reason}\n`);
+        }
+      }
+    } finally {
+      await opened.close();
+    }
+  }
+}
+
 /**
  * Takes every planned screenshot from the running host: the pages, then the SPEC-GAP cases, then the wording
  * before/after pairs.
@@ -2797,7 +4065,7 @@ async function capturePhase5Review(browser, request, origin, seed, shots, proble
  */
 async function captureShots(step) {
   const { chromium, request: playwrightRequest } = await import('@playwright/test');
-  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review', 'phase5-review']) {
+  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review', 'phase5-review', 'phase6-review']) {
     rmSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true, force: true });
     mkdirSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true });
   }
@@ -2807,15 +4075,25 @@ async function captureShots(step) {
   // The Testing-only routes (the staff fixture and the mail sink) are called from here, not from a page.
   const request = await playwrightRequest.newContext({ baseURL: step.origin, ignoreHTTPSErrors: true });
   try {
-    const needsSignIn = step.phase5Review.length > 0 || REVIEW_TARGETS.some((target) => target.signedIn === true);
+    const needsSignIn =
+      step.phase5Review.length > 0 ||
+      step.phase6Review.length > 0 ||
+      REVIEW_TARGETS.some((target) => target.signedIn === true);
     const seed = needsSignIn ? await seedPhase5(browser, request, step.origin) : null;
+    const six = seed === null ? null : await seedPhase6(browser, request, step.origin, seed);
     for (const shot of step.shots) {
       const target = REVIEW_TARGETS.find((entry) => entry.path === shot.path);
       const manager = seed?.people.manager;
       const signedIn = target?.signedIn === true && manager !== undefined ? { request, staff: manager } : undefined;
-      // The roster is narrowed to this run's people, so they lead the list whatever earlier test runs left behind.
-      const pagePath =
-        signedIn !== undefined && shot.path === '/admin/users' ? `${shot.path}?q=review-${seed?.tag ?? ''}` : shot.path;
+      // The lists are narrowed to this run's people and expenses, so they lead whatever earlier test runs left behind.
+      const tag = seed?.tag ?? '';
+      /** @type {Readonly<Record<string, string>>} */
+      const narrowed = {
+        '/admin/users': `?q=review-${tag}`,
+        '/admin/expenses': `?q=${tag}`,
+        '/admin/expenses/deleted': `?q=${tag}`,
+      };
+      const pagePath = signedIn !== undefined ? `${shot.path}${narrowed[shot.path] ?? ''}` : shot.path;
       // My Profile's h1 is the person's name, not the words "My Profile".
       const h1 = signedIn !== undefined && shot.path === '/admin/profile' ? signedIn.staff.name : shot.h1;
       const opened = await openReviewPage(browser, step.origin, { ...shot, path: pagePath, h1 }, problems, signedIn);
@@ -2832,6 +4110,9 @@ async function captureShots(step) {
     if (seed !== null) {
       await capturePhase5Review(browser, request, step.origin, seed, step.phase5Review, problems);
     }
+    if (seed !== null && six !== null) {
+      await capturePhase6Review(browser, request, step.origin, seed, six, step.phase6Review, problems);
+    }
   } finally {
     await request.dispose();
     await browser.close();
@@ -2842,6 +4123,7 @@ async function captureShots(step) {
     beforeAfter: step.beforeAfter,
     authReview: step.authReview,
     phase5Review: step.phase5Review,
+    phase6Review: step.phase6Review,
     problems,
   };
 }
@@ -2885,6 +4167,7 @@ function writeReport(step, result) {
       beforeAfter: result.beforeAfter ?? [],
       authReview: result.authReview ?? [],
       phase5Review: result.phase5Review ?? [],
+      phase6Review: result.phase6Review ?? [],
       problems: result.problems,
       parity: {
         summary: summarizeParity(report),

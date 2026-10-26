@@ -99,6 +99,31 @@ export async function createInvitedStaff(request: APIRequestContext, role: Staff
   return body;
 }
 
+/** What a spec chooses for a seeded company expense. The recorder is the person shown as Recorded by; leave it out for System. */
+export interface ExpenseSeedInput {
+  readonly paidByUserId: string;
+  readonly recordedByUserId?: string;
+  /** The expense date as yyyy-MM-dd. */
+  readonly date: string;
+  readonly categoryId: string;
+  readonly description: string;
+  readonly amount: number;
+  readonly notes?: string;
+  /** True to seed the expense already soft-deleted. */
+  readonly deleted?: boolean;
+}
+
+/** Seeds one company expense with a chosen payer, recorder, date and delete state, and returns its id. */
+export async function createExpense(request: APIRequestContext, input: ExpenseSeedInput): Promise<string> {
+  const response = await request.post('/api/testing/expenses', { data: input });
+  expect(response.status(), 'POST /api/testing/expenses').toBe(201);
+  const body: unknown = await response.json();
+  if (!isRecord(body) || typeof body.id !== 'string') {
+    throw new Error('POST /api/testing/expenses returned an unexpected body.');
+  }
+  return body.id;
+}
+
 /** Reads the sink's mail after a cursor id, optionally for one address. Oldest first. */
 export async function readEmails(
   request: APIRequestContext,

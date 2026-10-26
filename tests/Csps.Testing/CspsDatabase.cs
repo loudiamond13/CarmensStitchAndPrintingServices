@@ -1,6 +1,8 @@
+using Csps.Domain.Expenses;
 using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Respawn;
 using Respawn.Graph;
 using Xunit;
@@ -19,9 +21,9 @@ public sealed class CspsDatabase : IAsyncLifetime
     private const int MinCompatibilityLevel = 100;
     private const int MaxCompatibilityLevel = 170;
 
-    // Never reset: migration history, the migration-seeded SiteSettings row and AspNetRoles (Pitfall 7), and the
-    // append-only audit log with its empty truncate guard (the trigger rejects Respawn's DELETE, research Pitfall 1).
-    private static readonly string[] IgnoredTables = ["__EFMigrationsHistory", "SiteSettings", "AspNetRoles", "AuditLog", "AuditLogTruncateGuard"];
+    // Never reset: migration history, the migration-seeded SiteSettings row, AspNetRoles and the DatabaseLocks standing rows
+    // (Pitfall 7), and the append-only audit log with its empty truncate guard (the trigger rejects Respawn's DELETE, research Pitfall 1).
+    private static readonly string[] IgnoredTables = ["__EFMigrationsHistory", "SiteSettings", "AspNetRoles", "DatabaseLocks", "AuditLog", "AuditLogTruncateGuard"];
 
     private SqlServerInstance? _server;
     private Respawner? _respawner;
@@ -121,6 +123,27 @@ public sealed class CspsDatabase : IAsyncLifetime
 
             await _respawner.ResetAsync(connection).ConfigureAwait(false);
         }
+
+        await ReseedExpenseCategoriesAsync().ConfigureAwait(false);
+    }
+
+    // Respawn empties ExpenseCategories, but the ten migration-seeded rows belong to every database (D-09), and an expense
+    // needs its category foreign key (research Pitfall 1). Put back any that are missing, from the same seed the migration uses.
+    private async Task ReseedExpenseCategoriesAsync()
+    {
+        var context = CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            var present = await context.ExpenseCategories.AsNoTracking().Select(category => category.Id).ToListAsync().ConfigureAwait(false);
+            var missing = ExpenseCategorySeed.Rows.Where(row => !present.Contains(row.Id)).ToList();
+            if (missing.Count == 0)
+            {
+                return;
+            }
+
+            context.ExpenseCategories.AddRange(missing.Select(ExpenseCategory.FromSeed));
+            await context.SaveChangesAsync().ConfigureAwait(false);
+        }
     }
 
     // True when at least one user table is not on the ignore list (names compared like Respawn: any schema).
@@ -146,8 +169,14 @@ public sealed class CspsDatabase : IAsyncLifetime
 
     /// <summary>Creates a new context on this database. The caller disposes it.</summary>
     /// <returns>A context built through <see cref="CspsDbContextOptions.Configure"/>.</returns>
-    public CspsDbContext CreateContext()
+    public CspsDbContext CreateContext() => CreateContext([]);
+
+    /// <summary>Creates a new context on this database with extra interceptors, such as a <see cref="CommandCounter"/>. The caller disposes it.</summary>
+    /// <param name="extra">Interceptors added after the ones <see cref="CspsDbContextOptions.Configure"/> adds.</param>
+    /// <returns>A context built through <see cref="CspsDbContextOptions.Configure"/>.</returns>
+    public CspsDbContext CreateContext(params IInterceptor[] extra)
     {
+        ArgumentNullException.ThrowIfNull(extra);
         if (string.IsNullOrEmpty(ConnectionString))
         {
             throw new InvalidOperationException("The test database is not initialized yet.");
@@ -155,6 +184,11 @@ public sealed class CspsDatabase : IAsyncLifetime
 
         var builder = new DbContextOptionsBuilder<CspsDbContext>();
         CspsDbContextOptions.Configure(builder, ConnectionString);
+        if (extra.Length > 0)
+        {
+            builder.AddInterceptors(extra);
+        }
+
         return new CspsDbContext(builder.Options);
     }
 

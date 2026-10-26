@@ -9,6 +9,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { CASCADE_LABELS, cascadeSentence, type CascadeCounts } from '@/utils/csps';
 import { describeHttpError, type ErrorCopy } from '@/utils/describeHttpError';
+import { formatCount } from '@/utils/format';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Field, messageClasses } from '@/components/forms';
@@ -189,7 +190,7 @@ export function ConfirmDialog({
                   const count = counts[key] ?? 0;
                   return (
                     <li key={key} className={cascadeItemClasses}>
-                      <span className={cascadeCountClasses({ zero: count === 0 })}>{count}</span>
+                      <span className={cascadeCountClasses({ zero: count === 0 })}>{formatCount(count)}</span>
                       {count === 1 ? one : key}
                     </li>
                   );

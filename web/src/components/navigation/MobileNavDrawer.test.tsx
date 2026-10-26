@@ -32,10 +32,11 @@ function hasClasses(element: Element | null | undefined, classes: string): boole
 interface HarnessProps {
   readonly initialOpen?: boolean;
   readonly onClose?: () => void;
+  readonly withAuditLog?: boolean;
 }
 
 /** The menu button and the drawer as the admin shell wires them, in a router with the admin paths. */
-function Harness({ initialOpen = false, onClose }: HarnessProps) {
+function Harness({ initialOpen = false, onClose, withAuditLog = false }: HarnessProps) {
   const [open, setOpen] = useState(initialOpen);
   return (
     <>
@@ -58,7 +59,7 @@ function Harness({ initialOpen = false, onClose }: HarnessProps) {
           setOpen(false);
         }}
       >
-        <Sidebar active="dashboard" role={MANAGER} user={CARMEN} />
+        <Sidebar active="dashboard" role={MANAGER} user={CARMEN} withAuditLog={withAuditLog} />
       </MobileNavDrawer>
     </>
   );
@@ -116,6 +117,17 @@ describe('MobileNavDrawer (SPEC-GAP: mobile nav drawer)', () => {
     expect(within(panel).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
     expect(within(panel).getByRole('button', { name: 'Logout' })).toBeInTheDocument();
     expect(within(panel).getByText('Carmen Reyes')).toBeInTheDocument();
+  });
+
+  // SPEC-DEVIATION: OQ-3 the real shell's drawer lists the Manager-only Settings after the Audit Log (plan 06-17, D-14).
+  it('lists Settings after the Audit Log for a Manager when the shell asks for the extra items', async () => {
+    renderHarness({ withAuditLog: true });
+    await userEvent.click(menuButton());
+
+    const links = within(drawer()).getAllByRole('link');
+    const names = links.map((item) => item.textContent);
+    expect(names.indexOf('SettingsManager')).toBe(names.indexOf('Audit LogManager') + 1);
+    expect(within(drawer()).getByRole('link', { name: /^Settings/ })).toHaveAttribute('href', '/admin/settings');
   });
 
   it('is the 248px left panel over the scrim at the overlay layer, rendered in place (never a portal)', () => {

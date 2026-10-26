@@ -13,6 +13,7 @@ import {
   cellSharedClasses,
   moneyCellClasses,
   tableClasses,
+  tableFitTabletClasses,
   tableHeadCellClasses,
   tableHeadClasses,
   tableRowClasses,
@@ -29,6 +30,8 @@ export type SkeletonTableColumn = Pick<
 
 export interface SkeletonTableProps {
   columns: readonly SkeletonTableColumn[];
+  /** No 680px floor on tablets (as on ResponsiveTable). */
+  fitTablet?: boolean | undefined;
 }
 
 /** The four skeleton rows (spec §8.5). */
@@ -39,10 +42,10 @@ function barWidth(column: SkeletonTableColumn): number | string {
   return column.money === true ? '60%' : '80%';
 }
 
-export function SkeletonTable({ columns }: SkeletonTableProps) {
+export function SkeletonTable({ columns, fitTablet = false }: SkeletonTableProps) {
   return (
     <div className={tableWrapClasses} aria-hidden="true">
-      <table className={tableClasses}>
+      <table className={fitTablet ? tableFitTabletClasses : tableClasses}>
         <thead className={tableHeadClasses}>
           <tr>
             {columns.map((column) => (

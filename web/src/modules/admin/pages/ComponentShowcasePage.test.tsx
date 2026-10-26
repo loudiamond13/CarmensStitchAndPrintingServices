@@ -28,6 +28,7 @@ const SECTION_TITLES = [
   'Marketing',
   'Sign-in and devices',
   'Staff and audit',
+  'Expenses and settings',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -171,6 +172,8 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Sign-in and devices')).toContainElement(caseFrame('devices-populated'));
     expect(section('Sign-in and devices')).toContainElement(caseFrame('signout-others-open'));
     expect(section('Staff and audit')).toContainElement(caseFrame('staff-roster-rows'));
+    expect(section('Expenses and settings')).toContainElement(caseFrame('expenses-table'));
+    expect(section('Expenses and settings')).toContainElement(caseFrame('settings-category-rows'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
@@ -181,11 +184,11 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(caseFrame('button-primary-md')).not.toHaveAttribute('data-theme');
   });
 
-  it('shows all 63 icons in a grid with their names', () => {
+  it('shows all 68 icons in a grid with their names', () => {
     renderShowcase();
 
     const names = Object.keys(ICONS);
-    expect(names).toHaveLength(63);
+    expect(names).toHaveLength(68);
     const grid = within(caseFrame('showcase-icon-names'));
     for (const name of names) {
       expect(grid.getByText(name)).toBeInTheDocument();

@@ -2,9 +2,9 @@
 // 'status'. Plan 02-19:
 //   - one Badge per tone, plus the dot and icon forms (the Users table status and the "Manager only" header badge);
 //   - one StatusBadge per order status;
-//   - the payment method and company expense category badges, each a Badge in the tone the §6.2 tables give it (the
-//     tables are PAYMENT_TONE and EXPENSE_TONE in src/components/status/tones.ts; status.test.tsx checks these props against
-//     them, because the scenario list is plain data and cannot import the app);
+//   - the payment method and company expense category badges, each a Badge in the tone the §6.2 table gives the payment
+//     method (PAYMENT_TONE in src/components/status/tones.ts) or the tone the migration seed stores for the category (D-13);
+//     status.test.tsx checks these props against them, because the scenario list is plain data and cannot import the app;
 //   - Avatar at the sizes the screens use.
 // All are compared at rest in both themes (a badge has no hover, focus or width-dependent rules).
 import type { Scenario, ScenarioNode, ScenarioProps } from '../types';

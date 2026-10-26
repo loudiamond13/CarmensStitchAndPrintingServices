@@ -55,7 +55,7 @@ import { formatBusinessDate, formatBusinessDateTime } from '@/utils/format';
 
 const COPY = SHOWCASE_COPY.staff;
 
-interface DemoCaseProps {
+export interface DemoCaseProps {
   /** The case id: its overline label and its `data-case`. */
   id: string;
   /** A live demo that opens a fixed layer: its frame is no page root, so the layer covers the page. */
@@ -64,7 +64,7 @@ interface DemoCaseProps {
 }
 
 /** One case under its overline label, in the same two frames the page gives every other case. */
-function DemoCase({ id, live = false, children }: DemoCaseProps) {
+export function DemoCase({ id, live = false, children }: DemoCaseProps) {
   const labelId = useId();
   return (
     <div className={caseClasses}>
@@ -209,6 +209,8 @@ const AUDIT_ROWS: readonly AuditSample[] = [
     ipPrefix: '203.0.113.0',
     occurredAt: '2026-10-12T07:42:00Z',
     reference: '00-4bf92f3577b34da6a3ce929d0e0e4736-01',
+    changes: [],
+    snapshot: null,
   },
   {
     id: 2,
@@ -220,6 +222,8 @@ const AUDIT_ROWS: readonly AuditSample[] = [
     ipPrefix: null,
     occurredAt: '2026-10-11T02:15:00Z',
     reference: '00-9a1f0c2d3b4e5f60718293a4b5c6d7e8-01',
+    changes: [],
+    snapshot: null,
   },
 ];
 

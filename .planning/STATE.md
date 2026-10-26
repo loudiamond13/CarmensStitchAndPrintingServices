@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 6
-current_phase_name: Company Expenses
-status: "Phase 05 shipped: PR #10"
-stopped_at: Phase 5 complete, ready to plan Phase 6
-last_updated: "2026-10-20T00:26:24.456Z"
-last_activity: 2026-10-19
-last_activity_desc: Phase 5 shipped as PR #10, ready to plan Phase 6
-state_head: 2921e0320dbdf761ba8eac1048d97d077c376e58
+current_phase: 7
+current_phase_name: Order Domain & API
+status: planning
+stopped_at: Phase 06 shipped as PR
+last_updated: "2026-10-26T13:32:47.364Z"
+last_activity: 2026-10-26
+last_activity_desc: Phase 06 shipped as PR
+state_head: 8431bb8aa72a620bfaa5ddbee1286ac86ac6125d
 progress:
   total_phases: 17
-  completed_phases: 5
-  total_plans: 166
-  completed_plans: 166
-  percent: 29
+  completed_phases: 6
+  total_plans: 187
+  completed_plans: 187
+  percent: 35
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-19T19:45:00-05:00"
+updated: "2026-10-26T09:39:00-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-19)
+See: .planning/PROJECT.md (updated 2026-10-26)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 6 — Company Expenses
+**Current focus:** Phase 7 — Order Domain & API
 
 ## Current Position
 
-Phase: 6 — Company Expenses
+Phase: 7 — Order Domain & API
 Plan: Not started
-Status: Phase 05 shipped: PR #10
-Last activity: 2026-10-19: Phase 5 shipped as PR #10
+Status: Ready to plan (Phase 06 shipped as PR #11, awaiting merge)
+Last activity: 2026-10-26 - Completed quick task 261026-au5: Fix npm audit advisories on PR 11
 
-Progress: [███░░░░░░░] 29%
+Progress: [████░░░░░░] 35%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 166
+- Total plans completed: 187
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -52,6 +52,7 @@ Progress: [███░░░░░░░] 29%
 | 03 | 23 | - | - |
 | 4 | 35 | - | - |
 | 5 | 52 | - | - |
+| 06 | 21 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -223,6 +224,27 @@ Progress: [███░░░░░░░] 29%
 | Phase 05 P50 | 15 min | 2 tasks | 7 files |
 | Phase 05 P52 | 5 min | 2 tasks | 2 files |
 | Phase 05 P51 | 45 min | 3 tasks | 6 files |
+| Phase 06 P01 | 20 min | 3 tasks | 41 files |
+| Phase 06 P02 | 27 min | 3 tasks | 39 files |
+| Phase 06 P03 | 23 min | 3 tasks | 25 files |
+| Phase 06 P11 | 8 min | 2 tasks | 7 files |
+| Phase 06 P04 | 41 min | 2 tasks | 29 files |
+| Phase 06 P05 | 13 min | 2 tasks | 15 files |
+| Phase 06 P06 | 26 min | 2 tasks | 9 files |
+| Phase 06 P07 | 28 min | 3 tasks | 18 files |
+| Phase 06 P08 | 28 min | 3 tasks | 26 files |
+| Phase 06 P09 | 28 min | 2 tasks | 16 files |
+| Phase 06 P10 | 40 min | 3 tasks | 26 files |
+| Phase 06 P12 | 37 min | 3 tasks | 21 files |
+| Phase 06 P13 | 68 min | 3 tasks | 48 files |
+| Phase 06 P14 | 43 min | 3 tasks | 16 files |
+| Phase 06 P15 | 50 min | 3 tasks | 20 files |
+| Phase 06 P16 | 61 min | 3 tasks | 27 files |
+| Phase 06 P17 | 41 min | 3 tasks | 25 files |
+| Phase 06 P18 | 2h 20m | 2 tasks | 15 files |
+| Phase 06 P19 | 56 min | 2 tasks | 7 files |
+| Phase 06 P20 | 38 min | 3 tasks | 20 files |
+| Phase 06 P21 | 52 min | 4 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -581,12 +603,90 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 05]: 05-47: SendResetLinkHandler sends nothing, with the usual 204, for an unconfirmed person (checked before the cap); SetTemporaryPasswordHandler no longer confirms an invited person's address (D-49)
 - [Phase 05]: 05-52: the rate-limit guard matches list rows to route patterns per path segment with {parameter} as a one-segment wildcard
 - [Phase 05]: D-51 (owner, 2026-10-19): row actions sit 8 px apart with a full 44 x 44 px tap area each; the top bar user menu gets a 44 px tall tap area; WR-20 tap areas are recorded in the look-equality rulings
+- [Phase 06]: D-30 to D-33 (owner, 2026-10-25, after research): a category is deletable again once its expenses are all permanently deleted; soft delete and restore update "Last changed by"; Paid by must be signed-in staff (invited people who have not finished set-up can't be chosen); the database checks only Amount > 0, the ₱1,000,000.00 cap lives in validators. Full text in 06-CONTEXT.md.
+- [Phase 06]: 06-01: A-06-01 built as option 2 (D-32 literally: has a password); the set-up check lives only in StaffDirectory.cs, pinned by StaffLookupEndpointTests; owner choice parked in the Owner backlog
+- [Phase 06]: 06-02: The seven CompanyExpenses indexes, the soft-delete columns and the named SoftDelete query filter ship in the first migration (D-01), so the list, the Deleted view and the Phase 10 sums need no schema change
+- [Phase 06]: 06-02: ExpenseRules.AmountMax is a static readonly decimal (a const decimal leaves an unexecuted static constructor that costs the Domain 100 percent line gate)
+- [Phase 06]: 06-02: the category and payer database checks are merged into the validator's own failures, so one 400 lists every field; the audit entry joins the create's save inside the idempotency gate's transaction
+- [Phase 06]: 06-03: a lone from or to puts 'Enter both dates, or neither.' on the missing field
+- [Phase 06]: 06-03: the list page command reads category, payer and recorder with joins; the reader runs exactly two SQL commands (measured)
+- [Phase 06]: 06-03: the Testing seeder saves first, then stamps recorder and delete marker with ExecuteUpdateAsync (the stamp interceptor overwrites CreatedById on add)
+- [Phase 06]: 06-11: the dev seed derives its 64 demo expenses from the row number (no Random), and NoInlineSqlTests allows exactly IdempotencyGate.cs, AccountTokenStore.cs and ManagerRosterLock.cs until the owner rules (Owner backlog)
+- [Phase 06]: 06-04: ResponsiveTable has two additive props, footerLayout (a footer cell can span columns and carry its own phone label) and emptyTitle; the E1 footer spans Date to Description and the phone label is Total
+- [Phase 06]: 06-04: e2e specs on the shared CSPS_E2E database judge every row against the response it was drawn from (100 a page) and never rely on a row's page position, because earlier runs keep their rows
+- [Phase 06]: 06-04: CategoryBadge lets a long name wrap through important utilities (h-auto!, whitespace-normal!) passed as Badge className; no avatar is drawn for a System recorder
+- [Phase 06]: 06-05: the KPI share is rounded in the handler (half away from zero) and the reader returns raw decimals; KPI tests with a distant fixed clock start sessions on the clock host and mint tokens for the real now (TestSessions takes any host)
+- [Phase 06]: 06-06: the expense detail and both KPI commands are compiled (EF.CompileAsyncQuery with a CancellationToken parameter), the list stays plain LINQ; the reader runs list 2, KPIs 2, detail 1 commands, guarded by CommandCounter (reader exact, endpoint by equality)
+- [Phase 06]: 06-06: System.Random is banned, so the five-year timing data uses a small xorshift sequence; p95 on this machine: default window 106.6 ms, category 3.7 ms, search 79.6 ms, five-year last page 197.8 ms, KPIs 8.5 ms (limit 300 ms)
+- [Phase 06]: 06-07: the date pair rule is a wrapper around createListParams (not a change to the shared factory); a broken pair reads as no dates at once and is removed with one replace
+- [Phase 06]: 06-07: with the default window shown, a valid date typed into only From or only To is a valid pair and applies as a custom range; a half-filled range arises only when a date is cleared or invalid, and an empty date reads 'Enter a real date.'
+- [Phase 06]: 06-07: ExpenseCategorySelect types mode as 'filter' only; plan 06-12 widens it with the picker props. expensesBackend in the fixtures also answers the category list
+- [Phase 06]: 06-08: A form edit never retries on a conflict; the version byte compare and a lost race at save both answer edit.stale
+- [Phase 06]: 06-08: Add and Edit Expense share ExpenseFieldsValidator (Include over IExpenseFieldsRequest); only a changed category or payer is re-checked, so a saved retired category or deactivated payer may stay
+- [Phase 06]: 06-08: An edit writes company-expense.changed (old>new amount, date, category; fields= names only; ends with the payer) and a separate company-expense.payer-changed; no change writes nothing
+- [Phase 06]: 06-09: text KPI values wrap at word boundaries (kpiTextValueClasses); numbers and counts keep the one-line look
+- [Phase 06]: 06-09: every expense mutation must invalidate expenseKpisKey ('company-expense-kpis') as well as expensesKey; the KPI query key holds no list params
+- [Phase 06]: 06-09: the e2e list helpers match the list route by pathname, because the KPI route shares the /api/v1/company-expenses prefix
+- [Phase 06]: 06-10: Soft delete, restore and permanent delete take no row version and run inside ConflictRetry plus InTransactionAsync; a lost race is read again and a vanished row answers 404
+- [Phase 06]: 06-10: The permanent delete is a tracked Remove with the audit entry recorded first in the same save, so the entry outlives the row; never ExecuteDelete
+- [Phase 06]: 06-10: The authorization matrix harness always sends an Idempotency-Key, so the restore row expects Manager 404; the missing-key 400 has its own test
+- [Phase 06]: 06-12: Add Expense stays aria-disabled until the page knows the server's business today (list, else the month figures), so the modal never starts from the device clock
+- [Phase 06]: 06-12: Paid by lists only the staff lookup (signed-in user first as '(you)'); a failed lookup disables the field but does not block the save, the server's CanPay check is the authority
+- [Phase 06]: 06-12: expenseFormSchema(today) counts the 30-day limit from the server today string; the amount stays text until the 2-decimal and cap checks pass and becomes a number only in the request builder
+- [Phase 06]: 06-12: a save invalidates expensesKey, expenseKpisKey and expensesDeletedKey; the toast adds the outside-filters note by comparing the saved row with the URL search, category and dates
+- [Phase 06]: 06-13: category race backstops (unique name, expense foreign key, deadlock victim) are translated in CspsUnitOfWork; the foreign key side is read from the failing EF entries
+- [Phase 06]: 06-13: an expense saved in a category deleted a moment earlier is a 400 on categoryId, Choose a category.
+- [Phase 06]: 06-14: the Edit and View modals read the expense on a query root of their own (company-expense, id) with no cache and no refetch on focus; the form keeps the row version of its first answer, so a refetch never changes what a save sends (SEC-07).
+- [Phase 06]: 06-14: row actions follow the server's canEdit alone (pencil Edit when true, eye View when false); View keeps the UI-SPEC footer Close beside the dialog's header Close icon, and its scrolling body is a named focusable region.
+- [Phase 06]: 06-15: the server parses expense and category audit details into typed lines and a snapshot (AuditChangeLines) and resolves payers and category names; Done to is the payer and the Done to filter also matches an expense by its current, old or new payer
+- [Phase 06]: 06-15: category added, retired, back in use and deleted entries show 'Name: {name}' (and 'Color: {color}' when added) and payer names carry '(former staff)'; both are new copy for the 05 D-48 review
+- [Phase 06]: 06-16: Delete, Delete permanently and Restore act on the latest state (no row version); only Restore sends an Idempotency-Key, kept through a retry by useExpenseAction and replaced for the next action
+- [Phase 06]: 06-16: Admins get no Deleted Expenses link or delete action, the /admin/expenses/deleted loader redirects them to /admin/expenses (requireManagerLoader fallback path), and a 403 there shows the P2 access banner
+- [Phase 06]: 06-16: OQ-1, OQ-2, OQ-5 and OQ-12 were built with their contract defaults (eraser third icon, separate Deleted Expenses page, Restore with no confirm, five icons added); owner rulings still pending
+- [Phase 06]: 06-17: Retire and Use again flip the status in the cached list at once, then the lists read again; the flipped action keeps (or regains) focus
+- [Phase 06]: 06-17: Delete is offered for a non-Others category with expenseCount 0; a 422 expense-categories.in-use keeps the dialog open with the contract refusal and refetches, a 404 shows the shared mapper line (no new wording invented)
+- [Phase 06]: 06-17: every category change refreshes through useRefreshCategories (categories, expenses, KPIs, deleted list); the category detail is read fresh under its own query root so a refresh never replaces an open form's version
+- [Phase 06]: 06-18: A money figure of 15 characters or more takes a smaller KPI clamp (22px floor, 13.5cqi) so 999,999,999.99 fits the card at 320 px; shorter figures keep the approved clamp
+- [Phase 06]: 06-18: The showcase section for the Phase 6 demos is titled Expenses and settings, because the E1 table region is already named Company expenses
+- [Phase 06]: 06-19: A-06-01 and the three inline SQL files are shown in the review pack as ruled (D-49, D-50) with follow-up plans 06-20 and 06-21; option 2 and option 1 stay marked built until those land
+- [Phase 06]: 06-19: npm run review reads the copy modules through a short-lived Vite server when plain Node cannot resolve the app's @/ paths (06-15 had stopped the script)
+- [Phase 06]: 06-19: the review pack's Phase 6 pages are narrowed by this run's tag; the month cards count the whole CSPS_E2E database and the pack says so
+- [Phase 06]: 06-20: D-49 built as A-06-01 option 1: Paid by needs a password and the first sign-in mark (EmailConfirmed) in the staff lookup, the create and edit check, the detail paidByActive flag and the dev seed; staff after a Manager password reset stay choosable; no schema change
+- [Phase 06]: 06-20: Phase 17 legacy import must set the first sign-in mark on imported staff, or they cannot be chosen as Paid by
+- [Phase 06]: 06-21: D-50 built. The three locks are rows of the new DatabaseLocks table taken with ExecuteUpdate inside the caller's transaction; a rollback to a savepoint frees a lock taken after it
+- [Ship 06]: D-63 (owner, 2026-10-26): the npm audit fixes for PR #11 are approved at exact versions (zod 4.6.7, vitest and @vitest/coverage-v8 5.0.4, ip-address 10.7.4, undici 8.12.2 and 6.29.1, fast-uri 3.1.9, chromium-bidi's zod forced to 4.6.7); undici and fast-uri skip the 14-day cool-down as security fixes (quick 261026-au5).
+- [Ship 06]: D-64 (owner, 2026-10-26): the package fix goes on the PR #11 branch. D-67 (owner, 2026-10-26): the nine non-conventional UI-fix commit subjects were then reworded to `type(06): ...` and the branch force-pushed, trees unchanged; old commit ids in the planning docs were remapped (backup ref `backup/phase-06-before-reword`, local only).
+- [Ship 06]: D-65 (owner, 2026-10-26): zod 4.6.7 is forced everywhere with one top-level npm override (the axe-core pattern), not a nested one. Accepted risk: Lighthouse's unused WebDriver BiDi driver (chromium-bidi 17.0.2, written for zod 3) gives a generic TypeError on malformed input instead of its own error; Lighthouse does not load it (quick 261026-au5).
+- [Ship 06]: D-66 (owner, 2026-10-26): the test-only packages vitest 5.0.4 requires (about 12, including obug 3 and why-is-node-running 3.2.1) are accepted; any other lockfile change stops the task.
+- [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 
 ### Pending Todos
 
 Owner items (updated 2026-10-17):
 
 None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __Secure-csps_2fa checked by the owner (2026-10-17).
+
+Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and execution; nothing here was auto-approved):
+
+- [x] **Ruled D-54 (owner, 2026-10-26): all 15 defaults confirmed.** **Phase 6 UI-SPEC OQ-1 to OQ-15:** the build uses the contract defaults in `06-UI-SPEC.md`. Rule each one, or confirm the defaults.
+- [x] **Ruled D-53 (owner, 2026-10-25): option A confirmed.** **Phase 6 audit viewer for expense events (06-RESEARCH open question 2):** planned with option A (the server turns the stored detail into change lines and names payer and category; "Done to" also matches expense payers). Confirm or change.
+- [x] **Ruled D-52 (owner, 2026-10-25): real rate is lower; size stays.** **Phase 6 timing data size (open question 5):** the speed test assumes about 20 expenses a day for 5 years (~36,500 rows). Tell us if the shop's real rate is higher.
+- [x] **Ruled D-55 (owner, 2026-10-26): wording approved as built.** **Phase 6 copy review (05 D-48):** read the new expense and Settings page wording before release.
+- [ ] Any checkpoints, manual checks or package approvals that Phase 6 execution parks are added below this line.
+- [x] **Ruled D-59 (owner, 2026-10-26): confirmed; leave CSPS_E2E staff; cancelled-request logging goes to a later quick task.** **Phase 6 slow add-expense test fix (parked 2026-10-26, away mode):** the add-expense browser test took about 2 minutes on Safari-type browsers. Cause: the accessibility check scanned a Paid by list of 2,288 test accounts. Fixed in test code only (commits a7ddcd76, 39cc69e3); the full expense and settings run passed 140 of 140. Pick one. (1) Recommended: confirm, and `.planning/debug/expenses-add-save-slow.md` is closed. (2) Ask for more proof. Two side notes in `deferred-items.md`: test staff keep piling up in CSPS_E2E (leave it, recommended, or retire old test staff in the e2e seed step); a request the browser cancels is logged as a server error (fix in a later quick task, recommended).
+- [x] **Ruled D-57 (owner, 2026-10-26): option 2, keep as built.** **Phase 6 expense notes for staff who cannot edit (code review A-IN-03, parked 2026-10-25):** an Admin can open any expense in View, and the server sends its notes, including notes on expenses the Admin did not record or pay and cannot edit (D-25, D-26). Notes are free text and may hold personal details (D-06). Your decisions do not say who may read them. Pick one. (1) Recommended: only someone who can edit the expense sees its notes; an Admin viewing another person's expense sees no notes. It keeps personal details to the people who own the row. Where it changes: `CompanyExpenseDetailResponse.From` (notes empty when the caller cannot edit) and the View modal. (2) Keep as built: every staff member can read every expense's notes, recorded as your ruling.
+- [x] **Ruled D-59 (owner, 2026-10-26): confirmed.** **Phase 6 command-count flake fix (parked 2026-10-25, away mode):** the expense list speed test sometimes counted an extra SQL command. Cause: the test also counted the email sender's once-a-second background check. Fixed in test code only (commit c0616d1c); three full test runs passed. Pick one. (1) Recommended: confirm, and the debug note `.planning/debug/expense-list-command-count-flake.md` is closed. (2) Ask for more proof.
+- [x] **Approved (owner, 2026-10-26, 06-UAT tests 1 and 2; OQs ruled D-54).** **Phase 6 review pack (plan 06-19, parked 2026-10-25):** open `artifacts/owner-review/index.html` (made on this computer, never committed), section "Company expenses and settings (Phase 6)", check the screens and rule OQ-1 to OQ-15 (the defaults are built). The same section lists the other open items and a table of every new sentence for the copy review.
+- [x] **Ruled D-49 (owner, 2026-10-25): option 1, first sign-in required; follow-up 06-20.** **Phase 6 Paid by and temporary passwords (A-06-01, D-32):** a person a Manager creates with a temporary password has a password but has never signed in, so today they can be chosen as Paid by. Pick one. (1) Recommended: they can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable. (2) Built now: keep the rule as written ('has a password'), so they can be chosen before their first sign-in. (3) Hide anyone who still has to change a temporary password: also hides long-time staff after a Manager resets their password, until they sign in again. Where it changes: the staff rule in `StaffDirectory.cs` (two lines); the test `StaffLookupEndpointTests` pins option 2. **Built in plan 06-20 (option 1): `StaffDirectory.cs`, `CompanyExpenseReader.cs` and `CompanyExpensesSeedStep.cs` now need the first sign-in mark, and `StaffLookupEndpointTests` pins option 1.**
+- [x] **Ruled D-50 (owner, 2026-10-25): option 2, rework all three without inline SQL; follow-up 06-21.** **Phase 6 inline SQL in three existing files (06-11, your rule on inline SQL):** your rule allows hand-written SQL only where you approve it by name. Three files from Phases 4 and 5 each run one short SQL line that takes a database lock, so two requests at the same moment cannot collide: `IdempotencyGate.cs` (stops a double-submitted form from saving twice), `AccountTokenStore.cs` (one sign-in link per person at a time) and `ManagerRosterLock.cs` (keeps at least one active Manager). EF has no built-in way to take this kind of lock. The new guard test allows exactly these three and fails on any other. Pick one. (1) Recommended: approve the three by name; nothing changes. (2) Rework them without hand-written SQL: each lock is rebuilt with EF's own tools (for example a lock row updated inside the same transaction), which is more code and may need a small new table. Until you answer, the three stay allowed and no new one can be added.
+- [x] **Ruled D-51 (owner, 2026-10-25): option 1 confirmed.** **Phase 6 month KPI edge cases (A-06-02, CEXP-03):** the KPI cards are tested at the change of month in Manila time, for an empty month, for ties, for upcoming dates and for deleted expenses. We assumed no other case needs its own rule, for example a business time zone other than Asia/Manila in Site settings. Pick one. (1) Recommended: confirm; the cards follow the business time zone in Site settings, which is Asia/Manila today. (2) Name another case you want tested before release.
+- [x] **Ruled D-56 (owner, 2026-10-26): option 1, keep the sentence.** **Phase 6 wording for a Paid by who has not signed in (plan 06-20, 05 D-48, parked 2026-10-25):** a Manager adds Tia with a temporary password. Until her first sign-in code, choosing her as Paid by gives the existing sentence "This person can't be chosen because their account isn't active. Choose someone else." Her account is active, so the sentence can read oddly. Nothing was reworded. Pick one. (1) Recommended: keep the sentence; it is short and the person appears in the list after the first sign-in. (2) Add a second sentence for this case, for example "This person hasn't signed in yet. Choose someone else.", which needs a small change in the payer check and the web copy. (3) Show the person in the Paid by list but not selectable, with a hint. Where it changes: `ExpenseRules.PaidByInactive` and the payer check in `CreateCompanyExpenseHandler.cs` and `UpdateCompanyExpenseHandler.cs`.
+- [ ] **Quick task: log a cancelled request as cancelled, not as a server error (D-59, 2026-10-26):** a request the browser cancels (`TaskCanceledException`, for example `GET /api/v1/staff` in `StaffDirectory.ListActiveStaffAsync`) is logged as an Error with status 500 though no client saw a 500. Detail in `.planning/phases/06-company-expenses/deferred-items.md`. Run as `/gsd-quick` when convenient.
+- [ ] **Phase 6 release day (owner reminder, 2026-10-26):** do not run any SQL on production before release. On release day, after Phase 6 is merged: take `csps-migrations.sql` from that release's deploy package, apply it to the production database (it adds expense categories, company expenses and the database lock table; additive only), then press Run on the deploy (`docs/operations/deploy.md`).
+- [ ] **Phase 6 UI fixes, your visual check (quick 261026-89i, not blocking):** on your dev server at 390, 820 and 1440 px: the expense toolbar labels line up; From and To show "Sep 26, 2026" beside the box, one filter per row on phones, no sideways scroll at 320 px; the expense form Date shows the friendly date; Settings row icons line up with space at the card edge at 820 px; Category and Paid by show the required *; counts show commas ("Showing 1,687 expenses"). Tell me anything that looks off.
+- [ ] **Phase 17 legacy import carry-forward (plan 06-20, D-49):** imported staff must get the first sign-in mark (`EmailConfirmed`) set, or they cannot be chosen as Paid by. Recorded in `docs/api/company-expenses.md`; add it to the Phase 17 plan.
+- [ ] **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
+- [ ] **Phase 6 duplicate-request guard after a crash (06-21, D-50):** the rebuilt guard marks a request key as 'in progress' in the database while it runs. If the app stops in the middle of a request (for example the host restarts it), a retry with the same key answers 'This request is already being processed' for up to 2 minutes, then works again. The old lock was freed at once. Nothing is saved twice or lost either way. Pick one. (1) Recommended: keep 2 minutes (built). (2) A shorter time, for example 30 seconds: a retry works sooner, but a request slower than that could start twice. Where the app stores the answer (for example adding an expense), the database still lets only one of them save and the other one shows an error. For the profile actions that keep a change without storing an answer (a wrong password that counts toward the lock, or a spent email-change link), both may apply. Where it changes: `IdempotencyGate.ClaimLease` (one constant).
 
 ### Blockers/Concerns
 
@@ -631,6 +731,8 @@ None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __S
 | 261017-j36 | Harden two load-sensitive tests (sign-in timing runs alone with warm-up; ESLint config test shares one instance with a 30 s budget) | 2026-10-17 | 8f232de | [261017-j36-harden-two-load-sensitive-tests-sign-in-](./quick/261017-j36-harden-two-load-sensitive-tests-sign-in-/) |
 | 261018-st8 | Raise the class-gate sweep test timeout so web verify passes under full coverage load | 2026-10-18 | 831f3fa | [261018-st8-raise-the-class-gate-sweep-test-timeout-](./quick/261018-st8-raise-the-class-gate-sweep-test-timeout-/) |
 | 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
+| 261026-89i | Phase 6 UI review fixes (D-60, D-61, D-62) | 2026-10-26 | b0c3e9eb | [261026-89i-phase-6-ui-review-fixes-d-60](./quick/261026-89i-phase-6-ui-review-fixes-d-60/) |
+| 261026-au5 | Fix npm audit advisories on PR 11 (D-63 to D-66) | 2026-10-26 | 8431bb8a | [261026-au5-fix-npm-audit-advisories-on-pr-11](./quick/261026-au5-fix-npm-audit-advisories-on-pr-11/) |
 
 ## Deferred Items
 
@@ -642,6 +744,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-19T19:40:00-05:00
-Stopped at: Phase 5 complete, ready to plan Phase 6
+Last session: 2026-10-26T03:25:42.992Z
+Stopped at: Phase 06 complete, ready to plan Phase 7
 Resume file: None

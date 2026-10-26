@@ -1,7 +1,8 @@
 // Fixture self-tests (QUAL-04, A11Y-01): each E2E guard must catch its own class of failure in every engine (chromium,
 // firefox, webkit; the phone projects skip this file in playwright.config.ts). Each test provokes exactly one finding on
 // the real home page, inspects it through the guard, proves the guard's end-of-test check would fail on it, and then
-// takes (clears) the record, so the auto check passes. Nothing here uses test.fail(), which could hide a real failure.
+// takes (clears) the record, so the auto check passes. One more test proves the axe check stays fast on a large page.
+// Nothing here uses test.fail(), which could hide a real failure.
 // Page scripts are strings: the e2e TypeScript program has no DOM types, and Playwright evaluates them outside the CSP.
 import { assertNoFindings, expect, expectNoAxeViolations, listFindings, test } from './fixtures.ts';
 
@@ -21,6 +22,20 @@ const INSERT_UNLABELLED_IMAGE = `(() => {
   const image = document.createElement('img');
   image.src = '/mark.svg';
   (document.querySelector('main') ?? document.body).append(image);
+})()`;
+
+// A labelled picker with 3,000 options, like the Paid by picker once the shared CSPS_E2E database holds that many staff.
+const INSERT_LONG_PICKER = `(() => {
+  const label = document.createElement('label');
+  label.textContent = 'Paid by';
+  const select = document.createElement('select');
+  for (let index = 0; index < 3000; index += 1) {
+    const option = document.createElement('option');
+    option.textContent = 'Staff member ' + String(index);
+    select.append(option);
+  }
+  label.append(select);
+  (document.querySelector('main') ?? document.body).append(label);
 })()`;
 
 /** Fetches a same-origin path from the page and returns the status. */
@@ -68,6 +83,20 @@ test('@fixture an unlabelled image fails the axe check', async ({ page, guard })
 
   await expect(expectNoAxeViolations(page)).rejects.toThrow(/image-alt/);
   expect(listFindings(await guard.take())).toEqual([]);
+});
+
+// Every option is a passing axe node. The check must not spend time per passing node: WebKit took about 25 s per check on
+// the Add Expense dialog's 2,300 options and @expenses-add timed out (debug session expenses-add-save-slow).
+test('@fixture the axe check takes seconds, not minutes, on a page with thousands of passing nodes', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await page.evaluate(INSERT_LONG_PICKER);
+
+  const started = Date.now();
+  await expectNoAxeViolations(page);
+  expect(Date.now() - started).toBeLessThan(10_000);
 });
 
 test('@fixture an unexpected same-origin 404 is caught, and a declared one is not', async ({

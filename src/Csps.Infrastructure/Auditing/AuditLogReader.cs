@@ -1,7 +1,9 @@
+using Csps.Application.Audit;
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
+using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +18,7 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
 {
     private const string UserTarget = "User";
     private const string SessionTarget = "UserSession";
+    private const string ExpenseActionPrefix = "company-expense.";
 
     public async Task<AuditLogPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken)
     {
@@ -68,9 +71,22 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
             _ => null,
         };
 
+        // Expense and category details are read into typed lines; the payers and categories they name are looked up once for the page.
+        var parsed = rows.Select(row => AuditChangeLines.For(row.Action, row.Detail)).ToList();
+        var categoryIds = parsed.SelectMany(changes => changes.CategoryIds()).Distinct().ToList();
+        IReadOnlyDictionary<Guid, string> categories = categoryIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await context.ExpenseCategories
+                .AsNoTracking()
+                .Where(category => categoryIds.Contains(category.Id))
+                .Select(category => new { category.Id, category.Name })
+                .ToDictionaryAsync(category => category.Id, category => category.Name, cancellationToken)
+                .ConfigureAwait(false);
+
         var personIds = rows
             .SelectMany(row => new[] { row.ActorUserId, TargetUser(row.TargetType, row.TargetId) })
             .OfType<Guid>()
+            .Concat(parsed.SelectMany(changes => changes.PersonIds()))
             .Distinct()
             .ToList();
         var people = personIds.Count == 0
@@ -89,17 +105,23 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
 
         IReadOnlyList<AuditLogEntryView> items =
         [
-            .. rows.Select(row => new AuditLogEntryView(
-                row.Id,
-                row.OccurredAtUtc,
-                PersonOf(row.ActorUserId),
-                row.Action,
-                row.TargetType,
-                PersonOf(TargetUser(row.TargetType, row.TargetId)),
-                row.Detail,
-                row.IpPrefix,
-                row.UserAgentFamily,
-                row.CorrelationId)),
+            .. rows.Select((row, index) =>
+            {
+                var (changes, snapshot) = AuditChangeLines.Resolve(parsed[index], categories, PersonOf);
+                return new AuditLogEntryView(
+                    row.Id,
+                    row.OccurredAtUtc,
+                    PersonOf(row.ActorUserId),
+                    row.Action,
+                    row.TargetType,
+                    PersonOf(TargetUser(row.TargetType, row.TargetId) ?? parsed[index].PayerId),
+                    row.Detail,
+                    row.IpPrefix,
+                    row.UserAgentFamily,
+                    row.CorrelationId,
+                    changes,
+                    snapshot);
+            }),
         ];
         return new AuditLogPage(items, total);
     }
@@ -138,9 +160,15 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
         {
             var targetKey = AuditKey.Of(target);
             var targetSessions = await SessionKeysAsync(target, cancellationToken).ConfigureAwait(false);
+
+            // An expense event is about its payer: the detail names the payer's id, as the current payer or as the old or new one.
+            var payerPattern = LikePattern.Contains(targetKey);
             matches = matches.Where(entry =>
                 (entry.TargetType == UserTarget && entry.TargetId == targetKey)
-                || (entry.TargetType == SessionTarget && entry.TargetId != null && targetSessions.Contains(entry.TargetId)));
+                || (entry.TargetType == SessionTarget && entry.TargetId != null && targetSessions.Contains(entry.TargetId))
+                || (entry.Action.StartsWith(ExpenseActionPrefix)
+                    && entry.Detail != null
+                    && EF.Functions.Like(entry.Detail, payerPattern, LikePattern.EscapeCharacter)));
         }
 
         if (query.Actor is { UserId: { } actorId })

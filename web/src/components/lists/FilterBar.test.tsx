@@ -190,6 +190,11 @@ describe('ResultBar and FilterChip (App. E.7, zero-one-many)', () => {
     expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 3 entries · newest first');
   });
 
+  it('shows a large count with a thousands separator', () => {
+    render(<ResultBar count={1687} thing="expense" things="expenses" orderNote="newest first" />);
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 1,687 expenses · newest first');
+  });
+
   it('says "Showing 1 order" for exactly one', () => {
     renderToolbar('', 1);
     expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 1 order · sorted by due date');

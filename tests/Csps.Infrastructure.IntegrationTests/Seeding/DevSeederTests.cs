@@ -127,7 +127,7 @@ public sealed class DevSeederTests(CspsDatabase database) : IClassFixture<CspsDa
         var context = database.CreateContext();
         await using (context)
         {
-            return await new DevSeeder(DevSeedSteps.All, new FakeTimeProvider(Now))
+            return await new DevSeeder(DevSeedSteps.All.Where(step => step.Name == "SiteSettings"), new FakeTimeProvider(Now))
                 .RunAsync(context, TestContext.Current.CancellationToken);
         }
     }

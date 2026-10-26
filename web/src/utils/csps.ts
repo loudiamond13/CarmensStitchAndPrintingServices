@@ -6,7 +6,7 @@
    show the server's figures and never present a preview as the saved figure. The shared golden vectors
    (tests/fixtures/order-math-golden-vectors.json) prove both sides agree to the centavo. */
 
-import { formatBusinessDate, formatCalendarDate } from './format';
+import { formatBusinessDate, formatCalendarDate, formatCount } from './format';
 
 /* ───────────── domain types ───────────── */
 
@@ -14,7 +14,6 @@ export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'compl
 export type ProductType =
   'Basketball Jersey' | 'Volleyball Jersey' | 'Moto Riding Jersey' | 'Long Sleeves' | 'Polo Shirt' | 'Custom Design';
 export type PaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'Bank Transfer';
-export type ExpenseCategory = 'Rent' | 'Utilities' | 'Salaries' | 'Supplies' | 'Equipment' | 'Maintenance' | 'Others';
 export type OrderExpenseCategory = 'Fabric' | 'Ink & paper' | 'Outsourcing' | 'Labor' | 'Delivery' | 'Others';
 export type DiscountType = 'fixed' | 'percentage';
 export type Role = 'admin' | 'manager';
@@ -77,14 +76,6 @@ export interface Order {
   discounts?: Discount[];
   expenses?: OrderExpense[];
 }
-export interface CompanyExpense {
-  id: string;
-  date: string;
-  category: ExpenseCategory;
-  description: string;
-  amount: number;
-  recordedBy: string;
-}
 export interface User {
   id: string;
   firstName: string;
@@ -126,15 +117,6 @@ export const PRODUCT_TYPES: ProductType[] = [
   'Custom Design',
 ];
 export const PAYMENT_METHODS: PaymentMethod[] = ['Cash', 'GCash', 'Maya', 'Bank Transfer'];
-export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Rent',
-  'Utilities',
-  'Salaries',
-  'Supplies',
-  'Equipment',
-  'Maintenance',
-  'Others',
-];
 export const ORDER_EXPENSE_CATEGORIES: OrderExpenseCategory[] = [
   'Fabric',
   'Ink & paper',
@@ -312,9 +294,8 @@ export const CASCADE_LABELS: readonly (readonly [keyof CascadeCounts, string])[]
 export function cascadeSentence(counts: CascadeCounts = {}): string {
   const parts = CASCADE_LABELS.map(([k, one]) => [counts[k] ?? 0, one] as const)
     .filter(([n]) => n > 0)
-    // SPEC-DEVIATION: lint restrict-plus-operands (String(n) in a template; the last part is popped instead of
-    // indexed, so it is never undefined). Same sentence.
-    .map(([n, one]) => `${String(n)} ${n === 1 ? one : one + 's'}`);
+    // The last part is popped instead of indexed, so it is never undefined.
+    .map(([n, one]) => `${formatCount(n)} ${n === 1 ? one : one + 's'}`);
   const last = parts.pop();
   if (last === undefined) return '';
   const list = parts.length > 0 ? parts.join(', ') + ', and ' + last : last;

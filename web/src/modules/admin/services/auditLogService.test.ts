@@ -20,6 +20,8 @@ const list: AuditLogResponse = {
       ipPrefix: '203.0.113.0/24',
       device: 'Chrome on Android',
       reference: 'c0ffee00',
+      changes: [],
+      snapshot: null,
     },
   ],
   total: 1,

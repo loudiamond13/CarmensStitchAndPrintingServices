@@ -4,12 +4,15 @@
 // the preflight, the guarded CSPS_E2E seed and a rebuild of the e2e bundle whenever a source is newer than it (L-29),
 // starts the real host for its own run only, captures every page at 390, 820 and 1440 px (the admin pages in both
 // themes) and writes one index.html. It writes nowhere but artifacts/owner-review/.
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { PORT_BUSY_MESSAGE } from './e2e.mjs';
+import { EXPENSES_COPY } from '../src/modules/admin/expensesCopy.ts';
+import { SETTINGS_COPY } from '../src/modules/admin/settingsCopy.ts';
 import { scenarios as authGapScenarios } from '../src/dev/scenarios/groups/auth-gaps.ts';
 import {
   assertSwapsApplied,
@@ -28,10 +31,16 @@ import {
   PHASE5_REVIEW_CASES,
   PHASE5_RULED,
   PHASE5_SEED_PEOPLE,
+  PHASE6_LOOK_AT,
+  PHASE6_REVIEW_CASES,
+  PHASE6_RULINGS,
+  PHASE6_SEED_PEOPLE,
   phase5Words,
+  phase6Words,
   planAuthReviewShots,
   planBeforeAfterShots,
   planPhase5ReviewShots,
+  planPhase6ReviewShots,
   planReview,
   planShots,
   planSpecGapShots,
@@ -57,7 +66,7 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
     expect(Object.isFrozen(REVIEW_WIDTHS)).toBe(true);
   });
 
-  it('lists the public page, the three dev previews, the three real Phase 5 pages and the showcase, in that order', () => {
+  it('lists the public page, the two dev previews, the real Phase 5 and Phase 6 pages and the showcase, in that order', () => {
     expect(REVIEW_TARGETS.map((target) => target.path)).toEqual([
       '/',
       '/admin',
@@ -66,15 +75,32 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
       '/admin/users',
       '/admin/profile',
       '/admin/audit-log',
+      '/admin/expenses/deleted',
+      '/admin/settings',
       '/dev/components',
     ]);
     expect(Object.isFrozen(REVIEW_TARGETS)).toBe(true);
   });
 
-  it('photographs Users, My Profile and the Audit Log signed in as a Manager, and nothing else signed in (plan 05-37)', () => {
+  it('photographs the real Phase 5 and Phase 6 pages signed in, and the dev previews and showcase unsigned (plans 05-37, 06-19)', () => {
     const signedIn = REVIEW_TARGETS.filter((target) => target.signedIn === true).map((target) => target.path);
 
-    expect(signedIn).toEqual(['/admin/users', '/admin/profile', '/admin/audit-log']);
+    expect(signedIn).toEqual([
+      '/admin/expenses',
+      '/admin/users',
+      '/admin/profile',
+      '/admin/audit-log',
+      '/admin/expenses/deleted',
+      '/admin/settings',
+    ]);
+  });
+
+  it('names the new Phase 6 pages by the words their h1 shows', () => {
+    const byPath = Object.fromEntries(REVIEW_TARGETS.map((target) => [target.path, target]));
+
+    expect(byPath['/admin/expenses']).toMatchObject({ h1: 'Company Expenses', signedIn: true });
+    expect(byPath['/admin/expenses/deleted']).toMatchObject({ h1: 'Deleted Expenses', slug: 'admin-expenses-deleted' });
+    expect(byPath['/admin/settings']).toMatchObject({ h1: 'Settings', slug: 'admin-settings' });
   });
 
   it('shows the public page in Blush only and every admin page and the showcase in Blush and Espresso (D-13, D-14)', () => {
@@ -96,10 +122,10 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
 });
 
 describe('planShots', () => {
-  it('plans 45 screenshots: the public page 3, three previews and three real pages 3 x 2 each, the showcase 3 x 2', () => {
+  it('plans 57 screenshots: the public page 3, two previews and eight real pages 3 x 2 each, the showcase 3 x 2', () => {
     const shots = planShots();
 
-    expect(shots).toHaveLength(45);
+    expect(shots).toHaveLength(57);
     expect(shots.filter((shot) => shot.path === '/')).toHaveLength(3);
     expect(shots.filter((shot) => shot.path === '/dev/components')).toHaveLength(6);
   });
@@ -244,6 +270,7 @@ describe('planReview: the run', () => {
       beforeAfter: planBeforeAfterShots(),
       authReview: planAuthReviewShots(),
       phase5Review: planPhase5ReviewShots(),
+      phase6Review: planPhase6ReviewShots(),
     });
     expect(report).toEqual({
       kind: 'report',
@@ -1219,5 +1246,337 @@ describe('renderIndex: the Phase 5 screens and the rulings page (plan 05-37)', (
     expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain(
       'Profile, users and audit log (Phase 5)',
     );
+  });
+});
+
+// --- Plan 06-19: the Phase 6 screens, signed in as a Manager and as an Admin ---
+
+describe('PHASE6_SEED_PEOPLE (the staff the Phase 6 pictures add)', () => {
+  it('adds a payer who is deleted at the end of the seed, so the list shows "(former staff)", and no address of their own', () => {
+    expect(PHASE6_SEED_PEOPLE.map((person) => person.key)).toEqual(['dario']);
+    for (const person of PHASE6_SEED_PEOPLE) {
+      expect(person.role, person.key).toBe('Admin');
+      expect(person.state, person.key).toBe('active');
+      expect(person.firstName.trim(), person.key).not.toBe('');
+      expect(person.lastName.trim(), person.key).not.toBe('');
+      expect(Object.keys(person), person.key).not.toContain('email');
+    }
+  });
+});
+
+describe('PHASE6_REVIEW_CASES (the UI-SPEC Visual Review set for Phase 6)', () => {
+  it('covers E1 as a Manager and an Admin with its states, E2, both E3 dialogs, E4, S1, S2 and the Audit Log', () => {
+    const ids = PHASE6_REVIEW_CASES.map((entry) => entry.id);
+
+    expect(ids).toEqual([
+      'e1-manager-list',
+      'e1-manager-empty-top-category',
+      'e1-empty',
+      'e1-no-matches',
+      'e1-admin-list',
+      'e2-add',
+      'e2-edit-record-meta',
+      'e2-edit-access-note',
+      'e2-edit-conflict',
+      'e2-view',
+      'e3-delete',
+      'e3-purge',
+      'e4-rows',
+      'e4-empty',
+      's1-categories',
+      's2-add-category',
+      'audit-expense-expanded',
+    ]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names every case in plain words, groups it and shows it in Blush and Espresso', () => {
+    for (const entry of PHASE6_REVIEW_CASES) {
+      expect(entry.label.trim(), entry.id).not.toBe('');
+      expect(entry.group.trim(), entry.id).not.toBe('');
+      expect(entry.themes, entry.id).toEqual(['light', 'dark']);
+    }
+  });
+
+  it('signs in as an Admin only where the screen is an Admin screen: the Admin list, the access note and View', () => {
+    const admin = PHASE6_REVIEW_CASES.filter((entry) => entry.signedInAs === 'Admin').map((entry) => entry.id);
+
+    expect(admin).toEqual(['e1-admin-list', 'e2-edit-access-note', 'e2-view']);
+    for (const entry of PHASE6_REVIEW_CASES.filter((candidate) => !admin.includes(candidate.id))) {
+      expect(entry.signedInAs, entry.id).toBe('Manager');
+    }
+  });
+
+  it('plans each case at 390, 820 and 1440 px in both themes under phase6-review/, each to its own file', () => {
+    const shots = planPhase6ReviewShots();
+    const files = shots.map((shot) => shot.file);
+
+    expect(shots).toHaveLength(PHASE6_REVIEW_CASES.length * 6);
+    expect(new Set(files).size).toBe(files.length);
+    expect(files.every((file) => /^phase6-review\/[a-z0-9-]+-(light|dark)-(390|820|1440)\.png$/.test(file))).toBe(true);
+    for (const entry of PHASE6_REVIEW_CASES) {
+      for (const theme of entry.themes) {
+        const widths = shots.filter((shot) => shot.id === entry.id && shot.theme === theme).map((shot) => shot.width);
+        expect(widths, `${entry.id} ${theme}`).toEqual([390, 820, 1440]);
+      }
+    }
+    expect(shots.find((shot) => shot.id === 'e2-view')).toMatchObject({ signedInAs: 'Admin' });
+    expect(shots.find((shot) => shot.id === 'e3-delete')).toMatchObject({ signedInAs: 'Manager' });
+  });
+});
+
+describe('renderIndex: the Phase 6 screens (plan 06-19)', () => {
+  const escaped = (text: string) =>
+    text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  const render = () =>
+    renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      specGap: planSpecGapShots(),
+      phase5Review: planPhase5ReviewShots(),
+      phase6Review: planPhase6ReviewShots(),
+    });
+
+  it('shows the Phase 6 section after the Phase 5 section and before the SPEC-GAP section, with every picture and label', () => {
+    const html = render();
+    const section = html.indexOf('Company expenses and settings (Phase 6)');
+
+    expect(section).toBeGreaterThan(html.indexOf('Profile, users and audit log (Phase 5)'));
+    expect(section).toBeLessThan(html.indexOf('Parts the approved design never drew'));
+    for (const shot of planPhase6ReviewShots()) {
+      expect(html).toContain(`src="${shot.file}"`);
+    }
+    for (const entry of PHASE6_REVIEW_CASES) {
+      expect(html).toContain(escaped(entry.label));
+    }
+    expect(html).not.toMatch(/<script/i);
+  });
+
+  it('says nothing is approved until the owner says so', () => {
+    expect(render()).toContain('Nothing here is approved until you say so.');
+  });
+
+  it('is left out when no Phase 6 pictures were taken', () => {
+    expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain(
+      'Company expenses and settings (Phase 6)',
+    );
+  });
+});
+
+describe('loading the script (how npm run review starts it)', () => {
+  it('loads under plain Node: the copy modules that import the app through "@/" are read through Vite', () => {
+    const result = spawnSync(
+      process.execPath,
+      ['--input-type=module', '--eval', "await import('./scripts/owner-review.mjs'); process.stdout.write('loaded');"],
+      { cwd: webDirectory, encoding: 'utf8', timeout: 120_000, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+
+    expect(result.stderr, result.stderr).not.toContain('Cannot find package');
+    expect(result.stdout).toBe('loaded');
+    expect(result.status).toBe(0);
+  }, 150_000);
+});
+
+// --- Plan 06-19 task 2: the Phase 6 rulings page and the words table ---
+
+/** Every string in plain copy, however deeply it nests. */
+function stringLeaves(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value).flatMap(stringLeaves);
+  }
+  return [];
+}
+
+describe('the Phase 6 rulings page content (plan 06-19)', () => {
+  it('lists OQ-1 to OQ-15 first, each with its options and the one that is built', () => {
+    const oq = PHASE6_RULINGS.filter((entry) => entry.id.startsWith('OQ-'));
+
+    expect(oq.map((entry) => entry.id)).toEqual(Array.from({ length: 15 }, (_, index) => `OQ-${String(index + 1)}`));
+    expect(PHASE6_RULINGS.slice(0, 15).map((entry) => entry.id)).toEqual(oq.map((entry) => entry.id));
+    for (const entry of oq) {
+      expect(entry.topic.trim(), entry.id).not.toBe('');
+      expect(entry.options.length, entry.id).toBeGreaterThan(0);
+      expect(
+        entry.options.filter((candidate) => candidate.built),
+        entry.id,
+      ).toHaveLength(1);
+      expect(entry.options[0]?.recommended, entry.id).toBe(true);
+      expect(entry.status, entry.id).toBe('open');
+    }
+  });
+
+  it('holds A-06-01, A-06-02, the inline SQL item, research questions 2 and 5 and the deleted and restored snapshot line', () => {
+    const ids = PHASE6_RULINGS.map((entry) => entry.id);
+
+    expect(ids.slice(15)).toEqual(['A-06-01', 'A-06-02', 'SQL-06-11', 'RQ-2', 'RQ-5', 'SNAP-06-15']);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('gives A-06-01 three options, recommended first, with option 1 (first sign-in) the one built, and names where the rule changes', () => {
+    const entry = PHASE6_RULINGS.find((candidate) => candidate.id === 'A-06-01');
+
+    expect(entry?.options).toHaveLength(3);
+    expect(entry?.options.map((option) => option.label)).toEqual(['1', '2', '3']);
+    expect(entry?.options.filter((option) => option.recommended).map((option) => option.label)).toEqual(['1']);
+    expect(entry?.options.filter((option) => option.built).map((option) => option.label)).toEqual(['1']);
+    expect(entry?.options[0]?.text).toContain('first sign-in');
+    expect(entry?.options[1]?.text).toContain('has a password');
+    expect(entry?.whereItChanges).toContain('StaffDirectory.cs');
+    expect(entry?.whereItChanges).toContain('CompanyExpenseReader.cs');
+    expect(entry?.whereItChanges).toContain('CompanyExpensesSeedStep.cs');
+    expect(entry?.whereItChanges).toContain('StaffLookupEndpointTests');
+  });
+
+  it('records the owner’s rulings D-49 and D-50 as rulings with their follow-up, not as approvals', () => {
+    const payer = PHASE6_RULINGS.find((candidate) => candidate.id === 'A-06-01');
+    const sql = PHASE6_RULINGS.find((candidate) => candidate.id === 'SQL-06-11');
+
+    expect(payer).toMatchObject({ status: 'ruled' });
+    expect(payer?.ruling).toContain('D-49');
+    expect(payer?.ruling).toContain('06-20');
+    expect(payer?.ruling).toContain('built it');
+    expect(sql).toMatchObject({ status: 'ruled' });
+    expect(sql?.ruling).toContain('D-50');
+    expect(sql?.ruling).toContain('06-21');
+    expect(sql?.ruling).toContain('built it');
+    expect(sql?.options.filter((option) => option.built).map((option) => option.label)).toEqual(['2']);
+    expect(sql?.options.filter((option) => option.recommended).map((option) => option.label)).toEqual(['1']);
+    for (const file of [
+      'IdempotencyGate.cs',
+      'AccountTokenStore.cs',
+      'ManagerRosterLock.cs',
+      'DatabaseLocks',
+      'NoInlineSqlTests',
+    ]) {
+      expect(sql?.whereItChanges, file).toContain(file);
+    }
+  });
+
+  it('marks nothing as approved on the owner’s behalf and keeps the other items open', () => {
+    expect(JSON.stringify(PHASE6_RULINGS)).not.toMatch(/approved/i);
+    expect(PHASE6_RULINGS.filter((entry) => entry.status === 'ruled').map((entry) => entry.id)).toEqual([
+      'A-06-01',
+      'SQL-06-11',
+    ]);
+    expect(PHASE6_RULINGS.filter((entry) => entry.status === 'open')).toHaveLength(PHASE6_RULINGS.length - 2);
+  });
+
+  it('keeps what the tests could not show for the owner’s own eyes', () => {
+    expect(PHASE6_LOOK_AT.map((item) => item.id)).toEqual(['total-999', 'former-staff-real', 'zoom', 'ci-speed']);
+    for (const item of PHASE6_LOOK_AT) {
+      expect(item.what.trim(), item.id).not.toBe('');
+      expect(item.how.trim(), item.id).not.toBe('');
+    }
+  });
+});
+
+describe('phase6Words (the words table, 05 D-48)', () => {
+  it('has every string of the Company Expenses copy and the Settings copy, and no place or text is empty', () => {
+    const words = phase6Words();
+    const texts = words.map((row) => row.text);
+
+    for (const leaf of [...stringLeaves(EXPENSES_COPY), ...stringLeaves(SETTINGS_COPY)]) {
+      expect(texts, leaf).toContain(leaf);
+    }
+    expect(words.every((row) => row.place.trim() !== '' && row.text.trim() !== '')).toBe(true);
+  });
+
+  it('shows what a function says with placeholders, and the empty and single forms of the entries line', () => {
+    const texts = phase6Words().map((row) => row.text);
+
+    expect(texts).toContain('Edit {x}, {y}');
+    expect(texts).toContain('No entries yet');
+    expect(texts).toContain('1 entry so far');
+    expect(texts).toContain('{x} · {y}% of this month');
+  });
+
+  it('has the Phase 6 additions of the Audit Log copy: the groups, the twelve labels, the change lines and the snapshot line', () => {
+    const texts = phase6Words().map((row) => row.text);
+
+    for (const text of [
+      'Company expenses',
+      'Expense categories',
+      'Expense added',
+      'Expense changed',
+      'Expense payer changed',
+      'Expense deleted',
+      'Expense restored',
+      'Expense permanently deleted',
+      'Category added',
+      'Category renamed',
+      'Category color changed',
+      'Category retired',
+      'Category back in use',
+      'Category deleted',
+      'Amount: ₱8,642.35 to ₱9,100.00',
+      'Date: Oct 5, 2026 to Oct 6, 2026',
+      'Category: {x} to a deleted category',
+      'Paid by: {x} (former staff) to {y}',
+      'Description changed',
+      'Notes changed',
+      'Name: {x}',
+      'Color: Blue',
+      'Oct 5, 2026 · {x} · ₱8,642.35 · Paid by {y}',
+    ]) {
+      expect(texts, text).toContain(text);
+    }
+  });
+
+  it('has no em dash or en dash anywhere (OR-4)', () => {
+    for (const row of phase6Words()) {
+      expect(row.text, row.place).not.toMatch(/[–—]/);
+    }
+  });
+});
+
+describe('renderIndex: the Phase 6 rulings page (plan 06-19)', () => {
+  const escaped = (text: string) =>
+    text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  const render = () =>
+    renderIndex({ generatedAt: 'now', shots: [], problems: [], phase6Review: planPhase6ReviewShots() });
+
+  it('puts what is still open before what the owner has ruled since, then the things to look at and the words', () => {
+    const html = render();
+    const open = html.indexOf('Phase 6: still open for you');
+    const ruled = html.indexOf('Phase 6: ruled by you since the plan was written');
+
+    expect(open).toBeGreaterThan(html.indexOf('Company expenses and settings (Phase 6)'));
+    expect(ruled).toBeGreaterThan(open);
+    expect(html.indexOf('<h3>Words on the Phase 6 screens</h3>')).toBeGreaterThan(ruled);
+    for (const entry of PHASE6_RULINGS) {
+      const at = html.indexOf(`<td>${entry.id}</td>`);
+      expect(at, entry.id).toBeGreaterThan(entry.status === 'open' ? open : ruled);
+      if (entry.status === 'open') {
+        expect(at, entry.id).toBeLessThan(ruled);
+      }
+      expect(html, entry.id).toContain(escaped(entry.topic));
+    }
+  });
+
+  it('marks the recommended option and the one built now, and shows the owner’s rulings and the swap point', () => {
+    const html = render();
+
+    expect(html).toContain('<em>(recommended)</em>');
+    expect(html).toContain('<em>(built now)</em>');
+    expect(html).toContain(escaped('Option 1 (D-49, owner, 2026-10-25).'));
+    expect(html).toContain('StaffDirectory.cs');
+    expect(html).toContain('IdempotencyGate.cs');
+    expect(html).toContain('Words on the Phase 6 screens');
+    expect(html).toContain(escaped('Amount: ₱8,642.35 to ₱9,100.00'));
+    expect(html).not.toMatch(/<script/i);
   });
 });

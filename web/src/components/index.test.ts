@@ -50,7 +50,7 @@ const D3_COMPONENTS = [
 ] as const;
 
 /** The App. D.3 exported constants (tables) and the one hook. */
-const D3_CONSTANTS = ['STATUS_TONE', 'PAYMENT_TONE', 'EXPENSE_TONE', 'SITE_LINKS', 'ADMIN_NAV'] as const;
+const D3_CONSTANTS = ['STATUS_TONE', 'PAYMENT_TONE', 'SITE_LINKS', 'ADMIN_NAV'] as const;
 
 /** The SPEC-GAP primitives Phase 2 adds (UI-SPEC "New in Phase 2"), plus the Overlay region of the dialogs. */
 const SPEC_GAP_COMPONENTS = [
@@ -95,6 +95,21 @@ describe('@/components barrel (WEB-06, WEB-02)', () => {
   it.each(D3_CONSTANTS)('exports the App. D.3 constant %s', (name) => {
     expect(exports[name]).toBeTypeOf('object');
     expect(exports[name]).not.toBeNull();
+  });
+
+  // SPEC-DEVIATION: D-08 / D-13 the stored-tone model replaces the fixed expense tone table (plan 06-04).
+  it('exports the category tone list, labels and guard, and no longer the fixed expense tone table', () => {
+    expect(exports.CATEGORY_TONES).toEqual(['neutral', 'accent', 'info', 'mockup', 'warning', 'success']);
+    expect(exports.CATEGORY_TONE_LABEL).toBeTypeOf('object');
+    expect(typeof exports.isCategoryTone).toBe('function');
+    expect(Object.keys(exports).filter((name) => name.startsWith('EXPENSE_'))).toEqual([]);
+    // D-16: the order expense categories stay.
+    expect(exports.ORDER_EXPENSE_CATEGORIES).toBeInstanceOf(Array);
+  });
+
+  // SPEC-DEVIATION: OQ-3 the Manager-only Settings nav item sits beside ADMIN_NAV (plan 06-17).
+  it('exports the Settings nav item beside ADMIN_NAV', () => {
+    expect(exports.SETTINGS_NAV_ITEM).toMatchObject({ id: 'settings', to: '/admin/settings', manager: true });
   });
 
   it('exports the useToast hook', () => {

@@ -16,5 +16,8 @@ export const auditDetailRowClasses = tw(
 /** `dt`: the Label look (14px, 600) in `--ink-muted`. */
 export const auditDetailTermClasses = tw('text-[14px] leading-5 font-semibold text-ink-muted');
 
+/** The "What changed" lines of an expense or category entry: one per row, 4px apart. */
+export const auditChangeListClasses = tw('flex flex-col gap-1');
+
 /** `dd`: the Small look (14px, 400) in `--ink`; a long value (the reference, a device) wraps anywhere instead of widening the row. */
 export const auditDetailValueClasses = tw('text-[14px] leading-5 wrap-anywhere text-ink');

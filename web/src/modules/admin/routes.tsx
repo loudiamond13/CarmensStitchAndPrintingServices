@@ -7,7 +7,7 @@
 //     later phases keep their state in the URL. Its AdminRouteErrorBoundary shows the admin error screen inside the
 //     shell's `main` when a page crashes or a page chunk fails to load.
 //   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
-//     come in Phases 5-9 show the page-not-found screen inside the shell.
+//     come in Phases 7-9 show the page-not-found screen inside the shell.
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
@@ -79,6 +79,18 @@ const usersPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/UsersPage')).UsersRoute,
 }));
 
+const expensesPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/ExpensesPage')).ExpensesRoute,
+}));
+
+const deletedExpensesPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/DeletedExpensesPage')).DeletedExpensesRoute,
+}));
+
+const settingsPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/SettingsPage')).SettingsRoute,
+}));
+
 const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
 }));
@@ -98,6 +110,10 @@ const requireSession: LoaderFunction = async (args) =>
 /** requireManagerLoader (USER-08), loaded with the admin chunks as above. */
 const requireManager: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireManagerLoader(args);
+
+/** requireManagerLoader for Deleted Expenses: an Admin goes back to the expenses list, not to /admin (D-07). */
+const requireManagerOrExpenses: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).requireManagerLoader(args, '/admin/expenses');
 
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
 const redirectIfSignedIn: LoaderFunction = async (args) =>
@@ -124,9 +140,13 @@ export const adminRoutes: RouteObject[] = [
           },
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: notFoundPage },
-          { path: 'expenses', lazy: notFoundPage },
+          { path: 'expenses', lazy: expensesPage },
+          // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
+          { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
+          // D-14: the Manager-only Settings page (expense categories); an Admin is sent to /admin by the loader.
+          { path: 'settings', loader: requireManager, lazy: settingsPage },
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
           { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },
@@ -171,7 +191,6 @@ export const devRoutes: RouteObject[] = [
         children: [
           { index: true, lazy: previewPage },
           { path: 'orders', lazy: previewPage },
-          { path: 'expenses', lazy: previewPage },
         ],
       },
     ],

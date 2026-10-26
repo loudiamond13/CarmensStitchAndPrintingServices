@@ -1,7 +1,8 @@
 // Select (App. D.3 "Forms", CSPS-UI-SPEC.md §6.3), converted to utilities (D-33) with the same props API and markup: the
 // label, the control box with a native <select> (an optional empty-value placeholder option first, then the string or
 // {value, label} options) and the chevron-down overlay, then one message: the error, or else the hint. Keyboard and
-// screen-reader behaviour are the native select's. The select gets `aria-invalid` with an error.
+// screen-reader behaviour are the native select's. The select gets `aria-invalid` with an error. A required select marks
+// its label with an aria-hidden " *" as Field does.
 // SPEC-DEVIATION: A11Y-01 App. D.3 gave the message no id and the select no aria-describedby, so the hint and the error
 // were never announced with it; as in Field, the message has the `{id}-msg` id and the select names it. No element or
 // text changes (attributes are not compared). Also as in Field, a caller id names the select (the label follows it).
@@ -14,6 +15,7 @@ import {
   fieldInputClasses,
   labelClasses,
   messageClasses,
+  requiredClasses,
   selectChevronClasses,
   selectOptionClasses,
 } from './field.recipe';
@@ -51,7 +53,7 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   hint?: ReactNode;
 }
 
-export function Select({ label, options, placeholder, error, hint, className, id, ...rest }: SelectProps) {
+export function Select({ label, options, placeholder, error, hint, className, id, required, ...rest }: SelectProps) {
   const fid = useId();
   const iid = id !== undefined && id !== '' ? id : fid;
   const invalid = Boolean(error);
@@ -62,6 +64,11 @@ export function Select({ label, options, placeholder, error, hint, className, id
       {Boolean(label) && (
         <label className={labelClasses} htmlFor={iid}>
           {label}
+          {required === true && (
+            <span className={requiredClasses} aria-hidden="true">
+              {' *'}
+            </span>
+          )}
         </label>
       )}
       <div className={fieldControlClasses}>
@@ -70,6 +77,7 @@ export function Select({ label, options, placeholder, error, hint, className, id
           className={fieldInputClasses({ select: true })}
           aria-invalid={invalid || undefined}
           aria-describedby={hasMessage ? messageId : undefined}
+          required={required}
           {...rest}
         >
           {placeholder !== undefined && placeholder !== '' && (

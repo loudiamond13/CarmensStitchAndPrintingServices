@@ -96,6 +96,9 @@ describe('formatting', () => {
     expect(cascadeSentence({ items: 5, payments: 2, discounts: 1, expenses: 3, images: 4 })).toBe(
       'This will also delete 5 items, 2 payments, 1 discount, 3 expenses, and 4 images.',
     );
+    expect(cascadeSentence({ expenses: 1235, images: 1000 })).toBe(
+      'This will also delete 1,235 expenses, and 1,000 images.',
+    );
     expect(cascadeSentence({ items: 1 })).toBe('This will also delete 1 item.');
     expect(cascadeSentence({})).toBe('');
   });

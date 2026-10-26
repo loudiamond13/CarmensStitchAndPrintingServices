@@ -58,12 +58,13 @@ public static class AuthorizationMatrix
     ];
 
     // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
-    // POST /api/testing/staff gets no body here, so every caller meets the same 400.
+    // POST /api/testing/staff and POST /api/testing/expenses get no body here, so every caller meets the same 400.
     private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
         ?
         [
             new("GET", "/api/testing/emails", "/api/testing/emails", Anonymous: 200, Admin: 200, Manager: 200),
             new("POST", "/api/testing/staff", "/api/testing/staff", Anonymous: 400, Admin: 400, Manager: 400),
+            new("POST", "/api/testing/expenses", "/api/testing/expenses", Anonymous: 400, Admin: 400, Manager: 400),
         ]
         : [];
 
@@ -146,6 +147,41 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
         new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
 
+        // The expense category list (D-08, D-15): Staff only, both roles read it.
+        new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
+        // Adding a category (CEXP-02, D-08, D-14): Managers only, so an Admin meets 403. With no body a Manager meets the 400 field errors.
+        new("POST", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 403, Manager: 400),
+        // Reading one category (CEXP-02, D-14): Managers only. A fresh random id is no category, so a Manager meets 404 expense-categories.not-found.
+        new("GET", "/api/v1/expense-categories/{id:guid}", "/api/v1/expense-categories/3b7d1e94-6c25-4a80-9f13-8e0a5c2d7b61", Anonymous: 401, Admin: 403, Manager: 404),
+        // Renaming or recoloring a category (CEXP-02, D-12, D-13): Managers only. With no body a Manager meets the 400 field errors.
+        new("PUT", "/api/v1/expense-categories/{id:guid}", "/api/v1/expense-categories/8e4a2c07-1d59-4b36-a6f8-5c9e3b1d7a42", Anonymous: 401, Admin: 403, Manager: 400),
+        // Retiring and bringing back a category (CEXP-02, D-11, OQ-4): Managers only. The matrix sends an Idempotency-Key, so a fresh random id is no category and a Manager meets 404 expense-categories.not-found; a missing key is 400 after authorization (covered in ExpenseCategoriesManagementTests).
+        new("POST", "/api/v1/expense-categories/{id:guid}/retire", "/api/v1/expense-categories/5a9c3e71-2b84-4d06-8f1a-7c0e6d4b9a23/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/expense-categories/{id:guid}/reactivate", "/api/v1/expense-categories/e1b6d4a8-7f32-4c59-9a0d-3b8f5e2c6d17/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        // Deleting a never-used category (CEXP-02, D-10, D-30): Managers only. A fresh random id is no category, so a Manager meets 404 expense-categories.not-found.
+        new("DELETE", "/api/v1/expense-categories/{id:guid}", "/api/v1/expense-categories/c9f2a5d3-8e14-4b67-a0c1-6d3b7e9f2a58", Anonymous: 401, Admin: 403, Manager: 404),
+        // The staff who can be named as the payer (CEXP-05, D-32): Staff only, names and ids only.
+        new("GET", "/api/v1/staff", "/api/v1/staff", Anonymous: 401, Admin: 200, Manager: 200),
+
+        // Recording a company expense (CEXP-02): Staff only. With no body both roles meet the same 400 field errors.
+        new("POST", "/api/v1/company-expenses", "/api/v1/company-expenses", Anonymous: 401, Admin: 400, Manager: 400),
+        // Listing company expenses (CEXP-01, D-25): both roles read every expense. The sample path carries a query so the list handler runs end to end.
+        new("GET", "/api/v1/company-expenses", "/api/v1/company-expenses?pageSize=1", Anonymous: 401, Admin: 200, Manager: 200),
+        // The month KPIs (CEXP-03, D-25): both roles read the same figures, and the route takes no input.
+        new("GET", "/api/v1/company-expenses/kpis", "/api/v1/company-expenses/kpis", Anonymous: 401, Admin: 200, Manager: 200),
+        // Reading one expense (CEXP-02, D-25): both roles read every expense. A random id is no expense, so both meet 404 company-expenses.not-found.
+        new("GET", "/api/v1/company-expenses/{id:guid}", "/api/v1/company-expenses/9a3e6c15-4b72-4d08-b1f9-0c8d5e7a2f64", Anonymous: 401, Admin: 404, Manager: 404),
+        // Editing one expense (CEXP-02, SEC-07): a fresh random id and no body, so a caller who passes the policy meets 400 field errors before any lookup.
+        new("PUT", "/api/v1/company-expenses/{id:guid}", "/api/v1/company-expenses/6e2f8a14-9c05-4b3d-a7e1-3d5b9f1c8a20", Anonymous: 401, Admin: 400, Manager: 400),
+        // Deleting an expense (CEXP-02, D-01, D-02): Managers only, so an Admin meets 403. A fresh random id is no expense, so a Manager meets 404 company-expenses.not-found.
+        new("DELETE", "/api/v1/company-expenses/{id:guid}", "/api/v1/company-expenses/b4d7e1a9-2f63-4c80-9a15-7e3c0d8b6f42", Anonymous: 401, Admin: 403, Manager: 404),
+        // The deleted list (CEXP-02, D-07): Managers only, so an Admin meets 403.
+        new("GET", "/api/v1/company-expenses/deleted", "/api/v1/company-expenses/deleted", Anonymous: 401, Admin: 403, Manager: 200),
+        // Restoring (CEXP-02, D-03): Managers only. The matrix sends an Idempotency-Key, so a fresh random id is no expense and a Manager meets 404 company-expenses.not-found; a missing key is 400 after authorization (covered in CompanyExpenseDeletionTests).
+        new("POST", "/api/v1/company-expenses/{id:guid}/restore", "/api/v1/company-expenses/c5e8f2b0-3a74-4d91-8b26-8f4d1e9c7a53/restore", Anonymous: 401, Admin: 403, Manager: 404),
+        // Deleting for good (CEXP-02, D-04): Managers only. A fresh random id is no expense, so a Manager meets 404 company-expenses.not-found.
+        new("DELETE", "/api/v1/company-expenses/{id:guid}/permanent", "/api/v1/company-expenses/d7a1b9e3-5c28-4f60-a4d2-1b8e6f3c0a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),
@@ -185,7 +221,7 @@ public static class AuthorizationMatrix
             "* /scalar/{**path}",
         }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
 
-    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff"] : [];
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>

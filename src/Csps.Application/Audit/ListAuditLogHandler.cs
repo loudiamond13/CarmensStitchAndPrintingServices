@@ -63,7 +63,18 @@ public sealed class ListAuditLogHandler(IAuditLogReader reader, IBusinessCalenda
         : new AuditActorFilter(Guid.ParseExact(actor!, "D"));
 
     private static AuditLogItem Map(AuditLogEntryView entry) =>
-        new(entry.Id, entry.OccurredAt, DoneByOf(entry), entry.Action, entry.Target, entry.Detail, NetworkOf(entry.IpPrefix), entry.Device, entry.Reference);
+        new(
+            entry.Id,
+            entry.OccurredAt,
+            DoneByOf(entry),
+            entry.Action,
+            entry.Target,
+            entry.Detail,
+            NetworkOf(entry.IpPrefix),
+            entry.Device,
+            entry.Reference,
+            entry.Changes,
+            entry.Snapshot);
 
     // The stored prefix is the network address; the viewer shows it with its length, /24 for IPv4 and /48 for IPv6 (D-24).
     private static string? NetworkOf(string? prefix) =>

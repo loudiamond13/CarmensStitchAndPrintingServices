@@ -5,7 +5,9 @@ import {
   AUDIT_DETAIL_SENTENCES,
   AUDIT_GROUPS,
   auditActionLabel,
+  describeAuditChange,
   describeAuditDetail,
+  describeAuditSnapshot,
 } from './auditCopy';
 
 // The audit viewer's words (AUDIT-02, D-28, D-40): a label and a group for every action the API can send, and the
@@ -50,6 +52,18 @@ const API_ACTIONS = [
   'profile.email-change-requested',
   'profile.email-changed',
   'profile.email-change-canceled',
+  'company-expense.added',
+  'company-expense.changed',
+  'company-expense.payer-changed',
+  'company-expense.deleted',
+  'company-expense.restored',
+  'company-expense.permanently-deleted',
+  'expense-category.added',
+  'expense-category.renamed',
+  'expense-category.recolored',
+  'expense-category.retired',
+  'expense-category.reactivated',
+  'expense-category.deleted',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -72,8 +86,19 @@ describe('the action labels (D-28)', () => {
     expect(auditActionLabel('profile.email-change-canceled')).toBe('Email change canceled');
   });
 
-  it('names the three groups from the UI-SPEC', () => {
-    expect(AUDIT_GROUPS).toEqual(['Sign-in and security', 'Staff accounts', 'Profile changes']);
+  it('names the five groups from the UI-SPEC', () => {
+    expect(AUDIT_GROUPS).toEqual([
+      'Sign-in and security',
+      'Staff accounts',
+      'Profile changes',
+      'Company expenses',
+      'Expense categories',
+    ]);
+  });
+
+  it('uses the UI-SPEC labels of the expense and category events', () => {
+    expect(auditActionLabel('company-expense.changed')).toBe('Expense changed');
+    expect(auditActionLabel('company-expense.payer-changed')).toBe('Expense payer changed');
   });
 
   it('shows the key itself when the action is unknown', () => {
@@ -136,6 +161,88 @@ describe('describeAuditDetail (D-40)', () => {
         expect(describeAuditDetail(action, detail) ?? '').not.toContain('@');
       }
     }
+  });
+});
+
+const NO_PEOPLE = { fromPerson: null, toPerson: null } as const;
+
+describe('describeAuditChange (D-27)', () => {
+  it('reads an amount change in pesos', () => {
+    expect(describeAuditChange({ field: 'amount', from: '1200.00', to: '1250.00', ...NO_PEOPLE })).toBe(
+      'Amount: ₱1,200.00 to ₱1,250.00',
+    );
+  });
+
+  it('reads a changed description as the fixed sentence, never as text', () => {
+    expect(describeAuditChange({ field: 'description', from: null, to: null, ...NO_PEOPLE })).toBe(
+      'Description changed',
+    );
+  });
+});
+
+describe('describeAuditChange for every field (D-27, UI-SPEC A1)', () => {
+  const change = (field: string, from: string | null, to: string | null) => ({ field, from, to, ...NO_PEOPLE });
+
+  it('reads dates, categories, notes, names and colors', () => {
+    expect(describeAuditChange(change('date', '2026-10-05', '2026-10-06'))).toBe('Date: Oct 5, 2026 to Oct 6, 2026');
+    expect(describeAuditChange(change('category', 'Supplies', 'Equipment'))).toBe('Category: Supplies to Equipment');
+    expect(describeAuditChange(change('notes', null, null))).toBe('Notes changed');
+    expect(describeAuditChange(change('name', 'Supplies', 'Office supplies'))).toBe(
+      'Name: Supplies to Office supplies',
+    );
+    expect(describeAuditChange(change('tone', 'warning', 'success'))).toBe('Color: Amber to Green');
+  });
+
+  it('names a category that is gone as "a deleted category"', () => {
+    expect(describeAuditChange(change('category', null, 'Equipment'))).toBe(
+      'Category: a deleted category to Equipment',
+    );
+    expect(describeAuditChange(change('category', 'Supplies', null))).toBe('Category: Supplies to a deleted category');
+  });
+
+  it('reads a payer change by name and marks former staff', () => {
+    const ana = { id: '11111111-1111-4111-8111-111111111111', name: 'Ana Reyes', formerStaff: false };
+    const bea = { id: '22222222-2222-4222-8222-222222222222', name: 'Bea Navarro', formerStaff: true };
+
+    expect(describeAuditChange({ field: 'payer', from: null, to: null, fromPerson: ana, toPerson: bea })).toBe(
+      'Paid by: Ana Reyes to Bea Navarro (former staff)',
+    );
+  });
+
+  it('reads a single name or color of an added or retired category', () => {
+    expect(describeAuditChange(change('name', null, 'Fuel'))).toBe('Name: Fuel');
+    expect(describeAuditChange(change('tone', null, 'info'))).toBe('Color: Blue');
+  });
+
+  it('leaves out a line it cannot read', () => {
+    expect(describeAuditChange(change('tone', 'warning', 'purple'))).toBeNull();
+    expect(describeAuditChange(change('date', 'soon', 'later'))).toBeNull();
+    expect(describeAuditChange(change('amount', null, '5.00'))).toBeNull();
+    expect(describeAuditChange(change('shoe-size', 'a', 'b'))).toBeNull();
+  });
+
+  it('never returns text from a description or notes line, even if the server sent some', () => {
+    expect(describeAuditChange(change('description', 'Private order 7731', 'Another'))).toBe('Description changed');
+    expect(describeAuditChange(change('notes', 'Call him', 'Call her'))).toBe('Notes changed');
+  });
+});
+
+describe('describeAuditSnapshot (D-27)', () => {
+  it('names a gone category and leaves out a payer nobody can name', () => {
+    expect(describeAuditSnapshot({ date: '2026-10-05', category: null, amount: '12.50', payer: null })).toBe(
+      'Oct 5, 2026 · a deleted category · ₱12.50',
+    );
+  });
+
+  it('reads the facts of an added expense on one line', () => {
+    expect(
+      describeAuditSnapshot({
+        date: '2026-10-05',
+        category: 'Utilities',
+        amount: 8642.35,
+        payer: { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Ana Reyes', formerStaff: false },
+      }),
+    ).toBe('Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by Ana Reyes');
   });
 });
 

@@ -213,6 +213,22 @@ internal static class UserFixtures
         return body.RootElement.GetProperty("id").GetGuid();
     }
 
+    /// <summary>Has a Manager set a temporary password for a colleague (<c>POST /api/v1/users/{id}/temporary-password</c>) and expects it to work.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="managerToken">The Manager's bearer token.</param>
+    /// <param name="id">The colleague's account id.</param>
+    /// <param name="temporaryPassword">The temporary password.</param>
+    /// <returns>A task that completes when the password is set.</returns>
+    public static async Task SetTemporaryPasswordAsync(HttpClient client, string managerToken, Guid id, string temporaryPassword)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{id:D}/temporary-password", managerToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        request.Content = JsonContent.Create(new { temporaryPassword });
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
     /// <summary>Deletes one person (<c>DELETE /api/v1/users/{id}</c>). The call takes no key and no version.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>

@@ -180,6 +180,238 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Expenses.CompanyExpense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("ExpenseDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("PaidByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_CompanyExpenses_CreatedById");
+
+                    b.HasIndex("DeletedAtUtc")
+                        .IsDescending()
+                        .HasDatabaseName("IX_CompanyExpenses_Deleted")
+                        .HasFilter("[DeletedAtUtc] IS NOT NULL");
+
+                    b.HasIndex("DeletedById")
+                        .HasDatabaseName("IX_CompanyExpenses_DeletedById");
+
+                    b.HasIndex("PaidByUserId")
+                        .HasDatabaseName("IX_CompanyExpenses_PaidByUserId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("PaidByUserId"), new[] { "Amount" });
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_CompanyExpenses_UpdatedById");
+
+                    b.HasIndex("CategoryId", "ExpenseDate")
+                        .HasDatabaseName("IX_CompanyExpenses_CategoryId_ExpenseDate");
+
+                    b.HasIndex("ExpenseDate", "CreatedAtUtc", "Id")
+                        .IsDescending()
+                        .HasDatabaseName("IX_CompanyExpenses_List")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ExpenseDate", "CreatedAtUtc", "Id"), new[] { "Amount", "CategoryId", "PaidByUserId", "CreatedById" });
+
+                    b.ToTable("CompanyExpenses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CompanyExpenses_Amount_Positive", "[Amount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Expenses.ExpenseCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset?>("RetiredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ExpenseCategories_NormalizedName");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("ExpenseCategories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ExpenseCategories_Tone", "[Tone] IN (N'neutral', N'accent', N'info', N'mockup', N'warning', N'success')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("6869715c-a01f-4053-87d8-8fd39feebebc"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Rent",
+                            NormalizedName = "RENT",
+                            Tone = "accent"
+                        },
+                        new
+                        {
+                            Id = new Guid("51702a8f-81e4-4a20-8e39-2d4b270793de"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Utilities",
+                            NormalizedName = "UTILITIES",
+                            Tone = "info"
+                        },
+                        new
+                        {
+                            Id = new Guid("d2aa53b4-7ebd-445e-b318-94ce1d21cbf2"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Salaries",
+                            NormalizedName = "SALARIES",
+                            Tone = "mockup"
+                        },
+                        new
+                        {
+                            Id = new Guid("447ad32e-1433-4b70-8786-72e3dc3f9937"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Supplies",
+                            NormalizedName = "SUPPLIES",
+                            Tone = "warning"
+                        },
+                        new
+                        {
+                            Id = new Guid("b9c92751-7040-4edd-bd44-de110104cb01"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Equipment",
+                            NormalizedName = "EQUIPMENT",
+                            Tone = "success"
+                        },
+                        new
+                        {
+                            Id = new Guid("b74d786b-8092-4e67-a0ba-a419e9d1ba75"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Maintenance",
+                            NormalizedName = "MAINTENANCE",
+                            Tone = "neutral"
+                        },
+                        new
+                        {
+                            Id = new Guid("b27a1f8a-5262-48c8-bca4-41e04583e015"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Government contributions",
+                            NormalizedName = "GOVERNMENT CONTRIBUTIONS",
+                            Tone = "info"
+                        },
+                        new
+                        {
+                            Id = new Guid("c8392b0c-ee0e-4a71-ba47-b137fdd1d8c0"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Taxes and permits",
+                            NormalizedName = "TAXES AND PERMITS",
+                            Tone = "mockup"
+                        },
+                        new
+                        {
+                            Id = new Guid("eb48e6a0-08a8-4509-9f5e-7b81167071de"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Transport and fuel",
+                            NormalizedName = "TRANSPORT AND FUEL",
+                            Tone = "warning"
+                        },
+                        new
+                        {
+                            Id = new Guid("f85e6b1c-b46f-4a00-8c4e-5148eb3b9704"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 25, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Others",
+                            NormalizedName = "OTHERS",
+                            Tone = "neutral"
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Identity.AccountToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -654,6 +886,292 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Infrastructure.Persistence.Locking.DatabaseLock", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(80)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<DateTimeOffset?>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("HolderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("TakenAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Name");
+
+                    b.HasIndex("ExpiresAtUtc")
+                        .HasDatabaseName("IX_DatabaseLocks_ExpiresAtUtc");
+
+                    b.ToTable("DatabaseLocks", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Name = "active-managers"
+                        },
+                        new
+                        {
+                            Name = "account-token:00"
+                        },
+                        new
+                        {
+                            Name = "account-token:01"
+                        },
+                        new
+                        {
+                            Name = "account-token:02"
+                        },
+                        new
+                        {
+                            Name = "account-token:03"
+                        },
+                        new
+                        {
+                            Name = "account-token:04"
+                        },
+                        new
+                        {
+                            Name = "account-token:05"
+                        },
+                        new
+                        {
+                            Name = "account-token:06"
+                        },
+                        new
+                        {
+                            Name = "account-token:07"
+                        },
+                        new
+                        {
+                            Name = "account-token:08"
+                        },
+                        new
+                        {
+                            Name = "account-token:09"
+                        },
+                        new
+                        {
+                            Name = "account-token:10"
+                        },
+                        new
+                        {
+                            Name = "account-token:11"
+                        },
+                        new
+                        {
+                            Name = "account-token:12"
+                        },
+                        new
+                        {
+                            Name = "account-token:13"
+                        },
+                        new
+                        {
+                            Name = "account-token:14"
+                        },
+                        new
+                        {
+                            Name = "account-token:15"
+                        },
+                        new
+                        {
+                            Name = "account-token:16"
+                        },
+                        new
+                        {
+                            Name = "account-token:17"
+                        },
+                        new
+                        {
+                            Name = "account-token:18"
+                        },
+                        new
+                        {
+                            Name = "account-token:19"
+                        },
+                        new
+                        {
+                            Name = "account-token:20"
+                        },
+                        new
+                        {
+                            Name = "account-token:21"
+                        },
+                        new
+                        {
+                            Name = "account-token:22"
+                        },
+                        new
+                        {
+                            Name = "account-token:23"
+                        },
+                        new
+                        {
+                            Name = "account-token:24"
+                        },
+                        new
+                        {
+                            Name = "account-token:25"
+                        },
+                        new
+                        {
+                            Name = "account-token:26"
+                        },
+                        new
+                        {
+                            Name = "account-token:27"
+                        },
+                        new
+                        {
+                            Name = "account-token:28"
+                        },
+                        new
+                        {
+                            Name = "account-token:29"
+                        },
+                        new
+                        {
+                            Name = "account-token:30"
+                        },
+                        new
+                        {
+                            Name = "account-token:31"
+                        },
+                        new
+                        {
+                            Name = "account-token:32"
+                        },
+                        new
+                        {
+                            Name = "account-token:33"
+                        },
+                        new
+                        {
+                            Name = "account-token:34"
+                        },
+                        new
+                        {
+                            Name = "account-token:35"
+                        },
+                        new
+                        {
+                            Name = "account-token:36"
+                        },
+                        new
+                        {
+                            Name = "account-token:37"
+                        },
+                        new
+                        {
+                            Name = "account-token:38"
+                        },
+                        new
+                        {
+                            Name = "account-token:39"
+                        },
+                        new
+                        {
+                            Name = "account-token:40"
+                        },
+                        new
+                        {
+                            Name = "account-token:41"
+                        },
+                        new
+                        {
+                            Name = "account-token:42"
+                        },
+                        new
+                        {
+                            Name = "account-token:43"
+                        },
+                        new
+                        {
+                            Name = "account-token:44"
+                        },
+                        new
+                        {
+                            Name = "account-token:45"
+                        },
+                        new
+                        {
+                            Name = "account-token:46"
+                        },
+                        new
+                        {
+                            Name = "account-token:47"
+                        },
+                        new
+                        {
+                            Name = "account-token:48"
+                        },
+                        new
+                        {
+                            Name = "account-token:49"
+                        },
+                        new
+                        {
+                            Name = "account-token:50"
+                        },
+                        new
+                        {
+                            Name = "account-token:51"
+                        },
+                        new
+                        {
+                            Name = "account-token:52"
+                        },
+                        new
+                        {
+                            Name = "account-token:53"
+                        },
+                        new
+                        {
+                            Name = "account-token:54"
+                        },
+                        new
+                        {
+                            Name = "account-token:55"
+                        },
+                        new
+                        {
+                            Name = "account-token:56"
+                        },
+                        new
+                        {
+                            Name = "account-token:57"
+                        },
+                        new
+                        {
+                            Name = "account-token:58"
+                        },
+                        new
+                        {
+                            Name = "account-token:59"
+                        },
+                        new
+                        {
+                            Name = "account-token:60"
+                        },
+                        new
+                        {
+                            Name = "account-token:61"
+                        },
+                        new
+                        {
+                            Name = "account-token:62"
+                        },
+                        new
+                        {
+                            Name = "account-token:63"
+                        });
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")
@@ -824,6 +1342,49 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Expenses.CompanyExpense", b =>
+                {
+                    b.HasOne("Csps.Domain.Expenses.ExpenseCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("DeletedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PaidByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Expenses.ExpenseCategory", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Csps.Domain.Identity.AccountToken", b =>

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-19T03:40:00-05:00
+updated: 2026-10-25T15:11:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -124,6 +124,31 @@ Handlers build the target id with `AuditKey.Of(id)` (lower-case `D` format).
 | `profile.email-change-canceled` | A waiting email change ends without applying. Either the caller calls it off (`DELETE /api/v1/profile/email-change`), a Manager calls it off for the person (`DELETE /api/v1/users/{id}/email-change`; the actor is the Manager), or the link is used after another account took the new address (`POST /api/v1/profile/email-change/confirm` answers 409 `email-change.taken`). A cancel with nothing waiting, and the read-only `check`, write nothing | `User` id (the account whose change ended) | None for a cancel by the caller or a Manager; `taken` when the address was taken first. Never either address | `Record`, in the same transaction as the cleared pending address and the revoked or spent links |
 | `profile.email-changed` | The new address is confirmed from the emailed link (`POST /api/v1/profile/email-change/confirm`) and becomes the sign-in email. The read-only `check` writes nothing | `User` id (the account that changed) | None. Never either address | `Record`, in the same transaction as the email move and the spent link |
 
+## Phase 6 expense and category events (AUDIT-01, D-27)
+
+Same rules as the tables above: the target is the thing acted on, by id, and the code is a constant in
+`Csps.Domain.Auditing.AuditActions`. The detail follows one format, written and read by `Csps.Application.Common.AuditDetailFormat`:
+`key=value` and `key=old>new` pairs joined by `;`. Amounts are written as `0.00` with a dot, dates as `yyyy-MM-dd` and ids as
+dashed lower-case GUIDs. The only free text is a category name, and `%`, `;`, `=` and `>` in it are percent-encoded (`%25`, `%3B`,
+`%3D`, `%3E`) so a name can never break the format; `Parse` reverses it exactly. **An expense description or notes text never
+appears in a detail.** A change to them is written as the field names in a `fields=` pair only. The worst case of every detail stays
+under the 400 character limit, which a unit test checks. Each write is `Record`, in the same transaction as the change.
+
+| Code | Written when | Target | Detail | Write path |
+|------|--------------|--------|--------|------------|
+| `company-expense.added` | A company expense is added | `CompanyExpense` id | The snapshot `date=2026-10-05;category=<id>;amount=1200.00;payer=<id>` | `Record`, with the new expense |
+| `company-expense.changed` | An expense is saved with a different amount, date, category, description or notes. A save of the same values writes nothing | `CompanyExpense` id | Only the changed pairs among `amount`, `date` and `category`, each as `old>new`; then `fields=description,notes` naming the text fields that changed (never their text); then `payer=<id>`, the current payer, which the Done to column reads | `Record`, with the save |
+| `company-expense.payer-changed` | An expense is saved with a different payer | `CompanyExpense` id | `payer=<old id>><new id>` | `Record`, with the save; a save that changes both the payer and other fields writes both entries |
+| `company-expense.deleted` | An expense is deleted into the bin | `CompanyExpense` id | The snapshot `date=2026-10-05;category=<id>;amount=1200.00;payer=<id>` | `Record`, with the delete |
+| `company-expense.restored` | A deleted expense is restored from the bin | `CompanyExpense` id | The same snapshot | `Record`, with the restore |
+| `company-expense.permanently-deleted` | A deleted expense is removed for good | `CompanyExpense` id | The same snapshot | `Record`, with the removal |
+| `expense-category.added` | A category is added | `ExpenseCategory` id | `name=<encoded name>;tone=<tone>` | `Record`, with the new category |
+| `expense-category.renamed` | A category is renamed | `ExpenseCategory` id | `name=<old encoded>><new encoded>` | `Record`, with the rename |
+| `expense-category.recolored` | A category's tone changes | `ExpenseCategory` id | `tone=<old>><new>` | `Record`, with the change |
+| `expense-category.retired` | A category is retired, so the Add picker no longer offers it | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the change |
+| `expense-category.reactivated` | A retired category is made available again | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the change |
+| `expense-category.deleted` | An unused category is deleted | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the delete |
+
 ## Viewing the log
 
 Managers read the log on the Audit Log page, which calls `GET /api/v1/audit-log`. It is read only: the page and the
@@ -153,6 +178,23 @@ API never change an entry (the log is append-only, see above).
   Names come from the user's own row, so a deleted person stays named and is marked as former staff (D-08, D-47).
 - **Details hold field names and role values only** (for example `fields=email` or `role=admin>manager`), never a
   person's name or email address (D-40). Entries are kept for 8 months and cannot be scrubbed.
+- **Expense and category entries (Phase 6, D-27).** For the twelve `company-expense.*` and `expense-category.*` codes the
+  server reads the stored detail with `AuditDetailFormat.Parse` and sends two extra fields on each entry: `changes`
+  (typed lines `{ field, from, to, fromPerson, toPerson }`; an empty list for every other code) and `snapshot`
+  (`{ date, category, amount, payer }` for added, deleted, restored and permanently deleted expenses; null otherwise).
+  Only the known keys are read and each value must have the shape the writer gives it; anything else is left out.
+  - A category id is shown as the category's current name, or as "a deleted category" when the category is gone. A payer id
+    is shown as the person, marked as former staff when the account was deleted.
+  - The screen shows fixed sentences built from those lines: "Amount: ₱1,200.00 to ₱1,250.00", "Date: Oct 5, 2026 to
+    Oct 6, 2026", "Category: Supplies to Equipment", "Paid by: {name} to {name}", "Name: {old} to {new}" and
+    "Color: Blue to Green", and for a snapshot "Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by {name}". A category that
+    was added, retired, brought back or deleted shows its name (and, when added, its color) the same way.
+  - **Description and notes text never appears.** A change to them reads only "Description changed" or "Notes changed",
+    because the log never stores their text (D-06, 05 D-40). The raw stored detail of these codes is not shown either.
+  - **Done to is the payer** for an expense entry (for a payer change, the new payer) and empty for a category entry.
+    The Done to filter also finds an expense entry whose detail names that person as the payer, current, old or new, so a
+    Manager can list everything that touched one person's money. The match is a LIKE on the stored detail with the shared
+    escaping, limited to codes that start with `company-expense.`.
 - **No export.** There is no download or CSV route (D-29). The log is read on screen only.
 
 ## Residual risk
