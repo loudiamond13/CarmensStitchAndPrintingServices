@@ -1,6 +1,6 @@
 # Phase 6: Company Expenses - Context
 
-*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-25T19:45:00-05:00*
+*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-25T21:10:00-05:00*
 
 **Gathered:** 2026-10-25
 **Status:** Ready for planning
@@ -85,6 +85,9 @@ Out of scope: order expenses (Phase 7), money on hand balances and transfers (Ph
 ### Execution rulings (owner, 2026-10-25, during execute-phase)
 - **D-49:** **Paid by needs a first sign-in.** A person a Manager created with a temporary password who has never signed in **can't** be chosen as Paid by (A-06-01, option 1). "Finished set-up" in D-32 now means the account is marked at the first sign-in code or accepted invite (`EmailConfirmed`), not only "has a password". Staff whose password a Manager reset stay choosable. No schema change. Applies to the staff lookup and the server payer check alike.
 - **D-50:** **No inline SQL, not even the three existing locks.** The owner does not approve `IdempotencyGate.cs`, `AccountTokenStore.cs` or `ManagerRosterLock.cs` by name (06-11 backlog item, option 2). Each lock is rebuilt with EF's own API (for example a lock row updated with `ExecuteUpdate` inside the same transaction), with race tests proving it still serializes two requests at once. `NoInlineSqlTests` then allows no file. A small additive lock table is in scope; anything beyond that (a drop, a rename, a trigger) goes back to the owner.
+- **D-51:** **Month KPI edge cases confirmed** (A-06-02, option 1). The cards follow the business time zone in Site settings (Asia/Manila today); no other case needs its own rule.
+- **D-52:** **Timing data size confirmed** (RESEARCH open question 5). The shop's real rate is below about 20 expenses a day, so the 5-year set of about 36,500 rows stays as a safe upper bound.
+- **D-53:** **Audit viewer option A confirmed** (RESEARCH open question 2). The server turns the stored detail into change lines and names payer and category, and "Done to" also matches expense payers, as built in 06-15.
 
 ### Claude's Discretion
 - Page size and page-size options, URL parameter names (WEB-10), and the exact index set, as long as every filter and sort column is covered.
