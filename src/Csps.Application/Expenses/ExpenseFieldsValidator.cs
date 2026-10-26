@@ -82,7 +82,12 @@ public sealed class ExpenseFieldsValidator : AbstractValidator<IExpenseFieldsReq
             return;
         }
 
-        var latest = ExpenseRules.Latest((DateOnly)context.RootContextData[TodayKey]);
+        if (!context.RootContextData.TryGetValue(TodayKey, out var today) || today is not DateOnly businessToday)
+        {
+            throw new InvalidOperationException($"The expense validator needs the business today as a DateOnly under '{TodayKey}'.");
+        }
+
+        var latest = ExpenseRules.Latest(businessToday);
         if (date > latest)
         {
             context.AddFailure(ExpenseRules.DateTooFar(latest));
