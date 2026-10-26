@@ -1,4 +1,5 @@
 using System.Net;
+using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Expenses;
 using Csps.Server.IntegrationTests.Auth;
@@ -6,10 +7,11 @@ using Csps.Server.IntegrationTests.Http;
 using Csps.Server.IntegrationTests.Users;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.CompanyExpenses;
 
-/// <summary>CEXP-05, D-11, D-17, D-32, OQ-7: on an edit a changed payer or category is checked, and a saved one may stay.</summary>
+/// <summary>CEXP-05, D-11, D-17, D-32, D-49, OQ-7: on an edit a changed payer or category is checked, and a saved one may stay.</summary>
 public sealed class CompanyExpensePayerTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string PayerRefusal = "This person can't be chosen because their account isn't active. Choose someone else.";
@@ -20,6 +22,7 @@ public sealed class CompanyExpensePayerTests(CspsDatabase database) : IClassFixt
     [InlineData("manager-locked")]
     [InlineData("deleted")]
     [InlineData("invited")]
+    [InlineData("temporary-not-signed-in")]
     public async Task ChangingThePayerToSomeoneWhoCannotBeChosenIsRefusedOnThePayerField(string state)
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -27,7 +30,9 @@ public sealed class CompanyExpensePayerTests(CspsDatabase database) : IClassFixt
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var today = await ExpenseFixtures.TodayAsync(factory);
         var created = await ExpenseFixtures.CreateAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, manager.UserId, today));
-        var candidate = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Dee", "Dizon", Roles.Admin, withPassword: state != "invited");
+        var candidate = state == "temporary-not-signed-in"
+            ? await CreateNeverSignedInAsync(client, manager.AccessToken)
+            : await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Dee", "Dizon", Roles.Admin, withPassword: state != "invited");
         await PutInStateAsync(factory, candidate.Id, state);
         var body = ExpenseFixtures.BodyFrom(created);
         body["paidByUserId"] = candidate.Id;
@@ -61,6 +66,83 @@ public sealed class CompanyExpensePayerTests(CspsDatabase database) : IClassFixt
         var stored = await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, created.GetProperty("id").GetGuid());
         stored.GetProperty("paidBy").GetProperty("id").GetGuid().ShouldBe(payer.Id);
         stored.GetProperty("paidByActive").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ASavedPayerWhoHasNotSignedInShowsAsNotChoosableUntilTheirFirstCode()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var personClient = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var payer = await CreateNeverSignedInAsync(client, manager.AccessToken);
+        var id = await ExpenseFixtures.SeedAsync(database, SeedPaidBy(payer.Id, manager.UserId, today));
+
+        (await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id)).GetProperty("paidByActive").GetBoolean().ShouldBeFalse();
+
+        using (var verified = await AuthClient.SignInThroughCodeAsync(personClient, new TestStaff(payer.Id, payer.Email, TemporaryPassword)))
+        {
+            verified.StatusCode.ShouldBe(HttpStatusCode.OK, await verified.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        (await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id)).GetProperty("paidByActive").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task KeepingASavedPayerWhoHasNotSignedInIsAccepted()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var payer = await CreateNeverSignedInAsync(client, manager.AccessToken);
+        var id = await ExpenseFixtures.SeedAsync(database, SeedPaidBy(payer.Id, manager.UserId, today));
+        var body = ExpenseFixtures.BodyFrom(await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id));
+        body["amount"] = 77m;
+
+        using var response = await ExpenseFixtures.PutAsync(client, manager.AccessToken, id, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var stored = await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        stored.GetProperty("paidBy").GetProperty("id").GetGuid().ShouldBe(payer.Id);
+        stored.GetProperty("paidByActive").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task TheDetailFlagAgreesWithThePayerStateForEveryKindOfPayer()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var tag = UserFixtures.NewTag();
+        var active = await UserFixtures.CreateAsync(factory, tag, "Ana", "Active", Roles.Admin);
+        var deactivated = await UserFixtures.CreateAsync(factory, tag, "Dee", "Dizon", Roles.Admin);
+        var locked = await UserFixtures.CreateAsync(factory, tag, "Gina", "Garcia");
+        var deleted = await UserFixtures.CreateAsync(factory, tag, "Jun", "Javier", Roles.Admin);
+        var invited = await UserFixtures.CreateAsync(factory, tag, "Hal", "Honrado", Roles.Admin, withPassword: false);
+        var unmarked = await AuthClient.CreateStaffAsync(factory, StaffState.Unconfirmed, Roles.Admin);
+        var neverSignedIn = await CreateNeverSignedInAsync(client, manager.AccessToken);
+        var reset = await UserFixtures.CreateAsync(factory, tag, "Rey", "Reset", Roles.Admin);
+        await AuthClient.DeactivateAsync(factory, deactivated.Id);
+        await AccountStateFixtures.ManagerLockAsync(factory, locked.Id);
+        await AccountStateFixtures.MarkDeletedAsync(factory, deleted.Id);
+        await UserFixtures.SetTemporaryPasswordAsync(client, manager.AccessToken, reset.Id, $"Tmp-{Guid.NewGuid():N}!x");
+        Guid[] payers = [active.Id, deactivated.Id, locked.Id, deleted.Id, invited.Id, unmarked.Id, neverSignedIn.Id, reset.Id];
+
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            var directory = scope.ServiceProvider.GetRequiredService<IStaffDirectory>();
+            foreach (var payer in payers)
+            {
+                var id = await ExpenseFixtures.SeedAsync(database, SeedPaidBy(payer, manager.UserId, today));
+                var detail = await ExpenseFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+                var state = (await directory.GetStaffStateAsync(payer, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+                detail.GetProperty("paidByActive").GetBoolean().ShouldBe(state.CanPay, $"paidByActive and CanPay disagree for {state.Name}");
+            }
+        }
     }
 
     [Fact]
@@ -222,6 +304,18 @@ public sealed class CompanyExpensePayerTests(CspsDatabase database) : IClassFixt
         var payerRow = await context.AuditLog.AsNoTracking()
             .SingleAsync(row => row.TargetId == key && row.Action == "company-expense.payer-changed", TestContext.Current.CancellationToken);
         payerRow.Detail.ShouldBe($"payer={manager.UserId:D}>{newPayer.UserId:D}");
+    }
+
+    private static readonly string TemporaryPassword = $"Tmp-{Guid.NewGuid():N}!x";
+
+    private static ExpenseSeed SeedPaidBy(Guid payerId, Guid recorderId, DateOnly date) =>
+        new(date, payerId, recorderId, TimeProvider.System.GetUtcNow().AddMinutes(-5), ExpenseFixtures.SuppliesId, "Seeded expense", 640m);
+
+    private static async Task<SeededUser> CreateNeverSignedInAsync(HttpClient client, string managerToken)
+    {
+        var email = $"tia.{Guid.NewGuid():N}@example.com";
+        var id = await UserFixtures.CreateWithTemporaryPasswordAsync(client, managerToken, email, TemporaryPassword);
+        return new SeededUser(id, "Tia", "Temporal", email, Roles.Admin);
     }
 
     private static async Task PutInStateAsync(CspsApiFactory factory, Guid id, string state)

@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.CompanyExpenses;
 
-/// <summary>CEXP-02, CEXP-04, D-01, D-25: a staff member records an expense and reads it back; a stranger is refused.</summary>
+/// <summary>CEXP-02, CEXP-04, D-01, D-25, D-49: a staff member records an expense and reads it back; a stranger is refused.</summary>
 public sealed class CreateCompanyExpenseEndpointTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     [Fact]
@@ -127,13 +127,17 @@ public sealed class CreateCompanyExpenseEndpointTests(CspsDatabase database) : I
     [InlineData("manager-locked")]
     [InlineData("deleted")]
     [InlineData("invited")]
+    [InlineData("temporary-not-signed-in")]
     public async Task APayerWhoCannotBeChosenIsRefusedOnThePayerFieldWithTheExactMessage(string state)
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var today = await ExpenseFixtures.TodayAsync(factory);
-        var payer = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Dee", "Dizon", Roles.Admin, withPassword: state != "invited");
+        var payer = state == "temporary-not-signed-in"
+            ? await CreateNeverSignedInAsync(client, manager.AccessToken)
+            : await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Dee", "Dizon", Roles.Admin, withPassword: state != "invited");
         switch (state)
         {
             case "deactivated":
@@ -154,6 +158,30 @@ public sealed class CreateCompanyExpenseEndpointTests(CspsDatabase database) : I
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         ExpenseFixtures.FieldErrors(problem, "paidByUserId").ShouldBe(["This person can't be chosen because their account isn't active. Choose someone else."]);
+    }
+
+    private static async Task<SeededUser> CreateNeverSignedInAsync(HttpClient client, string managerToken)
+    {
+        var email = $"tia.{Guid.NewGuid():N}@example.com";
+        var id = await UserFixtures.CreateWithTemporaryPasswordAsync(client, managerToken, email, $"Tmp-{Guid.NewGuid():N}!x");
+        return new SeededUser(id, "Tia", "Temporal", email, Roles.Admin);
+    }
+
+    [Fact]
+    public async Task APayerWhosePasswordAManagerResetIsAccepted()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var payer = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Rey", "Reset", Roles.Admin);
+        await UserFixtures.SetTemporaryPasswordAsync(client, manager.AccessToken, payer.Id, $"Tmp-{Guid.NewGuid():N}!x");
+
+        using var response = await ExpenseFixtures.PostAsync(client, manager.AccessToken, ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, payer.Id, today));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("paidBy").GetProperty("id").GetGuid().ShouldBe(payer.Id);
     }
 
     [Fact]

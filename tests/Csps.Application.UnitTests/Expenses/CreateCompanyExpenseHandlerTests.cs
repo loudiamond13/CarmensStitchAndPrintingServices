@@ -96,11 +96,11 @@ public sealed class CreateCompanyExpenseHandlerTests
     [InlineData(true, false, true, true, Roles.Manager)]
     [InlineData(true, false, false, false, Roles.Admin)]
     [InlineData(true, false, false, true, null)]
-    public async Task APayerWhoCannotPayIsRefused(bool active, bool locked, bool deleted, bool hasPassword, string? role)
+    public async Task APayerWhoCannotPayIsRefused(bool active, bool locked, bool deleted, bool finishedSetUp, string? role)
     {
         var harness = new Harness();
         harness.Staff.GetStaffStateAsync(PayerId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<StaffState?>(new StaffState(PayerId, "Mina Mercado", role, active, locked, deleted, hasPassword)));
+            .Returns(Task.FromResult<StaffState?>(new StaffState(PayerId, "Mina Mercado", role, active, locked, deleted, finishedSetUp)));
 
         var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
 
