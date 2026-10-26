@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
 status: executing
-stopped_at: Completed 06-17-PLAN.md
-last_updated: "2026-10-25T22:32:09.537Z"
+stopped_at: Completed 06-18-PLAN.md
+last_updated: "2026-10-26T00:32:55.815Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 666f96bd39593d13092eb908730a6362e571aa4b
+state_head: 12ddb4f6089b567a446aa2c599e22bc53752f41b
 progress:
   total_phases: 17
   completed_phases: 5
   total_plans: 185
-  completed_plans: 183
+  completed_plans: 184
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-25T09:48:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 18 of 19 (06-01 to 06-17 are done; next is 06-18)
+Plan: 19 of 19 (06-01 to 06-18 are done; next is 06-19)
 Status: Ready to execute
 Last activity: 2026-10-25 — Phase 06 execution started
 
@@ -240,6 +240,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P15 | 50 min | 3 tasks | 20 files |
 | Phase 06 P16 | 61 min | 3 tasks | 27 files |
 | Phase 06 P17 | 41 min | 3 tasks | 25 files |
+| Phase 06 P18 | 2h 20m | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -641,6 +642,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-17: Retire and Use again flip the status in the cached list at once, then the lists read again; the flipped action keeps (or regains) focus
 - [Phase 06]: 06-17: Delete is offered for a non-Others category with expenseCount 0; a 422 expense-categories.in-use keeps the dialog open with the contract refusal and refetches, a 404 shows the shared mapper line (no new wording invented)
 - [Phase 06]: 06-17: every category change refreshes through useRefreshCategories (categories, expenses, KPIs, deleted list); the category detail is read fresh under its own query root so a refresh never replaces an open form's version
+- [Phase 06]: 06-18: A money figure of 15 characters or more takes a smaller KPI clamp (22px floor, 13.5cqi) so 999,999,999.99 fits the card at 320 px; shorter figures keep the approved clamp
+- [Phase 06]: 06-18: The showcase section for the Phase 6 demos is titled Expenses and settings, because the E1 table region is already named Company expenses
 
 ### Pending Todos
 
@@ -714,6 +717,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-25T22:32:08.658Z
-Stopped at: Completed 06-17-PLAN.md
+Last session: 2026-10-26T00:32:54.915Z
+Stopped at: Completed 06-18-PLAN.md
 Resume file: None
