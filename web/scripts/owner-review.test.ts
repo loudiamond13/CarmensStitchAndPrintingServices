@@ -1447,8 +1447,11 @@ describe('the Phase 6 rulings page content (plan 06-19)', () => {
     expect(sql).toMatchObject({ status: 'ruled' });
     expect(sql?.ruling).toContain('D-50');
     expect(sql?.ruling).toContain('06-21');
-    for (const file of ['IdempotencyGate.cs', 'AccountTokenStore.cs', 'ManagerRosterLock.cs']) {
-      expect(JSON.stringify(sql), file).toContain(file);
+    expect(sql?.ruling).toContain('built it');
+    expect(sql?.options.filter((option) => option.built).map((option) => option.label)).toEqual(['2']);
+    expect(sql?.options.filter((option) => option.recommended).map((option) => option.label)).toEqual(['1']);
+    for (const file of ['IdempotencyGate.cs', 'AccountTokenStore.cs', 'ManagerRosterLock.cs', 'DatabaseLocks', 'NoInlineSqlTests']) {
+      expect(sql?.whereItChanges, file).toContain(file);
     }
   });
 

@@ -7,7 +7,7 @@ namespace Csps.ArchitectureTests;
 /// </summary>
 public sealed class NoInlineSqlTests
 {
-    // Pending the owner: no file is approved by name.
+    // The owner approved no file by name (D-50), so no file under src may hold inline SQL.
     private static readonly string[] AllowedFiles = [];
 
     private static readonly string[] RawSqlTokens =
@@ -24,7 +24,7 @@ public sealed class NoInlineSqlTests
     private static readonly string[] CommentPrefixes = ["//", "/*", "*"];
 
     [Fact]
-    public void NoSourceFileHoldsInlineSqlOutsideMigrationsAndTheReviewedFiles()
+    public void NoSourceFileHoldsInlineSqlOutsideMigrations()
     {
         var sourceRoot = RepoRoot.PathOf("src");
         var offenders = new List<string>();
@@ -32,29 +32,15 @@ public sealed class NoInlineSqlTests
         foreach (var file in SourceFiles(sourceRoot))
         {
             var relative = RelativePath(sourceRoot, file);
-            if (AllowedFiles.Contains(relative, StringComparer.Ordinal))
-            {
-                continue;
-            }
-
             offenders.AddRange(File.ReadLines(file).SelectMany(Offences).Select(offence => $"{relative}: {offence}"));
         }
 
-        offenders.ShouldBeEmpty("Inline SQL is allowed only in generated migrations and the files the owner approved by name.");
+        offenders.ShouldBeEmpty("Inline SQL is allowed only in generated migrations (D-50).");
     }
 
     [Fact]
-    public void EveryAllowedFileStillHoldsInlineSql()
-    {
-        var sourceRoot = RepoRoot.PathOf("src");
-
-        foreach (var relative in AllowedFiles)
-        {
-            var path = Path.Combine(sourceRoot, relative.Replace('/', Path.DirectorySeparatorChar));
-            File.Exists(path).ShouldBeTrue($"{relative} is on the allow-list but does not exist.");
-            File.ReadLines(path).SelectMany(Offences).ShouldNotBeEmpty($"{relative} is on the allow-list but holds no inline SQL. Remove the stale entry.");
-        }
-    }
+    public void NoFileIsAllowedInlineSql() =>
+        AllowedFiles.ShouldBeEmpty("The owner approved no file by name (D-50). Rebuild the code with EF's own API instead.");
 
     [Theory]
     [InlineData("await context.Database.ExecuteSqlRawAsync(\"DELETE FROM X\", ct);")]
@@ -83,6 +69,8 @@ public sealed class NoInlineSqlTests
     [InlineData("Csps.Infrastructure/obj/Debug/net10.0/Generated.cs", false)]
     [InlineData("Csps.Infrastructure/Persistence/CspsDbContext.cs", true)]
     [InlineData("Csps.Infrastructure/Idempotency/IdempotencyGate.cs", true)]
+    [InlineData("Csps.Infrastructure/Identity/AccountTokenStore.cs", true)]
+    [InlineData("Csps.Infrastructure/Identity/ManagerRosterLock.cs", true)]
     public void OnlyMigrationsAndBuildOutputAreSkipped(string relativePath, bool scanned) => IsScanned(relativePath).ShouldBe(scanned);
 
     // Plain text search per line. A line that is only a comment is skipped so documentation may name the banned calls.
