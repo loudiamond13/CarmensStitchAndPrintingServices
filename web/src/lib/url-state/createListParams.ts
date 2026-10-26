@@ -2,16 +2,8 @@
 // hook built on nuqs useQueryStates. A list reads and writes its state only through that hook and never copies it into
 // useState or form state. The parsed, defaulted values it returns are the only input of the list's query (WEB-08).
 // The state keys are the URL keys: page, size and q are shared by every list; the rest are the list's own.
-import {
-  debounce,
-  parseAsString,
-  useQueryStates,
-  type Nullable,
-  type Options,
-  type ParserMap,
-  type Values,
-} from 'nuqs';
-import { useEffect } from 'react';
+import { parseAsString, useQueryStates, type Nullable, type Options, type ParserMap, type Values } from 'nuqs';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { clampPage as clampToPages, normalizeSearch } from './parsers';
 
 /**
@@ -38,7 +30,10 @@ export interface ListParamsSetters<P extends ListParserMap> {
   /** Adds a history entry (push). Anything but an integer of at least 1 means page 1. */
   setPage: (page: number) => void;
   setPageSize: (size: Arg<P, 'size'>) => void;
-  /** Trims and caps the text; writes the URL after 300 ms of quiet, or at once with `immediate` (Enter). */
+  /**
+   * Trims and caps the text. The list shows it at once; the URL gets the search and the page reset in one replace after
+   * 300 ms of quiet, or at once with `immediate` (Enter).
+   */
   setSearch: (text: string, options?: { immediate?: boolean }) => void;
   /** One filter, sort, tab or view value; null or the default removes it from the URL. */
   setFilter: <K extends FilterKey<P>>(key: K, value: Values<P>[K] | null) => void;
@@ -126,11 +121,28 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
   }
   const rawParsers: Record<string, typeof parseAsString> = Object.fromEntries(keys.map((key) => [key, parseAsString]));
   const pageReset: Record<string, null> = 'page' in parsers ? { page: null } : {};
+  // What the list shows for the page once a reset is applied (the page default).
+  const pageShownAfterReset: Record<string, unknown> =
+    'page' in parsers ? { page: (parsers as Record<string, ListParser>).page?.defaultValue ?? null } : {};
 
   return function useListParams() {
     const [values, setParams] = useQueryStates(parsers);
     // The same keys as raw strings, to tell "absent" from "present but invalid" (both parse to the default).
     const [raw] = useQueryStates(rawParsers);
+
+    // The search wait is timed here, not by nuqs: nuqs debounces each URL key on its own timer, so q and the page reset
+    // could land as two URL updates (D-68). While it waits, the list already shows the typed search and page 1.
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const waitingPatch = useRef<Record<string, unknown> | null>(null);
+    const [waiting, setWaiting] = useState<Record<string, unknown> | null>(null);
+    const shown = useMemo(() => (waiting === null ? values : { ...values, ...waiting }), [values, waiting]);
+
+    useEffect(
+      () => () => {
+        if (timer.current !== null) clearTimeout(timer.current);
+      },
+      [],
+    );
 
     // Normalize once: an invalid, default or non-canonical value is rewritten in a single replace. After it the URL is
     // canonical, so the next run finds nothing to change (idempotent).
@@ -149,6 +161,13 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
       write({ ...patch, ...pageReset }, { history: 'replace', ...extra });
     };
 
+    const stopWait = (): void => {
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = null;
+      waitingPatch.current = null;
+      setWaiting(null);
+    };
+
     const setters: ListParamsSetters<P> = {
       setPage: (page) => {
         write({ page: Number.isSafeInteger(page) && page >= 1 ? page : null }, { history: 'push' });
@@ -157,8 +176,19 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
         replaceAndResetPage({ size });
       },
       setSearch: (text, options) => {
-        const limit: Options = options?.immediate === true ? {} : { limitUrlUpdates: debounce(SEARCH_DEBOUNCE_MS) };
-        replaceAndResetPage({ q: normalizeSearch(text) }, limit);
+        const q = normalizeSearch(text);
+        stopWait();
+        if (options?.immediate === true) {
+          replaceAndResetPage({ q });
+          return;
+        }
+        waitingPatch.current = { q, ...pageReset };
+        setWaiting({ q, ...pageShownAfterReset });
+        timer.current = setTimeout(() => {
+          const patch = waitingPatch.current;
+          stopWait();
+          if (patch !== null) write(patch, { history: 'replace' });
+        }, SEARCH_DEBOUNCE_MS);
       },
       setFilter: (key, value) => {
         replaceAndResetPage({ [key]: value });
@@ -167,7 +197,7 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
         replaceAndResetPage(patch);
       },
       clampPage: (totalPages) => {
-        const page = (values as Record<string, unknown>).page;
+        const page = (shown as Record<string, unknown>).page;
         if (typeof page !== 'number') return;
         const target = clampToPages(page, totalPages);
         if (target !== page) {
@@ -178,6 +208,6 @@ export function createListParams<P extends ListParserMap>(parsers: P) {
         void setParams(null, { history: 'replace' });
       },
     };
-    return [values, setters] as const;
+    return [shown, setters] as const;
   };
 }
