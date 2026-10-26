@@ -6,12 +6,13 @@
 import { tw } from '@/ui/tw';
 
 /**
- * `.s-admin`: the sidebar column and the main column side by side. On phone viewports the page (html) also gets bottom
- * scroll padding, so a focused or scrolled-to control stops 24px above the tab bar (WCAG 2.4.11); it is a utility
- * because the D-33 contract keeps html out of the stylesheets.
+ * `.s-admin`: the sidebar column and the main column side by side. The page (html) also gets top scroll padding at every
+ * width and, on phone viewports, bottom scroll padding, so a focused or scrolled-to control stops 24px clear of the
+ * sticky top bar and the tab bar (WCAG 2.4.11); they are utilities because the D-33 contract keeps html out of the
+ * stylesheets.
  */
 export const adminClasses = tw(
-  'flex min-h-full bg-bg text-ink in-data-[fill=viewport]:min-h-dvh vp-lt-md:[:root:has(&)]:scroll-pb-[calc(71px+var(--space-6)+env(safe-area-inset-bottom))]',
+  'flex min-h-full bg-bg text-ink in-data-[fill=viewport]:min-h-dvh [:root:has(&)]:scroll-pt-[calc(var(--topbar-height)+var(--space-6))] vp-lt-md:[:root:has(&)]:scroll-pb-[calc(71px+var(--space-6)+env(safe-area-inset-bottom))]',
 );
 
 /** `.s-admin-side`: the sidebar column (`data-ui="s-admin-side"`), hidden on phones. */
