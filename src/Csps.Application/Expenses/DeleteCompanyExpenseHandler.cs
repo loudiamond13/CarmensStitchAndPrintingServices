@@ -49,6 +49,7 @@ public sealed class DeleteCompanyExpenseHandler(
             return Result.Failure<bool>(ExpenseErrors.NotFound);
         }
 
+        // The store finds live rows only, so this guards just a tracked entity that is already marked deleted in memory.
         if (!expense.SoftDelete(callerId, time.GetUtcNow()))
         {
             return Result.Failure<bool>(ExpenseErrors.NotFound);
