@@ -886,6 +886,292 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Infrastructure.Persistence.Locking.DatabaseLock", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(80)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<DateTimeOffset?>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("HolderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("TakenAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Name");
+
+                    b.HasIndex("ExpiresAtUtc")
+                        .HasDatabaseName("IX_DatabaseLocks_ExpiresAtUtc");
+
+                    b.ToTable("DatabaseLocks", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Name = "active-managers"
+                        },
+                        new
+                        {
+                            Name = "account-token:00"
+                        },
+                        new
+                        {
+                            Name = "account-token:01"
+                        },
+                        new
+                        {
+                            Name = "account-token:02"
+                        },
+                        new
+                        {
+                            Name = "account-token:03"
+                        },
+                        new
+                        {
+                            Name = "account-token:04"
+                        },
+                        new
+                        {
+                            Name = "account-token:05"
+                        },
+                        new
+                        {
+                            Name = "account-token:06"
+                        },
+                        new
+                        {
+                            Name = "account-token:07"
+                        },
+                        new
+                        {
+                            Name = "account-token:08"
+                        },
+                        new
+                        {
+                            Name = "account-token:09"
+                        },
+                        new
+                        {
+                            Name = "account-token:10"
+                        },
+                        new
+                        {
+                            Name = "account-token:11"
+                        },
+                        new
+                        {
+                            Name = "account-token:12"
+                        },
+                        new
+                        {
+                            Name = "account-token:13"
+                        },
+                        new
+                        {
+                            Name = "account-token:14"
+                        },
+                        new
+                        {
+                            Name = "account-token:15"
+                        },
+                        new
+                        {
+                            Name = "account-token:16"
+                        },
+                        new
+                        {
+                            Name = "account-token:17"
+                        },
+                        new
+                        {
+                            Name = "account-token:18"
+                        },
+                        new
+                        {
+                            Name = "account-token:19"
+                        },
+                        new
+                        {
+                            Name = "account-token:20"
+                        },
+                        new
+                        {
+                            Name = "account-token:21"
+                        },
+                        new
+                        {
+                            Name = "account-token:22"
+                        },
+                        new
+                        {
+                            Name = "account-token:23"
+                        },
+                        new
+                        {
+                            Name = "account-token:24"
+                        },
+                        new
+                        {
+                            Name = "account-token:25"
+                        },
+                        new
+                        {
+                            Name = "account-token:26"
+                        },
+                        new
+                        {
+                            Name = "account-token:27"
+                        },
+                        new
+                        {
+                            Name = "account-token:28"
+                        },
+                        new
+                        {
+                            Name = "account-token:29"
+                        },
+                        new
+                        {
+                            Name = "account-token:30"
+                        },
+                        new
+                        {
+                            Name = "account-token:31"
+                        },
+                        new
+                        {
+                            Name = "account-token:32"
+                        },
+                        new
+                        {
+                            Name = "account-token:33"
+                        },
+                        new
+                        {
+                            Name = "account-token:34"
+                        },
+                        new
+                        {
+                            Name = "account-token:35"
+                        },
+                        new
+                        {
+                            Name = "account-token:36"
+                        },
+                        new
+                        {
+                            Name = "account-token:37"
+                        },
+                        new
+                        {
+                            Name = "account-token:38"
+                        },
+                        new
+                        {
+                            Name = "account-token:39"
+                        },
+                        new
+                        {
+                            Name = "account-token:40"
+                        },
+                        new
+                        {
+                            Name = "account-token:41"
+                        },
+                        new
+                        {
+                            Name = "account-token:42"
+                        },
+                        new
+                        {
+                            Name = "account-token:43"
+                        },
+                        new
+                        {
+                            Name = "account-token:44"
+                        },
+                        new
+                        {
+                            Name = "account-token:45"
+                        },
+                        new
+                        {
+                            Name = "account-token:46"
+                        },
+                        new
+                        {
+                            Name = "account-token:47"
+                        },
+                        new
+                        {
+                            Name = "account-token:48"
+                        },
+                        new
+                        {
+                            Name = "account-token:49"
+                        },
+                        new
+                        {
+                            Name = "account-token:50"
+                        },
+                        new
+                        {
+                            Name = "account-token:51"
+                        },
+                        new
+                        {
+                            Name = "account-token:52"
+                        },
+                        new
+                        {
+                            Name = "account-token:53"
+                        },
+                        new
+                        {
+                            Name = "account-token:54"
+                        },
+                        new
+                        {
+                            Name = "account-token:55"
+                        },
+                        new
+                        {
+                            Name = "account-token:56"
+                        },
+                        new
+                        {
+                            Name = "account-token:57"
+                        },
+                        new
+                        {
+                            Name = "account-token:58"
+                        },
+                        new
+                        {
+                            Name = "account-token:59"
+                        },
+                        new
+                        {
+                            Name = "account-token:60"
+                        },
+                        new
+                        {
+                            Name = "account-token:61"
+                        },
+                        new
+                        {
+                            Name = "account-token:62"
+                        },
+                        new
+                        {
+                            Name = "account-token:63"
+                        });
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")

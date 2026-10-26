@@ -7,14 +7,13 @@ namespace Csps.ArchitectureTests;
 /// </summary>
 public sealed class NoInlineSqlTests
 {
-    // Pending the owner: each of these three takes a SQL Server application lock (sp_getapplock) that EF has no API for.
+    // Pending the owner: each of these takes a SQL Server application lock (sp_getapplock) that EF has no API for.
     // The owner allows inline SQL only where approved by name, so the question waits in the STATE.md Owner backlog.
     // Do not add a file here without the owner's approval by name.
     private static readonly string[] AllowedFiles =
     [
         "Csps.Infrastructure/Idempotency/IdempotencyGate.cs",
         "Csps.Infrastructure/Identity/AccountTokenStore.cs",
-        "Csps.Infrastructure/Identity/ManagerRosterLock.cs",
     ];
 
     private static readonly string[] RawSqlTokens =

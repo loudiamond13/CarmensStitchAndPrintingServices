@@ -3,6 +3,7 @@ using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Infrastructure.IntegrationTests.Persistence;
@@ -67,7 +68,23 @@ public sealed class DatabaseLocksTests(CspsDatabase database) : IClassFixture<Cs
     }
 
     [Fact]
-    public async Task ALockTakenAfterASavepointIsStillHeldAfterTheRollbackToIt()
+    public async Task ALockTakenBeforeASavepointIsStillHeldAfterTheRollbackToIt()
+    {
+        await using var first = database.CreateContext();
+        await using var second = database.CreateContext();
+        var transaction = await first.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (transaction)
+        {
+            await TakeAsync(first, DatabaseLocks.ActiveManagers);
+            await transaction.CreateSavepointAsync("attempt", TestContext.Current.CancellationToken);
+            await transaction.RollbackToSavepointAsync("attempt", TestContext.Current.CancellationToken);
+
+            await AssertSecondTakerWaitsAsync(second, transaction);
+        }
+    }
+
+    [Fact]
+    public async Task ARetriedAttemptTakesTheLockAgainAndHoldsItToTheEnd()
     {
         await using var first = database.CreateContext();
         await using var second = database.CreateContext();
@@ -76,19 +93,12 @@ public sealed class DatabaseLocksTests(CspsDatabase database) : IClassFixture<Cs
         {
             await transaction.CreateSavepointAsync("attempt", TestContext.Current.CancellationToken);
             await TakeAsync(first, DatabaseLocks.ActiveManagers);
+
+            // SQL Server frees a lock taken after the savepoint together with the attempt's writes, so the retry takes it again.
             await transaction.RollbackToSavepointAsync("attempt", TestContext.Current.CancellationToken);
+            await TakeAsync(first, DatabaseLocks.ActiveManagers);
 
-            var other = await second.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
-            await using (other)
-            {
-                var taking = TakeAsync(second, DatabaseLocks.ActiveManagers);
-                await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
-                taking.IsCompleted.ShouldBeFalse("the lock must outlive the rollback to the savepoint");
-
-                await transaction.CommitAsync(TestContext.Current.CancellationToken);
-                await taking.WaitAsync(Patience, TestContext.Current.CancellationToken);
-                await other.CommitAsync(TestContext.Current.CancellationToken);
-            }
+            await AssertSecondTakerWaitsAsync(second, transaction);
         }
     }
 
@@ -186,6 +196,21 @@ public sealed class DatabaseLocksTests(CspsDatabase database) : IClassFixture<Cs
                 await taking.WaitAsync(Patience, TestContext.Current.CancellationToken);
                 await other.CommitAsync(TestContext.Current.CancellationToken);
             }
+        }
+    }
+
+    private static async Task AssertSecondTakerWaitsAsync(CspsDbContext second, IDbContextTransaction holder)
+    {
+        var other = await second.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (other)
+        {
+            var taking = TakeAsync(second, DatabaseLocks.ActiveManagers);
+            await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
+            taking.IsCompleted.ShouldBeFalse("the second taker must wait for the first transaction to end");
+
+            await holder.CommitAsync(TestContext.Current.CancellationToken);
+            await taking.WaitAsync(Patience, TestContext.Current.CancellationToken);
+            await other.CommitAsync(TestContext.Current.CancellationToken);
         }
     }
 
