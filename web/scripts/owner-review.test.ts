@@ -1421,15 +1421,18 @@ describe('the Phase 6 rulings page content (plan 06-19)', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('gives A-06-01 three options, recommended first, with option 2 ("has a password") the one built, and names where the rule changes', () => {
+  it('gives A-06-01 three options, recommended first, with option 1 (first sign-in) the one built, and names where the rule changes', () => {
     const entry = PHASE6_RULINGS.find((candidate) => candidate.id === 'A-06-01');
 
     expect(entry?.options).toHaveLength(3);
     expect(entry?.options.map((option) => option.label)).toEqual(['1', '2', '3']);
     expect(entry?.options.filter((option) => option.recommended).map((option) => option.label)).toEqual(['1']);
-    expect(entry?.options.filter((option) => option.built).map((option) => option.label)).toEqual(['2']);
+    expect(entry?.options.filter((option) => option.built).map((option) => option.label)).toEqual(['1']);
+    expect(entry?.options[0]?.text).toContain('first sign-in');
     expect(entry?.options[1]?.text).toContain('has a password');
     expect(entry?.whereItChanges).toContain('StaffDirectory.cs');
+    expect(entry?.whereItChanges).toContain('CompanyExpenseReader.cs');
+    expect(entry?.whereItChanges).toContain('CompanyExpensesSeedStep.cs');
     expect(entry?.whereItChanges).toContain('StaffLookupEndpointTests');
   });
 
@@ -1440,6 +1443,7 @@ describe('the Phase 6 rulings page content (plan 06-19)', () => {
     expect(payer).toMatchObject({ status: 'ruled' });
     expect(payer?.ruling).toContain('D-49');
     expect(payer?.ruling).toContain('06-20');
+    expect(payer?.ruling).toContain('built it');
     expect(sql).toMatchObject({ status: 'ruled' });
     expect(sql?.ruling).toContain('D-50');
     expect(sql?.ruling).toContain('06-21');

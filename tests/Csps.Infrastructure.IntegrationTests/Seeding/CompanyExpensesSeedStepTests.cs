@@ -10,7 +10,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Infrastructure.IntegrationTests.Seeding;
 
-/// <summary>CEXP-01, PERF-04: the dev seed adds demo company expenses for the local list, paid by real local staff.</summary>
+/// <summary>CEXP-01, PERF-04, D-49: the dev seed adds demo company expenses for the local list, paid by real local staff.</summary>
 public sealed class CompanyExpensesSeedStepTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     // 12:00 on 2026-10-25 in Manila.
@@ -40,6 +40,40 @@ public sealed class CompanyExpensesSeedStepTests(CspsDatabase database) : IClass
         rows.ShouldAllBe(row => !row.IsDeleted);
         rows.ShouldAllBe(row => row.Amount >= 150.00m && row.Amount <= 25_000.00m);
         rows.ShouldAllBe(row => row.Description.Length > 0 && row.Notes == null);
+    }
+
+    [Fact]
+    public async Task AStaffMemberWhoHasNeverSignedInIsNeverUsedAsPayer()
+    {
+        await database.ResetAsync();
+        var marked = await AddUserAsync(Roles.Manager, "fake-hash", true);
+        await AddUserAsync(Roles.Admin, "fake-hash", true, emailConfirmed: false);
+
+        var results = await RunAsync();
+
+        results.ShouldHaveSingleItem().Changed.ShouldBeTrue();
+        var rows = await ReadExpensesAsync();
+        rows.Count.ShouldBe(64);
+        rows.ShouldAllBe(row => row.PaidByUserId == marked);
+        rows.ShouldAllBe(row => row.CreatedById == marked);
+    }
+
+    [Fact]
+    public async Task OnlyStaffWhoHaveNeverSignedInSkipTheSeedAndCreateNoAccounts()
+    {
+        await database.ResetAsync();
+        await AddUserAsync(Roles.Manager, "fake-hash", true, emailConfirmed: false);
+        await AddUserAsync(Roles.Admin, "fake-hash", true, emailConfirmed: false);
+
+        var results = await RunAsync();
+
+        results.ShouldHaveSingleItem().Changed.ShouldBeFalse();
+        (await ReadExpensesAsync()).ShouldBeEmpty();
+        var context = database.CreateContext();
+        await using (context)
+        {
+            (await context.Users.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+        }
     }
 
     [Fact]
@@ -117,7 +151,7 @@ public sealed class CompanyExpensesSeedStepTests(CspsDatabase database) : IClass
         }
     }
 
-    private async Task<Guid> AddUserAsync(string role, string? passwordHash, bool active)
+    private async Task<Guid> AddUserAsync(string role, string? passwordHash, bool active, bool emailConfirmed = true)
     {
         var context = database.CreateContext();
         await using (context)
@@ -134,6 +168,7 @@ public sealed class CompanyExpensesSeedStepTests(CspsDatabase database) : IClass
                 LastName = "Reyes",
                 PasswordHash = passwordHash,
                 IsActive = active,
+                EmailConfirmed = emailConfirmed,
             };
             context.Users.Add(user);
             var roleId = await context.Roles.Where(row => row.Name == role).Select(row => row.Id).SingleAsync(TestContext.Current.CancellationToken);
