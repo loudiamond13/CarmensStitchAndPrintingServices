@@ -137,6 +137,42 @@ public sealed class DatabaseLocksTests(CspsDatabase database) : IClassFixture<Cs
     }
 
     [Fact]
+    public async Task AWaitUnderOneSecondStillEndsInsteadOfWaitingForever()
+    {
+        await using var first = database.CreateContext();
+        await using var second = database.CreateContext();
+        var transaction = await first.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (transaction)
+        {
+            await TakeAsync(first, DatabaseLocks.ActiveManagers);
+            var other = await second.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await using (other)
+            {
+                var taking = DatabaseLocks.TakeAsync(second, DatabaseLocks.ActiveManagers, Now, TimeSpan.FromMilliseconds(300), Message, TestContext.Current.CancellationToken);
+                var finished = await Task.WhenAny(taking, Task.Delay(Patience, TestContext.Current.CancellationToken));
+                await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+
+                finished.ShouldBeSameAs(taking, "a 300 ms wait must not become a wait with no limit");
+                (await Should.ThrowAsync<InvalidOperationException>(() => taking)).Message.ShouldBe(Message);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task AWaitOfZeroOrLessIsRefused(int milliseconds)
+    {
+        await using var context = database.CreateContext();
+        var transaction = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (transaction)
+        {
+            await Should.ThrowAsync<ArgumentOutOfRangeException>(
+                () => DatabaseLocks.TakeAsync(context, DatabaseLocks.ActiveManagers, Now, TimeSpan.FromMilliseconds(milliseconds), Message, TestContext.Current.CancellationToken));
+        }
+    }
+
+    [Fact]
     public async Task AnUnknownLockNameThrows()
     {
         await using var context = database.CreateContext();
