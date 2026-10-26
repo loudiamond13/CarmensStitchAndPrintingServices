@@ -126,6 +126,15 @@ describe('PAIRINGS and planSideBySide', () => {
     }
   });
 
+  it('photographs the pages that are real screens signed in, Company Expenses among them (plan 06-19)', () => {
+    const signedIn = [...new Set(items.filter((item) => item.signedIn).map((item) => item.path))];
+
+    expect(signedIn).toEqual(['/admin/expenses', '/admin/users', '/admin/profile']);
+    for (const item of items.filter((entry) => ['/', '/admin', '/admin/orders'].includes(entry.path))) {
+      expect(item.signedIn, item.path).toBe(false);
+    }
+  });
+
   it('marks a width the design has no screen for (the public site at 820) instead of inventing one', () => {
     const tablet = items.find((item) => item.path === '/' && item.width === 820);
 

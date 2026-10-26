@@ -4,6 +4,7 @@
 // the preflight, the guarded CSPS_E2E seed and a rebuild of the e2e bundle whenever a source is newer than it (L-29),
 // starts the real host for its own run only, captures every page at 390, 820 and 1440 px (the admin pages in both
 // themes) and writes one index.html. It writes nowhere but artifacts/owner-review/.
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,10 +29,13 @@ import {
   PHASE5_REVIEW_CASES,
   PHASE5_RULED,
   PHASE5_SEED_PEOPLE,
+  PHASE6_REVIEW_CASES,
+  PHASE6_SEED_PEOPLE,
   phase5Words,
   planAuthReviewShots,
   planBeforeAfterShots,
   planPhase5ReviewShots,
+  planPhase6ReviewShots,
   planReview,
   planShots,
   planSpecGapShots,
@@ -57,7 +61,7 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
     expect(Object.isFrozen(REVIEW_WIDTHS)).toBe(true);
   });
 
-  it('lists the public page, the three dev previews, the three real Phase 5 pages and the showcase, in that order', () => {
+  it('lists the public page, the two dev previews, the real Phase 5 and Phase 6 pages and the showcase, in that order', () => {
     expect(REVIEW_TARGETS.map((target) => target.path)).toEqual([
       '/',
       '/admin',
@@ -66,15 +70,32 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
       '/admin/users',
       '/admin/profile',
       '/admin/audit-log',
+      '/admin/expenses/deleted',
+      '/admin/settings',
       '/dev/components',
     ]);
     expect(Object.isFrozen(REVIEW_TARGETS)).toBe(true);
   });
 
-  it('photographs Users, My Profile and the Audit Log signed in as a Manager, and nothing else signed in (plan 05-37)', () => {
+  it('photographs the real Phase 5 and Phase 6 pages signed in, and the dev previews and showcase unsigned (plans 05-37, 06-19)', () => {
     const signedIn = REVIEW_TARGETS.filter((target) => target.signedIn === true).map((target) => target.path);
 
-    expect(signedIn).toEqual(['/admin/users', '/admin/profile', '/admin/audit-log']);
+    expect(signedIn).toEqual([
+      '/admin/expenses',
+      '/admin/users',
+      '/admin/profile',
+      '/admin/audit-log',
+      '/admin/expenses/deleted',
+      '/admin/settings',
+    ]);
+  });
+
+  it('names the new Phase 6 pages by the words their h1 shows', () => {
+    const byPath = Object.fromEntries(REVIEW_TARGETS.map((target) => [target.path, target]));
+
+    expect(byPath['/admin/expenses']).toMatchObject({ h1: 'Company Expenses', signedIn: true });
+    expect(byPath['/admin/expenses/deleted']).toMatchObject({ h1: 'Deleted Expenses', slug: 'admin-expenses-deleted' });
+    expect(byPath['/admin/settings']).toMatchObject({ h1: 'Settings', slug: 'admin-settings' });
   });
 
   it('shows the public page in Blush only and every admin page and the showcase in Blush and Espresso (D-13, D-14)', () => {
@@ -96,10 +117,10 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
 });
 
 describe('planShots', () => {
-  it('plans 45 screenshots: the public page 3, three previews and three real pages 3 x 2 each, the showcase 3 x 2', () => {
+  it('plans 57 screenshots: the public page 3, two previews and eight real pages 3 x 2 each, the showcase 3 x 2', () => {
     const shots = planShots();
 
-    expect(shots).toHaveLength(45);
+    expect(shots).toHaveLength(57);
     expect(shots.filter((shot) => shot.path === '/')).toHaveLength(3);
     expect(shots.filter((shot) => shot.path === '/dev/components')).toHaveLength(6);
   });
@@ -244,6 +265,7 @@ describe('planReview: the run', () => {
       beforeAfter: planBeforeAfterShots(),
       authReview: planAuthReviewShots(),
       phase5Review: planPhase5ReviewShots(),
+      phase6Review: planPhase6ReviewShots(),
     });
     expect(report).toEqual({
       kind: 'report',
@@ -1220,4 +1242,138 @@ describe('renderIndex: the Phase 5 screens and the rulings page (plan 05-37)', (
       'Profile, users and audit log (Phase 5)',
     );
   });
+});
+
+// --- Plan 06-19: the Phase 6 screens, signed in as a Manager and as an Admin ---
+
+describe('PHASE6_SEED_PEOPLE (the staff the Phase 6 pictures add)', () => {
+  it('adds a payer who is deleted at the end of the seed, so the list shows "(former staff)", and no address of their own', () => {
+    expect(PHASE6_SEED_PEOPLE.map((person) => person.key)).toEqual(['dario']);
+    for (const person of PHASE6_SEED_PEOPLE) {
+      expect(person.role, person.key).toBe('Admin');
+      expect(person.state, person.key).toBe('active');
+      expect(person.firstName.trim(), person.key).not.toBe('');
+      expect(person.lastName.trim(), person.key).not.toBe('');
+      expect(Object.keys(person), person.key).not.toContain('email');
+    }
+  });
+});
+
+describe('PHASE6_REVIEW_CASES (the UI-SPEC Visual Review set for Phase 6)', () => {
+  it('covers E1 as a Manager and an Admin with its states, E2, both E3 dialogs, E4, S1, S2 and the Audit Log', () => {
+    const ids = PHASE6_REVIEW_CASES.map((entry) => entry.id);
+
+    expect(ids).toEqual([
+      'e1-manager-list',
+      'e1-manager-empty-top-category',
+      'e1-empty',
+      'e1-no-matches',
+      'e1-admin-list',
+      'e2-add',
+      'e2-edit-record-meta',
+      'e2-edit-access-note',
+      'e2-edit-conflict',
+      'e2-view',
+      'e3-delete',
+      'e3-purge',
+      'e4-rows',
+      'e4-empty',
+      's1-categories',
+      's2-add-category',
+      'audit-expense-expanded',
+    ]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names every case in plain words, groups it and shows it in Blush and Espresso', () => {
+    for (const entry of PHASE6_REVIEW_CASES) {
+      expect(entry.label.trim(), entry.id).not.toBe('');
+      expect(entry.group.trim(), entry.id).not.toBe('');
+      expect(entry.themes, entry.id).toEqual(['light', 'dark']);
+    }
+  });
+
+  it('signs in as an Admin only where the screen is an Admin screen: the Admin list, the access note and View', () => {
+    const admin = PHASE6_REVIEW_CASES.filter((entry) => entry.signedInAs === 'Admin').map((entry) => entry.id);
+
+    expect(admin).toEqual(['e1-admin-list', 'e2-edit-access-note', 'e2-view']);
+    for (const entry of PHASE6_REVIEW_CASES.filter((candidate) => !admin.includes(candidate.id))) {
+      expect(entry.signedInAs, entry.id).toBe('Manager');
+    }
+  });
+
+  it('plans each case at 390, 820 and 1440 px in both themes under phase6-review/, each to its own file', () => {
+    const shots = planPhase6ReviewShots();
+    const files = shots.map((shot) => shot.file);
+
+    expect(shots).toHaveLength(PHASE6_REVIEW_CASES.length * 6);
+    expect(new Set(files).size).toBe(files.length);
+    expect(files.every((file) => /^phase6-review\/[a-z0-9-]+-(light|dark)-(390|820|1440)\.png$/.test(file))).toBe(true);
+    for (const entry of PHASE6_REVIEW_CASES) {
+      for (const theme of entry.themes) {
+        const widths = shots.filter((shot) => shot.id === entry.id && shot.theme === theme).map((shot) => shot.width);
+        expect(widths, `${entry.id} ${theme}`).toEqual([390, 820, 1440]);
+      }
+    }
+    expect(shots.find((shot) => shot.id === 'e2-view')).toMatchObject({ signedInAs: 'Admin' });
+    expect(shots.find((shot) => shot.id === 'e3-delete')).toMatchObject({ signedInAs: 'Manager' });
+  });
+});
+
+describe('renderIndex: the Phase 6 screens (plan 06-19)', () => {
+  const escaped = (text: string) =>
+    text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  const render = () =>
+    renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      specGap: planSpecGapShots(),
+      phase5Review: planPhase5ReviewShots(),
+      phase6Review: planPhase6ReviewShots(),
+    });
+
+  it('shows the Phase 6 section after the Phase 5 section and before the SPEC-GAP section, with every picture and label', () => {
+    const html = render();
+    const section = html.indexOf('Company expenses and settings (Phase 6)');
+
+    expect(section).toBeGreaterThan(html.indexOf('Profile, users and audit log (Phase 5)'));
+    expect(section).toBeLessThan(html.indexOf('Parts the approved design never drew'));
+    for (const shot of planPhase6ReviewShots()) {
+      expect(html).toContain(`src="${shot.file}"`);
+    }
+    for (const entry of PHASE6_REVIEW_CASES) {
+      expect(html).toContain(escaped(entry.label));
+    }
+    expect(html).not.toMatch(/<script/i);
+  });
+
+  it('says nothing is approved until the owner says so', () => {
+    expect(render()).toContain('Nothing here is approved until you say so.');
+  });
+
+  it('is left out when no Phase 6 pictures were taken', () => {
+    expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain(
+      'Company expenses and settings (Phase 6)',
+    );
+  });
+});
+
+describe('loading the script (how npm run review starts it)', () => {
+  it('loads under plain Node: the copy modules that import the app through "@/" are read through Vite', () => {
+    const result = spawnSync(
+      process.execPath,
+      ['--input-type=module', '--eval', "await import('./scripts/owner-review.mjs'); process.stdout.write('loaded');"],
+      { cwd: webDirectory, encoding: 'utf8', timeout: 120_000, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+
+    expect(result.stderr, result.stderr).not.toContain('Cannot find package');
+    expect(result.stdout).toBe('loaded');
+    expect(result.status).toBe(0);
+  }, 150_000);
 });
