@@ -11,10 +11,11 @@ internal sealed class StaffDirectory(CspsDbContext context) : IStaffDirectory
 {
     public async Task<IReadOnlyList<StaffMember>> ListActiveStaffAsync(CancellationToken cancellationToken)
     {
-        // D-32, A-06-01: "set up" means has a password (PasswordHash != null). Keep this clause and HasPassword below in step.
+        // D-32, D-49: set up = a password and the first sign-in mark; keep in step with the payer state below, CompanyExpenseReader and the dev seed.
         var rows = await context.Users
             .AsNoTracking()
-            .Where(user => user.IsActive && user.ManagerLockedAtUtc == null && user.DeletedAtUtc == null && user.PasswordHash != null)
+            .Where(user => user.IsActive && user.ManagerLockedAtUtc == null && user.DeletedAtUtc == null
+                && user.PasswordHash != null && user.EmailConfirmed)
             .Where(user => context.UserRoles.Any(link => link.UserId == user.Id && context.Roles.Any(role =>
                 role.Id == link.RoleId && (role.Name == Roles.Admin || role.Name == Roles.Manager))))
             .OrderBy(user => user.FirstName)
@@ -45,14 +46,14 @@ internal sealed class StaffDirectory(CspsDbContext context) : IStaffDirectory
                 user.IsActive,
                 Locked = user.ManagerLockedAtUtc != null,
                 Deleted = user.DeletedAtUtc != null,
-                // D-32, A-06-01: the same set-up check as the list filter above.
-                HasPassword = user.PasswordHash != null,
+                // D-32, D-49: the same set-up check as the list filter above.
+                HasFinishedSetUp = user.PasswordHash != null && user.EmailConfirmed,
             })
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
         return row is null
             ? null
-            : new StaffState(row.Id, $"{row.FirstName} {row.LastName}", row.Role, row.IsActive, row.Locked, row.Deleted, row.HasPassword);
+            : new StaffState(row.Id, $"{row.FirstName} {row.LastName}", row.Role, row.IsActive, row.Locked, row.Deleted, row.HasFinishedSetUp);
     }
 }

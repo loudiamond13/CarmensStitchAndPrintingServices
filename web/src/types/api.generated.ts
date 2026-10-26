@@ -683,7 +683,8 @@ export interface paths {
         };
         /**
          * Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted
-         *     and has a password. An invited person who has not set a password is not listed. Sorted by first name, last name, then id.
+         *     and has signed in at least once (entered a sign-in code or accepted an invite). Someone a Manager just added with a
+         *     temporary password appears after their first sign-in code. Sorted by first name, last name, then id.
          */
         get: operations["ListStaff"];
         put?: never;

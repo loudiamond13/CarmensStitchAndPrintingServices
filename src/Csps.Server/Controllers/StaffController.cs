@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Csps.Server.Controllers;
 
 /// <summary>
-/// The staff who can be named as the payer (CEXP-05, D-32): either role reads the list. It returns ids and names only, never an
+/// The staff who can be named as the payer (CEXP-05, D-32, D-49): either role reads the list. It returns ids and names only, never an
 /// email address, a role or an account state, because the full roster stays Manager-only. Never cached.
 /// </summary>
 /// <param name="list">The list handler.</param>
@@ -20,7 +20,8 @@ public sealed class StaffController(ListStaffHandler list) : ControllerBase
 {
     /// <summary>
     /// Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted
-    /// and has a password. An invited person who has not set a password is not listed. Sorted by first name, last name, then id.
+    /// and has signed in at least once (entered a sign-in code or accepted an invite). Someone a Manager just added with a
+    /// temporary password appears after their first sign-in code. Sorted by first name, last name, then id.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the people, or 401 without a valid token.</returns>

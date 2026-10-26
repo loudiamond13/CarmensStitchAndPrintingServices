@@ -5157,7 +5157,7 @@
             "description": "Unauthorized"
           }
         },
-        "summary": "Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted\nand has a password. An invited person who has not set a password is not listed. Sorted by first name, last name, then id.",
+        "summary": "Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted\nand has signed in at least once (entered a sign-in code or accepted an invite). Someone a Manager just added with a\ntemporary password appears after their first sign-in code. Sorted by first name, last name, then id.",
         "tags": [
           "Staff"
         ]
