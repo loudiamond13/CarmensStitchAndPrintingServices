@@ -225,10 +225,14 @@ export function DeletedExpensesRoute() {
     }
   });
 
-  // Restore is reversible, so it acts at once; a failure is a danger toast that stays until closed.
+  // Restore is reversible, so it acts at once; a failure is a danger toast that stays until closed. A 404 means the expense was
+  // purged meanwhile, so the lists read again.
   const restore = async (expense: DeletedExpenseListItem): Promise<void> => {
     const outcome = await restoration.submit(expense);
     if (!outcome.ok) {
+      if (isHttpError(outcome.error) && outcome.error.status === 404) {
+        void refreshAll();
+      }
       const copy = describeHttpError(outcome.error);
       if (copy !== null) {
         toast.show({ tone: 'danger', title: COPY.restore.failed(expense.description), message: errorLine(copy) });

@@ -266,6 +266,10 @@ export function SettingsRoute() {
     const retiring = !isRetired(category);
     const outcome = await (retiring ? retirement : reactivation).submit(category);
     if (!outcome.ok) {
+      // A 404 means the category was deleted meanwhile, so the lists read again.
+      if (isHttpError(outcome.error) && outcome.error.status === 404) {
+        void refresh();
+      }
       failureToast(retiring ? COPY.retire.failed(category.name) : COPY.reactivate.failed(category.name), outcome.error);
     }
   };
