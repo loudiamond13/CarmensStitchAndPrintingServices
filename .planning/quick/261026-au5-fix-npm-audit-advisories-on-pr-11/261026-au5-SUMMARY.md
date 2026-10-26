@@ -1,6 +1,6 @@
 ---
 created: 2026-10-26T08:33:00-05:00
-updated: 2026-10-26T08:33:00-05:00
+updated: 2026-10-26T09:39:00-05:00
 phase: quick-261026-au5
 plan: 01
 status: complete
@@ -16,8 +16,8 @@ key-files:
     - web/THIRD-PARTY-NOTICES.txt
 decisions: [D-63, D-64, D-65, D-66]
 commits: 3
-plan_head_before: 6f8529031c4ca781c5074648db3bf4e7272a9de2
-plan_head_after: 0dc151bc60d74fc0fc564a4b07549195c0baf060
+plan_head_before: 0215f87d3f645319cf7f98a3005a848a452513e6
+plan_head_after: 8431bb8aa72a620bfaa5ddbee1286ac86ac6125d
 actuals:
   tasks: 3
   commits: 3
@@ -33,11 +33,11 @@ actuals:
 
 | Task | Hash | Subject |
 |------|------|---------|
-| 1 (tracer) | 114296c7 | fix(deps): bump zod to 4.6.7 and override it tree-wide (D-63, D-65) |
-| 2 | 3138c377 | fix(deps): bump vitest to 5.0.4 and refresh undici, fast-uri and ip-address (D-63) |
-| 3 | 0dc151bc | docs(deps): record the npm audit fixes (D-63 to D-66) |
+| 1 (tracer) | 93647e40 | fix(deps): bump zod to 4.6.7 and override it tree-wide (D-63, D-65) |
+| 2 | 2104e132 | fix(deps): bump vitest to 5.0.4 and refresh undici, fast-uri and ip-address (D-63) |
+| 3 | 8431bb8a | docs(deps): record the npm audit fixes (D-63 to D-66) |
 
-Commit count is measured: `git rev-list --count 6f8529031c..HEAD` = 3.
+Commit count is measured: `git rev-list --count 0215f87d1c..HEAD` = 3.
 
 ## What changed
 
@@ -46,7 +46,7 @@ Commit count is measured: `git rev-list --count 6f8529031c..HEAD` = 3.
 - `docs/dependencies.json`: zod, vitest and @vitest/coverage-v8 entries moved, plus one approval record dated 2026-10-26 (D-63, D-65, D-66).
 - `web/THIRD-PARTY-NOTICES.txt`: only `zod@4.6.7` and `fast-uri@3.1.9` moved (28 packages, no local paths).
 - `docs/dependencies.md`: zod row, override sentence, cool-down count (now five), a new paragraph for the 2026-10-26 fixes and the accepted risk, Updated bumped.
-- Unchanged since 6f852903 (checked with `git diff --exit-code`, exit 0): `docs/license-exceptions.json`, `docs/allowed-licenses.json`, `docs/license-guesses.json`, `web/.npmrc`, `tests/`.
+- Unchanged since 0215f87d (checked with `git diff --exit-code`, exit 0): `docs/license-exceptions.json`, `docs/allowed-licenses.json`, `docs/license-guesses.json`, `web/.npmrc`, `tests/`.
 
 ## Evidence (quoted)
 
@@ -154,5 +154,5 @@ It happens because chromium-bidi's `parseObject` reads `parseResult.error.errors
 ## Self-Check: PASSED
 
 - Files modified exist: web/package.json, web/package-lock.json, docs/dependencies.json, docs/dependencies.md, web/THIRD-PARTY-NOTICES.txt.
-- Commits 114296c7, 3138c377 and 0dc151bc are on gsd/phase-06-company-expenses (`git log --oneline 6f852903..HEAD` lists all three).
+- Commits 93647e40, 2104e132 and 8431bb8a are on gsd/phase-06-company-expenses (`git log --oneline 0215f87d..HEAD` lists all three).
 - `.planning/STATE.md`, `.planning/config.json` and this SUMMARY were not staged or committed.

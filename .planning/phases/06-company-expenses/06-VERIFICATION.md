@@ -4,7 +4,7 @@ verified: 2026-10-26T12:01:00Z
 status: passed
 score: 6/6 must-haves verified
 created: "2026-10-26T02:40:00-05:00"
-updated: "2026-10-26T07:01:00-05:00"
+updated: "2026-10-26T09:39:00-05:00"
 covered_files:
   - ".planning/phases/06-company-expenses/06-01-PLAN.md"
   - ".planning/phases/06-company-expenses/06-01-SUMMARY.md"
@@ -268,7 +268,7 @@ The goal is achieved. All six roadmap success criteria hold in the code, and I r
 ## What changed since the stale report
 
 - Backend: nothing. `git log` for `src` and `tests` shows the last change at 2026-10-25/26 00:25 (`ba9411d4`), well before the stale report (05:54). `git diff ec017c88~2 HEAD -- src tests` is empty.
-- Web (quick 261026-89i, commits `08f33cf0` to `540acfce`): `formatCount` (en-PH thousands separator) used for every count, a required mark on `Select`, a readable date beside date boxes (`Field` `beside` slot, `DateInput` `readableDate`), fixed Settings action slots, `fitTablet` on tables, a 42px search box, and shorter header comments. 38 files under `web/src`, plus `web/visual/reference`.
+- Web (quick 261026-89i, commits `4234d119` to `b0c3e9eb`): `formatCount` (en-PH thousands separator) used for every count, a required mark on `Select`, a readable date beside date boxes (`Field` `beside` slot, `DateInput` `readableDate`), fixed Settings action slots, `fitTablet` on tables, a 42px search box, and shorter header comments. 38 files under `web/src`, plus `web/visual/reference`.
 - I read the diffs of `format.ts`, `Select.tsx`, `ExpensesDateRange.tsx`, `expensesCopy.ts` and `expenses.recipe.ts`. They are small, do what the summary says, and keep the existing props API. `expensesCopy.ts` still has no wording in JSX and the count change touches only the two count sentences.
 
 ## Goal Achievement
@@ -288,7 +288,7 @@ The goal is achieved. All six roadmap success criteria hold in the code, and I r
 
 ### Owner rulings since the stale report
 
-D-54 to D-59 (UAT) and D-60 to D-62 (UI review) are recorded in `06-CONTEXT.md` and the UAT and UI-review files. Code evidence: D-60 is the 42px search box (`d23c4a04`) with its entry in `web/visual/reference/rulings.css` (covered by `rulings.test.ts`, passed). D-61 is the phone date-field rule, documented as a SPEC-DEVIATION in `expensesDateFieldClasses` and pinned by `expenses.recipe.node.test.ts` (passed). D-62 is `formatCount` in the listed files. D-56 (keep the Paid by sentence) and D-57 (notes stay readable by every staff member, as built) need no code change.
+D-54 to D-59 (UAT) and D-60 to D-62 (UI review) are recorded in `06-CONTEXT.md` and the UAT and UI-review files. Code evidence: D-60 is the 42px search box (`1cb1ce3c`) with its entry in `web/visual/reference/rulings.css` (covered by `rulings.test.ts`, passed). D-61 is the phone date-field rule, documented as a SPEC-DEVIATION in `expensesDateFieldClasses` and pinned by `expenses.recipe.node.test.ts` (passed). D-62 is `formatCount` in the listed files. D-56 (keep the Paid by sentence) and D-57 (notes stay readable by every staff member, as built) need no code change.
 
 ### UAT and UI review status
 

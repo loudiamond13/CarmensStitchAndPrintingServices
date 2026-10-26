@@ -4,7 +4,7 @@ baseline: 06-UI-SPEC.md, with owner rulings D-54 to D-59
 overall: 20/24
 status: provisional
 created: 2026-10-26T05:56:00-05:00
-updated: 2026-10-26T06:44:00-05:00
+updated: 2026-10-26T09:39:00-05:00
 ---
 
 # Phase 6 UI review
@@ -61,11 +61,11 @@ Owner ruling D-60 (2026-10-26): fix all five warnings and trim the long header c
 
 | ID | Outcome | Commit |
 | --- | --- | --- |
-| UI-06-01 | Fixed: a required Select now shows the same red " *" in its label as Field. | 379c9ef9 |
-| UI-06-02 | Fixed: From, To and the expense Date show the chosen date as "Sep 26, 2026" beside the box. On phones each date filter takes its own row (D-61). | 52f36365 (shared), 2f8aa10f (screens) |
-| UI-06-03 | Fixed: Settings rows keep three fixed action slots and the categories table fits its card on tablets. | 1eaf4e95 (shared), 5961e7be (screen) |
-| UI-06-04 | Fixed: counts use the en-PH thousands format. D-62 widened this to every count in the web app. | 08f33cf0, 0be5f426 (D-62) |
-| UI-06-05 | Fixed: the list search box is 42px tall like a toolbar field box, so the labels share one baseline (ruling D-60 in the reference rulings). | d23c4a04 |
-| Header comments | Fixed: the headers of the expenses page, Settings page and expense modal are a few plain lines. | 5961e7be |
+| UI-06-01 | Fixed: a required Select now shows the same red " *" in its label as Field. | 1ccfc3df |
+| UI-06-02 | Fixed: From, To and the expense Date show the chosen date as "Sep 26, 2026" beside the box. On phones each date filter takes its own row (D-61). | b8fac5cc (shared), b6b305ff (screens) |
+| UI-06-03 | Fixed: Settings rows keep three fixed action slots and the categories table fits its card on tablets. | c21ccafe (shared), ca27f0c8 (screen) |
+| UI-06-04 | Fixed: counts use the en-PH thousands format. D-62 widened this to every count in the web app. | 4234d119, a03cdc5c (D-62) |
+| UI-06-05 | Fixed: the list search box is 42px tall like a toolbar field box, so the labels share one baseline (ruling D-60 in the reference rulings). | 1cb1ce3c |
+| Header comments | Fixed: the headers of the expenses page, Settings page and expense modal are a few plain lines. | ca27f0c8 |
 
 The visual check at 390, 820 and 1440 px is the owner's, on their own dev server.
