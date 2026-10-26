@@ -10,6 +10,7 @@ import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
+import { expenseCategoriesKey } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
 import { ExpensesRoute } from '@/modules/admin/pages/ExpensesPage';
@@ -1101,7 +1102,9 @@ describe('Add Expense (CEXP-02; plan 06-12)', () => {
       expect(calls.length).toBeGreaterThan(listReads);
       expect(kpiCalls.length).toBeGreaterThan(kpiReads);
     });
-    expect(invalidated).toEqual(expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey]));
+    expect(invalidated).toEqual(
+      expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey, expenseCategoriesKey]),
+    );
   });
 });
 
@@ -1271,7 +1274,9 @@ describe('Edit Expense (CEXP-02, D-26; plan 06-14)', () => {
       expect(calls.length).toBeGreaterThan(listReads);
       expect(kpiCalls.length).toBeGreaterThan(kpiReads);
     });
-    expect(invalidated).toEqual(expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey]));
+    expect(invalidated).toEqual(
+      expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey, expenseCategoriesKey]),
+    );
   });
 
   it('moves focus to the table caption when the saved row is no longer on the page', async () => {
@@ -1517,7 +1522,9 @@ describe('Delete Expense (D-01, D-02, D-05; plan 06-16)', () => {
       expect(calls.length).toBeGreaterThan(listReads);
       expect(kpiCalls.length).toBeGreaterThan(kpiReads);
     });
-    expect(invalidated).toEqual(expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey]));
+    expect(invalidated).toEqual(
+      expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey, expenseCategoriesKey]),
+    );
   });
 
   it('moves focus to the previous row first action when the deleted row was the last one', async () => {
@@ -1719,7 +1726,9 @@ describe('Delete permanently from the list (D-04, D-05, OQ-1; plan 06-16)', () =
     await waitFor(() => {
       expect(calls.length).toBeGreaterThan(reads);
     });
-    expect(invalidated).toEqual(expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey]));
+    expect(invalidated).toEqual(
+      expect.arrayContaining([expensesKey, expenseKpisKey, expensesDeletedKey, expenseCategoriesKey]),
+    );
   });
 
   it('shows the description alone in the toast message', async () => {
