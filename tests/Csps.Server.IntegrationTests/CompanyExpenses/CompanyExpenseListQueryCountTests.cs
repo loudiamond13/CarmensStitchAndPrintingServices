@@ -115,17 +115,32 @@ public sealed class CompanyExpenseListQueryCountTests(CspsDatabase database) : I
         {
             await database.ResetAsync();
             var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-            var counter = new CommandCounter();
+            WebApplicationFactory<Program>? factory = null;
+            try
+            {
+                var counter = new CommandCounter();
 
-            // ConfigureDbContext appends to the options the host registers; the create test proves the stamp interceptor survives.
-            var factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-                services.ConfigureDbContext<CspsDbContext>(options => options.AddInterceptors(counter))));
+                // ConfigureDbContext appends to the options the host registers; the create test proves the stamp interceptor survives.
+                factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                    services.ConfigureDbContext<CspsDbContext>(options => options.AddInterceptors(counter))));
 
-            // Each request runs in the caller's async flow, so the counter can tell its commands from the host's background work.
-            factory.Server.PreserveExecutionContext = true;
-            var session = await TestSessions.StartAsync(factory, Roles.Manager);
-            var today = await ExpenseFixtures.TodayAsync(baseFactory);
-            return new Rig(baseFactory, factory, counter, session, today);
+                // Each request runs in the caller's async flow, so the counter can tell its commands from the host's background work.
+                factory.Server.PreserveExecutionContext = true;
+                var session = await TestSessions.StartAsync(factory, Roles.Manager);
+                var today = await ExpenseFixtures.TodayAsync(baseFactory);
+                return new Rig(baseFactory, factory, counter, session, today);
+            }
+            catch
+            {
+                // The rig owns both hosts only once it exists; before that a failed setup stops them here.
+                if (factory is not null)
+                {
+                    await factory.DisposeAsync();
+                }
+
+                await baseFactory.DisposeAsync();
+                throw;
+            }
         }
 
         public async Task SeedRowsAsync(CspsDatabase db, int count)
