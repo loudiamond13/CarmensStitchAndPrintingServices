@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 7
 current_phase_name: Order Domain & API
 status: planning
-stopped_at: Phase 06 shipped as PR #11, ready to plan Phase 7
-last_updated: "2026-10-26T12:22:07.158Z"
+stopped_at: Phase 06 shipped as PR
+last_updated: "2026-10-26T13:32:47.364Z"
 last_activity: 2026-10-26
-last_activity_desc: Phase 06 shipped as PR #11
-state_head: 5d2b004b2c9ce0f7d94aa76e883dea3a516388fc
+last_activity_desc: Phase 06 shipped as PR
+state_head: 0dc151bc60d74fc0fc564a4b07549195c0baf060
 progress:
   total_phases: 17
   completed_phases: 6
@@ -15,7 +15,7 @@ progress:
   completed_plans: 187
   percent: 35
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-26T07:22:00-05:00"
+updated: "2026-10-26T09:05:00-05:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 Phase: 7 — Order Domain & API
 Plan: Not started
 Status: Ready to plan (Phase 06 shipped as PR #11, awaiting merge)
-Last activity: 2026-10-26 — Phase 06 shipped as PR #11
+Last activity: 2026-10-26 - Completed quick task 261026-au5: Fix npm audit advisories on PR 11
 
 Progress: [████░░░░░░] 35%
 
@@ -653,7 +653,12 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-19: the review pack's Phase 6 pages are narrowed by this run's tag; the month cards count the whole CSPS_E2E database and the pack says so
 - [Phase 06]: 06-20: D-49 built as A-06-01 option 1: Paid by needs a password and the first sign-in mark (EmailConfirmed) in the staff lookup, the create and edit check, the detail paidByActive flag and the dev seed; staff after a Manager password reset stay choosable; no schema change
 - [Phase 06]: 06-20: Phase 17 legacy import must set the first sign-in mark on imported staff, or they cannot be chosen as Paid by
-- [Phase 06]: 06-21: D-50 built. The three locks are rows of the new DatabaseLocks table taken with ExecuteUpdate inside the caller's transaction; a rollback to a savepoint frees a lock taken after it (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
+- [Phase 06]: 06-21: D-50 built. The three locks are rows of the new DatabaseLocks table taken with ExecuteUpdate inside the caller's transaction; a rollback to a savepoint frees a lock taken after it
+- [Ship 06]: D-63 (owner, 2026-10-26): the npm audit fixes for PR #11 are approved at exact versions (zod 4.6.7, vitest and @vitest/coverage-v8 5.0.4, ip-address 10.7.4, undici 8.12.2 and 6.29.1, fast-uri 3.1.9, chromium-bidi's zod forced to 4.6.7); undici and fast-uri skip the 14-day cool-down as security fixes (quick 261026-au5).
+- [Ship 06]: D-64 (owner, 2026-10-26): the package fix goes on the PR #11 branch. The nine non-conventional UI-fix commit subjects are not reworded (owner said no to a history rewrite); the commit-lint failure on PR #11 stays open for the owner.
+- [Ship 06]: D-65 (owner, 2026-10-26): zod 4.6.7 is forced everywhere with one top-level npm override (the axe-core pattern), not a nested one. Accepted risk: Lighthouse's unused WebDriver BiDi driver (chromium-bidi 17.0.2, written for zod 3) gives a generic TypeError on malformed input instead of its own error; Lighthouse does not load it (quick 261026-au5).
+- [Ship 06]: D-66 (owner, 2026-10-26): the test-only packages vitest 5.0.4 requires (about 12, including obug 3 and why-is-node-running 3.2.1) are accepted; any other lockfile change stops the task.
+- [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 
 ### Pending Todos
 
@@ -727,6 +732,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 | 261018-st8 | Raise the class-gate sweep test timeout so web verify passes under full coverage load | 2026-10-18 | 831f3fa | [261018-st8-raise-the-class-gate-sweep-test-timeout-](./quick/261018-st8-raise-the-class-gate-sweep-test-timeout-/) |
 | 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
 | 261026-89i | Phase 6 UI review fixes (D-60, D-61, D-62) | 2026-10-26 | 540acfce | [261026-89i-phase-6-ui-review-fixes-d-60](./quick/261026-89i-phase-6-ui-review-fixes-d-60/) |
+| 261026-au5 | Fix npm audit advisories on PR 11 (D-63 to D-66) | 2026-10-26 | 0dc151bc | [261026-au5-fix-npm-audit-advisories-on-pr-11](./quick/261026-au5-fix-npm-audit-advisories-on-pr-11/) |
 
 ## Deferred Items
 
