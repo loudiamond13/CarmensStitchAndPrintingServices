@@ -431,6 +431,8 @@ const REPORT_CSS = `
   td.n { text-align: right; }
   tr.bad td { background: #fde2e2; }
   ul.problems li { color: #8a1c1c; }
+  ul.options { list-style: none; margin: 0; padding: 0; }
+  ul.options li { margin: 0 0 6px; }
 `;
 
 /** The engine names a non-developer knows. */
@@ -1698,6 +1700,8 @@ const [
   recordMetaCopyModule,
   statesCopyModule,
   temporaryPasswordModule,
+  expensesCopyModule,
+  settingsCopyModule,
 ] = await loadCopyModules([
   'modules/admin/usersCopy.ts',
   'modules/admin/profileCopy.ts',
@@ -1705,6 +1709,8 @@ const [
   'components/data/copy.ts',
   'components/states/copy.ts',
   'utils/temporaryPassword.ts',
+  'modules/admin/expensesCopy.ts',
+  'modules/admin/settingsCopy.ts',
 ]);
 
 /**
@@ -1964,7 +1970,494 @@ export function planPhase6ReviewShots(cases = PHASE6_REVIEW_CASES) {
 }
 
 /**
- * The Phase 6 section: every picture grouped by screen.
+ * @param {string} label
+ * @param {string} text
+ * @param {{ recommended?: boolean, built?: boolean }} [flags]
+ * @returns {Phase6Option}
+ */
+function option(label, text, { recommended = false, built = false } = {}) {
+  return { label, text, recommended, built };
+}
+
+/**
+ * Everything the Phase 6 build leaves for the owner, in the order the review pack asks it (UI-SPEC "Owner Rulings Needed"
+ * OQ-1 to OQ-15, the assumptions A-06-01 and A-06-02, the inline SQL item and the research questions 2 and 5). Each entry
+ * names its options, recommended first, and marks the one that is built. Nothing here is approved: an `open` entry waits for
+ * the owner's ruling and the built default stands; a `ruled` entry carries the owner's ruling, which the build has still to
+ * follow. The wording of the screens is not here: it is the table "Words on the Phase 6 screens".
+ * @type {readonly Phase6Ruling[]}
+ */
+export const PHASE6_RULINGS = Object.freeze([
+  {
+    id: 'OQ-1',
+    status: 'open',
+    topic: 'Where "Delete permanently" sits on the main list',
+    options: [
+      option(
+        'A',
+        'A third row icon (an eraser), named "Delete {description}, {date} permanently", for Managers only. It is one tap away, and the Users list already has three icons.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'No third icon: a "Delete Permanently" button in the Edit window footer for Managers.'),
+    ],
+  },
+  {
+    id: 'OQ-2',
+    status: 'open',
+    topic: 'How Managers reach deleted expenses',
+    options: [
+      option('A', 'A separate page, Deleted Expenses, reached by a secondary button in the Company Expenses header.', {
+        recommended: true,
+        built: true,
+      }),
+      option('B', '"All" and "Deleted" tabs on the Company Expenses page.'),
+    ],
+  },
+  {
+    id: 'OQ-3',
+    status: 'open',
+    topic: 'The Settings item in the side menu',
+    options: [
+      option(
+        'A',
+        '"Settings" with a gear icon after Audit Log, tagged Manager, in the phone drawer but not in the tab bar.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Under My Profile at the bottom.'),
+    ],
+  },
+  {
+    id: 'OQ-4',
+    status: 'open',
+    topic: 'Can a retired category be used again?',
+    options: [
+      option('A', 'Yes: "Use {name} again" brings it back to the Add form.', { recommended: true, built: true }),
+      option('B', 'No: retiring is final.'),
+    ],
+  },
+  {
+    id: 'OQ-5',
+    status: 'open',
+    topic: 'Confirm before Restore, Retire and Use again?',
+    options: [
+      option('A', 'No confirmation. Each can be undone, and the toast says what happened.', {
+        recommended: true,
+        built: true,
+      }),
+      option('B', 'A confirmation dialog for each.'),
+    ],
+  },
+  {
+    id: 'OQ-6',
+    status: 'open',
+    topic: 'Protect the Others category',
+    options: [
+      option(
+        'A',
+        'Others can change colour but cannot be renamed, retired or deleted, so it always sorts last and every expense has a fallback.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Others behaves like any other category.'),
+    ],
+  },
+  {
+    id: 'OQ-7',
+    status: 'open',
+    topic: 'Editing an expense whose payer is no longer active',
+    options: [
+      option(
+        'A',
+        'Keeping the saved payer is allowed; only a new or changed payer must be active. The old payer shows as "(inactive)" or "(former staff)".',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Every save needs an active payer.'),
+    ],
+  },
+  {
+    id: 'OQ-8',
+    status: 'open',
+    topic: 'Expenses an Admin cannot edit',
+    options: [
+      option(
+        'A',
+        'An eye "View" action opens the same window read-only (Notes, Paid by, Recorded by, Last changed by).',
+        { recommended: true, built: true },
+      ),
+      option('B', 'No action on those rows.'),
+    ],
+  },
+  {
+    id: 'OQ-9',
+    status: 'open',
+    topic: 'Category in the Add form',
+    options: [
+      option('A', 'Nothing is preselected: the placeholder "Choose a category", and the field is required.', {
+        recommended: true,
+        built: true,
+      }),
+      option('B', 'Preselect the first category, A to Z.'),
+    ],
+  },
+  {
+    id: 'OQ-10',
+    status: 'open',
+    topic: 'Length limits the PRD does not set',
+    options: [
+      option('A', 'Description 200 characters, category name 40 characters.', { recommended: true, built: true }),
+      option('B', 'Other limits you name.'),
+    ],
+  },
+  {
+    id: 'OQ-11',
+    status: 'open',
+    topic: 'Names of the row buttons',
+    options: [
+      option(
+        'Default',
+        'Each button is named by its row, like "Edit {description}, {date}", as the Users list does, so a screen reader can tell them apart.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'OQ-12',
+    status: 'open',
+    topic: 'Five new icons',
+    options: [
+      option(
+        'Default',
+        'Add settings, rotate-ccw (Restore), archive (Retire), archive-restore (Use again) and eraser (Delete permanently) from the installed icon set.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'OQ-13',
+    status: 'open',
+    topic: 'Amended wording of the design spec',
+    options: [
+      option(
+        'Default',
+        'Dashes become plain punctuation and "to"; the Delete message says the expense can be restored; the toast says where to restore it; "Total shown" becomes "Total" because it covers every page; the empty message names the dates; the Audit Log subline adds expenses. Built as written.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'OQ-14',
+    status: 'open',
+    topic: 'Two primary buttons in the first-use empty state',
+    options: [
+      option(
+        'A',
+        'Keep the drawing in the design: Add Expense in the header and in the empty state, both primary, both doing the same thing.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'Make the empty-state button secondary.'),
+    ],
+  },
+  {
+    id: 'OQ-15',
+    status: 'open',
+    topic: 'Every wording gap in the contract, including the audit labels',
+    options: [
+      option(
+        'Default',
+        'Built as written and reviewed before release. Every sentence is in the table "Words on the Phase 6 screens" below.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'A-06-01',
+    status: 'ruled',
+    topic: 'Paid by and a temporary password (assumption A-06-01, D-32)',
+    options: [
+      option(
+        '1',
+        'They can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable.',
+        { recommended: true },
+      ),
+      option(
+        '2',
+        'Keep the rule as written ("has a password"), so a person a Manager created with a temporary password can be chosen before their first sign-in.',
+        { built: true },
+      ),
+      option(
+        '3',
+        'Hide anyone who still has to change a temporary password. This also hides long-time staff after a Manager resets their password, until they sign in again.',
+      ),
+    ],
+    ruling:
+      'Option 1 (D-49, owner, 2026-10-25). Follow-up plan 06-20 builds it. Until then the app still behaves as option 2.',
+    whereItChanges:
+      'The two set-up clauses in src/Csps.Infrastructure/Identity/StaffDirectory.cs. The test StaffLookupEndpointTests.ATemporaryPasswordPersonWhoHasNotSignedInIsListed pins option 2 today and changes with the follow-up.',
+  },
+  {
+    id: 'A-06-02',
+    status: 'open',
+    topic: 'Month cards at the edges (assumption A-06-02, CEXP-03)',
+    options: [
+      option(
+        '1',
+        'Confirm: the cards follow the business time zone in Site settings, which is Asia/Manila today. They are tested at the change of month in Manila time, for an empty month, for ties, for upcoming dates and for deleted expenses.',
+        { recommended: true, built: true },
+      ),
+      option('2', 'Name another case you want tested before release.'),
+    ],
+  },
+  {
+    id: 'SQL-06-11',
+    status: 'ruled',
+    topic: 'Hand-written SQL in three existing files (the 06-11 item, your rule on inline SQL)',
+    options: [
+      option(
+        '1',
+        'Approve IdempotencyGate.cs, AccountTokenStore.cs and ManagerRosterLock.cs by name. Each runs one short SQL line that takes a database lock, so two requests at the same moment cannot collide. Nothing changes.',
+        { recommended: true, built: true },
+      ),
+      option(
+        '2',
+        'Rework the three without hand-written SQL: each lock is rebuilt with EF’s own tools (for example a lock row updated inside the same transaction). More code, and possibly a small new table.',
+      ),
+    ],
+    ruling:
+      'Option 2 (D-50, owner, 2026-10-25): no inline SQL, not even these three. Follow-up plan 06-21 reworks them. Until then the three files keep their one SQL line each, and the guard test allows exactly these three.',
+    whereItChanges:
+      'src/Csps.Infrastructure/Idempotency/IdempotencyGate.cs, src/Csps.Infrastructure/Identity/AccountTokenStore.cs and src/Csps.Infrastructure/Identity/ManagerRosterLock.cs. The guard test is tests/Csps.ArchitectureTests/NoInlineSqlTests.cs.',
+  },
+  {
+    id: 'RQ-2',
+    status: 'open',
+    topic: 'How the Audit Log shows expense values (research question 2)',
+    options: [
+      option(
+        'A',
+        'The server turns an expense event’s stored detail into change lines and names the payer and the category. The "Done to" filter also matches an expense by its payer, current, old or new. No schema change.',
+        { recommended: true, built: true },
+      ),
+      option('B', 'The web parses the stored detail itself and asks the people list for names.'),
+    ],
+  },
+  {
+    id: 'RQ-5',
+    status: 'open',
+    topic: 'How much data the speed test uses (research question 5)',
+    options: [
+      option(
+        'Default',
+        'About 20 expenses a day for 5 years, about 36,500 rows. Tell us if the shop’s real rate is higher.',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+  {
+    id: 'SNAP-06-15',
+    status: 'open',
+    topic: 'The snapshot line on deleted, restored and permanently deleted entries',
+    options: [
+      option(
+        'Default',
+        'Each of these Audit Log entries shows one line with the facts of the expense: date, category, amount and who paid, like "Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by Ana Reyes". The description and the notes are never stored. A payer who has left reads "(former staff)".',
+        { recommended: true, built: true },
+      ),
+    ],
+  },
+]);
+
+/**
+ * What the screenshots and tests could not show, left for the owner's own eyes (plans 06-18 and 06-19, STATE.md Owner backlog).
+ * @type {readonly { readonly id: string, readonly title: string, readonly what: string, readonly how: string }[]}
+ */
+export const PHASE6_LOOK_AT = Object.freeze([
+  {
+    id: 'total-999',
+    title: 'A very large period total on the real list',
+    what: 'The footer total ₱999,999,999.99 fits its card at 320 px on the Component Showcase. On the real list it would need about a thousand rows, so it is proved there only. Money figures of 15 characters or more are drawn smaller than the other cards on purpose.',
+    how: 'Open the Component Showcase section "Expenses and settings" and look at the month cards and the footer total.',
+  },
+  {
+    id: 'former-staff-real',
+    title: 'A former staff member on the real pages',
+    what: 'The pictures above show "(former staff)" on the real list (Dario Lim). A 100-character name with that mark is proved on the Component Showcase only.',
+    how: 'Look at the Paid by and Recorded by cells.',
+  },
+  {
+    id: 'zoom',
+    title: '200% zoom',
+    what: 'The tests emulate 200% zoom with a 640 x 360 window. They do not use the browser’s own zoom.',
+    how: 'Zoom your browser to 200% on Company Expenses and Settings and tell us if anything is cut off.',
+  },
+  {
+    id: 'ci-speed',
+    title: 'The speed check on the CI runner (A-06-03)',
+    what: 'The five-year list test passes here with room (worst case 197.8 ms against 300 ms). It cannot be confirmed here that it also passes in CI with the SQL container.',
+    how: 'After the first CI run of this branch, read the printed numbers. If the margin is thin, pick: keep 300 ms and run alone first, or allow a CI-only margin.',
+  },
+]);
+
+/**
+ * @param {unknown} value
+ * @param {string} name
+ * @returns {unknown} the module's export.
+ */
+function exportOf(value, name) {
+  return /** @type {Record<string, unknown>} */ (value)[name];
+}
+
+/** The placeholders a copy function is shown with: a name, a role, a time, a count. */
+const COPY_PLACEHOLDERS = Object.freeze(['{x}', '{y}', '{z}', '{u}', '{v}']);
+
+/**
+ * Walks plain copy (strings, functions and nested objects) into rows. A function is called with one placeholder per declared
+ * parameter and gives a row when it returns text.
+ * @param {unknown} value
+ * @param {readonly string[]} trail
+ * @param {{ place: string, text: string }[]} rows
+ */
+function collectCopyRows(value, trail, rows) {
+  const place = trail.join(' > ');
+  if (typeof value === 'string') {
+    rows.push({ place, text: value });
+  } else if (typeof value === 'function') {
+    const words = /** @type {(...args: string[]) => unknown} */ (/** @type {unknown} */ (value));
+    try {
+      /** @type {unknown} */
+      const text = words(...COPY_PLACEHOLDERS.slice(0, words.length));
+      if (typeof text === 'string') {
+        rows.push({ place, text });
+      }
+    } catch {
+      // A function that needs real data has no fixed words to show.
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    for (const [key, child] of Object.entries(value)) {
+      if (key !== 'icon') {
+        collectCopyRows(child, [...trail, key], rows);
+      }
+    }
+  }
+}
+
+/** @type {readonly { readonly place: string, readonly line: Record<string, unknown> }[]} */
+const AUDIT_CHANGE_SAMPLES = Object.freeze([
+  { place: 'amount', line: { field: 'amount', from: '8642.35', to: '9100.00', fromPerson: null, toPerson: null } },
+  { place: 'date', line: { field: 'date', from: '2026-10-05', to: '2026-10-06', fromPerson: null, toPerson: null } },
+  { place: 'category', line: { field: 'category', from: '{x}', to: '{y}', fromPerson: null, toPerson: null } },
+  {
+    place: 'category that is gone',
+    line: { field: 'category', from: '{x}', to: null, fromPerson: null, toPerson: null },
+  },
+  {
+    place: 'payer',
+    line: {
+      field: 'payer',
+      from: null,
+      to: null,
+      fromPerson: { id: 'x', name: '{x}', formerStaff: false },
+      toPerson: { id: 'y', name: '{y}', formerStaff: false },
+    },
+  },
+  {
+    place: 'payer who has left',
+    line: {
+      field: 'payer',
+      from: null,
+      to: null,
+      fromPerson: { id: 'x', name: '{x}', formerStaff: true },
+      toPerson: { id: 'y', name: '{y}', formerStaff: false },
+    },
+  },
+  { place: 'description', line: { field: 'description', from: null, to: null, fromPerson: null, toPerson: null } },
+  { place: 'notes', line: { field: 'notes', from: null, to: null, fromPerson: null, toPerson: null } },
+  { place: 'category added', line: { field: 'name', from: null, to: '{x}', fromPerson: null, toPerson: null } },
+  { place: 'category renamed', line: { field: 'name', from: '{x}', to: '{y}', fromPerson: null, toPerson: null } },
+  { place: 'category added, color', line: { field: 'tone', from: null, to: 'info', fromPerson: null, toPerson: null } },
+  {
+    place: 'category recolored',
+    line: { field: 'tone', from: 'info', to: 'success', fromPerson: null, toPerson: null },
+  },
+]);
+
+/**
+ * Every sentence of the Phase 6 screens: the Company Expenses and Settings copy (one row per string), then the Phase 6
+ * additions of the Audit Log copy: the two action groups, the twelve expense and category labels, the change lines and the
+ * snapshot line, for the owner's wording review (05 D-48). A function shows its placeholders as `{x}`, `{y}`, `{z}`.
+ * @returns {{ place: string, text: string }[]}
+ */
+export function phase6Words() {
+  /** @type {{ place: string, text: string }[]} */
+  const rows = [];
+  const expenses = exportOf(expensesCopyModule, 'EXPENSES_COPY');
+  collectCopyRows(expenses, ['Company Expenses'], rows);
+  const kpis = /** @type {{ entries: (count: number) => string, thisMonth: (month: string | null) => string }} */ (
+    /** @type {{ kpis: unknown }} */ (expenses).kpis
+  );
+  rows.push(
+    { place: 'Company Expenses > kpis > entries (none)', text: kpis.entries(0) },
+    { place: 'Company Expenses > kpis > entries (one)', text: kpis.entries(1) },
+    { place: 'Company Expenses > kpis > thisMonth (month not known yet)', text: kpis.thisMonth(null) },
+  );
+  collectCopyRows(exportOf(settingsCopyModule, 'SETTINGS_COPY'), ['Settings'], rows);
+
+  const groups = /** @type {readonly string[]} */ (exportOf(auditCopyModule, 'AUDIT_GROUPS'));
+  for (const group of groups.filter((name) => name === 'Company expenses' || name === 'Expense categories')) {
+    rows.push({ place: 'Audit Log > action group', text: group });
+  }
+  const actions = /** @type {readonly { code: string, label: string }[]} */ (
+    exportOf(auditCopyModule, 'AUDIT_ACTIONS')
+  );
+  for (const action of actions.filter(
+    (entry) => entry.code.startsWith('company-expense.') || entry.code.startsWith('expense-category.'),
+  )) {
+    rows.push({ place: `Audit Log > action label > ${action.code}`, text: action.label });
+  }
+  const describeChange = /** @type {(line: Record<string, unknown>) => string | null} */ (
+    exportOf(auditCopyModule, 'describeAuditChange')
+  );
+  for (const sample of AUDIT_CHANGE_SAMPLES) {
+    const text = describeChange(sample.line);
+    if (text !== null) {
+      rows.push({ place: `Audit Log > What changed > ${sample.place}`, text });
+    }
+  }
+  const describeSnapshot = /** @type {(snapshot: Record<string, unknown>) => string} */ (
+    exportOf(auditCopyModule, 'describeAuditSnapshot')
+  );
+  rows.push(
+    {
+      place: 'Audit Log > snapshot on deleted, restored and permanently deleted entries',
+      text: describeSnapshot({
+        date: '2026-10-05',
+        category: '{x}',
+        amount: '8642.35',
+        payer: { id: 'x', name: '{y}', formerStaff: false },
+      }),
+    },
+    {
+      place: 'Audit Log > snapshot, category gone and payer who has left',
+      text: describeSnapshot({
+        date: '2026-10-05',
+        category: null,
+        amount: '8642.35',
+        payer: { id: 'x', name: '{y}', formerStaff: true },
+      }),
+    },
+  );
+  return rows;
+}
+
+/** @param {Phase6Option} entry @returns {string} */
+function phase6OptionItem(entry) {
+  const marks = [entry.recommended ? ' <em>(recommended)</em>' : '', entry.built ? ' <em>(built now)</em>' : ''].join(
+    '',
+  );
+  return `<li><strong>${escapeHtml(entry.label)}.</strong> ${escapeHtml(entry.text)}${marks}</li>`;
+}
+
+/**
+ * The Phase 6 section: the rulings page first (what is still open, then what the owner has ruled since), the things to look at
+ * by eye, then the words, then every picture grouped by screen.
  * @param {readonly Phase6ReviewShot[]} phase6Review
  * @returns {string}
  */
@@ -1972,6 +2465,27 @@ function phase6ReviewSection(phase6Review) {
   if (phase6Review.length === 0) {
     return '';
   }
+  const optionList = (/** @type {Phase6Ruling} */ entry) =>
+    `<ul class="options">${entry.options.map(phase6OptionItem).join('')}</ul>`;
+  const open = PHASE6_RULINGS.filter((entry) => entry.status === 'open')
+    .map(
+      (entry) =>
+        `<tr><td>${escapeHtml(entry.id)}</td><td>${escapeHtml(entry.topic)}</td><td>${optionList(entry)}</td></tr>`,
+    )
+    .join('');
+  const ruled = PHASE6_RULINGS.filter((entry) => entry.status === 'ruled')
+    .map(
+      (entry) =>
+        `<tr><td>${escapeHtml(entry.id)}</td><td>${escapeHtml(entry.topic)}</td><td>${optionList(entry)}</td><td>${escapeHtml(entry.ruling ?? '')}</td><td>${escapeHtml(entry.whereItChanges ?? '')}</td></tr>`,
+    )
+    .join('');
+  const lookAt = PHASE6_LOOK_AT.map(
+    (item) =>
+      `<tr><td><strong>${escapeHtml(item.title)}</strong></td><td>${escapeHtml(item.what)}</td><td>${escapeHtml(item.how)}</td></tr>`,
+  ).join('');
+  const words = phase6Words()
+    .map((row) => `<tr><td>${escapeHtml(row.place)}</td><td>${escapeHtml(row.text)}</td></tr>`)
+    .join('');
   const groups = [...new Set(phase6Review.map((shot) => shot.group))];
   const sections = groups
     .map((group) => {
@@ -1999,8 +2513,24 @@ function phase6ReviewSection(phase6Review) {
   return `<section><h2>Company expenses and settings (Phase 6)</h2>
 <p class="note">These pictures show the real screens, signed in as a Manager and as an Admin, with expenses made for the run (a row
 that is still ahead, a row by a member of staff who has left, a retired category, deleted expenses). Company Expenses, Deleted
-Expenses and Settings are also in the page list near the top of this report; the windows, dialogs and special states are below.
-Nothing here is approved until you say so.</p>
+Expenses and Settings are also in the page list near the top of this report (Admin: Company Expenses, Admin: Deleted Expenses,
+Admin: Settings); the windows, dialogs and special states are below. The month cards at the top of Company Expenses count every
+expense in the test database CSPS_E2E, earlier test runs included, so their figures are not the shop’s. Nothing here is approved
+until you say so.</p>
+<h3>Phase 6: still open for you</h3>
+<p class="note">The build uses the option marked "built now" for each of these. Say "approved" with any changes, or name the
+option you want instead. The recommended option is listed first when it is not the one built.</p>
+<table><thead><tr><th>#</th><th>What</th><th>The options</th></tr></thead><tbody>${open}</tbody></table>
+<h3>Phase 6: ruled by you since the plan was written</h3>
+<p class="note">You have ruled these. The build still has to follow the ruling; until then the option marked "built now" is what the
+app does.</p>
+<table><thead><tr><th>#</th><th>What</th><th>The options</th><th>Your ruling</th><th>Where it changes</th></tr></thead><tbody>${ruled}</tbody></table>
+<h3>Also look at</h3>
+<table><thead><tr><th>What</th><th>What it is</th><th>What you do</th></tr></thead><tbody>${lookAt}</tbody></table>
+<h3>Words on the Phase 6 screens</h3>
+<p class="note">Every sentence the Company Expenses, Deleted Expenses and Settings screens say, and the new Audit Log lines.
+<strong>{x}</strong>, <strong>{y}</strong> and <strong>{z}</strong> are values the app fills in (a name, an amount, a date).</p>
+<table><thead><tr><th>Where</th><th>Words</th></tr></thead><tbody>${words}</tbody></table>
 ${sections}</section>`;
 }
 

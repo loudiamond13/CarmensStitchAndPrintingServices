@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T06:55:00-05:00
-updated: 2026-10-25T13:30:00-05:00
+updated: 2026-10-25T20:15:00-05:00
 ---
 
 # The company expenses API
@@ -355,6 +355,56 @@ show whole months.
   wins. `sharePercent` is its total divided by this month's total times 100, rounded to a whole percent with
   half away from zero (12.5 becomes 13). With no expense this month `topCategory` is `null`.
 - The server reads the figures in two SQL commands: both months together, then this month by category.
+
+## The slice pattern Orders copies (D-29)
+
+Company expenses are the simplest aggregate, built first to prove the pattern the order aggregate copies in Phase 7. This is the
+checklist. Each line names the file that does it and the test that pins it, so Phase 7 copies the shape and keeps the proof.
+
+1. **A form save carries a row version (SEC-07).** The edit form sends the `version` of the answer it was opened with. A stale
+   version is `409 edit.stale` and stores nothing; a form save is never retried by the server. The web keeps the typed values, shows
+   the shared `ConflictBanner` with **Load Latest**, and puts focus on that button. Files: `UpdateCompanyExpenseHandler.cs` (the
+   version compare comes after the right-to-edit check), `ExpenseModal.tsx`, `ConflictBanner.tsx`. Proof: the `@expenses-edit`
+   e2e (two tabs, second save is stale, Load Latest, save again) and the 409 handler tests.
+2. **Single-click actions send no version.** Delete, restore and permanent delete act on the latest state. The handler runs inside
+   `ConflictRetry.RunAsync` and `unitOfWork.InTransactionAsync`, so a lost race is read again and decided again: a second pass that
+   finds nothing answers `404`, never a double effect. Files: `DeleteCompanyExpenseHandler.cs`, `RestoreCompanyExpenseHandler.cs`,
+   `PermanentlyDeleteCompanyExpenseHandler.cs`, `ConflictRetry.cs`. Only restore, a POST, needs an `Idempotency-Key`; the two
+   deletes are DELETE calls.
+3. **A list is read in two commands, with the totals worked out by the database.** `CompanyExpenseReader` runs one command for the
+   page and one for the count and sum, whatever the page size. `total` and `periodTotal` cover every page, never the rows on the
+   screen. Files: `CompanyExpenseReader.cs`, `ListCompanyExpensesHandler.cs`. Proof: `CompanyExpenseReaderQueryCountTests`
+   (the reader runs exactly two commands) and `CompanyExpenseListQueryCountTests` (the endpoint does too).
+4. **The `CommandCounter` guard and the timing test.** The query-count tests count the real SQL commands a request sends, so an
+   accidental per-row query (N+1) fails a test. `ExpenseListTimingTests` seeds five years of fake data (about 36,500 rows) and
+   holds the p95 of the default window, a category filter, a staff-name search, a five-year last page and the KPIs to 300 ms.
+   Orders copy both: a count test for each reader, and a timing test with their own data size. How to run and read them:
+   [list-performance.md](../operations/list-performance.md).
+5. **Soft delete is a named query filter.** `CompanyExpenseConfiguration` declares `HasQueryFilter("SoftDelete", ...)`, so every
+   read hides deleted rows with no code in the handler. Only the deleted list and the stores that must see a deleted row call
+   `IgnoreQueryFilters(["SoftDelete"])` by that name. A deleted row answers `404` like a row that never existed. Files:
+   `CompanyExpenseConfiguration.cs`, `CompanyExpenseReader.cs`, `CompanyExpenseStore.cs`.
+6. **The audit detail has one format.** `AuditDetailFormat` writes `key=value` and `key=old>new` pairs joined by `;`: amounts as
+   `0.00`, dates as `yyyy-MM-dd`, ids as dashed lower-case GUIDs, free text percent-encoded. Free text a person typed (a
+   description, notes) never reaches the log; only the field name does (`fields=description,notes`). The audit entry is written in
+   the same save as the change, and a permanent delete writes it first so the entry outlives the row. The viewer turns the stored
+   detail into change lines on the server and names people and categories there. Files: `AuditDetailFormat.cs`,
+   `ExpenseAuditDetail.cs`, `AuditLogReader`, [audit-log.md](../operations/audit-log.md).
+7. **The staff lookup and `PaidBySelect`.** `GET /api/v1/staff` answers only `{ id, name }` of the people who can be chosen, for
+   both roles; the full roster stays Manager-only. The web reads it through `useStaffLookupQuery` and `PaidBySelect`, which puts
+   the signed-in person first as "(you)" and keeps a saved payer who can no longer be chosen, marked "(inactive)" or
+   "(former staff)". Orders reuse both for Received by and the payment payer. Files: `StaffController.cs`, `StaffDirectory.cs`,
+   `useStaffLookupQuery.ts`, `PaidBySelect.tsx`.
+8. **A delete is the shared `ConfirmDialog`.** A plain confirmation names the thing and its amount, focus starts on Cancel, nothing
+   is sent until the confirm, and the toast says where to restore it. A permanent delete is the same dialog with the can't-be-undone
+   warning. Files: `ConfirmDialog.tsx`, `ExpensesPage.tsx`, `PurgeExpenseDialog.tsx`.
+9. **One URL-state hook per list.** Each list has a `use<Thing>ListParams` hook built with `createListParams`: page, size, search and
+   its own filters live in the address (WEB-10), defaults stay out of it, a bad value falls back and is removed with one replace,
+   and a filter change resets the page. Files: `useExpensesListParams.ts`, `useDeletedExpensesListParams.ts`,
+   `useAuditListParams.ts`, `createListParams.ts`.
+10. **Every mutation refreshes what it changed.** After an add, edit, delete, restore or permanent delete the web invalidates the
+    list (`expensesKey`), the month figures (`expenseKpisKey`) and the deleted list together, so no screen shows an old total
+    (`useRefreshExpenses.ts`).
 
 ## Testing builds only
 

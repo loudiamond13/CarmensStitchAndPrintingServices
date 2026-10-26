@@ -1543,7 +1543,7 @@ describe('renderIndex: the Phase 6 rulings page (plan 06-19)', () => {
 
     expect(open).toBeGreaterThan(html.indexOf('Company expenses and settings (Phase 6)'));
     expect(ruled).toBeGreaterThan(open);
-    expect(html.indexOf('Words on the Phase 6 screens')).toBeGreaterThan(ruled);
+    expect(html.indexOf('<h3>Words on the Phase 6 screens</h3>')).toBeGreaterThan(ruled);
     for (const entry of PHASE6_RULINGS) {
       const at = html.indexOf(`<td>${entry.id}</td>`);
       expect(at, entry.id).toBeGreaterThan(entry.status === 'open' ? open : ruled);
