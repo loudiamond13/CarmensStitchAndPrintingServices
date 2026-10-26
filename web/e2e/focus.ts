@@ -220,6 +220,7 @@ export const confirmPassword = (page: Page): Locator => page.getByLabel('Confirm
 /** The Show password button that follows a password box. */
 export const showButton = (box: Locator): Locator => box.locator('xpath=following-sibling::button');
 export const updateButton = (page: Page): Locator => page.getByRole('button', { name: 'Update Password' });
+export const currentPassword = (page: Page): Locator => page.getByLabel('Current password', { exact: true });
 
 /** Waits two frames so container queries and sticky layers have settled after a resize. */
 export async function nextFrames(page: Page): Promise<void> {

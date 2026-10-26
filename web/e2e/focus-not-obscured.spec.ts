@@ -2,21 +2,28 @@
 // Shift+Tab reaches must end up with its whole box clear of every sticky bar, inside the visual viewport.
 //   - The phone tab bar (pixel and iphone): Tab from New password lands on Confirm new password clear of the bar, and a
 //     control 30px under the bar is scrolled clear. The bottom spacing is on exactly where the bar is drawn.
+//   - The admin top bar (all five projects, at 1280, 820 and phone widths): Shift+Tab to a control 30px under it scrolls
+//     it clear. On the phones a Tab pass down and a Shift+Tab pass back through the Security tab stay clear of both bars.
 // The real-scrollbar windows are in focus-scrollbars.spec.ts. Page scripts are strings (no DOM types here).
 import type { TestInfo } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import {
   confirmPassword,
+  currentPassword,
   expectClear,
   expectPlaced,
   focusWithoutScroll,
+  measureNow,
   newPassword,
   openSecurity,
   placeUnderBar,
+  readSpacing,
   readSpacingRow,
   settleAndMeasure,
   showButton,
+  topBarHeight,
   updateButton,
+  type Measure,
 } from './focus.ts';
 
 const DEVICE_PROJECTS = ['pixel', 'iphone'];
@@ -86,10 +93,94 @@ test('@focus-not-obscured the bottom spacing is on exactly where the tab bar sho
     if (row.problem !== null) {
       problems.push(row.problem);
     }
+    const top = await topBarHeight(page);
+    const { paddingTop } = await readSpacing(confirmPassword(page));
+    if (top === null || paddingTop < top + 18) {
+      problems.push(
+        `${String(width)}px: top bar ${String(top)}px but html scroll-padding-top is ${String(paddingTop)}px`,
+      );
+    }
   }
-  expect(problems, 'spacing matches the tab bar at every width').toEqual([]);
+  expect(problems, 'spacing matches the bars at every width').toEqual([]);
   if (!isDevice(testInfo)) {
     expect(withBar, 'a width with the bar').toBeGreaterThan(0);
     expect(withoutBar, 'a width without the bar').toBeGreaterThan(0);
   }
+});
+
+test('@focus-not-obscured a control 30px under the admin top bar is scrolled clear when Shift+Tab reaches it', async ({
+  page,
+  request,
+  guard,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  await openSecurity(page, request, guard);
+
+  // The windows are short (400px) so the Security page can scroll far enough to put the first field behind the bar.
+  const phoneWidth = page.viewportSize()?.width ?? 0;
+  const sizes = isDevice(testInfo)
+    ? [{ width: phoneWidth, height: 400 }]
+    : [
+        { width: 1280, height: 400 },
+        { width: 820, height: 400 },
+      ];
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    const at = `${String(size.width)}x${String(size.height)}`;
+    expectPlaced(await placeUnderBar(currentPassword(page), 'top'), `Current password at ${at}`);
+    await focusWithoutScroll(showButton(currentPassword(page)));
+    await page.keyboard.press('Shift+Tab');
+    await expect(currentPassword(page)).toBeFocused();
+    expectClear(await settleAndMeasure(page), `Current password after Shift+Tab at ${at}`);
+  }
+});
+
+/** Presses `key` until `stop` says the focus has arrived (at most 40 presses), checking each control in main. */
+async function walk(
+  page: Parameters<typeof settleAndMeasure>[0],
+  key: 'Tab' | 'Shift+Tab',
+  stop: (measure: Measure) => boolean,
+): Promise<{ labels: string[]; scrolls: number }> {
+  const labels: string[] = [];
+  const scrolls = new Set<number>();
+  scrolls.add((await measureNow(page)).scrollY);
+  for (let step = 0; step < 40; step += 1) {
+    await page.keyboard.press(key);
+    const measure = await settleAndMeasure(page);
+    if (!measure.inMain) {
+      break;
+    }
+    scrolls.add(measure.scrollY);
+    expectClear(measure, `${measure.label} after ${key} (step ${String(step + 1)})`);
+    labels.push(measure.label);
+    await page.evaluate('window.__e2eWalkLast = document.activeElement');
+    if (stop(measure)) {
+      break;
+    }
+  }
+  return { labels, scrolls: scrolls.size - 1 };
+}
+
+test('@focus-not-obscured every Security control stays clear of both bars, tabbing down and back up', async ({
+  page,
+  request,
+  guard,
+}, testInfo) => {
+  test.skip(!isDevice(testInfo), PHONE_ONLY);
+  test.setTimeout(120_000);
+  await openSecurity(page, request, guard);
+
+  const securityTab = page.getByRole('tab', { name: 'Security' });
+  await page.evaluate('window.scrollTo({ top: 0, behavior: "instant" })');
+  await securityTab.focus();
+  const down = await walk(page, 'Tab', () => false);
+  expect(down.labels.length, `controls going down: ${down.labels.join(', ')}`).toBeGreaterThanOrEqual(6);
+  expect(down.labels, 'Confirm new password is among them').toContain('Confirm new password');
+  expect(down.scrolls, 'the page scrolled going down').toBeGreaterThanOrEqual(1);
+
+  await page.evaluate('window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })');
+  await page.evaluate('window.__e2eWalkLast.focus({ preventScroll: true })');
+  const up = await walk(page, 'Shift+Tab', (measure) => measure.label === 'Security');
+  expect(up.labels[up.labels.length - 1], `controls going up: ${up.labels.join(', ')}`).toBe('Security');
+  expect(up.scrolls, 'the page scrolled going up').toBeGreaterThanOrEqual(1);
 });
