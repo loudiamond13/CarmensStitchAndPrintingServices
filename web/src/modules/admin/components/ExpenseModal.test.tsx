@@ -328,6 +328,41 @@ describe('E2 server answers', () => {
     expect(saveButton()).toHaveFocus();
   });
 
+  it('shows the mapped alert line for a 404 on add, keeps Save enabled and the typed values (no deleted banner)', async () => {
+    backends();
+    createExpenseBackend(() => problem(404, { code: 'company-expenses.not-found' }));
+    const user = userEvent.setup();
+    const { onSaved } = renderModal();
+    await ready();
+    await fillValid(user);
+
+    await user.click(saveButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Not found. It may have been deleted. Go back and refresh the list.',
+    );
+    expect(screen.queryByText('This expense was deleted.')).toBeNull();
+    expect(saveButton()).not.toHaveAttribute('aria-disabled', 'true');
+    expect(saveButton()).toHaveFocus();
+    expect(description()).toHaveValue('Thread and needles');
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('shows the mapped alert line for a not-yours 403 on add and keeps Save enabled', async () => {
+    backends();
+    createExpenseBackend(() => problem(403, { code: 'company-expenses.not-yours' }));
+    const user = userEvent.setup();
+    renderModal();
+    await ready();
+    await fillValid(user);
+
+    await user.click(saveButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("You don't have access to this.");
+    expect(saveButton()).not.toHaveAttribute('aria-disabled', 'true');
+    expect(description()).toHaveValue('Thread and needles');
+  });
+
   it('keeps one Idempotency-Key when the same form is sent again after a server failure', async () => {
     backends();
     let calls = 0;
