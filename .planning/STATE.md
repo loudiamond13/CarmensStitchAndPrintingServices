@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Company Expenses
-status: verifying
-stopped_at: Completed 06-19-PLAN.md
-last_updated: "2026-10-26T01:38:01.740Z"
+status: executing
+stopped_at: Completed 06-20-PLAN.md
+last_updated: "2026-10-26T02:39:21.294Z"
 last_activity: 2026-10-25
 last_activity_desc: Phase 06 execution started
-state_head: 787fae2c219027a37a16290d1c38ae778367ddc4
+state_head: afcb60ec4459a4f13a4480ba9675e3f117db5d69
 progress:
   total_phases: 17
   completed_phases: 5
-  total_plans: 185
-  completed_plans: 185
+  total_plans: 187
+  completed_plans: 186
   percent: 29
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-25T20:15:00-05:00"
+updated: "2026-10-25T21:50:00-05:00"
 ---
 
 # Project State
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-19)
 ## Current Position
 
 Phase: 06 (Company Expenses) — EXECUTING
-Plan: 19 of 19 (06-01 to 06-19 are done; the phase is ready for verification)
-Status: Phase complete — ready for verification
+Plan: 21 of 21 (06-01 to 06-20 are done; the next plan is 06-21, D-50 EF-only locks)
+Status: Executing — 06-21 remaining, then verification
 Last activity: 2026-10-25 — Phase 06 execution started
 
 Progress: [███░░░░░░░] 29%
@@ -242,6 +242,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 06 P17 | 41 min | 3 tasks | 25 files |
 | Phase 06 P18 | 2h 20m | 2 tasks | 15 files |
 | Phase 06 P19 | 56 min | 2 tasks | 7 files |
+| Phase 06 P20 | 38 min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -648,6 +649,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 06]: 06-19: A-06-01 and the three inline SQL files are shown in the review pack as ruled (D-49, D-50) with follow-up plans 06-20 and 06-21; option 2 and option 1 stay marked built until those land
 - [Phase 06]: 06-19: npm run review reads the copy modules through a short-lived Vite server when plain Node cannot resolve the app's @/ paths (06-15 had stopped the script)
 - [Phase 06]: 06-19: the review pack's Phase 6 pages are narrowed by this run's tag; the month cards count the whole CSPS_E2E database and the pack says so
+- [Phase 06]: 06-20: D-49 built as A-06-01 option 1: Paid by needs a password and the first sign-in mark (EmailConfirmed) in the staff lookup, the create and edit check, the detail paidByActive flag and the dev seed; staff after a Manager password reset stay choosable; no schema change
+- [Phase 06]: 06-20: Phase 17 legacy import must set the first sign-in mark on imported staff, or they cannot be chosen as Paid by
 
 ### Pending Todos
 
@@ -663,9 +666,11 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 - [ ] **Phase 6 copy review (05 D-48):** read the new expense and Settings page wording before release.
 - [ ] Any checkpoints, manual checks or package approvals that Phase 6 execution parks are added below this line.
 - [ ] **Phase 6 review pack (plan 06-19, parked 2026-10-25):** open `artifacts/owner-review/index.html` (made on this computer, never committed), section "Company expenses and settings (Phase 6)", check the screens and rule OQ-1 to OQ-15 (the defaults are built). The same section lists the other open items and a table of every new sentence for the copy review.
-- [x] **Ruled D-49 (owner, 2026-10-25): option 1, first sign-in required; follow-up 06-20.** **Phase 6 Paid by and temporary passwords (A-06-01, D-32):** a person a Manager creates with a temporary password has a password but has never signed in, so today they can be chosen as Paid by. Pick one. (1) Recommended: they can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable. (2) Built now: keep the rule as written ('has a password'), so they can be chosen before their first sign-in. (3) Hide anyone who still has to change a temporary password: also hides long-time staff after a Manager resets their password, until they sign in again. Where it changes: the staff rule in `StaffDirectory.cs` (two lines); the test `StaffLookupEndpointTests` pins option 2.
+- [x] **Ruled D-49 (owner, 2026-10-25): option 1, first sign-in required; follow-up 06-20.** **Phase 6 Paid by and temporary passwords (A-06-01, D-32):** a person a Manager creates with a temporary password has a password but has never signed in, so today they can be chosen as Paid by. Pick one. (1) Recommended: they can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable. (2) Built now: keep the rule as written ('has a password'), so they can be chosen before their first sign-in. (3) Hide anyone who still has to change a temporary password: also hides long-time staff after a Manager resets their password, until they sign in again. Where it changes: the staff rule in `StaffDirectory.cs` (two lines); the test `StaffLookupEndpointTests` pins option 2. **Built in plan 06-20 (option 1): `StaffDirectory.cs`, `CompanyExpenseReader.cs` and `CompanyExpensesSeedStep.cs` now need the first sign-in mark, and `StaffLookupEndpointTests` pins option 1.**
 - [x] **Ruled D-50 (owner, 2026-10-25): option 2, rework all three without inline SQL; follow-up 06-21.** **Phase 6 inline SQL in three existing files (06-11, your rule on inline SQL):** your rule allows hand-written SQL only where you approve it by name. Three files from Phases 4 and 5 each run one short SQL line that takes a database lock, so two requests at the same moment cannot collide: `IdempotencyGate.cs` (stops a double-submitted form from saving twice), `AccountTokenStore.cs` (one sign-in link per person at a time) and `ManagerRosterLock.cs` (keeps at least one active Manager). EF has no built-in way to take this kind of lock. The new guard test allows exactly these three and fails on any other. Pick one. (1) Recommended: approve the three by name; nothing changes. (2) Rework them without hand-written SQL: each lock is rebuilt with EF's own tools (for example a lock row updated inside the same transaction), which is more code and may need a small new table. Until you answer, the three stay allowed and no new one can be added.
 - [x] **Ruled D-51 (owner, 2026-10-25): option 1 confirmed.** **Phase 6 month KPI edge cases (A-06-02, CEXP-03):** the KPI cards are tested at the change of month in Manila time, for an empty month, for ties, for upcoming dates and for deleted expenses. We assumed no other case needs its own rule, for example a business time zone other than Asia/Manila in Site settings. Pick one. (1) Recommended: confirm; the cards follow the business time zone in Site settings, which is Asia/Manila today. (2) Name another case you want tested before release.
+- [ ] **Phase 6 wording for a Paid by who has not signed in (plan 06-20, 05 D-48, parked 2026-10-25):** a Manager adds Tia with a temporary password. Until her first sign-in code, choosing her as Paid by gives the existing sentence "This person can't be chosen because their account isn't active. Choose someone else." Her account is active, so the sentence can read oddly. Nothing was reworded. Pick one. (1) Recommended: keep the sentence; it is short and the person appears in the list after the first sign-in. (2) Add a second sentence for this case, for example "This person hasn't signed in yet. Choose someone else.", which needs a small change in the payer check and the web copy. (3) Show the person in the Paid by list but not selectable, with a hint. Where it changes: `ExpenseRules.PaidByInactive` and the payer check in `CreateCompanyExpenseHandler.cs` and `UpdateCompanyExpenseHandler.cs`.
+- [ ] **Phase 17 legacy import carry-forward (plan 06-20, D-49):** imported staff must get the first sign-in mark (`EmailConfirmed`) set, or they cannot be chosen as Paid by. Recorded in `docs/api/company-expenses.md`; add it to the Phase 17 plan.
 - [ ] **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
 
 ### Blockers/Concerns
@@ -722,6 +727,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-26T01:37:59.517Z
-Stopped at: Completed 06-19-PLAN.md
+Last session: 2026-10-26T02:39:20.390Z
+Stopped at: Completed 06-20-PLAN.md
 Resume file: None
