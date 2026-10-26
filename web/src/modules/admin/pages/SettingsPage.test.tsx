@@ -503,6 +503,38 @@ describe('S1 retire, use again and delete (D-10, D-11, D-30, OQ-4, OQ-5; plan 06
       expect(await screen.findByText("Couldn't bring back Old subscriptions")).toBeVisible();
       expect(within(cellOf(rowOf('Old subscriptions'), 'Status')).getByText('Retired')).toBeVisible();
     });
+
+    it('reads the list again when Retire answers 404, so a category deleted meanwhile leaves the table', async () => {
+      const user = userEvent.setup();
+      const { state } = await openLive();
+      retireCategoryBackend((id) => {
+        state.delete(id);
+        return problemResponse(404);
+      });
+
+      await user.click(within(rowOf('Equipment')).getByRole('button', { name: 'Retire Equipment' }));
+
+      expect(await screen.findByText("Couldn't retire Equipment")).toBeVisible();
+      await waitFor(() => {
+        expect(within(screen.getByRole('table')).queryByText('Equipment')).toBeNull();
+      });
+    });
+
+    it('reads the list again when Use again answers 404, so a category deleted meanwhile leaves the table', async () => {
+      const user = userEvent.setup();
+      const { state } = await openLive();
+      reactivateCategoryBackend((id) => {
+        state.delete(id);
+        return problemResponse(404);
+      });
+
+      await user.click(within(rowOf('Old subscriptions')).getByRole('button', { name: 'Use Old subscriptions again' }));
+
+      expect(await screen.findByText("Couldn't bring back Old subscriptions")).toBeVisible();
+      await waitFor(() => {
+        expect(within(screen.getByRole('table')).queryByText('Old subscriptions')).toBeNull();
+      });
+    });
   });
 
   describe('Delete a never-used category (D-10, D-30)', () => {

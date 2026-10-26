@@ -316,6 +316,25 @@ describe('Restore (D-03, OQ-5)', () => {
     expect(sent.keys[1]).toBe(sent.keys[0]);
   });
 
+  it('reads the list again when Restore answers 404, so an expense purged meanwhile leaves the table', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    deletedExpensesBackend(listThatLoses(gone));
+    restoreExpenseBackend((id) => {
+      gone.add(id);
+      return problemResponse(404);
+    });
+    renderPage();
+    await screen.findByText('Shop rent for October');
+
+    await user.click(screen.getByRole('button', { name: RESTORE_FIRST }));
+
+    expect(await screen.findByText("Couldn't restore Shop rent for October")).toBeVisible();
+    await waitFor(() => {
+      expect(within(screen.getByRole('table')).queryByText('Shop rent for October')).toBeNull();
+    });
+  });
+
   it('gives a different expense its own key', async () => {
     const user = userEvent.setup();
     const gone = new Set<string>();
