@@ -4,10 +4,10 @@ current_phase: 7
 current_phase_name: Order Domain & API
 status: planning
 stopped_at: Phase 06 shipped as PR
-last_updated: "2026-10-26T13:32:47.364Z"
+last_updated: "2026-10-27T03:07:52.324Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 06 shipped as PR
-state_head: 8431bb8aa72a620bfaa5ddbee1286ac86ac6125d
+state_head: 5413711c2a22579ecb323f9135bb581b3b212c20
 progress:
   total_phases: 17
   completed_phases: 6
@@ -15,7 +15,7 @@ progress:
   completed_plans: 187
   percent: 35
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-26T09:39:00-05:00"
+updated: "2026-10-26T22:07:00-05:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 Phase: 7 — Order Domain & API
 Plan: Not started
 Status: Ready to plan (Phase 06 shipped as PR #11, awaiting merge)
-Last activity: 2026-10-26 - Completed quick task 261026-au5: Fix npm audit advisories on PR 11
+Last activity: 2026-10-26 - Completed quick task 261026-ooe: Focused fields stay clear of the fixed and sticky bars
 
 Progress: [████░░░░░░] 35%
 
@@ -658,6 +658,12 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Ship 06]: D-64 (owner, 2026-10-26): the package fix goes on the PR #11 branch. D-67 (owner, 2026-10-26): the nine non-conventional UI-fix commit subjects were then reworded to `type(06): ...` and the branch force-pushed, trees unchanged; old commit ids in the planning docs were remapped (backup ref `backup/phase-06-before-reword`, local only).
 - [Ship 06]: D-65 (owner, 2026-10-26): zod 4.6.7 is forced everywhere with one top-level npm override (the axe-core pattern), not a nested one. Accepted risk: Lighthouse's unused WebDriver BiDi driver (chromium-bidi 17.0.2, written for zod 3) gives a generic TypeError on malformed input instead of its own error; Lighthouse does not load it (quick 261026-au5).
 - [Ship 06]: D-66 (owner, 2026-10-26): the test-only packages vitest 5.0.4 requires (about 12, including obug 3 and why-is-node-running 3.2.1) are accepted; any other lockfile change stops the task.
+- [Ship 06]: D-70 (owner, 2026-10-26): on phone layouts a focused field can sit fully behind the fixed bottom tab bar (Confirm new password on My Profile Security: 0 of 44 px visible on pixel and iphone), a WCAG 2.2 AA 2.4.11 failure. Fix in its own PR (quick 261026-ooe): scroll padding for the fixed bars, and the e2e axe helper re-checks a target axe reports as partially obscured after scrolling it into view. The intermittent @profile axe failure (about 7 in 205 runs) came from the random test email wrapping to 2 lines instead of 3.
+- [Ship 06]: D-71 (owner, 2026-10-26): the e2e axe helper re-checks a target-size "partially obscured" target when at least one covering control sits in a fixed or sticky bar (axe always lists the field's own Show password button too); it scrolls the target into view, re-runs target-size on it alone and restores the scroll; a target still covered fails.
+- [Ship 06]: D-72 (owner, 2026-10-26): the same fix (261026-ooe) also covers the sticky admin top bar at tablet and desktop widths, the sticky public header on phones, desktop windows 768 to about 782 px wide with classic scrollbars that show the tab bar, and removes the three now-redundant e2e scroll workarounds (profile.spec.ts, audit-log.spec.ts, users.spec.ts).
+- [Ship 06]: D-73 (owner, 2026-10-26): the fix stays CSS-only; Safari with classic scrollbars in a 768 to about 782 px window ignores the scroll margin and is accepted and recorded as the one known limit (no Playwright project can draw it).
+- [Ship 06]: D-74 (owner, 2026-10-26): a dev-only /dev/public page (PublicLayoutCheckPage, in devRoutes and DEV_ONLY_MODULE_PREFIXES) is added so the public header fix can be tested before Phase 11; production falls through to the holding page, proven by routes.test.tsx. Toasts stay as they are (transient, dismissible).
+- [Ship 06]: D-75 (owner, 2026-10-26): UpdateUserEndpointTests.TwoManagersDemotingEachOtherTogetherLeaveExactlyOneActiveManagerEveryTime failed once in PR #13's CI re-run (run 3: loser got 401, not 422, because the winner's demotion signed it out before its request authenticated; still exactly one active Manager). Fix the test on PR #13's branch: safety checks stay strict, a 401 counts only when the loser was already signed out, and the 422 guard path must still occur across the 20 rounds. Queued until quick 261026-ooe finishes (shared checkout).
 - [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 
 ### Pending Todos
@@ -733,6 +739,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 | 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
 | 261026-89i | Phase 6 UI review fixes (D-60, D-61, D-62) | 2026-10-26 | b0c3e9eb | [261026-89i-phase-6-ui-review-fixes-d-60](./quick/261026-89i-phase-6-ui-review-fixes-d-60/) |
 | 261026-au5 | Fix npm audit advisories on PR 11 (D-63 to D-66) | 2026-10-26 | 8431bb8a | [261026-au5-fix-npm-audit-advisories-on-pr-11](./quick/261026-au5-fix-npm-audit-advisories-on-pr-11/) |
+| 261026-ooe | Focused fields stay clear of the fixed and sticky bars (WCAG 2.4.11, D-70 to D-74) | 2026-10-26 | 5413711c | [261026-ooe-focused-fields-stay-clear-of-the-phone-b](./quick/261026-ooe-focused-fields-stay-clear-of-the-phone-b/) |
 
 ## Deferred Items
 
