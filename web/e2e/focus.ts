@@ -3,7 +3,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, type Guard } from './fixtures.ts';
-import { createStaff } from './testing-api.ts';
+import { createStaff, type StaffIdentity } from './testing-api.ts';
 
 /** The box of an element in viewport coordinates. */
 export interface Box {
@@ -142,6 +142,23 @@ export async function placeUnderBar(control: Locator, bar: 'tab' | 'top', gap = 
   })()`);
 }
 
+/**
+ * Scrolls the page so only the top `strip` px of the control show above the tab bar (the rest is behind it). Returns the
+ * pixels showing above the bar, or null when no tab bar is drawn.
+ */
+export async function placeStripAboveTabBar(control: Locator, strip = 9): Promise<number | null> {
+  await control.evaluate(keepElement);
+  return control.page().evaluate<number | null>(`(() => {
+    ${BARS}
+    const element = window.__e2eFocusTarget;
+    const { tab } = bars();
+    if (tab === null) { return null; }
+    const delta = element.getBoundingClientRect().top - (tab.getBoundingClientRect().top - ${String(strip)});
+    window.scrollTo({ top: window.scrollY + delta, behavior: 'instant' });
+    return tab.getBoundingClientRect().top - element.getBoundingClientRect().top;
+  })()`);
+}
+
 /** Asserts the control was placed `gap` px behind the bar (within 1px), so a later scroll is the page's own doing. */
 export function expectPlaced(placement: Placement, what: string, gap = 30): void {
   expect(placement.behind, `${what}: a bar is drawn and the page could scroll far enough`).not.toBeNull();
@@ -206,11 +223,16 @@ export async function topBarHeight(page: Page): Promise<number | null> {
   })()`);
 }
 
-/** Signs in a Manager and opens My Profile on the Security tab. */
-export async function openSecurity(page: Page, request: APIRequestContext, guard: Guard): Promise<void> {
+/** Signs in a Manager (with the given identity, if any) and opens My Profile on the Security tab. */
+export async function openSecurity(
+  page: Page,
+  request: APIRequestContext,
+  guard: Guard,
+  identity?: StaffIdentity,
+): Promise<void> {
   // Opening the sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
   guard.expectStatus('/api/v1/auth/refresh', 401);
-  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await signInAs(page, request, await createStaff(request, 'Manager', undefined, identity));
   await page.goto('/admin/profile?tab=security');
   await expect(page.getByRole('heading', { level: 2, name: 'Change Password' })).toBeVisible();
 }

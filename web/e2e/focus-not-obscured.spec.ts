@@ -4,11 +4,13 @@
 //     control 30px under the bar is scrolled clear. The bottom spacing is on exactly where the bar is drawn.
 //   - The admin top bar (all five projects, at 1280, 820 and phone widths): Shift+Tab to a control 30px under it scrolls
 //     it clear. On the phones a Tab pass down and a Shift+Tab pass back through the Security tab stay clear of both bars.
+//   - The axe check on Confirm new password (pixel and iphone) while the tab bar covers all but a 9px strip of it.
 //   - The public site header (all five projects, on the dev-only /dev/public page that shows the real PublicLayout): the same
 //     Shift+Tab check at 1280, 820 and 390px and on the phones.
 // The real-scrollbar windows are in focus-scrollbars.spec.ts. Page scripts are strings (no DOM types here).
+import { randomUUID } from 'node:crypto';
 import type { TestInfo } from '@playwright/test';
-import { expect, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, pageAxe, test } from './fixtures.ts';
 import {
   confirmPassword,
   currentPassword,
@@ -18,6 +20,7 @@ import {
   measureNow,
   newPassword,
   openSecurity,
+  placeStripAboveTabBar,
   placeUnderBar,
   readSpacing,
   readSpacingRow,
@@ -217,4 +220,31 @@ test('@focus-not-obscured a control 30px under the public header is scrolled cle
     await expect(field6).toBeFocused();
     expectClear(await settleAndMeasure(page), `Field 6 after Shift+Tab at ${at}`);
   }
+});
+
+test('@focus-not-obscured the axe check passes Confirm new password while the tab bar covers all but a strip of it', async ({
+  page,
+  request,
+  guard,
+}, testInfo) => {
+  test.skip(!isDevice(testInfo), PHONE_ONLY);
+  test.setTimeout(120_000);
+  // A long address wraps the profile header onto more lines, so the Confirm field starts low enough to put under the bar.
+  const local = Array.from({ length: 5 }, () => randomUUID().replaceAll('-', '')).join('');
+  await openSecurity(page, request, guard, { email: `${local}@csps.test` });
+
+  const confirm = confirmPassword(page);
+  const showing = await placeStripAboveTabBar(confirm);
+  expect(showing, 'the Confirm field could be scrolled until only a strip shows above the tab bar').not.toBeNull();
+  expect(Math.abs((showing ?? 0) - 9)).toBeLessThanOrEqual(1);
+
+  const id = await confirm.getAttribute('id');
+  const direct = await pageAxe(page).analyze();
+  const targetSize = direct.violations.find((violation) => violation.id === 'target-size');
+  expect(
+    targetSize?.nodes.map((node) => node.target.join(' ')),
+    'axe reports the covered field',
+  ).toContain(`#${String(id)}`);
+
+  await expectNoAxeViolations(page);
 });
