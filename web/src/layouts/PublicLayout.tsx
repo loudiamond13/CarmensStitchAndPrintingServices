@@ -6,6 +6,8 @@
 //     other path marks none (A11Y-04 empty edge), so nothing turns bold.
 //   - `main` keeps at least the viewport height minus the header, so the footer stays put while a route chunk loads;
 //     it is `aria-busy` until the chunk lands (UI consideration: loading, route chunks).
+//   - While the layout is shown, the page (html) gets top scroll padding for the sticky header, one value at every width,
+//     so a focused control stops 24px below it (WCAG 2.4.11).
 //   - PERF-01: the components come from their own modules, not the `@/components/*` barrels. A barrel re-exports admin-only
 //     parts (Sidebar, Topbar, MoneyInput, ...), and once a build uses them, importing the barrel here put them in the
 //     chunks the public route loads (docs/web/budgets.md, "Public route imports").
@@ -34,7 +36,7 @@ export function PublicLayout() {
           id="main"
           tabIndex={-1}
           aria-busy={loading ? true : undefined}
-          className="min-h-[calc(100dvh-var(--header-height))]"
+          className="min-h-[calc(100dvh-var(--header-height))] [:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6))]"
         >
           <Outlet />
         </main>
