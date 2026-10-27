@@ -4,6 +4,8 @@
 //     control 30px under the bar is scrolled clear. The bottom spacing is on exactly where the bar is drawn.
 //   - The admin top bar (all five projects, at 1280, 820 and phone widths): Shift+Tab to a control 30px under it scrolls
 //     it clear. On the phones a Tab pass down and a Shift+Tab pass back through the Security tab stay clear of both bars.
+//   - The public site header (all five projects, on the dev-only /dev/public page that shows the real PublicLayout): the same
+//     Shift+Tab check at 1280, 820 and 390px and on the phones.
 // The real-scrollbar windows are in focus-scrollbars.spec.ts. Page scripts are strings (no DOM types here).
 import type { TestInfo } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
@@ -183,4 +185,36 @@ test('@focus-not-obscured every Security control stays clear of both bars, tabbi
   const up = await walk(page, 'Shift+Tab', (measure) => measure.label === 'Security');
   expect(up.labels[up.labels.length - 1], `controls going up: ${up.labels.join(', ')}`).toBe('Security');
   expect(up.scrolls, 'the page scrolled going up').toBeGreaterThanOrEqual(1);
+});
+
+test('@focus-not-obscured a control 30px under the public header is scrolled clear when Shift+Tab reaches it', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(90_000);
+  await page.goto('/dev/public');
+  await expect(page.getByRole('heading', { level: 1, name: 'Public layout check' })).toBeVisible();
+
+  const phoneWidth = page.viewportSize()?.width ?? 0;
+  const sizes = isDevice(testInfo)
+    ? [{ width: phoneWidth, height: 480 }]
+    : [
+        { width: 1280, height: 480 },
+        { width: 820, height: 480 },
+        { width: 390, height: 480 },
+      ];
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    const at = `${String(size.width)}x${String(size.height)}`;
+    const field6 = page.getByLabel('Field 6', { exact: true });
+    expectPlaced(await placeUnderBar(field6, 'top'), `Field 6 at ${at}`);
+    const header = await topBarHeight(page);
+    const { paddingTop } = await readSpacing(field6);
+    expect
+      .soft(paddingTop, `html scroll-padding-top at ${at} for a ${String(header)}px header`)
+      .toBeGreaterThanOrEqual((header ?? Number.POSITIVE_INFINITY) + 18);
+    await focusWithoutScroll(page.getByLabel('Field 7', { exact: true }));
+    await page.keyboard.press('Shift+Tab');
+    await expect(field6).toBeFocused();
+    expectClear(await settleAndMeasure(page), `Field 6 after Shift+Tab at ${at}`);
+  }
 });
