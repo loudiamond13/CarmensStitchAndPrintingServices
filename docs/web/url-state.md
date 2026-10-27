@@ -1,6 +1,6 @@
 ---
 created: 2026-10-08T13:35:00-05:00
-updated: 2026-10-14T10:45:00-05:00
+updated: 2026-10-26T16:18:49-05:00
 ---
 
 # List state in the URL, and the list query
@@ -94,7 +94,7 @@ When the screen opens on a URL with an invalid value (`?page=0&size=9999&status=
 |--------|---------|------|
 | `setPage(n)` | **push**: adds a history entry, so Back returns to the previous page | n (anything below 1 or not a whole number means 1) |
 | `setPageSize(size)` | replace | reset to 1 in the same update |
-| `setSearch(text)` | replace, after 300 ms without typing | reset to 1 in the same update |
+| `setSearch(text)` | replace, after 300 ms without typing; the list hook times the wait itself, so the search and the page reset land in one update (D-68) | reset to 1 in the same update |
 | `setSearch(text, { immediate: true })` (Enter) | replace at once, and cancels a pending write | reset to 1 |
 | `setFilter(key, value)` (filter, sort, tab, view) | replace | reset to 1 in the same update |
 | `setFilters({ ... })` (several values together) | replace | reset to 1 in the same update |
@@ -102,6 +102,13 @@ When the screen opens on a URL with an invalid value (`?page=0&size=9999&status=
 | `reset()` | replace | every key of the list removed |
 
 Setting a value to `null` or to its default removes it from the URL. Two setters called in the same event make one URL update (nuqs batches them).
+
+**While a search waits** (the 300 ms after the last keystroke):
+
+- The screen already shows the typed search and page 1; only the URL write waits.
+- Enter (`{ immediate: true }`) writes at once.
+- Any other change (a filter, the page size, the page) writes the waiting search in the same update, with that change's own history mode.
+- `reset()` and leaving the list drop the waiting search, so nothing is written later.
 
 Call `clampPage(totalPages)` once the server has said how many pages there are. When there are no rows at all, show the EmptyState component; do not change the page further.
 

@@ -1,8 +1,8 @@
 // The params a list query keys on (WEB-08, WEB-10; plan 02-30). A list passes its parsed URL values (from its
 // createListParams hook) through this hook and gives the result to useListQuery, instead of debouncing only `q`.
 //
-// Why: setSearch writes the search and resets the page in one update, and nuqs applies both to the hook's values at
-// once (only the URL write waits 300 ms). Debouncing `q` alone then changed the key twice: at the first keystroke
+// Why: setSearch writes the search and resets the page in one update, and the list hook shows both at once (only the
+// URL write waits 300 ms). Debouncing `q` alone then changed the key twice: at the first keystroke
 // (page 1, the old search: an extra, unfiltered request) and again when the text settled. Here, while the typed search
 // has not settled (useDebouncedValue), the query keeps the whole set of values it last ran with, so typing "jersey"
 // starts exactly one request, for the settled text and the reset page. Every other change (Next, a filter, the page
