@@ -301,6 +301,7 @@ public sealed class UpdateUserEndpointTests(CspsDatabase database) : IClassFixtu
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = AuthClient.CreateClient(factory);
+        var guardRefusals = 0;
 
         for (var run = 0; run < 20; run++)
         {
@@ -321,14 +322,29 @@ public sealed class UpdateUserEndpointTests(CspsDatabase database) : IClassFixtu
             using (first)
             using (second)
             {
-                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
-                    .ShouldBe([HttpStatusCode.OK, HttpStatusCode.UnprocessableEntity], $"run {run}");
-                var loser = first.StatusCode == HttpStatusCode.UnprocessableEntity ? first : second;
-                (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("users.last-active-manager", $"run {run}");
-            }
+                // Exactly one demotion wins; the other caller is the survivor.
+                (first.StatusCode == HttpStatusCode.OK ^ second.StatusCode == HttpStatusCode.OK).ShouldBeTrue($"run {run}: {first.StatusCode}, {second.StatusCode}");
+                var aWon = first.StatusCode == HttpStatusCode.OK;
+                var loser = aWon ? second : first;
+                var loserToken = aWon ? b.AccessToken : a.AccessToken;
+                (await ActiveManagersAsync()).ShouldBe([aWon ? a.UserId : b.UserId], $"run {run}");
 
-            (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
+                if (loser.StatusCode == HttpStatusCode.UnprocessableEntity)
+                {
+                    (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("users.last-active-manager", $"run {run}");
+                    guardRefusals++;
+                }
+                else
+                {
+                    // The winner's demotion signed the loser out before its request was authenticated (D-75).
+                    loser.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, $"run {run}");
+                    (await AuthClient.SiteSettingsStatusAsync(client, loserToken)).ShouldBe(HttpStatusCode.Unauthorized, $"run {run}");
+                }
+            }
         }
+
+        // The race must still reach the last-Manager guard, not only the sign-out path.
+        guardRefusals.ShouldBeGreaterThan(0);
     }
 
     [Fact]

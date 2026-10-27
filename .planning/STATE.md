@@ -4,10 +4,10 @@ current_phase: 7
 current_phase_name: Order Domain & API
 status: planning
 stopped_at: Phase 06 shipped as PR
-last_updated: "2026-10-26T13:32:47.364Z"
+last_updated: "2026-10-27T03:11:07.236Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 06 shipped as PR
-state_head: 8431bb8aa72a620bfaa5ddbee1286ac86ac6125d
+state_head: 11edfd4e0c540951beb0bbbbb3a28f3f46e60964
 progress:
   total_phases: 17
   completed_phases: 6
@@ -15,7 +15,7 @@ progress:
   completed_plans: 187
   percent: 35
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-26T09:39:00-05:00"
+updated: "2026-10-26T22:11:00-05:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 Phase: 7 — Order Domain & API
 Plan: Not started
 Status: Ready to plan (Phase 06 shipped as PR #11, awaiting merge)
-Last activity: 2026-10-26 - Completed quick task 261026-au5: Fix npm audit advisories on PR 11
+Last activity: 2026-10-26 - Completed quick task 261026-m16: List search writes the page reset in one URL update
 
 Progress: [████░░░░░░] 35%
 
@@ -658,6 +658,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Ship 06]: D-64 (owner, 2026-10-26): the package fix goes on the PR #11 branch. D-67 (owner, 2026-10-26): the nine non-conventional UI-fix commit subjects were then reworded to `type(06): ...` and the branch force-pushed, trees unchanged; old commit ids in the planning docs were remapped (backup ref `backup/phase-06-before-reword`, local only).
 - [Ship 06]: D-65 (owner, 2026-10-26): zod 4.6.7 is forced everywhere with one top-level npm override (the axe-core pattern), not a nested one. Accepted risk: Lighthouse's unused WebDriver BiDi driver (chromium-bidi 17.0.2, written for zod 3) gives a generic TypeError on malformed input instead of its own error; Lighthouse does not load it (quick 261026-au5).
 - [Ship 06]: D-66 (owner, 2026-10-26): the test-only packages vitest 5.0.4 requires (about 12, including obug 3 and why-is-node-running 3.2.1) are accepted; any other lockfile change stops the task.
+- [Ship 06]: D-68 (owner, 2026-10-26): main CI for a8c408bf failed twice on useUsersListParams "a search writes after 300 ms ... resets the page" (passes alone locally 5 of 5). Root cause: nuqs 2.10.1 debounces each URL key on its own timer, so q and the page reset can flush as two URL updates under load. Fixed in a small PR (quick 261026-m16, branch fix/list-search-single-update) before deploying, not by re-running CI.
+- [Ship 06]: D-69 (owner, 2026-10-26): in the 261026-m16 fix the list hook shows a waiting search and page 1 at once (a waiting view over the nuqs values) while the URL write waits 300 ms; a search still waiting joins the next setter's single URL update; reset and unmount drop it.
+- [Ship 06]: D-75 (owner, 2026-10-26): UpdateUserEndpointTests.TwoManagersDemotingEachOtherTogetherLeaveExactlyOneActiveManagerEveryTime failed once in PR #13's CI re-run (loser got 401, not 422: the winner's demotion signed it out before its request authenticated; still exactly one active Manager). The test now requires exactly one winner and the winner as the only active Manager, accepts a 401 only when the loser's token is then rejected, and requires the 422 guard path at least once in the 20 rounds (fast task, commit 11edfd4e).
 - [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 
 ### Pending Todos
@@ -733,6 +736,8 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 | 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
 | 261026-89i | Phase 6 UI review fixes (D-60, D-61, D-62) | 2026-10-26 | b0c3e9eb | [261026-89i-phase-6-ui-review-fixes-d-60](./quick/261026-89i-phase-6-ui-review-fixes-d-60/) |
 | 261026-au5 | Fix npm audit advisories on PR 11 (D-63 to D-66) | 2026-10-26 | 8431bb8a | [261026-au5-fix-npm-audit-advisories-on-pr-11](./quick/261026-au5-fix-npm-audit-advisories-on-pr-11/) |
+| 261026-m16 | List search writes the page reset in one URL update (D-68, D-69) | 2026-10-26 | 4bb2c5b5 | [261026-m16-list-search-writes-the-page-reset-in-one](./quick/261026-m16-list-search-writes-the-page-reset-in-one/) |
+| 30 | D-75: two-Manager demotion race test accepts the sign-out path, guard path still required | 2026-10-26 | 11edfd4e | — |
 
 ## Deferred Items
 
