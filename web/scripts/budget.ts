@@ -104,11 +104,13 @@ export const ADMIN_SIGN_IN_ROUTE: readonly string[] = Object.freeze([
 /**
  * Module path prefixes that must never reach a production build (D-20, CWE-489). Since Phase 4 the guarded admin app
  * ships; since plan 05-35 so does the component showcase (D-33), with the modules it renders. What stays out is the
- * look-equality parity entry, the visual parity code, and the dev-only preview page with its copy.
+ * look-equality parity entry, the visual parity code, the dev-only preview page with its copy, and the dev-only public
+ * layout check page.
  */
 export const DEV_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
   'src/modules/admin/pages/AdminPreviewPage',
   'src/modules/admin/previewCopy',
+  'src/modules/public/pages/PublicLayoutCheckPage',
   'src/dev/parity-main',
   'visual/',
 ]);

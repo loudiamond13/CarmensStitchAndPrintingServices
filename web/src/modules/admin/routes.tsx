@@ -12,8 +12,8 @@
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
 //   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the same
-//     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11). Nothing
-//     there ships.
+//     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11), and
+//     /dev/public, the real PublicLayout around a column of fields for the e2e focus checks. Nothing there ships.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
 // `@__PURE__` marks: an unused tree is then dropped whole, and its dynamic imports never become chunks.
 import { redirect, type LoaderFunction, type RouteObject } from 'react-router';
@@ -29,6 +29,14 @@ const previewPage = /* @__PURE__ */ lazyRoute(async () => ({
 
 const notFoundPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AdminNotFoundPage')).AdminNotFoundPage,
+}));
+
+const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/layouts/PublicLayout')).PublicLayout,
+}));
+
+const publicCheckPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/public/pages/PublicLayoutCheckPage')).PublicLayoutCheckPage,
 }));
 
 const adminLayout = /* @__PURE__ */ lazyRoute(async () => ({
@@ -207,5 +215,11 @@ export const devRoutes: RouteObject[] = [
         lazy: showcasePage,
       },
     ],
+  },
+  {
+    path: 'dev/public',
+    ErrorBoundary: AdminRootErrorBoundary,
+    lazy: publicLayout,
+    children: [{ index: true, lazy: publicCheckPage }],
   },
 ];
