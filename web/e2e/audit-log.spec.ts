@@ -21,11 +21,6 @@ function entryRows(page: Page) {
   return page.locator('tbody tr', { has: page.locator('td[data-label="Action"]') });
 }
 
-/** Brings the first entry to the middle of the screen: on a phone a card behind the fixed tab bar reads to axe as an obscured target. */
-async function centerFirstEntry(page: Page): Promise<void> {
-  await page.evaluate(`document.querySelector('tbody td[data-label="Action"]')?.scrollIntoView({ block: 'center' })`);
-}
-
 /** The description-list value that follows a term inside one expanded detail. */
 function detailValue(scope: Locator, term: string): Locator {
   return scope.locator('dt', { hasText: new RegExp(`^${term}$`) }).locator('xpath=following-sibling::dd[1]');
@@ -125,7 +120,6 @@ test('@audit a Manager finds a deactivation by Action and Done to, reads its det
   await expect(entry.locator('td[data-label="Done to"]')).toContainText('E2E Staff');
   await expect(entry.locator('td[data-label="When"] time')).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
   await expect(page.getByText('Showing 1 entry · newest first')).toBeVisible();
-  await centerFirstEntry(page);
   await expectNoAxeViolations(page);
 
   // D-27: the toggle opens the detail, with the network prefix, the browser family and the reference.
@@ -142,7 +136,6 @@ test('@audit a Manager finds a deactivation by Action and Done to, reads its det
   await expect(detailValue(detail, 'Reference')).toHaveText(/\S/);
   // The deactivation has nothing more to say (D-40), so there is no What changed line.
   await expect(detail.locator('dt', { hasText: 'What changed' })).toHaveCount(0);
-  await centerFirstEntry(page);
   await expectNoAxeViolations(page);
 
   // D-26: Everything kept widens the range; the chip and the URL say so.
@@ -301,13 +294,11 @@ test('@audit a Manager edits an expense amount and payer, then finds both entrie
   const payerEntry = entryRows(page).first();
   await expect(payerEntry.locator('td[data-label="Action"]')).toHaveText('Expense payer changed');
   await expect(payerEntry.locator('td[data-label="Done to"]')).toContainText(newName);
-  await centerFirstEntry(page);
   await press(page, payerEntry.getByRole('button', { name: /^Show details for Expense payer changed, / }));
   const open = payerEntry.getByRole('button', { name: /^Hide details for Expense payer changed, / });
   await expect(open).toHaveAttribute('aria-expanded', 'true');
   const payerDetail = page.locator(`#${(await open.getAttribute('aria-controls')) ?? 'missing'}`);
   await expect(detailValue(payerDetail, 'What changed')).toHaveText(`Paid by: ${oldName} to ${newName}`);
-  await centerFirstEntry(page);
   await expectNoAxeViolations(page);
 
   // The same save also wrote Expense changed, about the current payer, with the amount line and no description line.
@@ -317,13 +308,11 @@ test('@audit a Manager edits an expense amount and payer, then finds both entrie
   await expect(entryRows(page)).toHaveCount(1);
   const changedEntry = entryRows(page).first();
   await expect(changedEntry.locator('td[data-label="Done to"]')).toContainText(newName);
-  await centerFirstEntry(page);
   await press(page, changedEntry.getByRole('button', { name: /^Show details for Expense changed, / }));
   const openChanged = changedEntry.getByRole('button', { name: /^Hide details for Expense changed, / });
   const changedDetail = page.locator(`#${(await openChanged.getAttribute('aria-controls')) ?? 'missing'}`);
   await expect(detailValue(changedDetail, 'What changed')).toHaveText('Amount: ₱1,200.00 to ₱1,250.00');
   await expect(changedDetail).not.toContainText('Description changed');
-  await centerFirstEntry(page);
   await expectNoAxeViolations(page);
 
   // No description or notes text is on the page, and the address holds ids only.
