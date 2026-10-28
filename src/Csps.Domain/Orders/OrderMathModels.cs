@@ -2,7 +2,7 @@ namespace Csps.Domain.Orders;
 
 /// <summary>How an order discount is valued.</summary>
 /// <remarks>
-/// The values start at 1, so an unset kind (<c>default</c>, 0) is never a valid kind and <see cref="OrderMath.Compute"/>
+/// The values start at 1, so an unset kind (<c>default</c>, 0) is never a valid kind and <see cref="OrderMath"/>
 /// rejects it instead of reading it as a fixed amount (NET-WR-01).
 /// </remarks>
 public enum DiscountKind
@@ -14,12 +14,12 @@ public enum DiscountKind
     Percentage = 2,
 }
 
-/// <summary>One order line for <see cref="OrderMath.Compute"/>.</summary>
+/// <summary>One order line for <see cref="OrderMath"/>.</summary>
 /// <param name="Quantity">The number of pieces.</param>
 /// <param name="UnitPrice">The price of one piece, in pesos.</param>
 public sealed record OrderMathItem(int Quantity, decimal UnitPrice);
 
-/// <summary>One order discount for <see cref="OrderMath.Compute"/>.</summary>
+/// <summary>One order discount for <see cref="OrderMath"/>.</summary>
 /// <param name="Kind">Fixed amount or percentage.</param>
 /// <param name="Value">The peso amount (fixed) or the percent, where 7.5 means 7.5% (percentage).</param>
 public sealed record OrderMathDiscount(DiscountKind Kind, decimal Value);
@@ -56,4 +56,11 @@ public sealed record OrderMathResult(
     decimal Balance,
     decimal Expenses,
     decimal Profit,
-    bool FullyPaid);
+    bool FullyPaid)
+{
+    /// <summary>The sum of the refunds, rounded to the centavo. Zero when nothing was refunded.</summary>
+    public decimal Refunded { get; init; }
+
+    /// <summary>What the shop owes the customer: the balance when it is below zero, otherwise zero (D-12).</summary>
+    public decimal CustomerCredit { get; init; }
+}

@@ -19,11 +19,28 @@ namespace Csps.Domain.Orders;
 /// </remarks>
 public static class OrderMath
 {
-    /// <summary>Computes the order figures in the pinned operation order (D-09).</summary>
+    /// <summary>Computes the order figures with no refunds for an order that is not cancelled (D-09).</summary>
     /// <param name="items">The order lines.</param>
     /// <param name="discounts">The order discounts. A percentage applies to the rounded subtotal.</param>
     /// <param name="payments">The payment amounts.</param>
     /// <param name="expenses">The order expense amounts.</param>
+    /// <returns>The figures, each rounded to the centavo, exactly as in the v2 golden vectors.</returns>
+    /// <exception cref="ArgumentNullException">A list is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A discount has a kind that is not defined.</exception>
+    public static OrderMathResult Compute(
+        IReadOnlyList<OrderMathItem> items,
+        IReadOnlyList<OrderMathDiscount> discounts,
+        IReadOnlyList<decimal> payments,
+        IReadOnlyList<decimal> expenses) =>
+        Compute(items, discounts, payments, [], expenses, cancelled: false);
+
+    /// <summary>Computes the order figures in the pinned operation order (D-09), with refunds.</summary>
+    /// <param name="items">The order lines.</param>
+    /// <param name="discounts">The order discounts. A percentage applies to the rounded subtotal.</param>
+    /// <param name="payments">The payment amounts.</param>
+    /// <param name="refunds">The refund amounts. Each refund hands money back, so it raises the balance (D-13).</param>
+    /// <param name="expenses">The order expense amounts.</param>
+    /// <param name="cancelled">True when the order is cancelled; profit then follows D-36.</param>
     /// <returns>
     /// The figures, each rounded to the centavo. The total and the balance may be negative (a discount above the
     /// subtotal, or payments above what is owed); this is arithmetic only and implies no business rule.
@@ -34,11 +51,14 @@ public static class OrderMath
         IReadOnlyList<OrderMathItem> items,
         IReadOnlyList<OrderMathDiscount> discounts,
         IReadOnlyList<decimal> payments,
-        IReadOnlyList<decimal> expenses)
+        IReadOnlyList<decimal> refunds,
+        IReadOnlyList<decimal> expenses,
+        bool cancelled)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(discounts);
         ArgumentNullException.ThrowIfNull(payments);
+        ArgumentNullException.ThrowIfNull(refunds);
         ArgumentNullException.ThrowIfNull(expenses);
 
         // 1. Round the items total (the PRD Subtotal).
@@ -48,11 +68,12 @@ public static class OrderMath
         var discount = Round(discounts.Sum(d => DiscountAmount(d, subtotal)));
 
         var paid = Round(payments.Sum());
+        var refunded = Round(refunds.Sum());
         var expenseTotal = Round(expenses.Sum());
 
         // 4. Subtract (PRD section 5.1).
         var total = subtotal - discount;
-        var balance = total - paid;
+        var balance = total - paid + refunded;
         var profit = total - expenseTotal;
 
         // D-41 R2-06 (NET-IN-01 ruled keep): fully paid needs a subtotal above zero, not a total above zero.
@@ -64,7 +85,10 @@ public static class OrderMath
             balance,
             expenseTotal,
             profit,
-            FullyPaid: subtotal > 0m && balance <= 0m);
+            FullyPaid: subtotal > 0m && balance <= 0m)
+        {
+            Refunded = refunded,
+        };
     }
 
     // An undefined kind (out of range, or the unset value 0) fails loudly: guessing "fixed" would turn a mis-mapped
