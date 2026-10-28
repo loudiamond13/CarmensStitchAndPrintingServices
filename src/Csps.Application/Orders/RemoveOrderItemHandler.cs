@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 
 namespace Csps.Application.Orders;
@@ -8,12 +9,14 @@ namespace Csps.Application.Orders;
 /// <summary>
 /// Use case: a staff member removes one item of a saved order (ORD-05, ORD-13). No version is sent: the removal applies to the
 /// latest state, so a lost race is read again and decided again once, and a second lost race is the stale-version 409. The item is
-/// found on that order only (404, CWE-639), and the last item of an order is never removed (422). The totals are worked out again.
+/// found on that order only (404, CWE-639), and the last item of an order is never removed (422). The totals are worked out again, and one
+/// <c>order-item.removed</c> entry joins the same save (D-31).
 /// </summary>
 public sealed class RemoveOrderItemHandler(
     IOrders orders,
     IOrderReader reader,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
 {
@@ -36,13 +39,16 @@ public sealed class RemoveOrderItemHandler(
         var outcome = await ConflictRetry.RunAsync(
             () => OrderChildWrite.AttemptAsync(
                 orders,
+                audit,
                 unitOfWork,
                 orderId,
                 version: null,
                 (order, _) =>
                 {
                     var removed = order.RemoveItem(itemId, clock.UtcNow);
-                    return Task.FromResult(removed.IsFailure ? Result.Failure<bool>(removed.Error) : Result.Success(true));
+                    return Task.FromResult(removed.IsFailure
+                        ? Result.Failure<OrderChildAudit?>(removed.Error)
+                        : Result.Success<OrderChildAudit?>(new OrderChildAudit(AuditActions.OrderItemRemoved, OrderAuditDetail.ItemRemoved(removed.Value))));
                 },
                 cancellationToken),
             Result.Failure<bool>(EditErrors.Stale)).ConfigureAwait(false);

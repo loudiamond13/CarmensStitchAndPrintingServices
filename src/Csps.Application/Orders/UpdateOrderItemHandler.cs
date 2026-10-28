@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
 using FluentValidation;
@@ -14,13 +15,15 @@ namespace Csps.Application.Orders;
 /// found on that order only (404, CWE-639). A product type is checked against the database only when the edit changes it, because an
 /// item may keep a type that was retired after it was saved (D-19, 06 D-11); a switch to a retired or unknown type is a 400. The
 /// domain then checks every rule again, works the totals out again and moves the order's version. A form save never retries on a
-/// conflict. An edit that changes nothing saves nothing and keeps the version.
+/// conflict. An edit that changes nothing saves nothing, records nothing and keeps the version; a change records one
+/// <c>order-item.changed</c> entry in the same save (D-31).
 /// </summary>
 public sealed class UpdateOrderItemHandler(
     IOrders orders,
     IOrderReader reader,
     IOrderLists lists,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<UpdateOrderItemRequest> validator)
@@ -56,6 +59,7 @@ public sealed class UpdateOrderItemHandler(
         return await OrderChildWrite.SaveFormAsync(
             orders,
             reader,
+            audit,
             unitOfWork,
             orderId,
             version,
@@ -68,12 +72,18 @@ public sealed class UpdateOrderItemHandler(
                     await OrderReferenceChecks.AddProductTypeFailureAsync(lists, values.ProductTypeId, typeCheck, token).ConfigureAwait(false);
                     if (!typeCheck.IsValid)
                     {
-                        return Result.Failure<bool>(ValidationResults.ToError(typeCheck, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));
+                        return Result.Failure<OrderChildAudit?>(ValidationResults.ToError(typeCheck, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));
                     }
                 }
 
                 var changes = order.UpdateItem(itemId, values, clock.UtcNow);
-                return changes.IsFailure ? Result.Failure<bool>(changes.Error) : Result.Success(changes.Value.HasAny);
+                if (changes.IsFailure)
+                {
+                    return Result.Failure<OrderChildAudit?>(changes.Error);
+                }
+
+                return Result.Success<OrderChildAudit?>(
+                    changes.Value.HasAny ? new OrderChildAudit(AuditActions.OrderItemChanged, OrderAuditDetail.ItemChanged(existing!, changes.Value)) : null);
             },
             cancellationToken).ConfigureAwait(false);
     }

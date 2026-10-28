@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
 using FluentValidation;
@@ -12,13 +13,15 @@ namespace Csps.Application.Orders;
 /// ORD-13). The form is checked against the item rules and, in the same 400, against the database: the product type must exist and
 /// not be retired (D-18). The order is then found (404), the version compared (409), and the domain checks every rule again,
 /// refuses a 101st item (422), works the totals out again and moves the order's version. A form save never retries on a conflict:
-/// the person reloads and decides. Who added the item and when come from the token and the clock, never from the request (SEC-08).
+/// the person reloads and decides. One <c>order-item.added</c> entry (item id, product type, quantity and unit price, never the
+/// text) joins the same save (D-31). Who added the item and when come from the token and the clock, never from the request (SEC-08).
 /// </summary>
 public sealed class AddOrderItemHandler(
     IOrders orders,
     IOrderReader reader,
     IOrderLists lists,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<AddOrderItemRequest> validator)
@@ -54,13 +57,16 @@ public sealed class AddOrderItemHandler(
         return await OrderChildWrite.SaveFormAsync(
             orders,
             reader,
+            audit,
             unitOfWork,
             orderId,
             version,
             (order, _) =>
             {
                 var added = order.AddItem(item, clock.UtcNow);
-                return Task.FromResult(added.IsFailure ? Result.Failure<bool>(added.Error) : Result.Success(true));
+                return Task.FromResult(added.IsFailure
+                    ? Result.Failure<OrderChildAudit?>(added.Error)
+                    : Result.Success<OrderChildAudit?>(new OrderChildAudit(AuditActions.OrderItemAdded, OrderAuditDetail.ItemAdded(added.Value))));
             },
             cancellationToken).ConfigureAwait(false);
     }

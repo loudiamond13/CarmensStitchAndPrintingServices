@@ -179,7 +179,11 @@ Each create writes one `order.created` entry for the order, in the same save: `n
 Each details edit that changes something writes one `order.changed` entry in the same save: `orderDate=<old>><new>` and
 `dueDate=<old>><new>` for the dates that changed, then `fields=` naming the customer details and notes that changed (for example
 `fields=customerName,notes`). An imported order that had no due date shows an empty old value: `dueDate=><new>`.
-Neither entry ever holds the customer name, team, contact number, email, address or notes. The full list of order audit codes is in
+Each item add, edit that changes something, and removal writes one entry for the order (target `Order`, the order id), in the same
+save: `order-item.added`, `order-item.changed` and `order-item.removed`, each with `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>`.
+A change shows `old>new` on the pairs that changed and ends with `fields=description,sizeVariant` naming the text fields that
+changed. A save that changes nothing, and every refusal, writes nothing.
+No entry ever holds the customer name, team, contact number, email, address or notes, or an item's description or size. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
 
 ## What is stored (D-23, D-26)

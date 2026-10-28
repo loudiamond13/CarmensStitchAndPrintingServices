@@ -5,31 +5,42 @@ using Csps.Domain.Orders;
 
 namespace Csps.Application.Orders;
 
+/// <summary>The audit entry a child change records for its order (D-31).</summary>
+/// <param name="Action">The audit action, such as <c>order-item.added</c>.</param>
+/// <param name="Detail">The detail text, without customer or item text.</param>
+internal sealed record OrderChildAudit(string Action, string Detail);
+
 /// <summary>
 /// The one flow every write to an order's children uses (ORD-08, SEC-07): inside one transaction the order is found with its
 /// children (404 when missing or deleted), the version the form was opened with is compared when one is given (409), the domain
-/// change runs and is saved. Children are only ever reached through their order, so an id from another order is never found
-/// (CWE-639). Any change a child makes moves the order's edit version, so the order's row version decides who wins a race.
+/// change runs, and when it changed something the order's row is locked, its audit entry is recorded and the save is made.
+/// Children are only ever reached through their order, so an id from another order is never found (CWE-639). Any change a child
+/// makes moves the order's edit version, so the order's row version decides who wins a race, and the loser rolls its audit entry
+/// back with its change.
 /// </summary>
 internal static class OrderChildWrite
 {
+    private const string OrderTarget = "Order";
+
     /// <summary>
     /// Runs one attempt. A lost race at save time throws <see cref="ConcurrencyConflictException"/> for the caller to turn into a 409
     /// or to retry.
     /// </summary>
     /// <param name="orders">The order store.</param>
+    /// <param name="audit">The audit trail.</param>
     /// <param name="unitOfWork">The unit of work.</param>
     /// <param name="orderId">The order the child belongs to.</param>
     /// <param name="version">The version the form was opened with; null for a single-click action that acts on the latest state.</param>
-    /// <param name="change">Applies the domain change; true when something changed and must be saved.</param>
+    /// <param name="change">Applies the domain change; the audit entry to record, or null when nothing changed and nothing is saved.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>True when a change was saved, false when nothing changed, or the failure.</returns>
     public static Task<Result<bool>> AttemptAsync(
         IOrders orders,
+        IAuditTrail audit,
         IUnitOfWork unitOfWork,
         Guid orderId,
         byte[]? version,
-        Func<Order, CancellationToken, Task<Result<bool>>> change,
+        Func<Order, CancellationToken, Task<Result<OrderChildAudit?>>> change,
         CancellationToken cancellationToken) =>
         unitOfWork.InTransactionAsync(
             async token =>
@@ -46,12 +57,21 @@ internal static class OrderChildWrite
                 }
 
                 var outcome = await change(order, token).ConfigureAwait(false);
-                if (outcome.IsSuccess && outcome.Value)
+                if (outcome.IsFailure)
                 {
-                    await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
+                    return Result.Failure<bool>(outcome.Error);
                 }
 
-                return outcome;
+                if (outcome.Value is not { } entry)
+                {
+                    return Result.Success(false);
+                }
+
+                // The order's row is locked before any child row is written, so two writers never wait on each other's rows.
+                await orders.LockAsync(order, token).ConfigureAwait(false);
+                audit.Record(entry.Action, OrderTarget, AuditKey.Of(order.Id), entry.Detail);
+                await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
+                return Result.Success(true);
             },
             cancellationToken);
 
@@ -60,24 +80,26 @@ internal static class OrderChildWrite
     /// </summary>
     /// <param name="orders">The order store.</param>
     /// <param name="reader">The order reader.</param>
+    /// <param name="audit">The audit trail.</param>
     /// <param name="unitOfWork">The unit of work.</param>
     /// <param name="orderId">The order the child belongs to.</param>
     /// <param name="version">The version the form was opened with.</param>
-    /// <param name="change">Applies the domain change; true when something changed and must be saved.</param>
+    /// <param name="change">Applies the domain change; the audit entry to record, or null when nothing changed and nothing is saved.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The order as saved, or the failure.</returns>
     public static async Task<Result<OrderDetailResponse>> SaveFormAsync(
         IOrders orders,
         IOrderReader reader,
+        IAuditTrail audit,
         IUnitOfWork unitOfWork,
         Guid orderId,
         byte[] version,
-        Func<Order, CancellationToken, Task<Result<bool>>> change,
+        Func<Order, CancellationToken, Task<Result<OrderChildAudit?>>> change,
         CancellationToken cancellationToken)
     {
         try
         {
-            var outcome = await AttemptAsync(orders, unitOfWork, orderId, version, change, cancellationToken).ConfigureAwait(false);
+            var outcome = await AttemptAsync(orders, audit, unitOfWork, orderId, version, change, cancellationToken).ConfigureAwait(false);
             if (outcome.IsFailure)
             {
                 return Result.Failure<OrderDetailResponse>(outcome.Error);

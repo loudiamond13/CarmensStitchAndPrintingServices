@@ -491,6 +491,66 @@ public sealed class OrderItemHandlerTests
         retired.Audit.Entries.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task EveryChangeLocksTheOrderOnceBeforeTheSaveAndANoOpNeverLocks()
+    {
+        var added = new Harness();
+        added.SetProductType(PoloType, retired: false);
+        var edited = new Harness();
+        var removed = new Harness();
+        var noOp = new Harness();
+
+        await added.Add.HandleAsync(added.OrderId, ValidAdd(), TestContext.Current.CancellationToken);
+        await edited.Update.HandleAsync(edited.OrderId, edited.FirstItemId, ValidUpdate(), TestContext.Current.CancellationToken);
+        await removed.Remove.HandleAsync(removed.OrderId, removed.FirstItemId, TestContext.Current.CancellationToken);
+        await noOp.Update.HandleAsync(noOp.OrderId, noOp.FirstItemId, ValidUpdate() with { Quantity = 15 }, TestContext.Current.CancellationToken);
+
+        added.LockedAtSave.ShouldBe([0]);
+        edited.LockedAtSave.ShouldBe([0]);
+        removed.LockedAtSave.ShouldBe([0]);
+        noOp.LockedAtSave.ShouldBeEmpty();
+        await added.Orders.Received(1).LockAsync(added.Last, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AFormSaveThatLosesTheLockIsStaleSavesNothingAndIsNotRetried()
+    {
+        var add = new Harness();
+        add.SetProductType(PoloType, retired: false);
+        add.FailLocks(1);
+        var edit = new Harness();
+        edit.FailLocks(1);
+
+        var added = await add.Add.HandleAsync(add.OrderId, ValidAdd(), TestContext.Current.CancellationToken);
+        var edited = await edit.Update.HandleAsync(edit.OrderId, edit.FirstItemId, ValidUpdate(), TestContext.Current.CancellationToken);
+
+        added.Error.ShouldBe(EditErrors.Stale);
+        edited.Error.ShouldBe(EditErrors.Stale);
+        add.Unit.Saves.ShouldBe(0);
+        edit.Unit.Saves.ShouldBe(0);
+        add.LockedAtSave.Count.ShouldBe(1);
+        add.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ARemoveThatLosesTheLockReadsTheOrderAgainAndDecidesAgain()
+    {
+        var once = new Harness();
+        once.FailLocks(1);
+        var twice = new Harness();
+        twice.FailLocks(2);
+
+        var recovered = await once.Remove.HandleAsync(once.OrderId, once.FirstItemId, TestContext.Current.CancellationToken);
+        var gaveUp = await twice.Remove.HandleAsync(twice.OrderId, twice.FirstItemId, TestContext.Current.CancellationToken);
+
+        recovered.IsSuccess.ShouldBeTrue();
+        once.LockedAtSave.ShouldBe([0, 0]);
+        once.Unit.Saves.ShouldBe(1);
+        gaveUp.Error.ShouldBe(EditErrors.Stale);
+        twice.Unit.Saves.ShouldBe(0);
+        twice.LockedAtSave.Count.ShouldBe(2);
+    }
+
     private static AddOrderItemRequest ValidAdd() => new(PoloType, "Warm-up", "XL", 3, 400.00m, StoredVersionText);
 
     private static UpdateOrderItemRequest ValidUpdate() => new(JerseyType, "Jersey top", "S-XL", 16, 650.00m, StoredVersionText);
@@ -504,6 +564,7 @@ public sealed class OrderItemHandlerTests
     private sealed class Harness
     {
         private readonly List<Order> _loaded = [];
+        private int _lockFailures;
 
         public Harness(bool noCaller = false, bool found = true, int itemCount = 2)
         {
@@ -514,6 +575,17 @@ public sealed class OrderItemHandlerTests
             Orders = Substitute.For<IOrders>();
             Orders.FindAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
                 .Returns(_ => Task.FromResult<Order?>(found ? Load(seed) : null));
+            Orders.LockAsync(Arg.Any<Order>(), Arg.Any<CancellationToken>()).Returns(_ =>
+            {
+                LockedAtSave.Add(Unit.Saves);
+                if (_lockFailures > 0)
+                {
+                    _lockFailures--;
+                    throw new ConcurrencyConflictException(new InvalidOperationException("The order was changed after it was loaded."));
+                }
+
+                return Task.CompletedTask;
+            });
             Reader = Substitute.For<IOrderReader>();
             Reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<OrderDetailResponse?>(Detail()));
             Lists = Substitute.For<IOrderLists>();
@@ -539,6 +611,9 @@ public sealed class OrderItemHandlerTests
 
         public SaveAwareAudit Audit { get; }
 
+        /// <summary>Gets how many saves had happened each time the order was locked.</summary>
+        public List<int> LockedAtSave { get; } = [];
+
         public AddOrderItemHandler Add { get; }
 
         public UpdateOrderItemHandler Update { get; }
@@ -547,6 +622,8 @@ public sealed class OrderItemHandlerTests
 
         /// <summary>Gets the order instance the handlers worked on last.</summary>
         public Order Last => _loaded[^1];
+
+        public void FailLocks(int count) => _lockFailures = count;
 
         public void SetProductType(Guid id, bool retired) =>
             Lists.GetStatesAsync(OrderListKind.ProductType, Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Contains(id)), Arg.Any<CancellationToken>())

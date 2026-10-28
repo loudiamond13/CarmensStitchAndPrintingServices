@@ -15,4 +15,16 @@ public interface IOrders
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The order, or null when none matches.</returns>
     Task<Order?> FindAsync(Guid id, bool includeDeleted, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Takes the write lock on the order's row, kept to the end of the transaction, before any of its children are written. A
+    /// child write that inserts or deletes a row first and updates the order second can wait on a reader that waits on it, and
+    /// SQL Server kills one of them; taking the order's row first makes the second writer wait here, where it holds nothing, and
+    /// lose cleanly. Call it only when there is a change to save: it moves the order's row version.
+    /// </summary>
+    /// <param name="order">The tracked order, as found by <see cref="FindAsync"/>.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>A task that completes once the lock is held and the order carries the new row version.</returns>
+    /// <exception cref="Csps.Application.Common.ConcurrencyConflictException">Another request changed the order after it was found; the tracked state has been dropped.</exception>
+    Task LockAsync(Order order, CancellationToken cancellationToken);
 }

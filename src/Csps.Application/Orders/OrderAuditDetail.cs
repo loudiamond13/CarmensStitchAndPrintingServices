@@ -57,4 +57,55 @@ public static class OrderAuditDetail
 
         return AuditDetailFormat.Join([.. parts]);
     }
+
+    /// <summary>The detail of <c>order-item.added</c>: the item id, product type, quantity and unit price, never the description or size.</summary>
+    /// <param name="item">The item that was added.</param>
+    /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>
+    public static string ItemAdded(OrderItem item) => ItemSnapshot(item);
+
+    /// <summary>The detail of <c>order-item.removed</c>: the item id, product type, quantity and unit price as they were.</summary>
+    /// <param name="item">The item that was removed.</param>
+    /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>
+    public static string ItemRemoved(OrderItem item) => ItemSnapshot(item);
+
+    /// <summary>
+    /// The detail of <c>order-item.changed</c>: the item id, then <c>productType</c>, <c>quantity</c> and <c>unitPrice</c> as
+    /// <c>old&gt;new</c> where they changed and as the current value where they did not, then <c>fields=</c> naming the text fields
+    /// that changed (<c>description</c>, <c>sizeVariant</c>). Their text never goes in.
+    /// </summary>
+    /// <param name="item">The item after the change.</param>
+    /// <param name="changes">What the edit changed.</param>
+    /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=15&gt;20;unitPrice=650.00;fields=description</c>.</returns>
+    public static string ItemChanged(OrderItem item, OrderItemChanges changes)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(changes);
+
+        var parts = new List<string>
+        {
+            AuditDetailFormat.Pair("item", item.Id),
+            changes.ProductType is { } type ? AuditDetailFormat.Change("productType", type.From, type.To) : AuditDetailFormat.Pair("productType", item.ProductTypeId),
+            changes.Quantity is { } quantity
+                ? AuditDetailFormat.Change("quantity", quantity.From.ToString(CultureInfo.InvariantCulture), quantity.To.ToString(CultureInfo.InvariantCulture))
+                : AuditDetailFormat.Pair("quantity", item.Quantity.ToString(CultureInfo.InvariantCulture)),
+            changes.UnitPrice is { } price ? AuditDetailFormat.Change("unitPrice", price.From, price.To) : AuditDetailFormat.Pair("unitPrice", item.UnitPrice),
+        };
+        if (changes.ChangedFields.Count > 0)
+        {
+            parts.Add(AuditDetailFormat.Pair("fields", string.Join(',', changes.ChangedFields)));
+        }
+
+        return AuditDetailFormat.Join([.. parts]);
+    }
+
+    private static string ItemSnapshot(OrderItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("item", item.Id),
+            AuditDetailFormat.Pair("productType", item.ProductTypeId),
+            AuditDetailFormat.Pair("quantity", item.Quantity.ToString(CultureInfo.InvariantCulture)),
+            AuditDetailFormat.Pair("unitPrice", item.UnitPrice));
+    }
 }
