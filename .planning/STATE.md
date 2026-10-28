@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-10-PLAN.md
-last_updated: "2026-10-28T18:45:32.541Z"
+stopped_at: Completed 07-11-PLAN.md
+last_updated: "2026-10-28T19:51:44.158Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: dcacad1cb82d41af5ad510bfe7b1807fb5a98670
+state_head: ee11385ec9af26a82e889a1733332d061315731f
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 197
+  completed_plans: 198
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 11 of 20
+Plan: 12 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -255,6 +255,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P08 | 35 min | 2 tasks | 14 files |
 | Phase 07 P09 | 53 min | 3 tasks | 28 files |
 | Phase 07 P10 | 45 min | 3 tasks | 48 files |
+| Phase 07 P11 | 55 min | 3 tasks | 50 files |
 
 ## Accumulated Context
 
@@ -698,6 +699,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-09: child change callbacks return Result<OrderChildAudit?>; null means a no-op that saves, records and locks nothing — Keeps the no-op version-unchanged rule while giving every child write one place for lock, audit and save.
 - [Phase 07]: 07-10: the discount cap (discounts not above the subtotal) is one OrderMath check in the domain, run before anything is assigned; discount forms get 400 on value, the create body 400 on discounts, item edits and removals 422 orders.discount-above-subtotal
 - [Phase 07]: 07-10: OrderDiscounts carries a Position column (like OrderItems) so discounts keep the order given; no database-level subtotal check was added because it would change Orders and could fail legacy rows (owner choice pending)
+- [Phase 07]: 07-11: A payment is at most the balance; an edit may lower freely and raise up to balance plus its old amount; other changes after payment show a customer credit (D-11, D-12)
+- [Phase 07]: 07-11: A saved retired payment method or ineligible receiver may stay on an edit; a new or changed one is checked (D-16, ORD-22)
+- [Phase 07]: 07-11: OrderStore.FindAsync re-reads the row version after its split read, so an order read across another save is 409 edit.stale, not a verdict on mixed data
+- [Phase 07]: 07-11: OrderPayments has a Position column like OrderDiscounts, so create-body paths payments[i].x match the stored order
 
 ### Pending Todos
 
@@ -789,6 +794,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T18:45:31.482Z
-Stopped at: Completed 07-10-PLAN.md
+Last session: 2026-10-28T19:51:43.089Z
+Stopped at: Completed 07-11-PLAN.md
 Resume file: None
