@@ -1303,6 +1303,137 @@
         ],
         "type": "object"
       },
+      "DeletedOrderListItem": {
+        "description": "One deleted order in the deleted list (D-28). It carries no contact details, address or notes.",
+        "properties": {
+          "balance": {
+            "description": "The balance in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "customerName": {
+            "description": "The customer's name.",
+            "type": "string"
+          },
+          "deletedAt": {
+            "description": "When it was deleted.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted it; null reads as System."
+              }
+            ]
+          },
+          "id": {
+            "description": "The order id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "number": {
+            "description": "The order number.",
+            "type": "string"
+          },
+          "paid": {
+            "description": "What was paid in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "status": {
+            "description": "The status key the order had when it was deleted.",
+            "type": "string"
+          },
+          "teamName": {
+            "description": "The team or club name; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "The order total in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "customerName",
+          "teamName",
+          "status",
+          "total",
+          "paid",
+          "balance",
+          "deletedAt",
+          "deletedBy"
+        ],
+        "type": "object"
+      },
+      "DeletedOrderListResponse": {
+        "description": "One page of the deleted list (D-28).",
+        "properties": {
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/DeletedOrderListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many deleted orders there are, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "DoneBy": {
         "description": "Who did it (D-27).",
         "properties": {
@@ -6350,7 +6481,145 @@
         ]
       }
     },
+    "/api/v1/orders/deleted": {
+      "get": {
+        "operationId": "ListDeletedOrders",
+        "parameters": [
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedOrderListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists the deleted orders, Managers only, most recently deleted first and then by id. Each row has the number, customer, team,\nstatus, total, paid and balance, and who deleted it and when. The total covers every page.",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
     "/api/v1/orders/{id}": {
+      "delete": {
+        "operationId": "DeleteOrder",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes one order, both roles. The order stays in the database with its items, payments, refunds, discounts, expenses and\nhistory, but it and all of them leave every read: the order, its status and every child route answer 404, and its money counts\nnowhere. Who deleted it and when are recorded. It takes no version: it acts on the latest state, and deleting an order that is\nalready deleted is a 404 that changes nothing. Only a Manager can see it in the deleted list and restore it.",
+        "tags": [
+          "Orders"
+        ]
+      },
       "get": {
         "operationId": "GetOrder",
         "parameters": [
@@ -6510,6 +6779,75 @@
           }
         },
         "summary": "Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are\nthe same as when creating, and the due date is required even for an imported order that had none. A version that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any\norder. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the\nclock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/restore": {
+      "post": {
+        "operationId": "RestoreOrder",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Restores a deleted order, Managers only: it and all its items, payments, refunds, discounts, expenses and history count and\nshow again. It takes no version. Restoring an order that is not deleted answers 404 and changes nothing. A retry with the\nsame `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "Orders"
         ]

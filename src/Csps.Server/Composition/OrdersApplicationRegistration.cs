@@ -47,6 +47,10 @@ public static class OrdersApplicationRegistration
         services.AddScoped<UpdateOrderRefundHandler>();
         services.AddScoped<RemoveOrderRefundHandler>();
         services.AddScoped<ChangeOrderStatusHandler>();
+        services.AddSingleton<IValidator<ListDeletedOrdersRequest>, ListDeletedOrdersRequestValidator>();
+        services.AddScoped<DeleteOrderHandler>();
+        services.AddScoped<RestoreOrderHandler>();
+        services.AddScoped<ListDeletedOrdersHandler>();
         return services;
     }
 }

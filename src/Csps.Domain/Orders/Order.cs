@@ -1005,6 +1005,39 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return move;
     }
 
+    /// <summary>
+    /// Soft-deletes the order so it and everything inside it stop counting anywhere (D-26). Any status may be deleted, so the end-state
+    /// lock does not apply. A second call changes nothing.
+    /// </summary>
+    /// <param name="by">The staff member who deleted it.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>True when it was deleted now; false when it was already deleted.</returns>
+    public bool SoftDelete(Guid by, DateTimeOffset now)
+    {
+        if (IsDeleted)
+        {
+            return false;
+        }
+
+        DeletedAtUtc = now;
+        DeletedById = by;
+        return true;
+    }
+
+    /// <summary>Clears the delete marker so the order and everything inside it count again (D-28).</summary>
+    /// <returns>True when it was restored now; false when it was not deleted.</returns>
+    public bool Restore()
+    {
+        if (!IsDeleted)
+        {
+            return false;
+        }
+
+        DeletedAtUtc = null;
+        DeletedById = null;
+        return true;
+    }
+
     // An order in an end state refuses every change until it is reopened (D-05, T-07-36).
     private Error? EnsureEditable() =>
         OrderStatusRules.IsLocked(Status) ? Error.BusinessRule(OrderRules.LockedCode, OrderRules.Locked(Status)) : null;

@@ -552,6 +552,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the deleted orders, Managers only, most recently deleted first and then by id. Each row has the number, customer, team,
+         *     status, total, paid and balance, and who deleted it and when. The total covers every page.
+         */
+        get: operations["ListDeletedOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}": {
         parameters: {
             query?: never;
@@ -573,6 +593,33 @@ export interface paths {
          */
         put: operations["UpdateOrderDetails"];
         post?: never;
+        /**
+         * Deletes one order, both roles. The order stays in the database with its items, payments, refunds, discounts, expenses and
+         *     history, but it and all of them leave every read: the order, its status and every child route answer 404, and its money counts
+         *     nowhere. Who deleted it and when are recorded. It takes no version: it acts on the latest state, and deleting an order that is
+         *     already deleted is a 404 that changes nothing. Only a Manager can see it in the deleted list and restore it.
+         */
+        delete: operations["DeleteOrder"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restores a deleted order, Managers only: it and all its items, payments, refunds, discounts, expenses and history count and
+         *     show again. It takes no version. Restoring an order that is not deleted answers 404 and changes nothing. A retry with the
+         *     same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RestoreOrder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1860,6 +1907,63 @@ export interface components {
             /**
              * Format: int32
              * @description How many deleted expenses match, across all pages.
+             */
+            total: number | string;
+        };
+        /** @description One deleted order in the deleted list (D-28). It carries no contact details, address or notes. */
+        DeletedOrderListItem: {
+            /**
+             * Format: double
+             * @description The balance in pesos.
+             */
+            balance: number | string;
+            /** @description The customer's name. */
+            customerName: string;
+            /**
+             * Format: date-time
+             * @description When it was deleted.
+             */
+            deletedAt: string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
+            id: string;
+            /** @description The order number. */
+            number: string;
+            /**
+             * Format: double
+             * @description What was paid in pesos.
+             */
+            paid: number | string;
+            /** @description The status key the order had when it was deleted. */
+            status: string;
+            /** @description The team or club name; null when none. */
+            teamName: null | string;
+            /**
+             * Format: double
+             * @description The order total in pesos.
+             */
+            total: number | string;
+        };
+        /** @description One page of the deleted list (D-28). */
+        DeletedOrderListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["DeletedOrderListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many deleted orders there are, across all pages.
              */
             total: number | string;
         };
@@ -4606,6 +4710,58 @@ export interface operations {
             };
         };
     };
+    ListDeletedOrders: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedOrderListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetOrder: {
         parameters: {
             query?: never;
@@ -4686,6 +4842,115 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RestoreOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -12,6 +12,61 @@ namespace Csps.Infrastructure.Orders;
 /// <summary><see cref="IOrderReader"/> over EF: untracked reads, one statement for the order, one for the items and one for the history.</summary>
 internal sealed class OrderReader(CspsDbContext context) : IOrderReader
 {
+    private const string SoftDeleteFilter = "SoftDelete";
+
+    public async Task<DeletedOrderPage> ListDeletedAsync(int page, int pageSize, CancellationToken cancellationToken)
+    {
+        // The named SoftDelete filter is lifted for this read only, and only deleted rows are kept.
+        var matches = context.Orders.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking().Where(order => order.DeletedAtUtc != null);
+
+        // Command 1: the count over every page. Command 2: the page, most recently deleted first, ending on the id so paging is
+        // stable. A deleted person keeps their name (D-08, D-11).
+        var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
+        var rows = await (
+            from order in matches
+            join deleterUser in context.Users.AsNoTracking() on order.DeletedById equals (Guid?)deleterUser.Id into deleters
+            from deleter in deleters.DefaultIfEmpty()
+            orderby order.DeletedAtUtc descending, order.Id descending
+            select new
+            {
+                order.Id,
+                order.Number,
+                order.CustomerName,
+                order.TeamName,
+                order.Status,
+                order.Total,
+                Paid = order.PaidTotal,
+                order.Balance,
+                DeletedAtUtc = order.DeletedAtUtc!.Value,
+                order.DeletedById,
+                DeleterFirst = (string?)deleter.FirstName,
+                DeleterLast = (string?)deleter.LastName,
+                DeleterFormer = deleter.DeletedAtUtc != null,
+            })
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        IReadOnlyList<DeletedOrderRow> items =
+        [
+            .. rows.Select(row => new DeletedOrderRow(
+                row.Id,
+                row.Number,
+                row.CustomerName,
+                row.TeamName,
+                row.Status,
+                row.Total,
+                row.Paid,
+                row.Balance,
+                row.DeletedAtUtc,
+                row.DeletedById is { } deletedBy && row.DeleterFirst is not null
+                    ? new ActorRef(deletedBy, $"{row.DeleterFirst} {row.DeleterLast}", row.DeleterFormer)
+                    : null)),
+        ];
+        return new DeletedOrderPage(items, total);
+    }
+
     public async Task<OrderDetailResponse?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
     {
         // The named SoftDelete filter hides a deleted order. The recorder and the last changer come from their own user rows, so a

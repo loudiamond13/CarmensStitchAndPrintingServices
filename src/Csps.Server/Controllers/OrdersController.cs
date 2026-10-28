@@ -14,12 +14,15 @@ namespace Csps.Server.Controllers;
 /// <param name="get">The single-order read handler.</param>
 /// <param name="updateDetails">The edit-details handler.</param>
 /// <param name="changeStatus">The change-status handler.</param>
+/// <param name="delete">The soft-delete handler (both roles).</param>
+/// <param name="listDeleted">The deleted-order list handler (Managers only).</param>
+/// <param name="restore">The restore handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/orders")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus) : ControllerBase
+public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus, DeleteOrderHandler delete, ListDeletedOrdersHandler listDeleted, RestoreOrderHandler restore) : ControllerBase
 {
     /// <summary>
     /// Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order
@@ -124,5 +127,72 @@ public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler 
     {
         var result = await changeStatus.HandleAsync(id, body ?? ChangeOrderStatusRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
+    }
+
+    /// <summary>
+    /// Deletes one order, both roles. The order stays in the database with its items, payments, refunds, discounts, expenses and
+    /// history, but it and all of them leave every read: the order, its status and every child route answer 404, and its money counts
+    /// nowhere. Who deleted it and when are recorded. It takes no version: it acts on the latest state, and deleting an order that is
+    /// already deleted is a 404 that changes nothing. Only a Manager can see it in the deleted list and restore it.
+    /// </summary>
+    /// <param name="id">The order id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 404 when the order does not exist or is already deleted, or 409 when two saves lost a race.</returns>
+    [HttpDelete("{id:guid}")]
+    [EndpointName("DeleteOrder")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> DeleteOrder(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await delete.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Lists the deleted orders, Managers only, most recently deleted first and then by id. Each row has the number, customer, team,
+    /// status, total, paid and balance, and who deleted it and when. The total covers every page.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="page">The page number, from 1 to 100000.</param>
+    /// <param name="pageSize">Rows per page, from 1 to 100; 20 when not sent.</param>
+    /// <returns>200 with the page, 400 for a bad page or page size, 401 without a valid token, or 403 for an Admin.</returns>
+    [HttpGet("deleted")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("ListDeletedOrders")]
+    [ProducesResponseType<DeletedOrderListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> ListDeletedOrders(
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = ListDeletedOrdersRequest.DefaultPageSize)
+    {
+        var result = await listDeleted.HandleAsync(new ListDeletedOrdersRequest(page, pageSize), cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static orders => TypedResults.Ok(orders));
+    }
+
+    /// <summary>
+    /// Restores a deleted order, Managers only: it and all its items, payments, refunds, discounts, expenses and history count and
+    /// show again. It takes no version. Restoring an order that is not deleted answers 404 and changes nothing. A retry with the
+    /// same <c>Idempotency-Key</c> answers with the stored 204.
+    /// </summary>
+    /// <param name="id">The order id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when no deleted order has that id, or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/restore")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("RestoreOrder")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> RestoreOrder(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await restore.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }
