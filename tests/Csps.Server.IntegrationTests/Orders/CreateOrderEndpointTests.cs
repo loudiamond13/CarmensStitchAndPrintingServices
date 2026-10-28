@@ -407,6 +407,78 @@ public sealed class CreateOrderEndpointTests(CspsDatabase database) : IClassFixt
         OrderFixtures.ErrorFields(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).ShouldBe(["customerName", "items[1].quantity"]);
     }
 
+    [Fact]
+    public async Task TheSameKeyAndBodyTwiceGiveTwoIdentical201sOneOrderOneNumberAndOneAuditRow()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["customerName"] = $"Idem {Guid.NewGuid():N}";
+        var key = Guid.NewGuid();
+
+        using var first = await OrderFixtures.PostAsync(client, admin.AccessToken, body, key);
+        using var second = await OrderFixtures.PostAsync(client, admin.AccessToken, body, key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.Headers.GetValues(AuthClient.ReplayedHeader).ShouldHaveSingleItem().ShouldBe("true");
+        var firstText = await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        (await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBe(firstText);
+        var id = JsonDocument.Parse(firstText).RootElement.GetProperty("id").GetGuid();
+
+        await using var context = database.CreateContext();
+        (await context.Orders.CountAsync(order => order.CustomerName == (string)body["customerName"]!, TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.OrderNumberCounters.SingleAsync(TestContext.Current.CancellationToken)).LastValue.ShouldBe(1);
+        (await context.AuditLog.CountAsync(row => row.Action == "order.created" && row.TargetId == id.ToString("D"), TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task EveryCreateLeavesOneAuditEntryWithTheNumberStatusDatesItemCountAndTotalButNoCustomerText()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["notes"] = "Private rush note";
+
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, body);
+
+        var id = created.GetProperty("id").GetGuid().ToString("D");
+        await using var context = database.CreateContext();
+        var entry = await context.AuditLog.AsNoTracking()
+            .SingleAsync(row => row.Action == "order.created" && row.TargetId == id, TestContext.Current.CancellationToken);
+        entry.TargetType.ShouldBe("Order");
+        entry.ActorUserId.ShouldBe(admin.UserId);
+        entry.Detail.ShouldBe($"number=ORD-{today.Year}-0001;status=pending;orderDate={OrderFixtures.Date(today)};dueDate={OrderFixtures.Date(today.AddDays(14))};items=1;total=9750.00");
+        foreach (var secret in new[] { "Juan", "Ballers", "0917", "juan.dc", "Private", "Jersey top" })
+        {
+            entry.Detail.ShouldNotBeNull().ShouldNotContain(secret, Case.Insensitive);
+        }
+    }
+
+    [Fact]
+    public async Task APostWithoutAnIdempotencyKeyIsRefusedByTheGateAndCreatesNothing()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["customerName"] = $"NoKey {Guid.NewGuid():N}";
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body, withKey: false);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("idempotency.key-missing");
+        await using var context = database.CreateContext();
+        (await context.Orders.CountAsync(order => order.CustomerName == (string)body["customerName"]!, TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
     private async Task SetRetiredAsync(Guid productTypeId, bool retired)
     {
         await using var context = database.CreateContext();
