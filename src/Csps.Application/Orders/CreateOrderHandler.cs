@@ -9,7 +9,7 @@ using FluentValidation;
 namespace Csps.Application.Orders;
 
 /// <summary>
-/// Use case: a staff member creates an order with its items in one call (ORD-03). The form is checked against the field rules and,
+/// Use case: a staff member creates an order with its items and discounts in one call (ORD-03, D-24). The form is checked against the field rules and,
 /// in the same 400, against the database: every product type must exist and not be retired (D-18). The order is then built and
 /// checked again by the domain before any lock is taken, so a refused order allocates no number. The number, the order, its first
 /// history row, the counter and one audit entry save in one transaction. The audit entry holds the number, status, dates, item
@@ -79,7 +79,7 @@ public sealed class CreateOrderHandler(
         return view is null ? Result.Failure<OrderDetailResponse>(OrderErrors.NotFound) : Result.Success(view);
     }
 
-    // The validator has passed, so the dates parse, the status is active or absent, and every item is present and complete.
+    // The validator has passed, so the dates parse, the status is active or absent, and every item and discount is present and complete.
     private static NewOrder ToNewOrder(CreateOrderRequest request)
     {
         _ = OrderDetailsFieldsValidator.TryParseDate(request.OrderDate, out var orderDate);
@@ -97,6 +97,13 @@ public sealed class CreateOrderHandler(
         var items = request.Items!
             .Select(static item => new NewOrderItem(item!.ProductTypeId!.Value, item.Description!, item.SizeVariant, item.Quantity!.Value, item.UnitPrice!.Value))
             .ToList();
-        return new NewOrder(details, status, items);
+        var discounts = (request.Discounts ?? [])
+            .Select(static discount =>
+            {
+                _ = DiscountKindNames.TryParse(discount!.Kind, out var kind);
+                return new NewOrderDiscount(kind, discount.Value!.Value, discount.Reason!);
+            })
+            .ToList();
+        return new NewOrder(details, status, items) { Discounts = discounts };
     }
 }

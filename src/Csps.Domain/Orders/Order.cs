@@ -153,7 +153,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// Makes a new order, checking every field rule again so no caller can skip one. The order has no number yet, so a refused
     /// order never takes one: call <see cref="AssignNumber"/> after this succeeds.
     /// </summary>
-    /// <param name="input">The details, status and items.</param>
+    /// <param name="input">The details, status, items and discounts.</param>
     /// <param name="callerId">The staff member who creates it; the first history row names them.</param>
     /// <param name="now">The current instant, which makes the keys and the history time.</param>
     /// <returns>The new, unsaved order, or a validation error naming the first broken field.</returns>
@@ -161,6 +161,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(input.Items);
+        ArgumentNullException.ThrowIfNull(input.Discounts);
 
         var details = OrderRules.CheckDetails(input.Details);
         if (details.IsFailure)
@@ -196,6 +197,23 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             checkedItems.Add(item.Value);
         }
 
+        if (input.Discounts.Count > OrderRules.MaxDiscounts)
+        {
+            return OrderRules.Reject<Order>(OrderRules.DiscountsField, OrderRules.DiscountsTooMany);
+        }
+
+        var checkedDiscounts = new List<NewOrderDiscount>(input.Discounts.Count);
+        for (var index = 0; index < input.Discounts.Count; index++)
+        {
+            var discount = OrderRules.CheckDiscount(index, input.Discounts[index]);
+            if (discount.IsFailure)
+            {
+                return Result.Failure<Order>(discount.Error);
+            }
+
+            checkedDiscounts.Add(discount.Value);
+        }
+
         var cleaned = details.Value;
         var order = new Order(
             Guid.CreateVersion7(now),
@@ -212,6 +230,16 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         for (var position = 0; position < checkedItems.Count; position++)
         {
             order._items.Add(BuildItem(order, checkedItems[position], position, now));
+        }
+
+        for (var position = 0; position < checkedDiscounts.Count; position++)
+        {
+            order._discounts.Add(BuildDiscount(order, checkedDiscounts[position], position, now));
+        }
+
+        if (!DiscountsFit(ItemsForMath(order._items), DiscountsForMath(order._discounts)))
+        {
+            return OrderRules.Reject<Order>(OrderRules.DiscountsField, OrderRules.DiscountAboveSubtotalMessage);
         }
 
         order._statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), order.Id, null, status.Value, callerId, now) { Order = order });

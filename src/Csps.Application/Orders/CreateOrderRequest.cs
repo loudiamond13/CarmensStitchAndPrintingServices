@@ -14,6 +14,7 @@ namespace Csps.Application.Orders;
 /// <param name="Status">The status to start in: pending, mockup, production, ready or delivered; pending when not sent.</param>
 /// <param name="Notes">Free notes.</param>
 /// <param name="Items">The lines, one to 100.</param>
+/// <param name="Discounts">The discounts, none to 20; saved in the same transaction as the order.</param>
 public sealed record CreateOrderRequest(
     string? CustomerName,
     string? TeamName,
@@ -24,7 +25,8 @@ public sealed record CreateOrderRequest(
     string? DueDate,
     string? Status,
     string? Notes,
-    IReadOnlyList<OrderItemRequest>? Items) : IOrderDetailsFields
+    IReadOnlyList<OrderItemRequest>? Items,
+    IReadOnlyList<OrderDiscountRequest>? Discounts = null) : IOrderDetailsFields
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static CreateOrderRequest Empty { get; } = new(null, null, null, null, null, null, null, null, null, null);
@@ -37,3 +39,9 @@ public sealed record CreateOrderRequest(
 /// <param name="Quantity">How many.</param>
 /// <param name="UnitPrice">The price of one, in pesos.</param>
 public sealed record OrderItemRequest(Guid? ProductTypeId, string? Description, string? SizeVariant, int? Quantity, decimal? UnitPrice) : IOrderItemFields;
+
+/// <summary>One discount of the New Order form (D-15, D-24, ORD-05).</summary>
+/// <param name="Kind">The kind: <c>fixed</c> or <c>percentage</c>.</param>
+/// <param name="Value">The peso amount (fixed) or the percent (percentage).</param>
+/// <param name="Reason">Why the discount is given.</param>
+public sealed record OrderDiscountRequest(string? Kind, decimal? Value, string? Reason) : IOrderDiscountFields;

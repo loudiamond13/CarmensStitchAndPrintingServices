@@ -1483,6 +1483,8 @@ export interface components {
             contactNumber: null | string;
             /** @description The customer's name. */
             customerName: null | string;
+            /** @description The discounts, none to 20; saved in the same transaction as the order. */
+            discounts?: null | components["schemas"]["OrderDiscountRequest"][];
             /** @description The day it is due, `yyyy-MM-dd`. */
             dueDate: null | string;
             /** @description The email address. */
@@ -1757,6 +1759,18 @@ export interface components {
             totals: components["schemas"]["OrderTotalsResponse"];
             /** @description The base64 of the eight-byte row version a save must send back. */
             version: string;
+        };
+        /** @description One discount of the New Order form (D-15, D-24, ORD-05). */
+        OrderDiscountRequest: {
+            /** @description The kind: `fixed` or `percentage`. */
+            kind: null | string;
+            /** @description Why the discount is given. */
+            reason: null | string;
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: null | number | string;
         };
         /** @description One discount of an order (D-15, ORD-05). */
         OrderDiscountResponse: {

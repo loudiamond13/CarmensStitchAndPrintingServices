@@ -829,6 +829,16 @@
               "string"
             ]
           },
+          "discounts": {
+            "description": "The discounts, none to 20; saved in the same transaction as the order.",
+            "items": {
+              "$ref": "#/components/schemas/OrderDiscountRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
           "dueDate": {
             "description": "The day it is due, `yyyy-MM-dd`.",
             "type": [
@@ -1539,6 +1549,41 @@
           "lastChangedBy",
           "lastChangedAt",
           "version"
+        ],
+        "type": "object"
+      },
+      "OrderDiscountRequest": {
+        "description": "One discount of the New Order form (D-15, D-24, ORD-05).",
+        "properties": {
+          "kind": {
+            "description": "The kind: `fixed` or `percentage`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "description": "Why the discount is given.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "description": "The peso amount (fixed) or the percent (percentage).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "reason"
         ],
         "type": "object"
       },
