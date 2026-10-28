@@ -4,6 +4,7 @@ using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.Orders;
 
@@ -153,5 +154,265 @@ public sealed class CreateOrderEndpointTests(CspsDatabase database) : IClassFixt
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe("orders.invalid-request");
+    }
+
+    [Fact]
+    public async Task TheFiveItemsOfOrderZeroOneFourEightGiveAnExactSubtotalAndTheOtherFigures()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+
+        var totals = created.GetProperty("totals");
+        totals.GetProperty("subtotal").GetDecimal().ShouldBe(22450.00m);
+        totals.GetProperty("discount").GetDecimal().ShouldBe(0.00m);
+        totals.GetProperty("total").GetDecimal().ShouldBe(22450.00m);
+        totals.GetProperty("paid").GetDecimal().ShouldBe(0.00m);
+        totals.GetProperty("refunded").GetDecimal().ShouldBe(0.00m);
+        totals.GetProperty("balance").GetDecimal().ShouldBe(22450.00m);
+        totals.GetProperty("customerCredit").GetDecimal().ShouldBe(0.00m);
+        totals.GetProperty("expenses").GetDecimal().ShouldBe(0.00m);
+        totals.GetProperty("profit").GetDecimal().ShouldBe(22450.00m);
+        totals.GetProperty("fullyPaid").GetBoolean().ShouldBeFalse();
+        created.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("lineTotal").GetDecimal())
+            .ShouldBe([9750.00m, 4500.00m, 1100.00m, 6300.00m, 800.00m]);
+    }
+
+    [Fact]
+    public async Task AProductTypeMarkedRetiredInTheDatabaseIsRefusedOnTheItemPath()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        await SetRetiredAsync(OrderFixtures.PoloId, retired: true);
+        try
+        {
+            var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+            body["items"] = new[] { OrderFixtures.Item(OrderFixtures.BasketballId), OrderFixtures.Item(OrderFixtures.PoloId) };
+
+            using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("code").GetString().ShouldBe("orders.invalid-request");
+            OrderFixtures.ErrorFields(problem).ShouldBe(["items[1].productTypeId"]);
+            OrderFixtures.FieldErrors(problem, "items[1].productTypeId").ShouldBe(["This product type was retired. Choose another one."]);
+        }
+        finally
+        {
+            await SetRetiredAsync(OrderFixtures.PoloId, retired: false);
+        }
+    }
+
+    [Fact]
+    public async Task AnUnknownProductTypeIsRefusedOnTheItemPath()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, OrderFixtures.ValidBody(Guid.NewGuid(), today));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "items[0].productTypeId").ShouldBe(["Choose a product type."]);
+    }
+
+    [Fact]
+    public async Task ADueDateBeforeTheOrderDateIsRefusedOnTheDueDateField()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["dueDate"] = OrderFixtures.Date(today.AddDays(-1));
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.ErrorFields(problem).ShouldBe(["dueDate"]);
+        OrderFixtures.FieldErrors(problem, "dueDate").ShouldBe(["The due date can't be before the order date."]);
+    }
+
+    [Theory]
+    [InlineData("completed")]
+    [InlineData("cancelled")]
+    public async Task ACreateAsCompletedOrCancelledIsRefusedOnTheStatusField(string status)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["status"] = status;
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "status").ShouldBe(["Create the order first, then complete or cancel it."]);
+    }
+
+    [Fact]
+    public async Task ADeliveredStatusIsAcceptedAndShownInTheDetailAndTheFirstHistoryRow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["status"] = "delivered";
+
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, body);
+
+        created.GetProperty("status").GetString().ShouldBe("delivered");
+        created.GetProperty("statusHistory").EnumerateArray().Single().GetProperty("to").GetString().ShouldBe("delivered");
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    [InlineData(10_000, true)]
+    [InlineData(10_001, false)]
+    public async Task TheQuantityLimitsHoldAtTheirEdges(int quantity, bool accepted)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["items"] = new[] { OrderFixtures.Item(OrderFixtures.BasketballId, quantity: quantity, unitPrice: 1.00m) };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(accepted ? HttpStatusCode.Created : HttpStatusCode.BadRequest);
+        if (!accepted)
+        {
+            OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken), "items[0].quantity")
+                .ShouldBe(["Enter a quantity from 1 to 10,000."]);
+        }
+    }
+
+    [Theory]
+    [InlineData("0.00", true)]
+    [InlineData("1000000.00", true)]
+    [InlineData("1000000.01", false)]
+    [InlineData("650.123", false)]
+    public async Task TheUnitPriceLimitsHoldAtTheirEdges(string price, bool accepted)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["items"] = new[] { OrderFixtures.Item(OrderFixtures.BasketballId, quantity: 1, unitPrice: decimal.Parse(price, System.Globalization.CultureInfo.InvariantCulture)) };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(accepted ? HttpStatusCode.Created : HttpStatusCode.BadRequest);
+        if (!accepted)
+        {
+            OrderFixtures.ErrorFields(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).ShouldBe(["items[0].unitPrice"]);
+        }
+    }
+
+    [Theory]
+    [InlineData(100, true)]
+    [InlineData(101, false)]
+    public async Task TheItemCountLimitHoldsAtItsEdge(int count, bool accepted)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["items"] = Enumerable.Range(0, count).Select(_ => OrderFixtures.Item(OrderFixtures.BasketballId, quantity: 1, unitPrice: 1.00m)).ToArray();
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(accepted ? HttpStatusCode.Created : HttpStatusCode.BadRequest);
+        if (accepted)
+        {
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            document.RootElement.GetProperty("items").GetArrayLength().ShouldBe(100);
+        }
+        else
+        {
+            OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken), "items").ShouldBe(["An order can have at most 100 items."]);
+        }
+    }
+
+    [Theory]
+    [InlineData(200, true)]
+    [InlineData(201, false)]
+    public async Task TheDescriptionLimitHoldsAtItsEdge(int length, bool accepted)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["items"] = new[] { OrderFixtures.Item(OrderFixtures.BasketballId, description: new string('d', length)) };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(accepted ? HttpStatusCode.Created : HttpStatusCode.BadRequest);
+        if (!accepted)
+        {
+            OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken), "items[0].description")
+                .ShouldBe(["Keep the description to 200 characters or fewer."]);
+        }
+    }
+
+    [Fact]
+    public async Task ADueDateEqualToTheOrderDateIsAccepted()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["dueDate"] = OrderFixtures.Date(today);
+
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, body);
+
+        created.GetProperty("dueDate").GetString().ShouldBe(OrderFixtures.Date(today));
+    }
+
+    [Fact]
+    public async Task ManyBrokenFieldsComeBackInOneBadRequestWithNestedPaths()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["customerName"] = " ";
+        body["items"] = new[]
+        {
+            OrderFixtures.Item(OrderFixtures.BasketballId),
+            OrderFixtures.Item(OrderFixtures.BasketballId, quantity: 0),
+        };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.ErrorFields(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).ShouldBe(["customerName", "items[1].quantity"]);
+    }
+
+    private async Task SetRetiredAsync(Guid productTypeId, bool retired)
+    {
+        await using var context = database.CreateContext();
+        DateTimeOffset? at = retired ? TimeProvider.System.GetUtcNow() : null;
+        var changed = await context.ProductTypes.Where(type => type.Id == productTypeId)
+            .ExecuteUpdateAsync(set => set.SetProperty(type => type.RetiredAtUtc, at), TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
     }
 }
