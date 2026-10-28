@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T09:40:00-05:00
-updated: 2026-10-28T09:45:00-05:00
+updated: 2026-10-28T13:30:00-05:00
 ---
 
 # Phase 7 deferred items
@@ -12,3 +12,7 @@ updated: 2026-10-28T09:45:00-05:00
 ## From plan 07-02
 
 - **Phase 8 follow-up: golden vectors v3.** `OrderMath.Compute` now takes refunds and a cancelled flag, and `OrderMathResult` has `Refunded` and `CustomerCredit`. The shared file `tests/fixtures/order-math-golden-vectors.json` stays at version 2, byte for byte, because the web suite deep-compares its `expected` objects. When the web preview learns refunds (Phase 8), bump the file to v3 with `refunds` in each case and `refunded` and `customerCredit` in each `expected`, regenerate it with `node web/scripts/gen-golden-vectors.mjs --write`, and change `OrderMathGoldenVectorTests` (`Version.ShouldBe(3)`, new fields in `Format`) in the same change. Until then the server tests in `OrderMathRefundTests` are the only proof of the refund, credit and cancelled-profit figures (research Pitfall 6).
+
+## Orchestrator note: edits on Completed or Cancelled orders
+
+Plans 07-07 and 07-09 listed this as open. It is not open. D-05 locks a Completed or Cancelled order against details, item, payment, discount and expense writes (refunds on a Cancelled order excepted). Plan 07-13 adds that lock (422 `orders.locked`) to every write. No owner decision is needed.
