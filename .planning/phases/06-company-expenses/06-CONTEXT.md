@@ -1,6 +1,6 @@
 # Phase 6: Company Expenses - Context
 
-*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-26T06:09:00-05:00*
+*Created: 2026-10-25T02:28:52-05:00 · Updated: 2026-10-27T21:10:00-05:00*
 
 **Gathered:** 2026-10-25
 **Status:** Ready for planning
@@ -99,6 +99,7 @@ Out of scope: order expenses (Phase 7), money on hand balances and transfers (Ph
 - **D-60:** **Fix all five UI review warnings before Phase 6 closes** (06-UI-REVIEW.md UI-06-01 to UI-06-05, plus the long header comments under OR-2). The shared `Select` gets the same required " *" mark as `Field` (app-wide); the native date inputs show the friendly en-PH date beside the box; the Settings row actions get fixed slots; counts use the en-PH number format; the E1 toolbar labels align. Done as one quick task, test first. Phase 6 is marked complete only after these land.
 - **D-61:** **On phones each date filter takes its own row** (quick 261026-89i, UI-06-02). The From and To boxes show the friendly en-PH date beside them, so on phones they no longer fit two per row. A SPEC-DEVIATION from the UI-SPEC phone toolbar rule, approved by the owner.
 - **D-62:** **Every count uses the en-PH thousands format, app-wide** (quick 261026-89i, extends UI-06-04). Not only the KPI card and the Settings column: the shared result bar ("Showing 1,687 expenses") and any other place a count shows.
+- **D-63:** **Native dropdown and date boxes restyled; no written-out date beside any date box** (owner, 2026-10-27; quick 261027-t3j). R1: keep the browser's own option list and date picker, so phones keep their native wheel and calendar. Restyle only what the app draws: the box, border, hover, focus, the Select chevron, the app's own calendar icon in place of the browser's grey one (a click on it still opens the browser's picker), and both themes. No custom popup and no new package. R2: remove the written-out date ("Sep 16, 2026") beside every date box, app-wide; the DateInput option for it is gone. This supersedes D-60's date-beside-the-box item and D-61: on phones the From and To boxes may sit side by side again.
 - **Review pack pictures approved** (06-UAT test 1): Company Expenses, Deleted Expenses and Settings in both themes at 390, 820 and 1440 px.
 
 ### Claude's Discretion
