@@ -20,4 +20,17 @@ internal sealed class OrderListStore(CspsDbContext context) : IOrderLists
         };
         return await query.ToListAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<IReadOnlyList<OrderListEntryState>> GetStatesAsync(OrderListKind kind, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        var query = kind switch
+        {
+            OrderListKind.ProductType => context.ProductTypes.AsNoTracking().Where(entry => ids.Contains(entry.Id)).Select(entry => new OrderListEntryState(entry.Id, entry.Name, entry.RetiredAtUtc != null)),
+            OrderListKind.PaymentMethod => context.PaymentMethods.AsNoTracking().Where(entry => ids.Contains(entry.Id)).Select(entry => new OrderListEntryState(entry.Id, entry.Name, entry.RetiredAtUtc != null)),
+            OrderListKind.OrderExpenseCategory => context.OrderExpenseCategories.AsNoTracking().Where(entry => ids.Contains(entry.Id)).Select(entry => new OrderListEntryState(entry.Id, entry.Name, entry.RetiredAtUtc != null)),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown order list."),
+        };
+        return await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
 }

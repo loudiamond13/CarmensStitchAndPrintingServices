@@ -1,5 +1,6 @@
 using Csps.Application.OrderLists;
 using Csps.Application.Orders;
+using FluentValidation;
 
 namespace Csps.Server.Composition;
 
@@ -13,6 +14,7 @@ public static class OrdersApplicationRegistration
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddSingleton<IValidator<CreateOrderRequest>, CreateOrderRequestValidator>();
         services.AddScoped<ListOrderListHandler>();
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<GetOrderHandler>();

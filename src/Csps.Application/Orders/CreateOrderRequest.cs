@@ -24,7 +24,7 @@ public sealed record CreateOrderRequest(
     string? DueDate,
     string? Status,
     string? Notes,
-    IReadOnlyList<OrderItemRequest?>? Items) : IOrderDetailsFields
+    IReadOnlyList<OrderItemRequest>? Items) : IOrderDetailsFields
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static CreateOrderRequest Empty { get; } = new(null, null, null, null, null, null, null, null, null, null);

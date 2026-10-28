@@ -31,11 +31,18 @@ public static class OrderNumber
         }
 
         var parts = text[Prefix.Length..].Split('-');
-        return parts.Length == 2
-            && parts[0].Length == YearDigits
-            && parts[1].Length >= MinimumDigits
-            && parts.All(static part => part.All(char.IsAsciiDigit))
-            && int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out year)
-            && int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out sequence);
+        if (parts.Length != 2
+            || parts[0].Length != YearDigits
+            || parts[1].Length < MinimumDigits
+            || !parts.All(static part => part.All(char.IsAsciiDigit))
+            || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var parsedYear)
+            || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parsedSequence))
+        {
+            return false;
+        }
+
+        year = parsedYear;
+        sequence = parsedSequence;
+        return true;
     }
 }

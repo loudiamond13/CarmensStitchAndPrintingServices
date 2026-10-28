@@ -1,28 +1,33 @@
-using System.Globalization;
 using Csps.Application.Auth;
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
+using FluentValidation;
 
 namespace Csps.Application.Orders;
 
 /// <summary>
-/// Use case: a staff member creates an order with its items in one call (ORD-03). The order is built and checked before any lock
-/// is taken, so a refused order allocates no number. The number, the order, its first history row and the counter then save in
-/// one transaction. Who recorded the order and when come from the token and the clock, never from the request (SEC-08).
+/// Use case: a staff member creates an order with its items in one call (ORD-03). The form is checked against the field rules and,
+/// in the same 400, against the database: every product type must exist and not be retired (D-18). The order is then built and
+/// checked again by the domain before any lock is taken, so a refused order allocates no number. The number, the order, its first
+/// history row and the counter save in one transaction. Who recorded the order and when come from the token and the clock, never
+/// from the request (SEC-08).
 /// </summary>
 public sealed class CreateOrderHandler(
     IOrders orders,
     IOrderReader reader,
     IOrderNumbers numbers,
+    IOrderLists lists,
     IBusinessCalendar calendar,
     IUnitOfWork unitOfWork,
-    IRequestContext requestContext)
+    IRequestContext requestContext,
+    IValidator<CreateOrderRequest> validator)
 {
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new order, a 400 for field errors, a 409 when the number lock timed out, or a 401 when the token names no usable account.</returns>
+    /// <returns>The new order, a 400 listing every field that failed, a 409 when the number lock timed out, or a 401 when the token names no usable account.</returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(CreateOrderRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -33,13 +38,14 @@ public sealed class CreateOrderHandler(
         }
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        var input = ToNewOrder(request);
-        if (input.IsFailure)
+        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        await OrderReferenceChecks.AddProductTypeFailuresAsync(lists, request.Items, validation, cancellationToken).ConfigureAwait(false);
+        if (!validation.IsValid)
         {
-            return Result.Failure<OrderDetailResponse>(input.Error);
+            return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));
         }
 
-        var created = Order.Create(input.Value, callerId, clock.UtcNow);
+        var created = Order.Create(ToNewOrder(request), callerId, clock.UtcNow);
         if (created.IsFailure)
         {
             return Result.Failure<OrderDetailResponse>(created.Error);
@@ -67,47 +73,24 @@ public sealed class CreateOrderHandler(
         return view is null ? Result.Failure<OrderDetailResponse>(OrderErrors.NotFound) : Result.Success(view);
     }
 
-    private static Result<NewOrder> ToNewOrder(CreateOrderRequest request)
+    // The validator has passed, so the dates parse, the status is active or absent, and every item is present and complete.
+    private static NewOrder ToNewOrder(CreateOrderRequest request)
     {
-        if (!TryParseDate(request.OrderDate, out var orderDate))
-        {
-            return OrderRules.Reject<NewOrder>(OrderRules.OrderDateField, OrderRules.DateInvalid);
-        }
-
-        _ = TryParseDate(request.DueDate, out var dueDate);
-        var status = OrderStatus.Pending;
-        if (request.Status is not null && !OrderStatusNames.TryParse(request.Status, out status))
-        {
-            return OrderRules.Reject<NewOrder>(OrderRules.StatusField, OrderRules.StatusInvalid);
-        }
-
-        var items = new List<NewOrderItem>();
-        foreach (var item in request.Items ?? [])
-        {
-            if (item?.UnitPrice is not { } unitPrice)
-            {
-                return OrderRules.Reject<NewOrder>(OrderRules.ItemPath(items.Count, OrderRules.UnitPriceField), OrderRules.UnitPriceRequired);
-            }
-
-            items.Add(new NewOrderItem(item.ProductTypeId ?? Guid.Empty, item.Description ?? string.Empty, item.SizeVariant, item.Quantity ?? 0, unitPrice));
-        }
-
+        _ = OrderDetailsFieldsValidator.TryParseDate(request.OrderDate, out var orderDate);
+        _ = OrderDetailsFieldsValidator.TryParseDate(request.DueDate, out var dueDate);
+        var status = OrderStatusNames.TryParse(request.Status, out var named) ? named : OrderStatus.Pending;
         var details = new OrderDetails(
-            request.CustomerName ?? string.Empty,
+            request.CustomerName!,
             request.TeamName,
             request.ContactNumber,
             request.Email,
             request.Address,
             orderDate,
-            dueDate == default ? null : dueDate,
+            dueDate,
             request.Notes);
-        return Result.Success(new NewOrder(details, status, items));
-    }
-
-    private static bool TryParseDate(string? text, out DateOnly date)
-    {
-        date = default;
-        return text is not null
-            && DateOnly.TryParseExact(text.Trim(), OrderRules.DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
+        var items = request.Items!
+            .Select(static item => new NewOrderItem(item!.ProductTypeId!.Value, item.Description!, item.SizeVariant, item.Quantity!.Value, item.UnitPrice!.Value))
+            .ToList();
+        return new NewOrder(details, status, items);
     }
 }

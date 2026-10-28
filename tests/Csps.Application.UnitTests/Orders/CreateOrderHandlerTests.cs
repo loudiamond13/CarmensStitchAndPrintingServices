@@ -10,6 +10,7 @@ using Csps.Domain.Time;
 using FluentValidation;
 using FluentValidation.Results;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace Csps.Application.UnitTests.Orders;
 
@@ -118,7 +119,7 @@ public sealed class CreateOrderHandlerTests
         var harness = new Harness();
 
         var result = await harness.Handler.HandleAsync(
-            Valid() with { Items = [null, Item(Guid.Empty), Item(null)] },
+            Valid() with { Items = [null!, Item(Guid.Empty), Item(null)] },
             TestContext.Current.CancellationToken);
 
         Fields(result).Keys.Order(StringComparer.Ordinal).ShouldBe(["items[0]", "items[1].productTypeId", "items[2].productTypeId"]);

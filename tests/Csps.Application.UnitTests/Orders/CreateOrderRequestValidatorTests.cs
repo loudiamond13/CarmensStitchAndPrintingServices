@@ -168,7 +168,7 @@ public sealed class CreateOrderRequestValidatorTests
 
     [Fact]
     public void ANullItemInTheListIsRefusedOnItsPath() =>
-        One(Valid() with { Items = [Item(), null] }, "items[1]", "Fill in this item.");
+        One(Valid() with { Items = [Item(), null!] }, "items[1]", "Fill in this item.");
 
     [Fact]
     public void AMissingOrEmptyProductTypeIsRefusedOnTheItemPath()
