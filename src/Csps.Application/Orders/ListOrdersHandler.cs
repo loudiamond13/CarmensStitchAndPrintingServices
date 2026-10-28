@@ -36,7 +36,19 @@ public sealed class ListOrdersHandler(
             return Result.Failure<OrderListResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));
         }
 
-        var query = new OrderListQuery(null, OrderListScope.Active, null, null, null, null, false, OrderListSort.Due, request.Page, request.PageSize);
+        _ = ListOrdersRequestValidator.TryParseStatus(request.Status, out var scope, out var status);
+        _ = ListOrdersRequestValidator.TryParseSort(request.Sort, out var sort);
+        var query = new OrderListQuery(
+            string.IsNullOrWhiteSpace(request.Q) ? null : request.Q.Trim(),
+            scope,
+            status,
+            OrderDetailsFieldsValidator.TryParseDate(request.From, out var from) ? from : null,
+            OrderDetailsFieldsValidator.TryParseDate(request.To, out var to) ? to : null,
+            ListOrdersRequestValidator.TryParseProductType(request.ProductType, out var productType) ? productType : null,
+            request.HasBalance == true,
+            sort,
+            request.Page,
+            request.PageSize);
         var page = await reader.ListAsync(query, time.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         IReadOnlyList<OrderListEntry> items =
         [

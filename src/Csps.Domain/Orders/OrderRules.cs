@@ -74,6 +74,9 @@ public static class OrderRules
     /// <summary>How many days after the business today an order expense may be dated (D-30).</summary>
     public const int ExpenseDaysAhead = ExpenseRules.DaysAhead;
 
+    /// <summary>How many days a Completed or Cancelled order stays in the default order list after its status changed.</summary>
+    public const int RecentEndStateDays = 30;
+
     /// <summary>The longest order expense description.</summary>
     public const int ExpenseDescriptionMaxLength = 200;
 

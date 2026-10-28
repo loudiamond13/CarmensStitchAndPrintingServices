@@ -4,6 +4,7 @@ using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Application.Users;
 using Csps.Domain.Orders;
+using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,14 +20,11 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
         ArgumentNullException.ThrowIfNull(query);
 
         // The named SoftDelete filter hides a deleted order. Every figure is a stored column.
-        var matches = context.Orders.AsNoTracking();
+        var matches = Filter(context.Orders.AsNoTracking(), query, now);
 
         // Command 1: the count over every page. Command 2: the page, ending on the id so paging is stable.
         var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
-        var rows = await matches
-            .OrderBy(order => order.DueDate == null)
-            .ThenBy(order => order.DueDate)
-            .ThenBy(order => order.Id)
+        var rows = await Sort(matches, query.Sort)
             .Select(order => new OrderListRow(
                 order.Id,
                 order.Number,
@@ -51,6 +49,63 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
 
         return new OrderListPage(rows, total);
     }
+
+    // The statuses, the search, the order dates, the product type and the balance. A typed wildcard stays literal (CWE-943).
+    private IQueryable<Order> Filter(IQueryable<Order> orders, OrderListQuery query, DateTimeOffset now)
+    {
+        switch (query.Scope)
+        {
+            case OrderListScope.Active:
+                var since = now.AddDays(-OrderRules.RecentEndStateDays);
+                orders = orders.Where(order =>
+                    (order.Status != OrderStatus.Completed && order.Status != OrderStatus.Cancelled) || order.StatusChangedAtUtc >= since);
+                break;
+            case OrderListScope.One when query.Status is { } status:
+                orders = orders.Where(order => order.Status == status);
+                break;
+            case OrderListScope.All:
+            case OrderListScope.One:
+                break;
+        }
+
+        if (query.Search is { } search)
+        {
+            var pattern = LikePattern.Contains(search);
+            orders = orders.Where(order =>
+                EF.Functions.Like(order.Number, pattern, LikePattern.EscapeCharacter)
+                || EF.Functions.Like(order.CustomerName, pattern, LikePattern.EscapeCharacter)
+                || EF.Functions.Like(order.TeamName, pattern, LikePattern.EscapeCharacter)
+                || EF.Functions.Like(order.ContactNumber, pattern, LikePattern.EscapeCharacter));
+        }
+
+        if (query.From is { } from)
+        {
+            orders = orders.Where(order => order.OrderDate >= from);
+        }
+
+        if (query.To is { } to)
+        {
+            orders = orders.Where(order => order.OrderDate <= to);
+        }
+
+        if (query.ProductTypeId is { } productTypeId)
+        {
+            // The outer query already hides deleted orders, so the item filter is lifted to keep the subquery a plain lookup.
+            var items = context.Set<OrderItem>().IgnoreQueryFilters([SoftDeleteFilter]);
+            orders = orders.Where(order => items.Any(item => item.OrderId == order.Id && item.ProductTypeId == productTypeId));
+        }
+
+        return query.HasBalance ? orders.Where(order => order.Balance > 0m) : orders;
+    }
+
+    // Every sort ends on the id. The due sort puts orders with no due date last.
+    private static IOrderedQueryable<Order> Sort(IQueryable<Order> orders, OrderListSort sort) => sort switch
+    {
+        OrderListSort.Newest => orders.OrderByDescending(order => order.OrderDate).ThenByDescending(order => order.CreatedAtUtc).ThenBy(order => order.Id),
+        OrderListSort.Balance => orders.OrderByDescending(order => order.Balance).ThenBy(order => order.Id),
+        OrderListSort.Total => orders.OrderByDescending(order => order.Total).ThenBy(order => order.Id),
+        _ => orders.OrderBy(order => order.DueDate == null).ThenBy(order => order.DueDate).ThenBy(order => order.Id),
+    };
 
     public async Task<DeletedOrderPage> ListDeletedAsync(int page, int pageSize, CancellationToken cancellationToken)
     {

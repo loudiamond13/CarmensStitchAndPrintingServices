@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T17:30:00-05:00
+updated: 2026-10-28T17:55:00-05:00
 ---
 
 # The orders API
@@ -10,7 +10,7 @@ The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scala
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
 [order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, recording, correcting and removing payments, recording, correcting and removing
-order expenses, recording, correcting and removing refunds, and moving an order between statuses, and deleting, restoring and purging orders. A later plan adds the order list to this page.
+order expenses, recording, correcting and removing refunds, and moving an order between statuses, deleting, restoring and purging orders, and finding orders in the list. The order screens (ORD-01, ORD-02) come in Phase 8, which makes them true end to end; this page is the server side.
 
 ## In plain words
 
@@ -28,6 +28,7 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
 | `POST /orders` | Staff | the order form below, with an `Idempotency-Key` | `201` the order, with `Location: /api/v1/orders/{id}`; `400` field errors; `409 orders.busy` |
+| `GET /orders?q=&status=&from=&to=&productType=&hasBalance=&sort=&page=&pageSize=` | Staff | none | `200` the list page; `400` field errors |
 | `GET /orders/{id}` | Staff | none | `200` the order; `404 orders.not-found` |
 | `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale` |
 | `POST /orders/{id}/items` | Staff | the item form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-items` |
@@ -57,6 +58,31 @@ Completed or Cancelled (see Statuses below). The refund routes are the one excep
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
 read every order. No answer is ever cached (`Cache-Control: no-store`).
+
+## Listing and searching (`GET /api/v1/orders`) (ORD-01, ORD-02)
+
+Both roles may list. Every part of the query is optional. The answer is `{ items, total, page, pageSize }`, where `total` counts
+every page of the filter. Deleted orders never appear and never count. The order screens that use this list come in Phase 8.
+
+| Parameter | What it does | Default | Refused when |
+|---|---|---|---|
+| `q` | Finds orders whose number, customer name, team or contact number contain the text. A typed `%`, `_` or `[` is an ordinary character. | no search | longer than 100 characters ("Use 100 characters or fewer.") |
+| `status` | `active`, `all`, or one of `pending`, `mockup`, `production`, `ready`, `delivered`, `completed`, `cancelled`. `active` keeps Pending to Delivered, plus Completed and Cancelled orders whose status changed in the last 30 days. | `active` | not one of those ("Choose a status.") |
+| `from`, `to` | Keeps orders whose order date is on or after `from` and on or before `to`, as `yyyy-MM-dd`. Either may be sent alone. | no dates | not a real day ("Enter a real date."); `to` before `from` ("The end date can't be before the start date.") |
+| `productType` | A product type id. Keeps orders with at least one item of that type; an order shows once however many such items it has. | all | not a dashed id ("Choose a product type.") |
+| `hasBalance` | `true` keeps only orders that still owe money (balance above 0.00). `false` or none keeps all. | all | |
+| `sort` | `due` (soonest due first, orders with no due date last), `newest` (latest order date first, then latest recorded), `balance` (largest first) or `total` (largest first). The order id breaks every tie, so pages never overlap. | `due` | not one of those ("Choose a sort order.") |
+| `page` | The page number. | `1` | outside 1 to 100000 ("Use a page from 1 to 100000.") |
+| `pageSize` | Rows per page. | `20` | outside 1 to 100 ("Use a page size from 1 to 100.") |
+
+Each row has `id`, `number`, `customerName`, `teamName`, `orderDate`, `dueDate` (null when an imported order had none), `status`
+(the wire key), `statusChangedAt`, and the stored money figures `subtotal`, `discount`, `total`, `paid`, `refunded`, `balance`,
+`customerCredit` and `fullyPaid`. The server reads these figures from what it stored when the order last changed; the list works out
+no money. A row never carries contact details, the address or notes. For ORD-2026-0148 the figures are 22,450.00, 1,122.50,
+21,327.50, 12,000.00 and 9,327.50 for subtotal, discount, total, paid and balance.
+
+The list runs two SQL commands (the count and the page) whatever the page size, and answers under 300 ms at the 95th percentile on
+about five years of orders. How that is proved is in [list-performance.md](../operations/list-performance.md).
 
 ## The order form (`POST /orders`)
 
