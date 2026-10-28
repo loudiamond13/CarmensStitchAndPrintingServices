@@ -138,7 +138,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **ORD-14**: New orders get a human-readable number `ORD-{YYYY}-{NNNN}`, sequential per year, unique and concurrency-safe. Legacy numbers are preserved ⚑ C-15, C-24
 - [ ] **ORD-15**: Leaving the create/edit form with unsaved changes asks "Discard changes?"
 - [ ] **ORD-16**: Each order keeps a status change history (from → to, who, when)
-- [ ] **ORD-17**: Order status changes follow defined allowed transitions among Pending, Mockup, In Production, Ready, Completed and Cancelled ⚑ OD-3, C-39
+- [x] **ORD-17**: Order status changes follow defined allowed transitions among Pending, Mockup, In Production, Ready, Completed and Cancelled ⚑ OD-3, C-39
 - [ ] **ORD-18**: Payments on cancelled orders and refunds follow a decided policy, so collected-cash figures stay correct ⚑ C-37
 - [ ] **ORD-19**: The order detail shows internal Order Expenses and Estimated Profit (Total − Discount − Order Expenses), visible to staff only
 - [ ] **ORD-20**: The order math reproduces the UI-SPEC §12.2 fixtures exactly (ORD-2026-0148: Total ₱22,450.00 · Discount −₱1,122.50 · Paid −₱12,000.00 · Balance ₱9,327.50 · Expenses ₱6,065.00 · Profit ₱15,262.50)
@@ -420,7 +420,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORD-14 | Phase 7 | Pending |
 | ORD-15 | Phase 8 | Pending |
 | ORD-16 | Phase 7 | Pending |
-| ORD-17 | Phase 7 | Pending |
+| ORD-17 | Phase 7 | Complete |
 | ORD-18 | Phase 7 | Pending |
 | ORD-19 | Phase 8 | Pending |
 | ORD-20 | Phase 7 | Pending |
