@@ -4,7 +4,7 @@ plan: 11
 subsystem: api
 tags: [orders, order-payments, receiver, customer-credit, overpayment, optimistic-concurrency, audit, migration, openapi]
 created: "2026-10-28T14:55:00-05:00"
-updated: "2026-10-28T14:55:00-05:00"
+updated: "2026-10-28T15:20:00-05:00"
 
 requires:
   - phase: 07-order-domain-api
@@ -334,6 +334,8 @@ See key-decisions above. The two the owner should know about are the extra `Posi
 - `Csps.Infrastructure.IntegrationTests` reports one skipped test; it is not in code this plan touched.
 
 ## Deferred Issues
+
+**Owner ruling D-41 (2026-10-28):** the payment messages are approved as written, and a payment may be dated before the order date (only "not in the future" applies).
 
 - **For the owner: wording of the new payment messages.** The plan gave only the balance, nothing-owed, future-date, method and receiver sentences. These were written here in the same plain style as the 07-10 messages. Please read them in `OrderRules.cs` and the payments section of `docs/api/orders.md`; Phase 8 mirrors them in zod:
   - "Enter the payment date." (missing date)
