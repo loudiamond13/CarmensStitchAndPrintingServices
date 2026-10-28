@@ -127,7 +127,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **ORD-03**: Staff can create an order (customer details, dates, status, notes, one or more items) in a single database transaction. The API accepts the full aggregate (optionally payments, discount(s), expenses), and the UI follows the UI-spec flow ⚑ C-3, C-14, OD-7
 - [ ] **ORD-04**: Staff can upload images to an order (during creation and later): a per-order maximum, reorder via an accessible non-drag alternative, choose the cover, set alt text and delete images ⚑ C-2, C-16, OD-9
 - [x] **ORD-05**: Staff can update order details and add/edit/remove items, payments, discount(s) and order expenses. Each change revalidates invariants (quantity > 0, unit price ≥ 0, description 1–200 chars, payment > 0 and not future-dated in business time, percent 0–100, discount ≤ items total, a payment above the remaining balance is refused) and recomputes totals server-side. Removing an item, lowering a quantity or price, or adding or raising a discount after payment may push the balance below ₱0.00. That is allowed: the order then shows a customer credit (the amount paid over the new total), and a refund clears it (ORD-18) ⚑ C-1, OD-4, C-38 (owner, 2026-10-28, D-12, D-13)
-- [ ] **ORD-06**: Staff can delete an order. A delete is a soft delete that both Admins and Managers can do: the order and all its parts disappear from every list, total and balance, but the rows stay. Only Managers see the Deleted orders view, restore an order (it counts again everywhere), and delete an order permanently. A permanent delete keeps the cascade confirmation that shows child counts and requires typing the order number. It removes the order and all its children in one transaction and schedules its images for storage cleanup once order images exist ⚑ OD-5, OD-6 (owner, 2026-10-28, D-26, D-27, D-28)
+- [x] **ORD-06**: Staff can delete an order. A delete is a soft delete that both Admins and Managers can do: the order and all its parts disappear from every list, total and balance, but the rows stay. Only Managers see the Deleted orders view, restore an order (it counts again everywhere), and delete an order permanently. A permanent delete keeps the cascade confirmation that shows child counts and requires typing the order number. It removes the order and all its children in one transaction and schedules its images for storage cleanup once order images exist ⚑ OD-5, OD-6 (owner, 2026-10-28, D-26, D-27, D-28)
 - [ ] **ORD-07**: The order detail page shows the image gallery, tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals, the live OrderTotals panel and the customer card. The active tab lives in the URL (WEB-10), so Back and a shared link reopen the same tab
 - [x] **ORD-08**: Concurrent edits to the same order, including child-only edits, return 409. The UI explains the conflict, preserves the user's input and offers reload
 - [x] **ORD-09**: Money displays as `₱12,450.00` (en-PH, U+2212 minus) and dates as `Oct 6, 2026`. Money inputs accept only valid 2-decimal amounts with the numeric keypad ⚑ OD-1
@@ -409,7 +409,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORD-03 | Phase 7 | Complete |
 | ORD-04 | Phase 9 | Pending |
 | ORD-05 | Phase 7 | Complete |
-| ORD-06 | Phase 8 | Pending |
+| ORD-06 | Phase 8 | Complete |
 | ORD-07 | Phase 8 | Pending |
 | ORD-08 | Phase 7 | Complete |
 | ORD-09 | Phase 2 | Complete |

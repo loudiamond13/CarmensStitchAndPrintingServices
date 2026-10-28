@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-14-PLAN.md
-last_updated: "2026-10-28T21:54:56.638Z"
+stopped_at: Completed 07-15-PLAN.md
+last_updated: "2026-10-28T22:36:59.941Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 2f94303f19354185d4c0d10e87f7cc3bc853ee42
+state_head: d016b43ad54672d03541a636b30a36016b895a70
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 201
+  completed_plans: 202
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 15 of 20
+Plan: 16 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -259,6 +259,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P12 | 35 min | 3 tasks | 50 files |
 | Phase 07 P13 | 45 min | 3 tasks | 21 files |
 | Phase 07 P14 | 50 min | 3 tasks | 48 files |
+| Phase 07 P15 | 45 min | 3 tasks | 27 files |
 
 ## Accumulated Context
 
@@ -712,6 +713,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-13: the status move is single-click (no version) over OrderChildWrite.AttemptAsync with ConflictRetry, judged on the balance read inside the save
 - [Phase 07]: 07-14: the refund exception to the end-state lock is a separate EnsureRefundEditable (only Completed is locked) used by the three refund methods; every other mutator keeps EnsureEditable
 - [Phase 07]: 07-14: the refund not-allowed rule (only a Cancelled order or one with a credit) is judged on add only; an existing refund can be lowered or removed on an active order
+- [Phase 07]: 07-15: delete, restore and permanent delete read the order with the delete filter lifted where needed, record their audit entry before the save, and answer 409 edit.stale after two lost races
+- [Phase 07]: 07-15: order.permanently-deleted lists people once, in the order first recorded, and cuts the longest list with +N to fit the 400 character audit limit (owner may rule on widening the column)
 
 ### Pending Todos
 
@@ -803,6 +806,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T21:54:55.596Z
-Stopped at: Completed 07-14-PLAN.md
+Last session: 2026-10-28T22:36:58.709Z
+Stopped at: Completed 07-15-PLAN.md
 Resume file: None
