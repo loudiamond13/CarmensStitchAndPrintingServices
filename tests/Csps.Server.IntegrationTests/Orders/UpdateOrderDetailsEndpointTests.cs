@@ -272,4 +272,73 @@ public sealed class UpdateOrderDetailsEndpointTests(CspsDatabase database) : ICl
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe("orders.not-found");
     }
+
+    [Fact]
+    public async Task ARealChangeWritesExactlyOneChangedEntryForTheOrderWithNoCustomerText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var editor = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var body = OrderFixtures.DetailsBodyFrom(created);
+        body["dueDate"] = OrderFixtures.Date(today.AddDays(21));
+        body["customerName"] = "Private Customer";
+        body["notes"] = "Private rush note";
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, editor.AccessToken, id, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using var context = database.CreateContext();
+        var entry = await context.AuditLog.AsNoTracking()
+            .SingleAsync(row => row.Action == "order.changed" && row.TargetId == id.ToString("D"), TestContext.Current.CancellationToken);
+        entry.TargetType.ShouldBe("Order");
+        entry.ActorUserId.ShouldBe(editor.UserId);
+        entry.Detail.ShouldBe($"dueDate={OrderFixtures.Date(today.AddDays(14))}>{OrderFixtures.Date(today.AddDays(21))};fields=customerName,notes");
+        entry.Detail.ShouldNotBeNull().ShouldNotContain("Private", Case.Insensitive);
+        entry.Detail.ShouldNotContain("Juan", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task ASaveThatChangesNothingWritesNoChangedEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, manager.AccessToken, id, OrderFixtures.DetailsBodyFrom(created));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.Action == "order.changed" && row.TargetId == id.ToString("D"), TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AStaleOrRefusedSaveWritesNoChangedEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var stale = OrderFixtures.DetailsBodyFrom(created);
+        stale["notes"] = "Stale";
+        stale["version"] = "AAAAAAAAAAE=";
+        var refused = OrderFixtures.DetailsBodyFrom(created);
+        refused["customerName"] = string.Empty;
+
+        using var staleResponse = await OrderFixtures.PutDetailsAsync(client, manager.AccessToken, id, stale);
+        using var refusedResponse = await OrderFixtures.PutDetailsAsync(client, manager.AccessToken, id, refused);
+
+        staleResponse.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        refusedResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.Action == "order.changed" && row.TargetId == id.ToString("D"), TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
 }

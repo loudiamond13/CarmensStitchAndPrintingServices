@@ -5,6 +5,7 @@ using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
 using Csps.Domain.Time;
@@ -176,6 +177,54 @@ public sealed class UpdateOrderDetailsHandlerTests
         await Should.ThrowAsync<ArgumentNullException>(() => harness.Handler.HandleAsync(harness.Order.Id, null!, TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task ARealChangeRecordsOneChangedEntryBeforeTheSaveWithNoCustomerText()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            harness.Order.Id,
+            Valid() with { CustomerName = "Private Name", Notes = "Private note", DueDate = "2026-11-18" },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Call.ShouldBe(new AuditCall(
+            AuditActions.OrderChanged,
+            "Order",
+            harness.Order.Id.ToString("D"),
+            "dueDate=2026-11-11>2026-11-18;fields=customerName,notes",
+            Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+        harness.Unit.Saves.ShouldBe(1);
+        entry.Call.Detail.ShouldNotBeNull().ShouldNotContain("Private", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task AFormWithNoChangeRecordsNothing()
+    {
+        var harness = new Harness();
+
+        (await harness.Handler.HandleAsync(harness.Order.Id, Valid(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AStaleVersionARefusedFormAndAMissingOrderRecordNothing()
+    {
+        var stale = new Harness();
+        await stale.Handler.HandleAsync(stale.Order.Id, Valid() with { Version = Convert.ToBase64String([0, 0, 0, 0, 0, 0, 0, 1]), Notes = "x" }, TestContext.Current.CancellationToken);
+        var refused = new Harness(validator: new PassingValidator());
+        await refused.Handler.HandleAsync(refused.Order.Id, Valid() with { CustomerName = " " }, TestContext.Current.CancellationToken);
+        var missing = new Harness(found: false);
+        await missing.Handler.HandleAsync(Guid.NewGuid(), Valid() with { Notes = "x" }, TestContext.Current.CancellationToken);
+
+        stale.Audit.Entries.ShouldBeEmpty();
+        refused.Audit.Entries.ShouldBeEmpty();
+        missing.Audit.Entries.ShouldBeEmpty();
+    }
+
     private static UpdateOrderDetailsRequest Valid() => new(
         "Juan Dela Cruz",
         "Brgy. San Roque Ballers",
@@ -201,6 +250,7 @@ public sealed class UpdateOrderDetailsHandlerTests
     {
         public Harness(bool noCaller = false, bool found = true, IValidator<UpdateOrderDetailsRequest>? validator = null)
         {
+            Audit = new SaveAwareAudit(Unit);
             var items = new[] { new NewOrderItem(Guid.Parse("01a17fce-7800-7f5d-bc6c-5d14ceeca0c6"), "Jersey top", "S-XL", 15, 650.00m) };
             var details = new OrderDetails("Juan Dela Cruz", "Brgy. San Roque Ballers", "0917 123 4567", "juan.dc@example.com", null, new DateOnly(2026, 10, 28), new DateOnly(2026, 11, 11), null);
             Order = Order.Create(new NewOrder(details, OrderStatus.Pending, items), Guid.NewGuid(), Now).Value;
@@ -211,7 +261,7 @@ public sealed class UpdateOrderDetailsHandlerTests
             Reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<OrderDetailResponse?>(Detail()));
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new UpdateOrderDetailsHandler(Orders, Reader, new FixedCalendar(), Unit, request, validator ?? new UpdateOrderDetailsRequestValidator());
+            Handler = new UpdateOrderDetailsHandler(Orders, Reader, new FixedCalendar(), Audit, Unit, request, validator ?? new UpdateOrderDetailsRequestValidator());
         }
 
         public Order Order { get; }
@@ -221,6 +271,8 @@ public sealed class UpdateOrderDetailsHandlerTests
         public IOrderReader Reader { get; }
 
         public FakeUnitOfWork Unit { get; } = new();
+
+        public SaveAwareAudit Audit { get; }
 
         public UpdateOrderDetailsHandler Handler { get; }
 
@@ -245,6 +297,18 @@ public sealed class UpdateOrderDetailsHandlerTests
             null,
             null,
             "AAAAAAAAH6Q=");
+    }
+
+    // Remembers how many saves had happened when each entry was recorded, so a test can prove the entry joins the change's save.
+    private sealed class SaveAwareAudit(FakeUnitOfWork unit) : IAuditTrail
+    {
+        public List<(AuditCall Call, int SavesSoFar)> Entries { get; } = [];
+
+        public void Record(string action, string? targetType, string? targetId, string? detail) =>
+            Entries.Add((new AuditCall(action, targetType, targetId, detail, Independent: false), unit.Saves));
+
+        public ValueTask RecordIndependentlyAsync(string action, string? targetType, string? targetId, string? detail, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("The order audit entry must join the change's own save.");
     }
 
     private sealed class FixedCalendar : IBusinessCalendar

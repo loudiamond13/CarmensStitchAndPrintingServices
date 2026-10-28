@@ -1,5 +1,6 @@
 using Csps.Application.Orders;
 using Csps.Domain.Auditing;
+using Csps.Domain.Expenses;
 using Csps.Domain.Orders;
 
 namespace Csps.Application.UnitTests.Orders;
@@ -49,6 +50,64 @@ public sealed class OrderAuditDetailTests
 
     [Fact]
     public void ANullOrderIsAProgrammingError() => Should.Throw<ArgumentNullException>(() => OrderAuditDetail.Created(null!));
+
+    [Fact]
+    public void DetailsChangedNamesTheDueDatePairAndTheChangedFieldsButNoText()
+    {
+        var changes = new OrderDetailsChanges(null, new DueDateChange(new DateOnly(2026, 11, 11), new DateOnly(2026, 11, 18)), ["customerName", "notes"]);
+
+        var detail = OrderAuditDetail.DetailsChanged(changes);
+
+        detail.ShouldBe("dueDate=2026-11-11>2026-11-18;fields=customerName,notes");
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void DetailsChangedWritesTheOrderDateBeforeTheDueDate()
+    {
+        var changes = new OrderDetailsChanges(
+            new ValueChange<DateOnly>(new DateOnly(2026, 10, 28), new DateOnly(2026, 10, 26)),
+            new DueDateChange(new DateOnly(2026, 11, 11), new DateOnly(2026, 11, 18)),
+            []);
+
+        OrderAuditDetail.DetailsChanged(changes).ShouldBe("orderDate=2026-10-28>2026-10-26;dueDate=2026-11-11>2026-11-18");
+    }
+
+    [Fact]
+    public void DetailsChangedLeavesTheOldDueDateEmptyWhenAnImportedOrderHadNone()
+    {
+        var changes = new OrderDetailsChanges(null, new DueDateChange(null, new DateOnly(2026, 11, 18)), []);
+
+        OrderAuditDetail.DetailsChanged(changes).ShouldBe("dueDate=>2026-11-18");
+    }
+
+    [Fact]
+    public void DetailsChangedWithOnlyFieldsHasNoDates()
+    {
+        var changes = new OrderDetailsChanges(null, null, ["email"]);
+
+        OrderAuditDetail.DetailsChanged(changes).ShouldBe("fields=email");
+    }
+
+    [Fact]
+    public void DetailsChangedHoldsNoCustomerTeamContactEmailAddressOrNotesText()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var changes = order.UpdateDetails(
+            Details() with { CustomerName = "Maria Santos", TeamName = "Riders", ContactNumber = "0918 555 0101", Email = "maria@example.com", Address = "Quezon City", Notes = "call first" },
+            Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.DetailsChanged(changes);
+
+        detail.ShouldBe("fields=customerName,teamName,contactNumber,email,address,notes");
+        foreach (var secret in new[] { "Maria", "Santos", "Riders", "0918", "maria@", "Quezon", "call first" })
+        {
+            detail.ShouldNotContain(secret, Case.Insensitive);
+        }
+    }
+
+    [Fact]
+    public void NullDetailsChangesAreAProgrammingError() => Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DetailsChanged(null!));
 
     private static Order NewOrder(string number)
     {
