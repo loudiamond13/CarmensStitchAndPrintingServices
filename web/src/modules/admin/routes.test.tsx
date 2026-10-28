@@ -19,6 +19,7 @@ import {
   expensesBackend,
 } from '@/test/expenseFixtures';
 import { server } from '@/test/msw';
+import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -499,5 +500,31 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeVisible();
     expect(preview.state.location.pathname).toBe('/admin/orders');
     expect(probe.count).toBe(0);
+  });
+
+  it('with the dev routes added, /dev/public shows the real public layout around labelled fields, with no session request', async () => {
+    const probe = answerRefresh();
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/dev/public'] });
+    const { container } = render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Public layout check' }, { timeout: 15_000 }),
+    ).toBeVisible();
+    expect(screen.getByRole('banner')).toBeVisible();
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    for (let index = 1; index <= 16; index += 1) {
+      expect(screen.getByRole('textbox', { name: `Field ${String(index)}` })).toBeVisible();
+    }
+    expect(document.title).toBe('Public layout check');
+    expect(probe.count).toBe(0);
+    await expectNoAxeViolations(container);
+  }, 30_000);
+
+  it('the production routes have no /dev/public: it falls through to the public holding page', async () => {
+    const router = createMemoryRouter(routes, { initialEntries: ['/dev/public'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: /New website/ }, { timeout: 5000 })).toBeVisible();
+    expect(screen.queryByText('Public layout check')).toBeNull();
   });
 });

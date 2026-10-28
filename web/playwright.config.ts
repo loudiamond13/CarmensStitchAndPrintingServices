@@ -33,8 +33,9 @@ const chromiumOnly = ['**/testing-host.spec.ts'];
 // The two-tab session proof (Web Locks, BroadcastChannel) is likewise per engine (plan 04-30).
 const desktopEnginesOnly = ['**/auth-cookies.spec.ts', '**/auth-multitab.spec.ts'];
 
-// The real-scrollbar dialog tests run only in the two scrollbar projects below (plan 02-42).
-const scrollbarSpecs = ['**/dialog-scrollbars.spec.ts'];
+// The real-scrollbar dialog tests run only in the two scrollbar projects below (plan 02-42); so do the tab bar spacing
+// tests, which need real scrollbars to keep a 768px or wider window in the phone layout.
+const scrollbarSpecs = ['**/dialog-scrollbars.spec.ts', '**/focus-scrollbars.spec.ts'];
 
 export default defineConfig({
   testDir: 'e2e',
@@ -60,8 +61,8 @@ export default defineConfig({
     // Headless Chromium starts with --hide-scrollbars, so no project above ever presses a real scrollbar. These two show
     // them again: classic scrollbars, which take about 15px of the window as in Chrome on Windows (the owner's setup),
     // and overlay scrollbars, which take no space as on macOS with a trackpad and on ChromeOS. They run only
-    // dialog-scrollbars.spec.ts, under the same base URL, HTTPS host and guard as every other project (plan 02-42,
-    // review WR-02).
+    // dialog-scrollbars.spec.ts and focus-scrollbars.spec.ts (the tab bar's bottom spacing with real scrollbars), under the
+    // same base URL, HTTPS host and guard as every other project (plan 02-42, review WR-02).
     {
       name: 'chromium-classic-scrollbars',
       use: { ...devices['Desktop Chrome'], launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } },

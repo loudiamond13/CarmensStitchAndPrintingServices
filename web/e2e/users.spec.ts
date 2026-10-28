@@ -110,8 +110,6 @@ test('@users the roster shows staff in every state, filters and pages in the URL
 
   await page.getByRole('combobox', { name: 'Role' }).selectOption('admin');
   await expect(page.getByRole('heading', { name: 'No matches' })).toBeVisible();
-  // On a phone the Add User button pushes this state down behind the fixed tab bar, which axe reads as an overlap.
-  await page.evaluate(`document.querySelector('main h2')?.scrollIntoView({ block: 'center' })`);
   await expectNoAxeViolations(page);
   await page.getByRole('button', { name: 'Clear Filters' }).click();
   await expect.poll(() => page.url().includes('?')).toBe(false);

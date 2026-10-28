@@ -107,6 +107,13 @@ describe('PublicLayout landmarks and page root (A11Y-01, D-14)', () => {
     expect(main).not.toHaveAttribute('aria-busy');
   });
 
+  it('gives the page top scroll padding for the sticky header, one value at every width', async () => {
+    await renderAt('/');
+    expect(screen.getByRole('main').className.split(' ')).toContain(
+      '[:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6))]',
+    );
+  });
+
   it('has no axe violations', async () => {
     const { container } = await renderAt('/products');
     await expectNoAxeViolations(container);

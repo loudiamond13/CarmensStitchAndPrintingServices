@@ -197,8 +197,6 @@ test('@profile a stale save keeps what was typed behind the conflict banner, and
   await expect(banner.getByRole('button', { name: 'Load Latest' })).toBeFocused();
   await expect(firstName(second)).toHaveValue('Secondtry');
   await expect(second.getByText('Changes saved')).toHaveCount(0);
-  // From the top of the page: on a phone the sticky tab bar would otherwise cover the field the banner pushed down.
-  await second.evaluate('window.scrollTo(0, 0)');
   await expectNoAxeViolations(second);
   expect(await second.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
 

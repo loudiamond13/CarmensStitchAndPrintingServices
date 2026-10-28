@@ -1,10 +1,11 @@
 // Fixture self-tests (QUAL-04, A11Y-01): each E2E guard must catch its own class of failure in every engine (chromium,
 // firefox, webkit; the phone projects skip this file in playwright.config.ts). Each test provokes exactly one finding on
 // the real home page, inspects it through the guard, proves the guard's end-of-test check would fail on it, and then
-// takes (clears) the record, so the auto check passes. One more test proves the axe check stays fast on a large page.
+// takes (clears) the record, so the auto check passes. One more test proves the axe check stays fast on a large page, and
+// two prove the D-71 re-check: a target only a sticky bar partly covers passes once scrolled clear, one still covered fails.
 // Nothing here uses test.fail(), which could hide a real failure.
 // Page scripts are strings: the e2e TypeScript program has no DOM types, and Playwright evaluates them outside the CSP.
-import { assertNoFindings, expect, expectNoAxeViolations, listFindings, test } from './fixtures.ts';
+import { assertNoFindings, expect, expectNoAxeViolations, listFindings, pageAxe, test } from './fixtures.ts';
 
 const DELIBERATE = 'e2e fixture: deliberate console error';
 
@@ -37,6 +38,70 @@ const INSERT_LONG_PICKER = `(() => {
   label.append(select);
   (document.querySelector('main') ?? document.body).append(label);
 })()`;
+
+// A tall page with a sticky 64px bottom bar (one full-size link) and a 296x44 button with 9px showing above the bar. The
+// bar is sticky like the app's own bars: axe 4.13 does not count a position: fixed bar as covering a target. With
+// `overlay`, an in-content link also stacks over the button's lower 35px. Built with CSSOM only: the CSP bans style attributes.
+// It waits until the scroll position stops moving: WebKit moves it again a frame or two after scrollTo.
+function insertBarCoveredButton(overlay: boolean): string {
+  return `(async () => {
+  const spacer = document.createElement('div');
+  spacer.style.height = '3000px';
+  document.body.append(spacer);
+  const bar = document.createElement('div');
+  bar.style.position = 'sticky';
+  bar.style.bottom = '0';
+  bar.style.height = '64px';
+  bar.style.background = '#fff';
+  bar.style.zIndex = '3';
+  const barLink = document.createElement('a');
+  barLink.href = '#e2e-fixture-bar';
+  barLink.textContent = 'Bar link';
+  barLink.style.display = 'block';
+  barLink.style.height = '64px';
+  barLink.style.color = '#000';
+  bar.append(barLink);
+  document.body.append(bar);
+  window.scrollTo({ top: 100, behavior: 'instant' });
+  let steady = 0;
+  let last = -1;
+  while (steady < 5) {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    steady = window.scrollY === last ? steady + 1 : 0;
+    last = window.scrollY;
+  }
+  const top = window.scrollY + window.innerHeight - 64 - 9;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.id = 'e2e-fixture-covered';
+  button.textContent = 'Covered target';
+  button.style.position = 'absolute';
+  button.style.left = '8px';
+  button.style.top = top + 'px';
+  button.style.width = '296px';
+  button.style.height = '44px';
+  button.style.zIndex = '1';
+  button.style.background = '#fff';
+  button.style.color = '#000';
+  button.style.border = '1px solid #000';
+  document.body.append(button);
+  if (${String(overlay)}) {
+    const link = document.createElement('a');
+    link.href = '#e2e-fixture-overlay';
+    link.textContent = 'Overlay link';
+    link.style.position = 'absolute';
+    link.style.left = '8px';
+    link.style.top = (top + 9) + 'px';
+    link.style.width = '296px';
+    link.style.height = '35px';
+    link.style.zIndex = '2';
+    link.style.background = '#fff';
+    link.style.color = '#000';
+    document.body.append(link);
+  }
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+})()`;
+}
 
 /** Fetches a same-origin path from the page and returns the status. */
 function fetchStatus(path: string): string {
@@ -97,6 +162,30 @@ test('@fixture the axe check takes seconds, not minutes, on a page with thousand
   const started = Date.now();
   await expectNoAxeViolations(page);
   expect(Date.now() - started).toBeLessThan(10_000);
+});
+
+test('@fixture a target only a sticky bar partly covers passes the axe check once scrolled clear, and the scroll position is kept', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.evaluate(insertBarCoveredButton(false));
+  const scrollBefore = await page.evaluate<number>('window.scrollY');
+
+  const direct = await pageAxe(page).analyze();
+  const targetSize = direct.violations.find((violation) => violation.id === 'target-size');
+  expect(targetSize?.nodes.map((node) => node.target.join(' '))).toEqual(['#e2e-fixture-covered']);
+
+  await expectNoAxeViolations(page);
+  expect(await page.evaluate<number>('window.scrollY')).toBe(scrollBefore);
+});
+
+test('@fixture a target still covered after it is scrolled clear fails the axe check', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(insertBarCoveredButton(true));
+
+  await expect(expectNoAxeViolations(page)).rejects.toThrow(
+    /^axe found 1 violation\(s\):\ntarget-size: #e2e-fixture-covered$/,
+  );
 });
 
 test('@fixture an unexpected same-origin 404 is caught, and a declared one is not', async ({
