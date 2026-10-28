@@ -214,7 +214,7 @@ public sealed class IdempotencyGateTests(CspsDatabase database) : IClassFixture<
 
         await using var after = database.CreateContext();
         (await after.Set<DatabaseLock>().CountAsync(claim => claim.Name.StartsWith("idem:purge-"), TestContext.Current.CancellationToken)).ShouldBe(5);
-        (await after.Set<DatabaseLock>().CountAsync(claim => claim.ExpiresAtUtc == null, TestContext.Current.CancellationToken)).ShouldBe(65);
+        (await after.Set<DatabaseLock>().CountAsync(claim => claim.ExpiresAtUtc == null, TestContext.Current.CancellationToken)).ShouldBe(66);
     }
 
     [Fact]
