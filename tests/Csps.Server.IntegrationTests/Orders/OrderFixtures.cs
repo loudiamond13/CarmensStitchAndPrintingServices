@@ -35,6 +35,15 @@ internal static class OrderFixtures
     /// <summary>The id of the seeded GCash payment method.</summary>
     public static readonly Guid GCashId = PaymentMethodId("GCash");
 
+    /// <summary>The id of the seeded Fabric order expense category.</summary>
+    public static readonly Guid FabricId = ExpenseCategoryId("Fabric");
+
+    /// <summary>The id of the seeded Ink &amp; paper order expense category.</summary>
+    public static readonly Guid InkAndPaperId = ExpenseCategoryId("Ink & paper");
+
+    /// <summary>The id of the seeded Outsourcing order expense category.</summary>
+    public static readonly Guid OutsourcingId = ExpenseCategoryId("Outsourcing");
+
     /// <summary>One order item as a dictionary so a test can override a member.</summary>
     /// <param name="productTypeId">The product type.</param>
     /// <param name="description">What the item is.</param>
@@ -450,6 +459,147 @@ internal static class OrderFixtures
         return document.RootElement.Clone();
     }
 
+    /// <summary>Builds the body of an order expense add or edit: the expense fields plus the order's version.</summary>
+    /// <param name="expenseDate">The day of the expense.</param>
+    /// <param name="categoryId">The order expense category.</param>
+    /// <param name="description">The description text.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="paidByUserId">Who paid.</param>
+    /// <param name="version">The order's version as the last answer carried it.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> ExpenseBody(DateOnly? expenseDate, Guid? categoryId, string? description, decimal? amount, Guid? paidByUserId, string? version) => new()
+    {
+        ["expenseDate"] = expenseDate is { } date ? Date(date) : null,
+        ["orderExpenseCategoryId"] = categoryId,
+        ["description"] = description,
+        ["amount"] = amount,
+        ["paidByUserId"] = paidByUserId,
+        ["version"] = version,
+    };
+
+    /// <summary>Builds one expense of the create body.</summary>
+    /// <param name="expenseDate">The day of the expense.</param>
+    /// <param name="categoryId">The order expense category.</param>
+    /// <param name="description">The description text.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="paidByUserId">Who paid.</param>
+    /// <returns>The expense members.</returns>
+    public static Dictionary<string, object?> ExpenseItem(DateOnly expenseDate, Guid categoryId, string? description, decimal amount, Guid paidByUserId) => new()
+    {
+        ["expenseDate"] = Date(expenseDate),
+        ["orderExpenseCategoryId"] = categoryId,
+        ["description"] = description,
+        ["amount"] = amount,
+        ["paidByUserId"] = paidByUserId,
+    };
+
+    /// <summary>Posts an expense to a saved order with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> AddExpenseAsync(HttpClient client, string? accessToken, Guid orderId, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{orderId:D}/expenses", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Puts the edit form of one expense.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="expenseId">The expense id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PutExpenseAsync(HttpClient client, string? accessToken, Guid orderId, Guid expenseId, object? body)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Put, $"{Route}/{orderId:D}/expenses/{expenseId:D}", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Removes one expense.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="expenseId">The expense id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteExpenseAsync(HttpClient client, string? accessToken, Guid orderId, Guid expenseId)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{orderId:D}/expenses/{expenseId:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Adds an expense, expects a 200 and returns the whole order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="order">The order as the last answer carried it; its version is sent.</param>
+    /// <param name="expenseDate">The day of the expense.</param>
+    /// <param name="categoryId">The order expense category.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="paidByUserId">Who paid.</param>
+    /// <param name="description">The description text.</param>
+    /// <returns>The JSON body of the order after the add.</returns>
+    public static async Task<JsonElement> AddExpenseAndReadAsync(HttpClient client, string accessToken, JsonElement order, DateOnly expenseDate, Guid categoryId, decimal amount, Guid paidByUserId, string? description = null)
+    {
+        using var response = await AddExpenseAsync(
+            client,
+            accessToken,
+            order.GetProperty("id").GetGuid(),
+            ExpenseBody(expenseDate, categoryId, description, amount, paidByUserId, order.GetProperty("version").GetString()));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
+    /// <summary>Adds an order expense category of its own to the test database, so a test never retires a seeded one.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="retired">True to retire it at once.</param>
+    /// <returns>The new category's id.</returns>
+    public static async Task<Guid> AddExpenseCategoryAsync(CspsDatabase database, bool retired)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var category = OrderExpenseCategory.Create($"Test {Guid.NewGuid():N}"[..21], "neutral", TimeProvider.System.GetUtcNow()).Value;
+        if (retired)
+        {
+            category.Retire(TimeProvider.System.GetUtcNow()).IsSuccess.ShouldBeTrue();
+        }
+
+        context.OrderExpenseCategories.Add(category);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return category.Id;
+    }
+
+    /// <summary>Retires an order expense category that was in use.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="categoryId">The category to retire.</param>
+    /// <returns>A task that completes once the category is retired.</returns>
+    public static async Task RetireExpenseCategoryAsync(CspsDatabase database, Guid categoryId)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var at = TimeProvider.System.GetUtcNow();
+        await context.OrderExpenseCategories.Where(category => category.Id == categoryId)
+            .ExecuteUpdateAsync(set => set.SetProperty(category => category.RetiredAtUtc, at), TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
@@ -547,6 +697,8 @@ internal static class OrderFixtures
     private static string? TextOrNull(JsonElement element, string name) => IsNull(element, name) ? null : element.GetProperty(name).GetString();
 
     private static Guid ProductTypeId(string name) => OrderListSeed.ProductTypes.Single(row => row.Name == name).Id;
+
+    private static Guid ExpenseCategoryId(string name) => OrderListSeed.OrderExpenseCategories.Single(row => row.Name == name).Id;
 
     private static Guid PaymentMethodId(string name) => OrderListSeed.PaymentMethods.Single(row => row.Name == name).Id;
 }
