@@ -1,3 +1,5 @@
+using Csps.Application.Orders;
+using Csps.Application.Ports;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
@@ -5,6 +7,7 @@ using Csps.Domain.Orders;
 using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Orders;
 using Csps.Infrastructure.Persistence;
+using Csps.Infrastructure.Persistence.Locking;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,6 +42,37 @@ public sealed class OrderNumberAllocatorTests(CspsDatabase database) : IClassFix
 
         next.ShouldBe("ORD-2026-0002");
         (await ReadLastValueAsync()).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task ALockHeldByAnotherTransactionGivesOrderNumberBusyWithinTheWaitAndLeavesTheCounterUnchanged()
+    {
+        await database.ResetAsync();
+        var callerId = await CreateUserAsync();
+        await CreateOrderAsync(callerId, Guid.NewGuid().ToString("N"), failAfterSave: false);
+        var before = await ReadLastValueAsync();
+
+        await using var holder = database.CreateContext();
+        await using var waiter = database.CreateContext();
+        var held = await holder.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (held)
+        {
+            await DatabaseLocks.TakeAsync(holder, DatabaseLocks.OrderNumbers, Now, DatabaseLocks.DefaultWait, "The lock was not had.", TestContext.Current.CancellationToken);
+            var other = await waiter.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await using (other)
+            {
+                var allocator = new OrderNumberAllocator(waiter, TimeSpan.FromSeconds(1));
+
+                var refused = await Should.ThrowAsync<OrderNumberBusyException>(() => allocator.NextAsync(Year, Now, TestContext.Current.CancellationToken));
+
+                refused.Message.ShouldBe(OrderErrors.BusyMessage);
+            }
+
+            await held.RollbackAsync(TestContext.Current.CancellationToken);
+        }
+
+        (await ReadLastValueAsync()).ShouldBe(before);
+        (await CreateOrderAsync(callerId, Guid.NewGuid().ToString("N"), failAfterSave: false)).ShouldBe("ORD-2026-0002");
     }
 
     private const string Failure = "The save was undone on purpose.";
