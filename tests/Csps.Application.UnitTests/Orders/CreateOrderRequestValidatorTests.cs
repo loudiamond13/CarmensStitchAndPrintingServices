@@ -13,6 +13,7 @@ public sealed class CreateOrderRequestValidatorTests
     private static readonly CreateOrderRequestValidator Validator = new();
     private static readonly Guid MethodId = Guid.Parse("01a17fce-7806-77e1-91b7-d3b852f2fd1d");
     private static readonly Guid ReceiverId = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
+    private static readonly Guid CategoryId = Guid.Parse("01a17fce-780b-75d1-89e0-5b3b9b185a2c");
 
     [Fact]
     public void ABoundaryValidFormHasNoErrors() => Fields(Valid()).ShouldBeEmpty();
@@ -310,6 +311,62 @@ public sealed class CreateOrderRequestValidatorTests
     }
 
     [Fact]
+    public void NoExpensesAndAnEmptyListAreAccepted()
+    {
+        Fields(Valid()).ShouldBeEmpty();
+        Fields(Valid() with { Expenses = [] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ABrokenExpenseIsRefusedOnItsPath()
+    {
+        One(Valid() with { Expenses = [Expense() with { Amount = 0m }] }, "expenses[0].amount", "Enter an amount greater than ₱0.00.");
+        One(Valid() with { Expenses = [Expense(), Expense() with { ExpenseDate = "2026-11-28" }] }, "expenses[1].expenseDate", "Choose a date up to 30 days from today, Nov 27, 2026 at the latest.");
+        One(Valid() with { Expenses = [Expense() with { PaidByUserId = null }] }, "expenses[0].paidByUserId", "Choose who paid.");
+        One(Valid() with { Expenses = [Expense() with { OrderExpenseCategoryId = Guid.Empty }] }, "expenses[0].orderExpenseCategoryId", "Choose a category.");
+        One(Valid() with { Expenses = [Expense() with { Description = new string('d', 201) }] }, "expenses[0].description", "Keep the description to 200 characters or fewer.");
+    }
+
+    [Fact]
+    public void AnExpenseDatedLongAgoOrThirtyDaysAheadIsAccepted()
+    {
+        Fields(Valid() with { Expenses = [Expense() with { ExpenseDate = "2024-01-05" }, Expense() with { ExpenseDate = "2026-11-27" }] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AnEmptyExpenseListsEveryRequiredFieldOnItsPath() =>
+        Fields(Valid() with { Expenses = [new OrderExpenseRequest(null, null, null, null, null)] }).Keys.Order(StringComparer.Ordinal)
+            .ShouldBe(["expenses[0].amount", "expenses[0].expenseDate", "expenses[0].orderExpenseCategoryId", "expenses[0].paidByUserId"]);
+
+    [Fact]
+    public void ANullExpenseInTheListIsRefusedOnItsPath() =>
+        One(Valid() with { Expenses = [Expense(), null!] }, "expenses[1]", "Fill in this expense.");
+
+    [Fact]
+    public void OneHundredExpensesAreAcceptedAndOneHundredAndOneAreRefused()
+    {
+        Fields(Valid() with { Expenses = [.. Enumerable.Repeat(Expense(), 100)] }).ShouldBeEmpty();
+        One(Valid() with { Expenses = [.. Enumerable.Repeat(Expense(), 101)] }, "expenses", "An order can have at most 100 expenses.");
+    }
+
+    [Fact]
+    public void AnExpenseWithoutTheBusinessTodayInTheContextIsAProgrammingError()
+    {
+        Should.Throw<InvalidOperationException>(() => Validator.Validate(Valid() with { Expenses = [Expense()] }));
+    }
+
+    [Fact]
+    public void TheExpenseValidatorWorksOnItsOwnInterface()
+    {
+        var context = new ValidationContext<IOrderExpenseFields>(Expense() with { Amount = 10.005m });
+        context.RootContextData[OrderExpenseFieldsValidator.TodayKey] = new DateOnly(2026, 10, 28);
+
+        var result = new OrderExpenseFieldsValidator().Validate(context);
+
+        result.Errors.Select(error => error.PropertyName).ShouldBe(["Amount"]);
+    }
+
+    [Fact]
     public void ThePaymentValidatorWorksOnItsOwnInterface()
     {
         var context = new ValidationContext<IOrderPaymentFields>(Payment() with { Amount = 10.005m });
@@ -381,6 +438,8 @@ public sealed class CreateOrderRequestValidatorTests
     private static OrderDiscountRequest Discount() => new("fixed", 100.00m, "League");
 
     private static OrderPaymentRequest Payment() => new("2026-10-27", 100.00m, MethodId, null, null, ReceiverId);
+
+    private static OrderExpenseRequest Expense() => new("2026-10-27", CategoryId, "Dri-fit mesh", 100.00m, ReceiverId);
 
     private static decimal Parse(string text) => decimal.Parse(text, CultureInfo.InvariantCulture);
 

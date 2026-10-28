@@ -33,6 +33,8 @@ public sealed class CreateOrderHandlerTests
     private static readonly Guid RetiredMethodId = Guid.Parse("5b3e8a14-6c27-4d90-a1f5-0e9c7d2b4a68");
     private static readonly Guid GoodReceiverId = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
     private static readonly Guid BlockedReceiverId = Guid.Parse("d6e90b13-72a4-4f58-8c1d-3a5b7e9f0c26");
+    private static readonly Guid FabricId = Guid.Parse("01a17fce-780b-75d1-89e0-5b3b9b185a2c");
+    private static readonly Guid RetiredCategoryId = Guid.Parse("8e2c5a47-1d93-4b60-a7f4-6c0d9b3e5a12");
 
     [Fact]
     public async Task WithNoCallerTheSessionHasEnded()
@@ -184,6 +186,61 @@ public sealed class CreateOrderHandlerTests
         var order = added.ShouldNotBeNull();
         order.Payments.ShouldHaveSingleItem().Amount.ShouldBe(500m);
         order.PaidTotal.ShouldBe(500m);
+        harness.Audit.Entries.ShouldHaveSingleItem().Call.Detail.ShouldNotBeNull().ShouldNotContain("Private");
+    }
+
+    [Fact]
+    public async Task ExpensesAreCheckedWithTheItemsAndEveryFailureIsListedInOne400()
+    {
+        var harness = new Harness();
+        var request = Valid() with
+        {
+            Expenses =
+            [
+                Expense(),
+                Expense() with { OrderExpenseCategoryId = RetiredCategoryId },
+                Expense() with { OrderExpenseCategoryId = Guid.NewGuid(), PaidByUserId = BlockedReceiverId },
+                Expense() with { PaidByUserId = Guid.NewGuid() },
+            ],
+        };
+
+        var result = await harness.Handler.HandleAsync(request, TestContext.Current.CancellationToken);
+
+        var fields = Fields(result);
+        fields.Keys.Order(StringComparer.Ordinal).ShouldBe(["expenses[1].orderExpenseCategoryId", "expenses[2].orderExpenseCategoryId", "expenses[2].paidByUserId", "expenses[3].paidByUserId"]);
+        fields["expenses[1].orderExpenseCategoryId"].ShouldBe(["This category was retired. Choose another one."]);
+        fields["expenses[2].orderExpenseCategoryId"].ShouldBe(["Choose a category."]);
+        fields["expenses[2].paidByUserId"].ShouldBe(["This person can't be chosen because their account isn't active. Choose someone else."]);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task APayerNamedByManyExpensesIsLookedUpOnce()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Expenses = [Expense(), Expense(), Expense()] }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Staff.Received(1).GetStaffStateAsync(GoodReceiverId, Arg.Any<CancellationToken>());
+        await harness.Lists.Received(1).GetStatesAsync(OrderListKind.OrderExpenseCategory, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExpensesAreSavedWithTheOrderAndItsAuditEntryStaysFreeOfExpenseText()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(orders => orders.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Expenses = [Expense() with { Amount = 500m, Description = "Private words" }] }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = added.ShouldNotBeNull();
+        order.Expenses.ShouldHaveSingleItem().Amount.ShouldBe(500m);
+        order.ExpensesTotal.ShouldBe(500m);
+        order.Profit.ShouldBe(9250m);
         harness.Audit.Entries.ShouldHaveSingleItem().Call.Detail.ShouldNotBeNull().ShouldNotContain("Private");
     }
 
@@ -433,6 +490,8 @@ public sealed class CreateOrderHandlerTests
 
     private static OrderPaymentRequest Payment() => new("2026-12-31", 100m, CashId, null, null, GoodReceiverId);
 
+    private static OrderExpenseRequest Expense() => new("2026-12-30", FabricId, "Dri-fit mesh", 100m, GoodReceiverId);
+
     private static OrderItemRequest Item(Guid? productTypeId) => new(productTypeId, "Jersey top", "S-XL", 15, 650.00m);
 
     private static void OnlyField(Result<OrderDetailResponse> result, string field, string message)
@@ -475,6 +534,14 @@ public sealed class CreateOrderHandlerTests
                 IReadOnlyList<OrderListEntryState> states =
                 [
                     .. call.Arg<IReadOnlyCollection<Guid>>().Where(static id => id == CashId || id == RetiredMethodId).Select(static id => new OrderListEntryState(id, "Method", id == RetiredMethodId)),
+                ];
+                return Task.FromResult(states);
+            });
+            Lists.GetStatesAsync(OrderListKind.OrderExpenseCategory, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(call =>
+            {
+                IReadOnlyList<OrderListEntryState> states =
+                [
+                    .. call.Arg<IReadOnlyCollection<Guid>>().Where(static id => id == FabricId || id == RetiredCategoryId).Select(static id => new OrderListEntryState(id, "Category", id == RetiredCategoryId)),
                 ];
                 return Task.FromResult(states);
             });

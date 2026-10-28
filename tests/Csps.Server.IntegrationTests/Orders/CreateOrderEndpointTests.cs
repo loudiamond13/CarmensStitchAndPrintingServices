@@ -548,6 +548,70 @@ public sealed class CreateOrderEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
+    public async Task TheFullOrd0148BodyGivesAllSevenFiguresExactlyWithItsItemsPaymentsDiscountAndExpenses()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, OrderFixtures.Ord0148FullBody(today, admin.UserId, manager.UserId));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, text);
+        using var document = JsonDocument.Parse(text);
+        var created = document.RootElement;
+        var totals = created.GetProperty("totals");
+        totals.GetProperty("subtotal").GetDecimal().ShouldBe(22450.00m);
+        totals.GetProperty("discount").GetDecimal().ShouldBe(1122.50m);
+        totals.GetProperty("total").GetDecimal().ShouldBe(21327.50m);
+        totals.GetProperty("paid").GetDecimal().ShouldBe(12000.00m);
+        totals.GetProperty("balance").GetDecimal().ShouldBe(9327.50m);
+        totals.GetProperty("expenses").GetDecimal().ShouldBe(6065.00m);
+        totals.GetProperty("profit").GetDecimal().ShouldBe(15262.50m);
+        created.GetProperty("items").GetArrayLength().ShouldBe(5);
+        created.GetProperty("payments").GetArrayLength().ShouldBe(2);
+        created.GetProperty("discounts").GetArrayLength().ShouldBe(1);
+        var expenses = created.GetProperty("expenses").EnumerateArray().ToList();
+        expenses.Count.ShouldBe(3);
+        expenses.Select(expense => expense.GetProperty("amount").GetDecimal()).ShouldBe([3825.00m, 1640.00m, 600.00m]);
+        expenses.Select(expense => expense.GetProperty("category").GetProperty("name").GetString()).ShouldBe(["Fabric", "Ink & paper", "Outsourcing"]);
+        expenses.Select(expense => expense.GetProperty("paidBy").GetProperty("id").GetGuid()).ShouldBe([manager.UserId, admin.UserId, admin.UserId]);
+        expenses.ShouldAllBe(expense => expense.GetProperty("recordedBy").GetProperty("id").GetGuid() == admin.UserId);
+        var id = created.GetProperty("id").GetGuid();
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        read.GetProperty("totals").GetProperty("profit").GetDecimal().ShouldBe(15262.50m);
+        read.GetProperty("expenses").GetArrayLength().ShouldBe(3);
+        await using var context = database.CreateContext();
+        (await context.Set<Csps.Domain.Orders.OrderExpense>().CountAsync(row => row.OrderId == id, TestContext.Current.CancellationToken)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task ExpenseErrorsInTheBodyAreListedOnTheirIndexedPaths()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var retiredCategory = await OrderFixtures.AddExpenseCategoryAsync(database, retired: true);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["expenses"] = new[]
+        {
+            OrderFixtures.ExpenseItem(today, OrderFixtures.FabricId, null, 100m, admin.UserId),
+            OrderFixtures.ExpenseItem(today, retiredCategory, null, 100m, Csps.Domain.Identity.LegacyHolder.Id),
+            OrderFixtures.ExpenseItem(today.AddDays(31), OrderFixtures.FabricId, null, 100m, admin.UserId),
+        };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.ErrorFields(problem).ShouldBe(["expenses[1].orderExpenseCategoryId", "expenses[1].paidByUserId", "expenses[2].expenseDate"]);
+        OrderFixtures.FieldErrors(problem, "expenses[1].orderExpenseCategoryId").ShouldBe(["This category was retired. Choose another one."]);
+    }
+
+    [Fact]
     public async Task PaymentsInTheBodyThatPassTheTotalAreA400OnPaymentsAndNoOrderIsCreated()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

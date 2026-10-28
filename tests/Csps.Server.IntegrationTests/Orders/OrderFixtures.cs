@@ -94,6 +94,32 @@ internal static class OrderFixtures
         return body;
     }
 
+    /// <summary>
+    /// The whole ORD-2026-0148 aggregate in one create body: five items, the 5% league discount, payments of 10,000.00 (GCash) and
+    /// 2,000.00 (Cash), and expenses of 3,825.00 Fabric, 1,640.00 Ink &amp; paper and 600.00 Outsourcing (UI-spec section 12.2).
+    /// </summary>
+    /// <param name="today">The business today.</param>
+    /// <param name="adminId">The Admin who received the GCash payment and paid the ink and the outsourcing.</param>
+    /// <param name="managerId">The Manager who received the cash and paid the fabric.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> Ord0148FullBody(DateOnly today, Guid adminId, Guid managerId)
+    {
+        var body = Ord0148ItemsBody(today);
+        body["discounts"] = new[] { new Dictionary<string, object?> { ["kind"] = "percentage", ["value"] = 5m, ["reason"] = "Barangay league discount" } };
+        body["payments"] = new[]
+        {
+            PaymentItem(today.AddDays(-3), 10000.00m, GCashId, adminId, "9012 345 678901", "50% downpayment"),
+            PaymentItem(today.AddDays(-1), 2000.00m, CashId, managerId, null, "For 2 added coach polos"),
+        };
+        body["expenses"] = new[]
+        {
+            ExpenseItem(today.AddDays(-6), FabricId, "Dri-fit mesh, 45 yds", 3825.00m, managerId),
+            ExpenseItem(today.AddDays(-5), InkAndPaperId, "Sublimation ink + transfer paper", 1640.00m, adminId),
+            ExpenseItem(today.AddDays(-3), OutsourcingId, "Embroidery, coach polos", 600.00m, adminId),
+        };
+        return body;
+    }
+
     /// <summary>Formats a date as the wire does.</summary>
     /// <param name="date">The date.</param>
     /// <returns>The <c>yyyy-MM-dd</c> text.</returns>
