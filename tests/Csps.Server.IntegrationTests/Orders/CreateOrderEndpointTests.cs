@@ -479,6 +479,108 @@ public sealed class CreateOrderEndpointTests(CspsDatabase database) : IClassFixt
         (await context.Orders.CountAsync(order => order.CustomerName == (string)body["customerName"]!, TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
+    [Fact]
+    public async Task TheOrd0148ItemsWithTheFivePercentLeagueDiscountInTheBodyGive21327()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.Ord0148ItemsBody(today);
+        body["discounts"] = new[] { new Dictionary<string, object?> { ["kind"] = "percentage", ["value"] = 5m, ["reason"] = "Barangay league discount" } };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, text);
+        using var document = JsonDocument.Parse(text);
+        var created = document.RootElement;
+        var discount = created.GetProperty("discounts").EnumerateArray().ShouldHaveSingleItem();
+        discount.GetProperty("kind").GetString().ShouldBe("percentage");
+        discount.GetProperty("value").GetDecimal().ShouldBe(5.00m);
+        discount.GetProperty("reason").GetString().ShouldBe("Barangay league discount");
+        discount.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        var totals = created.GetProperty("totals");
+        totals.GetProperty("subtotal").GetDecimal().ShouldBe(22450.00m);
+        totals.GetProperty("discount").GetDecimal().ShouldBe(1122.50m);
+        totals.GetProperty("total").GetDecimal().ShouldBe(21327.50m);
+        totals.GetProperty("balance").GetDecimal().ShouldBe(21327.50m);
+        var read = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, created.GetProperty("id").GetGuid());
+        read.GetProperty("discounts").GetArrayLength().ShouldBe(1);
+        await using var context = database.CreateContext();
+        (await context.Set<Csps.Domain.Orders.OrderDiscount>().CountAsync(row => row.OrderId == created.GetProperty("id").GetGuid(), TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task DiscountsInTheBodyThatPassTheItemsTotalAreA400OnDiscountsAndNoNumberIsUsed()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var first = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var bad = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        bad["customerName"] = $"TooMuch {Guid.NewGuid():N}";
+        bad["discounts"] = new[] { new Dictionary<string, object?> { ["kind"] = "fixed", ["value"] = 9_750.01m, ["reason"] = "Too big" } };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, bad);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "discounts").ShouldBe(["The discounts would be more than the items total. Lower or remove a discount first."]);
+        await using (var context = database.CreateContext())
+        {
+            (await context.Orders.CountAsync(order => order.CustomerName == (string)bad["customerName"]!, TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+
+        var next = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var firstNumber = first.GetProperty("number").GetString()!;
+        var nextNumber = next.GetProperty("number").GetString()!;
+        var prefix = firstNumber[..firstNumber.LastIndexOf('-')];
+        nextNumber.ShouldBe($"{prefix}-{int.Parse(firstNumber[(firstNumber.LastIndexOf('-') + 1)..], System.Globalization.CultureInfo.InvariantCulture) + 1:0000}");
+    }
+
+    [Fact]
+    public async Task ADiscountErrorInTheBodyIsListedOnItsPathWithTheOtherFieldErrors()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["customerName"] = string.Empty;
+        body["discounts"] = new[]
+        {
+            new Dictionary<string, object?> { ["kind"] = "fixed", ["value"] = 100m, ["reason"] = "League" },
+            new Dictionary<string, object?> { ["kind"] = "percentage", ["value"] = 0m, ["reason"] = " " },
+        };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.ErrorFields(problem).ShouldBe(["customerName", "discounts[1].reason", "discounts[1].value"]);
+        OrderFixtures.FieldErrors(problem, "discounts[1].value").ShouldBe(["Enter a percentage above 0 and up to 100."]);
+    }
+
+    [Fact]
+    public async Task TwentyOneDiscountsInTheBodyAreA400OnDiscounts()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["discounts"] = Enumerable.Range(0, 21)
+            .Select(static _ => new Dictionary<string, object?> { ["kind"] = "fixed", ["value"] = 1m, ["reason"] = "Small" })
+            .ToArray();
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken), "discounts").ShouldBe(["An order can have at most 20 discounts."]);
+    }
+
     private async Task SetRetiredAsync(Guid productTypeId, bool retired)
     {
         await using var context = database.CreateContext();

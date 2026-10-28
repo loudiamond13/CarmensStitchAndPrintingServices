@@ -184,6 +184,56 @@ public sealed class CreateOrderHandlerTests
     }
 
     [Fact]
+    public async Task DiscountsInTheBodySaveWithTheOrderAndTheTotalFollowThem()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(store => store.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Discounts = [new OrderDiscountRequest("percentage", 5m, "  League  "), new OrderDiscountRequest("FIXED", 250.00m, "Club member")] },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = added.ShouldNotBeNull();
+        order.Discounts.Select(static discount => (discount.Kind, discount.Value, discount.Reason)).ShouldBe(
+            [(DiscountKind.Percentage, 5m, "League"), (DiscountKind.Fixed, 250.00m, "Club member")]);
+        order.Discounts.Select(static discount => discount.Position).ShouldBe([0, 1]);
+        order.Totals.Discount.ShouldBe(737.50m);
+        order.Totals.Total.ShouldBe(9012.50m);
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task DiscountsPastTheItemsTotalAreA400OnDiscountsAndTakeNoNumber()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Discounts = [new OrderDiscountRequest("fixed", 9_750.01m, "Too big")] },
+            TestContext.Current.CancellationToken);
+
+        OnlyField(result, "discounts", "The discounts would be more than the items total. Lower or remove a discount first.");
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Unit.Saves.ShouldBe(0);
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADiscountErrorIsListedTogetherWithAnItemError()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Items = [Item(ProductTypeId) with { Quantity = 0 }], Discounts = [new OrderDiscountRequest("fixed", 0m, "League")] },
+            TestContext.Current.CancellationToken);
+
+        Fields(result).Keys.Order(StringComparer.Ordinal).ShouldBe(["discounts[0].value", "items[0].quantity"]);
+    }
+
+    [Fact]
     public async Task WithNoStatusTheOrderStartsPending()
     {
         var harness = new Harness();

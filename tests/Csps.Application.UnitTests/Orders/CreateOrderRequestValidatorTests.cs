@@ -236,6 +236,47 @@ public sealed class CreateOrderRequestValidatorTests
         One(Valid() with { Items = [Item() with { UnitPrice = 650.123m }] }, "items[0].unitPrice", "Use at most 2 decimal places.");
 
     [Fact]
+    public void NoDiscountsAndAnEmptyListAreAccepted()
+    {
+        Fields(Valid()).ShouldBeEmpty();
+        Fields(Valid() with { Discounts = [] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ABrokenDiscountIsRefusedOnItsPath()
+    {
+        One(Valid() with { Discounts = [Discount() with { Value = 0m }] }, "discounts[0].value", "Enter a discount from ₱0.01 to ₱1,000,000.00.");
+        One(Valid() with { Discounts = [Discount(), Discount() with { Kind = "half" }] }, "discounts[1].kind", "Choose fixed or percentage.");
+        One(Valid() with { Discounts = [Discount() with { Reason = " " }] }, "discounts[0].reason", "Enter a reason for the discount.");
+    }
+
+    [Fact]
+    public void AnEmptyDiscountListsEveryRequiredFieldOnItsPath()
+    {
+        Fields(Valid() with { Discounts = [new OrderDiscountRequest(null, null, null)] }).Keys.Order(StringComparer.Ordinal)
+            .ShouldBe(["discounts[0].kind", "discounts[0].reason", "discounts[0].value"]);
+    }
+
+    [Fact]
+    public void ANullDiscountInTheListIsRefusedOnItsPath() =>
+        One(Valid() with { Discounts = [Discount(), null!] }, "discounts[1]", "Fill in this discount.");
+
+    [Fact]
+    public void TwentyDiscountsAreAcceptedAndTwentyOneAreRefused()
+    {
+        Fields(Valid() with { Discounts = [.. Enumerable.Repeat(Discount(), 20)] }).ShouldBeEmpty();
+        One(Valid() with { Discounts = [.. Enumerable.Repeat(Discount(), 21)] }, "discounts", "An order can have at most 20 discounts.");
+    }
+
+    [Fact]
+    public void TheDiscountValidatorWorksOnItsOwnInterface()
+    {
+        var result = new OrderDiscountFieldsValidator().Validate(Discount() with { Value = 100.01m, Kind = "percentage" });
+
+        result.Errors.Select(error => error.PropertyName).ShouldBe(["Value"]);
+    }
+
+    [Fact]
     public void ManyBrokenFieldsComeBackTogetherWithTheirPaths()
     {
         var request = Valid() with
@@ -284,6 +325,8 @@ public sealed class CreateOrderRequestValidatorTests
         [Item()]);
 
     private static OrderItemRequest Item() => new(ProductTypeId, "Jersey top", "S-XL", 15, 650.00m);
+
+    private static OrderDiscountRequest Discount() => new("fixed", 100.00m, "League");
 
     private static decimal Parse(string text) => decimal.Parse(text, CultureInfo.InvariantCulture);
 

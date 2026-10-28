@@ -161,6 +161,79 @@ public sealed class OrderAuditDetailTests
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ItemChanged(order.Items[0], null!));
     }
 
+    [Fact]
+    public void DiscountAddedAndRemovedHoldTheDiscountIdKindAndValueOnly()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var discount = order.AddDiscount(new NewOrderDiscount(DiscountKind.Percentage, 5m, "Private reason"), Now.AddDays(1)).Value;
+        var expected = $"discount={discount.Id:D};kind=percentage;value=5.00";
+
+        OrderAuditDetail.DiscountAdded(discount).ShouldBe(expected);
+        OrderAuditDetail.DiscountRemoved(discount).ShouldBe(expected);
+        OrderAuditDetail.DiscountAdded(discount).ShouldNotContain("Private", Case.Insensitive);
+        OrderAuditDetail.DiscountAdded(discount).Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void DiscountChangedWritesOldAndNewOnTheChangedPairsThenTheReasonFieldName()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var discount = order.AddDiscount(new NewOrderDiscount(DiscountKind.Percentage, 5m, "League"), Now).Value;
+        var changes = order.UpdateDiscount(discount.Id, new NewOrderDiscount(DiscountKind.Fixed, 500m, "Private words"), Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.DiscountChanged(discount, changes);
+
+        detail.ShouldBe($"discount={discount.Id:D};kind=percentage>fixed;value=5.00>500.00;fields=reason");
+        detail.ShouldNotContain("Private", Case.Insensitive);
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void DiscountChangedWithOnlyAReasonChangeKeepsTheCurrentPairsAndNamesTheField()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var discount = order.AddDiscount(new NewOrderDiscount(DiscountKind.Percentage, 5m, "League"), Now).Value;
+        var changes = order.UpdateDiscount(discount.Id, new NewOrderDiscount(DiscountKind.Percentage, 5m, "Club"), Now.AddDays(1)).Value;
+
+        OrderAuditDetail.DiscountChanged(discount, changes).ShouldBe($"discount={discount.Id:D};kind=percentage;value=5.00;fields=reason");
+    }
+
+    [Fact]
+    public void DiscountChangedWithOnlyAValueChangeHasNoFieldsPair()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var discount = order.AddDiscount(new NewOrderDiscount(DiscountKind.Fixed, 100m, "League"), Now).Value;
+        var changes = order.UpdateDiscount(discount.Id, new NewOrderDiscount(DiscountKind.Fixed, 150m, "League"), Now.AddDays(1)).Value;
+
+        OrderAuditDetail.DiscountChanged(discount, changes).ShouldBe($"discount={discount.Id:D};kind=fixed;value=100.00>150.00");
+    }
+
+    [Fact]
+    public void NullDiscountsAndChangesAreAProgrammingError()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var discount = order.AddDiscount(new NewOrderDiscount(DiscountKind.Fixed, 100m, "League"), Now).Value;
+        var changes = order.UpdateDiscount(discount.Id, new NewOrderDiscount(DiscountKind.Fixed, 150m, "League"), Now.AddDays(1)).Value;
+
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DiscountAdded(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DiscountRemoved(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DiscountChanged(null!, changes));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DiscountChanged(discount, null!));
+    }
+
+    [Fact]
+    public void CreatedShowsTheTotalAfterTheDiscountsInTheBody()
+    {
+        var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
+        var order = Order.Create(new NewOrder(Details(), OrderStatus.Pending, items) { Discounts = [new NewOrderDiscount(DiscountKind.Percentage, 10m, "Private reason")] }, Guid.NewGuid(), Now).Value;
+        order.AssignNumber("ORD-2026-0001");
+
+        var detail = OrderAuditDetail.Created(order);
+
+        detail.ShouldBe("number=ORD-2026-0001;status=pending;orderDate=2026-10-28;dueDate=2026-11-11;items=1;total=8775.00");
+        detail.ShouldNotContain("Private", Case.Insensitive);
+    }
+
     private static Order NewOrder(string number)
     {
         var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };

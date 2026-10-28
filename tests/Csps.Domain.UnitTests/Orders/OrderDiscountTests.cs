@@ -389,6 +389,101 @@ public sealed class OrderDiscountTests
         order.Total.ShouldBe(0.00m);
     }
 
+    [Fact]
+    public void AnOrderIsCreatedWithItsDiscountsInTheOrderGivenAndTheTotalsFollowThem()
+    {
+        var result = Create(
+            new NewOrderDiscount(DiscountKind.Percentage, 5m, "  Barangay league discount "),
+            new NewOrderDiscount(DiscountKind.Fixed, 500.00m, "Loyal customer"));
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = result.Value;
+        order.Discounts.Select(static discount => (discount.Kind, discount.Value, discount.Reason, discount.Position)).ShouldBe(
+            [(DiscountKind.Percentage, 5m, "Barangay league discount", 0), (DiscountKind.Fixed, 500.00m, "Loyal customer", 1)]);
+        order.Discounts.ShouldAllBe(discount => discount.OrderId == order.Id && ReferenceEquals(discount.Order, order));
+        order.Subtotal.ShouldBe(22450.00m);
+        order.DiscountTotal.ShouldBe(1622.50m);
+        order.Total.ShouldBe(20827.50m);
+        order.Balance.ShouldBe(20827.50m);
+        AssertTotalsMatchOrderMath(order);
+    }
+
+    [Fact]
+    public void AnOrderWithoutDiscountsIsStillCreated()
+    {
+        var order = Create().Value;
+
+        order.Discounts.ShouldBeEmpty();
+        order.Total.ShouldBe(22450.00m);
+    }
+
+    [Fact]
+    public void ABrokenDiscountInTheBodyIsRefusedOnItsPlaceInTheList()
+    {
+        var result = Create(
+            new NewOrderDiscount(DiscountKind.Fixed, 100m, "League"),
+            new NewOrderDiscount(DiscountKind.Percentage, 100.01m, "League"));
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        var fields = result.Error.FieldErrors.ShouldNotBeNull();
+        fields.Keys.ShouldBe(["discounts[1].value"]);
+        fields["discounts[1].value"].ShouldBe([OrderRules.PercentDiscountOutOfRange]);
+    }
+
+    [Fact]
+    public void DiscountsInTheBodyThatPassTheItemsTotalAreRefusedOnDiscountsAndNothingIsMade()
+    {
+        var result = Create(
+            new NewOrderDiscount(DiscountKind.Fixed, 20_000m, "First"),
+            new NewOrderDiscount(DiscountKind.Fixed, 2_450.01m, "Second"));
+        var exact = Create(
+            new NewOrderDiscount(DiscountKind.Fixed, 20_000m, "First"),
+            new NewOrderDiscount(DiscountKind.Fixed, 2_450.00m, "Second"));
+
+        result.IsFailure.ShouldBeTrue();
+        var fields = result.Error.FieldErrors.ShouldNotBeNull();
+        fields.Keys.ShouldBe(["discounts"]);
+        fields["discounts"].ShouldBe([OrderRules.DiscountAboveSubtotalMessage]);
+        exact.IsSuccess.ShouldBeTrue();
+        exact.Value.Total.ShouldBe(0.00m);
+    }
+
+    [Fact]
+    public void TwentyOneDiscountsInTheBodyAreRefusedOnDiscountsAndTwentyAreAccepted()
+    {
+        var twenty = Create([.. Enumerable.Repeat(new NewOrderDiscount(DiscountKind.Fixed, 1m, "Small"), 20)]);
+        var twentyOne = Create([.. Enumerable.Repeat(new NewOrderDiscount(DiscountKind.Fixed, 1m, "Small"), 21)]);
+
+        twenty.IsSuccess.ShouldBeTrue();
+        twentyOne.IsFailure.ShouldBeTrue();
+        var fields = twentyOne.Error.FieldErrors.ShouldNotBeNull();
+        fields["discounts"].ShouldBe([OrderRules.DiscountsTooMany]);
+    }
+
+    [Fact]
+    public void ANullDiscountListIsAProgrammingError()
+    {
+        var details = new OrderDetails("Juan Dela Cruz", null, "0917 123 4567", null, null, new DateOnly(2026, 10, 28), new DateOnly(2026, 11, 11), null);
+        var input = new NewOrder(details, OrderStatus.Pending, [Jersey(1, 10m)]) { Discounts = null! };
+
+        Should.Throw<ArgumentNullException>(() => Order.Create(input, Guid.NewGuid(), Created));
+    }
+
+    private static Result<Order> Create(params NewOrderDiscount[] discounts)
+    {
+        var details = new OrderDetails("Juan Dela Cruz", "Brgy. San Roque Ballers", "0917 123 4567", null, null, new DateOnly(2026, 10, 28), new DateOnly(2026, 11, 11), null);
+        var items = new[]
+        {
+            Jersey(15, 650.00m),
+            new NewOrderItem(JerseyType, "Jersey shorts", "S-XL", 15, 300.00m),
+            new NewOrderItem(JerseyType, "Coach polo", "L", 2, 550.00m),
+            new NewOrderItem(JerseyType, "Warm-up long sleeves", "M-XL", 15, 420.00m),
+            new NewOrderItem(JerseyType, "Team banner", null, 1, 800.00m),
+        };
+        return Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Discounts = discounts }, Guid.NewGuid(), Created);
+    }
+
     private static NewOrderItem Jersey(int quantity, decimal unitPrice) => new(JerseyType, "Jersey top", "S-XL", quantity, unitPrice);
 
     private static Order Ord0148() => OrderOf(
