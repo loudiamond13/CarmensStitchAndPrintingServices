@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-10-28T15:06:55.840Z"
+stopped_at: Completed 07-05-PLAN.md
+last_updated: "2026-10-28T15:55:01.818Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 9a8481fe385c98aad05a425d9f9db1b51591ccf8
+state_head: 3cac09e51077c9e6b30d58cc1f7b39d36f3c459d
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 191
+  completed_plans: 192
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 5 of 20
+Plan: 6 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -249,6 +249,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P02 | 5min | 2 tasks | 4 files |
 | Phase 07 P03 | 4min | 2 tasks | 5 files |
 | Phase 07 P04 | 30min | 3 tasks | 6 files |
+| Phase 07 P05 | 39 min | 3 tasks | 56 files |
 
 ## Accumulated Context
 
@@ -680,6 +681,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-02: Balance = Total - Paid + Refunded; CustomerCredit = max(-Balance, 0) written as 0.00 (D-12, D-13). Cancelled order Profit = (Paid - Refunded) - Expenses (D-36, D-10). Golden vectors stay v2; v3 bump is a Phase 8 follow-up.
 - [Phase 07]: 07-03: OrderStatusRules.Check orders its rules as undefined-throws, same-status NoChange, locked source reopens or is refused with orders.reopen-first, then the Completed zero-balance gate
 - [Phase 07]: 07-04: D-39 approve-all; requirement and roadmap wording applied, Phase 7.1 Legacy Fit Check inserted; refunds on a soft-deleted order vs money on hand left open (Owner backlog)
+- [Phase 07]: 07-05: Order.Create(NewOrder, callerId, now) has no today parameter; plans 07-10 and 07-11 re-add the business today when payments and discounts need it
+- [Phase 07]: 07-05: migration is 20261028152204_AddOrders (four tables, lock row order-numbers, 66 standing locks); children bind through scalar EF constructors so Domain stays at 100% coverage
+- [Phase 07]: 07-05: IOrderReader returns OrderDetailResponse directly; CreateOrderRequest.Items has non-null element type and a null JSON element is refused on items[n]
 
 ### Pending Todos
 
@@ -771,6 +775,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T15:06:54.489Z
-Stopped at: Completed 07-04-PLAN.md
+Last session: 2026-10-28T15:55:00.648Z
+Stopped at: Completed 07-05-PLAN.md
 Resume file: None
