@@ -304,6 +304,57 @@ public sealed class OrderConcurrencyTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public async Task TwoRefundsOf7000OnACancelledOrderPaid12000WithTheSameVersionGiveExactlyOneWinnerEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var m1 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var m2 = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        for (var round = 1; round <= Repetitions; round++)
+        {
+            var created = await OrderFixtures.CreateAsync(client, m1.AccessToken, OrderFixtures.Ord0148FullBody(today, m2.UserId, m1.UserId));
+            var id = created.GetProperty("id").GetGuid();
+            var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, m1.AccessToken, id, "cancelled");
+            cancelled.GetProperty("totals").GetProperty("paid").GetDecimal().ShouldBe(12000.00m, $"round {round}");
+            var version = cancelled.GetProperty("version").GetString();
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.AddRefundAsync(client, m1.AccessToken, id, OrderFixtures.RefundBody(today, 7000.00m, "Order cancelled by the team", m1.UserId, version)),
+                () => OrderFixtures.AddRefundAsync(client, m2.AccessToken, id, OrderFixtures.RefundBody(today, 7000.00m, "Order cancelled by the team", m2.UserId, version)));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.Count(static status => status == HttpStatusCode.OK).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Count(static status => status == HttpStatusCode.Conflict).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            var (winner, loser, winnerId) = firstResponse.StatusCode == HttpStatusCode.OK
+                ? (firstResponse, secondResponse, m1.UserId)
+                : (secondResponse, firstResponse, m2.UserId);
+            var refusal = await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken);
+            refusal.GetProperty("code").GetString().ShouldBe("edit.stale", $"round {round}");
+            refusal.GetProperty("detail").GetString().ShouldBe(StaleDetail, $"round {round}");
+
+            var won = await ReadAsync(winner);
+            var stored = await OrderFixtures.ReadDetailAsync(client, m1.AccessToken, id);
+            var totals = stored.GetProperty("totals");
+            totals.GetProperty("refunded").GetDecimal().ShouldBe(7000.00m, $"round {round}: one refund only, never above the 12,000.00 paid");
+            totals.GetProperty("refunded").GetDecimal().ShouldBeLessThanOrEqualTo(12000.00m, $"round {round}");
+            var refunds = stored.GetProperty("refunds").EnumerateArray().ToList();
+            refunds.Count.ShouldBe(1, $"round {round}");
+            refunds[0].GetProperty("refundedBy").GetProperty("id").GetGuid().ShouldBe(winnerId, $"round {round}");
+            stored.GetProperty("version").GetString().ShouldBe(won.GetProperty("version").GetString(), $"round {round}");
+
+            await using var context = database.CreateContext();
+            var added = await context.AuditLog.CountAsync(
+                row => row.Action == "order-refund.added" && row.TargetId == id.ToString("D"),
+                TestContext.Current.CancellationToken);
+            added.ShouldBe(1, $"round {round}: the winner, never the loser");
+        }
+    }
+
+    [Fact]
     public async Task ACompleteRacingAFixedDiscountNeverLeavesACompletedOrderWithAnUnsettledBalance()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

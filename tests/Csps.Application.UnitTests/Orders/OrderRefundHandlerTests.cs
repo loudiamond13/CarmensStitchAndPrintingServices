@@ -289,6 +289,74 @@ public sealed class OrderRefundHandlerTests
     }
 
     [Fact]
+    public async Task AddRecordsOneAddedEntryForTheOrderBeforeTheSaveWithNoReasonText()
+    {
+        var harness = new Harness();
+
+        await harness.Add.HandleAsync(harness.OrderId, ValidAdd() with { Reason = "Private words" }, TestContext.Current.CancellationToken);
+
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Call.ShouldBe(new AuditCall(
+            AuditActions.OrderRefundAdded,
+            "Order",
+            harness.OrderId.ToString("D"),
+            $"refund={harness.Last.Refunds[^1].Id:D};date=2026-10-27;amount=500.00;refunder={NewRefunder:D}",
+            Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+        entry.Call.Detail.ShouldNotBeNull().ShouldNotContain("Private", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task UpdateOfTheAmountAndTheRefunderRecordsAChangedEntryThenARefunderChangedEntryBeforeTheSave()
+    {
+        var harness = new Harness();
+
+        await harness.Update.HandleAsync(harness.OrderId, harness.RefundId, ValidUpdate() with { Amount = 900m, RefundedByUserId = NewRefunder, Reason = "Private words" }, TestContext.Current.CancellationToken);
+
+        harness.Audit.Entries.Select(static entry => entry.Call.Action).ShouldBe([AuditActions.OrderRefundChanged, AuditActions.OrderRefundRefunderChanged]);
+        harness.Audit.Entries[0].Call.Detail.ShouldBe($"refund={harness.RefundId:D};date=2026-10-27;amount=1000.00>900.00;refunder={NewRefunder:D};fields=reason");
+        harness.Audit.Entries[1].Call.Detail.ShouldBe($"refund={harness.RefundId:D};refunder={SavedRefunder:D}>{NewRefunder:D}");
+        harness.Audit.Entries.ShouldAllBe(entry => entry.SavesSoFar == 0 && !entry.Call.Detail!.Contains("Private", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task UpdateOfOnlyTheRefunderRecordsOnlyARefunderChangedEntry()
+    {
+        var harness = new Harness();
+
+        await harness.Update.HandleAsync(harness.OrderId, harness.RefundId, ValidUpdate() with { RefundedByUserId = NewRefunder }, TestContext.Current.CancellationToken);
+
+        harness.Audit.Entries.ShouldHaveSingleItem().Call.Action.ShouldBe(AuditActions.OrderRefundRefunderChanged);
+    }
+
+    [Fact]
+    public async Task UpdateOfOnlyTheAmountRecordsOnlyAChangedEntry()
+    {
+        var harness = new Harness();
+
+        await harness.Update.HandleAsync(harness.OrderId, harness.RefundId, ValidUpdate() with { Amount = 900m }, TestContext.Current.CancellationToken);
+
+        harness.Audit.Entries.ShouldHaveSingleItem().Call.Action.ShouldBe(AuditActions.OrderRefundChanged);
+    }
+
+    [Fact]
+    public async Task RemoveRecordsOneRemovedEntryForTheOrderBeforeTheSave()
+    {
+        var harness = new Harness();
+
+        await harness.Remove.HandleAsync(harness.OrderId, harness.RefundId, TestContext.Current.CancellationToken);
+
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Call.ShouldBe(new AuditCall(
+            AuditActions.OrderRefundRemoved,
+            "Order",
+            harness.OrderId.ToString("D"),
+            $"refund={harness.RefundId:D};date=2026-10-27;amount=1000.00;refunder={SavedRefunder:D}",
+            Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task RemoveWithNoCallerTheSessionHasEnded()
     {
         var harness = new Harness(noCaller: true);

@@ -397,6 +397,86 @@ public sealed class OrderAuditDetailTests
         Should.Throw<ArgumentOutOfRangeException>(() => OrderAuditDetail.StatusChanged(OrderStatus.Pending, (OrderStatus)99));
     }
 
+    [Fact]
+    public void RefundAddedAndRemovedHoldTheIdDateAmountAndRefunderOnly()
+    {
+        var order = CancelledPaidOrder();
+        var refund = order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 28), 9750m, "Private words", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var expected = $"refund={refund.Id:D};date=2026-10-28;amount=9750.00;refunder={Receiver:D}";
+
+        OrderAuditDetail.RefundAdded(refund).ShouldBe(expected);
+        OrderAuditDetail.RefundRemoved(refund).ShouldBe(expected);
+        OrderAuditDetail.RefundAdded(refund).ShouldNotContain("Private", Case.Insensitive);
+        OrderAuditDetail.RefundAdded(refund).Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void RefundChangedWritesOldAndNewOnTheChangedPairsThenTheCurrentRefunderAndTheReasonFieldName()
+    {
+        var order = CancelledPaidOrder();
+        var refund = order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 9750m, "Cancelled", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateRefund(
+            refund.Id,
+            new NewOrderRefund(new DateOnly(2026, 10, 28), 5000m, "Private words", OtherReceiver),
+            new DateOnly(2026, 10, 28),
+            Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.RefundChanged(refund, changes);
+
+        detail.ShouldBe($"refund={refund.Id:D};date=2026-10-27>2026-10-28;amount=9750.00>5000.00;refunder={OtherReceiver:D};fields=reason");
+        detail.ShouldNotContain("Private", Case.Insensitive);
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void RefundChangedWithOnlyAnAmountChangeKeepsTheCurrentPairsAndHasNoFieldsPair()
+    {
+        var order = CancelledPaidOrder();
+        var refund = order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 9750m, "Cancelled", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateRefund(refund.Id, new NewOrderRefund(new DateOnly(2026, 10, 27), 5000m, "Cancelled", Receiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        OrderAuditDetail.RefundChanged(refund, changes).ShouldBe($"refund={refund.Id:D};date=2026-10-27;amount=9750.00>5000.00;refunder={Receiver:D}");
+    }
+
+    [Fact]
+    public void RefundRefunderChangedHoldsTheIdAndTheOldAndNewRefunder()
+    {
+        var order = CancelledPaidOrder();
+        var refund = order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 9750m, "Cancelled", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateRefund(refund.Id, new NewOrderRefund(new DateOnly(2026, 10, 27), 9750m, "Cancelled", OtherReceiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.RefundRefunderChanged(refund, changes.Refunder.ShouldNotBeNull());
+
+        detail.ShouldBe($"refund={refund.Id:D};refunder={Receiver:D}>{OtherReceiver:D}");
+    }
+
+    [Fact]
+    public void NullRefundsAndChangesAreAProgrammingError()
+    {
+        var order = CancelledPaidOrder();
+        var refund = order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 9750m, "Cancelled", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateRefund(refund.Id, new NewOrderRefund(new DateOnly(2026, 10, 27), 5000m, "Cancelled", OtherReceiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundAdded(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundRemoved(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundChanged(null!, changes));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundChanged(refund, null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundRefunderChanged(null!, changes.Refunder.ShouldNotBeNull()));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundRefunderChanged(refund, null!));
+    }
+
+    // One item of 9,750.00, paid in full, then cancelled, so a refund up to 9,750.00 is allowed.
+    private static Order CancelledPaidOrder()
+    {
+        var today = new DateOnly(2026, 10, 28);
+        var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
+        var payments = new[] { new NewOrderPayment(today, 9750.00m, Method, null, null, Receiver) };
+        var order = Order.Create(new NewOrder(Details(), OrderStatus.Pending, items) { Payments = payments }, Guid.NewGuid(), Now, today).Value;
+        order.AssignNumber("ORD-2026-0001");
+        order.ChangeStatus(OrderStatus.Cancelled, Receiver, Now).IsSuccess.ShouldBeTrue();
+        return order;
+    }
+
     private static Order NewOrder(string number)
     {
         var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };

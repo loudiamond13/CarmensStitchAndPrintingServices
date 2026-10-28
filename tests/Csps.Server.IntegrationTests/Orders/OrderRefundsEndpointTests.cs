@@ -4,6 +4,7 @@ using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.Orders;
 
@@ -280,6 +281,70 @@ public sealed class OrderRefundsEndpointTests(CspsDatabase database) : IClassFix
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
         second.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetProperty("refunds").GetArrayLength().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task EachAddEditRefunderChangeAndRemoveWritesItsOwnEntryForTheOrderWithNoReasonText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var cancelled = await CancelledOrd0148Async(client, admin, manager, today);
+        var id = cancelled.GetProperty("id").GetGuid();
+        var key = id.ToString("D");
+
+        var added = await OrderFixtures.AddRefundAndReadAsync(client, admin.AccessToken, cancelled, today.AddDays(-1), 3000m, admin.UserId, "Private reason one");
+        var refundId = added.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+        using var editResponse = await OrderFixtures.PutRefundAsync(
+            client,
+            admin.AccessToken,
+            id,
+            refundId,
+            OrderFixtures.RefundBody(today.AddDays(-1), 2500m, "Private reason two", manager.UserId, added.GetProperty("version").GetString()));
+        editResponse.StatusCode.ShouldBe(HttpStatusCode.OK, await editResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        using var removeResponse = await OrderFixtures.DeleteRefundAsync(client, admin.AccessToken, id, refundId);
+        removeResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        await using var context = database.CreateContext();
+        var rows = await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == key && row.Action.StartsWith("order-refund."))
+            .ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Action).Order(StringComparer.Ordinal)
+            .ShouldBe(["order-refund.added", "order-refund.changed", "order-refund.refunder-changed", "order-refund.removed"]);
+        rows.ShouldAllBe(row => row.TargetType == "Order" && row.ActorUserId == admin.UserId);
+        var detail = rows.ToDictionary(row => row.Action, row => row.Detail!, StringComparer.Ordinal);
+        detail["order-refund.added"].ShouldBe($"refund={refundId:D};date={OrderFixtures.Date(today.AddDays(-1))};amount=3000.00;refunder={admin.UserId:D}");
+        detail["order-refund.changed"].ShouldBe($"refund={refundId:D};date={OrderFixtures.Date(today.AddDays(-1))};amount=3000.00>2500.00;refunder={manager.UserId:D};fields=reason");
+        detail["order-refund.refunder-changed"].ShouldBe($"refund={refundId:D};refunder={admin.UserId:D}>{manager.UserId:D}");
+        detail["order-refund.removed"].ShouldBe($"refund={refundId:D};date={OrderFixtures.Date(today.AddDays(-1))};amount=2500.00;refunder={manager.UserId:D}");
+        rows.ShouldAllBe(row => !row.Detail!.Contains("Private", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ARefusalAndANoOpEditWriteNoEntryAndKeepTheVersion()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var cancelled = await CancelledOrd0148Async(client, admin, manager, today);
+        var id = cancelled.GetProperty("id").GetGuid();
+        var added = await OrderFixtures.AddRefundAndReadAsync(client, admin.AccessToken, cancelled, today, 1000m, manager.UserId, "Order cancelled by the team");
+        var refundId = added.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+
+        using var over = await OrderFixtures.AddRefundAsync(
+            client, admin.AccessToken, id, OrderFixtures.RefundBody(today, 99999m, "Too much", manager.UserId, added.GetProperty("version").GetString()));
+        using var same = await OrderFixtures.PutRefundAsync(
+            client, admin.AccessToken, id, refundId, OrderFixtures.RefundBody(today, 1000m, "Order cancelled by the team", manager.UserId, added.GetProperty("version").GetString()));
+
+        over.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        same.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetProperty("version").GetString().ShouldBe(added.GetProperty("version").GetString());
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.TargetId == id.ToString("D") && row.Action.StartsWith("order-refund."), TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
     private static async Task<JsonElement> CancelledOrd0148Async(HttpClient client, StartedSession admin, StartedSession manager, DateOnly today)
