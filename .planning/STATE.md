@@ -15,7 +15,7 @@ progress:
   completed_plans: 187
   percent: 35
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-28T07:10:00-05:00"
+updated: "2026-10-28T07:30:00-05:00"
 ---
 
 # Project State
@@ -669,6 +669,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Ship 06]: D-76 (owner, 2026-10-27): A-06-03 option 1, the 300 ms limit stays. Flake on 2026-10-27, PR #13 CI (GitHub ubuntu runner, SQL container), run 40442789402: ExpenseListTimingTests failed only on "five years, last page, size 100" at p50 186.0 ms, p95 340.2 ms (default window p95 74.5 ms, category 3.5 ms, staff-name search 92.4 ms, KPIs 10.3 ms). Re-running the failed jobs alone passed; a passing run prints no numbers, so its margin is unknown. PR #13 changes only web code, so the slow run is runner noise. If it fails again in CI, look at the five-year last-page query before any margin talk.
 - [Quick 261028-2e4]: D-77 (owner, 2026-10-28): reset CSPS_E2E at the start of every e2e run (option 1 of 3). The WebKit audit-log failures came from about 4,600 people piled up in CSPS_E2E over many runs; Playwright Windows WebKit fills a select with about 9,300 options in about 7 s. npm run e2e now passes --reset to the guarded dev-seed tool (CSPS_Dev/CSPS_E2E only). Specs, fixtures and timeouts stay as written.
 - [Ship 06]: Definition of Done on PR #14 (quick 261026-ooe) ticked by the owner's instruction (2026-10-27); no reviewer requested.
+- [Quick 261027-t3j]: Definition of Done on PR #15 (D-63 picker look) ticked by the owner's instruction (2026-10-28), including the two items left to their judgment (no screenshots attached; Lighthouse not run).
 - [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 
 ### Pending Todos
