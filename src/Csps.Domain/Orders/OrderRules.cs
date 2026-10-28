@@ -52,6 +52,15 @@ public static class OrderRules
     /// <summary>The longest discount reason.</summary>
     public const int DiscountReasonMaxLength = 100;
 
+    /// <summary>The most payments one order may have (D-30).</summary>
+    public const int MaxPayments = 100;
+
+    /// <summary>The longest payment reference.</summary>
+    public const int PaymentReferenceMaxLength = 100;
+
+    /// <summary>The longest payment notes text.</summary>
+    public const int PaymentNotesMaxLength = 500;
+
     /// <summary>The most decimal places a money amount may have.</summary>
     public const int MoneyScale = 2;
 
@@ -114,6 +123,27 @@ public static class OrderRules
 
     /// <summary>The field name of a discount's reason.</summary>
     public const string DiscountReasonField = "reason";
+
+    /// <summary>The field name of the payment list.</summary>
+    public const string PaymentsField = "payments";
+
+    /// <summary>The field name of a payment's date.</summary>
+    public const string PaymentDateField = "paymentDate";
+
+    /// <summary>The field name of a payment's amount.</summary>
+    public const string PaymentAmountField = "amount";
+
+    /// <summary>The field name of a payment's method.</summary>
+    public const string PaymentMethodField = "paymentMethodId";
+
+    /// <summary>The field name of a payment's reference.</summary>
+    public const string PaymentReferenceField = "reference";
+
+    /// <summary>The field name of a payment's notes.</summary>
+    public const string PaymentNotesField = "notes";
+
+    /// <summary>The field name of the person who received a payment.</summary>
+    public const string ReceivedByField = "receivedByUserId";
 
     /// <summary>The machine code of an order form that breaks field rules.</summary>
     public const string InvalidCode = "orders.invalid-request";
@@ -232,6 +262,57 @@ public static class OrderRules
     /// <summary>The message for discounts that add up to more than the items total.</summary>
     public const string DiscountAboveSubtotalMessage = "The discounts would be more than the items total. Lower or remove a discount first.";
 
+    /// <summary>The message for a payment that is missing from the list.</summary>
+    public const string PaymentRequired = "Fill in this payment.";
+
+    /// <summary>The message for a missing payment date.</summary>
+    public const string PaymentDateRequired = "Enter the payment date.";
+
+    /// <summary>The message for a payment dated after the business today.</summary>
+    public const string PaymentDateInFuture = "The payment date can't be in the future.";
+
+    /// <summary>The message for a missing payment amount.</summary>
+    public const string PaymentAmountRequired = "Enter the amount.";
+
+    /// <summary>The message for a payment amount outside ₱0.01 to ₱1,000,000.00.</summary>
+    public const string PaymentAmountOutOfRange = "Enter an amount from ₱0.01 to ₱1,000,000.00.";
+
+    /// <summary>The message for a missing or unknown payment method.</summary>
+    public const string PaymentMethodRequired = "Choose a payment method.";
+
+    /// <summary>The message for a retired payment method chosen on a new or changed payment (D-16).</summary>
+    public const string PaymentMethodRetired = "This payment method was retired. Choose another one.";
+
+    /// <summary>The message for a payment reference over the limit.</summary>
+    public const string PaymentReferenceTooLong = "Keep the reference to 100 characters or fewer.";
+
+    /// <summary>The message for payment notes over the limit.</summary>
+    public const string PaymentNotesTooLong = "Keep notes to 500 characters or fewer.";
+
+    /// <summary>The message for a missing receiver (ORD-22).</summary>
+    public const string ReceivedByRequired = "Choose who received the money.";
+
+    /// <summary>The message for a receiver who cannot be chosen (ORD-22, D-32).</summary>
+    public const string ReceivedByInactive = "This person can't be chosen because their account isn't active. Choose someone else.";
+
+    /// <summary>The message for a payment on an order with nothing left to pay.</summary>
+    public const string NothingOwed = "Nothing is owed on this order.";
+
+    /// <summary>The message for payments that add up to more than the order total.</summary>
+    public const string PaymentsAboveTotalMessage = "The payments would be more than the order total. Lower a payment first.";
+
+    /// <summary>The message for an order with more than <see cref="MaxPayments"/> payments.</summary>
+    public const string PaymentsTooMany = "An order can have at most 100 payments.";
+
+    /// <summary>The machine code of a payment id that is not on the order in the route.</summary>
+    public const string PaymentNotFoundCode = "orders.payment-not-found";
+
+    /// <summary>The plain-English text for a payment that is not on the order in the route.</summary>
+    public const string PaymentNotFoundMessage = "This payment was not found on this order.";
+
+    /// <summary>The machine code of an add that would take the order above <see cref="MaxPayments"/>.</summary>
+    public const string TooManyPaymentsCode = "orders.too-many-payments";
+
     /// <summary>The machine code of a discount id that is not on the order in the route.</summary>
     public const string DiscountNotFoundCode = "orders.discount-not-found";
 
@@ -265,6 +346,15 @@ public static class OrderRules
     /// <summary>The largest fixed discount.</summary>
     public static readonly decimal FixedDiscountMax = 1_000_000.00m;
 
+    /// <summary>The largest payment amount (D-30).</summary>
+    public static readonly decimal PaymentAmountMax = 1_000_000.00m;
+
+    /// <summary>Gets the 404 for a payment id that is not on the order.</summary>
+    public static Error PaymentNotFound { get; } = Error.NotFound(PaymentNotFoundCode, PaymentNotFoundMessage);
+
+    /// <summary>Gets the 422 for adding a payment to an order that already has the most.</summary>
+    public static Error TooManyPayments { get; } = Error.BusinessRule(TooManyPaymentsCode, PaymentsTooMany);
+
     /// <summary>Gets the 404 for a discount id that is not on the order.</summary>
     public static Error DiscountNotFound { get; } = Error.NotFound(DiscountNotFoundCode, DiscountNotFoundMessage);
 
@@ -294,6 +384,18 @@ public static class OrderRules
     /// <param name="field">The member name, such as <see cref="DiscountValueField"/>.</param>
     /// <returns>The path.</returns>
     public static string DiscountPath(int? index, string field) => index is { } place ? $"{DiscountsField}[{place}].{field}" : field;
+
+    /// <summary>Builds the field path of a payment member, for example <c>payments[1].receivedByUserId</c>, or just the member name for a single-payment form.</summary>
+    /// <param name="index">The zero-based place of the payment in a list; null for a single-payment form.</param>
+    /// <param name="field">The member name, such as <see cref="ReceivedByField"/>.</param>
+    /// <returns>The path.</returns>
+    public static string PaymentPath(int? index, string field) => index is { } place ? $"{PaymentsField}[{place}].{field}" : field;
+
+    /// <summary>Builds the message for a payment above what may still be paid.</summary>
+    /// <param name="allowed">The most the payment may be, in pesos.</param>
+    /// <returns>For example <c>This is more than the balance. Enter ₱9,327.50 or less.</c>, or the nothing-owed message when nothing may be paid.</returns>
+    public static string PaymentAboveBalance(decimal allowed) =>
+        allowed <= 0m ? NothingOwed : $"This is more than the balance. Enter {Pesos.Format(allowed)} or less.";
 
     /// <summary>Tells whether a money amount has no more than <see cref="MoneyScale"/> decimal places.</summary>
     /// <param name="amount">The amount.</param>
@@ -482,6 +584,55 @@ public static class OrderRules
         }
 
         return Result.Success(discount with { Reason = reason });
+    }
+
+    /// <summary>Checks and cleans one payment, returning the first broken rule under the payment's path. Whether the method and the receiver exist and may be chosen needs the database and runs in the handlers.</summary>
+    /// <param name="index">The zero-based place of the payment in a list, used in the field path; null for a single-payment form.</param>
+    /// <param name="payment">The payment as given.</param>
+    /// <param name="today">The business today; a payment may not be dated after it.</param>
+    /// <returns>The payment with the reference and notes trimmed and empty ones turned into null, or a validation error naming the first broken field.</returns>
+    public static Result<NewOrderPayment> CheckPayment(int? index, NewOrderPayment payment, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+
+        if (payment.PaymentMethodId == Guid.Empty)
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, PaymentMethodField), PaymentMethodRequired);
+        }
+
+        if (payment.PaymentDate > today)
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, PaymentDateField), PaymentDateInFuture);
+        }
+
+        if (payment.Amount <= 0m || payment.Amount > PaymentAmountMax)
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, PaymentAmountField), PaymentAmountOutOfRange);
+        }
+
+        if (!HasValidScale(payment.Amount))
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, PaymentAmountField), MoneyDecimals);
+        }
+
+        var reference = Clean(payment.Reference);
+        if (reference is { Length: > PaymentReferenceMaxLength })
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, PaymentReferenceField), PaymentReferenceTooLong);
+        }
+
+        var notes = Clean(payment.Notes);
+        if (notes is { Length: > PaymentNotesMaxLength })
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, PaymentNotesField), PaymentNotesTooLong);
+        }
+
+        if (payment.ReceivedByUserId == Guid.Empty)
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, ReceivedByField), ReceivedByRequired);
+        }
+
+        return Result.Success(payment with { Reference = reference, Notes = notes });
     }
 
     /// <summary>Builds a validation error for one field.</summary>

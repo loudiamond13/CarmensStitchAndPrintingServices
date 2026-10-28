@@ -1237,6 +1237,77 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("PaymentDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("PaymentMethodId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ReceivedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_OrderPayments_CreatedById");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_OrderPayments_OrderId");
+
+                    b.HasIndex("PaymentMethodId")
+                        .HasDatabaseName("IX_OrderPayments_PaymentMethodId");
+
+                    b.HasIndex("ReceivedByUserId")
+                        .HasDatabaseName("IX_OrderPayments_ReceivedByUserId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ReceivedByUserId"), new[] { "Amount", "PaymentDate" });
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_OrderPayments_UpdatedById");
+
+                    b.ToTable("OrderPayments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderPayments_Amount_Positive", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderStatusChange", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2202,6 +2273,39 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderPayment", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", "Order")
+                        .WithMany("Payments")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Domain.OrderLists.PaymentMethod", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentMethodId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReceivedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderStatusChange", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -2292,6 +2396,8 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Discounts");
 
                     b.Navigation("Items");
+
+                    b.Navigation("Payments");
 
                     b.Navigation("StatusChanges");
                 });

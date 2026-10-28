@@ -44,4 +44,10 @@ public static class OrderErrors
 
     /// <summary>Gets the 422 for adding a discount to an order that already has 20.</summary>
     public static Error TooManyDiscounts => OrderRules.TooManyDiscounts;
+
+    /// <summary>Gets the 404 for a payment id that is not on the order in the route (CWE-639).</summary>
+    public static Error PaymentNotFound => OrderRules.PaymentNotFound;
+
+    /// <summary>Gets the 422 for adding a payment to an order that already has 100.</summary>
+    public static Error TooManyPayments => OrderRules.TooManyPayments;
 }

@@ -13,6 +13,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 {
     private readonly List<OrderItem> _items = [];
     private readonly List<OrderDiscount> _discounts = [];
+    private readonly List<OrderPayment> _payments = [];
     private readonly List<OrderStatusChange> _statusChanges = [];
 
     // Used by EF Core (constructor binding) and by Create.
@@ -118,6 +119,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the discounts, in the order they were added.</summary>
     public IReadOnlyList<OrderDiscount> Discounts => _discounts;
+
+    /// <summary>Gets the payments, in the order they were added.</summary>
+    public IReadOnlyList<OrderPayment> Payments => _payments;
 
     /// <summary>Gets the status history rows loaded with the order.</summary>
     public IReadOnlyList<OrderStatusChange> StatusChanges => _statusChanges;
@@ -493,6 +497,43 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(changes);
     }
 
+    /// <summary>
+    /// Adds one payment at the end of the list, checking every payment rule again, the cap of <see cref="OrderRules.MaxPayments"/> and
+    /// that the payment is not more than the balance (D-11). The balance is worked out from the figures as they stand, before
+    /// anything is assigned, so a refused payment changes nothing. The totals are worked out again and the edit version moves, so the
+    /// order's row version guards the add: two payments sent together with the same version give one winner (ORD-08).
+    /// </summary>
+    /// <param name="payment">The payment as given.</param>
+    /// <param name="today">The business today; a payment may not be dated after it.</param>
+    /// <param name="now">The current instant, which makes the payment key and the new edit version.</param>
+    /// <returns>The new payment, a validation error naming the first broken field, or a 422 when the order already has 100 payments.</returns>
+    public Result<OrderPayment> AddPayment(NewOrderPayment payment, DateOnly today, DateTimeOffset now)
+    {
+        var checkedPayment = OrderRules.CheckPayment(null, payment, today);
+        if (checkedPayment.IsFailure)
+        {
+            return Result.Failure<OrderPayment>(checkedPayment.Error);
+        }
+
+        if (_payments.Count >= OrderRules.MaxPayments)
+        {
+            return Result.Failure<OrderPayment>(OrderRules.TooManyPayments);
+        }
+
+        var cleaned = checkedPayment.Value;
+        var balance = Figures(_payments.Select(static existing => existing.Amount)).Balance;
+        if (cleaned.Amount > balance)
+        {
+            return OrderRules.Reject<OrderPayment>(OrderRules.PaymentPath(null, OrderRules.PaymentAmountField), OrderRules.PaymentAboveBalance(balance));
+        }
+
+        var added = BuildPayment(this, cleaned, _payments.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        _payments.Add(added);
+        Recalculate();
+        Touch(now);
+        return Result.Success(added);
+    }
+
     /// <summary>Takes one discount off the order. The totals are worked out again and the edit version moves.</summary>
     /// <param name="discountId">The discount to remove; it must be on this order.</param>
     /// <param name="now">The current instant, which makes the new edit version.</param>
@@ -528,6 +569,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     private static OrderDiscount BuildDiscount(Order order, NewOrderDiscount discount, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, discount.Kind, discount.Value, discount.Reason, position) { Order = order };
 
+    private static OrderPayment BuildPayment(Order order, NewOrderPayment payment, int position, DateTimeOffset now) =>
+        new(Guid.CreateVersion7(now), order.Id, payment.PaymentDate, payment.Amount, payment.PaymentMethodId, payment.Reference, payment.Notes, payment.ReceivedByUserId, position) { Order = order };
+
     private static OrderItem BuildItem(Order order, NewOrderItem item, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, item.ProductTypeId, item.Description, item.SizeVariant, item.Quantity, item.UnitPrice, item.Quantity * item.UnitPrice, position) { Order = order };
 
@@ -539,17 +583,21 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
     }
 
-    // Writes the money snapshot from OrderMath, the one place money is worked out (ORD-20). Payments, refunds and expenses join the
-    // lists in later plans.
-    private void Recalculate()
-    {
-        var figures = OrderMath.Compute(
+    // Works the figures out with OrderMath, the one place money is worked out (ORD-20), for the given payment amounts. Refunds and
+    // expenses join the lists in later plans.
+    private OrderMathResult Figures(IEnumerable<decimal> payments) =>
+        OrderMath.Compute(
             [.. ItemsForMath(_items)],
             [.. DiscountsForMath(_discounts)],
-            [],
+            [.. payments],
             [],
             [],
             cancelled: Status == OrderStatus.Cancelled);
+
+    // Writes the money snapshot from OrderMath.
+    private void Recalculate()
+    {
+        var figures = Figures(_payments.Select(static payment => payment.Amount));
         Subtotal = figures.Subtotal;
         DiscountTotal = figures.Discount;
         Total = figures.Total;

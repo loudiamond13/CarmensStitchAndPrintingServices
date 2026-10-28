@@ -200,7 +200,8 @@ public static class AuthorizationMatrix
         // Removing an item (ORD-05): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
         new("DELETE", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/1e6c4a82-3b95-4d07-8a1f-5d2e9b7c0a34/items/9c4e7a16-2d83-4b05-a6f1-3e8b0d5c2a79", Anonymous: 401, Admin: 404, Manager: 404),
         // Adding a discount to a saved order (ORD-05, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
-        new("POST", "/api/v1/orders/{orderId:guid}/discounts", "/api/v1/orders/6a9d3f27-8c14-4e50-b7a2-1d4f8e0c5b93/discounts", Anonymous: 401, Admin: 400, Manager: 400),
+        new("POST", "/api/v1/orders/{orderId:guid}/payments", "/api/v1/orders/9e4b1c73-2a58-4d06-b3f9-5c7a0e1d8f24/payments", Anonymous: 401, Admin: 400, Manager: 400),
+        new("POST", "/api/v1/orders/{orderId:guid}/discounts","/api/v1/orders/6a9d3f27-8c14-4e50-b7a2-1d4f8e0c5b93/discounts", Anonymous: 401, Admin: 400, Manager: 400),
         // Editing a discount (ORD-05, D-15): both roles. The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("PUT", "/api/v1/orders/{orderId:guid}/discounts/{discountId:guid}", "/api/v1/orders/2b7e5a91-4d36-4c08-a9f1-7e3c0d8b5a64/discounts/8d1f4b27-6a93-4e50-b2c7-0a5e9d3f1b48", Anonymous: 401, Admin: 400, Manager: 400),
         // Removing a discount (ORD-05, D-15): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.

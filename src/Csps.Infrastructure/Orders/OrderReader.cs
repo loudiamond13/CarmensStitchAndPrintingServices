@@ -1,6 +1,7 @@
 using Csps.Application.Common;
 using Csps.Application.Orders;
 using Csps.Application.Ports;
+using Csps.Application.Security;
 using Csps.Application.Users;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Persistence;
@@ -78,6 +79,45 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // The receiver rule (ORD-22, D-32, D-49) is the same set as StaffState.CanPay, evaluated in SQL: an active Admin or Manager
+        // with a password and a confirmed sign-in who is neither locked nor deleted. Keep in step with StaffDirectory.
+        var paymentRows = await (
+            from payment in context.Set<OrderPayment>().AsNoTracking()
+            where payment.OrderId == id
+            join method in context.PaymentMethods.AsNoTracking() on payment.PaymentMethodId equals method.Id
+            join receiver in context.Users on payment.ReceivedByUserId equals receiver.Id
+            join recorderUser in context.Users on payment.CreatedById equals (Guid?)recorderUser.Id into recorders
+            from recorder in recorders.DefaultIfEmpty()
+            join changerUser in context.Users on payment.UpdatedById equals (Guid?)changerUser.Id into changers
+            from changer in changers.DefaultIfEmpty()
+            orderby payment.PaymentDate, payment.Position
+            select new
+            {
+                Payment = payment,
+                MethodName = method.Name,
+                MethodTone = method.Tone,
+                MethodRetired = method.RetiredAtUtc != null,
+                ReceiverFirst = receiver.FirstName,
+                ReceiverLast = receiver.LastName,
+                ReceiverFormer = receiver.DeletedAtUtc != null,
+                ReceiverActive = receiver.IsActive
+                    && receiver.ManagerLockedAtUtc == null
+                    && receiver.DeletedAtUtc == null
+                    && receiver.PasswordHash != null
+                    && receiver.EmailConfirmed
+                    && context.UserRoles.Any(link => link.UserId == receiver.Id && context.Roles.Any(role =>
+                        role.Id == link.RoleId && (role.Name == Roles.Admin || role.Name == Roles.Manager))),
+                RecorderFirst = (string?)recorder.FirstName,
+                RecorderLast = (string?)recorder.LastName,
+                RecorderFormer = recorder.DeletedAtUtc != null,
+                ChangerId = (Guid?)changer.Id,
+                ChangerFirst = (string?)changer.FirstName,
+                ChangerLast = (string?)changer.LastName,
+                ChangerFormer = changer.DeletedAtUtc != null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var changes = await (
             from change in context.Set<OrderStatusChange>().AsNoTracking()
             where change.OrderId == id
@@ -126,6 +166,25 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
                         ? new ActorRef(changedBy, $"{row.ChangerFirst} {row.ChangerLast}", row.ChangerFormer)
                         : null,
                     row.Discount.UpdatedAtUtc)),
+            ],
+            [
+                .. paymentRows.Select(row => new OrderPaymentResponse(
+                    row.Payment.Id,
+                    row.Payment.PaymentDate,
+                    row.Payment.Amount,
+                    new OrderListRef(row.Payment.PaymentMethodId, row.MethodName, row.MethodTone, row.MethodRetired),
+                    row.Payment.Reference,
+                    row.Payment.Notes,
+                    new ActorRef(row.Payment.ReceivedByUserId, $"{row.ReceiverFirst} {row.ReceiverLast}", row.ReceiverFormer),
+                    row.ReceiverActive,
+                    row.Payment.CreatedById is { } recordedBy && row.RecorderFirst is not null
+                        ? new ActorRef(recordedBy, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer)
+                        : null,
+                    row.Payment.CreatedAtUtc,
+                    row.ChangerId is { } changedBy && row.ChangerFirst is not null
+                        ? new ActorRef(changedBy, $"{row.ChangerFirst} {row.ChangerLast}", row.ChangerFormer)
+                        : null,
+                    row.Payment.UpdatedAtUtc)),
             ],
             [
                 .. changes.Select(change => new OrderStatusChangeResponse(

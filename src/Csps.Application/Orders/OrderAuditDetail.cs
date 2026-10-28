@@ -137,6 +137,23 @@ public static class OrderAuditDetail
         return AuditDetailFormat.Join([.. parts]);
     }
 
+    /// <summary>The detail of <c>order-payment.added</c>: the payment id, date, amount, method and receiver, never the reference or notes.</summary>
+    /// <param name="payment">The payment that was added.</param>
+    /// <returns>For example <c>payment=&lt;id&gt;;date=2026-10-25;amount=10000.00;method=&lt;id&gt;;receiver=&lt;id&gt;</c>.</returns>
+    public static string PaymentAdded(OrderPayment payment) => PaymentSnapshot(payment);
+
+    private static string PaymentSnapshot(OrderPayment payment)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("payment", payment.Id),
+            AuditDetailFormat.Pair("date", payment.PaymentDate),
+            AuditDetailFormat.Pair("amount", payment.Amount),
+            AuditDetailFormat.Pair("method", payment.PaymentMethodId),
+            AuditDetailFormat.Pair("receiver", payment.ReceivedByUserId));
+    }
+
     private static string DiscountSnapshot(OrderDiscount discount)
     {
         ArgumentNullException.ThrowIfNull(discount);

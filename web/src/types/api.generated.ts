@@ -686,6 +686,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a payment on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`
+         *     day, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal
+         *     places, and it may not be more than the balance: a payment above it answers 400 on `amount` with the most that can be
+         *     entered. The payment method must exist and not be retired. `receivedByUserId` names who has the money and must be an
+         *     active Admin or Manager; it is separate from who typed the payment in, which comes from the token. The reference holds up to
+         *     100 characters and the notes up to 500. A version that is not the stored one answers 409 `edit.stale` and changes
+         *     nothing; a form save is never retried. The server works out the order's totals. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+         */
+        post: operations["AddOrderPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-methods": {
         parameters: {
             query?: never;
@@ -1216,6 +1242,36 @@ export interface components {
             /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
+        /**
+         * @description The Add Payment form on a saved order (ORD-05, ORD-22). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `createdById`, is ignored: who recorded the payment and when come from the token and the
+         *     clock (SEC-08). Who received the money is a separate choice, `receivedByUserId`.
+         */
+        AddOrderPaymentRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the money was received, `yyyy-MM-dd`. */
+            paymentDate: null | string;
+            /**
+             * Format: uuid
+             * @description The payment method.
+             */
+            paymentMethodId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who received the money.
+             */
+            receivedByUserId: null | string;
+            /** @description The reference, such as a transfer number. */
+            reference: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
         /** @description One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed. */
         AuditChangeLine: {
             /** @description One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`. */
@@ -1738,6 +1794,8 @@ export interface components {
              * @description The day the order was taken.
              */
             orderDate: string;
+            /** @description The payments, oldest payment date first. */
+            payments: components["schemas"]["OrderPaymentResponse"][];
             /**
              * Format: date-time
              * @description When it was created.
@@ -1881,6 +1939,46 @@ export interface components {
             retired: boolean;
             /** @description One of the six colour tones. */
             tone: string;
+        };
+        /** @description One payment of an order (ORD-05, ORD-22). Received by is who holds the money; recorded by is who typed the payment in. */
+        OrderPaymentResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /**
+             * Format: uuid
+             * @description The payment id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The payment method, with its tone and whether it is retired. */
+            method: components["schemas"]["OrderListRef"];
+            /** @description The notes; null when none. */
+            notes: null | string;
+            /**
+             * Format: date
+             * @description The day the money was received.
+             */
+            paymentDate: string;
+            /** @description The staff member who received the money; the name is kept for a deleted person. */
+            receivedBy: components["schemas"]["ActorRef"];
+            /** @description True while the receiver can still be chosen (ORD-22, D-32). */
+            receivedByActive: boolean;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The reference, such as a transfer number; null when none. */
+            reference: null | string;
         };
         /** @description One row of the status history (ORD-16, D-06). */
         OrderStatusChangeResponse: {
@@ -4547,6 +4645,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderPaymentRequest"];
+                "application/json": null | components["schemas"]["AddOrderPaymentRequest"];
+                "text/json": null | components["schemas"]["AddOrderPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Unauthorized */

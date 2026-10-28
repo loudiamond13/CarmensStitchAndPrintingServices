@@ -57,9 +57,11 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.HasMany(order => order.Items).WithOne(item => item.Order).HasForeignKey(item => item.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(order => order.Discounts).WithOne(discount => discount.Order).HasForeignKey(discount => discount.OrderId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasMany(order => order.Payments).WithOne(payment => payment.Order).HasForeignKey(payment => payment.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(order => order.StatusChanges).WithOne(change => change.Order).HasForeignKey(change => change.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(order => order.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Navigation(order => order.Discounts).UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.Navigation(order => order.Payments).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Navigation(order => order.StatusChanges).UsePropertyAccessMode(PropertyAccessMode.Field);
 
         // NO ACTION everywhere, so removing a user never rewrites history (SEC-08).

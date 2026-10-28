@@ -84,4 +84,58 @@ public static class OrderReferenceChecks
             }
         }
     }
+
+    /// <summary>
+    /// Adds a failure on <c>paymentMethodId</c> when the payment method does not exist or is retired (D-16). A missing id is skipped:
+    /// the static rules already refused it.
+    /// </summary>
+    /// <param name="lists">The order lists.</param>
+    /// <param name="paymentMethodId">The submitted payment method.</param>
+    /// <param name="validation">The validation result to add the failure to.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    public static async Task AddPaymentMethodFailureAsync(IOrderLists lists, Guid? paymentMethodId, ValidationResult validation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        if (paymentMethodId is not { } id || id == Guid.Empty)
+        {
+            return;
+        }
+
+        var states = await lists.GetStatesAsync(OrderListKind.PaymentMethod, [id], cancellationToken).ConfigureAwait(false);
+        var message = states.Count == 0 ? OrderRules.PaymentMethodRequired : states[0].Retired ? OrderRules.PaymentMethodRetired : null;
+        if (message is not null)
+        {
+            validation.Errors.Add(new ValidationFailure(nameof(IOrderPaymentFields.PaymentMethodId), message));
+        }
+    }
+
+    /// <summary>
+    /// Adds a failure on <c>receivedByUserId</c> when the person cannot be named as the receiver (ORD-22, D-32): they must be an
+    /// active Admin or Manager who has finished set-up, so the Legacy holder and a deactivated, locked or deleted account are
+    /// refused. A missing id is skipped: the static rules already refused it.
+    /// </summary>
+    /// <param name="staff">The staff directory.</param>
+    /// <param name="receivedByUserId">The submitted receiver.</param>
+    /// <param name="validation">The validation result to add the failure to.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    public static async Task AddReceiverFailureAsync(IStaffDirectory staff, Guid? receivedByUserId, ValidationResult validation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(staff);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        if (receivedByUserId is not { } id || id == Guid.Empty)
+        {
+            return;
+        }
+
+        var receiver = await staff.GetStaffStateAsync(id, cancellationToken).ConfigureAwait(false);
+        if (receiver is not { CanPay: true })
+        {
+            validation.Errors.Add(new ValidationFailure(nameof(IOrderPaymentFields.ReceivedByUserId), OrderRules.ReceivedByInactive));
+        }
+    }
 }
