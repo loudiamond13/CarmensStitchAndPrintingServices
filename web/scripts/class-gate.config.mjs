@@ -25,6 +25,13 @@ export const OPACITY_ALLOW = Object.freeze([
   { pattern: /^group-hover\/thumb:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
   { pattern: /^group-focus-within\/thumb:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
   { pattern: /^no-hover:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
+  // D-63: the browser's own date indicator is made invisible and stays the click target, under the app's calendar icon.
+  // It holds no text; the date input keeps its full-opacity value text.
+  {
+    pattern: /^\[&::-webkit-calendar-picker-indicator\]:opacity-0$/,
+    files: /^src\/components\/forms\/field\.recipe\.ts$/,
+    decision: 'D-63',
+  },
   // D-02 (named there as "the login numeral"): the decorative, aria-hidden outlined "C" of the auth brand panel.
   { pattern: /^opacity-50$/, files: /^src\/components\/layout\/layout\.recipe\.ts$/, decision: 'D-02' },
 ]);

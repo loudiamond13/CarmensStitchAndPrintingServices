@@ -748,7 +748,8 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 | 261026-ooe | Focused fields stay clear of the fixed and sticky bars (WCAG 2.4.11, D-70 to D-74) | 2026-10-26 | 5413711c | [261026-ooe-focused-fields-stay-clear-of-the-phone-b](./quick/261026-ooe-focused-fields-stay-clear-of-the-phone-b/) |
 | 261026-m16 | List search writes the page reset in one URL update (D-68, D-69) | 2026-10-26 | 4bb2c5b5 | [261026-m16-list-search-writes-the-page-reset-in-one](./quick/261026-m16-list-search-writes-the-page-reset-in-one/) |
 | 30 | D-75: two-Manager demotion race test accepts the sign-out path, guard path still required | 2026-10-26 | 11edfd4e | — |
-| 261028-2e4 | Fix 320px filter-chip overflow; WebKit audit-log cause found (owner decision open) | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
+| 261027-t3j | Restyle shared Select and DateInput, remove the written-out date (D-63) | 2026-10-27 | df81a9e6 | [261027-t3j-restyle-shared-select-and-dateinput-remo](./quick/261027-t3j-restyle-shared-select-and-dateinput-remo/) |
+| 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
 
 ## Deferred Items
 

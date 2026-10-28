@@ -4,17 +4,16 @@
 // triangle-alert) or else the hint. The box gets `aria-invalid` with an error and `aria-describedby` naming the
 // message. Nothing is invalid until the caller passes an `error` (no validation before the first submit).
 // The look comes from field.recipe.ts; `.is-invalid` is keyed off the box's own aria-invalid, `.has-prefix` and
-// `.is-multiline` are recipe options. `beside` puts extra content on the box's row, outside it. App. D.3's native attribute passthrough is kept (UI-SPEC: Field accepts all native
-// input props), so the memo is pinned by an equal-props re-render test (L-13). `className` is layout glue on the field.
+// `.is-multiline` are recipe options. App. D.3's native attribute passthrough is kept (UI-SPEC: Field accepts all
+// native input props), so the memo is pinned by an equal-props re-render test (L-13). `className` is layout glue on the
+// field.
 import clsx from 'clsx';
 import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
 import { Icon } from '@/components/brand';
 import {
-  fieldBesideBoxClasses,
   fieldClasses,
   fieldControlClasses,
   fieldInputClasses,
-  fieldRowClasses,
   labelClasses,
   messageClasses,
   prefixClasses,
@@ -28,8 +27,6 @@ interface FieldBase {
   /** Shown before the box, e.g. "₱" or "%" (hidden from assistive technology; the label names the box). */
   prefix?: string;
   required?: boolean;
-  /** Shown beside the box, outside it, on the same row. */
-  beside?: ReactNode;
   /** Layout glue on the field (margin, width, grid placement); never a restyle. */
   className?: string;
   id?: string;
@@ -40,7 +37,7 @@ export type FieldProps =
   | (FieldBase & { multiline: true } & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'prefix'>);
 
 export function Field(props: FieldProps) {
-  const { label, hint, error, prefix, required, beside, multiline = false, id, className, ...rest } = props;
+  const { label, hint, error, prefix, required, multiline = false, id, className, ...rest } = props;
   const fid = useId();
   // As App. D.3 (`id || fid`): an empty id counts as none.
   const iid = id !== undefined && id !== '' ? id : fid;
@@ -56,7 +53,7 @@ export function Field(props: FieldProps) {
     required,
   };
   const box = (
-    <div className={beside === undefined ? fieldControlClasses : clsx(fieldControlClasses, fieldBesideBoxClasses)}>
+    <div className={fieldControlClasses}>
       {hasPrefix && (
         <span className={prefixClasses} aria-hidden="true">
           {prefix}
@@ -81,14 +78,7 @@ export function Field(props: FieldProps) {
           )}
         </label>
       )}
-      {beside === undefined ? (
-        box
-      ) : (
-        <div className={fieldRowClasses}>
-          {box}
-          {beside}
-        </div>
-      )}
+      {box}
       {hasMessage && (
         <p id={messageId} className={messageClasses({ error: invalid })}>
           {invalid && <Icon name="triangle-alert" size={14} />}

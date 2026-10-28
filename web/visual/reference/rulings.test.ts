@@ -42,6 +42,7 @@ const RULING_IDS = [
   'P5 D-35',
   'P5 long-text',
   'D-60',
+  'D-63',
 ] as const;
 
 interface Group {
@@ -372,6 +373,19 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
 
     expect(groupsOfD60.map((group) => group.prelude)).toEqual(['.s-search-box']);
     expect(normalize(groupsOfD60[0]?.body ?? '')).toBe('height: 42px;');
+  });
+
+  it('D-63: the dropdown fills on enabled hover, darkens its chevron on enabled hover and focus, and goes dark scheme in Espresso, nothing else', () => {
+    const groupsOfD63 = byRuling('D-63');
+
+    expect(groupsOfD63.map((group) => [selectorsOf(group.prelude), normalize(group.body)])).toEqual([
+      [['.csp-select:has(select:enabled):hover:not(:focus-within)'], 'background: var(--surface-3);'],
+      [
+        ['.csp-select:has(select:enabled):hover .csp-select-chev', '.csp-select:focus-within .csp-select-chev'],
+        'color: var(--ink);',
+      ],
+      [['[data-theme="dark"] .csp-select'], 'color-scheme: dark;'],
+    ]);
   });
 
   it('D-42: the Overlay region is a column whose ::before spacer (124px, 96px on phones) shrinks before the dialog does, and the backdrop scrolls', () => {
