@@ -22,13 +22,33 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
         var query = includeDeleted
             ? context.Orders.IgnoreQueryFilters([SoftDeleteFilter])
             : context.Orders.AsQueryable();
-        return await query
+        var loaded = await query
             .Include(order => order.Items)
             .Include(order => order.Discounts)
             .Include(order => order.Payments)
             .AsSplitQuery()
             .SingleOrDefaultAsync(order => order.Id == id, cancellationToken)
             .ConfigureAwait(false);
+        if (loaded is null)
+        {
+            return null;
+        }
+
+        // The split query reads the order row and then each list at a different moment. If the row version moved in between, the
+        // lists may belong to a newer save than the row, and a rule such as the payment balance would be judged on a mix. The
+        // other request won: this one is told so and reads again.
+        var current = await context.Orders.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking()
+            .Where(row => row.Id == id)
+            .Select(row => row.RowVersion)
+            .SingleAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (!current.AsSpan().SequenceEqual(loaded.RowVersion))
+        {
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(new InvalidOperationException("The order was changed while it was being read."));
+        }
+
+        return loaded;
     }
 
     public async Task LockAsync(Order order, CancellationToken cancellationToken)
