@@ -124,7 +124,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 - [ ] **ORD-01**: Staff see a paginated order preview list (grid cards or table) with order number, customer/team, dates, status, Total, Total Paid, Total Discount, Balance, and the cover image as a lazy thumbnail (placeholder if none). The list is projected server-side without N+1 queries ⚑ C-13
 - [ ] **ORD-02**: Staff can search orders by number, customer name, team and phone; filter by status (default "Active + recent"), order-date range, product type and "has balance"; sort by due date, newest, balance or total, with server-side pagination (default 20). The search, filters, sort and page live in the URL (WEB-10)
-- [ ] **ORD-03**: Staff can create an order (customer details, dates, status, notes, one or more items) in a single database transaction. The API accepts the full aggregate (optionally payments, discount(s), expenses), and the UI follows the UI-spec flow ⚑ C-3, C-14, OD-7
+- [x] **ORD-03**: Staff can create an order (customer details, dates, status, notes, one or more items) in a single database transaction. The API accepts the full aggregate (optionally payments, discount(s), expenses), and the UI follows the UI-spec flow ⚑ C-3, C-14, OD-7
 - [ ] **ORD-04**: Staff can upload images to an order (during creation and later): a per-order maximum, reorder via an accessible non-drag alternative, choose the cover, set alt text and delete images ⚑ C-2, C-16, OD-9
 - [ ] **ORD-05**: Staff can update order details and add/edit/remove items, payments, discount(s) and order expenses. Each change revalidates invariants (quantity > 0, unit price ≥ 0, description 1–200 chars, payment > 0 and not future-dated in business time, percent 0–100, discount ≤ items total, a payment above the remaining balance is refused) and recomputes totals server-side. Removing an item, lowering a quantity or price, or adding or raising a discount after payment may push the balance below ₱0.00. That is allowed: the order then shows a customer credit (the amount paid over the new total), and a refund clears it (ORD-18) ⚑ C-1, OD-4, C-38 (owner, 2026-10-28, D-12, D-13)
 - [ ] **ORD-06**: Staff can delete an order. A delete is a soft delete that both Admins and Managers can do: the order and all its parts disappear from every list, total and balance, but the rows stay. Only Managers see the Deleted orders view, restore an order (it counts again everywhere), and delete an order permanently. A permanent delete keeps the cascade confirmation that shows child counts and requires typing the order number. It removes the order and all its children in one transaction and schedules its images for storage cleanup once order images exist ⚑ OD-5, OD-6 (owner, 2026-10-28, D-26, D-27, D-28)
@@ -406,7 +406,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CEXP-05 | Phase 6 | Complete |
 | ORD-01 | Phase 8 | Pending |
 | ORD-02 | Phase 8 | Pending |
-| ORD-03 | Phase 7 | Pending |
+| ORD-03 | Phase 7 | Complete |
 | ORD-04 | Phase 9 | Pending |
 | ORD-05 | Phase 7 | Pending |
 | ORD-06 | Phase 8 | Pending |

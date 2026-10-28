@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-11-PLAN.md
-last_updated: "2026-10-28T19:51:44.158Z"
+stopped_at: Completed 07-12-PLAN.md
+last_updated: "2026-10-28T20:32:56.129Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: ee11385ec9af26a82e889a1733332d061315731f
+state_head: cd2de35a66f0fd5b387644a98ac5c347f3f9033e
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 198
+  completed_plans: 199
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 12 of 20
+Plan: 13 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -256,6 +256,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P09 | 53 min | 3 tasks | 28 files |
 | Phase 07 P10 | 45 min | 3 tasks | 48 files |
 | Phase 07 P11 | 55 min | 3 tasks | 50 files |
+| Phase 07 P12 | 35 min | 3 tasks | 50 files |
 
 ## Accumulated Context
 
@@ -703,6 +704,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-11: A saved retired payment method or ineligible receiver may stay on an edit; a new or changed one is checked (D-16, ORD-22)
 - [Phase 07]: 07-11: OrderStore.FindAsync re-reads the row version after its split read, so an order read across another save is 409 edit.stale, not a verdict on mixed data
 - [Phase 07]: 07-11: OrderPayments has a Position column like OrderDiscounts, so create-body paths payments[i].x match the stored order
+- [Phase 07]: 07-12: OrderExpenses has a Position column like items, discounts and payments, so create-body paths expenses[i].x match the stored order
+- [Phase 07]: 07-12: order expenses reuse the Phase 6 company-expense words; the changed audit entry shows the payer as it now is and a new payer writes its own order-expense.payer-changed entry
 
 ### Pending Todos
 
@@ -794,6 +797,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T19:51:43.089Z
-Stopped at: Completed 07-11-PLAN.md
+Last session: 2026-10-28T20:32:03.767Z
+Stopped at: Completed 07-12-PLAN.md
 Resume file: None
