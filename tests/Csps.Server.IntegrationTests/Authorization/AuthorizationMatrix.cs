@@ -151,6 +151,10 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 200, Manager: 200),
         new("GET", "/api/v1/payment-methods", "/api/v1/payment-methods", Anonymous: 401, Admin: 200, Manager: 200),
         new("GET", "/api/v1/order-expense-categories", "/api/v1/order-expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
+        // Adding a product type (D-19): Managers only, so an Admin meets 403. With no body a Manager meets the 400 field errors.
+        new("POST", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 403, Manager: 400),
+        // Reading one product type (D-19): Managers only. A fresh random id is no entry, so a Manager meets 404 product-types.not-found.
+        new("GET", "/api/v1/product-types/{id:guid}", "/api/v1/product-types/0b6e8d24-7a31-4c95-b2f0-5d9c1a3e7f68", Anonymous: 401, Admin: 403, Manager: 404),
 
         // The expense category list (D-08, D-15): Staff only, both roles read it.
         new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
