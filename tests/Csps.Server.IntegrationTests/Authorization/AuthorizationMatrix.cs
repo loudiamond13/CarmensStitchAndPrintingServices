@@ -208,6 +208,8 @@ public static class AuthorizationMatrix
         new("DELETE", "/api/v1/orders/{orderId:guid}/expenses/{expenseId:guid}", "/api/v1/orders/e2a8c571-9d36-4b04-8f7a-0c5d3e1b6a49/expenses/7a4e1c98-3f62-4d05-b8a1-9e2c6d0f5b73", Anonymous: 401, Admin: 404, Manager: 404),
         // Refunds on a saved order (ORD-18, D-07): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request.
         new("POST", "/api/v1/orders/{orderId:guid}/refunds", "/api/v1/orders/a4d7e920-3b61-4c85-9f0a-6e2c8b1d5a37/refunds", Anonymous: 401, Admin: 400, Manager: 400),
+        new("PUT", "/api/v1/orders/{orderId:guid}/refunds/{refundId:guid}", "/api/v1/orders/c6e1a493-7d28-4b50-8f3a-0a9d5e2b7c14/refunds/3b8f0d62-1e95-4a47-b6c0-8d2a7e5f1c39", Anonymous: 401, Admin: 400, Manager: 400),
+        new("DELETE", "/api/v1/orders/{orderId:guid}/refunds/{refundId:guid}", "/api/v1/orders/f2a7c580-4e19-4d63-9b0a-5c8e1d3f6a72/refunds/9d4e1b07-6a32-4c85-a0f1-2b7c9e5d3a68", Anonymous: 401, Admin: 404, Manager: 404),
         // Changing an order's status (ORD-17): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("POST", "/api/v1/orders/{id:guid}/status", "/api/v1/orders/8c3f1b64-2d97-4e05-a6b8-1f4a7e0d9c52/status", Anonymous: 401, Admin: 400, Manager: 400),
         new("POST", "/api/v1/orders/{orderId:guid}/discounts","/api/v1/orders/6a9d3f27-8c14-4e50-b7a2-1d4f8e0c5b93/discounts", Anonymous: 401, Admin: 400, Manager: 400),

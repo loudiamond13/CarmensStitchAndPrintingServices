@@ -285,6 +285,128 @@ public sealed class OrderPeopleTests(CspsDatabase database) : IClassFixture<Csps
         shown.GetProperty("paidByActive").GetBoolean().ShouldBeFalse();
     }
 
+    [Theory]
+    [InlineData("deactivated")]
+    [InlineData("manager-locked")]
+    [InlineData("deleted")]
+    [InlineData("invited")]
+    [InlineData("no-role")]
+    [InlineData("temporary-not-signed-in")]
+    [InlineData("legacy-holder")]
+    public async Task APersonWhoCannotBeChosenIsRefusedAsRefunderOnAddAndOnARefunderChange(string state)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var candidate = await PrepareAsync(factory, client, manager.AccessToken, state);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148FullBody(today, manager.UserId, manager.UserId));
+        var id = created.GetProperty("id").GetGuid();
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "cancelled");
+
+        using var addResponse = await OrderFixtures.AddRefundAsync(
+            client,
+            manager.AccessToken,
+            id,
+            OrderFixtures.RefundBody(today, 100m, "Order cancelled", candidate, cancelled.GetProperty("version").GetString()));
+        await ExpectRefusalAsync(addResponse, "refundedByUserId");
+
+        var withRefund = await OrderFixtures.AddRefundAndReadAsync(client, manager.AccessToken, cancelled, today, 100m, manager.UserId);
+        var refundId = withRefund.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+        using var changeResponse = await OrderFixtures.PutRefundAsync(
+            client,
+            manager.AccessToken,
+            id,
+            refundId,
+            OrderFixtures.RefundBody(today, 100m, "Order cancelled", candidate, withRefund.GetProperty("version").GetString()));
+        await ExpectRefusalAsync(changeResponse, "refundedByUserId");
+        var stored = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        stored.GetProperty("refunds")[0].GetProperty("refundedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+    }
+
+    [Fact]
+    public async Task AnActiveAdminAndAnActiveManagerAreAcceptedAsRefunderOnAddAndOnAChange()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148FullBody(today, manager.UserId, admin.UserId));
+        var id = created.GetProperty("id").GetGuid();
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "cancelled");
+
+        var byAdmin = await OrderFixtures.AddRefundAndReadAsync(client, manager.AccessToken, cancelled, today, 100m, admin.UserId);
+        var refundId = byAdmin.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+        using var changed = await OrderFixtures.PutRefundAsync(
+            client,
+            manager.AccessToken,
+            id,
+            refundId,
+            OrderFixtures.RefundBody(today, 100m, "Order cancelled", manager.UserId, byAdmin.GetProperty("version").GetString()));
+
+        changed.StatusCode.ShouldBe(HttpStatusCode.OK, await changed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var stored = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        stored.GetProperty("refunds")[0].GetProperty("refundedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+    }
+
+    [Fact]
+    public async Task ARefunderDeactivatedAfterTheRefundStillShowsAndTheRefundCanBeEditedWithoutChangingThem()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var refunder = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Pia", "Perez", Roles.Admin);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148FullBody(today, manager.UserId, manager.UserId));
+        var id = created.GetProperty("id").GetGuid();
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "cancelled");
+        var withRefund = await OrderFixtures.AddRefundAndReadAsync(client, manager.AccessToken, cancelled, today, 500m, refunder.Id);
+        withRefund.GetProperty("refunds")[0].GetProperty("refundedByActive").GetBoolean().ShouldBeTrue();
+        await AuthClient.DeactivateAsync(factory, refunder.Id);
+
+        var after = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        var shown = after.GetProperty("refunds")[0];
+        shown.GetProperty("refundedBy").GetProperty("id").GetGuid().ShouldBe(refunder.Id);
+        shown.GetProperty("refundedBy").GetProperty("formerStaff").GetBoolean().ShouldBeFalse();
+        shown.GetProperty("refundedByActive").GetBoolean().ShouldBeFalse();
+
+        using var edit = await OrderFixtures.PutRefundAsync(
+            client,
+            manager.AccessToken,
+            id,
+            shown.GetProperty("id").GetGuid(),
+            OrderFixtures.RefundBody(today, 450m, "Corrected", refunder.Id, after.GetProperty("version").GetString()));
+
+        edit.StatusCode.ShouldBe(HttpStatusCode.OK, await edit.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var stored = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        stored.GetProperty("refunds")[0].GetProperty("amount").GetDecimal().ShouldBe(450m);
+        stored.GetProperty("refunds")[0].GetProperty("refundedBy").GetProperty("id").GetGuid().ShouldBe(refunder.Id);
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.TargetId == id.ToString("D") && row.Action == "order-refund.refunder-changed", TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ARefunderWhoWasDeletedKeepsTheirNameAndIsMarkedFormerStaff()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var refunder = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Jun", "Javier", Roles.Admin);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148FullBody(today, manager.UserId, manager.UserId));
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, created.GetProperty("id").GetGuid(), "cancelled");
+        var withRefund = await OrderFixtures.AddRefundAndReadAsync(client, manager.AccessToken, cancelled, today, 500m, refunder.Id);
+        await AccountStateFixtures.MarkDeletedAsync(factory, refunder.Id);
+
+        var after = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, withRefund.GetProperty("id").GetGuid());
+
+        var shown = after.GetProperty("refunds")[0];
+        shown.GetProperty("refundedBy").GetProperty("name").GetString().ShouldBe($"{refunder.FirstName} {refunder.LastName}");
+        shown.GetProperty("refundedBy").GetProperty("formerStaff").GetBoolean().ShouldBeTrue();
+        shown.GetProperty("refundedByActive").GetBoolean().ShouldBeFalse();
+    }
+
     private static async Task ExpectRefusalAsync(HttpResponseMessage response, string field)
     {
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));

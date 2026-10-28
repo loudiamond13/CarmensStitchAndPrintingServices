@@ -103,6 +103,72 @@ public sealed class OrderLockTests(CspsDatabase database) : IClassFixture<CspsDa
     }
 
     [Fact]
+    public async Task OnACancelledOrderRefundsCanBeAddedEditedAndRemovedWhileAnItemAddIsStillLocked()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.Ord0148FullBody(today, admin.UserId, manager.UserId));
+        var id = created.GetProperty("id").GetGuid();
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "cancelled");
+
+        var added = await OrderFixtures.AddRefundAndReadAsync(client, admin.AccessToken, cancelled, today, 5000m, manager.UserId);
+        var refundId = added.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+        using var edit = await OrderFixtures.PutRefundAsync(
+            client, manager.AccessToken, id, refundId, OrderFixtures.RefundBody(today, 4000m, "Corrected", manager.UserId, added.GetProperty("version").GetString()));
+        using var itemRefused = await OrderFixtures.AddItemAsync(
+            client, admin.AccessToken, id, OrderFixtures.ItemBody(OrderFixtures.PoloId, (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetProperty("version").GetString()));
+        using var remove = await OrderFixtures.DeleteRefundAsync(client, admin.AccessToken, id, refundId);
+
+        edit.StatusCode.ShouldBe(HttpStatusCode.OK, await edit.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        itemRefused.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(itemRefused, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.locked");
+        remove.StatusCode.ShouldBe(HttpStatusCode.OK, await remove.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var stored = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        stored.GetProperty("status").GetString().ShouldBe("cancelled");
+        stored.GetProperty("refunds").GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task OnACompletedOrderEveryRefundRouteIs422LockedAndTheStoredOrderIsUnchanged()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
+        var id = paid.GetProperty("id").GetGuid();
+        var inCredit = await OrderFixtures.AddDiscountAndReadAsync(client, admin.AccessToken, paid, "fixed", 500m, "Late delivery");
+        var refunded = await OrderFixtures.AddRefundAndReadAsync(client, admin.AccessToken, inCredit, today, 500m, manager.UserId, "Late delivery credit");
+        var completed = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "completed");
+        var refundId = refunded.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+        var version = completed.GetProperty("version").GetString();
+        var before = (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetRawText();
+
+        var writes = new (string Name, Func<Task<HttpResponseMessage>> Send)[]
+        {
+            ("POST refund", () => OrderFixtures.AddRefundAsync(client, admin.AccessToken, id, OrderFixtures.RefundBody(today, 1m, "Late", manager.UserId, version))),
+            ("PUT refund", () => OrderFixtures.PutRefundAsync(client, manager.AccessToken, id, refundId, OrderFixtures.RefundBody(today, 1m, "Changed", manager.UserId, version))),
+            ("DELETE refund", () => OrderFixtures.DeleteRefundAsync(client, admin.AccessToken, id, refundId)),
+        };
+
+        foreach (var (name, send) in writes)
+        {
+            using var response = await send();
+
+            response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, name);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("code").GetString().ShouldBe("orders.locked", name);
+            problem.GetProperty("detail").GetString().ShouldBe("This order is completed. Reopen it to make changes.", name);
+        }
+
+        (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetRawText().ShouldBe(before);
+    }
+
+    [Fact]
     public async Task AReadOfAnEndStateOrderStillWorksAndAMissingOrderIsStillA404()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
