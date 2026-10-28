@@ -1,4 +1,5 @@
 using Csps.Application.OrderLists;
+using Csps.Application.Orders;
 
 namespace Csps.Server.Composition;
 
@@ -13,6 +14,8 @@ public static class OrdersApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<ListOrderListHandler>();
+        services.AddScoped<CreateOrderHandler>();
+        services.AddScoped<GetOrderHandler>();
         return services;
     }
 }

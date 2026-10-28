@@ -525,6 +525,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order
+         *     date and the due date are required, and the due date may not be before the order date. The status may be pending, mockup,
+         *     production, ready or delivered and is pending when not sent; Completed and Cancelled are refused on a new order. An order
+         *     has 1 to 100 items, each with a product type that exists and is not retired, a description of up to 200 characters, an
+         *     optional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.
+         *     The order number, `ORD-{YYYY}-{NNNN}`, takes its year from the business year of the save, and the money figures
+         *     are worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number
+         *     or totals in the body are ignored. The first status history row is written with the order. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored 201 and creates nothing more.
+         */
+        post: operations["CreateOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one order with its items, status history, money figures, who recorded it and who last changed it. Both roles read
+         *     every order. A deleted order is the same 404 as an unknown one.
+         */
+        get: operations["GetOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-methods": {
         parameters: {
             query?: never;
@@ -1266,6 +1313,32 @@ export interface components {
             tone: null | string;
         };
         /**
+         * @description The New Order form (ORD-03). Any other member in the body, such as a forged `createdById`, `number` or `totals`, is
+         *     ignored: who recorded the order, its number and its money figures come from the token, the clock and the server (SEC-08, ORD-20).
+         */
+        CreateOrderRequest: {
+            /** @description The address. */
+            address: null | string;
+            /** @description The contact number. */
+            contactNumber: null | string;
+            /** @description The customer's name. */
+            customerName: null | string;
+            /** @description The day it is due, `yyyy-MM-dd`. */
+            dueDate: null | string;
+            /** @description The email address. */
+            email: null | string;
+            /** @description The lines, one to 100. */
+            items: null | components["schemas"]["OrderItemRequest"][];
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the order was taken, `yyyy-MM-dd`. */
+            orderDate: null | string;
+            /** @description The status to start in: pending, mockup, production, ready or delivered; pending when not sent. */
+            status: null | string;
+            /** @description The team or club name. */
+            teamName: null | string;
+        };
+        /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
          *     body, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).
          */
@@ -1464,6 +1537,116 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description One order with its items, history, totals and who recorded and last changed it (ORD-03). */
+        OrderDetailResponse: {
+            /** @description The address; null when none. */
+            address: null | string;
+            /** @description The contact number. */
+            contactNumber: null | string;
+            /** @description The customer's name. */
+            customerName: string;
+            /**
+             * Format: date
+             * @description The day it is due.
+             */
+            dueDate: null | string;
+            /** @description The email address; null when none. */
+            email: null | string;
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
+            id: string;
+            /** @description The lines, in order. */
+            items: components["schemas"]["OrderItemResponse"][];
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The notes; null when none. */
+            notes: null | string;
+            /** @description The order number, `ORD-{YYYY}-{NNNN}`. */
+            number: string;
+            /**
+             * Format: date
+             * @description The day the order was taken.
+             */
+            orderDate: string;
+            /**
+             * Format: date-time
+             * @description When it was created.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The status key: pending, mockup, production, ready, delivered, completed or cancelled. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status last changed.
+             */
+            statusChangedAt: string;
+            /** @description The status history, oldest first. */
+            statusHistory: components["schemas"]["OrderStatusChangeResponse"][];
+            /** @description The team name; null when none. */
+            teamName: null | string;
+            /** @description The money figures. */
+            totals: components["schemas"]["OrderTotalsResponse"];
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
+        /** @description One line of the New Order form (ORD-13). */
+        OrderItemRequest: {
+            /** @description What the line is. */
+            description: null | string;
+            /**
+             * Format: uuid
+             * @description The product type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: null | number | string;
+            /** @description The size or variant. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: null | number | string;
+        };
+        /** @description One line of an order. */
+        OrderItemResponse: {
+            /** @description What the line is. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The item id.
+             */
+            id: string;
+            /**
+             * Format: double
+             * @description The quantity times the unit price.
+             */
+            lineTotal: number | string;
+            /** @description The product type. */
+            productType: components["schemas"]["OrderListRef"];
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: number | string;
+            /** @description The size or variant; null when none. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: number | string;
+        };
         /** @description One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19). */
         OrderListItem: {
             /**
@@ -1479,6 +1662,86 @@ export interface components {
             status: string;
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
             tone: string;
+        };
+        /** @description An order list entry an item points at: its name and badge tone, and whether it is retired (D-18). */
+        OrderListRef: {
+            /**
+             * Format: uuid
+             * @description The entry id.
+             */
+            id: string;
+            /** @description The display name. */
+            name: string;
+            /** @description True once the entry is retired. */
+            retired: boolean;
+            /** @description One of the six colour tones. */
+            tone: string;
+        };
+        /** @description One row of the status history (ORD-16, D-06). */
+        OrderStatusChangeResponse: {
+            /**
+             * Format: date-time
+             * @description When it moved.
+             */
+            changedAt: string;
+            changedBy: null | components["schemas"]["ActorRef"];
+            /** @description The status the order left; null for the first row. */
+            from: null | string;
+            /** @description The status the order entered. */
+            to: string;
+        };
+        /**
+         * @description The money figures of an order, read straight from the stored snapshot (ORD-20). Subtotal is before discount, total is after
+         *     discount, balance is total minus paid plus refunded, and customerCredit is what the shop owes the customer.
+         */
+        OrderTotalsResponse: {
+            /**
+             * Format: double
+             * @description The total minus paid plus refunded.
+             */
+            balance: number | string;
+            /**
+             * Format: double
+             * @description What the shop owes the customer; 0.00 when nothing.
+             */
+            customerCredit: number | string;
+            /**
+             * Format: double
+             * @description The sum of the discounts.
+             */
+            discount: number | string;
+            /**
+             * Format: double
+             * @description The sum of the order expenses.
+             */
+            expenses: number | string;
+            /** @description True when the subtotal is above zero and the balance is zero or less. */
+            fullyPaid: boolean;
+            /**
+             * Format: double
+             * @description The sum of the payments.
+             */
+            paid: number | string;
+            /**
+             * Format: double
+             * @description The profit.
+             */
+            profit: number | string;
+            /**
+             * Format: double
+             * @description The sum of the refunds.
+             */
+            refunded: number | string;
+            /**
+             * Format: double
+             * @description The sum of the line totals.
+             */
+            subtotal: number | string;
+            /**
+             * Format: double
+             * @description The subtotal minus the discount.
+             */
+            total: number | string;
         };
         ProblemDetails: {
             detail?: null | string;
@@ -3470,6 +3733,101 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateOrderRequest"];
+                "application/json": null | components["schemas"]["CreateOrderRequest"];
+                "text/json": null | components["schemas"]["CreateOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

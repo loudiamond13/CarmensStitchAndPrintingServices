@@ -699,6 +699,97 @@
         ],
         "type": "object"
       },
+      "CreateOrderRequest": {
+        "description": "The New Order form (ORD-03). Any other member in the body, such as a forged `createdById`, `number` or `totals`, is\nignored: who recorded the order, its number and its money figures come from the token, the clock and the server (SEC-08, ORD-20).",
+        "properties": {
+          "address": {
+            "description": "The address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactNumber": {
+            "description": "The contact number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerName": {
+            "description": "The customer's name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dueDate": {
+            "description": "The day it is due, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "description": "The email address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "items": {
+            "description": "The lines, one to 100.",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "notes": {
+            "description": "Free notes.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDate": {
+            "description": "The day the order was taken, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "description": "The status to start in: pending, mockup, production, ready or delivered; pending when not sent.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or club name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "email",
+          "address",
+          "orderDate",
+          "dueDate",
+          "status",
+          "notes",
+          "items"
+        ],
+        "type": "object"
+      },
       "CreateUserRequest": {
         "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
         "properties": {
@@ -1182,6 +1273,278 @@
         ],
         "type": "object"
       },
+      "OrderDetailResponse": {
+        "description": "One order with its items, history, totals and who recorded and last changed it (ORD-03).",
+        "properties": {
+          "address": {
+            "description": "The address; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactNumber": {
+            "description": "The contact number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerName": {
+            "description": "The customer's name.",
+            "type": "string"
+          },
+          "dueDate": {
+            "description": "The day it is due.",
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "description": "The email address; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "description": "The order id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "items": {
+            "description": "The lines, in order.",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemResponse"
+            },
+            "type": "array"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
+          "notes": {
+            "description": "The notes; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The order number, `ORD-{YYYY}-{NNNN}`.",
+            "type": "string"
+          },
+          "orderDate": {
+            "description": "The day the order was taken.",
+            "format": "date",
+            "type": "string"
+          },
+          "recordedAt": {
+            "description": "When it was created.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who created it; null reads as System."
+              }
+            ]
+          },
+          "status": {
+            "description": "The status key: pending, mockup, production, ready, delivered, completed or cancelled.",
+            "type": "string"
+          },
+          "statusChangedAt": {
+            "description": "When the status last changed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "statusHistory": {
+            "description": "The status history, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/OrderStatusChangeResponse"
+            },
+            "type": "array"
+          },
+          "teamName": {
+            "description": "The team name; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "totals": {
+            "$ref": "#/components/schemas/OrderTotalsResponse",
+            "description": "The money figures."
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "email",
+          "address",
+          "orderDate",
+          "dueDate",
+          "status",
+          "statusChangedAt",
+          "notes",
+          "items",
+          "statusHistory",
+          "totals",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt",
+          "version"
+        ],
+        "type": "object"
+      },
+      "OrderItemRequest": {
+        "description": "One line of the New Order form (ORD-13).",
+        "properties": {
+          "description": {
+            "description": "What the line is.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productTypeId": {
+            "description": "The product type.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quantity": {
+            "description": "How many.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "sizeVariant": {
+            "description": "The size or variant.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitPrice": {
+            "description": "The price of one, in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "productTypeId",
+          "description",
+          "sizeVariant",
+          "quantity",
+          "unitPrice"
+        ],
+        "type": "object"
+      },
+      "OrderItemResponse": {
+        "description": "One line of an order.",
+        "properties": {
+          "description": {
+            "description": "What the line is.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The item id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lineTotal": {
+            "description": "The quantity times the unit price.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "productType": {
+            "$ref": "#/components/schemas/OrderListRef",
+            "description": "The product type."
+          },
+          "quantity": {
+            "description": "How many.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "sizeVariant": {
+            "description": "The size or variant; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitPrice": {
+            "description": "The price of one, in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "productType",
+          "description",
+          "sizeVariant",
+          "quantity",
+          "unitPrice",
+          "lineTotal"
+        ],
+        "type": "object"
+      },
       "OrderListItem": {
         "description": "One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19).",
         "properties": {
@@ -1213,6 +1576,177 @@
           "tone",
           "status",
           "isOthers"
+        ],
+        "type": "object"
+      },
+      "OrderListRef": {
+        "description": "An order list entry an item points at: its name and badge tone, and whether it is retired (D-18).",
+        "properties": {
+          "id": {
+            "description": "The entry id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "retired": {
+            "description": "True once the entry is retired.",
+            "type": "boolean"
+          },
+          "tone": {
+            "description": "One of the six colour tones.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "retired"
+        ],
+        "type": "object"
+      },
+      "OrderStatusChangeResponse": {
+        "description": "One row of the status history (ORD-16, D-06).",
+        "properties": {
+          "changedAt": {
+            "description": "When it moved.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "changedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who moved it; null reads as System."
+              }
+            ]
+          },
+          "from": {
+            "description": "The status the order left; null for the first row.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "to": {
+            "description": "The status the order entered.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "changedBy",
+          "changedAt"
+        ],
+        "type": "object"
+      },
+      "OrderTotalsResponse": {
+        "description": "The money figures of an order, read straight from the stored snapshot (ORD-20). Subtotal is before discount, total is after\ndiscount, balance is total minus paid plus refunded, and customerCredit is what the shop owes the customer.",
+        "properties": {
+          "balance": {
+            "description": "The total minus paid plus refunded.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "customerCredit": {
+            "description": "What the shop owes the customer; 0.00 when nothing.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "discount": {
+            "description": "The sum of the discounts.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "expenses": {
+            "description": "The sum of the order expenses.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "fullyPaid": {
+            "description": "True when the subtotal is above zero and the balance is zero or less.",
+            "type": "boolean"
+          },
+          "paid": {
+            "description": "The sum of the payments.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "profit": {
+            "description": "The profit.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "refunded": {
+            "description": "The sum of the refunds.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "subtotal": {
+            "description": "The sum of the line totals.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "The subtotal minus the discount.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "subtotal",
+          "discount",
+          "total",
+          "paid",
+          "refunded",
+          "balance",
+          "customerCredit",
+          "expenses",
+          "profit",
+          "fullyPaid"
         ],
         "type": "object"
       },
@@ -4492,6 +5026,151 @@
         ]
       }
     },
+    "/api/v1/orders": {
+      "post": {
+        "operationId": "CreateOrder",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateOrderRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateOrderRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateOrderRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order\ndate and the due date are required, and the due date may not be before the order date. The status may be pending, mockup,\nproduction, ready or delivered and is pending when not sent; Completed and Cancelled are refused on a new order. An order\nhas 1 to 100 items, each with a product type that exists and is not retired, a description of up to 200 characters, an\noptional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.\nThe order number, `ORD-{YYYY}-{NNNN}`, takes its year from the business year of the save, and the money figures\nare worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number\nor totals in the body are ignored. The first status history row is written with the order. A retry with the same\n`Idempotency-Key` and body answers with the stored 201 and creates nothing more.",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "operationId": "GetOrder",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one order with its items, status history, money figures, who recorded it and who last changed it. Both roles read\nevery order. A deleted order is the same 404 as an unknown one.",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
     "/api/v1/payment-methods": {
       "get": {
         "operationId": "ListPaymentMethods",
@@ -6443,6 +7122,9 @@
     },
     {
       "name": "OrderExpenseCategories"
+    },
+    {
+      "name": "Orders"
     },
     {
       "name": "Password"

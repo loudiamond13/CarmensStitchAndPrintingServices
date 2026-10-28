@@ -1,0 +1,96 @@
+using Csps.Application.Users;
+
+namespace Csps.Application.Orders;
+
+/// <summary>An order list entry an item points at: its name and badge tone, and whether it is retired (D-18).</summary>
+/// <param name="Id">The entry id.</param>
+/// <param name="Name">The display name.</param>
+/// <param name="Tone">One of the six colour tones.</param>
+/// <param name="Retired">True once the entry is retired.</param>
+public sealed record OrderListRef(Guid Id, string Name, string Tone, bool Retired);
+
+/// <summary>One line of an order.</summary>
+/// <param name="Id">The item id.</param>
+/// <param name="ProductType">The product type.</param>
+/// <param name="Description">What the line is.</param>
+/// <param name="SizeVariant">The size or variant; null when none.</param>
+/// <param name="Quantity">How many.</param>
+/// <param name="UnitPrice">The price of one, in pesos.</param>
+/// <param name="LineTotal">The quantity times the unit price.</param>
+public sealed record OrderItemResponse(Guid Id, OrderListRef ProductType, string Description, string? SizeVariant, int Quantity, decimal UnitPrice, decimal LineTotal);
+
+/// <summary>One row of the status history (ORD-16, D-06).</summary>
+/// <param name="From">The status the order left; null for the first row.</param>
+/// <param name="To">The status the order entered.</param>
+/// <param name="ChangedBy">Who moved it; null reads as System.</param>
+/// <param name="ChangedAt">When it moved.</param>
+public sealed record OrderStatusChangeResponse(string? From, string To, ActorRef? ChangedBy, DateTimeOffset ChangedAt);
+
+/// <summary>
+/// The money figures of an order, read straight from the stored snapshot (ORD-20). Subtotal is before discount, total is after
+/// discount, balance is total minus paid plus refunded, and customerCredit is what the shop owes the customer.
+/// </summary>
+/// <param name="Subtotal">The sum of the line totals.</param>
+/// <param name="Discount">The sum of the discounts.</param>
+/// <param name="Total">The subtotal minus the discount.</param>
+/// <param name="Paid">The sum of the payments.</param>
+/// <param name="Refunded">The sum of the refunds.</param>
+/// <param name="Balance">The total minus paid plus refunded.</param>
+/// <param name="CustomerCredit">What the shop owes the customer; 0.00 when nothing.</param>
+/// <param name="Expenses">The sum of the order expenses.</param>
+/// <param name="Profit">The profit.</param>
+/// <param name="FullyPaid">True when the subtotal is above zero and the balance is zero or less.</param>
+public sealed record OrderTotalsResponse(
+    decimal Subtotal,
+    decimal Discount,
+    decimal Total,
+    decimal Paid,
+    decimal Refunded,
+    decimal Balance,
+    decimal CustomerCredit,
+    decimal Expenses,
+    decimal Profit,
+    bool FullyPaid);
+
+/// <summary>One order with its items, history, totals and who recorded and last changed it (ORD-03).</summary>
+/// <param name="Id">The order id.</param>
+/// <param name="Number">The order number, <c>ORD-{YYYY}-{NNNN}</c>.</param>
+/// <param name="CustomerName">The customer's name.</param>
+/// <param name="TeamName">The team name; null when none.</param>
+/// <param name="ContactNumber">The contact number.</param>
+/// <param name="Email">The email address; null when none.</param>
+/// <param name="Address">The address; null when none.</param>
+/// <param name="OrderDate">The day the order was taken.</param>
+/// <param name="DueDate">The day it is due.</param>
+/// <param name="Status">The status key: pending, mockup, production, ready, delivered, completed or cancelled.</param>
+/// <param name="StatusChangedAt">When the status last changed.</param>
+/// <param name="Notes">The notes; null when none.</param>
+/// <param name="Items">The lines, in order.</param>
+/// <param name="StatusHistory">The status history, oldest first.</param>
+/// <param name="Totals">The money figures.</param>
+/// <param name="RecordedBy">Who created it; null reads as System.</param>
+/// <param name="RecordedAt">When it was created.</param>
+/// <param name="LastChangedBy">Who last changed it; null until an edit.</param>
+/// <param name="LastChangedAt">When it was last changed; null until an edit.</param>
+/// <param name="Version">The base64 of the eight-byte row version a save must send back.</param>
+public sealed record OrderDetailResponse(
+    Guid Id,
+    string Number,
+    string CustomerName,
+    string? TeamName,
+    string? ContactNumber,
+    string? Email,
+    string? Address,
+    DateOnly OrderDate,
+    DateOnly? DueDate,
+    string Status,
+    DateTimeOffset StatusChangedAt,
+    string? Notes,
+    IReadOnlyList<OrderItemResponse> Items,
+    IReadOnlyList<OrderStatusChangeResponse> StatusHistory,
+    OrderTotalsResponse Totals,
+    ActorRef? RecordedBy,
+    DateTimeOffset RecordedAt,
+    ActorRef? LastChangedBy,
+    DateTimeOffset? LastChangedAt,
+    string Version);

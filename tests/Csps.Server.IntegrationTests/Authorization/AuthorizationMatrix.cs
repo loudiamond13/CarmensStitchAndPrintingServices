@@ -187,6 +187,11 @@ public static class AuthorizationMatrix
         // Deleting for good (CEXP-02, D-04): Managers only. A fresh random id is no expense, so a Manager meets 404 company-expenses.not-found.
         new("DELETE", "/api/v1/company-expenses/{id:guid}/permanent", "/api/v1/company-expenses/d7a1b9e3-5c28-4f60-a4d2-1b8e6f3c0a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
 
+        // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.
+        new("POST", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 400, Manager: 400),
+        // Reading one order (ORD-03): both roles. A fresh random id is no order, so both meet 404 orders.not-found.
+        new("GET", "/api/v1/orders/{id:guid}", "/api/v1/orders/3f7a2c91-6d48-4e15-b0a3-9c1e5d8f2b64", Anonymous: 401, Admin: 404, Manager: 404),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),

@@ -949,6 +949,270 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.Order", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<decimal>("Balance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ContactNumber")
+                        .HasMaxLength(30)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("CustomerCredit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DiscountTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("EditVersion")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<decimal>("ExpensesTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("FullyPaid")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<DateOnly>("OrderDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("PaidTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Profit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RefundedTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTimeOffset>("StatusChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_Orders_CreatedById");
+
+                    b.HasIndex("DeletedById")
+                        .HasDatabaseName("IX_Orders_DeletedById");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Orders_Number");
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_Orders_UpdatedById");
+
+                    b.ToTable("Orders", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Orders_Balance", "[Balance] = [Total] - [PaidTotal] + [RefundedTotal]");
+
+                            t.HasCheckConstraint("CK_Orders_CustomerCredit", "[CustomerCredit] = CASE WHEN [Balance] < 0 THEN -[Balance] ELSE 0 END");
+
+                            t.HasCheckConstraint("CK_Orders_Status", "[Status] BETWEEN 1 AND 7");
+
+                            t.HasCheckConstraint("CK_Orders_Total", "[Total] = [Subtotal] - [DiscountTotal]");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProductTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SizeVariant")
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_OrderItems_CreatedById");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_OrderItems_OrderId");
+
+                    b.HasIndex("ProductTypeId")
+                        .HasDatabaseName("IX_OrderItems_ProductTypeId");
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_OrderItems_UpdatedById");
+
+                    b.ToTable("OrderItems", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderItems_Quantity_NonNegative", "[Quantity] >= 0");
+
+                            t.HasCheckConstraint("CK_OrderItems_UnitPrice_NonNegative", "[UnitPrice] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Orders.OrderNumberCounter", b =>
+                {
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LastValue")
+                        .HasColumnType("int");
+
+                    b.HasKey("Year");
+
+                    b.ToTable("OrderNumberCounters", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderNumberCounters_LastValue", "[LastValue] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Orders.OrderStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ChangedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte?>("FromStatus")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("ToStatus")
+                        .HasColumnType("tinyint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedById")
+                        .HasDatabaseName("IX_OrderStatusChanges_ChangedById");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_OrderStatusChanges_OrderId");
+
+                    b.ToTable("OrderStatusChanges", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Email.EmailOutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1235,6 +1499,10 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         new
                         {
                             Name = "active-managers"
+                        },
+                        new
+                        {
+                            Name = "order-numbers"
                         },
                         new
                         {
@@ -1793,6 +2061,67 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.Order", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("DeletedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", "Order")
+                        .WithMany("Items")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Domain.OrderLists.ProductType", null)
+                        .WithMany()
+                        .HasForeignKey("ProductTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Csps.Domain.Orders.OrderStatusChange", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", "Order")
+                        .WithMany("StatusChanges")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -1860,6 +2189,13 @@ namespace Csps.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Csps.Domain.Identity.TwoFactorChallenge", b =>
                 {
                     b.Navigation("Codes");
+                });
+
+            modelBuilder.Entity("Csps.Domain.Orders.Order", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("StatusChanges");
                 });
 #pragma warning restore 612, 618
         }

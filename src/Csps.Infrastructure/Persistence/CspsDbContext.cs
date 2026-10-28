@@ -3,6 +3,7 @@ using Csps.Domain.Content;
 using Csps.Domain.Expenses;
 using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
+using Csps.Domain.Orders;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
@@ -61,10 +62,16 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The order expense categories order expenses point at, six of them seeded by the migration (D-17, D-19).</summary>
     public DbSet<OrderExpenseCategory> OrderExpenseCategories => Set<OrderExpenseCategory>();
 
+    /// <summary>The orders; soft-deleted orders are hidden by the named <c>SoftDelete</c> query filter (ORD-03, D-26). Items and status history are reached through the order.</summary>
+    public DbSet<Order> Orders => Set<Order>();
+
+    /// <summary>The last order number given out in each business year (ORD-14, D-23).</summary>
+    public DbSet<OrderNumberCounter> OrderNumberCounters => Set<OrderNumberCounter>();
+
     /// <summary>The company expenses; soft-deleted rows are hidden by the named <c>SoftDelete</c> query filter (CEXP-02, D-01).</summary>
     public DbSet<CompanyExpense> CompanyExpenses => Set<CompanyExpense>();
 
-    /// <summary>The database lock rows: 65 standing locks and short-lived idempotency claims (D-50).</summary>
+    /// <summary>The database lock rows: 66 standing locks and short-lived idempotency claims (D-50).</summary>
     public DbSet<DatabaseLock> DatabaseLocks => Set<DatabaseLock>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
