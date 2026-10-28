@@ -4,7 +4,7 @@ plan: 16
 subsystem: api
 tags: [orders, list, search, filter, sort, paging, indexes, performance, openapi]
 created: "2026-10-28T18:30:00-05:00"
-updated: "2026-10-28T18:30:00-05:00"
+updated: "2026-10-28T19:20:00-05:00"
 
 requires:
   - phase: 07-order-domain-api
@@ -284,6 +284,8 @@ See key-decisions above. The ones the owner should know about: how `newest` sort
 - I ran two harmless empty commands by mistake (`cat > /dev/null` with the input closed, and a heredoc to a scratch file). Neither read the terminal or left anything running.
 
 ## Deferred Issues
+
+**Owner ruling D-45 (2026-10-28):** keep `newest` as built, drop the two unused indexes, and "Choose a sort order." is approved. The index drop is queued in `deferred-items.md`.
 
 - **For the owner, a ruling on `newest`:** latest order date first (what I built), or latest recorded first. My recommendation is the order date, because imported orders are all recorded at the same instant.
 - **For the owner, `IX_Orders_CreatedAtUtc`:** keep (as planned, unused today) or drop it. My recommendation is drop it, unless a recorded-time sort is wanted.

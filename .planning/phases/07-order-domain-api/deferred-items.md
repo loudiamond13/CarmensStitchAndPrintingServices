@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T09:40:00-05:00
-updated: 2026-10-28T13:30:00-05:00
+updated: 2026-10-28T19:20:00-05:00
 ---
 
 # Phase 7 deferred items
@@ -16,3 +16,7 @@ updated: 2026-10-28T13:30:00-05:00
 ## Orchestrator note: edits on Completed or Cancelled orders
 
 Plans 07-07 and 07-09 listed this as open. It is not open. D-05 locks a Completed or Cancelled order against details, item, payment, discount and expense writes (refunds on a Cancelled order excepted). Plan 07-13 adds that lock (422 `orders.locked`) to every write. No owner decision is needed.
+
+## Orchestrator action: drop two unused indexes (D-45)
+
+The owner approved dropping `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductTypeId` (owner, 2026-10-28). Do it after plan 07-17, in one indexes-only migration with a test, before the phase closes.
