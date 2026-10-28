@@ -1,6 +1,6 @@
 ---
 created: 2026-10-18T16:10:00-05:00
-updated: 2026-10-19T03:45:00-05:00
+updated: 2026-10-28T12:05:00-05:00
 ---
 
 # The profile, users and audit log API
@@ -108,6 +108,18 @@ person and `409` when two saves lost a race (nothing changed; try again).
 - Role, status and delete changes end the person's sessions in the same save (USER-05). The person's next request with the old
   session answers `401`.
 
+### The Legacy / unassigned holder (D-37)
+
+Every database holds one extra person row, "Legacy / unassigned", for old money that has no known holder (received, paid or
+refunded by). It is inactive and has no email, password or role, so it can never sign in. It is not a staff member and no screen
+may choose it. Only the legacy import (Order.Import) uses it.
+
+- It is never in `GET /users` (rows or `total`), `GET /staff` or `GET /audit-log/people`.
+- Every `/users/{id}` call that names it answers `404` `users.not-found`, like an unknown id, and changes nothing.
+- Naming it as a payer is refused with the usual field error ("This person can't be chosen because their account isn't active.
+  Choose someone else.").
+- Where a person's name is shown for old money or an old audit entry, it reads "Legacy / unassigned" with `formerStaff: false`.
+
 ## Audit Log (AUDIT-02, Manager)
 
 The log is append-only, kept for 8 months, and never edited from the app. IP addresses are stored truncated (/24 for IPv4, /48 for
@@ -116,7 +128,7 @@ IPv6).
 | Method and path | Answers |
 |---|---|
 | `GET /audit-log?from&to&actor&action&target&page&pageSize` | `200 { items, total, page, pageSize }`, newest first (by time, then id). Each item is `{ id, occurredAt, doneBy, action, doneTo, detail, ipPrefix, device, reference }`. `doneBy` is `{ kind, person }` with `kind` `user`, `system` or `unknown-account`; `person` is `{ id, name, formerStaff }` for a `user`. `doneTo` is the same `{ id, name, formerStaff }` or `null`. `detail` holds fixed words only (field names and role values, never a name or an email address, D-40). `reference` is the correlation id, to find the request's log lines. With no dates the range is today and the 6 business days before it. `from` and `to` are business days (`YYYY-MM-DD`, Manila time) from the start of the kept window to today; the range includes the whole of both days. `actor` is a user id or `system` and also matches a person's own sign-in, code, reset and invitation steps. `action` is an action code such as `user.deactivated`. `target` is a user id and includes that person's session events. `pageSize` is 1 to 100 (20 when not sent). `400` for a bad filter, date or page. |
-| `GET /audit-log/people` | `200` the people the Done by and Done to filters offer: every person ever recorded as staff, active or inactive by name first, then former staff by name. Names only, never an email address. |
+| `GET /audit-log/people` | `200` the people the Done by and Done to filters offer (never the Legacy / unassigned holder): every person ever recorded as staff, active or inactive by name first, then former staff by name. Names only, never an email address. |
 
 Both routes answer `401` without a valid token and `403` for an Admin.
 

@@ -128,7 +128,7 @@ public sealed class LegacyHolderHiddenTests(CspsDatabase database) : IClassFixtu
 
             using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
-            response.IsSuccessStatusCode.ShouldBeFalse($"{route.Method} {path} answered {(int)response.StatusCode}");
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound, $"{route.Method} {path}");
             (await SnapshotAsync(database)).ShouldBe(before, $"{route.Method} {path} changed the holder");
         }
     }

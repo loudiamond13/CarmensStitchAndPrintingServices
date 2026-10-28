@@ -44,7 +44,7 @@ internal sealed class UserAccounts(
     public async Task<UserAccount?> FindByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var user = await users.FindByIdAsync(Key(id)).ConfigureAwait(false);
+        var user = await FindUserAsync(id).ConfigureAwait(false);
         return user is null ? null : await ToAccountAsync(user).ConfigureAwait(false);
     }
 
@@ -102,7 +102,7 @@ internal sealed class UserAccounts(
         cancellationToken.ThrowIfCancellationRequested();
         var normalized = PasswordPolicy.Normalize(password);
 
-        var user = await users.FindByIdAsync(Key(id)).ConfigureAwait(false);
+        var user = await FindUserAsync(id).ConfigureAwait(false);
         if (user?.PasswordHash is null)
         {
             // Same hashing work as a real check, so a missing account or password costs the same time.
@@ -351,7 +351,7 @@ internal sealed class UserAccounts(
         ArgumentNullException.ThrowIfNull(change);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var user = await users.FindByIdAsync(Key(id)).ConfigureAwait(false);
+        var user = await FindUserAsync(id).ConfigureAwait(false);
         if (user is null)
         {
             return new DetailsEditResult(EditOutcome.NotFound, Guid.Empty, []);
@@ -565,6 +565,10 @@ internal sealed class UserAccounts(
     private static bool IsConcurrencyFailure(IdentityResult result) =>
         result.Errors.Any(static error => error.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure));
 
+    // D-37: the Legacy / unassigned holder is never an account anyone can look up, change or sign in to, so every path here treats it as unknown.
+    private Task<ApplicationUser?> FindUserAsync(Guid id) =>
+        id == LegacyHolder.Id ? Task.FromResult<ApplicationUser?>(null) : users.FindByIdAsync(Key(id));
+
     private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     private static void Require(IdentityResult result, string action)
@@ -582,7 +586,7 @@ internal sealed class UserAccounts(
     private async Task<ApplicationUser> LoadAsync(Guid id, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return await users.FindByIdAsync(Key(id)).ConfigureAwait(false)
+        return await FindUserAsync(id).ConfigureAwait(false)
             ?? throw new InvalidOperationException("The account does not exist.");
     }
 

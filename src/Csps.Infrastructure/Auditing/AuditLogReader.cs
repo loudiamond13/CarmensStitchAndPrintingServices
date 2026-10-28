@@ -3,6 +3,7 @@ using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -129,8 +130,10 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
     public async Task<IReadOnlyList<AuditPerson>> ListPeopleAsync(CancellationToken cancellationToken)
     {
         // Current staff first, then former staff; each group by name. Only names and ids leave the database.
+        // D-37: the Legacy / unassigned holder is not someone to filter by.
         var rows = await context.Users
             .AsNoTracking()
+            .Where(user => user.Id != LegacyHolder.Id)
             .OrderBy(user => user.DeletedAtUtc != null)
             .ThenBy(user => user.FirstName)
             .ThenBy(user => user.LastName)

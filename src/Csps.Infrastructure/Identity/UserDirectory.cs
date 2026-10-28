@@ -42,7 +42,8 @@ internal sealed class UserDirectory(CspsDbContext context) : IUserDirectory
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var matches = Filter(context.Users.AsNoTracking().Where(user => user.DeletedAtUtc == null), query);
+        // D-37: the Legacy / unassigned holder is never a roster row and never in the total.
+        var matches = Filter(context.Users.AsNoTracking().Where(user => user.DeletedAtUtc == null && user.Id != LegacyHolder.Id), query);
         var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
 
         var rows = await matches
@@ -95,7 +96,7 @@ internal sealed class UserDirectory(CspsDbContext context) : IUserDirectory
     {
         var row = await context.Users
             .AsNoTracking()
-            .Where(user => user.Id == id && user.DeletedAtUtc == null)
+            .Where(user => user.Id == id && user.Id != LegacyHolder.Id && user.DeletedAtUtc == null)
             .Select(user => new
             {
                 user.Id,
