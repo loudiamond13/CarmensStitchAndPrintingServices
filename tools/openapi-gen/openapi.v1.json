@@ -547,6 +547,22 @@
         ],
         "type": "object"
       },
+      "ChangeOrderStatusRequest": {
+        "description": "The Change Status action on a saved order (ORD-17). It carries no version: the move is judged on the latest state. Any other\nmember in the body, such as a forged `changedBy`, is ignored: who moved the order and when come from the token and the\nclock (SEC-08).",
+        "properties": {
+          "status": {
+            "description": "The status key: pending, mockup, production, ready, delivered, completed or cancelled.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
       "ChangePasswordRequest": {
         "description": "The My Profile password form: the current password and the new one (PROF-03).",
         "properties": {
@@ -6298,6 +6314,130 @@
           }
         },
         "summary": "Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are\nthe same as when creating, and the due date is required even for an imported order that had none. A version that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any\norder. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the\nclock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/status": {
+      "post": {
+        "operationId": "ChangeOrderStatus",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangeOrderStatusRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangeOrderStatusRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangeOrderStatusRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Moves an order to another status. The body is `{ \"status\": \"...\" }` with one of pending, mockup, production, ready,\ndelivered, completed or cancelled. Moves among pending, mockup, production, ready and delivered are free, and cancelling is\nallowed from any of them. Completed needs a balance of exactly 0.00: money owed answers 422\n`orders.complete-balance-owed` and a customer credit 422 `orders.complete-credit`. A Completed or Cancelled order\nis reopened by moving it to any of the five active statuses, by an Admin or a Manager; going straight from Completed to\nCancelled or back answers 422 `orders.reopen-first`. No version is sent: the move is judged on the latest state. Every\nmove and reopen is recorded in the status history with who made it and when. A request for the status the order already has\nanswers 200 and changes nothing. Cancelling keeps every payment and expense counting. A retry with the same\n`Idempotency-Key` and body answers with the stored answer and moves nothing more.",
         "tags": [
           "Orders"
         ]

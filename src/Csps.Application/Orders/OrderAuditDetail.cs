@@ -246,6 +246,14 @@ public static class OrderAuditDetail
             AuditDetailFormat.Change("payer", payer.From, payer.To));
     }
 
+    /// <summary>The detail of <c>order.status-changed</c> and <c>order.reopened</c>: the status as <c>from&gt;to</c>, by wire key.</summary>
+    /// <param name="from">The status the order left.</param>
+    /// <param name="to">The status it entered.</param>
+    /// <returns>For example <c>status=pending&gt;mockup</c>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">A status is not one of the seven.</exception>
+    public static string StatusChanged(OrderStatus from, OrderStatus to) =>
+        AuditDetailFormat.Change("status", OrderStatusNames.ToKey(from), OrderStatusNames.ToKey(to));
+
     private static string ExpenseSnapshot(OrderExpense expense)
     {
         ArgumentNullException.ThrowIfNull(expense);

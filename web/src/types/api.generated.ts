@@ -579,6 +579,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves an order to another status. The body is `{ "status": "..." }` with one of pending, mockup, production, ready,
+         *     delivered, completed or cancelled. Moves among pending, mockup, production, ready and delivered are free, and cancelling is
+         *     allowed from any of them. Completed needs a balance of exactly 0.00: money owed answers 422
+         *     `orders.complete-balance-owed` and a customer credit 422 `orders.complete-credit`. A Completed or Cancelled order
+         *     is reopened by moving it to any of the five active statuses, by an Admin or a Manager; going straight from Completed to
+         *     Cancelled or back answers 422 `orders.reopen-first`. No version is sent: the move is judged on the latest state. Every
+         *     move and reopen is recorded in the status history with who made it and when. A request for the status the order already has
+         *     answers 200 and changes nothing. Cancelling keeps every payment and expense counting. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and moves nothing more.
+         */
+        post: operations["ChangeOrderStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/discounts": {
         parameters: {
             query?: never;
@@ -1471,6 +1498,15 @@ export interface components {
             id: string;
             /** @description First and last name. */
             name: string;
+        };
+        /**
+         * @description The Change Status action on a saved order (ORD-17). It carries no version: the move is judged on the latest state. Any other
+         *     member in the body, such as a forged `changedBy`, is ignored: who moved the order and when come from the token and the
+         *     clock (SEC-08).
+         */
+        ChangeOrderStatusRequest: {
+            /** @description The status key: pending, mockup, production, ready, delivered, completed or cancelled. */
+            status: null | string;
         };
         /** @description The My Profile password form: the current password and the new one (PROF-03). */
         ChangePasswordRequest: {
@@ -4528,6 +4564,81 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChangeOrderStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ChangeOrderStatusRequest"];
+                "application/json": null | components["schemas"]["ChangeOrderStatusRequest"];
+                "text/json": null | components["schemas"]["ChangeOrderStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

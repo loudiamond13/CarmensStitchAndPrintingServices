@@ -781,6 +781,33 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(discount);
     }
 
+    /// <summary>
+    /// Moves the order to another status by the owner's table (<see cref="OrderStatusRules.Check"/>), judged on the balance as it
+    /// stands now. A real move or a reopen adds a history row, sets the status and the time it changed, works the figures out again
+    /// (a cancelled order keeps its cash and costs, D-36) and moves the edit version. A request for the status the order is already
+    /// in assigns nothing.
+    /// </summary>
+    /// <param name="to">The status to move to.</param>
+    /// <param name="callerId">The staff member who moves it; the history row names them.</param>
+    /// <param name="now">The current instant, which makes the history key and time.</param>
+    /// <returns>What the change did, or the 422 that refuses it.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The status is not one of the seven.</exception>
+    public Result<OrderStatusMove> ChangeStatus(OrderStatus to, Guid callerId, DateTimeOffset now)
+    {
+        var move = OrderStatusRules.Check(Status, to, Balance);
+        if (move.IsFailure || move.Value == OrderStatusMove.NoChange)
+        {
+            return move;
+        }
+
+        _statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), Id, Status, to, callerId, now) { Order = this });
+        Status = to;
+        StatusChangedAtUtc = now;
+        Recalculate();
+        Touch(now);
+        return move;
+    }
+
     private static IEnumerable<OrderMathItem> ItemsForMath(IEnumerable<OrderItem> items) =>
         items.Select(static item => new OrderMathItem(item.Quantity, item.UnitPrice));
 
