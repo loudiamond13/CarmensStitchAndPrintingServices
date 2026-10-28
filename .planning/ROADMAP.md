@@ -787,13 +787,13 @@ Plans:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
 - counter-table locking under the execution strategy
 
-**Plans**: 3/20 plans executed in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
+**Plans**: 4/20 plans executed in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 07-01-PLAN.md — Product types, payment methods and order expense categories: tables, seeds, read API, and the Phase 7 audit catalog (ORD-13; D-16 to D-20, D-31)
 - [x] 07-02-PLAN.md — Order math learns refunds, customer credit and cancelled-order profit, v2 vectors untouched (ORD-20, ORD-18; D-12, D-13, D-36)
 - [x] 07-03-PLAN.md — Seven statuses and the transition table (ORD-17; D-01 to D-05, D-38)
-- [ ] 07-04-PLAN.md — Draft requirement amendments and the Phase 7.1 entry for owner approval (D-33; checkpoint)
+- [x] 07-04-PLAN.md — Draft requirement amendments and the Phase 7.1 entry for owner approval (D-33; checkpoint)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 07-05-PLAN.md — Create an order with items and read it back: schema, per-year numbering, totals, history, audit (ORD-03, ORD-13, ORD-14, ORD-16, ORD-20)
@@ -1272,7 +1272,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
-| 7. Order Domain & API | 3/20 | In Progress | - |
+| 7. Order Domain & API | 4/20 | In Progress | - |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |

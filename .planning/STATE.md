@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-10-28T14:48:41.929Z"
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-10-28T15:06:55.840Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 2f82cbef6f8ae100b71412057276dbcdd3f81123
+state_head: 9a8481fe385c98aad05a425d9f9db1b51591ccf8
 progress:
-  total_phases: 17
+  total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 190
-  percent: 35
+  completed_plans: 191
+  percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
 ---
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 4 of 20
+Plan: 5 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
-Progress: [████░░░░░░] 35%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -248,6 +248,7 @@ Progress: [████░░░░░░] 35%
 | Phase 07 P01 | 36 min | 3 tasks | 41 files |
 | Phase 07 P02 | 5min | 2 tasks | 4 files |
 | Phase 07 P03 | 4min | 2 tasks | 5 files |
+| Phase 07 P04 | 30min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -678,6 +679,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-01: audit catalog grows 49 to 92 with 43 Phase 7 codes; order and child events share the viewer group Orders, list events the group Order lists; details documented in docs/operations/audit-log.md
 - [Phase 07]: 07-02: Balance = Total - Paid + Refunded; CustomerCredit = max(-Balance, 0) written as 0.00 (D-12, D-13). Cancelled order Profit = (Paid - Refunded) - Expenses (D-36, D-10). Golden vectors stay v2; v3 bump is a Phase 8 follow-up.
 - [Phase 07]: 07-03: OrderStatusRules.Check orders its rules as undefined-throws, same-status NoChange, locked source reopens or is refused with orders.reopen-first, then the Completed zero-balance gate
+- [Phase 07]: 07-04: D-39 approve-all; requirement and roadmap wording applied, Phase 7.1 Legacy Fit Check inserted; refunds on a soft-deleted order vs money on hand left open (Owner backlog)
 
 ### Pending Todos
 
@@ -706,6 +708,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 - [ ] **Phase 17 legacy import carry-forward (plan 06-20, D-49):** imported staff must get the first sign-in mark (`EmailConfirmed`) set, or they cannot be chosen as Paid by. Recorded in `docs/api/company-expenses.md`; add it to the Phase 17 plan.
 - [x] **Ruled D-76 (owner, 2026-10-27): option 1, keep 300 ms and re-run alone first; one CI flake recorded.** **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
 - [ ] **Phase 6 duplicate-request guard after a crash (06-21, D-50):** the rebuilt guard marks a request key as 'in progress' in the database while it runs. If the app stops in the middle of a request (for example the host restarts it), a retry with the same key answers 'This request is already being processed' for up to 2 minutes, then works again. The old lock was freed at once. Nothing is saved twice or lost either way. Pick one. (1) Recommended: keep 2 minutes (built). (2) A shorter time, for example 30 seconds: a retry works sooner, but a request slower than that could start twice. Where the app stores the answer (for example adding an expense), the database still lets only one of them save and the other one shows an error. For the profile actions that keep a change without storing an answer (a wrong password that counts toward the lock, or a spent email-change link), both may apply. Where it changes: `IdempotencyGate.ClaimLease` (one constant).
+- [ ] **Open: refunds on a soft-deleted order and money on hand (owner, 2026-10-28, 07-04, D-39):** no ruling says whether a refund on a soft-deleted order still counts toward the payer's money on hand (MONEY-01). The owner left it open, so MONEY-01 says nothing about it. Rule it when the money-on-hand reports are planned (Phase 10), before that report is built.
 
 ### Blockers/Concerns
 
@@ -768,6 +771,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T14:48:40.821Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-10-28T15:06:54.489Z
+Stopped at: Completed 07-04-PLAN.md
 Resume file: None
