@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 
 namespace Csps.Application.Orders;
@@ -12,9 +13,12 @@ namespace Csps.Application.Orders;
 /// </summary>
 public sealed class RestoreOrderHandler(
     IOrders orders,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
 {
+    private const string OrderTarget = "Order";
+
     /// <summary>Restores the order.</summary>
     /// <param name="id">The order to restore.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -42,6 +46,7 @@ public sealed class RestoreOrderHandler(
             return Result.Failure<bool>(OrderErrors.NotFound);
         }
 
+        audit.Record(AuditActions.OrderRestored, OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Restored(order));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }

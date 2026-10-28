@@ -141,7 +141,7 @@ public sealed class OrderDeleteRestoreHandlerTests
     public async Task RestoreClearsTheMarkAndRecordsOneEntryBeforeTheSingleSave()
     {
         var harness = new Harness();
-        harness.Order.SoftDelete(Receiver, Now.AddHours(-1)).ShouldBeTrue();
+        harness.StartDeleted();
 
         var result = await harness.Restore.HandleAsync(harness.Order.Id, TestContext.Current.CancellationToken);
 
@@ -163,10 +163,10 @@ public sealed class OrderDeleteRestoreHandlerTests
     public async Task RestoreALostRaceIsReadAgainAndTwoLostRacesAnswerTheStaleVersionConflict()
     {
         var once = new Harness();
-        once.Order.SoftDelete(Receiver, Now.AddHours(-1)).ShouldBeTrue();
+        once.StartDeleted();
         once.Unit.FailFirstSaveWithConflict();
         var twice = new Harness();
-        twice.Order.SoftDelete(Receiver, Now.AddHours(-1)).ShouldBeTrue();
+        twice.StartDeleted();
         twice.Unit.FailEverySaveWithConflict();
 
         var recovered = await once.Restore.HandleAsync(once.Order.Id, TestContext.Current.CancellationToken);
@@ -269,6 +269,9 @@ public sealed class OrderDeleteRestoreHandlerTests
 
     private sealed class Harness
     {
+        private bool _startDeleted;
+        private int _rollbacksSeen;
+
         public Harness(bool noCaller = false)
         {
             var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
@@ -277,8 +280,8 @@ public sealed class OrderDeleteRestoreHandlerTests
             Order = Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Payments = payments }, CallerId, Now, Today).Value;
             Order.AssignNumber("ORD-2026-0148");
             Orders = Substitute.For<IOrders>();
-            Orders.FindAsync(Order.Id, false, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<Order?>(Order.IsDeleted ? null : Order));
-            Orders.FindAsync(Order.Id, true, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<Order?>(Order));
+            Orders.FindAsync(Order.Id, false, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Load(includeDeleted: false)));
+            Orders.FindAsync(Order.Id, true, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Load(includeDeleted: true)));
             Audit = new OrderAudit(Orders, Unit);
             Reader = Substitute.For<IOrderReader>();
             Reader.ListDeletedAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(new DeletedOrderPage([], 0)));
@@ -295,6 +298,32 @@ public sealed class OrderDeleteRestoreHandlerTests
         public IOrders Orders { get; }
 
         public IOrderReader Reader { get; }
+
+        /// <summary>Starts the order as deleted; a rolled-back attempt puts it back to this state, as a fresh read would.</summary>
+        public void StartDeleted()
+        {
+            _startDeleted = true;
+            Order.SoftDelete(Receiver, Now.AddHours(-1)).ShouldBeTrue();
+        }
+
+        private Order? Load(bool includeDeleted)
+        {
+            if (Unit.Rollbacks > _rollbacksSeen)
+            {
+                _rollbacksSeen = Unit.Rollbacks;
+                if (_startDeleted)
+                {
+                    Order.Restore();
+                    Order.SoftDelete(Receiver, Now.AddHours(-1));
+                }
+                else
+                {
+                    Order.Restore();
+                }
+            }
+
+            return !includeDeleted && Order.IsDeleted ? null : Order;
+        }
 
         public FakeUnitOfWork Unit { get; } = new();
 

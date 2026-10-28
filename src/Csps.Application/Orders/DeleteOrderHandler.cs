@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 
 namespace Csps.Application.Orders;
@@ -14,10 +15,13 @@ namespace Csps.Application.Orders;
 /// </summary>
 public sealed class DeleteOrderHandler(
     IOrders orders,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     TimeProvider time)
 {
+    private const string OrderTarget = "Order";
+
     /// <summary>Deletes the order.</summary>
     /// <param name="id">The order to delete.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -46,6 +50,7 @@ public sealed class DeleteOrderHandler(
         }
 
         await orders.LockAsync(order, cancellationToken).ConfigureAwait(false);
+        audit.Record(AuditActions.OrderDeleted, OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Deleted(order));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }
