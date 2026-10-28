@@ -1,8 +1,10 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Application.Security;
+using Csps.Domain.Auditing;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.Orders;
 
@@ -93,7 +95,7 @@ public sealed class OrderStatusEndpointTests(CspsDatabase database) : IClassFixt
 
         foreach (var (reopener, status) in new[] { (admin, "ready"), (manager, "production") })
         {
-            var paid = await PaidInFullAsync(client, admin, manager, today);
+            var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
             var id = paid.GetProperty("id").GetGuid();
 
             var completed = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "completed");
@@ -143,7 +145,7 @@ public sealed class OrderStatusEndpointTests(CspsDatabase database) : IClassFixt
         var admin = await TestSessions.StartAsync(factory, Roles.Admin);
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var today = await OrderFixtures.TodayAsync(factory);
-        var paid = await PaidInFullAsync(client, admin, manager, today);
+        var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
         var credit = await OrderFixtures.AddDiscountAndReadAsync(client, admin.AccessToken, paid, "fixed", 100m);
         credit.GetProperty("totals").GetProperty("customerCredit").GetDecimal().ShouldBe(100.00m);
 
@@ -163,7 +165,7 @@ public sealed class OrderStatusEndpointTests(CspsDatabase database) : IClassFixt
         var admin = await TestSessions.StartAsync(factory, Roles.Admin);
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var today = await OrderFixtures.TodayAsync(factory);
-        var paid = await PaidInFullAsync(client, admin, manager, today);
+        var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
         var id = paid.GetProperty("id").GetGuid();
         var completed = await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "completed");
 
@@ -231,12 +233,85 @@ public sealed class OrderStatusEndpointTests(CspsDatabase database) : IClassFixt
         reopened.GetProperty("totals").GetProperty("balance").GetDecimal().ShouldBe(9327.50m);
     }
 
-    private static async Task<JsonElement> PaidInFullAsync(HttpClient client, StartedSession admin, StartedSession manager, DateOnly today)
+    [Fact]
+    public async Task AMoveWritesOneStatusChangedEntryAReopenWritesOneReopenedEntryAndANoOpWritesNothing()
     {
-        var order = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.Ord0148FullBody(today, admin.UserId, manager.UserId));
-        var paid = await OrderFixtures.AddPaymentAndReadAsync(client, admin.AccessToken, order, today, 9327.50m, OrderFixtures.CashId, admin.UserId);
-        paid.GetProperty("totals").GetProperty("balance").GetDecimal().ShouldBe(0.00m);
-        return paid;
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "production");
+        await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "production");
+        await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "cancelled");
+        var firstReopen = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "ready");
+        await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "ready");
+
+        var rows = await StatusEntriesAsync(id);
+        rows.Select(static row => (row.Action, row.Detail)).ShouldBe(
+        [
+            ("order.status-changed", "status=pending>production"),
+            ("order.status-changed", "status=production>cancelled"),
+            ("order.reopened", "status=cancelled>ready"),
+        ]);
+        rows[0].ActorUserId.ShouldBe(admin.UserId);
+        rows[1].ActorUserId.ShouldBe(manager.UserId);
+        rows[2].ActorUserId.ShouldBe(manager.UserId);
+        rows.ShouldAllBe(static row => row.TargetType == "Order");
+        firstReopen.GetProperty("statusHistory").GetArrayLength().ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task ARefusedMoveWritesNoAuditEntryAndNoHistoryRow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        using var owed = await OrderFixtures.ChangeStatusAsync(client, admin.AccessToken, id, OrderFixtures.StatusBody("completed"));
+        using var broken = await OrderFixtures.ChangeStatusAsync(client, admin.AccessToken, id, OrderFixtures.StatusBody("shipped"));
+
+        owed.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        broken.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await StatusEntriesAsync(id)).ShouldBeEmpty();
+        (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetProperty("statusHistory").GetArrayLength().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheSameIdempotencyKeyAndBodyTwiceGivesOneHistoryRowAndOneEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var key = Guid.NewGuid();
+
+        using var first = await OrderFixtures.ChangeStatusAsync(client, admin.AccessToken, id, OrderFixtures.StatusBody("mockup"), key);
+        using var second = await OrderFixtures.ChangeStatusAsync(client, admin.AccessToken, id, OrderFixtures.StatusBody("mockup"), key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBe(await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetProperty("statusHistory").GetArrayLength().ShouldBe(2);
+        (await StatusEntriesAsync(id)).Count.ShouldBe(1);
+    }
+
+    private async Task<List<AuditEntry>> StatusEntriesAsync(Guid orderId)
+    {
+        await using var context = database.CreateContext();
+        var key = orderId.ToString("D");
+        return await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == key && (row.Action == "order.status-changed" || row.Action == "order.reopened"))
+            .OrderBy(row => row.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
     }
 
     private static void AssertMovedToMockup(JsonElement order, JsonElement created, Guid mover, Guid creator)

@@ -303,6 +303,60 @@ public sealed class OrderConcurrencyTests(CspsDatabase database) : IClassFixture
         }
     }
 
+    [Fact]
+    public async Task ACompleteRacingAFixedDiscountNeverLeavesACompletedOrderWithAnUnsettledBalance()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var completedFirst = 0;
+        var discountedFirst = 0;
+
+        for (var round = 1; round <= Repetitions; round++)
+        {
+            var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
+            var id = paid.GetProperty("id").GetGuid();
+            var version = paid.GetProperty("version").GetString();
+
+            var (complete, discount) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.ChangeStatusAsync(client, admin.AccessToken, id, OrderFixtures.StatusBody("completed")),
+                () => OrderFixtures.AddDiscountAsync(client, manager.AccessToken, id, OrderFixtures.DiscountBody("fixed", 100.00m, "Late delivery", version)));
+            using var completeResponse = complete;
+            using var discountResponse = discount;
+
+            var stored = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+            var totals = stored.GetProperty("totals");
+            var detail = $"round {round}: complete {completeResponse.StatusCode}, discount {discountResponse.StatusCode}";
+            if (stored.GetProperty("status").GetString() == "completed")
+            {
+                completedFirst++;
+                totals.GetProperty("balance").GetDecimal().ShouldBe(0.00m, detail);
+                totals.GetProperty("customerCredit").GetDecimal().ShouldBe(0.00m, detail);
+                stored.GetProperty("discounts").GetArrayLength().ShouldBe(1, detail);
+                completeResponse.StatusCode.ShouldBe(HttpStatusCode.OK, detail);
+                discountResponse.StatusCode.ShouldBeOneOf([HttpStatusCode.Conflict, HttpStatusCode.UnprocessableEntity], detail);
+                var refusal = await ProblemJson.ReadAsync(discountResponse, TestContext.Current.CancellationToken);
+                refusal.GetProperty("code").GetString().ShouldBeOneOf(["edit.stale", "orders.locked"], detail);
+            }
+            else
+            {
+                discountedFirst++;
+                stored.GetProperty("status").GetString().ShouldBe("pending", detail);
+                totals.GetProperty("customerCredit").GetDecimal().ShouldBe(100.00m, detail);
+                stored.GetProperty("discounts").GetArrayLength().ShouldBe(2, detail);
+                discountResponse.StatusCode.ShouldBe(HttpStatusCode.OK, detail);
+                completeResponse.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, detail);
+                var refusal = await ProblemJson.ReadAsync(completeResponse, TestContext.Current.CancellationToken);
+                refusal.GetProperty("code").GetString().ShouldBe("orders.complete-credit", detail);
+                stored.GetProperty("statusHistory").GetArrayLength().ShouldBe(1, detail);
+            }
+        }
+
+        (completedFirst + discountedFirst).ShouldBe(Repetitions);
+    }
+
     private static async Task<JsonElement> ReadAsync(HttpResponseMessage response)
     {
         var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

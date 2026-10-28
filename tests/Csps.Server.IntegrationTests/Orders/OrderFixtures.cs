@@ -666,6 +666,23 @@ internal static class OrderFixtures
         return document.RootElement.Clone();
     }
 
+    /// <summary>Creates the whole ORD-2026-0148 order and pays what is left, so its balance is exactly 0.00.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="admin">The Admin, who creates the order and receives the last payment.</param>
+    /// <param name="manager">The Manager, who is named on some payments and expenses.</param>
+    /// <param name="today">The business today.</param>
+    /// <returns>The JSON body of the order after the last payment.</returns>
+    public static async Task<JsonElement> Ord0148PaidInFullAsync(HttpClient client, StartedSession admin, StartedSession manager, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(admin);
+        ArgumentNullException.ThrowIfNull(manager);
+        var order = await CreateAsync(client, admin.AccessToken, Ord0148FullBody(today, admin.UserId, manager.UserId));
+        var paid = await AddPaymentAndReadAsync(client, admin.AccessToken, order, today, 9327.50m, CashId, admin.UserId);
+        paid.GetProperty("totals").GetProperty("balance").GetDecimal().ShouldBe(0.00m);
+        return paid;
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>

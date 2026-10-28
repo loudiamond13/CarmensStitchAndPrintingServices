@@ -376,6 +376,27 @@ public sealed class OrderAuditDetailTests
         detail.ShouldNotContain("Private", Case.Insensitive);
     }
 
+    [Theory]
+    [InlineData(OrderStatus.Pending, OrderStatus.Mockup, "status=pending>mockup")]
+    [InlineData(OrderStatus.Mockup, OrderStatus.InProduction, "status=mockup>production")]
+    [InlineData(OrderStatus.Delivered, OrderStatus.Cancelled, "status=delivered>cancelled")]
+    [InlineData(OrderStatus.Completed, OrderStatus.Ready, "status=completed>ready")]
+    [InlineData(OrderStatus.Cancelled, OrderStatus.Pending, "status=cancelled>pending")]
+    public void StatusChangedShowsTheOldAndNewStatusByWireKey(OrderStatus from, OrderStatus to, string expected)
+    {
+        var detail = OrderAuditDetail.StatusChanged(from, to);
+
+        detail.ShouldBe(expected);
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void StatusChangedWithAnUnknownStatusIsAProgrammingError()
+    {
+        Should.Throw<ArgumentOutOfRangeException>(() => OrderAuditDetail.StatusChanged((OrderStatus)99, OrderStatus.Pending));
+        Should.Throw<ArgumentOutOfRangeException>(() => OrderAuditDetail.StatusChanged(OrderStatus.Pending, (OrderStatus)99));
+    }
+
     private static Order NewOrder(string number)
     {
         var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
