@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-15-PLAN.md
-last_updated: "2026-10-28T22:36:59.941Z"
+stopped_at: Completed 07-16-PLAN.md
+last_updated: "2026-10-28T23:22:47.189Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: d016b43ad54672d03541a636b30a36016b895a70
+state_head: fbdc3aac71678dc62a1191b4cb7604c07698b5c0
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 202
+  completed_plans: 203
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 16 of 20
+Plan: 17 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -260,6 +260,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P13 | 45 min | 3 tasks | 21 files |
 | Phase 07 P14 | 50 min | 3 tasks | 48 files |
 | Phase 07 P15 | 45 min | 3 tasks | 27 files |
+| Phase 07 P16 | 40 min | 3 tasks | 30 files |
 
 ## Accumulated Context
 
@@ -715,6 +716,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-14: the refund not-allowed rule (only a Cancelled order or one with a credit) is judged on add only; an existing refund can be lowered or removed on an active order
 - [Phase 07]: 07-15: delete, restore and permanent delete read the order with the delete filter lifted where needed, record their audit entry before the save, and answer 409 edit.stale after two lost races
 - [Phase 07]: 07-15: order.permanently-deleted lists people once, in the order first recorded, and cuts the longest list with +N to fit the 400 character audit limit (owner may rule on widening the column)
+- [Phase 07]: 07-16: the order list sort 'newest' is latest order date, then latest recorded, then id (imported orders all share one recorded time); owner may rule otherwise
+- [Phase 07]: 07-16: the order list reads the clock from TimeProvider, not the business calendar, so it stays at exactly two SQL commands
+- [Phase 07]: 07-16: ORD-01 and ORD-02 stay unmarked in REQUIREMENTS.md (plan scope note keeps them with Phase 8); ORD-20 waits for 07-20
+- [Phase 07]: 07-16: the wire row of the order list is OrderListEntry because OrderListItem already names the product type list entry
 
 ### Pending Todos
 
@@ -744,6 +749,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 - [x] **Ruled D-76 (owner, 2026-10-27): option 1, keep 300 ms and re-run alone first; one CI flake recorded.** **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
 - [ ] **Phase 6 duplicate-request guard after a crash (06-21, D-50):** the rebuilt guard marks a request key as 'in progress' in the database while it runs. If the app stops in the middle of a request (for example the host restarts it), a retry with the same key answers 'This request is already being processed' for up to 2 minutes, then works again. The old lock was freed at once. Nothing is saved twice or lost either way. Pick one. (1) Recommended: keep 2 minutes (built). (2) A shorter time, for example 30 seconds: a retry works sooner, but a request slower than that could start twice. Where the app stores the answer (for example adding an expense), the database still lets only one of them save and the other one shows an error. For the profile actions that keep a change without storing an answer (a wrong password that counts toward the lock, or a spent email-change link), both may apply. Where it changes: `IdempotencyGate.ClaimLease` (one constant).
 - [ ] **Open: refunds on a soft-deleted order and money on hand (owner, 2026-10-28, 07-04, D-39):** no ruling says whether a refund on a soft-deleted order still counts toward the payer's money on hand (MONEY-01). The owner left it open, so MONEY-01 says nothing about it. Rule it when the money-on-hand reports are planned (Phase 10), before that report is built.
+- [ ] **Order list choices (plan 07-16, nothing blocks on these):** (1) `newest` sort: built as latest order date first, then latest recorded; the other choice is latest recorded first (recommended: keep the order date, because imported orders are all recorded at the same instant). (2) `IX_Orders_CreatedAtUtc` is created as the plan said but no sort uses it today (recommended: drop it in a small migration unless a recorded-time sort is wanted). (3) `IX_OrderItems_ProductTypeId` is now covered by the new `IX_OrderItems_ProductTypeId_OrderId` (recommended: keep it until a later cleanup, since a drop is a one-way door). (4) Wording to approve: "Choose a sort order." for an unknown sort.
 
 ### Blockers/Concerns
 
@@ -806,6 +812,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T22:36:58.709Z
-Stopped at: Completed 07-15-PLAN.md
+Last session: 2026-10-28T23:22:46.065Z
+Stopped at: Completed 07-16-PLAN.md
 Resume file: None
