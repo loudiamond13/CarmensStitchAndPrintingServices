@@ -3,6 +3,7 @@ using System.Text.Json;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.Orders;
 
@@ -259,6 +260,100 @@ public sealed class OrderExpensesEndpointTests(CspsDatabase database) : IClassFi
         var stored = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
         stored.GetProperty("expenses").GetArrayLength().ShouldBe(1);
         stored.GetProperty("expenses")[0].GetProperty("amount").GetDecimal().ShouldBe(500m);
+    }
+
+    [Fact]
+    public async Task EachAddEditPayerChangeAndRemoveWritesItsOwnEntryForTheOrderWithNoDescriptionText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var key = id.ToString("D");
+
+        using var addResponse = await OrderFixtures.AddExpenseAsync(
+            client,
+            admin.AccessToken,
+            id,
+            OrderFixtures.ExpenseBody(today.AddDays(-2), OrderFixtures.FabricId, "Private mesh note", 3000m, admin.UserId, created.GetProperty("version").GetString()));
+        addResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var added = JsonDocument.Parse(await addResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.Clone();
+        var expenseId = added.GetProperty("expenses")[0].GetProperty("id").GetGuid();
+
+        using var editResponse = await OrderFixtures.PutExpenseAsync(
+            client,
+            admin.AccessToken,
+            id,
+            expenseId,
+            OrderFixtures.ExpenseBody(today.AddDays(-2), OrderFixtures.FabricId, "Other private note", 2500m, manager.UserId, added.GetProperty("version").GetString()));
+        editResponse.StatusCode.ShouldBe(HttpStatusCode.OK, await editResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var edited = JsonDocument.Parse(await editResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.Clone();
+        using var removeResponse = await OrderFixtures.DeleteExpenseAsync(client, admin.AccessToken, id, expenseId);
+        removeResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        await using var context = database.CreateContext();
+        var rows = await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == key && row.Action.StartsWith("order-expense."))
+            .ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Action).Order(StringComparer.Ordinal)
+            .ShouldBe(["order-expense.added", "order-expense.changed", "order-expense.payer-changed", "order-expense.removed"]);
+        rows.ShouldAllBe(row => row.TargetType == "Order" && row.ActorUserId == admin.UserId);
+        var detail = rows.ToDictionary(row => row.Action, row => row.Detail!, StringComparer.Ordinal);
+        var date = OrderFixtures.Date(today.AddDays(-2));
+        detail["order-expense.added"].ShouldBe($"expense={expenseId:D};date={date};amount=3000.00;category={OrderFixtures.FabricId:D};payer={admin.UserId:D}");
+        detail["order-expense.changed"].ShouldBe($"expense={expenseId:D};date={date};amount=3000.00>2500.00;category={OrderFixtures.FabricId:D};payer={manager.UserId:D};fields=description");
+        detail["order-expense.payer-changed"].ShouldBe($"expense={expenseId:D};payer={admin.UserId:D}>{manager.UserId:D}");
+        detail["order-expense.removed"].ShouldBe($"expense={expenseId:D};date={date};amount=2500.00;category={OrderFixtures.FabricId:D};payer={manager.UserId:D}");
+        rows.ShouldAllBe(row => !row.Detail!.Contains("private", StringComparison.OrdinalIgnoreCase));
+        edited.GetProperty("expenses")[0].GetProperty("paidBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+    }
+
+    [Fact]
+    public async Task ARefusalAndANoOpEditWriteNoEntryAndKeepTheVersion()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var withExpense = await OrderFixtures.AddExpenseAndReadAsync(client, manager.AccessToken, created, today, OrderFixtures.FabricId, 500m, manager.UserId, "Mesh");
+        var expenseId = withExpense.GetProperty("expenses")[0].GetProperty("id").GetGuid();
+
+        using var broken = await OrderFixtures.AddExpenseAsync(
+            client, manager.AccessToken, id, OrderFixtures.ExpenseBody(today, OrderFixtures.FabricId, null, 0m, manager.UserId, withExpense.GetProperty("version").GetString()));
+        using var same = await OrderFixtures.PutExpenseAsync(
+            client, manager.AccessToken, id, expenseId, OrderFixtures.ExpenseBody(today, OrderFixtures.FabricId, "Mesh", 500m, manager.UserId, withExpense.GetProperty("version").GetString()));
+
+        broken.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        same.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var after = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        after.GetProperty("version").GetString().ShouldBe(withExpense.GetProperty("version").GetString());
+        await using var context = database.CreateContext();
+        var key = id.ToString("D");
+        (await context.AuditLog.CountAsync(row => row.TargetId == key && row.Action.StartsWith("order-expense."), TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AnExpenseRecordedByAnAdminAndPaidByAManagerReadsPaidByTheManagerAndRecordedByTheAdmin()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+
+        var withExpense = await OrderFixtures.AddExpenseAndReadAsync(client, admin.AccessToken, created, today, OrderFixtures.FabricId, 1000m, manager.UserId);
+
+        var expense = withExpense.GetProperty("expenses")[0];
+        expense.GetProperty("paidBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+        expense.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        withExpense.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        withExpense.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
     }
 
     private static async Task<JsonElement> Ord0148WithDiscountAsync(HttpClient client, string token, DateOnly today)

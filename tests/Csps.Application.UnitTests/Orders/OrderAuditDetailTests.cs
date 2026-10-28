@@ -13,6 +13,8 @@ public sealed class OrderAuditDetailTests
     private static readonly Guid OtherMethod = Guid.Parse("01a17fce-7807-751a-bb7b-3719f2840928");
     private static readonly Guid Receiver = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
     private static readonly Guid OtherReceiver = Guid.Parse("a41d7c92-0b58-4e3f-96d1-8c2e5f7a3b04");
+    private static readonly Guid Category = Guid.Parse("01a17fce-780b-75d1-89e0-5b3b9b185a2c");
+    private static readonly Guid OtherCategory = Guid.Parse("01a17fce-780c-73e0-b847-33f866e42d3d");
 
     [Fact]
     public void CreatedHoldsExactlyTheDocumentedKeysInOrder()
@@ -291,6 +293,74 @@ public sealed class OrderAuditDetailTests
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentChanged(payment, null!));
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentReceiverChanged(null!, changes.Receiver.ShouldNotBeNull()));
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentReceiverChanged(payment, null!));
+    }
+
+    [Fact]
+    public void ExpenseAddedAndRemovedHoldTheIdDateAmountCategoryAndPayerOnly()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var expense = order.AddExpense(new NewOrderExpense(new DateOnly(2026, 10, 23), 3825m, Category, "Private words", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var expected = $"expense={expense.Id:D};date=2026-10-23;amount=3825.00;category={Category:D};payer={Receiver:D}";
+
+        OrderAuditDetail.ExpenseAdded(expense).ShouldBe(expected);
+        OrderAuditDetail.ExpenseRemoved(expense).ShouldBe(expected);
+        OrderAuditDetail.ExpenseAdded(expense).ShouldNotContain("Private", Case.Insensitive);
+        OrderAuditDetail.ExpenseAdded(expense).Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void ExpenseChangedWritesOldAndNewOnTheChangedPairsThenTheFieldNameAndTheCurrentPayer()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var expense = order.AddExpense(new NewOrderExpense(new DateOnly(2026, 10, 23), 3825m, Category, "Mesh", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateExpense(
+            expense.Id,
+            new NewOrderExpense(new DateOnly(2026, 10, 24), 3000m, OtherCategory, "Private words", OtherReceiver),
+            new DateOnly(2026, 10, 28),
+            Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.ExpenseChanged(expense, changes);
+
+        detail.ShouldBe($"expense={expense.Id:D};date=2026-10-23>2026-10-24;amount=3825.00>3000.00;category={Category:D}>{OtherCategory:D};payer={OtherReceiver:D};fields=description");
+        detail.ShouldNotContain("Private", Case.Insensitive);
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void ExpenseChangedWithOnlyAnAmountChangeKeepsTheCurrentPairsAndHasNoFieldsPair()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var expense = order.AddExpense(new NewOrderExpense(new DateOnly(2026, 10, 23), 3825m, Category, null, Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateExpense(expense.Id, new NewOrderExpense(new DateOnly(2026, 10, 23), 3000m, Category, null, Receiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        OrderAuditDetail.ExpenseChanged(expense, changes).ShouldBe($"expense={expense.Id:D};date=2026-10-23;amount=3825.00>3000.00;category={Category:D};payer={Receiver:D}");
+    }
+
+    [Fact]
+    public void ExpensePayerChangedHoldsTheIdAndTheOldAndNewPayer()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var expense = order.AddExpense(new NewOrderExpense(new DateOnly(2026, 10, 23), 3825m, Category, null, Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateExpense(expense.Id, new NewOrderExpense(new DateOnly(2026, 10, 23), 3825m, Category, null, OtherReceiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.ExpensePayerChanged(expense, changes.Payer.ShouldNotBeNull());
+
+        detail.ShouldBe($"expense={expense.Id:D};payer={Receiver:D}>{OtherReceiver:D}");
+    }
+
+    [Fact]
+    public void NullExpensesAndChangesAreAProgrammingError()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var expense = order.AddExpense(new NewOrderExpense(new DateOnly(2026, 10, 23), 3825m, Category, null, Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdateExpense(expense.Id, new NewOrderExpense(new DateOnly(2026, 10, 23), 3000m, Category, null, OtherReceiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ExpenseAdded(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ExpenseRemoved(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ExpenseChanged(null!, changes));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ExpenseChanged(expense, null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ExpensePayerChanged(null!, changes.Payer.ShouldNotBeNull()));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ExpensePayerChanged(expense, null!));
     }
 
     [Fact]
