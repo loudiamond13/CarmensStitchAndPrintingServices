@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Application.Security;
+using Csps.Domain.Orders;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -296,6 +297,109 @@ public sealed class OrderItemsEndpointTests(CspsDatabase database) : IClassFixtu
         {
             await SetRetiredAsync(OrderFixtures.PoloId, retired: false);
         }
+    }
+
+    [Fact]
+    public async Task EachAddEditAndRemoveWritesExactlyOneEntryForTheOrderWithNoItemText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var firstItem = created.GetProperty("items")[0].GetProperty("id").GetGuid();
+
+        var withTwo = await OrderFixtures.AddItemAndReadAsync(client, manager.AccessToken, created, OrderFixtures.PoloId, "Private polo words");
+        var added = withTwo.GetProperty("items")[1].GetProperty("id").GetGuid();
+        using (var edit = await OrderFixtures.PutItemAsync(client, manager.AccessToken, id, added, OrderFixtures.ItemBody(OrderFixtures.PoloId, withTwo.GetProperty("version").GetString(), "Other private words", null, 3, 600.00m)))
+        {
+            edit.StatusCode.ShouldBe(HttpStatusCode.OK, await edit.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        using (var remove = await OrderFixtures.DeleteItemAsync(client, manager.AccessToken, id, firstItem))
+        {
+            remove.StatusCode.ShouldBe(HttpStatusCode.OK, await remove.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        await using var context = database.CreateContext();
+        var rows = await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == id.ToString("D") && row.Action.StartsWith("order-item."))
+            .OrderBy(row => row.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(static row => row.Action).ShouldBe(["order-item.added", "order-item.changed", "order-item.removed"]);
+        rows.ShouldAllBe(row => row.TargetType == "Order" && row.ActorUserId == manager.UserId);
+        rows[0].Detail.ShouldBe($"item={added:D};productType={OrderFixtures.PoloId:D};quantity=2;unitPrice=550.00");
+        rows[1].Detail.ShouldBe($"item={added:D};productType={OrderFixtures.PoloId:D};quantity=2>3;unitPrice=550.00>600.00;fields=description,sizeVariant");
+        rows[2].Detail.ShouldBe($"item={firstItem:D};productType={OrderFixtures.BasketballId:D};quantity=15;unitPrice=650.00");
+        rows.ShouldAllBe(row => !row.Detail!.Contains("private", StringComparison.OrdinalIgnoreCase) && !row.Detail!.Contains("Jersey", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ANoOpEditAndEveryRefusalWriteNoEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var itemId = created.GetProperty("items")[0].GetProperty("id").GetGuid();
+        var version = created.GetProperty("version").GetString();
+
+        using (var noOp = await OrderFixtures.PutItemAsync(client, manager.AccessToken, id, itemId, OrderFixtures.ItemBody(OrderFixtures.BasketballId, version, "Jersey top", "S-XL", 15, 650.00m)))
+        {
+            noOp.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using (var last = await OrderFixtures.DeleteItemAsync(client, manager.AccessToken, id, itemId))
+        {
+            last.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        }
+
+        using (var invalid = await OrderFixtures.AddItemAsync(client, manager.AccessToken, id, OrderFixtures.ItemBody(OrderFixtures.PoloId, version, "Bad", null, 0, 1.00m)))
+        {
+            invalid.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.TargetId == id.ToString("D") && row.Action.StartsWith("order-item."), TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AnItemChangeStampsTheItemAndTheOrderWithTheCaller()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var firstItem = created.GetProperty("items")[0].GetProperty("id").GetGuid();
+
+        var withTwo = await OrderFixtures.AddItemAndReadAsync(client, admin.AccessToken, created, OrderFixtures.PoloId);
+        var added = withTwo.GetProperty("items")[1].GetProperty("id").GetGuid();
+
+        withTwo.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        withTwo.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+        (await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id)).GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        await using (var context = database.CreateContext())
+        {
+            var addedRow = await context.Set<OrderItem>().AsNoTracking().SingleAsync(item => item.Id == added, TestContext.Current.CancellationToken);
+            addedRow.CreatedById.ShouldBe(admin.UserId);
+            var firstRow = await context.Set<OrderItem>().AsNoTracking().SingleAsync(item => item.Id == firstItem, TestContext.Current.CancellationToken);
+            firstRow.CreatedById.ShouldBe(manager.UserId);
+            firstRow.UpdatedById.ShouldBeNull();
+        }
+
+        using var edit = await OrderFixtures.PutItemAsync(client, manager.AccessToken, id, added, OrderFixtures.ItemBody(OrderFixtures.PoloId, withTwo.GetProperty("version").GetString(), "Coach polo", "L", 5, 550.00m));
+        edit.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var after = database.CreateContext();
+        var editedRow = await after.Set<OrderItem>().AsNoTracking().SingleAsync(item => item.Id == added, TestContext.Current.CancellationToken);
+        editedRow.CreatedById.ShouldBe(admin.UserId);
+        editedRow.UpdatedById.ShouldBe(manager.UserId);
+        (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
     }
 
     private async Task SetRetiredAsync(Guid productTypeId, bool retired)

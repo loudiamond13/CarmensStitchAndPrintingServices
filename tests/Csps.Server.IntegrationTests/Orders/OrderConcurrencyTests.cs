@@ -15,6 +15,7 @@ public sealed class OrderConcurrencyTests(CspsDatabase database) : IClassFixture
 {
     private const string StaleDetail = "This was changed by someone else. Reload and try again.";
     private const int Repetitions = 10;
+    private const int RemovalRounds = 5;
 
     [Fact]
     public async Task TwoStaffSavingTheSameOrderWithTheSameVersionGiveExactlyOneWinnerEveryTime()
@@ -121,6 +122,132 @@ public sealed class OrderConcurrencyTests(CspsDatabase database) : IClassFixture
         var refusal = await ProblemJson.ReadAsync(late, TestContext.Current.CancellationToken);
         refusal.GetProperty("code").GetString().ShouldBe("edit.stale");
         (await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id)).GetProperty("notes").GetString().ShouldBe("Accepted");
+    }
+
+    [Fact]
+    public async Task TwoItemAddsWithTheSameVersionGiveExactlyOneWinnerEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var m1 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var m2 = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, m1.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        for (var round = 1; round <= Repetitions; round++)
+        {
+            var opened = await OrderFixtures.ReadDetailAsync(client, m1.AccessToken, id);
+            var version = opened.GetProperty("version").GetString();
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.AddItemAsync(client, m1.AccessToken, id, OrderFixtures.ItemBody(OrderFixtures.PoloId, version, $"First {round}")),
+                () => OrderFixtures.AddItemAsync(client, m2.AccessToken, id, OrderFixtures.ItemBody(OrderFixtures.PoloId, version, $"Second {round}")));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.Count(static status => status == HttpStatusCode.OK).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Count(static status => status == HttpStatusCode.Conflict).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            var (winner, loser, winnerText, loserText) = firstResponse.StatusCode == HttpStatusCode.OK
+                ? (firstResponse, secondResponse, $"First {round}", $"Second {round}")
+                : (secondResponse, firstResponse, $"Second {round}", $"First {round}");
+            var refusal = await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken);
+            refusal.GetProperty("code").GetString().ShouldBe("edit.stale", $"round {round}");
+            refusal.GetProperty("detail").GetString().ShouldBe(StaleDetail, $"round {round}");
+
+            var won = await ReadAsync(winner);
+            won.GetProperty("items").GetArrayLength().ShouldBe(round + 1, $"round {round}");
+            var stored = await OrderFixtures.ReadDetailAsync(client, m1.AccessToken, id);
+            var descriptions = stored.GetProperty("items").EnumerateArray().Select(static item => item.GetProperty("description").GetString()).ToList();
+            descriptions.Count.ShouldBe(round + 1, $"round {round}: exactly one new item");
+            descriptions.ShouldContain(winnerText, customMessage: $"round {round}");
+            descriptions.ShouldNotContain(loserText, customMessage: $"round {round}");
+            stored.GetProperty("version").GetString().ShouldBe(won.GetProperty("version").GetString(), $"round {round}");
+            stored.GetProperty("totals").GetProperty("subtotal").GetDecimal().ShouldBe(9750.00m + (round * 1100.00m), $"round {round}");
+
+            await using var context = database.CreateContext();
+            var added = await context.AuditLog.CountAsync(
+                row => row.Action == "order-item.added" && row.TargetId == id.ToString("D"),
+                TestContext.Current.CancellationToken);
+            added.ShouldBe(round, $"round {round}: one order-item.added entry per round");
+        }
+    }
+
+    [Fact]
+    public async Task TwoRemovalsOfDifferentItemsOnAThreeItemOrderBothSucceedAndLeaveOne()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var staff = await TestSessions.StartAsync(factory, Roles.Manager);
+        var other = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        for (var round = 1; round <= RemovalRounds; round++)
+        {
+            var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+            body["items"] = new[]
+            {
+                OrderFixtures.Item(OrderFixtures.BasketballId, "Keep", null, 1, 100.00m),
+                OrderFixtures.Item(OrderFixtures.PoloId, "Drop one", null, 1, 200.00m),
+                OrderFixtures.Item(OrderFixtures.LongSleevesId, "Drop two", null, 1, 300.00m),
+            };
+            var created = await OrderFixtures.CreateAsync(client, staff.AccessToken, body);
+            var id = created.GetProperty("id").GetGuid();
+            var dropOne = created.GetProperty("items")[1].GetProperty("id").GetGuid();
+            var dropTwo = created.GetProperty("items")[2].GetProperty("id").GetGuid();
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.DeleteItemAsync(client, staff.AccessToken, id, dropOne),
+                () => OrderFixtures.DeleteItemAsync(client, other.AccessToken, id, dropTwo));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            firstResponse.StatusCode.ShouldBe(HttpStatusCode.OK, $"round {round}: {await firstResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
+            secondResponse.StatusCode.ShouldBe(HttpStatusCode.OK, $"round {round}: {await secondResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)}");
+            var stored = await OrderFixtures.ReadDetailAsync(client, staff.AccessToken, id);
+            stored.GetProperty("items").GetArrayLength().ShouldBe(1, $"round {round}");
+            stored.GetProperty("items")[0].GetProperty("description").GetString().ShouldBe("Keep", $"round {round}");
+            stored.GetProperty("totals").GetProperty("subtotal").GetDecimal().ShouldBe(100.00m, $"round {round}");
+        }
+    }
+
+    [Fact]
+    public async Task TwoRemovalsOfDifferentItemsOnATwoItemOrderGiveOneSuccessAndOneLastItemRefusal()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var staff = await TestSessions.StartAsync(factory, Roles.Manager);
+        var other = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        for (var round = 1; round <= RemovalRounds; round++)
+        {
+            var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+            body["items"] = new[]
+            {
+                OrderFixtures.Item(OrderFixtures.BasketballId, "Left", null, 1, 100.00m),
+                OrderFixtures.Item(OrderFixtures.PoloId, "Right", null, 1, 200.00m),
+            };
+            var created = await OrderFixtures.CreateAsync(client, staff.AccessToken, body);
+            var id = created.GetProperty("id").GetGuid();
+            var left = created.GetProperty("items")[0].GetProperty("id").GetGuid();
+            var right = created.GetProperty("items")[1].GetProperty("id").GetGuid();
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.DeleteItemAsync(client, staff.AccessToken, id, left),
+                () => OrderFixtures.DeleteItemAsync(client, other.AccessToken, id, right));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.Count(static status => status == HttpStatusCode.OK).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Count(static status => status == HttpStatusCode.UnprocessableEntity).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            var loser = firstResponse.StatusCode == HttpStatusCode.OK ? secondResponse : firstResponse;
+            var refusal = await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken);
+            refusal.GetProperty("code").GetString().ShouldBe("orders.last-item", $"round {round}");
+            (await OrderFixtures.ReadDetailAsync(client, staff.AccessToken, id)).GetProperty("items").GetArrayLength().ShouldBe(1, $"round {round}");
+        }
     }
 
     private static async Task<JsonElement> ReadAsync(HttpResponseMessage response)

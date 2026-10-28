@@ -5,6 +5,7 @@ using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
@@ -408,6 +409,88 @@ public sealed class OrderItemHandlerTests
         result.Error.ShouldBe(OrderErrors.NotFound);
     }
 
+    [Fact]
+    public async Task AddRecordsOneAddedEntryForTheOrderBeforeTheSaveWithNoItemText()
+    {
+        var harness = new Harness();
+        harness.SetProductType(PoloType, retired: false);
+
+        var result = await harness.Add.HandleAsync(harness.OrderId, ValidAdd() with { Description = "Private words", SizeVariant = "Private size" }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        var added = harness.Last.Items[2];
+        entry.Call.ShouldBe(new AuditCall(AuditActions.OrderItemAdded, "Order", harness.OrderId.ToString("D"), $"item={added.Id:D};productType={PoloType:D};quantity=3;unitPrice=400.00", Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+        entry.Call.Detail.ShouldNotBeNull().ShouldNotContain("Private", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task UpdateRecordsOneChangedEntryWithOldAndNewPairsAndTheFieldNames()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Update.HandleAsync(harness.OrderId, harness.FirstItemId, ValidUpdate() with { Description = "Private words", Quantity = 20 }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Call.Action.ShouldBe(AuditActions.OrderItemChanged);
+        entry.Call.TargetType.ShouldBe("Order");
+        entry.Call.TargetId.ShouldBe(harness.OrderId.ToString("D"));
+        entry.Call.Detail.ShouldBe($"item={harness.FirstItemId:D};productType={JerseyType:D};quantity=15>20;unitPrice=650.00;fields=description");
+        entry.SavesSoFar.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task RemoveRecordsOneRemovedEntryForTheOrderBeforeTheSave()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Remove.HandleAsync(harness.OrderId, harness.FirstItemId, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Call.ShouldBe(new AuditCall(AuditActions.OrderItemRemoved, "Order", harness.OrderId.ToString("D"), $"item={harness.FirstItemId:D};productType={JerseyType:D};quantity=15;unitPrice=650.00", Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ARemoveThatLosesOneRaceRecordsAnEntryForEachAttemptAndEachJoinsItsOwnSave()
+    {
+        var harness = new Harness();
+        harness.Unit.FailFirstSaveWithConflict();
+
+        await harness.Remove.HandleAsync(harness.OrderId, harness.FirstItemId, TestContext.Current.CancellationToken);
+
+        harness.Audit.Entries.Select(static entry => entry.SavesSoFar).ShouldBe([0, 1]);
+    }
+
+    [Fact]
+    public async Task NothingIsRecordedForANoOpEditAStaleVersionAMissingItemOrAnOrderRule()
+    {
+        var noOp = new Harness();
+        await noOp.Update.HandleAsync(noOp.OrderId, noOp.FirstItemId, ValidUpdate() with { Quantity = 15 }, TestContext.Current.CancellationToken);
+        var stale = new Harness();
+        await stale.Update.HandleAsync(stale.OrderId, stale.FirstItemId, ValidUpdate() with { Version = OtherVersionText }, TestContext.Current.CancellationToken);
+        var missing = new Harness();
+        await missing.Remove.HandleAsync(missing.OrderId, Guid.NewGuid(), TestContext.Current.CancellationToken);
+        var last = new Harness(itemCount: 1);
+        await last.Remove.HandleAsync(last.OrderId, last.FirstItemId, TestContext.Current.CancellationToken);
+        var full = new Harness(itemCount: 100);
+        full.SetProductType(PoloType, retired: false);
+        await full.Add.HandleAsync(full.OrderId, ValidAdd(), TestContext.Current.CancellationToken);
+        var retired = new Harness();
+        retired.SetProductType(PoloType, retired: true);
+        await retired.Update.HandleAsync(retired.OrderId, retired.FirstItemId, ValidUpdate() with { ProductTypeId = PoloType }, TestContext.Current.CancellationToken);
+
+        noOp.Audit.Entries.ShouldBeEmpty();
+        stale.Audit.Entries.ShouldBeEmpty();
+        missing.Audit.Entries.ShouldBeEmpty();
+        last.Audit.Entries.ShouldBeEmpty();
+        full.Audit.Entries.ShouldBeEmpty();
+        retired.Audit.Entries.ShouldBeEmpty();
+    }
+
     private static AddOrderItemRequest ValidAdd() => new(PoloType, "Warm-up", "XL", 3, 400.00m, StoredVersionText);
 
     private static UpdateOrderItemRequest ValidUpdate() => new(JerseyType, "Jersey top", "S-XL", 16, 650.00m, StoredVersionText);
@@ -424,6 +507,7 @@ public sealed class OrderItemHandlerTests
 
         public Harness(bool noCaller = false, bool found = true, int itemCount = 2)
         {
+            Audit = new SaveAwareAudit(Unit);
             var seed = Make(itemCount);
             OrderId = seed.Id;
             FirstItemId = seed.Items[0].Id;
@@ -436,9 +520,9 @@ public sealed class OrderItemHandlerTests
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
             var calendar = new FixedCalendar();
-            Add = new AddOrderItemHandler(Orders, Reader, Lists, calendar, Unit, request, new AddOrderItemRequestValidator());
-            Update = new UpdateOrderItemHandler(Orders, Reader, Lists, calendar, Unit, request, new UpdateOrderItemRequestValidator());
-            Remove = new RemoveOrderItemHandler(Orders, Reader, calendar, Unit, request);
+            Add = new AddOrderItemHandler(Orders, Reader, Lists, calendar, Audit, Unit, request, new AddOrderItemRequestValidator());
+            Update = new UpdateOrderItemHandler(Orders, Reader, Lists, calendar, Audit, Unit, request, new UpdateOrderItemRequestValidator());
+            Remove = new RemoveOrderItemHandler(Orders, Reader, calendar, Audit, Unit, request);
         }
 
         public Guid OrderId { get; }
@@ -452,6 +536,8 @@ public sealed class OrderItemHandlerTests
         public IOrderLists Lists { get; }
 
         public FakeUnitOfWork Unit { get; } = new();
+
+        public SaveAwareAudit Audit { get; }
 
         public AddOrderItemHandler Add { get; }
 
@@ -522,6 +608,18 @@ public sealed class OrderItemHandlerTests
             null,
             null,
             "AAAAAAAAH6Q=");
+    }
+
+    // Remembers how many saves had happened when each entry was recorded, so a test can prove the entry joins the change's save.
+    private sealed class SaveAwareAudit(FakeUnitOfWork unit) : IAuditTrail
+    {
+        public List<(AuditCall Call, int SavesSoFar)> Entries { get; } = [];
+
+        public void Record(string action, string? targetType, string? targetId, string? detail) =>
+            Entries.Add((new AuditCall(action, targetType, targetId, detail, Independent: false), unit.Saves));
+
+        public ValueTask RecordIndependentlyAsync(string action, string? targetType, string? targetId, string? detail, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("The item audit entry must join the change's own save.");
     }
 
     private sealed class FixedCalendar : IBusinessCalendar

@@ -109,6 +109,58 @@ public sealed class OrderAuditDetailTests
     [Fact]
     public void NullDetailsChangesAreAProgrammingError() => Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DetailsChanged(null!));
 
+    [Fact]
+    public void ItemAddedAndRemovedHoldTheItemIdProductTypeQuantityAndUnitPriceOnly()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var typeId = Guid.Parse("01a17fce-7801-7e45-b875-357767854eda");
+        var item = order.AddItem(new NewOrderItem(typeId, "Private description", "Private size", 2, 550.00m), Now.AddDays(1)).Value;
+        var expected = $"item={item.Id:D};productType={typeId:D};quantity=2;unitPrice=550.00";
+
+        OrderAuditDetail.ItemAdded(item).ShouldBe(expected);
+        OrderAuditDetail.ItemRemoved(item).ShouldBe(expected);
+        OrderAuditDetail.ItemAdded(item).ShouldNotContain("Private", Case.Insensitive);
+        OrderAuditDetail.ItemAdded(item).Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void ItemChangedWritesOldAndNewOnTheChangedPairsThenTheChangedTextFieldNames()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var item = order.Items[0];
+        var oldType = item.ProductTypeId;
+        var newType = Guid.Parse("01a17fce-7801-7e45-b875-357767854eda");
+        var changes = order.UpdateItem(item.Id, new NewOrderItem(newType, "Private words", null, 20, 700.00m), Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.ItemChanged(item, changes);
+
+        detail.ShouldBe($"item={item.Id:D};productType={oldType:D}>{newType:D};quantity=15>20;unitPrice=650.00>700.00;fields=description,sizeVariant");
+        detail.ShouldNotContain("Private", Case.Insensitive);
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void ItemChangedWithOnlyATextChangeKeepsTheCurrentPairsAndNamesTheField()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var item = order.Items[0];
+        var changes = order.UpdateItem(item.Id, new NewOrderItem(item.ProductTypeId, "Different words", "S-XL", 15, 650.00m), Now.AddDays(1)).Value;
+
+        OrderAuditDetail.ItemChanged(item, changes).ShouldBe($"item={item.Id:D};productType={item.ProductTypeId:D};quantity=15;unitPrice=650.00;fields=description");
+    }
+
+    [Fact]
+    public void NullItemsAndChangesAreAProgrammingError()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var changes = order.UpdateItem(order.Items[0].Id, new NewOrderItem(order.Items[0].ProductTypeId, "Jersey top", "S-XL", 16, 650.00m), Now.AddDays(1)).Value;
+
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ItemAdded(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ItemRemoved(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ItemChanged(null!, changes));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ItemChanged(order.Items[0], null!));
+    }
+
     private static Order NewOrder(string number)
     {
         var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
