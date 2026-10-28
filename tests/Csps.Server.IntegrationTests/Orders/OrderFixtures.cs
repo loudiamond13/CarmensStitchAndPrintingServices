@@ -160,6 +160,58 @@ internal static class OrderFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Puts the edit form of one item.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="itemId">The item id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PutItemAsync(HttpClient client, string? accessToken, Guid orderId, Guid itemId, object? body)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Put, $"{Route}/{orderId:D}/items/{itemId:D}", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Removes one item.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="itemId">The item id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteItemAsync(HttpClient client, string? accessToken, Guid orderId, Guid itemId)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{orderId:D}/items/{itemId:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Adds an item, expects a 200 and returns the whole order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="order">The order as the last answer carried it; its version is sent.</param>
+    /// <param name="productTypeId">The product type of the new item.</param>
+    /// <param name="description">What the item is.</param>
+    /// <returns>The JSON body of the order after the add.</returns>
+    public static async Task<JsonElement> AddItemAndReadAsync(HttpClient client, string accessToken, JsonElement order, Guid productTypeId, string description = "Coach polo")
+    {
+        using var response = await AddItemAsync(
+            client,
+            accessToken,
+            order.GetProperty("id").GetGuid(),
+            ItemBody(productTypeId, order.GetProperty("version").GetString(), description));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
