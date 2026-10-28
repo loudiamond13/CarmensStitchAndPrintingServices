@@ -12,8 +12,9 @@ import {
   fieldInputClasses,
   labelClasses,
   messageClasses,
+  pickerControlClasses,
+  pickerIconClasses,
   requiredClasses,
-  selectChevronClasses,
   selectOptionClasses,
 } from './field.recipe';
 
@@ -30,7 +31,11 @@ const PRODUCTS: readonly SelectOption[] = [
 // App. B `.csp-select select` (no native arrow, 40px end padding, pointer), `.csp-select-chev` and
 // `.csp-select select option`.
 const SELECT_END = 'cursor-pointer appearance-none pr-10';
-const CHEVRON = 'pointer-events-none absolute right-3 text-ink-muted';
+// D-63 adds the darker colour on focus and enabled hover to the chevron, and the hover fill, dark scheme and `group/picker`
+// to the box.
+const CHEVRON =
+  'pointer-events-none absolute right-3 text-ink-muted group-focus-within/picker:text-ink group-hover/picker:group-has-[:is(select,input):enabled]/picker:text-ink';
+const PICKER = 'group/picker dark:scheme-dark has-[:is(select,input):enabled]:hover:not-focus-within:bg-surface-3';
 const OPTION = 'bg-surface-3 text-ink';
 
 function tokens(...classLists: string[]): string[] {
@@ -99,10 +104,11 @@ describe('Select markup and options (App. D.3)', () => {
 
     expect(classTokens(container.firstElementChild)).toEqual(tokens(fieldClasses));
     expect(classTokens(container.querySelector('label'))).toEqual(tokens(labelClasses));
-    expect(classTokens(element.parentElement)).toEqual(tokens(fieldControlClasses));
+    expect(classTokens(element.parentElement)).toEqual(tokens(fieldControlClasses, pickerControlClasses));
+    expect(tokens(pickerControlClasses)).toEqual(tokens(PICKER));
     expect(classTokens(element)).toEqual(tokens(fieldInputClasses({ select: true })));
     expect(classTokens(element)).toEqual(expect.arrayContaining(tokens(SELECT_END)));
-    expect(tokens(selectChevronClasses)).toEqual(tokens(CHEVRON));
+    expect(tokens(pickerIconClasses)).toEqual(tokens(CHEVRON));
     expect(chevron?.getAttribute('class')?.split(/\s+/)).toEqual(expect.arrayContaining(tokens(CHEVRON)));
     expect(tokens(selectOptionClasses)).toEqual(tokens(OPTION));
     for (const option of element.options) {

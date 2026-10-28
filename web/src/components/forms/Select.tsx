@@ -6,6 +6,8 @@
 // SPEC-DEVIATION: A11Y-01 App. D.3 gave the message no id and the select no aria-describedby, so the hint and the error
 // were never announced with it; as in Field, the message has the `{id}-msg` id and the select names it. No element or
 // text changes (attributes are not compared). Also as in Field, a caller id names the select (the label follows it).
+// SPEC-DEVIATION: D-63 adds a --surface-3 hover fill, a darker chevron on hover and focus, and the dark color-scheme to
+// App. D.3's select.
 import clsx from 'clsx';
 import { useId, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { Icon } from '@/components/brand';
@@ -15,8 +17,9 @@ import {
   fieldInputClasses,
   labelClasses,
   messageClasses,
+  pickerControlClasses,
+  pickerIconClasses,
   requiredClasses,
-  selectChevronClasses,
   selectOptionClasses,
 } from './field.recipe';
 
@@ -71,7 +74,7 @@ export function Select({ label, options, placeholder, error, hint, className, id
           )}
         </label>
       )}
-      <div className={fieldControlClasses}>
+      <div className={clsx(fieldControlClasses, pickerControlClasses)}>
         <select
           id={iid}
           className={fieldInputClasses({ select: true })}
@@ -100,7 +103,7 @@ export function Select({ label, options, placeholder, error, hint, className, id
             );
           })}
         </select>
-        <Icon name="chevron-down" size={18} className={selectChevronClasses} />
+        <Icon name="chevron-down" size={18} className={pickerIconClasses} />
       </div>
       {hasMessage && (
         <p id={messageId} className={messageClasses({ error: invalid })}>

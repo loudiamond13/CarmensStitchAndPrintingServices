@@ -123,17 +123,17 @@ export const suffixButtonClasses = tw(
 
 /**
  * The picker box of a Select or date input, added to `fieldControlClasses` (D-63): it fills with --surface-3 on hover
- * while a control inside is enabled and the box is not focused, and the native option list and calendar follow Espresso.
+ * while its select or input is enabled and the box is not focused, and the native option list and calendar follow
+ * Espresso. The select or input is named, because Firefox counts the options of a disabled select as enabled.
  */
-export const pickerControlClasses = tw('group/picker has-enabled:hover:not-focus-within:bg-surface-3 dark:scheme-dark');
+export const pickerControlClasses = tw(
+  'group/picker has-[:is(select,input):enabled]:hover:not-focus-within:bg-surface-3 dark:scheme-dark',
+);
 
 /** The picker icon, the date input's calendar or the select's chevron: over the box's end, --ink-muted, --ink on focus or enabled hover. */
 export const pickerIconClasses = tw(
-  'pointer-events-none absolute right-3 text-ink-muted group-focus-within/picker:text-ink group-hover/picker:group-has-enabled/picker:text-ink',
+  'pointer-events-none absolute right-3 text-ink-muted group-focus-within/picker:text-ink group-hover/picker:group-has-[:is(select,input):enabled]/picker:text-ink',
 );
-
-/** `.csp-select-chev`: the chevron over the select's end. */
-export const selectChevronClasses = tw('pointer-events-none absolute right-3 text-ink-muted');
 
 /** The calendar icon steps aside in Firefox, which draws its own calendar button in a date input. */
 export const dateIconClasses = tw('supports-[-moz-appearance:none]:hidden');

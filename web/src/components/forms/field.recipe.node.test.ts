@@ -117,7 +117,7 @@ const indicatorRule = (utility: string) => `${classSelector(`[&${INDICATOR}]:${u
 
 describe('picker recipe (D-63: Select and date boxes)', () => {
   it('fills the box with --surface-3 on hover only while a control inside is enabled and the box is not focused', () => {
-    const fill = `${classSelector('has-enabled:hover:not-focus-within:bg-surface-3')}:has(:enabled):hover:not(:focus-within)`;
+    const fill = `${classSelector('has-[:is(select,input):enabled]:hover:not-focus-within:bg-surface-3')}:has(:is(:is(select, input):enabled)):hover:not(:focus-within)`;
 
     expect(declarations(fill)).toContain('background-color: var(--surface-3)');
     expectInOrder(classSelector('bg-surface-2'), fill);
@@ -131,7 +131,7 @@ describe('picker recipe (D-63: Select and date boxes)', () => {
 
   it('darkens the icon from --ink-muted to --ink on focus within the box and on hover while enabled', () => {
     const focus = `${classSelector('group-focus-within/picker:text-ink')}:is(${GROUP}:focus-within *)`;
-    const hover = `${classSelector('group-hover/picker:group-has-enabled/picker:text-ink')}:is(${GROUP}:hover *):is(${GROUP}:has(:enabled) *)`;
+    const hover = `${classSelector('group-hover/picker:group-has-[:is(select,input):enabled]/picker:text-ink')}:is(${GROUP}:hover *):is(${GROUP}:has(:is(:is(select, input):enabled)) *)`;
 
     expect(declarations(classSelector('text-ink-muted'))).toContain('color: var(--ink-muted)');
     expect(declarations(focus)).toContain('color: var(--ink)');
