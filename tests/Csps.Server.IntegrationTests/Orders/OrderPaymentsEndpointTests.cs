@@ -3,6 +3,7 @@ using System.Text.Json;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.Orders;
 
@@ -374,6 +375,101 @@ public sealed class OrderPaymentsEndpointTests(CspsDatabase database) : IClassFi
         var stored = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
         stored.GetProperty("payments").GetArrayLength().ShouldBe(1);
         stored.GetProperty("payments")[0].GetProperty("amount").GetDecimal().ShouldBe(500m);
+    }
+
+    [Fact]
+    public async Task EachAddEditReceiverChangeAndRemoveWritesItsOwnEntryForTheOrderWithNoReferenceOrNotesText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var key = id.ToString("D");
+
+        using var addResponse = await OrderFixtures.AddPaymentAsync(
+            client,
+            admin.AccessToken,
+            id,
+            OrderFixtures.PaymentBody(today.AddDays(-2), 3000m, OrderFixtures.GCashId, admin.UserId, created.GetProperty("version").GetString(), "Private ref 9012", "Private notes"));
+        addResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var added = JsonDocument.Parse(await addResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.Clone();
+        var paymentId = added.GetProperty("payments")[0].GetProperty("id").GetGuid();
+
+        using var editResponse = await OrderFixtures.PutPaymentAsync(
+            client,
+            admin.AccessToken,
+            id,
+            paymentId,
+            OrderFixtures.PaymentBody(today.AddDays(-2), 2500m, OrderFixtures.GCashId, manager.UserId, added.GetProperty("version").GetString(), "Private ref 9012", "Other private notes"));
+        editResponse.StatusCode.ShouldBe(HttpStatusCode.OK, await editResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var edited = JsonDocument.Parse(await editResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.Clone();
+        using var removeResponse = await OrderFixtures.DeletePaymentAsync(client, admin.AccessToken, id, paymentId);
+        removeResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        await using var context = database.CreateContext();
+        var rows = await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == key && row.Action.StartsWith("order-payment."))
+            .OrderBy(row => row.OccurredAtUtc)
+            .ThenBy(row => row.Action)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Action).Order(StringComparer.Ordinal)
+            .ShouldBe(["order-payment.added", "order-payment.changed", "order-payment.receiver-changed", "order-payment.removed"]);
+        rows.ShouldAllBe(row => row.TargetType == "Order" && row.ActorUserId == admin.UserId);
+        var detail = rows.ToDictionary(row => row.Action, row => row.Detail!, StringComparer.Ordinal);
+        detail["order-payment.added"].ShouldBe($"payment={paymentId:D};date={OrderFixtures.Date(today.AddDays(-2))};amount=3000.00;method={OrderFixtures.GCashId:D};receiver={admin.UserId:D}");
+        detail["order-payment.changed"].ShouldBe($"payment={paymentId:D};date={OrderFixtures.Date(today.AddDays(-2))};amount=3000.00>2500.00;method={OrderFixtures.GCashId:D};receiver={manager.UserId:D};fields=notes");
+        detail["order-payment.receiver-changed"].ShouldBe($"payment={paymentId:D};receiver={admin.UserId:D}>{manager.UserId:D}");
+        detail["order-payment.removed"].ShouldBe($"payment={paymentId:D};date={OrderFixtures.Date(today.AddDays(-2))};amount=2500.00;method={OrderFixtures.GCashId:D};receiver={manager.UserId:D}");
+        rows.ShouldAllBe(row => !row.Detail!.Contains("Private", StringComparison.OrdinalIgnoreCase));
+        edited.GetProperty("payments")[0].GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+    }
+
+    [Fact]
+    public async Task ARefusalAndANoOpEditWriteNoEntryAndKeepTheVersion()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var paid = await OrderFixtures.AddPaymentAndReadAsync(client, manager.AccessToken, created, today, 500m, OrderFixtures.CashId, manager.UserId);
+        var paymentId = paid.GetProperty("payments")[0].GetProperty("id").GetGuid();
+
+        using var over = await OrderFixtures.AddPaymentAsync(
+            client, manager.AccessToken, id, OrderFixtures.PaymentBody(today, 99999m, OrderFixtures.CashId, manager.UserId, paid.GetProperty("version").GetString()));
+        using var same = await OrderFixtures.PutPaymentAsync(
+            client, manager.AccessToken, id, paymentId, OrderFixtures.PaymentBody(today, 500m, OrderFixtures.CashId, manager.UserId, paid.GetProperty("version").GetString()));
+
+        over.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        same.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var after = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        after.GetProperty("version").GetString().ShouldBe(paid.GetProperty("version").GetString());
+        await using var context = database.CreateContext();
+        var key = id.ToString("D");
+        (await context.AuditLog.CountAsync(row => row.TargetId == key && row.Action.StartsWith("order-payment."), TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task APaymentRecordedByAnAdminAndReceivedByAManagerReadsReceivedByTheManagerAndRecordedByTheAdmin()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+
+        var paid = await OrderFixtures.AddPaymentAndReadAsync(client, admin.AccessToken, created, today, 1000m, OrderFixtures.CashId, manager.UserId);
+
+        var payment = paid.GetProperty("payments")[0];
+        payment.GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+        payment.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        paid.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        paid.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
     }
 
     private static async Task<JsonElement> Ord0148WithDiscountAsync(HttpClient client, string token, DateOnly today)

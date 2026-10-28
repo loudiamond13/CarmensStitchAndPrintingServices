@@ -9,7 +9,7 @@ namespace Csps.Server.IntegrationTests.Orders;
 
 /// <summary>
 /// ORD-08, SEC-07, T-07-17: two staff saving the same order with the same version never both win. The stored details are the
-/// winner's, the loser's are never stored, and only the winner leaves an audit entry. Later plans add the child cases here.
+/// winner's, the loser's are never stored, and only the winner leaves an audit entry. Item and payment cases follow.
 /// </summary>
 public sealed class OrderConcurrencyTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
@@ -247,6 +247,59 @@ public sealed class OrderConcurrencyTests(CspsDatabase database) : IClassFixture
             var refusal = await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken);
             refusal.GetProperty("code").GetString().ShouldBe("orders.last-item", $"round {round}");
             (await OrderFixtures.ReadDetailAsync(client, staff.AccessToken, id)).GetProperty("items").GetArrayLength().ShouldBe(1, $"round {round}");
+        }
+    }
+
+    [Fact]
+    public async Task TwoPaymentsOf5000OnABalanceOf9327WithTheSameVersionGiveExactlyOneWinnerEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var m1 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var m2 = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        for (var round = 1; round <= Repetitions; round++)
+        {
+            var created = await OrderFixtures.CreateAsync(client, m1.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+            var discounted = await OrderFixtures.AddDiscountAndReadAsync(client, m1.AccessToken, created, "percentage", 5m);
+            var opened = await OrderFixtures.AddPaymentAndReadAsync(client, m1.AccessToken, discounted, today, 12000.00m, OrderFixtures.CashId, m1.UserId);
+            opened.GetProperty("totals").GetProperty("balance").GetDecimal().ShouldBe(9327.50m, $"round {round}");
+            var id = opened.GetProperty("id").GetGuid();
+            var version = opened.GetProperty("version").GetString();
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.AddPaymentAsync(client, m1.AccessToken, id, OrderFixtures.PaymentBody(today, 5000.00m, OrderFixtures.GCashId, m1.UserId, version)),
+                () => OrderFixtures.AddPaymentAsync(client, m2.AccessToken, id, OrderFixtures.PaymentBody(today, 5000.00m, OrderFixtures.GCashId, m2.UserId, version)));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.Count(static status => status == HttpStatusCode.OK).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Count(static status => status == HttpStatusCode.Conflict).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            var (winner, loser, winnerId) = firstResponse.StatusCode == HttpStatusCode.OK
+                ? (firstResponse, secondResponse, m1.UserId)
+                : (secondResponse, firstResponse, m2.UserId);
+            var refusal = await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken);
+            refusal.GetProperty("code").GetString().ShouldBe("edit.stale", $"round {round}");
+            refusal.GetProperty("detail").GetString().ShouldBe(StaleDetail, $"round {round}");
+
+            var won = await ReadAsync(winner);
+            var stored = await OrderFixtures.ReadDetailAsync(client, m1.AccessToken, id);
+            var totals = stored.GetProperty("totals");
+            totals.GetProperty("paid").GetDecimal().ShouldBe(17000.00m, $"round {round}: the winner's 5,000.00 on top of 12,000.00");
+            totals.GetProperty("balance").GetDecimal().ShouldBe(4327.50m, $"round {round}: never overpaid");
+            totals.GetProperty("customerCredit").GetDecimal().ShouldBe(0.00m, $"round {round}");
+            var payments = stored.GetProperty("payments").EnumerateArray().ToList();
+            payments.Count.ShouldBe(2, $"round {round}: exactly one new payment");
+            payments.Count(payment => payment.GetProperty("receivedBy").GetProperty("id").GetGuid() == winnerId).ShouldBeGreaterThanOrEqualTo(1, $"round {round}");
+            stored.GetProperty("version").GetString().ShouldBe(won.GetProperty("version").GetString(), $"round {round}");
+
+            await using var context = database.CreateContext();
+            var added = await context.AuditLog.CountAsync(
+                row => row.Action == "order-payment.added" && row.TargetId == id.ToString("D"),
+                TestContext.Current.CancellationToken);
+            added.ShouldBe(2, $"round {round}: the setup payment and the winner, never the loser");
         }
     }
 

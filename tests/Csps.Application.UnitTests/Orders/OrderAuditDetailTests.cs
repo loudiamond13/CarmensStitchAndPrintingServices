@@ -9,6 +9,10 @@ namespace Csps.Application.UnitTests.Orders;
 public sealed class OrderAuditDetailTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 28, 3, 0, 0, TimeSpan.Zero);
+    private static readonly Guid Method = Guid.Parse("01a17fce-7806-77e1-91b7-d3b852f2fd1d");
+    private static readonly Guid OtherMethod = Guid.Parse("01a17fce-7807-751a-bb7b-3719f2840928");
+    private static readonly Guid Receiver = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
+    private static readonly Guid OtherReceiver = Guid.Parse("a41d7c92-0b58-4e3f-96d1-8c2e5f7a3b04");
 
     [Fact]
     public void CreatedHoldsExactlyTheDocumentedKeysInOrder()
@@ -219,6 +223,74 @@ public sealed class OrderAuditDetailTests
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DiscountRemoved(null!));
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DiscountChanged(null!, changes));
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.DiscountChanged(discount, null!));
+    }
+
+    [Fact]
+    public void PaymentAddedAndRemovedHoldTheIdDateAmountMethodAndReceiverOnly()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var payment = order.AddPayment(new NewOrderPayment(new DateOnly(2026, 10, 25), 5000m, Method, "Private ref", "Private notes", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var expected = $"payment={payment.Id:D};date=2026-10-25;amount=5000.00;method={Method:D};receiver={Receiver:D}";
+
+        OrderAuditDetail.PaymentAdded(payment).ShouldBe(expected);
+        OrderAuditDetail.PaymentRemoved(payment).ShouldBe(expected);
+        OrderAuditDetail.PaymentAdded(payment).ShouldNotContain("Private", Case.Insensitive);
+        OrderAuditDetail.PaymentAdded(payment).Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void PaymentChangedWritesOldAndNewOnTheChangedPairsThenTheFieldNamesAndTheCurrentReceiver()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var payment = order.AddPayment(new NewOrderPayment(new DateOnly(2026, 10, 25), 5000m, Method, "ref", "note", Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdatePayment(
+            payment.Id,
+            new NewOrderPayment(new DateOnly(2026, 10, 26), 4000m, OtherMethod, "Private ref", "Private notes", OtherReceiver),
+            new DateOnly(2026, 10, 28),
+            Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.PaymentChanged(payment, changes);
+
+        detail.ShouldBe($"payment={payment.Id:D};date=2026-10-25>2026-10-26;amount=5000.00>4000.00;method={Method:D}>{OtherMethod:D};receiver={OtherReceiver:D};fields=reference,notes");
+        detail.ShouldNotContain("Private", Case.Insensitive);
+        detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void PaymentChangedWithOnlyAnAmountChangeKeepsTheCurrentPairsAndHasNoFieldsPair()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var payment = order.AddPayment(new NewOrderPayment(new DateOnly(2026, 10, 25), 5000m, Method, null, null, Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdatePayment(payment.Id, new NewOrderPayment(new DateOnly(2026, 10, 25), 4000m, Method, null, null, Receiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        OrderAuditDetail.PaymentChanged(payment, changes).ShouldBe($"payment={payment.Id:D};date=2026-10-25;amount=5000.00>4000.00;method={Method:D};receiver={Receiver:D}");
+    }
+
+    [Fact]
+    public void PaymentReceiverChangedHoldsTheIdAndTheOldAndNewReceiver()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var payment = order.AddPayment(new NewOrderPayment(new DateOnly(2026, 10, 25), 5000m, Method, null, null, Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdatePayment(payment.Id, new NewOrderPayment(new DateOnly(2026, 10, 25), 5000m, Method, null, null, OtherReceiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        var detail = OrderAuditDetail.PaymentReceiverChanged(payment, changes.Receiver.ShouldNotBeNull());
+
+        detail.ShouldBe($"payment={payment.Id:D};receiver={Receiver:D}>{OtherReceiver:D}");
+    }
+
+    [Fact]
+    public void NullPaymentsAndChangesAreAProgrammingError()
+    {
+        var order = NewOrder("ORD-2026-0001");
+        var payment = order.AddPayment(new NewOrderPayment(new DateOnly(2026, 10, 25), 5000m, Method, null, null, Receiver), new DateOnly(2026, 10, 28), Now).Value;
+        var changes = order.UpdatePayment(payment.Id, new NewOrderPayment(new DateOnly(2026, 10, 25), 4000m, Method, null, null, OtherReceiver), new DateOnly(2026, 10, 28), Now.AddDays(1)).Value;
+
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentAdded(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentRemoved(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentChanged(null!, changes));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentChanged(payment, null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentReceiverChanged(null!, changes.Receiver.ShouldNotBeNull()));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PaymentReceiverChanged(payment, null!));
     }
 
     [Fact]
