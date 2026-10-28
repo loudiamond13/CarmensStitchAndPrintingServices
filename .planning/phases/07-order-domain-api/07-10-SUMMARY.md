@@ -4,7 +4,7 @@ plan: 10
 subsystem: api
 tags: [orders, order-discounts, order-math, discount-cap, optimistic-concurrency, audit, migration, openapi]
 created: "2026-10-28T13:50:00-05:00"
-updated: "2026-10-28T13:50:00-05:00"
+updated: "2026-10-28T14:10:00-05:00"
 
 requires:
   - phase: 07-order-domain-api
@@ -290,6 +290,8 @@ None needed fixing. Everything below is a plan note, no behaviour change beyond 
 - `Csps.Infrastructure.IntegrationTests` reports one skipped test; it is not in code this plan touched.
 
 ## Deferred Issues
+
+**Owner ruling D-40 (2026-10-28):** both items below are answered. The cap stays in the domain only until Phase 7.1 measures the legacy rows, and the discount messages are approved as written.
 
 - **For the owner: a database-level backstop for the cap.** The plan's threat T-07-26 lists "DB checks" as part of the mitigation, but the only database checks are per row (`CK_OrderDiscounts_Kind`, `CK_OrderDiscounts_Value_Positive`). The "discounts not above the subtotal" rule is held in the domain only (and proved by tests at the boundary). A check such as `DiscountTotal <= Subtotal` on `Orders` would change an existing table, and it could fail rows imported from the old system whose discounts pass the subtotal. I did not add it. Options: (1) leave it in the domain only (recommended; the migration phase can first measure whether any legacy order breaks the rule), (2) add the check after the legacy data is measured, (3) add it now and let the import fix any failing rows. Needs your word before it goes into a migration.
 - **Wording of the new error messages.** The plan gave only the cap sentence. The other discount messages (for example "Enter a reason for the discount." and "Enter a percentage above 0 and up to 100.") were written here from the owner's plain-English rule. Please read them in `OrderRules.cs` and the discounts section of `docs/api/orders.md`; Phase 8 mirrors them in zod.
