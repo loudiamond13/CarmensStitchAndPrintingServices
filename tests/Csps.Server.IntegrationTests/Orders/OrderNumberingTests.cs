@@ -75,7 +75,7 @@ public sealed class OrderNumberingTests(CspsDatabase database) : IClassFixture<C
     [Fact]
     public async Task OneSecondBeforeManilaMidnightTheNumberIsStillInTheOldYear()
     {
-        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2026, 12, 31, 15, 59, 59, TimeSpan.Zero));
+        await using var rig = await ClockRig.StartAsync(database, At("2026-12-31T15:59:59Z"));
 
         var number = await rig.CreateAsync();
 
@@ -85,7 +85,7 @@ public sealed class OrderNumberingTests(CspsDatabase database) : IClassFixture<C
     [Fact]
     public async Task AtManilaMidnightTheFirstCreateOfTheNewYearGetsOne()
     {
-        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2026, 12, 31, 16, 0, 0, TimeSpan.Zero));
+        await using var rig = await ClockRig.StartAsync(database, At("2026-12-31T16:00:00Z"));
 
         var number = await rig.CreateAsync();
 
@@ -95,7 +95,7 @@ public sealed class OrderNumberingTests(CspsDatabase database) : IClassFixture<C
     [Fact]
     public async Task TheCountersOfTwoYearsRunSeparatelyAcrossTheMidnight()
     {
-        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2026, 12, 31, 15, 59, 58, TimeSpan.Zero));
+        await using var rig = await ClockRig.StartAsync(database, At("2026-12-31T15:59:58Z"));
 
         var before = new[] { await rig.CreateAsync(), await rig.CreateAsync() };
         rig.Clock.Advance(TimeSpan.FromSeconds(2));
@@ -111,7 +111,7 @@ public sealed class OrderNumberingTests(CspsDatabase database) : IClassFixture<C
     [Fact]
     public async Task AnOrderDatedLastYearButSavedThisYearGetsThisYearsNumber()
     {
-        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2027, 1, 2, 2, 0, 0, TimeSpan.Zero));
+        await using var rig = await ClockRig.StartAsync(database, At("2027-01-02T02:00:00Z"));
         var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, new DateOnly(2026, 12, 30));
         body["dueDate"] = OrderFixtures.Date(new DateOnly(2027, 1, 13));
 
@@ -165,6 +165,9 @@ public sealed class OrderNumberingTests(CspsDatabase database) : IClassFixture<C
         var next = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
         next.GetProperty("number").GetString().ShouldBe(Number(today.Year, 2));
     }
+
+    private static DateTimeOffset At(string utc) =>
+        DateTimeOffset.Parse(utc, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
 
     private static string Number(int year, int sequence) =>
         $"ORD-{year.ToString(CultureInfo.InvariantCulture)}-{sequence.ToString("D4", CultureInfo.InvariantCulture)}";
