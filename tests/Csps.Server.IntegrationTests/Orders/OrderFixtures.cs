@@ -212,6 +212,40 @@ internal static class OrderFixtures
         return document.RootElement.Clone();
     }
 
+    /// <summary>Builds the body of a discount add or edit: kind, value, reason plus the order's version.</summary>
+    /// <param name="kind">The wire kind, <c>fixed</c> or <c>percentage</c>.</param>
+    /// <param name="value">The peso amount or the percent.</param>
+    /// <param name="reason">Why the discount is given.</param>
+    /// <param name="version">The order's version as the last answer carried it.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> DiscountBody(string? kind, decimal? value, string? reason, string? version) => new()
+    {
+        ["kind"] = kind,
+        ["value"] = value,
+        ["reason"] = reason,
+        ["version"] = version,
+    };
+
+    /// <summary>Posts a discount to a saved order with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> AddDiscountAsync(HttpClient client, string? accessToken, Guid orderId, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{orderId:D}/discounts", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>

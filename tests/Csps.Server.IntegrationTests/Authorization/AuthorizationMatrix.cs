@@ -199,6 +199,8 @@ public static class AuthorizationMatrix
         new("PUT", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/7d3b9e25-1a64-4c80-b5f2-8e0c4a6d1b97/items/2f8a5c13-9e47-4d06-a1b3-6c0d7e4f9a28", Anonymous: 401, Admin: 400, Manager: 400),
         // Removing an item (ORD-05): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
         new("DELETE", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/1e6c4a82-3b95-4d07-8a1f-5d2e9b7c0a34/items/9c4e7a16-2d83-4b05-a6f1-3e8b0d5c2a79", Anonymous: 401, Admin: 404, Manager: 404),
+        // Adding a discount to a saved order (ORD-05, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("POST", "/api/v1/orders/{orderId:guid}/discounts", "/api/v1/orders/6a9d3f27-8c14-4e50-b7a2-1d4f8e0c5b93/discounts", Anonymous: 401, Admin: 400, Manager: 400),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
