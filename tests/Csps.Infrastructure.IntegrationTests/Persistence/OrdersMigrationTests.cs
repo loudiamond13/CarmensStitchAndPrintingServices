@@ -199,8 +199,11 @@ public sealed class OrdersMigrationTests(CspsDatabase database) : IClassFixture<
     [Fact]
     public async Task TheIndexSetIsInPlace()
     {
-        (await ReadIndexNamesAsync("Orders")).ShouldBe(["IX_Orders_CreatedById", "IX_Orders_DeletedById", "IX_Orders_Number", "IX_Orders_UpdatedById"], ignoreOrder: true);
-        (await ReadIndexNamesAsync("OrderItems")).ShouldBe(["IX_OrderItems_CreatedById", "IX_OrderItems_OrderId", "IX_OrderItems_ProductTypeId", "IX_OrderItems_UpdatedById"], ignoreOrder: true);
+        // The list indexes of the order list are checked in OrderListIndexesMigrationTests; these are the ones the table was made with.
+        string[] orderIndexes = ["IX_Orders_CreatedById", "IX_Orders_DeletedById", "IX_Orders_Number", "IX_Orders_UpdatedById"];
+        orderIndexes.ShouldBeSubsetOf(await ReadIndexNamesAsync("Orders"));
+        string[] itemIndexes = ["IX_OrderItems_CreatedById", "IX_OrderItems_OrderId", "IX_OrderItems_ProductTypeId", "IX_OrderItems_UpdatedById"];
+        itemIndexes.ShouldBeSubsetOf(await ReadIndexNamesAsync("OrderItems"));
         (await ReadIndexNamesAsync("OrderStatusChanges")).ShouldBe(["IX_OrderStatusChanges_ChangedById", "IX_OrderStatusChanges_OrderId"], ignoreOrder: true);
     }
 

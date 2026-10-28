@@ -77,5 +77,38 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(order => order.CreatedById).HasDatabaseName("IX_Orders_CreatedById");
         builder.HasIndex(order => order.UpdatedById).HasDatabaseName("IX_Orders_UpdatedById");
         builder.HasIndex(order => order.DeletedById).HasDatabaseName("IX_Orders_DeletedById");
+
+        // The order list (ORD-01, ORD-02, PERF-04). Every index keeps live orders only, because the list never shows a deleted one.
+        // The due index is the default sort and covers every column of a list row, so the default page reads from one index.
+        builder.HasIndex(order => new { order.DueDate, order.Id })
+            .HasFilter("[DeletedAtUtc] IS NULL")
+            .IncludeProperties(order => new
+            {
+                order.Number,
+                order.CustomerName,
+                order.TeamName,
+                order.OrderDate,
+                order.Status,
+                order.StatusChangedAtUtc,
+                order.Subtotal,
+                order.DiscountTotal,
+                order.Total,
+                order.PaidTotal,
+                order.RefundedTotal,
+                order.Balance,
+                order.CustomerCredit,
+                order.FullyPaid,
+            })
+            .HasDatabaseName("IX_Orders_List_Due");
+
+        // The status filter with its recent window, the newest sort and order date range, and the balance and total sorts.
+        builder.HasIndex(order => new { order.Status, order.StatusChangedAtUtc }).HasFilter("[DeletedAtUtc] IS NULL").HasDatabaseName("IX_Orders_Status_StatusChangedAtUtc");
+        builder.HasIndex(order => new { order.OrderDate, order.CreatedAtUtc, order.Id })
+            .IsDescending(true, true, false)
+            .HasFilter("[DeletedAtUtc] IS NULL")
+            .HasDatabaseName("IX_Orders_OrderDate");
+        builder.HasIndex(order => order.CreatedAtUtc).IsDescending().HasFilter("[DeletedAtUtc] IS NULL").HasDatabaseName("IX_Orders_CreatedAtUtc");
+        builder.HasIndex(order => new { order.Balance, order.Id }).IsDescending(true, false).HasFilter("[DeletedAtUtc] IS NULL").HasDatabaseName("IX_Orders_Balance");
+        builder.HasIndex(order => new { order.Total, order.Id }).IsDescending(true, false).HasFilter("[DeletedAtUtc] IS NULL").HasDatabaseName("IX_Orders_Total");
     }
 }

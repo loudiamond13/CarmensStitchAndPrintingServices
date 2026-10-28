@@ -1,11 +1,11 @@
 ---
 created: 2026-10-25T09:33:00-05:00
-updated: 2026-10-25T09:33:00-05:00
+updated: 2026-10-28T18:10:00-05:00
 ---
 
-# Runbook: how fast the expense list is, and how to check it
+# Runbook: how fast the lists are, and how to check it
 
-The company expense list and its month KPIs must stay fast as the data grows (PERF-04, D-28). This page says what is checked, where, what to do when the check fails, and how to read the real speed from the live site after release.
+The company expense list and its month KPIs must stay fast as the data grows (PERF-04, D-28). The order list has its own section further down. This page says what is checked, where, what to do when the check fails, and how to read the real speed from the live site after release.
 
 ## What is required
 
@@ -41,6 +41,39 @@ In CI the test runs inside the full integration test step (`3 integration tests`
 2. If it passes alone, record the flake in the plan or phase notes (date, the numbers, where it ran). Do not hide it.
 3. If it keeps failing, look at the query plan of the slow case and fix the reader query in `CompanyExpenseReader`. An index change is a new migration, so ask the owner first.
 4. **Never raise the 300 ms limit or the command counts to make a run pass.** If a CI-only margin looks needed, ask the owner. That is the owner's decision.
+
+## The order list (`GET /api/v1/orders`)
+
+The order list has the same two rules: a fixed number of SQL commands and a p95 under 300 ms (PERF-04, ORD-01, ORD-02).
+
+- **Fixed number of SQL commands.** The list runs 2 commands whatever the page size, filter or sort: one for the count over every page, one for the page. Every figure on a row is a stored column of the order, so no row costs a query and the reader adds nothing up.
+- **Speed.** The p95 of the list is under 300 ms on about five years of fake orders.
+
+| Test | What it proves | Where it runs |
+| --- | --- | --- |
+| `OrderReaderQueryCountTests` (Infrastructure integration tests) | Exactly 2 commands for page sizes 1, 20 and 100 with no filter and with each filter and sort, an empty result included, and an order is listed once however many matching items it has | Locally and in CI |
+| `OrderListQueryCountTests` (Server integration tests) | The same count through the real endpoint | Locally and in CI |
+| `OrderListIndexesMigrationTests` (Infrastructure integration tests) | The list indexes exist, with their filters, keys, directions and covered columns | Locally and in CI |
+| `OrderListTimingTests` (Server integration tests) | The p95 limit on five years of fake data: the default list, a customer-name search, a product type filter, has-balance, a far page at size 100 and the newest, balance and total sorts | Locally and in CI |
+
+The timing test builds about 14,600 orders (8 a day for five years, one to four items each, payments on most, expenses on many, six staff, 2 percent soft-deleted) in its own throwaway `CSPS_Test_<guid>` database, through the domain and EF in batches, with a seeded random so every run is the same. It warms up with 20 requests, then times 200 requests for each case, and prints the p50 and p95 of each. It takes about 1 to 1.5 minutes. The class runs alone, like the expense one.
+
+The indexes (migration `AddOrderListIndexes`) all keep live orders only (`[DeletedAtUtc] IS NULL`), because the list never shows a deleted order:
+
+| Index | Serves |
+| --- | --- |
+| `IX_Orders_List_Due` (due date, id) with every list column included | the default sort, read from one index |
+| `IX_Orders_Status_StatusChangedAtUtc` | the status filter and the 30 day window of the active scope |
+| `IX_Orders_OrderDate` (order date descending, recorded descending, id) | the newest sort and the order date range |
+| `IX_Orders_CreatedAtUtc` (descending) | the order a staff member recorded first or last |
+| `IX_Orders_Balance` and `IX_Orders_Total` (descending, id) | the balance and total sorts |
+| `IX_OrderItems_ProductTypeId_OrderId` | the product type filter |
+
+To run it alone, run the preflight first (step 1 above), then:
+`dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OrderListTimingTests" --output Detailed`
+and read the lines `default list: p50 ... ms, p95 ... ms` and the seven after it.
+
+After release, read the real speed the same way as below, with the path `/api/v1/orders`. When it fails, follow "When it fails" above, with `OrderReader` as the file to look at. A new index is a new migration, so ask the owner first. A customer-name search is a scan by nature (it looks inside the text), so it is the case that grows first as the data grows; if it is the slow one, tell the owner before changing how search works.
 
 ## Read the real speed after release
 

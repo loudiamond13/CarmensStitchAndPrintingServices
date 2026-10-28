@@ -1071,6 +1071,11 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAtUtc")
+                        .IsDescending()
+                        .HasDatabaseName("IX_Orders_CreatedAtUtc")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
                     b.HasIndex("CreatedById")
                         .HasDatabaseName("IX_Orders_CreatedById");
 
@@ -1083,6 +1088,31 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById")
                         .HasDatabaseName("IX_Orders_UpdatedById");
+
+                    b.HasIndex("Balance", "Id")
+                        .IsDescending(true, false)
+                        .HasDatabaseName("IX_Orders_Balance")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    b.HasIndex("DueDate", "Id")
+                        .HasDatabaseName("IX_Orders_List_Due")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("DueDate", "Id"), new[] { "Number", "CustomerName", "TeamName", "OrderDate", "Status", "StatusChangedAtUtc", "Subtotal", "DiscountTotal", "Total", "PaidTotal", "RefundedTotal", "Balance", "CustomerCredit", "FullyPaid" });
+
+                    b.HasIndex("Status", "StatusChangedAtUtc")
+                        .HasDatabaseName("IX_Orders_Status_StatusChangedAtUtc")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    b.HasIndex("Total", "Id")
+                        .IsDescending(true, false)
+                        .HasDatabaseName("IX_Orders_Total")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
+
+                    b.HasIndex("OrderDate", "CreatedAtUtc", "Id")
+                        .IsDescending(true, true, false)
+                        .HasDatabaseName("IX_Orders_OrderDate")
+                        .HasFilter("[DeletedAtUtc] IS NULL");
 
                     b.ToTable("Orders", null, t =>
                         {
@@ -1278,6 +1308,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UpdatedById")
                         .HasDatabaseName("IX_OrderItems_UpdatedById");
+
+                    b.HasIndex("ProductTypeId", "OrderId")
+                        .HasDatabaseName("IX_OrderItems_ProductTypeId_OrderId");
 
                     b.ToTable("OrderItems", null, t =>
                         {
