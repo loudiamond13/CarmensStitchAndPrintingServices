@@ -1182,6 +1182,40 @@
         ],
         "type": "object"
       },
+      "OrderListItem": {
+        "description": "One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19).",
+        "properties": {
+          "id": {
+            "description": "The entry id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isOthers": {
+            "description": "True only for the protected Others entry of the order expense categories.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "status": {
+            "description": "`active`, or `retired` so a picker can hide it while a filter keeps it.",
+            "type": "string"
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "status",
+          "isOthers"
+        ],
+        "type": "object"
+      },
       "ProblemDetails": {
         "properties": {
           "detail": {
@@ -4424,6 +4458,40 @@
         ]
       }
     },
+    "/api/v1/product-types": {
+      "get": {
+        "operationId": "ListProductTypes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrderListItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists every product type, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`) and `isOthers`, which is always false for product types.",
+        "tags": [
+          "ProductTypes"
+        ]
+      }
+    },
     "/api/v1/profile": {
       "get": {
         "operationId": "GetProfile",
@@ -6307,6 +6375,9 @@
     },
     {
       "name": "Password"
+    },
+    {
+      "name": "ProductTypes"
     },
     {
       "name": "Profile"

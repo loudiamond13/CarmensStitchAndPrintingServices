@@ -147,6 +147,9 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
         new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
 
+        // The order lists (D-16, D-17, D-18, D-19): Staff only, both roles read them.
+        new("GET", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 200, Manager: 200),
+
         // The expense category list (D-08, D-15): Staff only, both roles read it.
         new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
         // Adding a category (CEXP-02, D-08, D-14): Managers only, so an Admin meets 403. With no body a Manager meets the 400 field errors.

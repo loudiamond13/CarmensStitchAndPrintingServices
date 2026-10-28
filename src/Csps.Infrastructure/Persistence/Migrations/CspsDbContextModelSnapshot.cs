@@ -627,6 +627,116 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("UserSessions", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.OrderLists.ProductType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset?>("RetiredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ProductTypes_NormalizedName");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("ProductTypes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductTypes_Tone", "[Tone] IN (N'neutral', N'accent', N'info', N'mockup', N'warning', N'success')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("01a17fce-7800-7f5d-bc6c-5d14ceeca0c6"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Basketball Jersey",
+                            NormalizedName = "BASKETBALL JERSEY",
+                            Tone = "accent"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7801-7e45-b875-357767854eda"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Volleyball Jersey",
+                            NormalizedName = "VOLLEYBALL JERSEY",
+                            Tone = "info"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7802-7097-a1d7-d09eec3abeff"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Moto Riding Jersey",
+                            NormalizedName = "MOTO RIDING JERSEY",
+                            Tone = "warning"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7803-7e5c-a7ef-616e966d8a4c"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Long Sleeves",
+                            NormalizedName = "LONG SLEEVES",
+                            Tone = "mockup"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7804-7ac7-a63c-7c6a1ec5bad4"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Polo Shirt",
+                            NormalizedName = "POLO SHIRT",
+                            Tone = "success"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7805-7744-aa72-f1641ce2b2bd"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Custom Design",
+                            NormalizedName = "CUSTOM DESIGN",
+                            Tone = "neutral"
+                        });
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Email.EmailOutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1430,6 +1540,19 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Csps.Domain.OrderLists.ProductType", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Csps.Infrastructure.Identity.ApplicationUser", b =>

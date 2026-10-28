@@ -1,4 +1,5 @@
 using Csps.Domain.Expenses;
+using Csps.Domain.OrderLists;
 using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -125,6 +126,7 @@ public sealed class CspsDatabase : IAsyncLifetime
         }
 
         await ReseedExpenseCategoriesAsync().ConfigureAwait(false);
+        await ReseedOrderListsAsync().ConfigureAwait(false);
     }
 
     // Respawn empties ExpenseCategories, but the ten migration-seeded rows belong to every database (D-09), and an expense
@@ -142,6 +144,19 @@ public sealed class CspsDatabase : IAsyncLifetime
             }
 
             context.ExpenseCategories.AddRange(missing.Select(ExpenseCategory.FromSeed));
+            await context.SaveChangesAsync().ConfigureAwait(false);
+        }
+    }
+
+    // Respawn also empties the order list tables, but their migration-seeded rows belong to every database (D-16, D-17, D-18).
+    // Put back any that are missing, from the same seed the migration uses.
+    private async Task ReseedOrderListsAsync()
+    {
+        var context = CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            var present = await context.ProductTypes.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
+            context.ProductTypes.AddRange(OrderListSeed.ProductTypes.Where(row => !present.Contains(row.Id)).Select(ProductType.FromSeed));
             await context.SaveChangesAsync().ConfigureAwait(false);
         }
     }

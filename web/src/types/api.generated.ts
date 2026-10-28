@@ -504,6 +504,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/product-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every product type, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers
+         *     hide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or
+         *     `retired`) and `isOthers`, which is always false for product types.
+         */
+        get: operations["ListProductTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -1400,6 +1421,22 @@ export interface components {
              * @description The sum of the month's expenses by expense date; 0.00 when none.
              */
             total: number | string;
+        };
+        /** @description One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19). */
+        OrderListItem: {
+            /**
+             * Format: uuid
+             * @description The entry id.
+             */
+            id: string;
+            /** @description True only for the protected Others entry of the order expense categories. */
+            isOthers: boolean;
+            /** @description The display name. */
+            name: string;
+            /** @description `active`, or `retired` so a picker can hide it while a filter keeps it. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
         };
         ProblemDetails: {
             detail?: null | string;
@@ -3362,6 +3399,35 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListProductTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
