@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-28T09:30:00-05:00
+updated: 2026-10-28T11:40:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -163,7 +163,7 @@ transaction as the change.
 | Code | Written when | Target | Detail |
 |------|--------------|--------|--------|
 | `order.created` | An order is created | `Order` id | `number=<order number>;status=<status>;orderDate=<date>;dueDate=<date>;items=<count>;total=<amount>` |
-| `order.changed` | The order date, the due date or customer details or notes change | `Order` id | `orderDate=<old>><new>` and `dueDate=<old>><new>` for the dates that changed; then `fields=` naming the changed customer details and notes, never their text |
+| `order.changed` | The order date, the due date or customer details or notes change | `Order` id | `orderDate=<old>><new>` and `dueDate=<old>><new>` for the dates that changed (the old due date is empty for an imported order that had none); then `fields=` naming the changed customer details and notes, never their text |
 | `order.status-changed` | The order moves to another status | `Order` id | `status=<from>><to>` |
 | `order.reopened` | A completed or canceled order is reopened | `Order` id | `status=<from>><to>` |
 | `order.deleted` | An order is deleted into the bin | `Order` id | `number=<n>;status=<status>;total=<amount>;paid=<amount>;balance=<amount>` |

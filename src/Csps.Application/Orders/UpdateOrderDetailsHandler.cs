@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
 using FluentValidation;
@@ -12,16 +13,20 @@ namespace Csps.Application.Orders;
 /// (ORD-05, ORD-08, SEC-07). The steps stop at the first failure: the form is checked (400), the order is found (404), the version
 /// is the stored one (409), then the domain checks every rule again (400). There is no own-order rule: Admin and Manager may edit
 /// any order (D-25). A form save never retries on a conflict: the person reloads and decides. A form with no change saves nothing
-/// and keeps the version. Who changed the order and when come from the token and the clock, never from the request (SEC-08).
+/// and keeps the version; a change writes one <c>order.changed</c> entry (dates as old and new, field names only, never customer
+/// text) in the same save (D-31). Who changed the order and when come from the token and the clock, never from the request (SEC-08).
 /// </summary>
 public sealed class UpdateOrderDetailsHandler(
     IOrders orders,
     IOrderReader reader,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<UpdateOrderDetailsRequest> validator)
 {
+    private const string OrderTarget = "Order";
+
     /// <summary>Saves the edit.</summary>
     /// <param name="id">The order to edit.</param>
     /// <param name="request">The form.</param>
@@ -94,6 +99,7 @@ public sealed class UpdateOrderDetailsHandler(
             return Result.Success(false);
         }
 
+        audit.Record(AuditActions.OrderChanged, OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.DetailsChanged(changes.Value));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }
