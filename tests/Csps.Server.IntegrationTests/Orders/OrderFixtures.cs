@@ -773,6 +773,58 @@ internal static class OrderFixtures
         return document.RootElement.Clone();
     }
 
+    /// <summary>Soft-deletes one order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The order id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteAsync(HttpClient client, string? accessToken, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{id:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Restores one soft-deleted order with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The order id.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> RestoreAsync(HttpClient client, string? accessToken, Guid id, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{id:D}/restore", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Lists the deleted orders.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="query">The query string without the question mark, such as <c>pageSize=10</c>; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ListDeletedAsync(HttpClient client, string? accessToken, string? query = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get(query is null ? $"{Route}/deleted" : $"{Route}/deleted?{query}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Lists the deleted orders, expects a 200 and returns the page.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="query">The query string without the question mark; none when null.</param>
+    /// <returns>The JSON body of the page.</returns>
+    public static async Task<JsonElement> ReadDeletedPageAsync(HttpClient client, string accessToken, string? query = null)
+    {
+        using var response = await ListDeletedAsync(client, accessToken, query);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
