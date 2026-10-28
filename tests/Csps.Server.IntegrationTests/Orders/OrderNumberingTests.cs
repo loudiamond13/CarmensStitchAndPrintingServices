@@ -4,10 +4,12 @@ using System.Text.Json;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Auth;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -116,6 +118,52 @@ public sealed class OrderNumberingTests(CspsDatabase database) : IClassFixture<C
         var number = await rig.CreateAsync(body);
 
         number.ShouldBe("ORD-2027-0001");
+    }
+
+    [Fact]
+    public async Task ACreateThatCannotTakeTheNumberLockInTimeAnswers409OrdersBusyAndTheNextCreateStillWorks()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var first = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        first.GetProperty("number").GetString().ShouldBe(Number(today.Year, 1));
+
+        var connection = new SqlConnection(database.ConnectionString);
+        await using (connection)
+        {
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            var transaction = (SqlTransaction)await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await using (transaction)
+            {
+                var hold = connection.CreateCommand();
+                await using (hold)
+                {
+                    hold.Transaction = transaction;
+                    hold.CommandText = "UPDATE DatabaseLocks SET TakenAtUtc = SYSUTCDATETIME() WHERE Name = 'order-numbers';";
+                    (await hold.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+                }
+
+                using var refused = await OrderFixtures.PostAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+
+                refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+                var problem = await ProblemJson.ReadAsync(refused, TestContext.Current.CancellationToken);
+                problem.GetProperty("code").GetString().ShouldBe("orders.busy");
+                await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+            }
+        }
+
+        await using (var context = database.CreateContext())
+        {
+            (await context.OrderNumberCounters.AsNoTracking().SingleAsync(row => row.Year == today.Year, TestContext.Current.CancellationToken))
+                .LastValue.ShouldBe(1);
+            (await context.Orders.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+        }
+
+        var next = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        next.GetProperty("number").GetString().ShouldBe(Number(today.Year, 2));
     }
 
     private static string Number(int year, int sequence) =>
