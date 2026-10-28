@@ -125,6 +125,52 @@ test('@showcase the toast triggers raise a toast in each tone', async ({ page })
   }
 });
 
+test('@showcase the date box shows one calendar icon and passes a click on it to the input (D-63)', async ({
+  page,
+  browserName,
+}, testInfo) => {
+  await openShowcase(page);
+  const demo = page.locator('[data-case="staff-date-input"]');
+  const from = demo.getByLabel('From');
+  const box = from.locator('..');
+  const icon = box.locator('svg.lucide-calendar');
+  const centre = `(() => {
+    const input = document.querySelector('[data-case="staff-date-input"] input[type="date"]');
+    input.scrollIntoView({ block: 'center' });
+    return input;
+  })()`;
+
+  await page.evaluate(centre);
+  expect((await box.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await expect(box.locator('svg')).toHaveCount(1);
+
+  if (browserName === 'firefox') {
+    // Firefox draws its own calendar button in a date input, which no CSS can hide, so our icon steps aside there.
+    await expect(icon).toBeHidden();
+  } else {
+    await expect(icon).toBeVisible();
+    const reachesInput = await page.evaluate<boolean>(`(() => {
+      const input = document.querySelector('[data-case="staff-date-input"] input[type="date"]');
+      const rect = input.parentElement.querySelector('svg').getBoundingClientRect();
+      return document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) === input;
+    })()`);
+    expect(reachesInput).toBe(true);
+  }
+
+  for (const { name, theme } of THEMES) {
+    if (theme === 'dark') {
+      await page.getByRole('button', { name: 'Switch to dark mode' }).first().click();
+    }
+    await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
+    await page.evaluate(centre);
+    // WebKit's screenshot adds an inline style element, which the strict CSP blocks, so its pictures are taken in a separate
+    // run with the CSP bypassed.
+    if (browserName !== 'webkit') {
+      await testInfo.attach(`date-box-${name}`, { body: await demo.screenshot(), contentType: 'image/png' });
+    }
+  }
+});
+
 /** A 1×1 PNG, so the preview has pixels to decode. */
 const ONE_PIXEL_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
