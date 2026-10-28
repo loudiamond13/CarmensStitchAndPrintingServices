@@ -70,3 +70,27 @@ public sealed record OrderPaymentChanges(
     /// <summary>Gets a value that is true when anything other than the receiver changed.</summary>
     public bool HasFieldChange => Date is not null || Amount is not null || Method is not null || ChangedFields.Count > 0;
 }
+
+/// <summary>
+/// What one order expense edit changed (D-31, ORD-23). The date, amount and category carry the old and new value; the description
+/// carries only its field name, because its text never goes into the audit log. A new payer is carried on its own, because it is
+/// written to the audit log as its own entry.
+/// </summary>
+/// <param name="Date">The expense date change; null when it stayed.</param>
+/// <param name="Amount">The amount change; null when it stayed.</param>
+/// <param name="Category">The category change; null when it stayed.</param>
+/// <param name="Payer">The payer change; null when the same person paid.</param>
+/// <param name="ChangedFields">The names of the text fields that changed (<c>description</c>).</param>
+public sealed record OrderExpenseChanges(
+    ValueChange<DateOnly>? Date,
+    ValueChange<decimal>? Amount,
+    ValueChange<Guid>? Category,
+    ValueChange<Guid>? Payer,
+    IReadOnlyList<string> ChangedFields)
+{
+    /// <summary>Gets a value that is true when anything at all changed.</summary>
+    public bool HasAny => HasFieldChange || Payer is not null;
+
+    /// <summary>Gets a value that is true when anything other than the payer changed.</summary>
+    public bool HasFieldChange => Date is not null || Amount is not null || Category is not null || ChangedFields.Count > 0;
+}

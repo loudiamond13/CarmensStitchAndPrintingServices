@@ -1151,6 +1151,72 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderExpense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("ExpenseDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OrderExpenseCategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PaidByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_OrderExpenses_CreatedById");
+
+                    b.HasIndex("OrderExpenseCategoryId")
+                        .HasDatabaseName("IX_OrderExpenses_OrderExpenseCategoryId");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_OrderExpenses_OrderId");
+
+                    b.HasIndex("PaidByUserId")
+                        .HasDatabaseName("IX_OrderExpenses_PaidByUserId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("PaidByUserId"), new[] { "Amount", "ExpenseDate" });
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_OrderExpenses_UpdatedById");
+
+                    b.ToTable("OrderExpenses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderExpenses_Amount_Positive", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2246,6 +2312,39 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderExpense", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.OrderLists.OrderExpenseCategory", null)
+                        .WithMany()
+                        .HasForeignKey("OrderExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Domain.Orders.Order", "Order")
+                        .WithMany("Expenses")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PaidByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -2394,6 +2493,8 @@ namespace Csps.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Csps.Domain.Orders.Order", b =>
                 {
                     b.Navigation("Discounts");
+
+                    b.Navigation("Expenses");
 
                     b.Navigation("Items");
 

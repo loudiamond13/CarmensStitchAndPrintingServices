@@ -22,6 +22,7 @@ public static class OrdersApplicationRegistration
         services.AddSingleton<IValidator<UpdateOrderDiscountRequest>, UpdateOrderDiscountRequestValidator>();
         services.AddSingleton<IValidator<AddOrderPaymentRequest>, AddOrderPaymentRequestValidator>();
         services.AddSingleton<IValidator<UpdateOrderPaymentRequest>, UpdateOrderPaymentRequestValidator>();
+        services.AddSingleton<IValidator<AddOrderExpenseRequest>, AddOrderExpenseRequestValidator>();
         services.AddScoped<ListOrderListHandler>();
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<GetOrderHandler>();
@@ -35,6 +36,7 @@ public static class OrdersApplicationRegistration
         services.AddScoped<AddOrderPaymentHandler>();
         services.AddScoped<UpdateOrderPaymentHandler>();
         services.AddScoped<RemoveOrderPaymentHandler>();
+        services.AddScoped<AddOrderExpenseHandler>();
         return services;
     }
 }

@@ -26,6 +26,7 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
             .Include(order => order.Items)
             .Include(order => order.Discounts)
             .Include(order => order.Payments)
+            .Include(order => order.Expenses)
             .AsSplitQuery()
             .SingleOrDefaultAsync(order => order.Id == id, cancellationToken)
             .ConfigureAwait(false);

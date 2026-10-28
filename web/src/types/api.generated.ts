@@ -631,6 +631,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records an expense on a saved order with the order's version the form was opened with. The date is a real
+         *     `yyyy-MM-dd` day: any past day, and up to 30 days after today in the shop's time zone. The amount is above 0.00 and at
+         *     most 1,000,000.00 with at most two decimal places. The category must exist and not be retired. `paidByUserId` names who
+         *     spent the money and must be an active Admin or Manager; it is separate from who typed the expense in, which comes from the
+         *     token. The description is optional, up to 200 characters. A version that is not the stored one answers 409
+         *     `edit.stale` and changes nothing; a form save is never retried. The server works out the expenses and the profit. A
+         *     retry with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+         */
+        post: operations["AddOrderExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/items": {
         parameters: {
             query?: never;
@@ -1245,6 +1270,34 @@ export interface components {
             version: null | string;
         };
         /**
+         * @description The Add Expense form on a saved order (ORD-05, ORD-23). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `createdById`, is ignored: who recorded the expense and when come from the token and the
+         *     clock (SEC-08). Who paid is a separate choice, `paidByUserId`.
+         */
+        AddOrderExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short description. */
+            description: null | string;
+            /** @description The day of the expense, `yyyy-MM-dd`. */
+            expenseDate: null | string;
+            /**
+             * Format: uuid
+             * @description The order expense category.
+             */
+            orderExpenseCategoryId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
          * @description The Add Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in
          *     the body, such as a forged `createdById` or `lineTotal`, is ignored: who added the item and when come from the token and
          *     the clock (SEC-08), and the line total is worked out by the server.
@@ -1804,6 +1857,8 @@ export interface components {
             dueDate: null | string;
             /** @description The email address; null when none. */
             email: null | string;
+            /** @description The order expenses, oldest expense date first. */
+            expenses: components["schemas"]["OrderExpenseResponse"][];
             /**
              * Format: uuid
              * @description The order id.
@@ -1890,6 +1945,44 @@ export interface components {
              * @description The peso amount (fixed) or the percent (percentage).
              */
             value: number | string;
+        };
+        /** @description One order expense (ORD-05, ORD-23). Paid by is who spent the money; recorded by is who typed the expense in. */
+        OrderExpenseResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description The order expense category, with its tone and whether it is retired. */
+            category: components["schemas"]["OrderListRef"];
+            /** @description The description; null when none. */
+            description: null | string;
+            /**
+             * Format: date
+             * @description The day of the expense.
+             */
+            expenseDate: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The staff member who paid; the name is kept for a deleted person. */
+            paidBy: components["schemas"]["ActorRef"];
+            /** @description True while the payer can still be chosen (ORD-23, D-32). */
+            paidByActive: boolean;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
         };
         /** @description One line of the New Order form (ORD-13). */
         OrderItemRequest: {
@@ -4549,6 +4642,81 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderExpenseRequest"];
+                "application/json": null | components["schemas"]["AddOrderExpenseRequest"];
+                "text/json": null | components["schemas"]["AddOrderExpenseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

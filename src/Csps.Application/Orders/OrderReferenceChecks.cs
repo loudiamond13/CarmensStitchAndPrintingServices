@@ -207,4 +207,58 @@ public static class OrderReferenceChecks
             validation.Errors.Add(new ValidationFailure(nameof(IOrderPaymentFields.ReceivedByUserId), OrderRules.ReceivedByInactive));
         }
     }
+
+    /// <summary>
+    /// Adds a failure on <c>orderExpenseCategoryId</c> when the order expense category does not exist or is retired (D-17). A missing
+    /// id is skipped: the static rules already refused it.
+    /// </summary>
+    /// <param name="lists">The order lists.</param>
+    /// <param name="categoryId">The submitted category.</param>
+    /// <param name="validation">The validation result to add the failure to.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    public static async Task AddExpenseCategoryFailureAsync(IOrderLists lists, Guid? categoryId, ValidationResult validation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        if (categoryId is not { } id || id == Guid.Empty)
+        {
+            return;
+        }
+
+        var states = await lists.GetStatesAsync(OrderListKind.OrderExpenseCategory, [id], cancellationToken).ConfigureAwait(false);
+        var message = states.Count == 0 ? OrderRules.ExpenseCategoryRequired : states[0].Retired ? OrderRules.ExpenseCategoryRetired : null;
+        if (message is not null)
+        {
+            validation.Errors.Add(new ValidationFailure(nameof(IOrderExpenseFields.OrderExpenseCategoryId), message));
+        }
+    }
+
+    /// <summary>
+    /// Adds a failure on <c>paidByUserId</c> when the person cannot be named as the payer (ORD-23, D-32): they must be an active
+    /// Admin or Manager who has finished set-up, so the Legacy holder and a deactivated, locked or deleted account are refused, and
+    /// there is no company payer. A missing id is skipped: the static rules already refused it.
+    /// </summary>
+    /// <param name="staff">The staff directory.</param>
+    /// <param name="paidByUserId">The submitted payer.</param>
+    /// <param name="validation">The validation result to add the failure to.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    public static async Task AddPayerFailureAsync(IStaffDirectory staff, Guid? paidByUserId, ValidationResult validation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(staff);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        if (paidByUserId is not { } id || id == Guid.Empty)
+        {
+            return;
+        }
+
+        var payer = await staff.GetStaffStateAsync(id, cancellationToken).ConfigureAwait(false);
+        if (payer is not { CanPay: true })
+        {
+            validation.Errors.Add(new ValidationFailure(nameof(IOrderExpenseFields.PaidByUserId), OrderRules.PaidByInactive));
+        }
+    }
 }

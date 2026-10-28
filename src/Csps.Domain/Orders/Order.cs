@@ -14,6 +14,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     private readonly List<OrderItem> _items = [];
     private readonly List<OrderDiscount> _discounts = [];
     private readonly List<OrderPayment> _payments = [];
+    private readonly List<OrderExpense> _expenses = [];
     private readonly List<OrderStatusChange> _statusChanges = [];
 
     // Used by EF Core (constructor binding) and by Create.
@@ -122,6 +123,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the payments, in the order they were added.</summary>
     public IReadOnlyList<OrderPayment> Payments => _payments;
+
+    /// <summary>Gets the order expenses, in the order they were added.</summary>
+    public IReadOnlyList<OrderExpense> Expenses => _expenses;
 
     /// <summary>Gets the status history rows loaded with the order.</summary>
     public IReadOnlyList<OrderStatusChange> StatusChanges => _statusChanges;
@@ -644,6 +648,35 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(payment);
     }
 
+    /// <summary>
+    /// Adds one order expense at the end of the list, checking every expense rule again and the cap of <see cref="OrderRules.MaxExpenses"/>.
+    /// The expenses and the profit are worked out again with <see cref="OrderMath"/> (the balance never moves) and the edit version
+    /// moves, so the order's row version guards the add (ORD-08).
+    /// </summary>
+    /// <param name="expense">The expense as given.</param>
+    /// <param name="today">The business today; an expense may be dated up to 30 days after it.</param>
+    /// <param name="now">The current instant, which makes the expense key and the new edit version.</param>
+    /// <returns>The new expense, a validation error naming the first broken field, or a 422 when the order already has 100 expenses.</returns>
+    public Result<OrderExpense> AddExpense(NewOrderExpense expense, DateOnly today, DateTimeOffset now)
+    {
+        var checkedExpense = OrderRules.CheckExpense(null, expense, today);
+        if (checkedExpense.IsFailure)
+        {
+            return Result.Failure<OrderExpense>(checkedExpense.Error);
+        }
+
+        if (_expenses.Count >= OrderRules.MaxExpenses)
+        {
+            return Result.Failure<OrderExpense>(OrderRules.TooManyExpenses);
+        }
+
+        var added = BuildExpense(this, checkedExpense.Value, _expenses.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        _expenses.Add(added);
+        Recalculate();
+        Touch(now);
+        return Result.Success(added);
+    }
+
     /// <summary>Takes one discount off the order. The totals are worked out again and the edit version moves.</summary>
     /// <param name="discountId">The discount to remove; it must be on this order.</param>
     /// <param name="now">The current instant, which makes the new edit version.</param>
@@ -682,6 +715,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     private static OrderPayment BuildPayment(Order order, NewOrderPayment payment, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, payment.PaymentDate, payment.Amount, payment.PaymentMethodId, payment.Reference, payment.Notes, payment.ReceivedByUserId, position) { Order = order };
 
+    private static OrderExpense BuildExpense(Order order, NewOrderExpense expense, int position, DateTimeOffset now) =>
+        new(Guid.CreateVersion7(now), order.Id, expense.ExpenseDate, expense.OrderExpenseCategoryId, expense.Description, expense.Amount, expense.PaidByUserId, position) { Order = order };
+
     private static OrderItem BuildItem(Order order, NewOrderItem item, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, item.ProductTypeId, item.Description, item.SizeVariant, item.Quantity, item.UnitPrice, item.Quantity * item.UnitPrice, position) { Order = order };
 
@@ -693,15 +729,15 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
     }
 
-    // Works the figures out with OrderMath, the one place money is worked out (ORD-20), for the given payment amounts. Refunds and
-    // expenses join the lists in later plans.
+    // Works the figures out with OrderMath, the one place money is worked out (ORD-20), for the given payment amounts. Refunds join
+    // the lists in a later plan.
     private OrderMathResult Figures(IEnumerable<decimal> payments) =>
         OrderMath.Compute(
             [.. ItemsForMath(_items)],
             [.. DiscountsForMath(_discounts)],
             [.. payments],
             [],
-            [],
+            [.. _expenses.Select(static expense => expense.Amount)],
             cancelled: Status == OrderStatus.Cancelled);
 
     // Writes the money snapshot from OrderMath.

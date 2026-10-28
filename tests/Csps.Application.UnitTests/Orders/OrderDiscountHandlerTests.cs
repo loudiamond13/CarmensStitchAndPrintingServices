@@ -644,6 +644,7 @@ public sealed class OrderDiscountHandlerTests
             [],
             [],
             [],
+            [],
             new OrderTotalsResponse(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, false),
             new ActorRef(CallerId, "Mina Mercado", false),
             Now,

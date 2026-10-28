@@ -92,6 +92,67 @@
         ],
         "type": "object"
       },
+      "AddOrderExpenseRequest": {
+        "description": "The Add Expense form on a saved order (ORD-05, ORD-23). It carries the order's version as the form was opened. Any other member\nin the body, such as a forged `createdById`, is ignored: who recorded the expense and when come from the token and the\nclock (SEC-08). Who paid is a separate choice, `paidByUserId`.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "A short description.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expenseDate": {
+            "description": "The day of the expense, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderExpenseCategoryId": {
+            "description": "The order expense category.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidByUserId": {
+            "description": "The staff member who paid.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "expenseDate",
+          "orderExpenseCategoryId",
+          "description",
+          "amount",
+          "paidByUserId",
+          "version"
+        ],
+        "type": "object"
+      },
       "AddOrderItemRequest": {
         "description": "The Add Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in\nthe body, such as a forged `createdById` or `lineTotal`, is ignored: who added the item and when come from the token and\nthe clock (SEC-08), and the line total is worked out by the server.",
         "properties": {
@@ -1511,6 +1572,13 @@
               "string"
             ]
           },
+          "expenses": {
+            "description": "The order expenses, oldest expense date first.",
+            "items": {
+              "$ref": "#/components/schemas/OrderExpenseResponse"
+            },
+            "type": "array"
+          },
           "id": {
             "description": "The order id.",
             "format": "uuid",
@@ -1629,6 +1697,7 @@
           "items",
           "discounts",
           "payments",
+          "expenses",
           "statusHistory",
           "totals",
           "recordedBy",
@@ -1740,6 +1809,98 @@
           "kind",
           "value",
           "reason",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt"
+        ],
+        "type": "object"
+      },
+      "OrderExpenseResponse": {
+        "description": "One order expense (ORD-05, ORD-23). Paid by is who spent the money; recorded by is who typed the expense in.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "category": {
+            "$ref": "#/components/schemas/OrderListRef",
+            "description": "The order expense category, with its tone and whether it is retired."
+          },
+          "description": {
+            "description": "The description; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expenseDate": {
+            "description": "The day of the expense.",
+            "format": "date",
+            "type": "string"
+          },
+          "id": {
+            "description": "The expense id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
+          "paidBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The staff member who paid; the name is kept for a deleted person."
+          },
+          "paidByActive": {
+            "description": "True while the payer can still be chosen (ORD-23, D-32).",
+            "type": "boolean"
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System."
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "expenseDate",
+          "category",
+          "description",
+          "amount",
+          "paidBy",
+          "paidByActive",
           "recordedBy",
           "recordedAt",
           "lastChangedBy",
@@ -6337,6 +6498,130 @@
         ]
       }
     },
+    "/api/v1/orders/{orderId}/expenses": {
+      "post": {
+        "operationId": "AddOrderExpense",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderExpenseRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Records an expense on a saved order with the order's version the form was opened with. The date is a real\n`yyyy-MM-dd` day: any past day, and up to 30 days after today in the shop's time zone. The amount is above 0.00 and at\nmost 1,000,000.00 with at most two decimal places. The category must exist and not be retired. `paidByUserId` names who\nspent the money and must be an active Admin or Manager; it is separate from who typed the expense in, which comes from the\ntoken. The description is optional, up to 200 characters. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. The server works out the expenses and the profit. A\nretry with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.",
+        "tags": [
+          "OrderExpenses"
+        ]
+      }
+    },
     "/api/v1/orders/{orderId}/items": {
       "post": {
         "operationId": "AddOrderItem",
@@ -8949,6 +9234,9 @@
     },
     {
       "name": "OrderExpenseCategories"
+    },
+    {
+      "name": "OrderExpenses"
     },
     {
       "name": "OrderItems"

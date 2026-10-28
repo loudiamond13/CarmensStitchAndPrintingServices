@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using Csps.Domain.Common;
+using Csps.Domain.Expenses;
 
 namespace Csps.Domain.Orders;
 
@@ -60,6 +61,15 @@ public static class OrderRules
 
     /// <summary>The longest payment notes text.</summary>
     public const int PaymentNotesMaxLength = 500;
+
+    /// <summary>The most order expenses one order may have (D-30).</summary>
+    public const int MaxExpenses = 100;
+
+    /// <summary>How many days after the business today an order expense may be dated (D-30).</summary>
+    public const int ExpenseDaysAhead = ExpenseRules.DaysAhead;
+
+    /// <summary>The longest order expense description.</summary>
+    public const int ExpenseDescriptionMaxLength = 200;
 
     /// <summary>The most decimal places a money amount may have.</summary>
     public const int MoneyScale = 2;
@@ -144,6 +154,24 @@ public static class OrderRules
 
     /// <summary>The field name of the person who received a payment.</summary>
     public const string ReceivedByField = "receivedByUserId";
+
+    /// <summary>The field name of the order expense list.</summary>
+    public const string ExpensesField = "expenses";
+
+    /// <summary>The field name of an order expense's date.</summary>
+    public const string ExpenseDateField = "expenseDate";
+
+    /// <summary>The field name of an order expense's amount.</summary>
+    public const string ExpenseAmountField = "amount";
+
+    /// <summary>The field name of an order expense's category.</summary>
+    public const string ExpenseCategoryField = "orderExpenseCategoryId";
+
+    /// <summary>The field name of an order expense's description.</summary>
+    public const string ExpenseDescriptionField = "description";
+
+    /// <summary>The field name of the person who paid an order expense.</summary>
+    public const string PaidByField = "paidByUserId";
 
     /// <summary>The machine code of an order form that breaks field rules.</summary>
     public const string InvalidCode = "orders.invalid-request";
@@ -304,6 +332,33 @@ public static class OrderRules
     /// <summary>The message for an order with more than <see cref="MaxPayments"/> payments.</summary>
     public const string PaymentsTooMany = "An order can have at most 100 payments.";
 
+    /// <summary>The message for an order expense that is missing from the list.</summary>
+    public const string ExpenseRequired = "Fill in this expense.";
+
+    /// <summary>The message for a missing payer (ORD-23).</summary>
+    public const string PaidByRequired = ExpenseRules.PaidByRequired;
+
+    /// <summary>The message for a payer who cannot be chosen (ORD-23, D-32).</summary>
+    public const string PaidByInactive = ExpenseRules.PaidByInactive;
+
+    /// <summary>The message for a missing or unknown order expense category.</summary>
+    public const string ExpenseCategoryRequired = ExpenseRules.CategoryRequired;
+
+    /// <summary>The message for a retired order expense category chosen on a new or changed expense (D-17).</summary>
+    public const string ExpenseCategoryRetired = ExpenseRules.CategoryRetired;
+
+    /// <summary>The message for an order with more than <see cref="MaxExpenses"/> expenses.</summary>
+    public const string ExpensesTooMany = "An order can have at most 100 expenses.";
+
+    /// <summary>The machine code of an order expense id that is not on the order in the route.</summary>
+    public const string ExpenseNotFoundCode = "orders.expense-not-found";
+
+    /// <summary>The plain-English text for an order expense that is not on the order in the route.</summary>
+    public const string ExpenseNotFoundMessage = "This expense was not found on this order.";
+
+    /// <summary>The machine code of an add that would take the order above <see cref="MaxExpenses"/>.</summary>
+    public const string TooManyExpensesCode = "orders.too-many-expenses";
+
     /// <summary>The machine code of a payment id that is not on the order in the route.</summary>
     public const string PaymentNotFoundCode = "orders.payment-not-found";
 
@@ -346,8 +401,17 @@ public static class OrderRules
     /// <summary>The largest fixed discount.</summary>
     public static readonly decimal FixedDiscountMax = 1_000_000.00m;
 
+    /// <summary>The largest order expense amount (D-30).</summary>
+    public static readonly decimal ExpenseAmountMax = 1_000_000.00m;
+
     /// <summary>The largest payment amount (D-30).</summary>
     public static readonly decimal PaymentAmountMax = 1_000_000.00m;
+
+    /// <summary>Gets the 404 for an order expense id that is not on the order.</summary>
+    public static Error ExpenseNotFound { get; } = Error.NotFound(ExpenseNotFoundCode, ExpenseNotFoundMessage);
+
+    /// <summary>Gets the 422 for adding an order expense to an order that already has the most.</summary>
+    public static Error TooManyExpenses { get; } = Error.BusinessRule(TooManyExpensesCode, ExpensesTooMany);
 
     /// <summary>Gets the 404 for a payment id that is not on the order.</summary>
     public static Error PaymentNotFound { get; } = Error.NotFound(PaymentNotFoundCode, PaymentNotFoundMessage);
@@ -390,6 +454,12 @@ public static class OrderRules
     /// <param name="field">The member name, such as <see cref="ReceivedByField"/>.</param>
     /// <returns>The path.</returns>
     public static string PaymentPath(int? index, string field) => index is { } place ? $"{PaymentsField}[{place}].{field}" : field;
+
+    /// <summary>Builds the field path of an order expense member, for example <c>expenses[0].paidByUserId</c>, or just the member name for a single-expense form.</summary>
+    /// <param name="index">The zero-based place of the expense in a list; null for a single-expense form.</param>
+    /// <param name="field">The member name, such as <see cref="PaidByField"/>.</param>
+    /// <returns>The path.</returns>
+    public static string ExpensePath(int? index, string field) => index is { } place ? $"{ExpensesField}[{place}].{field}" : field;
 
     /// <summary>Builds the message for a payment above what may still be paid.</summary>
     /// <param name="allowed">The most the payment may be, in pesos.</param>
@@ -633,6 +703,59 @@ public static class OrderRules
         }
 
         return Result.Success(payment with { Reference = reference, Notes = notes });
+    }
+
+    /// <summary>
+    /// Checks and cleans one order expense, returning the first broken rule under the expense's path. The date may be any past day
+    /// and up to 30 days after the business today. Whether the category and the payer exist and may be chosen needs the database and
+    /// runs in the handlers.
+    /// </summary>
+    /// <param name="index">The zero-based place of the expense in a list, used in the field path; null for a single-expense form.</param>
+    /// <param name="expense">The expense as given.</param>
+    /// <param name="today">The business today.</param>
+    /// <returns>The expense with the description trimmed and an empty one turned into null, or a validation error naming the first broken field.</returns>
+    public static Result<NewOrderExpense> CheckExpense(int? index, NewOrderExpense expense, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(expense);
+
+        if (expense.OrderExpenseCategoryId == Guid.Empty)
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, ExpenseCategoryField), ExpenseCategoryRequired);
+        }
+
+        var latest = ExpenseRules.Latest(today);
+        if (expense.ExpenseDate > latest)
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, ExpenseDateField), ExpenseRules.DateTooFar(latest));
+        }
+
+        if (expense.Amount <= 0m)
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), ExpenseRules.AmountTooSmall);
+        }
+
+        if (expense.Amount > ExpenseAmountMax)
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), ExpenseRules.AmountTooLarge);
+        }
+
+        if (!HasValidScale(expense.Amount))
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), MoneyDecimals);
+        }
+
+        var description = Clean(expense.Description);
+        if (description is { Length: > ExpenseDescriptionMaxLength })
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, ExpenseDescriptionField), ExpenseRules.DescriptionTooLong);
+        }
+
+        if (expense.PaidByUserId == Guid.Empty)
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, PaidByField), PaidByRequired);
+        }
+
+        return Result.Success(expense with { Description = description });
     }
 
     /// <summary>Builds a validation error for one field.</summary>

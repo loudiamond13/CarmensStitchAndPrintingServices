@@ -38,7 +38,7 @@ public sealed class OrderModelTests(CspsDatabase database) : IClassFixture<CspsD
     {
         using var context = database.CreateContext();
 
-        foreach (var type in new[] { typeof(Csps.Domain.Orders.Order), typeof(Csps.Domain.Orders.OrderItem), typeof(Csps.Domain.Orders.OrderDiscount), typeof(Csps.Domain.Orders.OrderPayment), typeof(Csps.Domain.Orders.OrderStatusChange) })
+        foreach (var type in new[] { typeof(Csps.Domain.Orders.Order), typeof(Csps.Domain.Orders.OrderItem), typeof(Csps.Domain.Orders.OrderDiscount), typeof(Csps.Domain.Orders.OrderPayment), typeof(Csps.Domain.Orders.OrderExpense), typeof(Csps.Domain.Orders.OrderStatusChange) })
         {
             var entity = context.Model.FindEntityType(type).ShouldNotBeNull();
             entity.GetDeclaredQueryFilters().Select(filter => filter.Key).ShouldBe(["SoftDelete"], type.Name);

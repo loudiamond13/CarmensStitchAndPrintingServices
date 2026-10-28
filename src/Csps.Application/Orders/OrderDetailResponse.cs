@@ -65,6 +65,31 @@ public sealed record OrderPaymentResponse(
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAt);
 
+/// <summary>One order expense (ORD-05, ORD-23). Paid by is who spent the money; recorded by is who typed the expense in.</summary>
+/// <param name="Id">The expense id.</param>
+/// <param name="ExpenseDate">The day of the expense.</param>
+/// <param name="Category">The order expense category, with its tone and whether it is retired.</param>
+/// <param name="Description">The description; null when none.</param>
+/// <param name="Amount">The amount in pesos.</param>
+/// <param name="PaidBy">The staff member who paid; the name is kept for a deleted person.</param>
+/// <param name="PaidByActive">True while the payer can still be chosen (ORD-23, D-32).</param>
+/// <param name="RecordedBy">Who added it; null reads as System.</param>
+/// <param name="RecordedAt">When it was added.</param>
+/// <param name="LastChangedBy">Who last changed it; null until an edit.</param>
+/// <param name="LastChangedAt">When it was last changed; null until an edit.</param>
+public sealed record OrderExpenseResponse(
+    Guid Id,
+    DateOnly ExpenseDate,
+    OrderListRef Category,
+    string? Description,
+    decimal Amount,
+    ActorRef PaidBy,
+    bool PaidByActive,
+    ActorRef? RecordedBy,
+    DateTimeOffset RecordedAt,
+    ActorRef? LastChangedBy,
+    DateTimeOffset? LastChangedAt);
+
 /// <summary>One row of the status history (ORD-16, D-06).</summary>
 /// <param name="From">The status the order left; null for the first row.</param>
 /// <param name="To">The status the order entered.</param>
@@ -114,6 +139,7 @@ public sealed record OrderTotalsResponse(
 /// <param name="Items">The lines, in order.</param>
 /// <param name="Discounts">The discounts, in the order they were added.</param>
 /// <param name="Payments">The payments, oldest payment date first.</param>
+/// <param name="Expenses">The order expenses, oldest expense date first.</param>
 /// <param name="StatusHistory">The status history, oldest first.</param>
 /// <param name="Totals">The money figures.</param>
 /// <param name="RecordedBy">Who created it; null reads as System.</param>
@@ -137,6 +163,7 @@ public sealed record OrderDetailResponse(
     IReadOnlyList<OrderItemResponse> Items,
     IReadOnlyList<OrderDiscountResponse> Discounts,
     IReadOnlyList<OrderPaymentResponse> Payments,
+    IReadOnlyList<OrderExpenseResponse> Expenses,
     IReadOnlyList<OrderStatusChangeResponse> StatusHistory,
     OrderTotalsResponse Totals,
     ActorRef? RecordedBy,

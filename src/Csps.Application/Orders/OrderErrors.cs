@@ -50,4 +50,10 @@ public static class OrderErrors
 
     /// <summary>Gets the 422 for adding a payment to an order that already has 100.</summary>
     public static Error TooManyPayments => OrderRules.TooManyPayments;
+
+    /// <summary>Gets the 404 for an order expense id that is not on the order in the route (CWE-639).</summary>
+    public static Error ExpenseNotFound => OrderRules.ExpenseNotFound;
+
+    /// <summary>Gets the 422 for adding an order expense to an order that already has 100.</summary>
+    public static Error TooManyExpenses => OrderRules.TooManyExpenses;
 }

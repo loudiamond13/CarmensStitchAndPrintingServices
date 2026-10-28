@@ -192,6 +192,23 @@ public static class OrderAuditDetail
             AuditDetailFormat.Change("receiver", receiver.From, receiver.To));
     }
 
+    /// <summary>The detail of <c>order-expense.added</c>: the expense id, date, amount, category and payer, never the description.</summary>
+    /// <param name="expense">The expense that was added.</param>
+    /// <returns>For example <c>expense=&lt;id&gt;;date=2026-10-23;amount=3825.00;category=&lt;id&gt;;payer=&lt;id&gt;</c>.</returns>
+    public static string ExpenseAdded(OrderExpense expense) => ExpenseSnapshot(expense);
+
+    private static string ExpenseSnapshot(OrderExpense expense)
+    {
+        ArgumentNullException.ThrowIfNull(expense);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("expense", expense.Id),
+            AuditDetailFormat.Pair("date", expense.ExpenseDate),
+            AuditDetailFormat.Pair("amount", expense.Amount),
+            AuditDetailFormat.Pair("category", expense.OrderExpenseCategoryId),
+            AuditDetailFormat.Pair("payer", expense.PaidByUserId));
+    }
+
     private static string PaymentSnapshot(OrderPayment payment)
     {
         ArgumentNullException.ThrowIfNull(payment);

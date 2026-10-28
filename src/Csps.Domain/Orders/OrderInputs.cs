@@ -42,6 +42,14 @@ public sealed record NewOrderDiscount(DiscountKind Kind, decimal Value, string R
 /// <param name="ReceivedByUserId">The staff member who received the money.</param>
 public sealed record NewOrderPayment(DateOnly PaymentDate, decimal Amount, Guid PaymentMethodId, string? Reference, string? Notes, Guid ReceivedByUserId);
 
+/// <summary>One order expense of a new or saved order (ORD-05, ORD-23, D-30).</summary>
+/// <param name="ExpenseDate">The day of the expense; any past day, up to 30 days after the business today.</param>
+/// <param name="Amount">The amount in pesos, above 0.00 and at most 1,000,000.00, with at most two decimal places.</param>
+/// <param name="OrderExpenseCategoryId">The order expense category.</param>
+/// <param name="Description">A short description; empty means none.</param>
+/// <param name="PaidByUserId">The staff member who paid.</param>
+public sealed record NewOrderExpense(DateOnly ExpenseDate, decimal Amount, Guid OrderExpenseCategoryId, string? Description, Guid PaidByUserId);
+
 /// <summary>Everything a new order is made from.</summary>
 /// <param name="Details">The customer and date details.</param>
 /// <param name="Status">The status to start in; only an active status is allowed (D-22).</param>
@@ -53,4 +61,7 @@ public sealed record NewOrder(OrderDetails Details, OrderStatus Status, IReadOnl
 
     /// <summary>Gets the payments already received, none to <see cref="OrderRules.MaxPayments"/>; empty by default. Their sum may not pass the total.</summary>
     public IReadOnlyList<NewOrderPayment> Payments { get; init; } = [];
+
+    /// <summary>Gets the order expenses, none to <see cref="OrderRules.MaxExpenses"/>; empty by default.</summary>
+    public IReadOnlyList<NewOrderExpense> Expenses { get; init; } = [];
 }
