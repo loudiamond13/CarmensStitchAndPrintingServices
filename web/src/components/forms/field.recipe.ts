@@ -70,11 +70,12 @@ const inputStart = {
   prefix: tw('pl-2 tabular-nums'),
 } as const;
 
-/** End padding: `.csp-input` 12px; `.has-suffix .csp-input` 48px; `.csp-select select` 40px, no native arrow. */
+/** End padding: `.csp-input` 12px; `.has-suffix .csp-input` 48px; `.csp-select select` 40px, no native arrow, and it clips
+ * a long chosen option (WebKit would otherwise count its full width in the page; P5 long-text). */
 const inputEnd = {
   plain: tw('pr-3'),
   suffix: tw('pr-12'),
-  select: tw('cursor-pointer appearance-none pr-10'),
+  select: tw('cursor-pointer appearance-none overflow-hidden pr-10'),
 } as const;
 
 export interface FieldInputOptions {

@@ -98,10 +98,11 @@ export const tableFootRowClasses = clsx(tw('pg-phone:bg-surface-2'), rowCard);
 /**
  * `.s-rt td` and `.s-rt td::before` shared by every body and footer cell: 12px by 16px, middle-aligned; on phones a
  * flex row (label left, value right, 12px apart) whose `::before` writes the cell's `data-label` in the 11px 700 .1em
- * upper-case `--ink-muted` label look.
+ * upper-case `--ink-muted` label look. On phones a long value with no space (a name, an email) wraps anywhere inside
+ * the card; the label still wraps only between words.
  */
 export const cellSharedClasses = tw(
-  'px-4 py-3 align-middle pg-phone:flex pg-phone:items-center pg-phone:justify-between pg-phone:gap-3 pg-phone:before:text-left pg-phone:before:text-[11px] pg-phone:before:font-bold pg-phone:before:tracking-[.1em] pg-phone:before:text-ink-muted pg-phone:before:uppercase pg-phone:before:content-[attr(data-label)]',
+  'px-4 py-3 align-middle pg-phone:flex pg-phone:items-center pg-phone:justify-between pg-phone:gap-3 pg-phone:wrap-anywhere pg-phone:before:text-left pg-phone:before:text-[11px] pg-phone:before:font-bold pg-phone:before:tracking-[.1em] pg-phone:before:wrap-normal pg-phone:before:text-ink-muted pg-phone:before:uppercase pg-phone:before:content-[attr(data-label)]',
 );
 
 /** `.s-rt td` 1px `--line` rule below, dropped on the last row (`.s-rt tbody tr:last-child td`, D-38). */

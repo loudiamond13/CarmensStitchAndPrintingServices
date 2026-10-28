@@ -230,6 +230,27 @@ button.csp-nav {
   overflow-wrap: anywhere;
 }
 
+/* P5 long-text fifth (quick 261028-2e4, 2026-10-28), phone list cards: a value with no space to break at (a 100-character
+   name, a long email) wraps anywhere inside its card instead of running past the card and scrolling the page sideways.
+   App. C lets it overflow (the long-name card's email runs off the right edge). The cell's label keeps wrapping only
+   between words. */
+@container pg (max-width: 767px) {
+  .s-rt td {
+    overflow-wrap: anywhere;
+  }
+
+  .s-rt td::before {
+    overflow-wrap: normal;
+  }
+}
+
+/* P5 long-text sixth (quick 261028-2e4, 2026-10-28), a select clips its chosen option, so a 100-character name stays inside
+   the box. WebKit otherwise counts the option's full width and the page scrolls sideways (1682px at 320px). The native
+   control already cuts the text at its box, so nothing visible changes. */
+.csp-select select {
+  overflow: hidden;
+}
+
 /* O-6 (D-31) reduced motion stops the skeleton shimmer and the modal and toast entry animations (the overlay fade is
    part of the modal entry). The spinner keeps App. B's own slowed reduced-motion rule. */
 @media (prefers-reduced-motion: reduce) {
