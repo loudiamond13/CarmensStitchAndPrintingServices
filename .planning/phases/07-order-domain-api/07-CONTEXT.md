@@ -1,6 +1,6 @@
 # Phase 7: Order Domain & API - Context
 
-*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T16:30:00-05:00*
+*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T17:40:00-05:00*
 
 **Gathered:** 2026-10-27
 **Status:** Ready for planning
@@ -94,6 +94,7 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 - **D-40:** **The discount cap stays in the domain only for now.** No database check on `Orders` (such as discount total at most subtotal) is added in Phase 7. Revisit after Phase 7.1 measures the legacy rows. **The discount messages in `OrderRules.cs` are approved as written** (07-10), so Phase 8 mirrors them in zod. (owner, 2026-10-28)
 - **D-41:** **The payment messages in `OrderRules.cs` are approved as written** (07-11), so Phase 8 mirrors them in zod. **A payment may be dated before the order date.** The only payment-date rule stays "not in the future" (D-30). (owner, 2026-10-28)
 - **D-42:** **The order expense messages in `OrderRules.cs` are approved as written** (07-12). **The payer audit stays as built:** `order-expense.changed` shows the current payer and a payer change also writes its own `order-expense.payer-changed` entry (old > new), the same shape as payments. (owner, 2026-10-28)
+- **D-43:** **The refund "not allowed" check applies to adding a refund only.** On an active order, an existing refund can still be lowered or removed after it cleared the credit; removing it brings the credit back. **The refund messages in `OrderRules.cs` are approved as written** (07-14). (owner, 2026-10-28)
 
 ### Carried forward (not re-asked)
 - **No overpayment by payment** (OD-4, 2026-10-13).

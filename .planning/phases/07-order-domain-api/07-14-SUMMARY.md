@@ -4,7 +4,7 @@ plan: 14
 subsystem: api
 tags: [orders, refunds, customer-credit, cancelled-order, profit, lock-exception, race, audit, migration, openapi]
 created: "2026-10-28T16:58:00-05:00"
-updated: "2026-10-28T16:58:00-05:00"
+updated: "2026-10-28T17:40:00-05:00"
 
 requires:
   - phase: 07-order-domain-api
@@ -298,6 +298,8 @@ See key-decisions above. The ones the owner should know about: the not-allowed r
 - The working tree stores files with CRLF; a script I wrote with LF first missed its anchor. I switched it to text mode.
 
 ## Deferred Issues
+
+**Owner ruling D-43 (2026-10-28):** the refund behaviour calls stand as built (lower or remove after credit is cleared is allowed), and the refund messages are approved as written.
 
 - **For the owner: new wording to approve.** The plan spelled out these sentences and they are used as written: "A refund can be recorded only on a cancelled order or one with a customer credit.", "This is more than the customer credit. Enter ₱{credit} or less.", "This is more than was paid and not yet refunded. Enter ₱{kept} or less.", "The refund date can't be in the future.", "Add a short reason for the refund.", "Choose who handed the money back." These I wrote in the same plain style as the 07-10 to 07-12 messages and need a look:
   - "Enter the refund date." (missing date)
