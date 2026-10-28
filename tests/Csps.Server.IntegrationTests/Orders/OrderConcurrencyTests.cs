@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Application.Security;
+using Csps.Domain.Orders;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -351,6 +352,46 @@ public sealed class OrderConcurrencyTests(CspsDatabase database) : IClassFixture
                 row => row.Action == "order-refund.added" && row.TargetId == id.ToString("D"),
                 TestContext.Current.CancellationToken);
             added.ShouldBe(1, $"round {round}: the winner, never the loser");
+        }
+    }
+
+    [Fact]
+    public async Task ASoftDeleteRacingAnItemAddNeverLeavesADeletedOrderWithANewItemAfterTheDeleteEntry()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var m1 = await TestSessions.StartAsync(factory, Roles.Manager);
+        var m2 = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+
+        for (var round = 1; round <= Repetitions; round++)
+        {
+            var created = await OrderFixtures.CreateAsync(client, m1.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+            var id = created.GetProperty("id").GetGuid();
+            var version = created.GetProperty("version").GetString();
+
+            var (deleteResponse, addResponse) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.DeleteAsync(client, m1.AccessToken, id),
+                () => OrderFixtures.AddItemAsync(client, m2.AccessToken, id, OrderFixtures.ItemBody(OrderFixtures.PoloId, version)));
+            using var deleted = deleteResponse;
+            using var added = addResponse;
+
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent, $"round {round}: the delete wins or applies on the latest state");
+            new[] { HttpStatusCode.OK, HttpStatusCode.NotFound, HttpStatusCode.Conflict }.ShouldContain(added.StatusCode, $"round {round}: {added.StatusCode}");
+            (await OrderFixtures.GetAsync(client, m1.AccessToken, id)).StatusCode.ShouldBe(HttpStatusCode.NotFound, $"round {round}");
+
+            await using var context = database.CreateContext();
+            var token = TestContext.Current.CancellationToken;
+            var items = await context.Set<OrderItem>().IgnoreQueryFilters(["SoftDelete"]).CountAsync(row => row.OrderId == id, token);
+            items.ShouldBe(added.StatusCode == HttpStatusCode.OK ? 2 : 1, $"round {round}: {added.StatusCode}");
+            var entries = await context.AuditLog.AsNoTracking()
+                .Where(row => row.TargetId == id.ToString("D") && (row.Action == "order.deleted" || row.Action == "order-item.added"))
+                .OrderBy(row => row.Id)
+                .Select(row => row.Action)
+                .ToListAsync(token);
+            entries.ShouldBe(
+                added.StatusCode == HttpStatusCode.OK ? ["order-item.added", "order.deleted"] : ["order.deleted"],
+                $"round {round}: an item is added before the delete entry or not at all");
         }
     }
 

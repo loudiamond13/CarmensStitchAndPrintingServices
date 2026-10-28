@@ -154,6 +154,138 @@ public sealed class OrderDeletionTests(CspsDatabase database) : IClassFixture<Cs
         (await ChildRowCountsAsync(id)).Orders.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task ADeletedOrdersChildrenAndMoneyLeaveEveryDefaultReadAndComeBackOnRestore()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await CancelledWithRefundAsync(client, admin, manager, today);
+        var id = order.GetProperty("id").GetGuid();
+        var expected = new ChildRows(1, 5, 1, 2, 3, 1, 2);
+        (await DefaultRowCountsAsync(id)).ShouldBe(expected);
+
+        using var deleted = await OrderFixtures.DeleteAsync(client, manager.AccessToken, id);
+
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await DefaultRowCountsAsync(id)).ShouldBe(new ChildRows(0, 0, 0, 0, 0, 0, 0));
+        (await ChildRowCountsAsync(id)).ShouldBe(expected);
+        await using (var context = database.CreateContext())
+        {
+            var token = TestContext.Current.CancellationToken;
+            (await context.Set<OrderPayment>().Where(row => row.OrderId == id).SumAsync(row => row.Amount, token)).ShouldBe(0m);
+            (await context.Set<OrderExpense>().Where(row => row.OrderId == id).SumAsync(row => row.Amount, token)).ShouldBe(0m);
+            (await context.Set<OrderRefund>().Where(row => row.OrderId == id).SumAsync(row => row.Amount, token)).ShouldBe(0m);
+        }
+
+        using var restored = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id);
+
+        restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await DefaultRowCountsAsync(id)).ShouldBe(expected);
+        var back = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        back.GetProperty("totals").GetProperty("refunded").GetDecimal().ShouldBe(3000.00m);
+        back.GetProperty("totals").GetProperty("paid").GetDecimal().ShouldBe(12000.00m);
+    }
+
+    [Fact]
+    public async Task EveryRouteForADeletedOrderAnswers404OrdersNotFound()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await CancelledWithRefundAsync(client, admin, manager, today);
+        var id = order.GetProperty("id").GetGuid();
+        var version = order.GetProperty("version").GetString();
+        var itemId = order.GetProperty("items")[0].GetProperty("id").GetGuid();
+        var discountId = order.GetProperty("discounts")[0].GetProperty("id").GetGuid();
+        var paymentId = order.GetProperty("payments")[0].GetProperty("id").GetGuid();
+        var expenseId = order.GetProperty("expenses")[0].GetProperty("id").GetGuid();
+        var refundId = order.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+        var details = OrderFixtures.DetailsBodyFrom(order);
+        details["notes"] = "Changed on a deleted order";
+        using (var deleted = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        var requests = new (string Name, Func<Task<HttpResponseMessage>> Send)[]
+        {
+            ("GET", () => OrderFixtures.GetAsync(client, admin.AccessToken, id)),
+            ("PUT details", () => OrderFixtures.PutDetailsAsync(client, admin.AccessToken, id, details)),
+            ("POST status", () => OrderFixtures.ChangeStatusAsync(client, manager.AccessToken, id, OrderFixtures.StatusBody("pending"))),
+            ("POST item", () => OrderFixtures.AddItemAsync(client, admin.AccessToken, id, OrderFixtures.ItemBody(OrderFixtures.PoloId, version))),
+            ("PUT item", () => OrderFixtures.PutItemAsync(client, admin.AccessToken, id, itemId, OrderFixtures.ItemBody(OrderFixtures.PoloId, version, "Changed"))),
+            ("DELETE item", () => OrderFixtures.DeleteItemAsync(client, admin.AccessToken, id, itemId)),
+            ("POST discount", () => OrderFixtures.AddDiscountAsync(client, admin.AccessToken, id, OrderFixtures.DiscountBody("fixed", 10m, "Late", version))),
+            ("PUT discount", () => OrderFixtures.PutDiscountAsync(client, admin.AccessToken, id, discountId, OrderFixtures.DiscountBody("fixed", 10m, "Changed", version))),
+            ("DELETE discount", () => OrderFixtures.DeleteDiscountAsync(client, admin.AccessToken, id, discountId)),
+            ("POST payment", () => OrderFixtures.AddPaymentAsync(client, admin.AccessToken, id, OrderFixtures.PaymentBody(today, 1m, OrderFixtures.CashId, admin.UserId, version))),
+            ("PUT payment", () => OrderFixtures.PutPaymentAsync(client, admin.AccessToken, id, paymentId, OrderFixtures.PaymentBody(today, 5m, OrderFixtures.CashId, admin.UserId, version))),
+            ("DELETE payment", () => OrderFixtures.DeletePaymentAsync(client, admin.AccessToken, id, paymentId)),
+            ("POST expense", () => OrderFixtures.AddExpenseAsync(client, admin.AccessToken, id, OrderFixtures.ExpenseBody(today, OrderFixtures.FabricId, null, 1m, admin.UserId, version))),
+            ("PUT expense", () => OrderFixtures.PutExpenseAsync(client, admin.AccessToken, id, expenseId, OrderFixtures.ExpenseBody(today, OrderFixtures.FabricId, "Changed", 2m, admin.UserId, version))),
+            ("DELETE expense", () => OrderFixtures.DeleteExpenseAsync(client, admin.AccessToken, id, expenseId)),
+            ("POST refund", () => OrderFixtures.AddRefundAsync(client, admin.AccessToken, id, OrderFixtures.RefundBody(today, 1m, "Late", manager.UserId, version))),
+            ("PUT refund", () => OrderFixtures.PutRefundAsync(client, admin.AccessToken, id, refundId, OrderFixtures.RefundBody(today, 2m, "Changed", manager.UserId, version))),
+            ("DELETE refund", () => OrderFixtures.DeleteRefundAsync(client, admin.AccessToken, id, refundId)),
+            ("DELETE order again", () => OrderFixtures.DeleteAsync(client, admin.AccessToken, id)),
+        };
+
+        foreach (var (name, send) in requests)
+        {
+            using var response = await send();
+
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound, name);
+            (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.not-found", name);
+        }
+
+        (await ChildRowCountsAsync(id)).ShouldBe(new ChildRows(1, 5, 1, 2, 3, 1, 2));
+    }
+
+    [Fact]
+    public async Task DeleteAndRestoreEachWriteOneEntryWithTheDocumentedKeysAndRepeatsWriteNone()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.Ord0148FullBody(today, admin.UserId, manager.UserId));
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString()!;
+        var snapshot = $"number={number};status=pending;total=21327.50;paid=12000.00;balance=9327.50";
+        var key = Guid.NewGuid();
+
+        using var firstDelete = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id);
+        using var secondDelete = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id);
+        using var firstRestore = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id, key);
+        using var sameKeyRestore = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id, key);
+        using var liveRestore = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id);
+
+        firstDelete.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        secondDelete.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        firstRestore.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        sameKeyRestore.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        liveRestore.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        await using var context = database.CreateContext();
+        var rows = await context.AuditLog.AsNoTracking()
+            .Where(row => row.TargetId == id.ToString("D") && (row.Action == "order.deleted" || row.Action == "order.restored"))
+            .OrderBy(row => row.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Action).ShouldBe(["order.deleted", "order.restored"]);
+        rows.ShouldAllBe(row => row.TargetType == "Order" && row.Detail == snapshot);
+        rows[0].ActorUserId.ShouldBe(admin.UserId);
+        rows[1].ActorUserId.ShouldBe(manager.UserId);
+        foreach (var secret in new[] { "Juan", "Dela Cruz", "Ballers", "0917", "juan.dc", "Brgy" })
+        {
+            snapshot.ShouldNotContain(secret, Case.Insensitive);
+        }
+    }
+
     private static async Task<JsonElement> CancelledWithRefundAsync(HttpClient client, StartedSession admin, StartedSession manager, DateOnly today)
     {
         var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.Ord0148FullBody(today, admin.UserId, manager.UserId));
@@ -175,6 +307,20 @@ public sealed class OrderDeletionTests(CspsDatabase database) : IClassFixture<Cs
             await context.Set<OrderStatusChange>().IgnoreQueryFilters(["SoftDelete"]).CountAsync(row => row.OrderId == id, token));
     }
 
-    // Row counts for one order, with the SoftDelete filter lifted: the order, items, discounts, payments, expenses, refunds and history.
+    private async Task<ChildRows> DefaultRowCountsAsync(Guid id)
+    {
+        await using var context = database.CreateContext();
+        var token = TestContext.Current.CancellationToken;
+        return new ChildRows(
+            await context.Orders.CountAsync(row => row.Id == id, token),
+            await context.Set<OrderItem>().CountAsync(row => row.OrderId == id, token),
+            await context.Set<OrderDiscount>().CountAsync(row => row.OrderId == id, token),
+            await context.Set<OrderPayment>().CountAsync(row => row.OrderId == id, token),
+            await context.Set<OrderExpense>().CountAsync(row => row.OrderId == id, token),
+            await context.Set<OrderRefund>().CountAsync(row => row.OrderId == id, token),
+            await context.Set<OrderStatusChange>().CountAsync(row => row.OrderId == id, token));
+    }
+
+    // Row counts for one order: the order, items, discounts, payments, expenses, refunds and history.
     private sealed record ChildRows(int Orders, int Items, int Discounts, int Payments, int Expenses, int Refunds, int History);
 }
