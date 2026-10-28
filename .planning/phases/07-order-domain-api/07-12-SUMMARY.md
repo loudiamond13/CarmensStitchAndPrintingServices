@@ -4,7 +4,7 @@ plan: 12
 subsystem: api
 tags: [orders, order-expenses, payer, profit, create-body, optimistic-concurrency, audit, migration, openapi]
 created: "2026-10-28T15:35:00-05:00"
-updated: "2026-10-28T15:35:00-05:00"
+updated: "2026-10-28T16:30:00-05:00"
 
 requires:
   - phase: 07-order-domain-api
@@ -295,6 +295,7 @@ None. No bug was found in earlier code and nothing needed a fix outside this pla
 - `Csps.Infrastructure.IntegrationTests` reports one skipped test; it is not in code this plan touched.
 
 ## Deferred Issues
+**Owner ruling D-42 (2026-10-28):** the three new expense messages are approved as written, and the payer audit stays as built.
 
 - **For the owner: wording of the three new expense messages.** The plan fixed the date, category and payer sentences, and the date, amount, description, category and payer sentences are the Phase 6 company expense ones. Three sentences are new, written in the same plain style as the 07-10 and 07-11 messages. Phase 8 mirrors them in zod:
   - "Fill in this expense." (an empty slot in the create list)

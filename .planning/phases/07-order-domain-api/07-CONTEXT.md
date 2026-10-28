@@ -1,6 +1,6 @@
 # Phase 7: Order Domain & API - Context
 
-*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T15:20:00-05:00*
+*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T16:30:00-05:00*
 
 **Gathered:** 2026-10-27
 **Status:** Ready for planning
@@ -93,6 +93,7 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 - **D-39:** **The drafted requirement and roadmap wording in `07-AMENDMENTS.md` is approved as drafted (approve-all).** It is applied to ORD-05, ORD-06, ORD-13, ORD-17, ORD-18 and MONEY-01, the Phase 7 notes line under the roadmap success criteria (including the clause that criterion 2's "overpayment rule across all mutation types" is superseded by D-12), and Phase 7.1 "Legacy Fit Check (read-only)" is inserted (D-33). **Left open on purpose:** whether refunds on a soft-deleted order count toward money on hand. No wording was added; it is parked in the STATE.md Owner backlog for when the money-on-hand reports are planned. (owner, 2026-10-28)
 - **D-40:** **The discount cap stays in the domain only for now.** No database check on `Orders` (such as discount total at most subtotal) is added in Phase 7. Revisit after Phase 7.1 measures the legacy rows. **The discount messages in `OrderRules.cs` are approved as written** (07-10), so Phase 8 mirrors them in zod. (owner, 2026-10-28)
 - **D-41:** **The payment messages in `OrderRules.cs` are approved as written** (07-11), so Phase 8 mirrors them in zod. **A payment may be dated before the order date.** The only payment-date rule stays "not in the future" (D-30). (owner, 2026-10-28)
+- **D-42:** **The order expense messages in `OrderRules.cs` are approved as written** (07-12). **The payer audit stays as built:** `order-expense.changed` shows the current payer and a payer change also writes its own `order-expense.payer-changed` entry (old > new), the same shape as payments. (owner, 2026-10-28)
 
 ### Carried forward (not re-asked)
 - **No overpayment by payment** (OD-4, 2026-10-13).
