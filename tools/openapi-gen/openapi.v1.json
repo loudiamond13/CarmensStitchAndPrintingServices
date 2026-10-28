@@ -2428,6 +2428,126 @@
         ],
         "type": "object"
       },
+      "OrderListEntryDetailResponse": {
+        "description": "One order list entry with its usage count, who recorded and last changed it, and the version a save must send back (D-19, SEC-07).",
+        "properties": {
+          "id": {
+            "description": "The entry id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isOthers": {
+            "description": "True only for the protected order expense Others.",
+            "type": "boolean"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until a change."
+              }
+            ]
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System (the seeded entries)."
+              }
+            ]
+          },
+          "status": {
+            "description": "`active` or `retired`.",
+            "type": "string"
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": "string"
+          },
+          "useCount": {
+            "description": "How many rows use the entry, soft-deleted orders included; an entry with none can be deleted.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tone",
+          "status",
+          "isOthers",
+          "useCount",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt",
+          "version"
+        ],
+        "type": "object"
+      },
+      "OrderListEntryRequest": {
+        "description": "The add and edit forms of an order list entry (D-19, SEC-07). Any other member in the body is ignored: who added or changed the\nentry and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "name": {
+            "description": "The name; required after trimming, at most 40 characters, unique in its list ignoring letter case. The order expense Others keeps its name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tone": {
+            "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the edit form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "tone",
+          "version"
+        ],
+        "type": "object"
+      },
       "OrderListItem": {
         "description": "One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19).",
         "properties": {
@@ -9066,6 +9186,159 @@
           }
         },
         "summary": "Lists every product type, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`) and `isOthers`, which is always false for product types.",
+        "tags": [
+          "ProductTypes"
+        ]
+      },
+      "post": {
+        "operationId": "CreateProductType",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Adds a product type, Managers only. The name is required, at most 40 characters and unique among all product types, retired\nones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Staff can pick the new type on an order at once. Who added it and when come from the token\nand the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored 201 and adds nothing more.",
+        "tags": [
+          "ProductTypes"
+        ]
+      }
+    },
+    "/api/v1/product-types/{id}": {
+      "get": {
+        "operationId": "GetProductType",
+        "parameters": [
+          {
+            "description": "The product type id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one product type with how many order items use it, who recorded and last changed it, and the version a save must send back. Managers only.",
         "tags": [
           "ProductTypes"
         ]

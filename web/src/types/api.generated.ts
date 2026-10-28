@@ -990,6 +990,30 @@ export interface paths {
          */
         get: operations["ListProductTypes"];
         put?: never;
+        /**
+         * Adds a product type, Managers only. The name is required, at most 40 characters and unique among all product types, retired
+         *     ones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Staff can pick the new type on an order at once. Who added it and when come from the token
+         *     and the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored 201 and adds nothing more.
+         */
+        post: operations["CreateProductType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one product type with how many order items use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetProductType"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2405,6 +2429,53 @@ export interface components {
              * @description The order total in pesos.
              */
             total: number | string;
+        };
+        /** @description One order list entry with its usage count, who recorded and last changed it, and the version a save must send back (D-19, SEC-07). */
+        OrderListEntryDetailResponse: {
+            /**
+             * Format: uuid
+             * @description The entry id.
+             */
+            id: string;
+            /** @description True only for the protected order expense Others. */
+            isOthers: boolean;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until a change.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The display name. */
+            name: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description `active` or `retired`. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
+            /**
+             * Format: int32
+             * @description How many rows use the entry, soft-deleted orders included; an entry with none can be deleted.
+             */
+            useCount: number | string;
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
+        /**
+         * @description The add and edit forms of an order list entry (D-19, SEC-07). Any other member in the body is ignored: who added or changed the
+         *     entry and when come from the token and the clock (SEC-08).
+         */
+        OrderListEntryRequest: {
+            /** @description The name; required after trimming, at most 40 characters, unique in its list ignoring letter case. The order expense Others keeps its name. */
+            name: null | string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: null | string;
+            /** @description The base64 of the eight-byte row version the edit form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** @description One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19). */
         OrderListItem: {
@@ -6358,6 +6429,110 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
