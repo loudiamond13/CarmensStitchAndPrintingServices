@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T10:45:00-05:00
+updated: 2026-10-28T11:30:00-05:00
 ---
 
 # The orders API
@@ -9,8 +9,8 @@ This is the contract behind the Orders screens, and the one a future Android app
 The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page;
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
-[order-lists.md](order-lists.md). This page covers what exists today: creating an order and reading it back. Later plans add the
-list, update, item, payment, discount, expense, status and delete routes to this page.
+[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back and editing its details. Later plans add the
+list, item, payment, discount, expense, status and delete routes to this page.
 
 ## In plain words
 
@@ -30,6 +30,7 @@ list, update, item, payment, discount, expense, status and delete routes to this
 |---|---|---|---|
 | `POST /orders` | Staff | the order form below, with an `Idempotency-Key` | `201` the order, with `Location: /api/v1/orders/{id}`; `400` field errors; `409 orders.busy` |
 | `GET /orders/{id}` | Staff | none | `200` the order; `404 orders.not-found` |
+| `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale` |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
 read every order. No answer is ever cached (`Cache-Control: no-store`).
@@ -82,9 +83,34 @@ Every create takes the order number lock first, so two creates can never get the
 10 seconds) answers `409 orders.busy`, "Orders are being saved right now. Try again in a moment." Nothing was saved; send the
 form again.
 
+## Editing the details (`PUT /api/v1/orders/{id}`)
+
+This saves the customer details, the two dates and the notes of one order. Items, status, number and money figures are not
+changed here; each has its own route.
+
+| Field | Required | Rule |
+|---|---|---|
+| `customerName`, `teamName`, `contactNumber`, `email`, `address`, `orderDate`, `dueDate`, `notes` | as in the order form above | the same rules and the same messages as `POST /orders` |
+| `version` | yes | the `version` the form was opened with: base64 of eight bytes. Anything else is `400` on `version`, "Reload the form and try again." |
+
+- **The due date is required on every edit (D-22).** An imported order may have none, but it cannot be saved again until a due
+  date is entered.
+- **Any staff member may edit any order (D-25).** An Admin edits an order a Manager recorded, and the reverse. There is no
+  own-order rule and no `canEdit` flag.
+- **The version contract (ORD-08, SEC-07).** The `version` is the order's row version. If it is not the stored one, nothing is
+  saved and the answer is `409 edit.stale`, "This was changed by someone else. Reload and try again." The same answer comes when
+  two saves with the same version arrive together: exactly one wins and the other gets the `409`. The server never retries a
+  form save; the person reloads and decides.
+- **A save that changes nothing** answers `200`, keeps the `version`, writes no audit entry and leaves `lastChangedBy` and
+  `lastChangedAt` as they were. Text that differs only in spaces counts as no change.
+- **Who changed it (SEC-08).** After a real change `lastChangedBy` is the editor and `lastChangedAt` comes from the server
+  clock. `recordedBy` stays the person who created the order. Any attribution, `number`, `status`, `totals` or `items` member in
+  the body is ignored.
+- A deleted or unknown id is `404 orders.not-found`. A bad form lists every broken field in one `400`, as when creating.
+
 ## The order
 
-`POST` and `GET` answer the same shape:
+`POST`, `GET` and `PUT` answer the same shape:
 
 ```
 {
@@ -112,10 +138,13 @@ form again.
 
 A deleted or unknown order is the same `404 orders.not-found`, "This order was not found or was deleted."
 
-## The audit entry (D-31)
+## The audit entries (D-31)
 
 Each create writes one `order.created` entry for the order, in the same save: `number=<n>;status=<key>;orderDate=<date>;dueDate=<date>;items=<count>;total=<amount>`.
-It never holds the customer name, team, contact number, email, address or notes. The full list of order audit codes is in
+Each details edit that changes something writes one `order.changed` entry in the same save: `orderDate=<old>><new>` and
+`dueDate=<old>><new>` for the dates that changed, then `fields=` naming the customer details and notes that changed (for example
+`fields=customerName,notes`). An imported order that had no due date shows an empty old value: `dueDate=><new>`.
+Neither entry ever holds the customer name, team, contact number, email, address or notes. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
 
 ## What is stored (D-23, D-26)
