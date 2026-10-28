@@ -402,6 +402,54 @@ public sealed class OrderItemsEndpointTests(CspsDatabase database) : IClassFixtu
         (await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id)).GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
     }
 
+    [Fact]
+    public async Task ACutThatLeavesTheDiscountAboveTheNewSubtotalIsA422AndTheOrderIsUnchanged()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var itemId = created.GetProperty("items")[0].GetProperty("id").GetGuid();
+        var withDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "fixed", 9_000m);
+        var body = OrderFixtures.ItemBody(OrderFixtures.BasketballId, withDiscount.GetProperty("version").GetString(), "Jersey top", "S-XL", 10, 650.00m);
+
+        using var response = await OrderFixtures.PutItemAsync(client, manager.AccessToken, id, itemId, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("orders.discount-above-subtotal");
+        problem.GetProperty("detail").GetString().ShouldBe("The discounts would be more than the items total. Lower or remove a discount first.");
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        read.GetProperty("items")[0].GetProperty("quantity").GetInt32().ShouldBe(15);
+        read.GetProperty("totals").GetProperty("subtotal").GetDecimal().ShouldBe(9750.00m);
+        read.GetProperty("totals").GetProperty("discount").GetDecimal().ShouldBe(9000.00m);
+        read.GetProperty("version").GetString().ShouldBe(withDiscount.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task ARemovalThatLeavesTheDiscountAboveTheNewSubtotalIsA422AndTheItemStays()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var withTwo = await OrderFixtures.AddItemAndReadAsync(client, manager.AccessToken, created, OrderFixtures.PoloId);
+        var polo = withTwo.GetProperty("items")[1].GetProperty("id").GetGuid();
+        var withDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, withTwo, "fixed", 10_000m);
+
+        using var response = await OrderFixtures.DeleteItemAsync(client, manager.AccessToken, id, polo);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.discount-above-subtotal");
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        read.GetProperty("items").GetArrayLength().ShouldBe(2);
+        read.GetProperty("version").GetString().ShouldBe(withDiscount.GetProperty("version").GetString());
+    }
+
     private async Task SetRetiredAsync(Guid productTypeId, bool retired)
     {
         await using var context = database.CreateContext();

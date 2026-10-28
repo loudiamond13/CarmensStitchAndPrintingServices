@@ -80,4 +80,246 @@ public sealed class OrderDiscountsEndpointTests(CspsDatabase database) : IClassF
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe("orders.not-found");
     }
+
+    [Fact]
+    public async Task EditingTheValueFromFiveToTenPercentRecomputesTheDiscountTo2245()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+        var withDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "percentage", 5m);
+        var id = created.GetProperty("id").GetGuid();
+        var discountId = withDiscount.GetProperty("discounts")[0].GetProperty("id").GetGuid();
+
+        using var response = await OrderFixtures.PutDiscountAsync(
+            client,
+            admin.AccessToken,
+            id,
+            discountId,
+            OrderFixtures.DiscountBody("percentage", 10m, "Barangay league discount", withDiscount.GetProperty("version").GetString()));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        var saved = document.RootElement;
+        var discount = saved.GetProperty("discounts").EnumerateArray().ShouldHaveSingleItem();
+        discount.GetProperty("id").GetGuid().ShouldBe(discountId);
+        discount.GetProperty("value").GetDecimal().ShouldBe(10.00m);
+        discount.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+        discount.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        saved.GetProperty("totals").GetProperty("discount").GetDecimal().ShouldBe(2245.00m);
+        saved.GetProperty("totals").GetProperty("total").GetDecimal().ShouldBe(20205.00m);
+        saved.GetProperty("version").GetString().ShouldNotBe(withDiscount.GetProperty("version").GetString());
+        (await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id)).GetProperty("totals").GetProperty("balance").GetDecimal().ShouldBe(20205.00m);
+    }
+
+    [Fact]
+    public async Task RemovingTheDiscountBringsTheDiscountBackToZero()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+        var withDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "percentage", 5m);
+        var id = created.GetProperty("id").GetGuid();
+        var discountId = withDiscount.GetProperty("discounts")[0].GetProperty("id").GetGuid();
+
+        using var response = await OrderFixtures.DeleteDiscountAsync(client, manager.AccessToken, id, discountId);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        var saved = document.RootElement;
+        saved.GetProperty("discounts").GetArrayLength().ShouldBe(0);
+        saved.GetProperty("totals").GetProperty("discount").GetDecimal().ShouldBe(0.00m);
+        saved.GetProperty("totals").GetProperty("total").GetDecimal().ShouldBe(22450.00m);
+        saved.GetProperty("version").GetString().ShouldNotBe(withDiscount.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task ADiscountAboveTheItemsTotalIsA400OnValueAndTheOrderIsUnchanged()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+        var id = created.GetProperty("id").GetGuid();
+
+        using var response = await OrderFixtures.AddDiscountAsync(
+            client,
+            manager.AccessToken,
+            id,
+            OrderFixtures.DiscountBody("fixed", 30_000m, "Too big", created.GetProperty("version").GetString()));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "value").ShouldBe(["The discounts would be more than the items total. Lower or remove a discount first."]);
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        read.GetProperty("discounts").GetArrayLength().ShouldBe(0);
+        read.GetProperty("version").GetString().ShouldBe(created.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task AnEditThatWouldPassTheItemsTotalIsA400OnValueAndTheDiscountIsUnchanged()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+        var withDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "percentage", 5m);
+        var id = created.GetProperty("id").GetGuid();
+        var discountId = withDiscount.GetProperty("discounts")[0].GetProperty("id").GetGuid();
+
+        using var response = await OrderFixtures.PutDiscountAsync(
+            client,
+            manager.AccessToken,
+            id,
+            discountId,
+            OrderFixtures.DiscountBody("fixed", 22_450.01m, "Too big", withDiscount.GetProperty("version").GetString()));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "value").Count.ShouldBe(1);
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        read.GetProperty("discounts")[0].GetProperty("value").GetDecimal().ShouldBe(5.00m);
+        read.GetProperty("version").GetString().ShouldBe(withDiscount.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task ADiscountIdFromAnotherOrderIsNeverFoundOnEditOrRemove()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var first = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var second = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var firstWithDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, first, "fixed", 100m);
+        var foreignId = firstWithDiscount.GetProperty("discounts")[0].GetProperty("id").GetGuid();
+        var secondId = second.GetProperty("id").GetGuid();
+
+        using var edit = await OrderFixtures.PutDiscountAsync(
+            client,
+            manager.AccessToken,
+            secondId,
+            foreignId,
+            OrderFixtures.DiscountBody("fixed", 1m, "Hijack", second.GetProperty("version").GetString()));
+        using var remove = await OrderFixtures.DeleteDiscountAsync(client, manager.AccessToken, secondId, foreignId);
+
+        edit.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(edit, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.discount-not-found");
+        remove.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(remove, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.discount-not-found");
+        var firstRead = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, first.GetProperty("id").GetGuid());
+        firstRead.GetProperty("discounts")[0].GetProperty("value").GetDecimal().ShouldBe(100.00m);
+        (await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, secondId)).GetProperty("discounts").GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AStaleVersionOnAddOrEditIs409AndNothingIsStored()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var withDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "fixed", 100m);
+        var discountId = withDiscount.GetProperty("discounts")[0].GetProperty("id").GetGuid();
+        var oldVersion = created.GetProperty("version").GetString();
+
+        using var add = await OrderFixtures.AddDiscountAsync(client, manager.AccessToken, id, OrderFixtures.DiscountBody("fixed", 50m, "Second", oldVersion));
+        using var edit = await OrderFixtures.PutDiscountAsync(client, manager.AccessToken, id, discountId, OrderFixtures.DiscountBody("fixed", 60m, "Edited", oldVersion));
+
+        add.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ProblemJson.ReadAsync(add, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("edit.stale");
+        edit.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ProblemJson.ReadAsync(edit, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("edit.stale");
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        read.GetProperty("discounts").GetArrayLength().ShouldBe(1);
+        read.GetProperty("discounts")[0].GetProperty("value").GetDecimal().ShouldBe(100.00m);
+        read.GetProperty("version").GetString().ShouldBe(withDiscount.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task ATwentyFirstDiscountIsA422AndTheTwentiethIsAccepted()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = order.GetProperty("id").GetGuid();
+        for (var count = 1; count <= 20; count++)
+        {
+            order = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, order, "fixed", 1m, $"Discount {count}");
+        }
+
+        using var response = await OrderFixtures.AddDiscountAsync(
+            client,
+            manager.AccessToken,
+            id,
+            OrderFixtures.DiscountBody("fixed", 1m, "One too many", order.GetProperty("version").GetString()));
+
+        order.GetProperty("discounts").GetArrayLength().ShouldBe(20);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("orders.too-many-discounts");
+        problem.GetProperty("detail").GetString().ShouldBe("An order can have at most 20 discounts.");
+    }
+
+    [Fact]
+    public async Task AnEmptyBodyListsEveryRequiredFieldAndAnUnknownOrderIsA404OnEditAndRemove()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        using var empty = await OrderFixtures.AddDiscountAsync(client, manager.AccessToken, Guid.NewGuid(), new Dictionary<string, object?>());
+        using var edit = await OrderFixtures.PutDiscountAsync(client, manager.AccessToken, Guid.NewGuid(), Guid.NewGuid(), OrderFixtures.DiscountBody("fixed", 1m, "Reason", "AAAAAAAAH6Q="));
+        using var remove = await OrderFixtures.DeleteDiscountAsync(client, manager.AccessToken, Guid.NewGuid(), Guid.NewGuid());
+
+        empty.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.ErrorFields(await ProblemJson.ReadAsync(empty, TestContext.Current.CancellationToken)).ShouldBe(["kind", "reason", "value", "version"]);
+        edit.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        remove.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(remove, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.not-found");
+    }
+
+    [Fact]
+    public async Task TwoDiscountAddsWithTheSameVersionGiveExactlyOneWinnerEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var first = await TestSessions.StartAsync(factory, Roles.Manager);
+        var second = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, first.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        for (var round = 1; round <= 5; round++)
+        {
+            var opened = await OrderFixtures.ReadDetailAsync(client, first.AccessToken, id);
+            var version = opened.GetProperty("version").GetString();
+
+            var (a, b) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderFixtures.AddDiscountAsync(client, first.AccessToken, id, OrderFixtures.DiscountBody("fixed", 1m, $"First {round}", version)),
+                () => OrderFixtures.AddDiscountAsync(client, second.AccessToken, id, OrderFixtures.DiscountBody("fixed", 1m, $"Second {round}", version)));
+            using var aResponse = a;
+            using var bResponse = b;
+
+            var statuses = new[] { aResponse.StatusCode, bResponse.StatusCode };
+            statuses.Count(static status => status == HttpStatusCode.OK).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Count(static status => status == HttpStatusCode.Conflict).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            var stored = await OrderFixtures.ReadDetailAsync(client, first.AccessToken, id);
+            stored.GetProperty("discounts").GetArrayLength().ShouldBe(round, $"round {round}: exactly one new discount");
+            stored.GetProperty("totals").GetProperty("discount").GetDecimal().ShouldBe(round * 1.00m, $"round {round}");
+        }
+    }
 }

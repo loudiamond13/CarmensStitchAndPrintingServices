@@ -246,6 +246,59 @@ internal static class OrderFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Puts the edit form of one discount.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="discountId">The discount id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PutDiscountAsync(HttpClient client, string? accessToken, Guid orderId, Guid discountId, object? body)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Put, $"{Route}/{orderId:D}/discounts/{discountId:D}", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Removes one discount.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="discountId">The discount id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteDiscountAsync(HttpClient client, string? accessToken, Guid orderId, Guid discountId)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{orderId:D}/discounts/{discountId:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Adds a discount, expects a 200 and returns the whole order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="order">The order as the last answer carried it; its version is sent.</param>
+    /// <param name="kind">The wire kind.</param>
+    /// <param name="value">The value.</param>
+    /// <param name="reason">The reason.</param>
+    /// <returns>The JSON body of the order after the add.</returns>
+    public static async Task<JsonElement> AddDiscountAndReadAsync(HttpClient client, string accessToken, JsonElement order, string kind, decimal value, string reason = "Barangay league discount")
+    {
+        using var response = await AddDiscountAsync(
+            client,
+            accessToken,
+            order.GetProperty("id").GetGuid(),
+            DiscountBody(kind, value, reason, order.GetProperty("version").GetString()));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
