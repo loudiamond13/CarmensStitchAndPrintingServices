@@ -98,6 +98,19 @@ public static class OrderAuditDetail
         return AuditDetailFormat.Join([.. parts]);
     }
 
+    /// <summary>The detail of <c>order-discount.added</c>: the discount id, kind and value, never the reason.</summary>
+    /// <param name="discount">The discount that was added.</param>
+    /// <returns>For example <c>discount=&lt;id&gt;;kind=percentage;value=5.00</c>.</returns>
+    public static string DiscountAdded(OrderDiscount discount)
+    {
+        ArgumentNullException.ThrowIfNull(discount);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("discount", discount.Id),
+            AuditDetailFormat.Pair("kind", DiscountKindNames.ToKey(discount.Kind)),
+            AuditDetailFormat.Pair("value", discount.Value));
+    }
+
     private static string ItemSnapshot(OrderItem item)
     {
         ArgumentNullException.ThrowIfNull(item);

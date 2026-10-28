@@ -49,6 +49,49 @@
         ],
         "type": "object"
       },
+      "AddOrderDiscountRequest": {
+        "description": "The Add Discount form on a saved order (D-15, ORD-05). It carries the order's version as the form was opened. Any other member in\nthe body, such as a forged `createdById`, is ignored: who added the discount and when come from the token and the clock\n(SEC-08).",
+        "properties": {
+          "kind": {
+            "description": "The kind: `fixed` or `percentage`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "description": "Why the discount is given.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "description": "The peso amount (fixed) or the percent (percentage).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "reason",
+          "version"
+        ],
+        "type": "object"
+      },
       "AddOrderItemRequest": {
         "description": "The Add Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in\nthe body, such as a forged `createdById` or `lineTotal`, is ignored: who added the item and when come from the token and\nthe clock (SEC-08), and the line total is worked out by the server.",
         "properties": {
@@ -1357,6 +1400,13 @@
             "description": "The customer's name.",
             "type": "string"
           },
+          "discounts": {
+            "description": "The discounts, in the order they were added.",
+            "items": {
+              "$ref": "#/components/schemas/OrderDiscountResponse"
+            },
+            "type": "array"
+          },
           "dueDate": {
             "description": "The day it is due.",
             "format": "date",
@@ -1481,6 +1531,7 @@
           "statusChangedAt",
           "notes",
           "items",
+          "discounts",
           "statusHistory",
           "totals",
           "recordedBy",
@@ -1488,6 +1539,79 @@
           "lastChangedBy",
           "lastChangedAt",
           "version"
+        ],
+        "type": "object"
+      },
+      "OrderDiscountResponse": {
+        "description": "One discount of an order (D-15, ORD-05).",
+        "properties": {
+          "id": {
+            "description": "The discount id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "description": "The kind key: fixed or percentage.",
+            "type": "string"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
+          "reason": {
+            "description": "Why the discount was given.",
+            "type": "string"
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System."
+              }
+            ]
+          },
+          "value": {
+            "description": "The peso amount (fixed) or the percent (percentage).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "value",
+          "reason",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt"
         ],
         "type": "object"
       },
@@ -5489,6 +5613,120 @@
         ]
       }
     },
+    "/api/v1/orders/{orderId}/discounts": {
+      "post": {
+        "operationId": "AddOrderDiscount",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderDiscountRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderDiscountRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderDiscountRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds a discount to a saved order with the order's version the form was opened with. The kind is `fixed` (a value from\n0.01 to 1,000,000.00) or `percentage` (a value above 0 and up to 100), each with at most two decimal places, and the\nreason is 1 to 100 characters. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. The server works out the order's totals. Who added the discount and when come from the token and\nthe clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored answer and adds nothing more.",
+        "tags": [
+          "OrderDiscounts"
+        ]
+      }
+    },
     "/api/v1/orders/{orderId}/items": {
       "post": {
         "operationId": "AddOrderItem",
@@ -7766,6 +8004,9 @@
     },
     {
       "name": "Invite"
+    },
+    {
+      "name": "OrderDiscounts"
     },
     {
       "name": "OrderExpenseCategories"

@@ -1096,6 +1096,61 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderDiscount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_OrderDiscounts_CreatedById");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_OrderDiscounts_OrderId");
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_OrderDiscounts_UpdatedById");
+
+                    b.ToTable("OrderDiscounts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderDiscounts_Kind", "[Kind] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_OrderDiscounts_Value_Positive", "[Value] > 0");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2099,6 +2154,27 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderDiscount", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", "Order")
+                        .WithMany("Discounts")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -2213,6 +2289,8 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Csps.Domain.Orders.Order", b =>
                 {
+                    b.Navigation("Discounts");
+
                     b.Navigation("Items");
 
                     b.Navigation("StatusChanges");

@@ -19,6 +19,25 @@ public sealed record OrderListRef(Guid Id, string Name, string Tone, bool Retire
 /// <param name="LineTotal">The quantity times the unit price.</param>
 public sealed record OrderItemResponse(Guid Id, OrderListRef ProductType, string Description, string? SizeVariant, int Quantity, decimal UnitPrice, decimal LineTotal);
 
+/// <summary>One discount of an order (D-15, ORD-05).</summary>
+/// <param name="Id">The discount id.</param>
+/// <param name="Kind">The kind key: fixed or percentage.</param>
+/// <param name="Value">The peso amount (fixed) or the percent (percentage).</param>
+/// <param name="Reason">Why the discount was given.</param>
+/// <param name="RecordedBy">Who added it; null reads as System.</param>
+/// <param name="RecordedAt">When it was added.</param>
+/// <param name="LastChangedBy">Who last changed it; null until an edit.</param>
+/// <param name="LastChangedAt">When it was last changed; null until an edit.</param>
+public sealed record OrderDiscountResponse(
+    Guid Id,
+    string Kind,
+    decimal Value,
+    string Reason,
+    ActorRef? RecordedBy,
+    DateTimeOffset RecordedAt,
+    ActorRef? LastChangedBy,
+    DateTimeOffset? LastChangedAt);
+
 /// <summary>One row of the status history (ORD-16, D-06).</summary>
 /// <param name="From">The status the order left; null for the first row.</param>
 /// <param name="To">The status the order entered.</param>
@@ -66,6 +85,7 @@ public sealed record OrderTotalsResponse(
 /// <param name="StatusChangedAt">When the status last changed.</param>
 /// <param name="Notes">The notes; null when none.</param>
 /// <param name="Items">The lines, in order.</param>
+/// <param name="Discounts">The discounts, in the order they were added.</param>
 /// <param name="StatusHistory">The status history, oldest first.</param>
 /// <param name="Totals">The money figures.</param>
 /// <param name="RecordedBy">Who created it; null reads as System.</param>
@@ -87,6 +107,7 @@ public sealed record OrderDetailResponse(
     DateTimeOffset StatusChangedAt,
     string? Notes,
     IReadOnlyList<OrderItemResponse> Items,
+    IReadOnlyList<OrderDiscountResponse> Discounts,
     IReadOnlyList<OrderStatusChangeResponse> StatusHistory,
     OrderTotalsResponse Totals,
     ActorRef? RecordedBy,

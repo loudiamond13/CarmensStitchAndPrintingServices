@@ -56,6 +56,28 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var discountRows = await (
+            from discount in context.Set<OrderDiscount>().AsNoTracking()
+            where discount.OrderId == id
+            join recorderUser in context.Users on discount.CreatedById equals (Guid?)recorderUser.Id into recorders
+            from recorder in recorders.DefaultIfEmpty()
+            join changerUser in context.Users on discount.UpdatedById equals (Guid?)changerUser.Id into changers
+            from changer in changers.DefaultIfEmpty()
+            orderby discount.Position
+            select new
+            {
+                Discount = discount,
+                RecorderFirst = (string?)recorder.FirstName,
+                RecorderLast = (string?)recorder.LastName,
+                RecorderFormer = recorder.DeletedAtUtc != null,
+                ChangerId = (Guid?)changer.Id,
+                ChangerFirst = (string?)changer.FirstName,
+                ChangerLast = (string?)changer.LastName,
+                ChangerFormer = changer.DeletedAtUtc != null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var changes = await (
             from change in context.Set<OrderStatusChange>().AsNoTracking()
             where change.OrderId == id
@@ -90,6 +112,21 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
             order.StatusChangedAtUtc,
             order.Notes,
             items,
+            [
+                .. discountRows.Select(row => new OrderDiscountResponse(
+                    row.Discount.Id,
+                    DiscountKindNames.ToKey(row.Discount.Kind),
+                    row.Discount.Value,
+                    row.Discount.Reason,
+                    row.Discount.CreatedById is { } recordedBy && row.RecorderFirst is not null
+                        ? new ActorRef(recordedBy, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer)
+                        : null,
+                    row.Discount.CreatedAtUtc,
+                    row.ChangerId is { } changedBy && row.ChangerFirst is not null
+                        ? new ActorRef(changedBy, $"{row.ChangerFirst} {row.ChangerLast}", row.ChangerFormer)
+                        : null,
+                    row.Discount.UpdatedAtUtc)),
+            ],
             [
                 .. changes.Select(change => new OrderStatusChangeResponse(
                     change.FromStatus is { } from ? OrderStatusNames.ToKey(from) : null,

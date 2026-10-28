@@ -12,6 +12,7 @@ namespace Csps.Domain.Orders;
 public sealed class Order : IAttributedRecord, IEditVersioned
 {
     private readonly List<OrderItem> _items = [];
+    private readonly List<OrderDiscount> _discounts = [];
     private readonly List<OrderStatusChange> _statusChanges = [];
 
     // Used by EF Core (constructor binding) and by Create.
@@ -114,6 +115,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the items, in order.</summary>
     public IReadOnlyList<OrderItem> Items => _items;
+
+    /// <summary>Gets the discounts, in the order they were added.</summary>
+    public IReadOnlyList<OrderDiscount> Discounts => _discounts;
 
     /// <summary>Gets the status history rows loaded with the order.</summary>
     public IReadOnlyList<OrderStatusChange> StatusChanges => _statusChanges;
@@ -372,6 +376,31 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(item);
     }
 
+    /// <summary>
+    /// Adds one discount at the end of the list, checking every discount rule again. The totals are worked out again and the edit
+    /// version moves, so the order's row version guards the add (ORD-08).
+    /// </summary>
+    /// <param name="discount">The discount as given.</param>
+    /// <param name="now">The current instant, which makes the discount key and the new edit version.</param>
+    /// <returns>The new discount, or a validation error naming the first broken field.</returns>
+    public Result<OrderDiscount> AddDiscount(NewOrderDiscount discount, DateTimeOffset now)
+    {
+        var checkedDiscount = OrderRules.CheckDiscount(null, discount);
+        if (checkedDiscount.IsFailure)
+        {
+            return Result.Failure<OrderDiscount>(checkedDiscount.Error);
+        }
+
+        var added = BuildDiscount(this, checkedDiscount.Value, _discounts.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        _discounts.Add(added);
+        Recalculate();
+        Touch(now);
+        return Result.Success(added);
+    }
+
+    private static OrderDiscount BuildDiscount(Order order, NewOrderDiscount discount, int position, DateTimeOffset now) =>
+        new(Guid.CreateVersion7(now), order.Id, discount.Kind, discount.Value, discount.Reason, position) { Order = order };
+
     private static OrderItem BuildItem(Order order, NewOrderItem item, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, item.ProductTypeId, item.Description, item.SizeVariant, item.Quantity, item.UnitPrice, item.Quantity * item.UnitPrice, position) { Order = order };
 
@@ -383,13 +412,13 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
     }
 
-    // Writes the money snapshot from OrderMath, the one place money is worked out (ORD-20). Discounts, payments, refunds and
-    // expenses join the lists in later plans.
+    // Writes the money snapshot from OrderMath, the one place money is worked out (ORD-20). Payments, refunds and expenses join the
+    // lists in later plans.
     private void Recalculate()
     {
         var figures = OrderMath.Compute(
             [.. _items.Select(static item => new OrderMathItem(item.Quantity, item.UnitPrice))],
-            [],
+            [.. _discounts.Select(static discount => new OrderMathDiscount(discount.Kind, discount.Value))],
             [],
             [],
             [],

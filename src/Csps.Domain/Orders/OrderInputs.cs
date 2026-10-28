@@ -27,8 +27,18 @@ public sealed record OrderDetails(
 /// <param name="UnitPrice">The price of one, in pesos.</param>
 public sealed record NewOrderItem(Guid ProductTypeId, string Description, string? SizeVariant, int Quantity, decimal UnitPrice);
 
+/// <summary>One discount of a new or saved order (D-15, ORD-05).</summary>
+/// <param name="Kind">Fixed amount or percentage.</param>
+/// <param name="Value">The peso amount (fixed) or the percent (percentage), at most two decimal places.</param>
+/// <param name="Reason">Why the discount is given, 1 to <see cref="OrderRules.DiscountReasonMaxLength"/> characters.</param>
+public sealed record NewOrderDiscount(DiscountKind Kind, decimal Value, string Reason);
+
 /// <summary>Everything a new order is made from.</summary>
 /// <param name="Details">The customer and date details.</param>
 /// <param name="Status">The status to start in; only an active status is allowed (D-22).</param>
 /// <param name="Items">The lines, one to <see cref="OrderRules.MaxItems"/>.</param>
-public sealed record NewOrder(OrderDetails Details, OrderStatus Status, IReadOnlyList<NewOrderItem> Items);
+public sealed record NewOrder(OrderDetails Details, OrderStatus Status, IReadOnlyList<NewOrderItem> Items)
+{
+    /// <summary>Gets the discounts, none to <see cref="OrderRules.MaxDiscounts"/>; empty by default.</summary>
+    public IReadOnlyList<NewOrderDiscount> Discounts { get; init; } = [];
+}

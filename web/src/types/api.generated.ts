@@ -579,6 +579,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/discounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds a discount to a saved order with the order's version the form was opened with. The kind is `fixed` (a value from
+         *     0.01 to 1,000,000.00) or `percentage` (a value above 0 and up to 100), each with at most two decimal places, and the
+         *     reason is 1 to 100 characters. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a
+         *     form save is never retried. The server works out the order's totals. Who added the discount and when come from the token and
+         *     the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored answer and adds nothing more.
+         */
+        post: operations["AddOrderDiscount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/items": {
         parameters: {
             query?: never;
@@ -1117,6 +1141,24 @@ export interface components {
             name: string;
         };
         /**
+         * @description The Add Discount form on a saved order (D-15, ORD-05). It carries the order's version as the form was opened. Any other member in
+         *     the body, such as a forged `createdById`, is ignored: who added the discount and when come from the token and the clock
+         *     (SEC-08).
+         */
+        AddOrderDiscountRequest: {
+            /** @description The kind: `fixed` or `percentage`. */
+            kind: null | string;
+            /** @description Why the discount is given. */
+            reason: null | string;
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
          * @description The Add Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in
          *     the body, such as a forged `createdById` or `lineTotal`, is ignored: who added the item and when come from the token and
          *     the clock (SEC-08), and the line total is worked out by the server.
@@ -1633,6 +1675,8 @@ export interface components {
             contactNumber: null | string;
             /** @description The customer's name. */
             customerName: string;
+            /** @description The discounts, in the order they were added. */
+            discounts: components["schemas"]["OrderDiscountResponse"][];
             /**
              * Format: date
              * @description The day it is due.
@@ -1683,6 +1727,35 @@ export interface components {
             totals: components["schemas"]["OrderTotalsResponse"];
             /** @description The base64 of the eight-byte row version a save must send back. */
             version: string;
+        };
+        /** @description One discount of an order (D-15, ORD-05). */
+        OrderDiscountResponse: {
+            /**
+             * Format: uuid
+             * @description The discount id.
+             */
+            id: string;
+            /** @description The kind key: fixed or percentage. */
+            kind: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description Why the discount was given. */
+            reason: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: number | string;
         };
         /** @description One line of the New Order form (ORD-13). */
         OrderItemRequest: {
@@ -3994,6 +4067,72 @@ export interface operations {
                 "application/*+json": null | components["schemas"]["UpdateOrderDetailsRequest"];
                 "application/json": null | components["schemas"]["UpdateOrderDetailsRequest"];
                 "text/json": null | components["schemas"]["UpdateOrderDetailsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderDiscount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderDiscountRequest"];
+                "application/json": null | components["schemas"]["AddOrderDiscountRequest"];
+                "text/json": null | components["schemas"]["AddOrderDiscountRequest"];
             };
         };
         responses: {

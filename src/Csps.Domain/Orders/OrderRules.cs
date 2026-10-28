@@ -43,6 +43,15 @@ public static class OrderRules
     /// <summary>The most items one order may have.</summary>
     public const int MaxItems = 100;
 
+    /// <summary>The most discounts one order may have (D-15).</summary>
+    public const int MaxDiscounts = 20;
+
+    /// <summary>The largest percentage discount.</summary>
+    public const decimal PercentMax = 100m;
+
+    /// <summary>The longest discount reason.</summary>
+    public const int DiscountReasonMaxLength = 100;
+
     /// <summary>The most decimal places a money amount may have.</summary>
     public const int MoneyScale = 2;
 
@@ -93,6 +102,18 @@ public static class OrderRules
 
     /// <summary>The field name of an item's unit price.</summary>
     public const string UnitPriceField = "unitPrice";
+
+    /// <summary>The field name of the discount list.</summary>
+    public const string DiscountsField = "discounts";
+
+    /// <summary>The field name of a discount's kind.</summary>
+    public const string DiscountKindField = "kind";
+
+    /// <summary>The field name of a discount's value.</summary>
+    public const string DiscountValueField = "value";
+
+    /// <summary>The field name of a discount's reason.</summary>
+    public const string DiscountReasonField = "reason";
 
     /// <summary>The machine code of an order form that breaks field rules.</summary>
     public const string InvalidCode = "orders.invalid-request";
@@ -184,6 +205,45 @@ public static class OrderRules
     /// <summary>The message for a money amount with more than two decimal places.</summary>
     public const string MoneyDecimals = "Use at most 2 decimal places.";
 
+    /// <summary>The message for a discount that is missing from the list.</summary>
+    public const string DiscountRequired = "Fill in this discount.";
+
+    /// <summary>The message for a discount kind that is not fixed or percentage.</summary>
+    public const string DiscountKindInvalid = "Choose fixed or percentage.";
+
+    /// <summary>The message for a missing discount value.</summary>
+    public const string DiscountValueRequired = "Enter a discount value.";
+
+    /// <summary>The message for a fixed discount outside ₱0.01 to ₱1,000,000.00.</summary>
+    public const string FixedDiscountOutOfRange = "Enter a discount from ₱0.01 to ₱1,000,000.00.";
+
+    /// <summary>The message for a percentage discount outside 0.01 to 100.</summary>
+    public const string PercentDiscountOutOfRange = "Enter a percentage above 0 and up to 100.";
+
+    /// <summary>The message for a missing discount reason.</summary>
+    public const string DiscountReasonRequired = "Enter a reason for the discount.";
+
+    /// <summary>The message for a discount reason over the limit.</summary>
+    public const string DiscountReasonTooLong = "Keep the reason to 100 characters or fewer.";
+
+    /// <summary>The message for an order with more than <see cref="MaxDiscounts"/> discounts.</summary>
+    public const string DiscountsTooMany = "An order can have at most 20 discounts.";
+
+    /// <summary>The message for discounts that add up to more than the items total.</summary>
+    public const string DiscountAboveSubtotalMessage = "The discounts would be more than the items total. Lower or remove a discount first.";
+
+    /// <summary>The machine code of a discount id that is not on the order in the route.</summary>
+    public const string DiscountNotFoundCode = "orders.discount-not-found";
+
+    /// <summary>The plain-English text for a discount that is not on the order in the route.</summary>
+    public const string DiscountNotFoundMessage = "This discount was not found on this order.";
+
+    /// <summary>The machine code of an add that would take the order above <see cref="MaxDiscounts"/>.</summary>
+    public const string TooManyDiscountsCode = "orders.too-many-discounts";
+
+    /// <summary>The machine code of a change that would leave the discounts above the items total.</summary>
+    public const string DiscountAboveSubtotalCode = "orders.discount-above-subtotal";
+
     /// <summary>The machine code of an item id that is not on the order in the route.</summary>
     public const string ItemNotFoundCode = "orders.item-not-found";
 
@@ -202,6 +262,18 @@ public static class OrderRules
     /// <summary>The largest unit price (D-30).</summary>
     public static readonly decimal UnitPriceMax = 1_000_000.00m;
 
+    /// <summary>The largest fixed discount.</summary>
+    public static readonly decimal FixedDiscountMax = 1_000_000.00m;
+
+    /// <summary>Gets the 404 for a discount id that is not on the order.</summary>
+    public static Error DiscountNotFound { get; } = Error.NotFound(DiscountNotFoundCode, DiscountNotFoundMessage);
+
+    /// <summary>Gets the 422 for adding a discount to an order that already has the most.</summary>
+    public static Error TooManyDiscounts { get; } = Error.BusinessRule(TooManyDiscountsCode, DiscountsTooMany);
+
+    /// <summary>Gets the 422 for an item change that would leave the discounts above the items total.</summary>
+    public static Error DiscountAboveSubtotal { get; } = Error.BusinessRule(DiscountAboveSubtotalCode, DiscountAboveSubtotalMessage);
+
     /// <summary>Gets the 404 for an item id that is not on the order.</summary>
     public static Error ItemNotFound { get; } = Error.NotFound(ItemNotFoundCode, ItemNotFoundMessage);
 
@@ -216,6 +288,12 @@ public static class OrderRules
     /// <param name="field">The member name, such as <see cref="QuantityField"/>.</param>
     /// <returns>The path.</returns>
     public static string ItemPath(int index, string field) => $"{ItemsField}[{index}].{field}";
+
+    /// <summary>Builds the field path of a discount member, for example <c>discounts[0].value</c>, or just the member name for a single-discount form.</summary>
+    /// <param name="index">The zero-based place of the discount in a list; null for a single-discount form.</param>
+    /// <param name="field">The member name, such as <see cref="DiscountValueField"/>.</param>
+    /// <returns>The path.</returns>
+    public static string DiscountPath(int? index, string field) => index is { } place ? $"{DiscountsField}[{place}].{field}" : field;
 
     /// <summary>Tells whether a money amount has no more than <see cref="MoneyScale"/> decimal places.</summary>
     /// <param name="amount">The amount.</param>
@@ -364,6 +442,46 @@ public static class OrderRules
         }
 
         return Result.Success(item with { Description = description, SizeVariant = sizeVariant });
+    }
+
+    /// <summary>Checks and cleans one discount, returning the first broken rule under the discount's path.</summary>
+    /// <param name="index">The zero-based place of the discount in a list, used in the field path; null for a single-discount form.</param>
+    /// <param name="discount">The discount as given.</param>
+    /// <returns>The discount with the reason trimmed, or a validation error naming the first broken field.</returns>
+    public static Result<NewOrderDiscount> CheckDiscount(int? index, NewOrderDiscount discount)
+    {
+        ArgumentNullException.ThrowIfNull(discount);
+        ArgumentNullException.ThrowIfNull(discount.Reason);
+
+        if (!Enum.IsDefined(discount.Kind))
+        {
+            return Reject<NewOrderDiscount>(DiscountPath(index, DiscountKindField), DiscountKindInvalid);
+        }
+
+        var fixedKind = discount.Kind == DiscountKind.Fixed;
+        var inRange = discount.Value > 0m && discount.Value <= (fixedKind ? FixedDiscountMax : PercentMax);
+        if (!inRange)
+        {
+            return Reject<NewOrderDiscount>(DiscountPath(index, DiscountValueField), fixedKind ? FixedDiscountOutOfRange : PercentDiscountOutOfRange);
+        }
+
+        if (!HasValidScale(discount.Value))
+        {
+            return Reject<NewOrderDiscount>(DiscountPath(index, DiscountValueField), MoneyDecimals);
+        }
+
+        var reason = discount.Reason.Trim();
+        if (reason.Length == 0)
+        {
+            return Reject<NewOrderDiscount>(DiscountPath(index, DiscountReasonField), DiscountReasonRequired);
+        }
+
+        if (reason.Length > DiscountReasonMaxLength)
+        {
+            return Reject<NewOrderDiscount>(DiscountPath(index, DiscountReasonField), DiscountReasonTooLong);
+        }
+
+        return Result.Success(discount with { Reason = reason });
     }
 
     /// <summary>Builds a validation error for one field.</summary>
