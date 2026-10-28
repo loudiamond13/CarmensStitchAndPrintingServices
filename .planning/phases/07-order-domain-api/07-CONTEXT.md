@@ -1,6 +1,6 @@
 # Phase 7: Order Domain & API - Context
 
-*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T05:00:00-05:00*
+*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T10:30:00-05:00*
 
 **Gathered:** 2026-10-27
 **Status:** Ready for planning
@@ -88,6 +88,9 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 - **D-36:** **Profit on a Cancelled order** is money kept minus money spent: `(paid − refunded) − expenses`. Every other status keeps `total − expenses`. This makes D-10's "shows a loss" true. (owner, 2026-10-28)
 - **D-37:** **The "Legacy / unassigned" holder (D-32) is one seeded, hidden user record** with a fixed id. It has no role, can never sign in, never appears in any staff picker, lookup or user list, and shows as "Legacy / unassigned". Phase 7 seeds only this holder. Whether the SEC-08 "Legacy import" creator reuses it stays a Phase 15 call (MIG-10). (owner, 2026-10-28)
 - **D-38:** **No direct Completed to Cancelled move.** Staff reopen the order first, then cancel it, so both steps are recorded (D-04, D-06). (owner, 2026-10-28)
+
+### Amendment approval (plan 07-04; owner 2026-10-28)
+- **D-39:** **The drafted requirement and roadmap wording in `07-AMENDMENTS.md` is approved as drafted (approve-all).** It is applied to ORD-05, ORD-06, ORD-13, ORD-17, ORD-18 and MONEY-01, the Phase 7 notes line under the roadmap success criteria (including the clause that criterion 2's "overpayment rule across all mutation types" is superseded by D-12), and Phase 7.1 "Legacy Fit Check (read-only)" is inserted (D-33). **Left open on purpose:** whether refunds on a soft-deleted order count toward money on hand. No wording was added; it is parked in the STATE.md Owner backlog for when the money-on-hand reports are planned. (owner, 2026-10-28)
 
 ### Carried forward (not re-asked)
 - **No overpayment by payment** (OD-4, 2026-10-13).

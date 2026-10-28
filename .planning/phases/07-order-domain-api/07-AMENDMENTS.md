@@ -1,7 +1,7 @@
 # Phase 7: Drafted Amendments for the Owner
-*Created: 2026-10-28T09:55:00-05:00 · Updated: 2026-10-28T09:55:00-05:00*
+*Created: 2026-10-28T09:55:00-05:00 · Updated: 2026-10-28T10:30:00-05:00*
 
-**Status:** DRAFT. Waiting for the owner. Nothing in `REQUIREMENTS.md` or `ROADMAP.md` has been changed yet.
+**Status:** Approved by the owner on 2026-10-28 (approve-all, ruling D-39 in `07-CONTEXT.md`). Every line below was applied as drafted, with `<date you approve>` read as 2026-10-28. The extra criterion 2 clause in section 7 was kept. Whether refunds on a soft-deleted order count toward money on hand was left open (section 6 says nothing about it) and is parked in the STATE.md Owner backlog.
 
 **Why this exists:** Your Phase 7 rulings (2026-10-27 and 2026-10-28) changed what some requirement lines say. This file shows each line as it reads today, the new wording, and the decisions behind it. When you approve, the new wording goes in, each line gets a dated owner note, and Phase 7.1 is added to the roadmap.
 

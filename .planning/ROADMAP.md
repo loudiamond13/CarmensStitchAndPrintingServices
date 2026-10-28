@@ -763,6 +763,8 @@ Plans:
   6. **Payment receiver.** Every payment names who received the money (ORD-22): a required, server-validated reference to an active Admin or Manager on payment create, payment edit and full-aggregate create, with a plain-English field error otherwise. A receiver change is audited, and a staff lookup gives both roles the list of eligible receivers.
   7. **Expense payer.** Every order expense names who paid it (ORD-23): a required, server-validated reference to an active Admin or Manager on order-expense create, order-expense edit and full-aggregate create, with a plain-English field error otherwise. A change of payer is audited because it moves money between staff balances (MONEY-01).
 
+  *Notes (owner decisions, Phase 7 discuss 2026-10-27 and 2026-10-28; the criteria text above is unchanged):* criterion 1's "one of the 6 product types" is superseded by D-18 (a Manager-editable product type list that starts with the six), criterion 2's "overpayment rule across all mutation types" by D-12 (only a payment above the balance is refused; other changes may leave a customer credit that a refund clears), and criterion 4's refund and cancelled-order policy is D-07 to D-10 and D-34 to D-36 (payments stay collected cash unless refunded, refund caps, and cancelled-order profit). See `phases/07-order-domain-api/07-CONTEXT.md`. (owner, 2026-10-28, D-39)
+
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
 - **OD-4 + C-38** overpayments, including via removed items or added discounts. *OD-4 ruled by the owner, 2026-10-13: no overpayment; the server refuses a payment above the balance and the payment form warns during input. Still to confirm here: C-38 (other mutations that would push the balance below zero) and how already-overpaid legacy orders import and display.*
@@ -834,6 +836,16 @@ Plans:
 
 **Wave 14** *(blocked on Wave 13 completion)*
 - [ ] 07-20-PLAN.md — Dev seed of the UI-spec orders and a testing-only seeding route (ORD-20, ORD-21)
+
+### Phase 07.1: Legacy Fit Check (read-only) (INSERTED)
+
+**Goal:** Before Phase 8 builds on the order rules, a read-only check runs the legacy orders in CSPS_Legacy_Restore through Order.Import's rules and lists every record that breaks them. It never derives the schema, never writes to the restore and never restores over CSPS_Dev (D-33). (owner, 2026-10-28, D-33, D-39)
+**Requirements**: None new (a read-only check; no requirement text depends on it)
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 07.1 to break down)
 
 ### Phase 8: Order Screens
 
