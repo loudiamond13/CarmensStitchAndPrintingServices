@@ -7,7 +7,8 @@ namespace Csps.Domain.Orders;
 /// An order and everything inside it (ORD-03): its customer details, items and status history, plus a stored snapshot of its
 /// money figures. The aggregate checks every rule itself and works the figures out with <see cref="OrderMath"/> only, so no caller
 /// can skip a rule or bring its own totals. Every change ends by recalculating and by touching the edit version, so a change to a
-/// child alone still moves the order's row version (SEC-07, SEC-08). A deleted order is only marked (D-26).
+/// child alone still moves the order's row version (SEC-07, SEC-08). A deleted order is only marked (D-26). Every change to the
+/// order's details or children starts with <c>EnsureEditable</c>, so a Completed or Cancelled order is locked until it is reopened (D-05).
 /// </summary>
 public sealed class Order : IAttributedRecord, IEditVersioned
 {
@@ -339,6 +340,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>What changed (nothing at all for an identical edit), or a validation error naming the first broken field.</returns>
     public Result<OrderDetailsChanges> UpdateDetails(OrderDetails details, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderDetailsChanges>(locked);
+        }
+
         var checkedDetails = OrderRules.CheckDetails(details);
         if (checkedDetails.IsFailure)
         {
@@ -384,6 +390,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The new item, a validation error naming the first broken field, or a 422 when the order already has 100 items.</returns>
     public Result<OrderItem> AddItem(NewOrderItem item, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderItem>(locked);
+        }
+
         var checkedItem = OrderRules.CheckItem(_items.Count, item);
         if (checkedItem.IsFailure)
         {
@@ -413,6 +424,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>What changed (nothing at all for an identical edit), a 404 when the item is not on this order, or a validation error naming the first broken field.</returns>
     public Result<OrderItemChanges> UpdateItem(Guid itemId, NewOrderItem values, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderItemChanges>(locked);
+        }
+
         var item = _items.Find(existing => existing.Id == itemId);
         if (item is null)
         {
@@ -460,6 +476,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The removed item, a 404 when it is not on this order, or a 422 when it is the last one.</returns>
     public Result<OrderItem> RemoveItem(Guid itemId, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderItem>(locked);
+        }
+
         var item = _items.Find(existing => existing.Id == itemId);
         if (item is null)
         {
@@ -491,6 +512,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The new discount, or a validation error naming the first broken field.</returns>
     public Result<OrderDiscount> AddDiscount(NewOrderDiscount discount, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderDiscount>(locked);
+        }
+
         var checkedDiscount = OrderRules.CheckDiscount(null, discount);
         if (checkedDiscount.IsFailure)
         {
@@ -526,6 +552,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>What changed (nothing at all for an identical edit), a 404 when the discount is not on this order, or a validation error naming the first broken field.</returns>
     public Result<OrderDiscountChanges> UpdateDiscount(Guid discountId, NewOrderDiscount values, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderDiscountChanges>(locked);
+        }
+
         var discount = _discounts.Find(existing => existing.Id == discountId);
         if (discount is null)
         {
@@ -572,6 +603,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The new payment, a validation error naming the first broken field, or a 422 when the order already has 100 payments.</returns>
     public Result<OrderPayment> AddPayment(NewOrderPayment payment, DateOnly today, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderPayment>(locked);
+        }
+
         var checkedPayment = OrderRules.CheckPayment(null, payment, today);
         if (checkedPayment.IsFailure)
         {
@@ -611,6 +647,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>What changed (nothing at all for an identical edit), a 404 when the payment is not on this order, or a validation error naming the first broken field.</returns>
     public Result<OrderPaymentChanges> UpdatePayment(Guid paymentId, NewOrderPayment values, DateOnly today, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderPaymentChanges>(locked);
+        }
+
         var payment = _payments.Find(existing => existing.Id == paymentId);
         if (payment is null)
         {
@@ -659,6 +700,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The removed payment, or a 404 when it is not on this order.</returns>
     public Result<OrderPayment> RemovePayment(Guid paymentId, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderPayment>(locked);
+        }
+
         var payment = _payments.Find(existing => existing.Id == paymentId);
         if (payment is null)
         {
@@ -682,6 +728,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The new expense, a validation error naming the first broken field, or a 422 when the order already has 100 expenses.</returns>
     public Result<OrderExpense> AddExpense(NewOrderExpense expense, DateOnly today, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderExpense>(locked);
+        }
+
         var checkedExpense = OrderRules.CheckExpense(null, expense, today);
         if (checkedExpense.IsFailure)
         {
@@ -713,6 +764,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>What changed (nothing at all for an identical edit), a 404 when the expense is not on this order, or a validation error naming the first broken field.</returns>
     public Result<OrderExpenseChanges> UpdateExpense(Guid expenseId, NewOrderExpense values, DateOnly today, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderExpenseChanges>(locked);
+        }
+
         var expense = _expenses.Find(existing => existing.Id == expenseId);
         if (expense is null)
         {
@@ -751,6 +807,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The removed expense, or a 404 when it is not on this order.</returns>
     public Result<OrderExpense> RemoveExpense(Guid expenseId, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderExpense>(locked);
+        }
+
         var expense = _expenses.Find(existing => existing.Id == expenseId);
         if (expense is null)
         {
@@ -769,6 +830,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <returns>The removed discount, or a 404 when it is not on this order.</returns>
     public Result<OrderDiscount> RemoveDiscount(Guid discountId, DateTimeOffset now)
     {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderDiscount>(locked);
+        }
+
         var discount = _discounts.Find(existing => existing.Id == discountId);
         if (discount is null)
         {
@@ -807,6 +873,10 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         Touch(now);
         return move;
     }
+
+    // An order in an end state refuses every change until it is reopened (D-05, T-07-36).
+    private Error? EnsureEditable() =>
+        OrderStatusRules.IsLocked(Status) ? Error.BusinessRule(OrderRules.LockedCode, OrderRules.Locked(Status)) : null;
 
     private static IEnumerable<OrderMathItem> ItemsForMath(IEnumerable<OrderItem> items) =>
         items.Select(static item => new OrderMathItem(item.Quantity, item.UnitPrice));

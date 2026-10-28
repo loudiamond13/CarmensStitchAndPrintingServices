@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T15:20:21-05:00
+updated: 2026-10-28T15:55:00-05:00
 ---
 
 # The orders API
@@ -9,8 +9,8 @@ This is the contract behind the Orders screens, and the one a future Android app
 The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page;
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
-[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, recording, correcting and removing payments, and recording, correcting and removing
-order expenses. Later plans add the list, refund, status and delete routes to this page.
+[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, recording, correcting and removing payments, recording, correcting and removing
+order expenses, and moving an order between statuses. Later plans add the list, refund and delete routes to this page.
 
 ## In plain words
 
@@ -21,8 +21,7 @@ order expenses. Later plans add the list, refund, status and delete routes to th
    date. The first order of a year is `0001`. After `9999` the number gets a fifth digit and is never cut short.
 4. A new order can start as Pending, Mockup, In Production, Ready or Delivered. Completed and Cancelled are refused at create
    (D-22): create the order first, then complete or cancel it.
-5. Order expenses join the create body in a later plan. Payments can already be sent in the create body; an order with no
-   payments has a balance equal to its total after discount.
+5. Payments and expenses can be sent in the create body; an order with no payments has a balance equal to its total after discount.
 
 ## Routes
 
@@ -43,6 +42,10 @@ order expenses. Later plans add the list, refund, status and delete routes to th
 | `POST /orders/{id}/expenses` | Staff | the expense form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-expenses` |
 | `PUT /orders/{id}/expenses/{expenseId}` | Staff | the expense form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
 | `DELETE /orders/{id}/expenses/{expenseId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
+| `POST /orders/{id}/status` | Staff | `{ "status": "mockup" }` with an `Idempotency-Key` and no version | `200` the whole order; `400` on `status`; `404 orders.not-found`; `409 edit.stale` (two lost races); `422 orders.complete-balance-owed`, `orders.complete-credit` or `orders.reopen-first` |
+
+Every route above that changes an order's details, items, discounts, payments or expenses also answers `422 orders.locked` while the order is
+Completed or Cancelled (see Statuses below).
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
 read every order. No answer is ever cached (`Cache-Control: no-store`).
@@ -294,6 +297,51 @@ is no company payer: a person always paid.
 - **Order.** `expenses` come oldest expense date first, then in the order they were added.
 - A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
 
+## Statuses (`POST /api/v1/orders/{id}/status`)
+
+An order has seven statuses. The wire key is what the API sends and takes; the label is what staff read.
+
+| Key | Label | Kind |
+|---|---|---|
+| `pending` | Pending | active |
+| `mockup` | Mockup | active |
+| `production` | In Production | active |
+| `ready` | Ready | active |
+| `delivered` | Delivered | active |
+| `completed` | Completed | end state, locked |
+| `cancelled` | Cancelled | end state, locked |
+
+The body is `{ "status": "<key>" }`. A key that is not one of the seven (any case and surrounding spaces are fine) is `400` on `status`,
+"Choose a status." No version is sent: the move is judged on the latest state inside the save, so a Complete that races a discount
+which creates a credit can never leave a Completed order with money owed or held. A lost race is read again once; a second lost race
+is `409 edit.stale`. A retry with the same `Idempotency-Key` and body answers with the stored answer and moves nothing more.
+
+**The transition table (D-01 to D-04, D-38).**
+
+| From | To | Answer |
+|---|---|---|
+| any active status | any other active status | free move |
+| any active status | `cancelled` | allowed, whatever is owed |
+| any active status | `completed` | only at a balance of exactly 0.00 (below) |
+| `completed` or `cancelled` | any active status | a reopen, for an Admin and for a Manager |
+| `completed` | `cancelled` | `422 orders.reopen-first`, "Reopen the order first, then cancel it." |
+| `cancelled` | `completed` | `422 orders.reopen-first`, "Reopen the order first, then mark it Completed." |
+| the status it already has | same | `200`, nothing written, the `version` kept |
+
+- **Completed needs a zero balance (D-03).** Money owed is `422 orders.complete-balance-owed`, "This order still has ₱9,327.50 to pay.
+  Record the payment first." A customer credit is `422 orders.complete-credit`, "This order has a customer credit of ₱100.00. Record
+  a refund first."
+- **Every real move is recorded (ORD-16, D-06).** A move or a reopen adds a `statusHistory` row (from, to, `changedBy`, `changedAt`),
+  sets `statusChangedAt` and moves the `version`. A reopen is recorded the same way as a move.
+- **The lock (D-05).** While an order is Completed or Cancelled, every write to its details, items, discounts, payments and expenses
+  is `422 orders.locked`, "This order is completed. Reopen it to make changes." (or "cancelled"), and nothing is saved. A form with a field error is
+  still `400` first. The lock is then checked before the order's own rules (the payment balance, the last item, the discount cap,
+  a missing item id), so those read as locked, not as their own errors. After a reopen the same writes succeed.
+  Reading the order is never locked. Refunds (a later plan) are the one write a Cancelled order will still take.
+- **A cancelled order keeps its money (D-07, D-10, D-36).** Every payment stays as collected cash, so `paid` is unchanged and nothing
+  is refunded by cancelling. Every expense still counts. Profit on a cancelled order is the cash collected minus the expenses: for
+  ORD-2026-0148 (paid 12,000.00, no refunds, expenses 6,065.00) it reads 5,935.00, and reopening it restores 15,262.50.
+
 ## The order
 
 `POST`, `GET` and `PUT` answer the same shape, and so do the item, discount, payment and expense routes:
@@ -352,6 +400,9 @@ Each order expense add, edit that changes something, and removal writes one entr
 A change shows `old>new` on the date, amount and category where they changed and ends with `fields=description` when the description
 changed. A new payer writes its own `order-expense.payer-changed` entry, `expense=<expense id>;payer=<old id>><new id>`, besides
 the change entry when anything else changed too.
+Each status move writes one `order.status-changed` entry and each reopen from Completed or Cancelled writes one `order.reopened` entry
+(never both), in the same save as the history row, each with `status=<from>><to>` by wire key, for example `status=pending>mockup`. A
+request for the status the order already has writes nothing.
 No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, a payment's reference or notes, or an expense's description. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
 

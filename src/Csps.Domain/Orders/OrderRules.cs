@@ -227,6 +227,15 @@ public static class OrderRules
     /// <summary>The message for a new order started as Completed or Cancelled (D-22).</summary>
     public const string StatusNotActive = "Create the order first, then complete or cancel it.";
 
+    /// <summary>The machine code of a change to a Completed or Cancelled order (D-05).</summary>
+    public const string LockedCode = "orders.locked";
+
+    /// <summary>Builds the message for a change to an order in an end state (D-05).</summary>
+    /// <param name="status">The end state the order is in.</param>
+    /// <returns>For example "This order is completed. Reopen it to make changes."</returns>
+    public static string Locked(OrderStatus status) =>
+        $"This order is {(status == OrderStatus.Completed ? "completed" : "cancelled")}. Reopen it to make changes.";
+
     /// <summary>The message for an order with no items.</summary>
     public const string ItemsRequired = "Add at least one item.";
 
