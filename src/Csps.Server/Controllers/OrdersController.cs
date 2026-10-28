@@ -8,16 +8,17 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace Csps.Server.Controllers;
 
 /// <summary>
-/// The shop's orders (ORD-03): staff of either role create and read them. Never cached.
+/// The shop's orders (ORD-03, ORD-05): staff of either role create, read and edit them. Never cached.
 /// </summary>
 /// <param name="create">The create-an-order handler.</param>
 /// <param name="get">The single-order read handler.</param>
+/// <param name="updateDetails">The edit-details handler.</param>
 [ApiController]
 [Route("api/v1/orders")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler get) : ControllerBase
+public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails) : ControllerBase
 {
     /// <summary>
     /// Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order
@@ -62,6 +63,33 @@ public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler 
     public async Task<IResult> Get(Guid id, CancellationToken cancellationToken)
     {
         var result = await get.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
+    }
+
+    /// <summary>
+    /// Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are
+    /// the same as when creating, and the due date is required even for an imported order that had none. A version that is not the
+    /// stored one answers 409 <c>edit.stale</c> and changes nothing; a form edit is never retried. Any staff member may edit any
+    /// order. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the
+    /// clock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.
+    /// </summary>
+    /// <param name="id">The order id.</param>
+    /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the saved order, 400 for field errors, 401 without a valid token, 404 when it does not exist or was deleted, or 409 for a stale version.</returns>
+    [HttpPut("{id:guid}")]
+    [EndpointName("UpdateOrderDetails")]
+    [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> UpdateDetails(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateOrderDetailsRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateDetails.HandleAsync(id, body ?? UpdateOrderDetailsRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
     }
 }

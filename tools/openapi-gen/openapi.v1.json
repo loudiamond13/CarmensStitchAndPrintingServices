@@ -2365,6 +2365,86 @@
         ],
         "type": "object"
       },
+      "UpdateOrderDetailsRequest": {
+        "description": "The Edit Order details form (ORD-05, SEC-07). It carries the version the form was opened with. Any other member in the body,\nsuch as a forged `createdById`, `updatedById`, `number`, `status` or `totals`, is ignored: who changed the\norder and when come from the token and the clock (SEC-08), and the number, status and money figures are not editable here.",
+        "properties": {
+          "address": {
+            "description": "The address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactNumber": {
+            "description": "The contact number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerName": {
+            "description": "The customer's name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dueDate": {
+            "description": "The day it is due, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "description": "The email address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "description": "Free notes.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDate": {
+            "description": "The day the order was taken, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or club name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "email",
+          "address",
+          "orderDate",
+          "dueDate",
+          "notes",
+          "version"
+        ],
+        "type": "object"
+      },
       "UpdateProfileNameRequest": {
         "description": "The profile name form: the names and the edit version the form was opened with (SEC-07).",
         "properties": {
@@ -5166,6 +5246,118 @@
           }
         },
         "summary": "Reads one order with its items, status history, money figures, who recorded it and who last changed it. Both roles read\nevery order. A deleted order is the same 404 as an unknown one.",
+        "tags": [
+          "Orders"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOrderDetails",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderDetailsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderDetailsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderDetailsRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are\nthe same as when creating, and the due date is required even for an imported order that had none. A version that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any\norder. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the\nclock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.",
         "tags": [
           "Orders"
         ]

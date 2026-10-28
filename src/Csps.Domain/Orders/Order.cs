@@ -1,4 +1,5 @@
 using Csps.Domain.Common;
+using Csps.Domain.Expenses;
 
 namespace Csps.Domain.Orders;
 
@@ -237,6 +238,60 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
 
         Number = number;
+    }
+
+    /// <summary>
+    /// Applies a details edit, checking every field rule again as <see cref="Create"/> does; the due date is required even when an
+    /// imported order had none (D-22). Nothing is assigned when a rule fails, and an edit that changes nothing leaves the order and
+    /// its edit version untouched. Items, status and money figures are not touched.
+    /// </summary>
+    /// <param name="details">The customer and date details as given.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>What changed (nothing at all for an identical edit), or a validation error naming the first broken field.</returns>
+    public Result<OrderDetailsChanges> UpdateDetails(OrderDetails details, DateTimeOffset now)
+    {
+        var checkedDetails = OrderRules.CheckDetails(details);
+        if (checkedDetails.IsFailure)
+        {
+            return Result.Failure<OrderDetailsChanges>(checkedDetails.Error);
+        }
+
+        var cleaned = checkedDetails.Value;
+        var dueDate = cleaned.DueDate!.Value;
+        var fields = new List<string>();
+        AddIfChanged(fields, OrderRules.CustomerNameField, CustomerName, cleaned.CustomerName);
+        AddIfChanged(fields, OrderRules.TeamNameField, TeamName, cleaned.TeamName);
+        AddIfChanged(fields, OrderRules.ContactNumberField, ContactNumber, cleaned.ContactNumber);
+        AddIfChanged(fields, OrderRules.EmailField, Email, cleaned.Email);
+        AddIfChanged(fields, OrderRules.AddressField, Address, cleaned.Address);
+        AddIfChanged(fields, OrderRules.NotesField, Notes, cleaned.Notes);
+        var changes = new OrderDetailsChanges(
+            cleaned.OrderDate == OrderDate ? null : new ValueChange<DateOnly>(OrderDate, cleaned.OrderDate),
+            dueDate == DueDate ? null : new DueDateChange(DueDate, dueDate),
+            fields);
+        if (!changes.HasAny)
+        {
+            return Result.Success(changes);
+        }
+
+        CustomerName = cleaned.CustomerName;
+        TeamName = cleaned.TeamName;
+        ContactNumber = cleaned.ContactNumber;
+        Email = cleaned.Email;
+        Address = cleaned.Address;
+        OrderDate = cleaned.OrderDate;
+        DueDate = dueDate;
+        Notes = cleaned.Notes;
+        Touch(now);
+        return Result.Success(changes);
+    }
+
+    private static void AddIfChanged(List<string> fields, string name, string? stored, string? edited)
+    {
+        if (!string.Equals(stored, edited, StringComparison.Ordinal))
+        {
+            fields.Add(name);
+        }
     }
 
     // Writes the money snapshot from OrderMath, the one place money is worked out (ORD-20). Discounts, payments, refunds and

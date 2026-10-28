@@ -564,7 +564,14 @@ export interface paths {
          *     every order. A deleted order is the same 404 as an unknown one.
          */
         get: operations["GetOrder"];
-        put?: never;
+        /**
+         * Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are
+         *     the same as when creating, and the due date is required even for an imported order that had none. A version that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any
+         *     order. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the
+         *     clock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.
+         */
+        put: operations["UpdateOrderDetails"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1997,6 +2004,31 @@ export interface components {
             name: null | string;
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
             tone: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Order details form (ORD-05, SEC-07). It carries the version the form was opened with. Any other member in the body,
+         *     such as a forged `createdById`, `updatedById`, `number`, `status` or `totals`, is ignored: who changed the
+         *     order and when come from the token and the clock (SEC-08), and the number, status and money figures are not editable here.
+         */
+        UpdateOrderDetailsRequest: {
+            /** @description The address. */
+            address: null | string;
+            /** @description The contact number. */
+            contactNumber: null | string;
+            /** @description The customer's name. */
+            customerName: null | string;
+            /** @description The day it is due, `yyyy-MM-dd`. */
+            dueDate: null | string;
+            /** @description The email address. */
+            email: null | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the order was taken, `yyyy-MM-dd`. */
+            orderDate: null | string;
+            /** @description The team or club name. */
+            teamName: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */
             version: null | string;
         };
@@ -3828,6 +3860,72 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderDetails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderDetailsRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderDetailsRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderDetailsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

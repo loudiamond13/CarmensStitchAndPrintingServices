@@ -15,9 +15,11 @@ public static class OrdersApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<IValidator<CreateOrderRequest>, CreateOrderRequestValidator>();
+        services.AddSingleton<IValidator<UpdateOrderDetailsRequest>, UpdateOrderDetailsRequestValidator>();
         services.AddScoped<ListOrderListHandler>();
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<GetOrderHandler>();
+        services.AddScoped<UpdateOrderDetailsHandler>();
         return services;
     }
 }
