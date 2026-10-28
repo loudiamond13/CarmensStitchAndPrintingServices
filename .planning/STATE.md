@@ -4,10 +4,10 @@ current_phase: 7
 current_phase_name: Order Domain & API
 status: planning
 stopped_at: Phase 06 shipped as PR
-last_updated: "2026-10-28T03:28:17.766Z"
+last_updated: "2026-10-28T07:23:03.976Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 06 shipped as PR
-state_head: df81a9e6c67875e08333d18e2216b925e8623560
+state_head: abe815b07f042b8ebbd58e691aa8228c2db64df0
 progress:
   total_phases: 17
   completed_phases: 6
@@ -15,7 +15,7 @@ progress:
   completed_plans: 187
   percent: 35
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-27T22:45:00-05:00"
+updated: "2026-10-28T07:30:00-05:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 Phase: 7 — Order Domain & API
 Plan: Not started
 Status: Ready to plan (Phase 06 shipped as PR #11, awaiting merge)
-Last activity: 2026-10-27 - Completed quick task 261027-t3j: Restyle shared Select and DateInput, remove the written-out date (D-63); look approved by the owner
+Last activity: 2026-10-28 - Completed quick task 261028-2e4: chip overflow, CSPS_E2E reset (D-77), long names in phone cards and dropdowns
 
 Progress: [████░░░░░░] 35%
 
@@ -667,7 +667,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Ship 06]: D-74 (owner, 2026-10-26): a dev-only /dev/public page (PublicLayoutCheckPage, in devRoutes and DEV_ONLY_MODULE_PREFIXES) is added so the public header fix can be tested before Phase 11; production falls through to the holding page, proven by routes.test.tsx. Toasts stay as they are (transient, dismissible).
 - [Ship 06]: D-75 (owner, 2026-10-26): UpdateUserEndpointTests.TwoManagersDemotingEachOtherTogetherLeaveExactlyOneActiveManagerEveryTime failed once in PR #13's CI re-run (loser got 401, not 422: the winner's demotion signed it out before its request authenticated; still exactly one active Manager). The test now requires exactly one winner and the winner as the only active Manager, accepts a 401 only when the loser's token is then rejected, and requires the 422 guard path at least once in the 20 rounds (fast task, commit 11edfd4e).
 - [Ship 06]: D-76 (owner, 2026-10-27): A-06-03 option 1, the 300 ms limit stays. Flake on 2026-10-27, PR #13 CI (GitHub ubuntu runner, SQL container), run 40442789402: ExpenseListTimingTests failed only on "five years, last page, size 100" at p50 186.0 ms, p95 340.2 ms (default window p95 74.5 ms, category 3.5 ms, staff-name search 92.4 ms, KPIs 10.3 ms). Re-running the failed jobs alone passed; a passing run prints no numbers, so its margin is unknown. PR #13 changes only web code, so the slow run is runner noise. If it fails again in CI, look at the five-year last-page query before any margin talk.
+- [Quick 261028-2e4]: D-77 (owner, 2026-10-28): reset CSPS_E2E at the start of every e2e run (option 1 of 3). The WebKit audit-log failures came from about 4,600 people piled up in CSPS_E2E over many runs; Playwright Windows WebKit fills a select with about 9,300 options in about 7 s. npm run e2e now passes --reset to the guarded dev-seed tool (CSPS_Dev/CSPS_E2E only). Specs, fixtures and timeouts stay as written.
 - [Ship 06]: Definition of Done on PR #14 (quick 261026-ooe) ticked by the owner's instruction (2026-10-27); no reviewer requested.
+- [Quick 261027-t3j]: Definition of Done on PR #15 (D-63 picker look) ticked by the owner's instruction (2026-10-28), including the two items left to their judgment (no screenshots attached; Lighthouse not run).
 - [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 
 ### Pending Todos
@@ -747,6 +749,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 | 261026-m16 | List search writes the page reset in one URL update (D-68, D-69) | 2026-10-26 | 4bb2c5b5 | [261026-m16-list-search-writes-the-page-reset-in-one](./quick/261026-m16-list-search-writes-the-page-reset-in-one/) |
 | 30 | D-75: two-Manager demotion race test accepts the sign-out path, guard path still required | 2026-10-26 | 11edfd4e | — |
 | 261027-t3j | Restyle shared Select and DateInput, remove the written-out date (D-63) | 2026-10-27 | df81a9e6 | [261027-t3j-restyle-shared-select-and-dateinput-remo](./quick/261027-t3j-restyle-shared-select-and-dateinput-remo/) |
+| 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
 
 ## Deferred Items
 

@@ -304,21 +304,30 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(rules.map((rule) => normalize(rule.body))).toEqual(['animation: none;']);
   });
 
-  it('P5 long-text: the sidebar chip and the top bar user button cut a long name short on one line, and the user cell name column may shrink', () => {
+  it('P5 long-text: the sidebar chip and the top bar user button cut a long name short on one line, the user cell name column may shrink, a phone card value wraps anywhere, and a select clips a long chosen option', () => {
     const groupsOfLongText = byRuling('P5 long-text');
+    const phone = groupsOfLongText.filter((group) => group.prelude === '@container pg (max-width: 767px)');
+    const phoneRules = phone.flatMap((group) => groupsOf(group.body));
 
     expect(groupsOfLongText.map((group) => normalize(group.prelude))).toEqual([
       '.csp-sidebar-user > div',
       '.csp-sidebar-user strong, .csp-usermenu-text strong',
       '.csp-usermenu-text',
       '.csp-cell-user > span:last-child',
+      '@container pg (max-width: 767px)',
+      '.csp-select select',
     ]);
-    expect(groupsOfLongText.map((group) => normalize(group.body))).toEqual([
+    expect(groupsOfLongText.slice(0, 4).map((group) => normalize(group.body))).toEqual([
       'min-width: 0;',
       'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
       'max-width: 200px;',
       'min-width: 0; overflow-wrap: anywhere;',
     ]);
+    expect(phoneRules.map((rule) => [rule.prelude, normalize(rule.body)])).toEqual([
+      ['.s-rt td', 'overflow-wrap: anywhere;'],
+      ['.s-rt td::before', 'overflow-wrap: normal;'],
+    ]);
+    expect(normalize(groupsOfLongText[5]?.body ?? '')).toBe('overflow: hidden;');
   });
 
   it('D-31 D-BL-02: the Manager tag is hidden on the current sidebar row', () => {

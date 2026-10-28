@@ -62,7 +62,8 @@ const inputStart = {
 } as const;
 
 /**
- * End padding: `.csp-input` 12px; `.has-suffix .csp-input` 48px; `.csp-select select` 40px, no native arrow. A date input
+ * End padding: `.csp-input` 12px; `.has-suffix .csp-input` 48px; `.csp-select select` 40px, no native arrow, and it clips
+ * a long chosen option (WebKit would otherwise count its full width in the page; P5 long-text). A date input
  * keeps 40px for the calendar icon (D-63): the browser's own indicator is stretched over that area, invisible but still
  * the click target, and the value starts at the left on iOS. Firefox draws a calendar button that cannot be hidden, so
  * there the input is plain and our icon is hidden (`dateIconClasses`).
@@ -70,7 +71,7 @@ const inputStart = {
 const inputEnd = {
   plain: tw('pr-3'),
   suffix: tw('pr-12'),
-  select: tw('cursor-pointer appearance-none pr-10'),
+  select: tw('cursor-pointer appearance-none overflow-hidden pr-10'),
   date: tw(
     'pr-10 supports-[-moz-appearance:none]:pr-3 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-y-0 [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:h-auto [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:text-left',
   ),

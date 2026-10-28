@@ -98,10 +98,11 @@ export const tableFootRowClasses = clsx(tw('pg-phone:bg-surface-2'), rowCard);
 /**
  * `.s-rt td` and `.s-rt td::before` shared by every body and footer cell: 12px by 16px, middle-aligned; on phones a
  * flex row (label left, value right, 12px apart) whose `::before` writes the cell's `data-label` in the 11px 700 .1em
- * upper-case `--ink-muted` label look.
+ * upper-case `--ink-muted` label look. On phones a long value with no space (a name, an email) wraps anywhere inside
+ * the card; the label still wraps only between words.
  */
 export const cellSharedClasses = tw(
-  'px-4 py-3 align-middle pg-phone:flex pg-phone:items-center pg-phone:justify-between pg-phone:gap-3 pg-phone:before:text-left pg-phone:before:text-[11px] pg-phone:before:font-bold pg-phone:before:tracking-[.1em] pg-phone:before:text-ink-muted pg-phone:before:uppercase pg-phone:before:content-[attr(data-label)]',
+  'px-4 py-3 align-middle pg-phone:flex pg-phone:items-center pg-phone:justify-between pg-phone:gap-3 pg-phone:wrap-anywhere pg-phone:before:text-left pg-phone:before:text-[11px] pg-phone:before:font-bold pg-phone:before:tracking-[.1em] pg-phone:before:wrap-normal pg-phone:before:text-ink-muted pg-phone:before:uppercase pg-phone:before:content-[attr(data-label)]',
 );
 
 /** `.s-rt td` 1px `--line` rule below, dropped on the last row (`.s-rt tbody tr:last-child td`, D-38). */
@@ -255,8 +256,11 @@ export const resultBarClasses = tw('flex flex-wrap items-center justify-between 
 /** App. E.7's `<strong style="color: var(--ink)">` count. */
 export const resultCountClasses = tw('text-ink');
 
-/** The chip group (UI-SPEC overflow row): chips wrap onto new lines 8px apart and never widen the page. */
-export const chipGroupClasses = tw('flex max-w-full min-w-0 flex-wrap gap-2');
+/**
+ * The chip group (UI-SPEC overflow row): chips wrap onto new lines 8px apart and never widen the page. The 5px end padding
+ * keeps a clear button's 44px tap area, which reaches 5px past the chip's end, inside the group's own box.
+ */
+export const chipGroupClasses = tw('flex max-w-full min-w-0 flex-wrap gap-2 pr-1.25');
 
 /** `.s-filter-chip`: 28px, `--accent-soft` / `--accent-ink`, 12px 600, radius 4, at most the bar's width. */
 export const filterChipClasses = tw(
