@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-13-PLAN.md
-last_updated: "2026-10-28T21:01:57.781Z"
+stopped_at: Completed 07-14-PLAN.md
+last_updated: "2026-10-28T21:54:56.638Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 122d392546ae5c89681a6a6dc3ec92d1c5b5ae01
+state_head: 2f94303f19354185d4c0d10e87f7cc3bc853ee42
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 200
+  completed_plans: 201
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 14 of 20
+Plan: 15 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -258,6 +258,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P11 | 55 min | 3 tasks | 50 files |
 | Phase 07 P12 | 35 min | 3 tasks | 50 files |
 | Phase 07 P13 | 45 min | 3 tasks | 21 files |
+| Phase 07 P14 | 50 min | 3 tasks | 48 files |
 
 ## Accumulated Context
 
@@ -709,6 +710,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-12: order expenses reuse the Phase 6 company-expense words; the changed audit entry shows the payer as it now is and a new payer writes its own order-expense.payer-changed entry
 - [Phase 07]: 07-13: the end-state lock lives in the aggregate (Order.EnsureEditable in all 13 mutators), so it runs before the order's own rules; form field errors stay 400 first
 - [Phase 07]: 07-13: the status move is single-click (no version) over OrderChildWrite.AttemptAsync with ConflictRetry, judged on the balance read inside the save
+- [Phase 07]: 07-14: the refund exception to the end-state lock is a separate EnsureRefundEditable (only Completed is locked) used by the three refund methods; every other mutator keeps EnsureEditable
+- [Phase 07]: 07-14: the refund not-allowed rule (only a Cancelled order or one with a credit) is judged on add only; an existing refund can be lowered or removed on an active order
 
 ### Pending Todos
 
@@ -800,6 +803,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T21:01:56.712Z
-Stopped at: Completed 07-13-PLAN.md
+Last session: 2026-10-28T21:54:55.596Z
+Stopped at: Completed 07-14-PLAN.md
 Resume file: None
