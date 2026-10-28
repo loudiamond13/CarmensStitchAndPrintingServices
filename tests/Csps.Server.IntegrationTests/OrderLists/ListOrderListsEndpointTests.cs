@@ -15,7 +15,7 @@ public sealed class ListOrderListsEndpointTests(CspsDatabase database) : IClassF
     private const string PaymentMethodsRoute = "/api/v1/payment-methods";
     private const string OrderExpenseCategoriesRoute = "/api/v1/order-expense-categories";
 
-    private static readonly string[] Keys = ["id", "isOthers", "name", "status", "tone"];
+    private static readonly string[] Keys = ["id", "isOthers", "name", "status", "tone", "useCount"];
 
     private static readonly string[] ProductTypeOrder =
     [

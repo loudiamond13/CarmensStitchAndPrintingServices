@@ -155,6 +155,25 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 403, Manager: 400),
         // Reading one product type (D-19): Managers only. A fresh random id is no entry, so a Manager meets 404 product-types.not-found.
         new("GET", "/api/v1/product-types/{id:guid}", "/api/v1/product-types/0b6e8d24-7a31-4c95-b2f0-5d9c1a3e7f68", Anonymous: 401, Admin: 403, Manager: 404),
+        // Editing, retiring, bringing back and deleting a product type (D-19): Managers only. A fresh random id is no entry, so a Manager meets 404 product-types.not-found; an edit with no body meets the 400 field errors first.
+        new("PUT", "/api/v1/product-types/{id:guid}", "/api/v1/product-types/4d8f2a61-9c07-4e35-b1a8-6f3e0d7c5b92", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/product-types/{id:guid}/retire", "/api/v1/product-types/7a1c5e93-2f48-4b06-9d3a-c8e0b6f4d125/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/product-types/{id:guid}/reactivate", "/api/v1/product-types/e3b9d705-6a2c-4f18-8b4e-1d7a9c0f3e56/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/product-types/{id:guid}", "/api/v1/product-types/92c4a8f1-5d36-4b7e-a0c9-3e8f1b6d2a47", Anonymous: 401, Admin: 403, Manager: 404),
+        // The same eight routes for the payment methods (D-16, D-19).
+        new("POST", "/api/v1/payment-methods", "/api/v1/payment-methods", Anonymous: 401, Admin: 403, Manager: 400),
+        new("GET", "/api/v1/payment-methods/{id:guid}", "/api/v1/payment-methods/5e0b7d39-1a64-4c82-9f5d-b2a8c4e6130f", Anonymous: 401, Admin: 403, Manager: 404),
+        new("PUT", "/api/v1/payment-methods/{id:guid}", "/api/v1/payment-methods/a6d2f084-3b91-4e57-8c0a-7f5e1d9b4c28", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/payment-methods/{id:guid}/retire", "/api/v1/payment-methods/18f5c3a7-d092-4b6e-a741-9e0c8b2d5f63/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/payment-methods/{id:guid}/reactivate", "/api/v1/payment-methods/c7e1a950-4d3b-4f28-b6a9-0d2f8e5c1a74/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/payment-methods/{id:guid}", "/api/v1/payment-methods/3b9e6d12-8f05-4a7c-91d4-e5c0a2b7f836", Anonymous: 401, Admin: 403, Manager: 404),
+        // The same eight routes for the order expense categories (D-17, D-19).
+        new("POST", "/api/v1/order-expense-categories", "/api/v1/order-expense-categories", Anonymous: 401, Admin: 403, Manager: 400),
+        new("GET", "/api/v1/order-expense-categories/{id:guid}", "/api/v1/order-expense-categories/d4a0c862-7e19-4b53-8a2f-6c9d1e3b5f07", Anonymous: 401, Admin: 403, Manager: 404),
+        new("PUT", "/api/v1/order-expense-categories/{id:guid}", "/api/v1/order-expense-categories/6f2d8b45-0c93-4e1a-b7d6-a3e5c9f08142", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/order-expense-categories/{id:guid}/retire", "/api/v1/order-expense-categories/b1e7a329-5f60-4d84-9c3b-2a8d0f6e4c91/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/order-expense-categories/{id:guid}/reactivate", "/api/v1/order-expense-categories/2c5f9a06-e813-4b72-a4d1-8e0b3c7f5a69/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/order-expense-categories/{id:guid}", "/api/v1/order-expense-categories/f8a3d514-2b70-4c96-8e0f-5d1c7a9b3e28", Anonymous: 401, Admin: 403, Manager: 404),
 
         // The expense category list (D-08, D-15): Staff only, both roles read it.
         new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
