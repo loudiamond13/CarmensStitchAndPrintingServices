@@ -604,6 +604,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one item of a saved order with the order's version the form was opened with. The item rules are the same as
+         *     when adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was
+         *     retired after it was saved. An item id that is not on this order answers 404 `orders.item-not-found`. A version that is
+         *     not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes
+         *     nothing saves nothing and keeps the version. Who changed the item and when come from the token and the clock.
+         */
+        put: operations["UpdateOrderItem"];
+        post?: never;
+        /**
+         * Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again
+         *     and decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item
+         *     id that is not on this order answers 404 `orders.item-not-found`. The totals are worked out again.
+         */
+        delete: operations["RemoveOrderItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-methods": {
         parameters: {
             query?: never;
@@ -2083,6 +2111,34 @@ export interface components {
             /** @description The team or club name. */
             teamName: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in
+         *     the body, such as a forged `updatedById` or `lineTotal`, is ignored: who changed the item and when come from the token
+         *     and the clock (SEC-08), and the line total is worked out by the server.
+         */
+        UpdateOrderItemRequest: {
+            /** @description What the line is. */
+            description: null | string;
+            /**
+             * Format: uuid
+             * @description The product type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: null | number | string;
+            /** @description The size or variant. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
         /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
@@ -4023,6 +4079,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The item id. */
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderItemRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderItemRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The item id. */
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
                 };
             };
             /** @description Unauthorized */

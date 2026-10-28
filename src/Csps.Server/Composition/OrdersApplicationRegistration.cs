@@ -17,11 +17,14 @@ public static class OrdersApplicationRegistration
         services.AddSingleton<IValidator<CreateOrderRequest>, CreateOrderRequestValidator>();
         services.AddSingleton<IValidator<UpdateOrderDetailsRequest>, UpdateOrderDetailsRequestValidator>();
         services.AddSingleton<IValidator<AddOrderItemRequest>, AddOrderItemRequestValidator>();
+        services.AddSingleton<IValidator<UpdateOrderItemRequest>, UpdateOrderItemRequestValidator>();
         services.AddScoped<ListOrderListHandler>();
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<GetOrderHandler>();
         services.AddScoped<UpdateOrderDetailsHandler>();
         services.AddScoped<AddOrderItemHandler>();
+        services.AddScoped<UpdateOrderItemHandler>();
+        services.AddScoped<RemoveOrderItemHandler>();
         return services;
     }
 }

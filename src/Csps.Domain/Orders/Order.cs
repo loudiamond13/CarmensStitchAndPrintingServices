@@ -303,6 +303,75 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(added);
     }
 
+    /// <summary>
+    /// Applies an item edit, checking every item rule again as <see cref="AddItem"/> does. Nothing is assigned when a rule fails, and
+    /// an edit that changes nothing leaves the order and its edit version untouched. A changed edit works the totals out again and
+    /// moves the edit version.
+    /// </summary>
+    /// <param name="itemId">The item to edit; it must be on this order.</param>
+    /// <param name="values">The new values as given.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>What changed (nothing at all for an identical edit), a 404 when the item is not on this order, or a validation error naming the first broken field.</returns>
+    public Result<OrderItemChanges> UpdateItem(Guid itemId, NewOrderItem values, DateTimeOffset now)
+    {
+        var item = _items.Find(existing => existing.Id == itemId);
+        if (item is null)
+        {
+            return Result.Failure<OrderItemChanges>(OrderRules.ItemNotFound);
+        }
+
+        var checkedItem = OrderRules.CheckItem(_items.IndexOf(item), values);
+        if (checkedItem.IsFailure)
+        {
+            return Result.Failure<OrderItemChanges>(checkedItem.Error);
+        }
+
+        var cleaned = checkedItem.Value;
+        var fields = new List<string>();
+        AddIfChanged(fields, OrderRules.DescriptionField, item.Description, cleaned.Description);
+        AddIfChanged(fields, OrderRules.SizeVariantField, item.SizeVariant, cleaned.SizeVariant);
+        var changes = new OrderItemChanges(
+            item.ProductTypeId == cleaned.ProductTypeId ? null : new ValueChange<Guid>(item.ProductTypeId, cleaned.ProductTypeId),
+            item.Quantity == cleaned.Quantity ? null : new ValueChange<int>(item.Quantity, cleaned.Quantity),
+            item.UnitPrice == cleaned.UnitPrice ? null : new ValueChange<decimal>(item.UnitPrice, cleaned.UnitPrice),
+            fields);
+        if (!changes.HasAny)
+        {
+            return Result.Success(changes);
+        }
+
+        item.Apply(cleaned);
+        Recalculate();
+        Touch(now);
+        return Result.Success(changes);
+    }
+
+    /// <summary>
+    /// Takes one item off the order. An order keeps at least one item, so the last one is refused. The totals are worked out again
+    /// and the edit version moves.
+    /// </summary>
+    /// <param name="itemId">The item to remove; it must be on this order.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The removed item, a 404 when it is not on this order, or a 422 when it is the last one.</returns>
+    public Result<OrderItem> RemoveItem(Guid itemId, DateTimeOffset now)
+    {
+        var item = _items.Find(existing => existing.Id == itemId);
+        if (item is null)
+        {
+            return Result.Failure<OrderItem>(OrderRules.ItemNotFound);
+        }
+
+        if (_items.Count == 1)
+        {
+            return Result.Failure<OrderItem>(OrderRules.LastItem);
+        }
+
+        _items.Remove(item);
+        Recalculate();
+        Touch(now);
+        return Result.Success(item);
+    }
+
     private static OrderItem BuildItem(Order order, NewOrderItem item, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, item.ProductTypeId, item.Description, item.SizeVariant, item.Quantity, item.UnitPrice, item.Quantity * item.UnitPrice, position) { Order = order };
 

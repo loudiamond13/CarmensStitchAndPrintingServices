@@ -93,7 +93,7 @@ public sealed class OrderItemHandlerTests
         await harness.Add.HandleAsync(harness.OrderId, ValidAdd() with { ProductTypeId = null }, TestContext.Current.CancellationToken);
         await harness.Add.HandleAsync(harness.OrderId, ValidAdd() with { ProductTypeId = Guid.Empty }, TestContext.Current.CancellationToken);
 
-        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, default);
+        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public sealed class OrderItemHandlerTests
 
         result.Error.ShouldBe(OrderErrors.NotFound);
         harness.Unit.Saves.ShouldBe(0);
-        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, default);
+        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public sealed class OrderItemHandlerTests
         result.IsSuccess.ShouldBeTrue();
         harness.Last.Items[0].Quantity.ShouldBe(30);
         harness.Unit.Saves.ShouldBe(1);
-        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, default);
+        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

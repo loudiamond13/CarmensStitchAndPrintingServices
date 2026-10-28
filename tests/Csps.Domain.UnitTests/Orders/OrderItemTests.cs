@@ -148,6 +148,23 @@ public sealed class OrderItemTests
     }
 
     [Fact]
+    public void AChangedPriceAloneAndAChangedProductTypeAloneEachCountAsAChange()
+    {
+        var order = OrderOf(Jersey(15, 650.00m));
+        var item = order.Items[0];
+
+        var priceOnly = order.UpdateItem(item.Id, Jersey(15, 700.00m), Later).Value;
+        var typeOnly = order.UpdateItem(item.Id, new NewOrderItem(PoloType, "Jersey top", "S-XL", 15, 700.00m), Later.AddHours(1)).Value;
+
+        priceOnly.HasAny.ShouldBeTrue();
+        priceOnly.UnitPrice.ShouldBe(new ValueChange<decimal>(650.00m, 700.00m));
+        priceOnly.Quantity.ShouldBeNull();
+        typeOnly.HasAny.ShouldBeTrue();
+        typeOnly.ProductType.ShouldBe(new ValueChange<Guid>(JerseyType, PoloType));
+        typeOnly.UnitPrice.ShouldBeNull();
+    }
+
+    [Fact]
     public void AnUpdateThatChangesNothingReportsNothingAndKeepsTheVersion()
     {
         var order = OrderOf(Jersey(15, 650.00m));

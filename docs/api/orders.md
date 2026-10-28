@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T11:30:00-05:00
+updated: 2026-10-28T12:45:00-05:00
 ---
 
 # The orders API
@@ -9,8 +9,8 @@ This is the contract behind the Orders screens, and the one a future Android app
 The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page;
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
-[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back and editing its details. Later plans add the
-list, item, payment, discount, expense, status and delete routes to this page.
+[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details and adding, editing and removing items. Later plans add the
+list, payment, discount, expense, status and delete routes to this page.
 
 ## In plain words
 
@@ -31,6 +31,9 @@ list, item, payment, discount, expense, status and delete routes to this page.
 | `POST /orders` | Staff | the order form below, with an `Idempotency-Key` | `201` the order, with `Location: /api/v1/orders/{id}`; `400` field errors; `409 orders.busy` |
 | `GET /orders/{id}` | Staff | none | `200` the order; `404 orders.not-found` |
 | `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale` |
+| `POST /orders/{id}/items` | Staff | the item form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-items` |
+| `PUT /orders/{id}/items/{itemId}` | Staff | the item form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.item-not-found`; `409 edit.stale` |
+| `DELETE /orders/{id}/items/{itemId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.item-not-found`; `409 edit.stale`; `422 orders.last-item` |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
 read every order. No answer is ever cached (`Cache-Control: no-store`).
@@ -107,6 +110,38 @@ changed here; each has its own route.
   clock. `recordedBy` stays the person who created the order. Any attribution, `number`, `status`, `totals` or `items` member in
   the body is ignored.
 - A deleted or unknown id is `404 orders.not-found`. A bad form lists every broken field in one `400`, as when creating.
+
+## Items (`/api/v1/orders/{id}/items`)
+
+Staff add, correct and remove the items of a saved order. Every answer is the whole order, with every money figure worked out
+again by the server and a new `version`.
+
+| Field | Required | Rule |
+|---|---|---|
+| `productTypeId` | yes | a product type that exists. A new item, or an edit that changes the type, needs one that is not retired (D-18): "This product type was retired. Choose another one." An edit that keeps the type it already has is allowed even if the type was retired later (D-19) |
+| `description` | yes | 1 to 200 characters after trimming |
+| `sizeVariant` | no | up to 100 characters |
+| `quantity` | yes | 1 to 10,000 |
+| `unitPrice` | yes | 0.00 to 1,000,000.00 with at most two decimal places |
+| `version` | add and edit | the order's `version` as last read: base64 of eight bytes. Anything else is `400` on `version`, "Reload the form and try again." |
+
+- **The rules and messages are the same as in the order form** (D-30). Errors are on the plain field name, for example `quantity`.
+- **The version contract (ORD-08).** Any item change moves the order's version, so a change to an item alone still counts as a
+  change to the order. Two adds or edits that carry the same version give exactly one `200`; the other is `409 edit.stale`,
+  "This was changed by someone else. Reload and try again." Nothing of the loser is stored. Add and edit are never retried.
+- **Remove sends no version.** It acts on the latest state. If it loses a race it is read again and decided again once; only a
+  second lost race is `409 edit.stale`. Two removals of different items both succeed when two or more items would remain; when
+  only one would remain, one succeeds and the other is `422`.
+- **At least one item (`422 orders.last-item`).** "An order needs at least one item. Add another item before removing this one."
+- **At most 100 items (`422 orders.too-many-items`).** "An order can have at most 100 items."
+- **Items are found only through their order (CWE-639).** An item id that is not on the order in the route is
+  `404 orders.item-not-found`, "This item was not found on this order." The item of another order is never changed.
+- **An edit that changes nothing** answers `200`, keeps the `version` and writes no audit entry.
+- **Position.** `items` come in the order they were added. A new item goes after the last one, and a removal leaves the others
+  in place.
+- **Who changed it (SEC-08).** The item shows who recorded it, and the order shows the caller as last changed. Any attribution,
+  `lineTotal` or `totals` member in the body is ignored.
+- A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
 
 ## The order
 

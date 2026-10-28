@@ -19,3 +19,17 @@ public sealed record OrderDetailsChanges(ValueChange<DateOnly>? OrderDate, DueDa
     /// <summary>Gets a value that is true when anything at all changed.</summary>
     public bool HasAny => OrderDate is not null || DueDate is not null || ChangedFields.Count > 0;
 }
+
+/// <summary>
+/// What one item edit changed (D-31). The product type, quantity and unit price carry the old and new value; the description and
+/// the size or variant carry only their field names, because their text never goes into the audit log.
+/// </summary>
+/// <param name="ProductType">The product type change; null when it stayed.</param>
+/// <param name="Quantity">The quantity change; null when it stayed.</param>
+/// <param name="UnitPrice">The unit price change; null when it stayed.</param>
+/// <param name="ChangedFields">The names of the text fields that changed (<c>description</c>, <c>sizeVariant</c>), in form order.</param>
+public sealed record OrderItemChanges(ValueChange<Guid>? ProductType, ValueChange<int>? Quantity, ValueChange<decimal>? UnitPrice, IReadOnlyList<string> ChangedFields)
+{
+    /// <summary>Gets a value that is true when anything at all changed.</summary>
+    public bool HasAny => ProductType is not null || Quantity is not null || UnitPrice is not null || ChangedFields.Count > 0;
+}

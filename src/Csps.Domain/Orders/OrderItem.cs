@@ -63,4 +63,15 @@ public sealed class OrderItem : IAttributedRecord
 
     /// <inheritdoc />
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
+
+    // Takes the new values, already checked and trimmed by Order.UpdateItem, and works the line total out again.
+    internal void Apply(NewOrderItem values)
+    {
+        ProductTypeId = values.ProductTypeId;
+        Description = values.Description;
+        SizeVariant = values.SizeVariant;
+        Quantity = values.Quantity;
+        UnitPrice = values.UnitPrice;
+        LineTotal = values.Quantity * values.UnitPrice;
+    }
 }
