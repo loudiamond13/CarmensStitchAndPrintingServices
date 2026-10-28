@@ -125,6 +125,41 @@ internal static class OrderFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Builds the body of an item add or edit: the item fields plus the order's version.</summary>
+    /// <param name="productTypeId">The product type.</param>
+    /// <param name="version">The order's version as the last answer carried it.</param>
+    /// <param name="description">What the item is.</param>
+    /// <param name="sizeVariant">The size or variant.</param>
+    /// <param name="quantity">The quantity.</param>
+    /// <param name="unitPrice">The unit price.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> ItemBody(Guid productTypeId, string? version, string description = "Coach polo", string? sizeVariant = "L", int quantity = 2, decimal unitPrice = 550.00m)
+    {
+        var body = Item(productTypeId, description, sizeVariant, quantity, unitPrice);
+        body["version"] = version;
+        return body;
+    }
+
+    /// <summary>Posts an item to a saved order with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> AddItemAsync(HttpClient client, string? accessToken, Guid orderId, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{orderId:D}/items", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
