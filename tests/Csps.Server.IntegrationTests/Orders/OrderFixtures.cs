@@ -28,6 +28,12 @@ internal static class OrderFixtures
     /// <summary>The id of the seeded Custom Design product type.</summary>
     public static readonly Guid CustomDesignId = ProductTypeId("Custom Design");
 
+    /// <summary>The id of the seeded Cash payment method.</summary>
+    public static readonly Guid CashId = PaymentMethodId("Cash");
+
+    /// <summary>The id of the seeded GCash payment method.</summary>
+    public static readonly Guid GCashId = PaymentMethodId("GCash");
+
     /// <summary>One order item as a dictionary so a test can override a member.</summary>
     /// <param name="productTypeId">The product type.</param>
     /// <param name="description">What the item is.</param>
@@ -299,6 +305,100 @@ internal static class OrderFixtures
         return document.RootElement.Clone();
     }
 
+    /// <summary>Builds the body of a payment add or edit: the payment fields plus the order's version.</summary>
+    /// <param name="paymentDate">The day the money was received.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="paymentMethodId">The payment method.</param>
+    /// <param name="receivedByUserId">Who received the money.</param>
+    /// <param name="version">The order's version as the last answer carried it.</param>
+    /// <param name="reference">The reference text.</param>
+    /// <param name="notes">The notes text.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> PaymentBody(DateOnly? paymentDate, decimal? amount, Guid? paymentMethodId, Guid? receivedByUserId, string? version, string? reference = null, string? notes = null) => new()
+    {
+        ["paymentDate"] = paymentDate is { } date ? Date(date) : null,
+        ["amount"] = amount,
+        ["paymentMethodId"] = paymentMethodId,
+        ["reference"] = reference,
+        ["notes"] = notes,
+        ["receivedByUserId"] = receivedByUserId,
+        ["version"] = version,
+    };
+
+    /// <summary>Posts a payment to a saved order with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> AddPaymentAsync(HttpClient client, string? accessToken, Guid orderId, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{orderId:D}/payments", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Puts the edit form of one payment.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="paymentId">The payment id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PutPaymentAsync(HttpClient client, string? accessToken, Guid orderId, Guid paymentId, object? body)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Put, $"{Route}/{orderId:D}/payments/{paymentId:D}", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Removes one payment.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="paymentId">The payment id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeletePaymentAsync(HttpClient client, string? accessToken, Guid orderId, Guid paymentId)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{orderId:D}/payments/{paymentId:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Adds a payment, expects a 200 and returns the whole order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="order">The order as the last answer carried it; its version is sent.</param>
+    /// <param name="paymentDate">The day the money was received.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="paymentMethodId">The payment method.</param>
+    /// <param name="receivedByUserId">Who received the money.</param>
+    /// <returns>The JSON body of the order after the add.</returns>
+    public static async Task<JsonElement> AddPaymentAndReadAsync(HttpClient client, string accessToken, JsonElement order, DateOnly paymentDate, decimal amount, Guid paymentMethodId, Guid receivedByUserId)
+    {
+        using var response = await AddPaymentAsync(
+            client,
+            accessToken,
+            order.GetProperty("id").GetGuid(),
+            PaymentBody(paymentDate, amount, paymentMethodId, receivedByUserId, order.GetProperty("version").GetString()));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
@@ -396,4 +496,6 @@ internal static class OrderFixtures
     private static string? TextOrNull(JsonElement element, string name) => IsNull(element, name) ? null : element.GetProperty(name).GetString();
 
     private static Guid ProductTypeId(string name) => OrderListSeed.ProductTypes.Single(row => row.Name == name).Id;
+
+    private static Guid PaymentMethodId(string name) => OrderListSeed.PaymentMethods.Single(row => row.Name == name).Id;
 }
