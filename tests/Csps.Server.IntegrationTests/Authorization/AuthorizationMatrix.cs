@@ -191,6 +191,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 400, Manager: 400),
         // Reading one order (ORD-03): both roles. A fresh random id is no order, so both meet 404 orders.not-found.
         new("GET", "/api/v1/orders/{id:guid}", "/api/v1/orders/3f7a2c91-6d48-4e15-b0a3-9c1e5d8f2b64", Anonymous: 401, Admin: 404, Manager: 404),
+        // Editing an order's details (ORD-05): both roles may edit any order (D-25). The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("PUT", "/api/v1/orders/{id:guid}", "/api/v1/orders/9b2d6e14-7a35-4c80-a1f9-3e5c8d0b2a76", Anonymous: 401, Admin: 400, Manager: 400),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),

@@ -107,6 +107,40 @@ internal static class OrderFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Puts the details edit form of one order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The order id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PutDetailsAsync(HttpClient client, string? accessToken, Guid id, object? body)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Put, $"{Route}/{id:D}", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
+    /// <param name="detail">The order as the API returned it.</param>
+    /// <returns>The body members, with the version the detail carried.</returns>
+    public static Dictionary<string, object?> DetailsBodyFrom(JsonElement detail) => new()
+    {
+        ["customerName"] = detail.GetProperty("customerName").GetString(),
+        ["teamName"] = TextOrNull(detail, "teamName"),
+        ["contactNumber"] = TextOrNull(detail, "contactNumber"),
+        ["email"] = TextOrNull(detail, "email"),
+        ["address"] = TextOrNull(detail, "address"),
+        ["orderDate"] = TextOrNull(detail, "orderDate"),
+        ["dueDate"] = TextOrNull(detail, "dueDate"),
+        ["notes"] = TextOrNull(detail, "notes"),
+        ["version"] = detail.GetProperty("version").GetString(),
+    };
+
     /// <summary>Reads one order.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>
@@ -184,6 +218,8 @@ internal static class OrderFixtures
         problem.TryGetProperty("errors", out var errors)
             ? [.. errors.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal)]
             : [];
+
+    private static string? TextOrNull(JsonElement element, string name) => IsNull(element, name) ? null : element.GetProperty(name).GetString();
 
     private static Guid ProductTypeId(string name) => OrderListSeed.ProductTypes.Single(row => row.Name == name).Id;
 }
