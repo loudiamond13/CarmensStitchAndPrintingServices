@@ -493,8 +493,7 @@ public sealed class OrderAuditDetailTests
     [Fact]
     public void PermanentlyDeletedNamesEachPersonOnceInTheOrderTheyFirstAppearAndTheRefundersAndRefundedTotal()
     {
-        var order = FullOrder();
-        order.ChangeStatus(OrderStatus.Cancelled, Receiver, Now).IsSuccess.ShouldBeTrue();
+        var order = CancelledPaidOrder();
         order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 2000m, "Cancelled", OtherReceiver), new DateOnly(2026, 10, 28), Now).IsSuccess.ShouldBeTrue();
         order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 1000m, "Cancelled", Receiver), new DateOnly(2026, 10, 28), Now).IsSuccess.ShouldBeTrue();
         order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 500m, "Cancelled", OtherReceiver), new DateOnly(2026, 10, 28), Now).IsSuccess.ShouldBeTrue();
@@ -504,7 +503,8 @@ public sealed class OrderAuditDetailTests
         var parts = AuditDetailFormat.Parse(detail).ToDictionary(part => part.Key, part => part.To, StringComparer.Ordinal);
         parts["status"].ShouldBe("cancelled");
         parts["refunded"].ShouldBe("3500.00");
-        parts["receivers"].ShouldBe($"{Receiver:D},{OtherReceiver:D}");
+        parts["receivers"].ShouldBe($"{Receiver:D}");
+        parts["payers"].ShouldBe(string.Empty);
         parts["refunders"].ShouldBe($"{OtherReceiver:D},{Receiver:D}");
     }
 

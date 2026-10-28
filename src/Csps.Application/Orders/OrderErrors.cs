@@ -65,4 +65,16 @@ public static class OrderErrors
 
     /// <summary>Gets the 422 for a refund on an order that is neither cancelled nor in credit.</summary>
     public static Error RefundNotAllowed => OrderRules.RefundNotAllowed;
+
+    /// <summary>The field a wrong delete-for-good confirmation is reported on.</summary>
+    public const string ConfirmField = "confirm";
+
+    /// <summary>The plain-English text for a delete-for-good confirmation that is not the exact order number.</summary>
+    public const string ConfirmMessage = "Type the order number exactly to delete it for good.";
+
+    /// <summary>Gets the 400 for a delete-for-good whose confirm is missing or is not the order number, on the field <c>confirm</c>.</summary>
+    public static Error ConfirmMismatch { get; } = Error.Validation(
+        ValidationCode,
+        ValidationMessage,
+        new Dictionary<string, string[]> { [ConfirmField] = [ConfirmMessage] });
 }

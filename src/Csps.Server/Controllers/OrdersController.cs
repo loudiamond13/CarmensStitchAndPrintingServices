@@ -17,12 +17,13 @@ namespace Csps.Server.Controllers;
 /// <param name="delete">The soft-delete handler (both roles).</param>
 /// <param name="listDeleted">The deleted-order list handler (Managers only).</param>
 /// <param name="restore">The restore handler (Managers only).</param>
+/// <param name="permanentlyDelete">The permanent-delete handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/orders")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus, DeleteOrderHandler delete, ListDeletedOrdersHandler listDeleted, RestoreOrderHandler restore) : ControllerBase
+public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus, DeleteOrderHandler delete, ListDeletedOrdersHandler listDeleted, RestoreOrderHandler restore, PermanentlyDeleteOrderHandler permanentlyDelete) : ControllerBase
 {
     /// <summary>
     /// Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order
@@ -193,6 +194,33 @@ public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler 
     public async Task<IResult> RestoreOrder(Guid id, CancellationToken cancellationToken)
     {
         var result = await restore.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Deletes one order for good, Managers only, whether or not it was deleted before. The order and every item, payment, refund,
+    /// discount, expense and history row are removed from the database in one step and there is no way back. The query value
+    /// <c>confirm</c> must be the order number typed exactly (same letters, no extra spaces), or nothing is removed. The audit log
+    /// keeps one entry with the number, status, money figures and the user ids of the people who took payments, paid expenses and
+    /// handed refunds back, and never customer details or notes. It takes no version, and removing an order that is already gone
+    /// is a 404 that changes nothing. Image cleanup joins this delete when orders have images.
+    /// </summary>
+    /// <param name="id">The order id.</param>
+    /// <param name="confirm">The order number, typed exactly.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 400 on <c>confirm</c> when it is not the exact number, 401 without a valid token, 403 for an Admin, 404 when no such order exists, or 409 when two saves lost a race.</returns>
+    [HttpDelete("{id:guid}/permanent")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("PermanentlyDeleteOrder")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> PermanentlyDeleteOrder(Guid id, [FromQuery] string? confirm, CancellationToken cancellationToken)
+    {
+        var result = await permanentlyDelete.HandleAsync(id, confirm, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

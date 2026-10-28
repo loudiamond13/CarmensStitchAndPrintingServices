@@ -50,6 +50,7 @@ public static class OrdersApplicationRegistration
         services.AddSingleton<IValidator<ListDeletedOrdersRequest>, ListDeletedOrdersRequestValidator>();
         services.AddScoped<DeleteOrderHandler>();
         services.AddScoped<RestoreOrderHandler>();
+        services.AddScoped<PermanentlyDeleteOrderHandler>();
         services.AddScoped<ListDeletedOrdersHandler>();
         return services;
     }

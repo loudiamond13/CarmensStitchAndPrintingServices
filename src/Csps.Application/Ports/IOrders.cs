@@ -9,6 +9,13 @@ public interface IOrders
     /// <param name="order">The new order.</param>
     void Add(Order order);
 
+    /// <summary>
+    /// Removes an order found by <see cref="FindAsync"/> in the unit of work, so the delete and the audit entry share one save. The
+    /// loaded children go with it and the database removes the rest, including the status history. Nothing is saved here.
+    /// </summary>
+    /// <param name="order">The tracked order.</param>
+    void Remove(Order order);
+
     /// <summary>Finds one order for change, tracked, with its items. The status history is not loaded.</summary>
     /// <param name="id">The order id.</param>
     /// <param name="includeDeleted">True to also find a soft-deleted order (restore and permanent delete).</param>

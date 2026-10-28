@@ -17,6 +17,12 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
         context.Orders.Add(order);
     }
 
+    public void Remove(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        context.Orders.Remove(order);
+    }
+
     public async Task<Order?> FindAsync(Guid id, bool includeDeleted, CancellationToken cancellationToken)
     {
         var query = includeDeleted

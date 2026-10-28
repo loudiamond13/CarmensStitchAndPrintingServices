@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-28T15:23:15-05:00
+updated: 2026-10-28T17:32:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -168,7 +168,7 @@ transaction as the change.
 | `order.reopened` | A completed or canceled order is reopened | `Order` id | `status=<from>><to>` |
 | `order.deleted` | An order is deleted into the bin | `Order` id | `number=<n>;status=<status>;total=<amount>;paid=<amount>;balance=<amount>` |
 | `order.restored` | A deleted order is restored | `Order` id | The same snapshot as `order.deleted` |
-| `order.permanently-deleted` | A deleted order is removed for good (D-29) | `Order` id | `number=<n>;status=<status>;subtotal=<amount>;discount=<amount>;total=<amount>;paid=<amount>;refunded=<amount>;balance=<amount>;expenses=<amount>;receivers=<ids>;payers=<ids>;refunders=<ids>`, the three lists comma-joined user ids. Never customer details or notes |
+| `order.permanently-deleted` | A deleted order is removed for good (D-29) | `Order` id | `number=<n>;status=<status>;subtotal=<amount>;discount=<amount>;total=<amount>;paid=<amount>;refunded=<amount>;balance=<amount>;expenses=<amount>;receivers=<ids>;payers=<ids>;refunders=<ids>`, the three lists comma-joined user ids, each person once, in the order first recorded. The detail holds at most 400 characters, so with many people the longest list is cut and ends with `+N` for the N ids left out. Never customer details or notes |
 | `order-item.added` | An item is added | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>` |
 | `order-item.changed` | An item is saved with different values | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>`, with `old>new` on the pairs that changed, then `fields=description,sizeVariant` naming the text fields that changed |
 | `order-item.removed` | An item is removed | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>` |

@@ -6784,6 +6784,93 @@
         ]
       }
     },
+    "/api/v1/orders/{id}/permanent": {
+      "delete": {
+        "operationId": "PermanentlyDeleteOrder",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The order number, typed exactly.",
+            "in": "query",
+            "name": "confirm",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes one order for good, Managers only, whether or not it was deleted before. The order and every item, payment, refund,\ndiscount, expense and history row are removed from the database in one step and there is no way back. The query value\n`confirm` must be the order number typed exactly (same letters, no extra spaces), or nothing is removed. The audit log\nkeeps one entry with the number, status, money figures and the user ids of the people who took payments, paid expenses and\nhanded refunds back, and never customer details or notes. It takes no version, and removing an order that is already gone\nis a 404 that changes nothing. Image cleanup joins this delete when orders have images.",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
     "/api/v1/orders/{id}/restore": {
       "post": {
         "operationId": "RestoreOrder",

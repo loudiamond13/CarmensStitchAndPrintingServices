@@ -1,5 +1,6 @@
 using System.Globalization;
 using Csps.Application.Common;
+using Csps.Domain.Auditing;
 using Csps.Domain.Expenses;
 using Csps.Domain.Orders;
 
@@ -306,6 +307,74 @@ public static class OrderAuditDetail
     public static string StatusChanged(OrderStatus from, OrderStatus to) =>
         AuditDetailFormat.Change("status", OrderStatusNames.ToKey(from), OrderStatusNames.ToKey(to));
 
+    /// <summary>The detail of <c>order.deleted</c>: the number, status, total, paid and balance, never customer details or notes.</summary>
+    /// <param name="order">The order that was deleted.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;status=pending;total=21327.50;paid=12000.00;balance=9327.50</c>.</returns>
+    public static string Deleted(Order order) => DeleteSnapshot(order);
+
+    /// <summary>The detail of <c>order.restored</c>: the same snapshot as <see cref="Deleted"/>.</summary>
+    /// <param name="order">The order that was restored.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;status=pending;total=21327.50;paid=12000.00;balance=9327.50</c>.</returns>
+    public static string Restored(Order order) => DeleteSnapshot(order);
+
+    /// <summary>
+    /// The detail of <c>order.permanently-deleted</c> (D-29): the number, status and every money figure, then the people who received
+    /// payments, paid expenses and handed refunds back as <c>receivers</c>, <c>payers</c> and <c>refunders</c>, each a comma-joined
+    /// list of user ids, every person once, in the order they were first recorded. It never holds customer details, notes or any child
+    /// text. The audit log's detail holds 400 characters, so when many people are involved the lists are cut, the longest one first,
+    /// and the cut list ends with <c>+N</c> for the N ids left out.
+    /// </summary>
+    /// <param name="order">The order about to be removed, with its payments, expenses and refunds loaded.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;status=pending;subtotal=22450.00;discount=1122.50;total=21327.50;paid=12000.00;refunded=0.00;balance=9327.50;expenses=6065.00;receivers=&lt;id&gt;,&lt;id&gt;;payers=&lt;id&gt;,&lt;id&gt;;refunders=</c>.</returns>
+    public static string PermanentlyDeleted(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        var lists = new[]
+        {
+            new PeopleList("receivers", [.. order.Payments.OrderBy(static payment => payment.Position).Select(static payment => payment.ReceivedByUserId).Distinct()]),
+            new PeopleList("payers", [.. order.Expenses.OrderBy(static expense => expense.Position).Select(static expense => expense.PaidByUserId).Distinct()]),
+            new PeopleList("refunders", [.. order.Refunds.OrderBy(static refund => refund.Position).Select(static refund => refund.RefundedByUserId).Distinct()]),
+        };
+        var money = new[]
+        {
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("status", OrderStatusNames.ToKey(order.Status)),
+            AuditDetailFormat.Pair("subtotal", order.Subtotal),
+            AuditDetailFormat.Pair("discount", order.DiscountTotal),
+            AuditDetailFormat.Pair("total", order.Total),
+            AuditDetailFormat.Pair("paid", order.PaidTotal),
+            AuditDetailFormat.Pair("refunded", order.RefundedTotal),
+            AuditDetailFormat.Pair("balance", order.Balance),
+            AuditDetailFormat.Pair("expenses", order.ExpensesTotal),
+        };
+
+        var detail = Compose(money, lists);
+        while (detail.Length > AuditEntry.DetailMaxLength)
+        {
+            var longest = lists.MaxBy(static list => list.Kept.Count)!;
+            longest.DropLast();
+            detail = Compose(money, lists);
+        }
+
+        return detail;
+    }
+
+    private static string Compose(string[] money, PeopleList[] lists) =>
+        AuditDetailFormat.Join([.. money, .. lists.Select(static list => AuditDetailFormat.Pair(list.Key, list.Text()))]);
+
+    private static string DeleteSnapshot(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("status", OrderStatusNames.ToKey(order.Status)),
+            AuditDetailFormat.Pair("total", order.Total),
+            AuditDetailFormat.Pair("paid", order.PaidTotal),
+            AuditDetailFormat.Pair("balance", order.Balance));
+    }
+
     private static string RefundSnapshot(OrderRefund refund)
     {
         ArgumentNullException.ThrowIfNull(refund);
@@ -360,5 +429,24 @@ public static class OrderAuditDetail
             AuditDetailFormat.Pair("productType", item.ProductTypeId),
             AuditDetailFormat.Pair("quantity", item.Quantity.ToString(CultureInfo.InvariantCulture)),
             AuditDetailFormat.Pair("unitPrice", item.UnitPrice));
+    }
+
+    // One of the three people lists of the permanent-delete detail; ids can be dropped from the end when the detail is too long.
+    private sealed class PeopleList(string key, List<Guid> ids)
+    {
+        private int _left;
+
+        public string Key => key;
+
+        public List<Guid> Kept => ids;
+
+        public void DropLast()
+        {
+            ids.RemoveAt(ids.Count - 1);
+            _left++;
+        }
+
+        public string Text() =>
+            string.Join(',', ids.Select(static id => AuditKey.Of(id)).Concat(_left > 0 ? [string.Create(CultureInfo.InvariantCulture, $"+{_left}")] : []));
     }
 }

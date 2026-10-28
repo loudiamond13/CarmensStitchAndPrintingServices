@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T16:32:42-05:00
+updated: 2026-10-28T17:30:00-05:00
 ---
 
 # The orders API
@@ -10,7 +10,7 @@ The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scala
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
 [order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, recording, correcting and removing payments, recording, correcting and removing
-order expenses, recording, correcting and removing refunds, and moving an order between statuses. Later plans add the list and delete routes to this page.
+order expenses, recording, correcting and removing refunds, and moving an order between statuses, and deleting, restoring and purging orders. A later plan adds the order list to this page.
 
 ## In plain words
 
@@ -46,6 +46,10 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `PUT /orders/{id}/refunds/{refundId}` | Staff | the refund form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.refund-not-found`; `409 edit.stale`; `422 orders.locked` |
 | `DELETE /orders/{id}/refunds/{refundId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.refund-not-found`; `409 edit.stale`; `422 orders.locked` |
 | `POST /orders/{id}/status` | Staff | `{ "status": "mockup" }` with an `Idempotency-Key` and no version | `200` the whole order; `400` on `status`; `404 orders.not-found`; `409 edit.stale` (two lost races); `422 orders.complete-balance-owed`, `orders.complete-credit` or `orders.reopen-first` |
+| `DELETE /orders/{id}` | Staff | none | `204`; `404 orders.not-found` (also for an order that is already deleted); `409 edit.stale` (two lost races) |
+| `GET /orders/deleted?page=&pageSize=` | Manager | none | `200` the deleted list; `400` for a bad page or page size; `403` for an Admin |
+| `POST /orders/{id}/restore` | Manager | none, with an `Idempotency-Key` | `204`; `403` for an Admin; `404 orders.not-found` (also for an order that is not deleted); `409 edit.stale` |
+| `DELETE /orders/{id}/permanent?confirm=` | Manager | none | `204`; `400` on `confirm`; `403` for an Admin; `404 orders.not-found`; `409 edit.stale` |
 
 Every route above that changes an order's details, items, discounts, payments or expenses also answers `422 orders.locked` while the order is
 Completed or Cancelled (see Statuses below). The refund routes are the one exception: they work on a Cancelled order and answer
@@ -395,6 +399,39 @@ is `409 edit.stale`. A retry with the same `Idempotency-Key` and body answers wi
   ORD-2026-0148 (paid 12,000.00, no refunds, expenses 6,065.00) it reads 5,935.00, and reopening it restores 15,262.50. Once the
   12,000.00 is refunded it reads -6,065.00, a loss of its expenses.
 
+## Deleting, restoring and purging (D-26 to D-29)
+
+Who may do what:
+
+| Action | Admin | Manager |
+|--------|-------|---------|
+| Delete an order (`DELETE /orders/{id}`) | yes | yes |
+| See the deleted orders (`GET /orders/deleted`) | `403` | yes |
+| Restore a deleted order (`POST /orders/{id}/restore`) | `403` | yes |
+| Delete for good (`DELETE /orders/{id}/permanent?confirm=`) | `403` | yes |
+
+- **Delete (D-26, D-27).** Any status can be deleted, locked ones included. The order is only marked: it and its items, payments,
+  refunds, discounts, expenses and history stay in the database, but they leave every default read. Afterwards `GET`, `PUT`, the
+  status route and every item, discount, payment, expense and refund route answer `404 orders.not-found`, and the order's money counts
+  nowhere. Who deleted it and when come from the token and the clock. No version is sent, so a click always acts on the latest state:
+  deleting an order that is already deleted is a `404` and changes nothing. A delete that races an item add never leaves a deleted
+  order with a new item.
+- **The deleted list (D-28).** Newest deleted first, then by id. Each row has `id`, `number`, `customerName`, `teamName`, `status`
+  (the wire key it had), `total`, `paid`, `balance`, `deletedAt` and `deletedBy`, with `items`, `total` (the count over every page),
+  `page` and `pageSize` around them. `pageSize` is 1 to 100 (20 when not sent) and `page` is 1 to 100000. It never shows contact
+  details, the address or notes. It reads in two SQL commands whatever the page size.
+- **Restore (D-28).** The order and everything inside it come back, with the same figures. Restoring an order that is not deleted is
+  `404 orders.not-found` and writes nothing, so a repeated click never has a second effect. A retry with the same `Idempotency-Key`
+  answers with the stored `204`.
+- **Delete for good (D-28).** The order and every child row are removed in one step, whether or not it was deleted first. The query
+  value `confirm` must be the order number typed exactly, for example `ORD-2026-0148`: the same letters and no spaces around it. A missing
+  or different value is `400` on `confirm` ("Type the order number exactly to delete it for good.") and nothing is removed. An unknown id
+  is `404` before the confirm is looked at. The audit entry is written in the same save as the delete, so it stays when the rows are gone.
+- **Images (ORD-06).** When orders can carry images (Phase 9), deleting an order for good will also schedule the cleanup of its images.
+  There are none yet, so nothing is scheduled today.
+- **Refunds on a deleted order.** Whether refunds on a deleted order count toward money on hand is still an open question for the owner
+  (D-39); it is decided with the money reports in Phase 10. The refund data and the delete filters keep both answers possible.
+
 ## The order
 
 `POST`, `GET` and `PUT` answer the same shape, and so do the item, discount, payment, refund, expense and status routes:
@@ -463,6 +500,12 @@ the change entry when anything else changed too.
 Each status move writes one `order.status-changed` entry and each reopen from Completed or Cancelled writes one `order.reopened` entry
 (never both), in the same save as the history row, each with `status=<from>><to>` by wire key, for example `status=pending>mockup`. A
 request for the status the order already has writes nothing.
+A delete writes one `order.deleted` entry and a restore one `order.restored` entry in the same save, each with
+`number=<n>;status=<key>;total=<amount>;paid=<amount>;balance=<amount>`. A delete for good writes one `order.permanently-deleted`
+entry first, in the same save as the removal: `number`, `status`, `subtotal`, `discount`, `total`, `paid`, `refunded`, `balance` and
+`expenses`, then `receivers`, `payers` and `refunders` as comma-joined user ids (each person once, in the order they were first recorded).
+The audit log holds 400 characters per entry, so when many people are involved the longest list is cut and ends with `+N` for the N ids
+left out. A second delete, a restore of an order that is not deleted, and every refusal write nothing.
 No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, a payment's reference or notes, a refund's reason, or an expense's description. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
 
