@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-07-PLAN.md
-last_updated: "2026-10-28T16:45:31.132Z"
+stopped_at: Completed 07-08-PLAN.md
+last_updated: "2026-10-28T17:17:32.586Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 9a3bf4f68a14ac66b695d52ee0e8841263ff5b27
+state_head: e67f7b177092e58732d70806ebfa54348f6e39f9
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 194
+  completed_plans: 195
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 8 of 20
+Plan: 9 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -252,6 +252,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P05 | 39 min | 3 tasks | 56 files |
 | Phase 07 P06 | 20 min | 2 tasks | 4 files |
 | Phase 07 P07 | 25 min | 3 tasks | 17 files |
+| Phase 07 P08 | 35 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -688,6 +689,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-05: IOrderReader returns OrderDetailResponse directly; CreateOrderRequest.Items has non-null element type and a null JSON element is refused on items[n]
 - [Phase 07]: 07-06: OrderNumberAllocator has an internal constructor taking the lock wait (public one keeps the 10 s default); order number race, New Year, rollback and busy-lock proofs are characterization tests, the 07-05 allocator needed no fix
 - [Phase 07]: 07-07: Order.UpdateDetails takes no today parameter and the due date change is its own DueDateChange record (ValueChange cannot hold a nullable day); a stale version or lost race is 409 edit.stale with no retry; an unchanged save keeps the version and writes no audit entry.
+- [Phase 07]: 07-08: AddLegacyHolder migration id is the generated 20261028165341 (the plan placeholder sorted before AddOrders); IsActive=false is listed by hand in the InsertData because EF leaves a false value out when the column default is true
+- [Phase 07]: 07-08: UserAccounts.FindUserAsync is the single door that hides the Legacy holder from sign-in and every user action; person-name lookups are not filtered so legacy money still shows Legacy / unassigned
 
 ### Pending Todos
 
@@ -779,6 +782,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T16:45:29.698Z
-Stopped at: Completed 07-07-PLAN.md
+Last session: 2026-10-28T17:17:31.409Z
+Stopped at: Completed 07-08-PLAN.md
 Resume file: None

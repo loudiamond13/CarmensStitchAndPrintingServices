@@ -787,7 +787,7 @@ Plans:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
 - counter-table locking under the execution strategy
 
-**Plans**: 7/20 plans executed in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
+**Plans**: 8/20 plans executed in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 07-01-PLAN.md — Product types, payment methods and order expense categories: tables, seeds, read API, and the Phase 7 audit catalog (ORD-13; D-16 to D-20, D-31)
@@ -801,7 +801,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 07-06-PLAN.md — Numbering under 20 parallel creates, across New Year in Manila, gapless on rollback (ORD-14)
 - [x] 07-07-PLAN.md — Edit order details with the 409 version check (ORD-05, ORD-08; D-25)
-- [ ] 07-08-PLAN.md — The hidden "Legacy / unassigned" holder (D-32, D-37)
+- [x] 07-08-PLAN.md — The hidden "Legacy / unassigned" holder (D-32, D-37)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 07-09-PLAN.md — Add, edit and remove items; child-only edits guarded (ORD-05, ORD-08, ORD-13)
@@ -1272,7 +1272,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
-| 7. Order Domain & API | 7/20 | In Progress | - |
+| 7. Order Domain & API | 8/20 | In Progress | - |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
