@@ -228,6 +228,24 @@ describe('createToastQueue', () => {
     expect(titles(queue)).toEqual([]);
   });
 
+  it('never cancels a timer that already fired, so an expiry after teardown touches no browser timer', () => {
+    const cancel = vi.fn();
+    let fire: (() => void) | undefined;
+    const queue = createToastQueue({
+      now: () => Date.now(),
+      schedule: (callback) => {
+        fire = callback;
+        return cancel;
+      },
+    });
+
+    queue.show({ title: 'Saved' });
+    fire?.();
+
+    expect(queue.getSnapshot().toasts).toEqual([]);
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
   it('dismisses a toast shown while paused (it has no running timer)', () => {
     const queue = fakeTimerQueue();
     queue.pause();

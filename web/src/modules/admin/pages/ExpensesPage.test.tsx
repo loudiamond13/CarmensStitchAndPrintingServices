@@ -6,6 +6,7 @@ import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } fro
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
+import { fieldClasses } from '@/components/forms/field.recipe';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
@@ -653,22 +654,24 @@ describe('date range (D-23, OR-3)', () => {
     expect(calls[0]?.searchParams.has('to')).toBe(false);
   });
 
-  it('writes each date out beside its box and follows what is typed (D-60)', async () => {
+  it('writes no date out beside the From and To boxes and gives them the plain toolbar field width (D-63)', async () => {
     expensesBackend(expenseList(ROWS));
     renderPage();
     await screen.findByText('Shop rent for October');
-    const besideBox = (name: string): HTMLElement | null =>
+    const field = (name: string): HTMLElement | null =>
       screen.getByLabelText(name).parentElement?.parentElement ?? null;
 
     await waitFor(() => {
-      expect(besideBox('From')).toHaveTextContent('Sep 25, 2026');
+      expect(screen.getByLabelText('From')).toHaveValue('2026-09-25');
     });
-    expect(besideBox('To')).toHaveTextContent('Nov 24, 2026');
+    for (const name of ['From', 'To']) {
+      expect(field(name)).toHaveTextContent(new RegExp(`^${name}$`));
+      expect([...(field(name)?.classList ?? [])].sort()).toEqual(fieldClasses.split(/\s+/).filter(Boolean).sort());
+    }
 
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
-    expect(besideBox('From')).toHaveTextContent('Oct 1, 2026');
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } });
-    expect(besideBox('From')).not.toHaveTextContent('2026');
+    expect(field('From')).not.toHaveTextContent('Oct 1, 2026');
+    expect(field('From')).toHaveTextContent(/^From$/);
   });
 
   it('a shared link with a pair fills the inputs, sends the pair and shows the Dates chip', async () => {

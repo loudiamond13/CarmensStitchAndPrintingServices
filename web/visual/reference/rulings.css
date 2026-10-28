@@ -230,6 +230,27 @@ button.csp-nav {
   overflow-wrap: anywhere;
 }
 
+/* P5 long-text fifth (quick 261028-2e4, 2026-10-28), phone list cards: a value with no space to break at (a 100-character
+   name, a long email) wraps anywhere inside its card instead of running past the card and scrolling the page sideways.
+   App. C lets it overflow (the long-name card's email runs off the right edge). The cell's label keeps wrapping only
+   between words. */
+@container pg (max-width: 767px) {
+  .s-rt td {
+    overflow-wrap: anywhere;
+  }
+
+  .s-rt td::before {
+    overflow-wrap: normal;
+  }
+}
+
+/* P5 long-text sixth (quick 261028-2e4, 2026-10-28), a select clips its chosen option, so a 100-character name stays inside
+   the box. WebKit otherwise counts the option's full width and the page scrolls sideways (1682px at 320px). The native
+   control already cuts the text at its box, so nothing visible changes. */
+.csp-select select {
+  overflow: hidden;
+}
+
 /* O-6 (D-31) reduced motion stops the skeleton shimmer and the modal and toast entry animations (the overlay fade is
    part of the modal entry). The spinner keeps App. B's own slowed reduced-motion rule. */
 @media (prefers-reduced-motion: reduce) {
@@ -275,6 +296,23 @@ button.csp-nav {
    inside a 1px border). App. E.7 made it 40px, so its label sat 2px lower than the Category, From and To labels. */
 .s-search-box {
   height: 42px;
+}
+
+/* D-63 (owner, 2026-10-27) the dropdown shares one picker look with the date box: its box fills with --surface-3 on hover
+   while the select is enabled and the box is not focused. */
+.csp-select:has(select:enabled):hover:not(:focus-within) {
+  background: var(--surface-3);
+}
+
+/* D-63 the chevron darkens from --ink-muted to --ink on enabled hover and while the box has focus. */
+.csp-select:has(select:enabled):hover .csp-select-chev,
+.csp-select:focus-within .csp-select-chev {
+  color: var(--ink);
+}
+
+/* D-63 in Espresso the browser's own option list renders dark. */
+[data-theme="dark"] .csp-select {
+  color-scheme: dark;
 }
 
 /* D-42 (owner, 2026-10-13, UAT G-2-199) a dialog in the Overlay region always fits or can be scrolled to on a short

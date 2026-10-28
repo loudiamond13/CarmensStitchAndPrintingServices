@@ -377,7 +377,6 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
               onBlur={field.onBlur}
               error={fieldState.error?.message ?? ''}
               hint={FORM.date.hint}
-              readableDate
               required
             />
           )}

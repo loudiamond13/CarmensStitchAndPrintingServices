@@ -86,15 +86,15 @@ describe('E2 add mode', () => {
     await ready();
   });
 
-  it('writes the date out beside the Date box, keeps the hint under it and follows what is typed (D-60)', async () => {
+  it('shows the Date label, box and hint with no date written out beside the box (D-63)', async () => {
     backends();
     renderModal();
-    const besideBox = () => date().parentElement?.parentElement ?? null;
+    const field = date().parentElement?.parentElement ?? null;
 
-    expect(besideBox()).toHaveTextContent('Oct 25, 2026');
-    expect(screen.getByText("Up to 30 days ahead is fine for a cost you'll pay soon.")).toBeInTheDocument();
+    expect(field).toHaveTextContent("Date *Up to 30 days ahead is fine for a cost you'll pay soon.");
+    expect(field).not.toHaveTextContent('Oct 25, 2026');
     fireEvent.change(date(), { target: { value: '2026-11-02' } });
-    expect(besideBox()).toHaveTextContent('Nov 2, 2026');
+    expect(field).not.toHaveTextContent('Nov 2, 2026');
     await ready();
   });
 

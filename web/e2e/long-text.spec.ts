@@ -49,8 +49,10 @@ const READ_OFFENDERS = `(() => {
 /** The page does not scroll sideways; when it does, the failure names the elements that stick out. */
 async function expectNoSidewaysScroll(page: Page, what: string): Promise<void> {
   if (!(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL))) {
+    // Text can spill out of a box that itself fits, so the scroll fails the check even when no element is named.
     const offenders = await page.evaluate<string[]>(READ_OFFENDERS);
-    expect(offenders, `${what}: no sideways scroll`).toEqual([]);
+    expect.soft(offenders, `${what}: no sideways scroll`).toEqual([]);
+    expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL), `${what}: no sideways scroll`).toBe(true);
   }
 }
 
@@ -392,6 +394,27 @@ test('@long-text a pending change to a 256-character address wraps on My Profile
     expect(await page.evaluate(NO_SIDEWAYS_SCROLL), `${String(width)}px: no sideways scroll`).toBe(true);
     await expectNoAxeViolations(page);
   }
+});
+
+test('@long-text an Audit Log card wraps a long-named person at 320 px', async ({ page, request, guard, browser }) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const person = await createStaff(request, 'Admin', undefined, longIdentity());
+  // Their sign-in writes an entry that names them as Done by.
+  const other = await browser.newContext();
+  try {
+    await signInAs(await other.newPage(), other.request, person);
+  } finally {
+    await other.close();
+  }
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await page.setViewportSize({ width: 320, height: 800 });
+
+  await page.goto('/admin/audit-log');
+  await expect(page.getByRole('heading', { level: 1, name: 'Audit Log' })).toBeVisible();
+  await expect(page.locator('td', { hasText: FULL_NAME }).first()).toBeVisible();
+  await settle(page);
+  await expectNoSidewaysScroll(page, 'Audit Log card');
+  await expectNoAxeViolations(page);
 });
 
 test('@long-text four-chip toolbars wrap on Users and on the Audit Log at 320 px, and a long search wraps in its chip', async ({

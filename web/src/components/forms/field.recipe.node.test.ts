@@ -100,3 +100,78 @@ describe('field recipe (App. B forms, App. C toolbar and item rows)', () => {
     expect(css).toMatch(/:has\(\[aria-invalid="true"\]\) \{\s*border-color: var\(--danger\) !important;/);
   });
 });
+
+/** The declarations of the first rule whose selector text starts with this one (empty when absent). */
+function declarations(selector: string): string {
+  const start = css.indexOf(selector);
+  if (start < 0) {
+    return '';
+  }
+  const open = css.indexOf('{', start);
+  return css.slice(open + 1, css.indexOf('}', open));
+}
+
+const INDICATOR = '::-webkit-calendar-picker-indicator';
+const GROUP = String.raw`:where(.group\/picker)`;
+const indicatorRule = (utility: string) => `${classSelector(`[&${INDICATOR}]:${utility}`)}${INDICATOR}`;
+
+describe('picker recipe (D-63: Select and date boxes)', () => {
+  it('fills the box with --surface-3 on hover only while a control inside is enabled and the box is not focused', () => {
+    const fill = `${classSelector('has-[:is(select,input):enabled]:hover:not-focus-within:bg-surface-3')}:has(:is(:is(select, input):enabled)):hover:not(:focus-within)`;
+
+    expect(declarations(fill)).toContain('background-color: var(--surface-3)');
+    expectInOrder(classSelector('bg-surface-2'), fill);
+  });
+
+  it('puts the native option list and calendar in the dark scheme under Espresso', () => {
+    expect(declarations(`${classSelector('dark:scheme-dark')}:where([data-theme="dark"]`)).toContain(
+      'color-scheme: dark',
+    );
+  });
+
+  it('darkens the icon from --ink-muted to --ink on focus within the box and on hover while enabled', () => {
+    const focus = `${classSelector('group-focus-within/picker:text-ink')}:is(${GROUP}:focus-within *)`;
+    const hover = `${classSelector('group-hover/picker:group-has-[:is(select,input):enabled]/picker:text-ink')}:is(${GROUP}:hover *):is(${GROUP}:has(:is(:is(select, input):enabled)) *)`;
+
+    expect(declarations(classSelector('text-ink-muted'))).toContain('color: var(--ink-muted)');
+    expect(declarations(focus)).toContain('color: var(--ink)');
+    expect(declarations(hover)).toContain('color: var(--ink)');
+    expectInOrder(classSelector('text-ink-muted'), focus, hover);
+  });
+
+  it('keeps the browser indicator over the whole icon area, invisible but clickable, never display none', () => {
+    const rules = [
+      'absolute',
+      'inset-y-0',
+      'right-0',
+      'm-0',
+      'h-auto',
+      'w-10',
+      'cursor-pointer',
+      'p-0',
+      'opacity-0',
+    ].map((utility) => declarations(indicatorRule(utility)));
+    const all = rules.join('\n');
+
+    expect(rules.every((rule) => rule !== '')).toBe(true);
+    expect(all).toContain('position: absolute');
+    expect(all).toContain('width: calc(var(--spacing) * 10)');
+    expect(all).toContain('cursor: pointer');
+    expect(all).toContain('opacity: 0%');
+    expect(all).not.toContain('display');
+    expect(declarations(`${classSelector('[&::-webkit-date-and-time-value]:text-left')}::`)).toContain(
+      'text-align: left',
+    );
+  });
+
+  it('gives the date input 40px end padding, and in Firefox 12px with our icon hidden, after the plain rules so they win', () => {
+    const firefox = css.indexOf('@supports (-moz-appearance:none)');
+
+    expect(ruleAt(classSelector('pr-10'))).toBeGreaterThanOrEqual(0);
+    expect(firefox).toBeGreaterThan(ruleAt(classSelector('pr-10')));
+    expect(declarations(classSelector('supports-[-moz-appearance:none]:pr-3'))).toContain('padding-right');
+    expect(declarations(classSelector('supports-[-moz-appearance:none]:hidden'))).toContain('display: none');
+    expect(css.indexOf(classSelector('supports-[-moz-appearance:none]:pr-3'))).toBeGreaterThan(firefox);
+    expect(css.indexOf(classSelector('supports-[-moz-appearance:none]:hidden'))).toBeGreaterThan(firefox);
+  });
+});
