@@ -799,6 +799,20 @@ internal static class OrderFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Deletes one order for good.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The order id.</param>
+    /// <param name="confirm">The number typed to confirm; no query value when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PermanentlyDeleteAsync(HttpClient client, string? accessToken, Guid id, string? confirm)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        var path = $"{Route}/{id:D}/permanent";
+        using var request = ApiRequests.Create(HttpMethod.Delete, confirm is null ? path : $"{path}?confirm={Uri.EscapeDataString(confirm)}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Lists the deleted orders.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>

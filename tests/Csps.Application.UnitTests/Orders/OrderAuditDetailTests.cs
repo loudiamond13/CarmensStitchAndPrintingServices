@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Orders;
 using Csps.Domain.Auditing;
 using Csps.Domain.Expenses;
@@ -463,6 +464,144 @@ public sealed class OrderAuditDetailTests
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundChanged(refund, null!));
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundRefunderChanged(null!, changes.Refunder.ShouldNotBeNull()));
         Should.Throw<ArgumentNullException>(() => OrderAuditDetail.RefundRefunderChanged(refund, null!));
+    }
+
+    [Fact]
+    public void PermanentlyDeletedHoldsTheDocumentedKeysInOrderForTheFullOrder()
+    {
+        var order = FullOrder();
+
+        var detail = OrderAuditDetail.PermanentlyDeleted(order);
+
+        detail.ShouldBe(
+            "number=ORD-2026-0148;status=pending;subtotal=22450.00;discount=1122.50;total=21327.50;paid=12000.00;refunded=0.00;balance=9327.50;expenses=6065.00"
+            + $";receivers={Receiver:D},{OtherReceiver:D};payers={OtherReceiver:D},{Receiver:D};refunders=");
+        detail.Length.ShouldBeLessThanOrEqualTo(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public void PermanentlyDeletedHoldsNoCustomerTeamContactEmailAddressNotesOrChildText()
+    {
+        var detail = OrderAuditDetail.PermanentlyDeleted(FullOrder());
+
+        foreach (var secret in new[] { "Juan", "Dela Cruz", "Ballers", "0917", "juan.dc", "Brgy.", "rush", "Jersey top", "Barangay league", "Dri-fit", "9012" })
+        {
+            detail.ShouldNotContain(secret, Case.Insensitive);
+        }
+    }
+
+    [Fact]
+    public void PermanentlyDeletedNamesEachPersonOnceInTheOrderTheyFirstAppearAndTheRefundersAndRefundedTotal()
+    {
+        var order = FullOrder();
+        order.ChangeStatus(OrderStatus.Cancelled, Receiver, Now).IsSuccess.ShouldBeTrue();
+        order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 2000m, "Cancelled", OtherReceiver), new DateOnly(2026, 10, 28), Now).IsSuccess.ShouldBeTrue();
+        order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 1000m, "Cancelled", Receiver), new DateOnly(2026, 10, 28), Now).IsSuccess.ShouldBeTrue();
+        order.AddRefund(new NewOrderRefund(new DateOnly(2026, 10, 27), 500m, "Cancelled", OtherReceiver), new DateOnly(2026, 10, 28), Now).IsSuccess.ShouldBeTrue();
+
+        var detail = OrderAuditDetail.PermanentlyDeleted(order);
+
+        var parts = AuditDetailFormat.Parse(detail).ToDictionary(part => part.Key, part => part.To, StringComparer.Ordinal);
+        parts["status"].ShouldBe("cancelled");
+        parts["refunded"].ShouldBe("3500.00");
+        parts["receivers"].ShouldBe($"{Receiver:D},{OtherReceiver:D}");
+        parts["refunders"].ShouldBe($"{OtherReceiver:D},{Receiver:D}");
+    }
+
+    [Fact]
+    public void PermanentlyDeletedStaysUnderTheAuditLimitWithManyPeopleAndSaysHowManyWereLeftOut()
+    {
+        var people = Enumerable.Range(1, 8).Select(static index => Guid.Parse($"a{index}1d7c92-0b58-4e3f-96d1-8c2e5f7a3b04")).ToArray();
+        var today = new DateOnly(2026, 10, 28);
+        var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
+        var payments = people.Select(person => new NewOrderPayment(today, 100m, Method, null, null, person)).ToArray();
+        var expenses = people.Select(person => new NewOrderExpense(today, 10m, Category, null, person)).ToArray();
+        var order = Order.Create(new NewOrder(Details(), OrderStatus.Pending, items) { Payments = payments, Expenses = expenses }, Guid.NewGuid(), Now, today).Value;
+        order.AssignNumber("ORD-2026-0148");
+        order.ChangeStatus(OrderStatus.Cancelled, Receiver, Now).IsSuccess.ShouldBeTrue();
+        foreach (var person in people)
+        {
+            order.AddRefund(new NewOrderRefund(today, 10m, "Cancelled", person), today, Now).IsSuccess.ShouldBeTrue();
+        }
+
+        var detail = OrderAuditDetail.PermanentlyDeleted(order);
+
+        detail.Length.ShouldBeLessThanOrEqualTo(AuditEntry.DetailMaxLength);
+        var parts = AuditDetailFormat.Parse(detail).ToDictionary(part => part.Key, part => part.To, StringComparer.Ordinal);
+        parts.Keys.ShouldBe(
+            ["number", "status", "subtotal", "discount", "total", "paid", "refunded", "balance", "expenses", "receivers", "payers", "refunders"]);
+        var kept = 0;
+        var left = 0;
+        foreach (var key in new[] { "receivers", "payers", "refunders" })
+        {
+            var entries = parts[key].Split(',', StringSplitOptions.RemoveEmptyEntries);
+            kept += entries.Count(static entry => !entry.StartsWith('+'));
+            entries.Where(static entry => entry.StartsWith('+')).ToArray().Length.ShouldBeLessThanOrEqualTo(1);
+            entries.Where(static entry => !entry.StartsWith('+')).ShouldAllBe(entry => people.Any(person => person.ToString("D") == entry));
+            left += entries.Where(static entry => entry.StartsWith('+')).Sum(static entry => int.Parse(entry[1..], System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        kept.ShouldBeGreaterThan(0);
+        left.ShouldBeGreaterThan(0);
+        (kept + left).ShouldBe(24);
+    }
+
+    [Fact]
+    public void DeletedAndRestoredHoldTheNumberStatusTotalPaidAndBalanceAndNoText()
+    {
+        var order = FullOrder();
+
+        var deleted = OrderAuditDetail.Deleted(order);
+        var restored = OrderAuditDetail.Restored(order);
+
+        deleted.ShouldBe("number=ORD-2026-0148;status=pending;total=21327.50;paid=12000.00;balance=9327.50");
+        restored.ShouldBe(deleted);
+        foreach (var secret in new[] { "Juan", "Ballers", "0917", "juan.dc", "Brgy.", "rush" })
+        {
+            deleted.ShouldNotContain(secret, Case.Insensitive);
+        }
+    }
+
+    [Fact]
+    public void NullOrdersAreAProgrammingErrorForTheDeleteDetails()
+    {
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.Deleted(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.Restored(null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.PermanentlyDeleted(null!));
+    }
+
+    // ORD-2026-0148: five lines (22,450.00), a 5% discount, payments of 10,000.00 (Receiver) and 2,000.00 (OtherReceiver), and
+    // expenses of 3,825.00 (OtherReceiver), 1,640.00 and 600.00 (Receiver).
+    private static Order FullOrder()
+    {
+        var today = new DateOnly(2026, 10, 28);
+        var items = new[]
+        {
+            new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m),
+            new NewOrderItem(Guid.NewGuid(), "Jersey shorts", "S-XL", 15, 300.00m),
+            new NewOrderItem(Guid.NewGuid(), "Coach polo", "L", 2, 550.00m),
+            new NewOrderItem(Guid.NewGuid(), "Warm-up long sleeves", "M-XL", 15, 420.00m),
+            new NewOrderItem(Guid.NewGuid(), "Team banner", null, 1, 800.00m),
+        };
+        var payments = new[]
+        {
+            new NewOrderPayment(today, 10000.00m, Method, "9012 345 678901", "50% downpayment", Receiver),
+            new NewOrderPayment(today, 2000.00m, OtherMethod, null, null, OtherReceiver),
+        };
+        var expenses = new[]
+        {
+            new NewOrderExpense(today, 3825.00m, Category, "Dri-fit mesh, 45 yds", OtherReceiver),
+            new NewOrderExpense(today, 1640.00m, OtherCategory, "Sublimation ink", Receiver),
+            new NewOrderExpense(today, 600.00m, OtherCategory, "Embroidery", Receiver),
+        };
+        var discounts = new[] { new NewOrderDiscount(DiscountKind.Percentage, 5m, "Barangay league discount") };
+        var order = Order.Create(
+            new NewOrder(Details(), OrderStatus.Pending, items) { Discounts = discounts, Payments = payments, Expenses = expenses },
+            Guid.NewGuid(),
+            Now,
+            today).Value;
+        order.AssignNumber("ORD-2026-0148");
+        return order;
     }
 
     // One item of 9,750.00, paid in full, then cancelled, so a refund up to 9,750.00 is allowed.

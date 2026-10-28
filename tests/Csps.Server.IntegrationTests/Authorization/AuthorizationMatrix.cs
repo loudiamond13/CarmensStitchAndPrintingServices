@@ -218,6 +218,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/orders/deleted", "/api/v1/orders/deleted", Anonymous: 401, Admin: 403, Manager: 200),
         // Restoring (ORD-06, D-28): Managers only. The matrix sends an Idempotency-Key, so a fresh random id is no order and a Manager meets 404 orders.not-found.
         new("POST", "/api/v1/orders/{id:guid}/restore", "/api/v1/orders/6d2a8c15-3b94-4e07-a1f6-0c9e5b7d4a38/restore", Anonymous: 401, Admin: 403, Manager: 404),
+        // Deleting for good (ORD-06, D-28): Managers only. A fresh random id is no order, so a Manager meets 404 orders.not-found before the confirm is checked.
+        new("DELETE", "/api/v1/orders/{id:guid}/permanent", "/api/v1/orders/9a4e7c13-5d28-4b60-8f1a-2e6c0d3b7a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
         new("POST", "/api/v1/orders/{orderId:guid}/discounts","/api/v1/orders/6a9d3f27-8c14-4e50-b7a2-1d4f8e0c5b93/discounts", Anonymous: 401, Admin: 400, Manager: 400),
         // Editing a discount (ORD-05, D-15): both roles. The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("PUT", "/api/v1/orders/{orderId:guid}/discounts/{discountId:guid}", "/api/v1/orders/2b7e5a91-4d36-4c08-a9f1-7e3c0d8b5a64/discounts/8d1f4b27-6a93-4e50-b2c7-0a5e9d3f1b48", Anonymous: 401, Admin: 400, Manager: 400),
