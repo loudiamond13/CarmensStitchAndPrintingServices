@@ -683,6 +683,96 @@ internal static class OrderFixtures
         return paid;
     }
 
+    /// <summary>Builds the body of a refund add or edit: the refund fields plus the order's version.</summary>
+    /// <param name="refundDate">The day the money was handed back.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="reason">The reason text.</param>
+    /// <param name="refundedByUserId">Who handed the money back.</param>
+    /// <param name="version">The order's version as the last answer carried it.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> RefundBody(DateOnly? refundDate, decimal? amount, string? reason, Guid? refundedByUserId, string? version) => new()
+    {
+        ["refundDate"] = refundDate is { } date ? Date(date) : null,
+        ["amount"] = amount,
+        ["reason"] = reason,
+        ["refundedByUserId"] = refundedByUserId,
+        ["version"] = version,
+    };
+
+    /// <summary>Posts a refund to a saved order with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> AddRefundAsync(HttpClient client, string? accessToken, Guid orderId, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{orderId:D}/refunds", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Puts the edit form of one refund.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="refundId">The refund id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PutRefundAsync(HttpClient client, string? accessToken, Guid orderId, Guid refundId, object? body)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Put, $"{Route}/{orderId:D}/refunds/{refundId:D}", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Removes one refund.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="refundId">The refund id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteRefundAsync(HttpClient client, string? accessToken, Guid orderId, Guid refundId)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{Route}/{orderId:D}/refunds/{refundId:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Adds a refund, expects a 200 and returns the whole order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="order">The order as the last answer carried it; its version is sent.</param>
+    /// <param name="refundDate">The day the money was handed back.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="refundedByUserId">Who handed the money back.</param>
+    /// <param name="reason">The reason text.</param>
+    /// <returns>The JSON body of the order after the add.</returns>
+    public static async Task<JsonElement> AddRefundAndReadAsync(HttpClient client, string accessToken, JsonElement order, DateOnly refundDate, decimal amount, Guid refundedByUserId, string reason = "Order cancelled by the team")
+    {
+        using var response = await AddRefundAsync(
+            client,
+            accessToken,
+            order.GetProperty("id").GetGuid(),
+            RefundBody(refundDate, amount, reason, refundedByUserId, order.GetProperty("version").GetString()));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
