@@ -9,6 +9,33 @@ namespace Csps.Application.Orders;
 public static class OrderReferenceChecks
 {
     /// <summary>
+    /// Adds a failure on <c>productTypeId</c> when one product type does not exist or is retired (D-18). A missing id is skipped:
+    /// the static rules already refused it.
+    /// </summary>
+    /// <param name="lists">The order lists.</param>
+    /// <param name="productTypeId">The submitted product type.</param>
+    /// <param name="validation">The validation result to add the failure to.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    public static async Task AddProductTypeFailureAsync(IOrderLists lists, Guid? productTypeId, ValidationResult validation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        if (productTypeId is not { } id || id == Guid.Empty)
+        {
+            return;
+        }
+
+        var states = await lists.GetStatesAsync(OrderListKind.ProductType, [id], cancellationToken).ConfigureAwait(false);
+        var message = states.Count == 0 ? OrderRules.ProductTypeRequired : states[0].Retired ? OrderRules.ProductTypeRetired : null;
+        if (message is not null)
+        {
+            validation.Errors.Add(new ValidationFailure(nameof(IOrderItemFields.ProductTypeId), message));
+        }
+    }
+
+    /// <summary>
     /// Adds a failure for each item whose product type does not exist or is retired (D-18), on the item's own path, using one lookup
     /// for all distinct ids. An item with no product type is skipped: the static rules already refused it.
     /// </summary>

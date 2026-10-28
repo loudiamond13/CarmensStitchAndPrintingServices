@@ -49,7 +49,7 @@ public sealed class OrderItem : IAttributedRecord
     /// <summary>Gets the quantity times the unit price.</summary>
     public decimal LineTotal { get; private set; }
 
-    /// <summary>Gets the place of the line in the order, from 0.</summary>
+    /// <summary>Gets the place of the line in the order, from 0; a removal leaves a gap, and a new line goes after the highest.</summary>
     public int Position { get; private set; }
 
     /// <inheritdoc />

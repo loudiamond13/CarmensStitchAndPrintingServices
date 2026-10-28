@@ -16,10 +16,12 @@ public static class OrdersApplicationRegistration
 
         services.AddSingleton<IValidator<CreateOrderRequest>, CreateOrderRequestValidator>();
         services.AddSingleton<IValidator<UpdateOrderDetailsRequest>, UpdateOrderDetailsRequestValidator>();
+        services.AddSingleton<IValidator<AddOrderItemRequest>, AddOrderItemRequestValidator>();
         services.AddScoped<ListOrderListHandler>();
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<GetOrderHandler>();
         services.AddScoped<UpdateOrderDetailsHandler>();
+        services.AddScoped<AddOrderItemHandler>();
         return services;
     }
 }

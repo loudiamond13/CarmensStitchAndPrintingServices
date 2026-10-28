@@ -207,17 +207,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             now);
         for (var position = 0; position < checkedItems.Count; position++)
         {
-            var item = checkedItems[position];
-            order._items.Add(new OrderItem(
-                Guid.CreateVersion7(now),
-                order.Id,
-                item.ProductTypeId,
-                item.Description,
-                item.SizeVariant,
-                item.Quantity,
-                item.UnitPrice,
-                item.Quantity * item.UnitPrice,
-                position) { Order = order });
+            order._items.Add(BuildItem(order, checkedItems[position], position, now));
         }
 
         order._statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), order.Id, null, status.Value, callerId, now) { Order = order });
@@ -285,6 +275,36 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         Touch(now);
         return Result.Success(changes);
     }
+
+    /// <summary>
+    /// Adds one item at the end of the order, checking every item rule again and the cap of <see cref="OrderRules.MaxItems"/>. The
+    /// totals are worked out again and the edit version moves, so the order's row version guards the add (ORD-08).
+    /// </summary>
+    /// <param name="item">The item as given.</param>
+    /// <param name="now">The current instant, which makes the item key and the new edit version.</param>
+    /// <returns>The new item, a validation error naming the first broken field, or a 422 when the order already has 100 items.</returns>
+    public Result<OrderItem> AddItem(NewOrderItem item, DateTimeOffset now)
+    {
+        var checkedItem = OrderRules.CheckItem(_items.Count, item);
+        if (checkedItem.IsFailure)
+        {
+            return Result.Failure<OrderItem>(checkedItem.Error);
+        }
+
+        if (_items.Count >= OrderRules.MaxItems)
+        {
+            return Result.Failure<OrderItem>(OrderRules.TooManyItems);
+        }
+
+        var added = BuildItem(this, checkedItem.Value, _items.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        _items.Add(added);
+        Recalculate();
+        Touch(now);
+        return Result.Success(added);
+    }
+
+    private static OrderItem BuildItem(Order order, NewOrderItem item, int position, DateTimeOffset now) =>
+        new(Guid.CreateVersion7(now), order.Id, item.ProductTypeId, item.Description, item.SizeVariant, item.Quantity, item.UnitPrice, item.Quantity * item.UnitPrice, position) { Order = order };
 
     private static void AddIfChanged(List<string> fields, string name, string? stored, string? edited)
     {

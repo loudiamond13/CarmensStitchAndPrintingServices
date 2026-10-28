@@ -29,4 +29,13 @@ public static class OrderErrors
 
     /// <summary>Gets the 409 for a lock wait that timed out.</summary>
     public static Error Busy { get; } = Error.Conflict(BusyCode, BusyMessage);
+
+    /// <summary>Gets the 404 for an item id that is not on the order in the route (CWE-639).</summary>
+    public static Error ItemNotFound => OrderRules.ItemNotFound;
+
+    /// <summary>Gets the 422 for removing the last item.</summary>
+    public static Error LastItem => OrderRules.LastItem;
+
+    /// <summary>Gets the 422 for adding an item to an order that already has 100.</summary>
+    public static Error TooManyItems => OrderRules.TooManyItems;
 }

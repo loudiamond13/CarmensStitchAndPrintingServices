@@ -184,8 +184,32 @@ public static class OrderRules
     /// <summary>The message for a money amount with more than two decimal places.</summary>
     public const string MoneyDecimals = "Use at most 2 decimal places.";
 
+    /// <summary>The machine code of an item id that is not on the order in the route.</summary>
+    public const string ItemNotFoundCode = "orders.item-not-found";
+
+    /// <summary>The plain-English text for an item that is not on the order in the route.</summary>
+    public const string ItemNotFoundMessage = "This item was not found on this order.";
+
+    /// <summary>The machine code of a removal that would leave the order with no items.</summary>
+    public const string LastItemCode = "orders.last-item";
+
+    /// <summary>The plain-English text for a removal that would leave the order with no items.</summary>
+    public const string LastItemMessage = "An order needs at least one item. Add another item before removing this one.";
+
+    /// <summary>The machine code of an add that would take the order above <see cref="MaxItems"/>.</summary>
+    public const string TooManyItemsCode = "orders.too-many-items";
+
     /// <summary>The largest unit price (D-30).</summary>
     public static readonly decimal UnitPriceMax = 1_000_000.00m;
+
+    /// <summary>Gets the 404 for an item id that is not on the order.</summary>
+    public static Error ItemNotFound { get; } = Error.NotFound(ItemNotFoundCode, ItemNotFoundMessage);
+
+    /// <summary>Gets the 422 for removing the last item.</summary>
+    public static Error LastItem { get; } = Error.BusinessRule(LastItemCode, LastItemMessage);
+
+    /// <summary>Gets the 422 for adding an item to an order that already has the most.</summary>
+    public static Error TooManyItems { get; } = Error.BusinessRule(TooManyItemsCode, ItemsTooMany);
 
     /// <summary>Builds the field path of an item member, for example <c>items[1].quantity</c>.</summary>
     /// <param name="index">The zero-based place of the item.</param>

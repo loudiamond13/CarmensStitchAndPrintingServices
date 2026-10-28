@@ -579,6 +579,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds an item to a saved order with the order's version the form was opened with. The item rules are the same as when creating
+         *     an order: a product type that exists and is not retired, a description of up to 200 characters, an optional size or variant
+         *     of up to 100, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places. An order has at
+         *     most 100 items. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never
+         *     retried. The server works out the line total and the order's totals. Who added the item and when come from the token and the
+         *     clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored
+         *     answer and adds nothing more.
+         */
+        post: operations["AddOrderItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-methods": {
         parameters: {
             query?: never;
@@ -1062,6 +1087,34 @@ export interface components {
             id: string;
             /** @description The actor's name, first then last. */
             name: string;
+        };
+        /**
+         * @description The Add Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in
+         *     the body, such as a forged `createdById` or `lineTotal`, is ignored: who added the item and when come from the token and
+         *     the clock (SEC-08), and the line total is worked out by the server.
+         */
+        AddOrderItemRequest: {
+            /** @description What the line is. */
+            description: null | string;
+            /**
+             * Format: uuid
+             * @description The product type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: null | number | string;
+            /** @description The size or variant. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
         };
         /** @description One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed. */
         AuditChangeLine: {
@@ -3926,6 +3979,81 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderItemRequest"];
+                "application/json": null | components["schemas"]["AddOrderItemRequest"];
+                "text/json": null | components["schemas"]["AddOrderItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
