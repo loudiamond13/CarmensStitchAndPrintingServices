@@ -11,13 +11,28 @@ namespace Csps.Infrastructure.Orders;
 /// <see cref="IOrderNumbers"/> over EF (ORD-14, D-23). Every create takes the same lock row first, so the read of the year's
 /// counter and its increment cannot race, a new year's first row cannot be inserted twice, and a rollback gives the number back.
 /// </summary>
-internal sealed class OrderNumberAllocator(CspsDbContext context) : IOrderNumbers
+internal sealed class OrderNumberAllocator : IOrderNumbers
 {
+    private readonly CspsDbContext _context;
+    private readonly TimeSpan _lockWait;
+
+    public OrderNumberAllocator(CspsDbContext context)
+        : this(context, DatabaseLocks.DefaultWait)
+    {
+    }
+
+    // The wait is shortened only by tests; the registered path uses the default.
+    internal OrderNumberAllocator(CspsDbContext context, TimeSpan lockWait)
+    {
+        _context = context;
+        _lockWait = lockWait;
+    }
+
     public async Task<string> NextAsync(int year, DateTimeOffset now, CancellationToken cancellationToken)
     {
         try
         {
-            await DatabaseLocks.TakeAsync(context, DatabaseLocks.OrderNumbers, now, DatabaseLocks.DefaultWait, OrderErrors.BusyMessage, cancellationToken)
+            await DatabaseLocks.TakeAsync(_context, DatabaseLocks.OrderNumbers, now, _lockWait, OrderErrors.BusyMessage, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (InvalidOperationException error) when (error.Message == OrderErrors.BusyMessage)
@@ -25,11 +40,11 @@ internal sealed class OrderNumberAllocator(CspsDbContext context) : IOrderNumber
             throw new OrderNumberBusyException();
         }
 
-        var counter = await context.OrderNumberCounters.SingleOrDefaultAsync(row => row.Year == year, cancellationToken).ConfigureAwait(false);
+        var counter = await _context.OrderNumberCounters.SingleOrDefaultAsync(row => row.Year == year, cancellationToken).ConfigureAwait(false);
         if (counter is null)
         {
             counter = OrderNumberCounter.Start(year);
-            context.OrderNumberCounters.Add(counter);
+            _context.OrderNumberCounters.Add(counter);
         }
 
         // The counter row saves with the order, in the same SaveChanges.
