@@ -36,7 +36,7 @@
     {
       "number": "7",
       "name": "Order Domain & API",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "8",
@@ -94,5 +94,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 07 of 17 · 35% · executing"
   },
-  "updated_at": "2026-10-28T14:36:44.889Z"
+  "updated_at": "2026-10-28T14:42:56.028Z"
 }

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-10-28T14:37:01.653Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-10-28T14:43:05.834Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 5c3bb57d568055ca7b95bae6db2b287220ce22af
+state_head: 703c644bfcafba9476c4e1afcacaa85598ebe88f
 progress:
   total_phases: 17
   completed_phases: 6
   total_plans: 207
-  completed_plans: 188
+  completed_plans: 189
   percent: 35
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 2 of 20
+Plan: 3 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -246,6 +246,7 @@ Progress: [████░░░░░░] 35%
 | Phase 06 P20 | 38 min | 3 tasks | 20 files |
 | Phase 06 P21 | 52 min | 4 tasks | 26 files |
 | Phase 07 P01 | 36 min | 3 tasks | 41 files |
+| Phase 07 P02 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -674,6 +675,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
 - [Phase 07]: 07-01: AddOrderLists is one migration (20261028141016) creating ProductTypes, PaymentMethods and OrderExpenseCategories with 17 literal-id seed rows; each list is its own table with no discriminator
 - [Phase 07]: 07-01: audit catalog grows 49 to 92 with 43 Phase 7 codes; order and child events share the viewer group Orders, list events the group Order lists; details documented in docs/operations/audit-log.md
+- [Phase 07]: 07-02: Balance = Total - Paid + Refunded; CustomerCredit = max(-Balance, 0) written as 0.00 (D-12, D-13). Cancelled order Profit = (Paid - Refunded) - Expenses (D-36, D-10). Golden vectors stay v2; v3 bump is a Phase 8 follow-up.
 
 ### Pending Todos
 
@@ -764,6 +766,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T14:37:00.354Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-10-28T14:43:04.515Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
