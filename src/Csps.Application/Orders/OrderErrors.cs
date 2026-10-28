@@ -56,4 +56,13 @@ public static class OrderErrors
 
     /// <summary>Gets the 422 for adding an order expense to an order that already has 100.</summary>
     public static Error TooManyExpenses => OrderRules.TooManyExpenses;
+
+    /// <summary>Gets the 404 for a refund id that is not on the order in the route (CWE-639).</summary>
+    public static Error RefundNotFound => OrderRules.RefundNotFound;
+
+    /// <summary>Gets the 422 for adding a refund to an order that already has 50.</summary>
+    public static Error TooManyRefunds => OrderRules.TooManyRefunds;
+
+    /// <summary>Gets the 422 for a refund on an order that is neither cancelled nor in credit.</summary>
+    public static Error RefundNotAllowed => OrderRules.RefundNotAllowed;
 }

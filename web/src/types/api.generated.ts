@@ -823,6 +823,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a refund on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`
+         *     day, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal
+         *     places. The reason is 1 to 200 characters. `refundedByUserId` names who handed the money back and must be an active
+         *     Admin or Manager; it is separate from who typed the refund in, which comes from the token. A refund is allowed only on a
+         *     cancelled order or one with a customer credit; on an order that is not cancelled it may not pass the credit, and on a
+         *     cancelled order it may not pass what was paid and not yet refunded. A version that is not the stored one answers 409
+         *     `edit.stale` and changes nothing; a form save is never retried. A retry with the same `Idempotency-Key` and body
+         *     answers with the stored answer and adds nothing more.
+         */
+        post: operations["AddOrderRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-methods": {
         parameters: {
             query?: never;
@@ -1411,6 +1437,29 @@ export interface components {
             /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
+        /**
+         * @description The Add Refund form on a saved order (ORD-18, D-07). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `createdById`, is ignored: who recorded the refund and when come from the token and the
+         *     clock (SEC-08). Who handed the money back is a separate choice, `refundedByUserId`.
+         */
+        AddOrderRefundRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short reason, 1 to 200 characters. */
+            reason: null | string;
+            /** @description The day the money was handed back, `yyyy-MM-dd`. */
+            refundDate: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who handed the money back.
+             */
+            refundedByUserId: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
         /** @description One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed. */
         AuditChangeLine: {
             /** @description One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`. */
@@ -1956,6 +2005,8 @@ export interface components {
              */
             recordedAt: string;
             recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The refunds, oldest refund date first. */
+            refunds: components["schemas"]["OrderRefundResponse"][];
             /** @description The status key: pending, mockup, production, ready, delivered, completed or cancelled. */
             status: string;
             /**
@@ -2217,6 +2268,42 @@ export interface components {
             recordedBy: null | components["schemas"]["ActorRef"];
             /** @description The reference, such as a transfer number; null when none. */
             reference: null | string;
+        };
+        /** @description One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in. */
+        OrderRefundResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /**
+             * Format: uuid
+             * @description The refund id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The short reason. */
+            reason: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: date
+             * @description The day the money was handed back.
+             */
+            refundDate: string;
+            /** @description The staff member who handed the money back; the name is kept for a deleted person. */
+            refundedBy: components["schemas"]["ActorRef"];
+            /** @description True while the refunder can still be chosen (D-07, D-32). */
+            refundedByActive: boolean;
         };
         /** @description One row of the status history (ORD-16, D-06). */
         OrderStatusChangeResponse: {
@@ -5437,6 +5524,81 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderRefundRequest"];
+                "application/json": null | components["schemas"]["AddOrderRefundRequest"];
+                "text/json": null | components["schemas"]["AddOrderRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

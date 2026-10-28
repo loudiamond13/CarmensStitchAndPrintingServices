@@ -118,6 +118,40 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // The refunder rule (D-07, D-32) is the same set as the receiver rule above: StaffState.CanPay, evaluated in SQL.
+        var refundRows = await (
+            from refund in context.Set<OrderRefund>().AsNoTracking()
+            where refund.OrderId == id
+            join refunder in context.Users on refund.RefundedByUserId equals refunder.Id
+            join recorderUser in context.Users on refund.CreatedById equals (Guid?)recorderUser.Id into recorders
+            from recorder in recorders.DefaultIfEmpty()
+            join changerUser in context.Users on refund.UpdatedById equals (Guid?)changerUser.Id into changers
+            from changer in changers.DefaultIfEmpty()
+            orderby refund.RefundDate, refund.Position
+            select new
+            {
+                Refund = refund,
+                RefunderFirst = refunder.FirstName,
+                RefunderLast = refunder.LastName,
+                RefunderFormer = refunder.DeletedAtUtc != null,
+                RefunderActive = refunder.IsActive
+                    && refunder.ManagerLockedAtUtc == null
+                    && refunder.DeletedAtUtc == null
+                    && refunder.PasswordHash != null
+                    && refunder.EmailConfirmed
+                    && context.UserRoles.Any(link => link.UserId == refunder.Id && context.Roles.Any(role =>
+                        role.Id == link.RoleId && (role.Name == Roles.Admin || role.Name == Roles.Manager))),
+                RecorderFirst = (string?)recorder.FirstName,
+                RecorderLast = (string?)recorder.LastName,
+                RecorderFormer = recorder.DeletedAtUtc != null,
+                ChangerId = (Guid?)changer.Id,
+                ChangerFirst = (string?)changer.FirstName,
+                ChangerLast = (string?)changer.LastName,
+                ChangerFormer = changer.DeletedAtUtc != null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         // The payer rule (ORD-23, D-32) is the same set as the receiver rule above: StaffState.CanPay, evaluated in SQL.
         var expenseRows = await (
             from expense in context.Set<OrderExpense>().AsNoTracking()
@@ -223,6 +257,23 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
                         ? new ActorRef(changedBy, $"{row.ChangerFirst} {row.ChangerLast}", row.ChangerFormer)
                         : null,
                     row.Payment.UpdatedAtUtc)),
+            ],
+            [
+                .. refundRows.Select(row => new OrderRefundResponse(
+                    row.Refund.Id,
+                    row.Refund.RefundDate,
+                    row.Refund.Amount,
+                    row.Refund.Reason,
+                    new ActorRef(row.Refund.RefundedByUserId, $"{row.RefunderFirst} {row.RefunderLast}", row.RefunderFormer),
+                    row.RefunderActive,
+                    row.Refund.CreatedById is { } recordedBy && row.RecorderFirst is not null
+                        ? new ActorRef(recordedBy, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer)
+                        : null,
+                    row.Refund.CreatedAtUtc,
+                    row.ChangerId is { } changedBy && row.ChangerFirst is not null
+                        ? new ActorRef(changedBy, $"{row.ChangerFirst} {row.ChangerLast}", row.ChangerFormer)
+                        : null,
+                    row.Refund.UpdatedAtUtc)),
             ],
             [
                 .. expenseRows.Select(row => new OrderExpenseResponse(

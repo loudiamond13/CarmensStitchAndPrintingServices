@@ -209,6 +209,33 @@ public static class OrderReferenceChecks
     }
 
     /// <summary>
+    /// Adds a failure on <c>refundedByUserId</c> when the person cannot be named as the refunder (D-07, D-32): they must be an
+    /// active Admin or Manager who has finished set-up, so the Legacy holder and a deactivated, locked or deleted account are
+    /// refused. A missing id is skipped: the static rules already refused it.
+    /// </summary>
+    /// <param name="staff">The staff directory.</param>
+    /// <param name="refundedByUserId">The submitted refunder.</param>
+    /// <param name="validation">The validation result to add the failure to.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>A task that completes when the check is done.</returns>
+    public static async Task AddRefunderFailureAsync(IStaffDirectory staff, Guid? refundedByUserId, ValidationResult validation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(staff);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        if (refundedByUserId is not { } id || id == Guid.Empty)
+        {
+            return;
+        }
+
+        var refunder = await staff.GetStaffStateAsync(id, cancellationToken).ConfigureAwait(false);
+        if (refunder is not { CanPay: true })
+        {
+            validation.Errors.Add(new ValidationFailure(nameof(IOrderRefundFields.RefundedByUserId), OrderRules.RefundedByInactive));
+        }
+    }
+
+    /// <summary>
     /// Adds a failure for each order expense whose category does not exist or is retired (D-17) and for each whose payer cannot be
     /// chosen (ORD-23, D-32), on the expense's own path such as <c>expenses[1].paidByUserId</c>. One lookup serves all distinct
     /// category ids and one all distinct payers. An expense with no category or no payer is skipped: the static rules already

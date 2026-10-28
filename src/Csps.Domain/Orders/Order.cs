@@ -9,6 +9,7 @@ namespace Csps.Domain.Orders;
 /// can skip a rule or bring its own totals. Every change ends by recalculating and by touching the edit version, so a change to a
 /// child alone still moves the order's row version (SEC-07, SEC-08). A deleted order is only marked (D-26). Every change to the
 /// order's details or children starts with <c>EnsureEditable</c>, so a Completed or Cancelled order is locked until it is reopened (D-05).
+/// The one exception is a refund on a Cancelled order, which may be recorded, edited and removed without a reopen (D-05, D-35).
 /// </summary>
 public sealed class Order : IAttributedRecord, IEditVersioned
 {
@@ -16,6 +17,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     private readonly List<OrderDiscount> _discounts = [];
     private readonly List<OrderPayment> _payments = [];
     private readonly List<OrderExpense> _expenses = [];
+    private readonly List<OrderRefund> _refunds = [];
     private readonly List<OrderStatusChange> _statusChanges = [];
 
     // Used by EF Core (constructor binding) and by Create.
@@ -127,6 +129,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the order expenses, in the order they were added.</summary>
     public IReadOnlyList<OrderExpense> Expenses => _expenses;
+
+    /// <summary>Gets the refunds, in the order they were added.</summary>
+    public IReadOnlyList<OrderRefund> Refunds => _refunds;
 
     /// <summary>Gets the status history rows loaded with the order.</summary>
     public IReadOnlyList<OrderStatusChange> StatusChanges => _statusChanges;
@@ -848,6 +853,35 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     }
 
     /// <summary>
+    /// Adds one refund at the end of the list, checking every refund rule again. Unlike every other change, a refund is allowed on
+    /// a Cancelled order (D-05); a Completed order stays locked. The totals are worked out again and the edit version moves, so the
+    /// order's row version guards the add (ORD-08).
+    /// </summary>
+    /// <param name="refund">The refund as given.</param>
+    /// <param name="today">The business today; a refund may not be dated after it.</param>
+    /// <param name="now">The current instant, which makes the refund key and the new edit version.</param>
+    /// <returns>The new refund, a validation error naming the first broken field, or a 422.</returns>
+    public Result<OrderRefund> AddRefund(NewOrderRefund refund, DateOnly today, DateTimeOffset now)
+    {
+        if (EnsureRefundEditable() is { } locked)
+        {
+            return Result.Failure<OrderRefund>(locked);
+        }
+
+        var checkedRefund = OrderRules.CheckRefund(refund, today);
+        if (checkedRefund.IsFailure)
+        {
+            return Result.Failure<OrderRefund>(checkedRefund.Error);
+        }
+
+        var added = BuildRefund(this, checkedRefund.Value, _refunds.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        _refunds.Add(added);
+        Recalculate();
+        Touch(now);
+        return Result.Success(added);
+    }
+
+    /// <summary>
     /// Moves the order to another status by the owner's table (<see cref="OrderStatusRules.Check"/>), judged on the balance as it
     /// stands now. A real move or a reopen adds a history row, sets the status and the time it changed, works the figures out again
     /// (a cancelled order keeps its cash and costs, D-36) and moves the edit version. A request for the status the order is already
@@ -878,6 +912,10 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     private Error? EnsureEditable() =>
         OrderStatusRules.IsLocked(Status) ? Error.BusinessRule(OrderRules.LockedCode, OrderRules.Locked(Status)) : null;
 
+    // A refund is the one change allowed on a Cancelled order (D-05, D-35); a Completed order stays locked.
+    private Error? EnsureRefundEditable() =>
+        Status == OrderStatus.Completed ? Error.BusinessRule(OrderRules.LockedCode, OrderRules.Locked(Status)) : null;
+
     private static IEnumerable<OrderMathItem> ItemsForMath(IEnumerable<OrderItem> items) =>
         items.Select(static item => new OrderMathItem(item.Quantity, item.UnitPrice));
 
@@ -898,6 +936,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     private static OrderPayment BuildPayment(Order order, NewOrderPayment payment, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, payment.PaymentDate, payment.Amount, payment.PaymentMethodId, payment.Reference, payment.Notes, payment.ReceivedByUserId, position) { Order = order };
 
+    private static OrderRefund BuildRefund(Order order, NewOrderRefund refund, int position, DateTimeOffset now) =>
+        new(Guid.CreateVersion7(now), order.Id, refund.RefundDate, refund.Amount, refund.Reason, refund.RefundedByUserId, position) { Order = order };
+
     private static OrderExpense BuildExpense(Order order, NewOrderExpense expense, int position, DateTimeOffset now) =>
         new(Guid.CreateVersion7(now), order.Id, expense.ExpenseDate, expense.OrderExpenseCategoryId, expense.Description, expense.Amount, expense.PaidByUserId, position) { Order = order };
 
@@ -912,14 +953,14 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
     }
 
-    // Works the figures out with OrderMath, the one place money is worked out (ORD-20), for the given payment amounts. Refunds join
-    // the lists in a later plan.
+    // Works the figures out with OrderMath, the one place money is worked out (ORD-20), for the given payment amounts and the
+    // refunds as they stand.
     private OrderMathResult Figures(IEnumerable<decimal> payments) =>
         OrderMath.Compute(
             [.. ItemsForMath(_items)],
             [.. DiscountsForMath(_discounts)],
             [.. payments],
-            [],
+            [.. _refunds.Select(static refund => refund.Amount)],
             [.. _expenses.Select(static expense => expense.Amount)],
             cancelled: Status == OrderStatus.Cancelled);
 

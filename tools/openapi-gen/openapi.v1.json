@@ -285,6 +285,58 @@
         ],
         "type": "object"
       },
+      "AddOrderRefundRequest": {
+        "description": "The Add Refund form on a saved order (ORD-18, D-07). It carries the order's version as the form was opened. Any other member\nin the body, such as a forged `createdById`, is ignored: who recorded the refund and when come from the token and the\nclock (SEC-08). Who handed the money back is a separate choice, `refundedByUserId`.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "reason": {
+            "description": "A short reason, 1 to 200 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "refundDate": {
+            "description": "The day the money was handed back, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "refundedByUserId": {
+            "description": "The staff member who handed the money back.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "refundDate",
+          "amount",
+          "reason",
+          "refundedByUserId",
+          "version"
+        ],
+        "type": "object"
+      },
       "AuditChangeLine": {
         "description": "One \"What changed\" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed.",
         "properties": {
@@ -1675,6 +1727,13 @@
               }
             ]
           },
+          "refunds": {
+            "description": "The refunds, oldest refund date first.",
+            "items": {
+              "$ref": "#/components/schemas/OrderRefundResponse"
+            },
+            "type": "array"
+          },
           "status": {
             "description": "The status key: pending, mockup, production, ready, delivered, completed or cancelled.",
             "type": "string"
@@ -1723,6 +1782,7 @@
           "items",
           "discounts",
           "payments",
+          "refunds",
           "expenses",
           "statusHistory",
           "totals",
@@ -2321,6 +2381,90 @@
           "notes",
           "receivedBy",
           "receivedByActive",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt"
+        ],
+        "type": "object"
+      },
+      "OrderRefundResponse": {
+        "description": "One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "id": {
+            "description": "The refund id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
+          "reason": {
+            "description": "The short reason.",
+            "type": "string"
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System."
+              }
+            ]
+          },
+          "refundDate": {
+            "description": "The day the money was handed back.",
+            "format": "date",
+            "type": "string"
+          },
+          "refundedBy": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The staff member who handed the money back; the name is kept for a deleted person."
+          },
+          "refundedByActive": {
+            "description": "True while the refunder can still be chosen (D-07, D-32).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "refundDate",
+          "amount",
+          "reason",
+          "refundedBy",
+          "refundedByActive",
           "recordedBy",
           "recordedAt",
           "lastChangedBy",
@@ -7739,6 +7883,130 @@
         ]
       }
     },
+    "/api/v1/orders/{orderId}/refunds": {
+      "post": {
+        "operationId": "AddOrderRefund",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderRefundRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderRefundRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddOrderRefundRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Records a refund on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`\nday, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal\nplaces. The reason is 1 to 200 characters. `refundedByUserId` names who handed the money back and must be an active\nAdmin or Manager; it is separate from who typed the refund in, which comes from the token. A refund is allowed only on a\ncancelled order or one with a customer credit; on an order that is not cancelled it may not pass the credit, and on a\ncancelled order it may not pass what was paid and not yet refunded. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. A retry with the same `Idempotency-Key` and body\nanswers with the stored answer and adds nothing more.",
+        "tags": [
+          "OrderRefunds"
+        ]
+      }
+    },
     "/api/v1/payment-methods": {
       "get": {
         "operationId": "ListPaymentMethods",
@@ -9702,6 +9970,9 @@
     },
     {
       "name": "OrderPayments"
+    },
+    {
+      "name": "OrderRefunds"
     },
     {
       "name": "Orders"

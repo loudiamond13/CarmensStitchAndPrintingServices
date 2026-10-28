@@ -192,7 +192,12 @@ public static class OrderAuditDetail
             AuditDetailFormat.Change("receiver", receiver.From, receiver.To));
     }
 
-    /// <summary>The detail of <c>order-expense.added</c>: the expense id, date, amount, category and payer, never the description.</summary>
+    /// <summary>The detail of <c>order-refund.added</c>: the refund id, date, amount and refunder, never the reason.</summary>
+    /// <param name="refund">The refund that was added.</param>
+    /// <returns>For example <c>refund=&lt;id&gt;;date=2026-10-28;amount=12000.00;refunder=&lt;id&gt;</c>.</returns>
+    public static string RefundAdded(OrderRefund refund) => RefundSnapshot(refund);
+
+    /// <summary>The detail of <c>order-expense.added</c>:the expense id, date, amount, category and payer, never the description.</summary>
     /// <param name="expense">The expense that was added.</param>
     /// <returns>For example <c>expense=&lt;id&gt;;date=2026-10-23;amount=3825.00;category=&lt;id&gt;;payer=&lt;id&gt;</c>.</returns>
     public static string ExpenseAdded(OrderExpense expense) => ExpenseSnapshot(expense);
@@ -253,6 +258,17 @@ public static class OrderAuditDetail
     /// <exception cref="ArgumentOutOfRangeException">A status is not one of the seven.</exception>
     public static string StatusChanged(OrderStatus from, OrderStatus to) =>
         AuditDetailFormat.Change("status", OrderStatusNames.ToKey(from), OrderStatusNames.ToKey(to));
+
+    private static string RefundSnapshot(OrderRefund refund)
+    {
+        ArgumentNullException.ThrowIfNull(refund);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("refund", refund.Id),
+            AuditDetailFormat.Pair("date", refund.RefundDate),
+            AuditDetailFormat.Pair("amount", refund.Amount),
+            AuditDetailFormat.Pair("refunder", refund.RefundedByUserId));
+    }
 
     private static string ExpenseSnapshot(OrderExpense expense)
     {

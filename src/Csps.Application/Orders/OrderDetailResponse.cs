@@ -65,6 +65,29 @@ public sealed record OrderPaymentResponse(
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAt);
 
+/// <summary>One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in.</summary>
+/// <param name="Id">The refund id.</param>
+/// <param name="RefundDate">The day the money was handed back.</param>
+/// <param name="Amount">The amount in pesos.</param>
+/// <param name="Reason">The short reason.</param>
+/// <param name="RefundedBy">The staff member who handed the money back; the name is kept for a deleted person.</param>
+/// <param name="RefundedByActive">True while the refunder can still be chosen (D-07, D-32).</param>
+/// <param name="RecordedBy">Who added it; null reads as System.</param>
+/// <param name="RecordedAt">When it was added.</param>
+/// <param name="LastChangedBy">Who last changed it; null until an edit.</param>
+/// <param name="LastChangedAt">When it was last changed; null until an edit.</param>
+public sealed record OrderRefundResponse(
+    Guid Id,
+    DateOnly RefundDate,
+    decimal Amount,
+    string Reason,
+    ActorRef RefundedBy,
+    bool RefundedByActive,
+    ActorRef? RecordedBy,
+    DateTimeOffset RecordedAt,
+    ActorRef? LastChangedBy,
+    DateTimeOffset? LastChangedAt);
+
 /// <summary>One order expense (ORD-05, ORD-23). Paid by is who spent the money; recorded by is who typed the expense in.</summary>
 /// <param name="Id">The expense id.</param>
 /// <param name="ExpenseDate">The day of the expense.</param>
@@ -139,6 +162,7 @@ public sealed record OrderTotalsResponse(
 /// <param name="Items">The lines, in order.</param>
 /// <param name="Discounts">The discounts, in the order they were added.</param>
 /// <param name="Payments">The payments, oldest payment date first.</param>
+/// <param name="Refunds">The refunds, oldest refund date first.</param>
 /// <param name="Expenses">The order expenses, oldest expense date first.</param>
 /// <param name="StatusHistory">The status history, oldest first.</param>
 /// <param name="Totals">The money figures.</param>
@@ -163,6 +187,7 @@ public sealed record OrderDetailResponse(
     IReadOnlyList<OrderItemResponse> Items,
     IReadOnlyList<OrderDiscountResponse> Discounts,
     IReadOnlyList<OrderPaymentResponse> Payments,
+    IReadOnlyList<OrderRefundResponse> Refunds,
     IReadOnlyList<OrderExpenseResponse> Expenses,
     IReadOnlyList<OrderStatusChangeResponse> StatusHistory,
     OrderTotalsResponse Totals,

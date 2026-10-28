@@ -62,6 +62,12 @@ public static class OrderRules
     /// <summary>The longest payment notes text.</summary>
     public const int PaymentNotesMaxLength = 500;
 
+    /// <summary>The most refunds one order may have (D-30).</summary>
+    public const int MaxRefunds = 50;
+
+    /// <summary>The longest refund reason.</summary>
+    public const int RefundReasonMaxLength = 200;
+
     /// <summary>The most order expenses one order may have (D-30).</summary>
     public const int MaxExpenses = 100;
 
@@ -154,6 +160,18 @@ public static class OrderRules
 
     /// <summary>The field name of the person who received a payment.</summary>
     public const string ReceivedByField = "receivedByUserId";
+
+    /// <summary>The field name of a refund's date.</summary>
+    public const string RefundDateField = "refundDate";
+
+    /// <summary>The field name of a refund's amount.</summary>
+    public const string RefundAmountField = "amount";
+
+    /// <summary>The field name of a refund's reason.</summary>
+    public const string RefundReasonField = "reason";
+
+    /// <summary>The field name of the person who handed a refund back.</summary>
+    public const string RefundedByField = "refundedByUserId";
 
     /// <summary>The field name of the order expense list.</summary>
     public const string ExpensesField = "expenses";
@@ -341,6 +359,45 @@ public static class OrderRules
     /// <summary>The message for an order with more than <see cref="MaxPayments"/> payments.</summary>
     public const string PaymentsTooMany = "An order can have at most 100 payments.";
 
+    /// <summary>The message for a missing refund date.</summary>
+    public const string RefundDateRequired = "Enter the refund date.";
+
+    /// <summary>The message for a refund dated after the business today.</summary>
+    public const string RefundDateInFuture = "The refund date can't be in the future.";
+
+    /// <summary>The message for a missing refund reason.</summary>
+    public const string RefundReasonRequired = "Add a short reason for the refund.";
+
+    /// <summary>The message for a refund reason over the limit.</summary>
+    public const string RefundReasonTooLong = "Keep the reason to 200 characters or fewer.";
+
+    /// <summary>The message for a missing refunder (D-07).</summary>
+    public const string RefundedByRequired = "Choose who handed the money back.";
+
+    /// <summary>The message for a refunder who cannot be chosen (D-07, D-32).</summary>
+    public const string RefundedByInactive = "This person can't be chosen because their account isn't active. Choose someone else.";
+
+    /// <summary>The message for an order with more than <see cref="MaxRefunds"/> refunds.</summary>
+    public const string RefundsTooMany = "An order can have at most 50 refunds.";
+
+    /// <summary>The machine code of a refund on an order that is neither cancelled nor in credit (D-09).</summary>
+    public const string RefundNotAllowedCode = "orders.refund-not-allowed";
+
+    /// <summary>The plain-English text for a refund on an order that is neither cancelled nor in credit (D-09).</summary>
+    public const string RefundNotAllowedMessage = "A refund can be recorded only on a cancelled order or one with a customer credit.";
+
+    /// <summary>The message for a refund on a cancelled order when everything paid has already been handed back.</summary>
+    public const string NothingToRefund = "Everything that was paid has already been refunded.";
+
+    /// <summary>The machine code of a refund id that is not on the order in the route.</summary>
+    public const string RefundNotFoundCode = "orders.refund-not-found";
+
+    /// <summary>The plain-English text for a refund that is not on the order in the route.</summary>
+    public const string RefundNotFoundMessage = "This refund was not found on this order.";
+
+    /// <summary>The machine code of an add that would take the order above <see cref="MaxRefunds"/>.</summary>
+    public const string TooManyRefundsCode = "orders.too-many-refunds";
+
     /// <summary>The message for an order expense that is missing from the list.</summary>
     public const string ExpenseRequired = "Fill in this expense.";
 
@@ -415,6 +472,15 @@ public static class OrderRules
 
     /// <summary>The largest payment amount (D-30).</summary>
     public static readonly decimal PaymentAmountMax = 1_000_000.00m;
+
+    /// <summary>Gets the 422 for a refund on an order that is neither cancelled nor in credit.</summary>
+    public static Error RefundNotAllowed { get; } = Error.BusinessRule(RefundNotAllowedCode, RefundNotAllowedMessage);
+
+    /// <summary>Gets the 404 for a refund id that is not on the order.</summary>
+    public static Error RefundNotFound { get; } = Error.NotFound(RefundNotFoundCode, RefundNotFoundMessage);
+
+    /// <summary>Gets the 422 for an add that would take the order above 50 refunds.</summary>
+    public static Error TooManyRefunds { get; } = Error.BusinessRule(TooManyRefundsCode, RefundsTooMany);
 
     /// <summary>Gets the 404 for an order expense id that is not on the order.</summary>
     public static Error ExpenseNotFound { get; } = Error.NotFound(ExpenseNotFoundCode, ExpenseNotFoundMessage);
@@ -766,6 +832,64 @@ public static class OrderRules
 
         return Result.Success(expense with { Description = description });
     }
+
+    /// <summary>
+    /// Checks and cleans one refund, returning the first broken rule under the refund's field. The caps that depend on the order
+    /// (the credit, or what was paid and not yet refunded) are judged by the order. Whether the refunder may be chosen needs the
+    /// database and runs in the handlers.
+    /// </summary>
+    /// <param name="refund">The refund as given.</param>
+    /// <param name="today">The business today; a refund may not be dated after it.</param>
+    /// <returns>The refund with the reason trimmed, or a validation error naming the first broken field.</returns>
+    public static Result<NewOrderRefund> CheckRefund(NewOrderRefund refund, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(refund);
+
+        if (refund.RefundDate > today)
+        {
+            return Reject<NewOrderRefund>(RefundDateField, RefundDateInFuture);
+        }
+
+        if (refund.Amount <= 0m || refund.Amount > PaymentAmountMax)
+        {
+            return Reject<NewOrderRefund>(RefundAmountField, PaymentAmountOutOfRange);
+        }
+
+        if (!HasValidScale(refund.Amount))
+        {
+            return Reject<NewOrderRefund>(RefundAmountField, MoneyDecimals);
+        }
+
+        var reason = Clean(refund.Reason);
+        if (reason is null)
+        {
+            return Reject<NewOrderRefund>(RefundReasonField, RefundReasonRequired);
+        }
+
+        if (reason.Length > RefundReasonMaxLength)
+        {
+            return Reject<NewOrderRefund>(RefundReasonField, RefundReasonTooLong);
+        }
+
+        if (refund.RefundedByUserId == Guid.Empty)
+        {
+            return Reject<NewOrderRefund>(RefundedByField, RefundedByRequired);
+        }
+
+        return Result.Success(refund with { Reason = reason });
+    }
+
+    /// <summary>Builds the message for a refund above the customer credit on an order that is not cancelled (D-34).</summary>
+    /// <param name="credit">The most that may be refunded.</param>
+    /// <returns>For example "This is more than the customer credit. Enter ₱500.00 or less."</returns>
+    public static string RefundAboveCredit(decimal credit) =>
+        $"This is more than the customer credit. Enter {Pesos.Format(credit)} or less.";
+
+    /// <summary>Builds the message for a refund above what was paid and not yet refunded on a cancelled order (D-09).</summary>
+    /// <param name="kept">The most that may be refunded.</param>
+    /// <returns>For example "This is more than was paid and not yet refunded. Enter ₱12,000.00 or less."</returns>
+    public static string RefundAboveKept(decimal kept) =>
+        kept <= 0m ? NothingToRefund : $"This is more than was paid and not yet refunded. Enter {Pesos.Format(kept)} or less.";
 
     /// <summary>Builds a validation error for one field.</summary>
     /// <typeparam name="T">The result type.</typeparam>

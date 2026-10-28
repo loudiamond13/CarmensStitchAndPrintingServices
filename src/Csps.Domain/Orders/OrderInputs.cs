@@ -42,6 +42,13 @@ public sealed record NewOrderDiscount(DiscountKind Kind, decimal Value, string R
 /// <param name="ReceivedByUserId">The staff member who received the money.</param>
 public sealed record NewOrderPayment(DateOnly PaymentDate, decimal Amount, Guid PaymentMethodId, string? Reference, string? Notes, Guid ReceivedByUserId);
 
+/// <summary>One refund of a saved order (ORD-18, D-07, D-30).</summary>
+/// <param name="RefundDate">The day the money was handed back; never after the business today.</param>
+/// <param name="Amount">The amount in pesos, above 0.00 and at most 1,000,000.00, with at most two decimal places.</param>
+/// <param name="Reason">Why the money is handed back, 1 to <see cref="OrderRules.RefundReasonMaxLength"/> characters.</param>
+/// <param name="RefundedByUserId">The staff member who handed the money back.</param>
+public sealed record NewOrderRefund(DateOnly RefundDate, decimal Amount, string Reason, Guid RefundedByUserId);
+
 /// <summary>One order expense of a new or saved order (ORD-05, ORD-23, D-30).</summary>
 /// <param name="ExpenseDate">The day of the expense; any past day, up to 30 days after the business today.</param>
 /// <param name="Amount">The amount in pesos, above 0.00 and at most 1,000,000.00, with at most two decimal places.</param>

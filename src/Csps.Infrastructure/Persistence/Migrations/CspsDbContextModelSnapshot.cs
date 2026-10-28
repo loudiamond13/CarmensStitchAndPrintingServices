@@ -1374,6 +1374,67 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderRefund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("RefundDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("RefundedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_OrderRefunds_CreatedById");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_OrderRefunds_OrderId");
+
+                    b.HasIndex("RefundedByUserId")
+                        .HasDatabaseName("IX_OrderRefunds_RefundedByUserId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("RefundedByUserId"), new[] { "Amount", "RefundDate" });
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_OrderRefunds_UpdatedById");
+
+                    b.ToTable("OrderRefunds", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderRefunds_Amount_Positive", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderStatusChange", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2405,6 +2466,33 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderRefund", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", "Order")
+                        .WithMany("Refunds")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("RefundedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderStatusChange", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -2499,6 +2587,8 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
+
+                    b.Navigation("Refunds");
 
                     b.Navigation("StatusChanges");
                 });
