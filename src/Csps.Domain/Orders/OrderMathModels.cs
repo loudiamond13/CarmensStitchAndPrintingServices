@@ -39,10 +39,13 @@ public sealed record OrderMathDiscount(DiscountKind Kind, decimal Value);
 /// </param>
 /// <param name="Paid">PRD section 5.1 <c>TotalPaid</c>: the sum of the payments.</param>
 /// <param name="Balance">
-/// PRD section 5.1 <c>Balance</c>: total minus paid. Negative when more was paid than is owed.
+/// PRD section 5.1 <c>Balance</c>: total minus paid plus refunded. Negative when more was paid than is owed.
 /// </param>
 /// <param name="Expenses">PRD section 5.1 <c>TotalOrderExpenses</c>: the sum of the order expenses.</param>
-/// <param name="Profit">Total minus expenses (the internal estimated profit).</param>
+/// <param name="Profit">
+/// Total minus expenses (the internal estimated profit). For a cancelled order it is paid minus refunded minus
+/// expenses (D-36), so a fully refunded cancelled order shows a loss of its expenses (D-10).
+/// </param>
 /// <param name="FullyPaid">
 /// True when the subtotal is above zero and the balance is zero or less. Owner ruling D-41 R2-06 (2026-10-13;
 /// NET-IN-01, ruled keep): a fully discounted order with no payment reads fully paid, because nothing is owed, and an

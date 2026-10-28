@@ -14,7 +14,9 @@ namespace Csps.Domain.Orders;
 /// <para>
 /// The names are PRD section 5.1's (owner ruling D-41 R2-06, 2026-10-13): D-09's "items total" is the
 /// <c>Subtotal</c>, <c>Total = Subtotal - Discount</c>, <c>Balance = Total - Paid</c> and
-/// <c>Profit = Total - Expenses</c>.
+/// <c>Profit = Total - Expenses</c>. Refunds (D-13) raise the balance: <c>Balance = Total - Paid + Refunded</c>. The
+/// customer credit is the balance when it is below zero (D-12). A cancelled order's profit is
+/// <c>(Paid - Refunded) - Expenses</c> instead (D-36).
 /// </para>
 /// </remarks>
 public static class OrderMath
@@ -74,7 +76,12 @@ public static class OrderMath
         // 4. Subtract (PRD section 5.1).
         var total = subtotal - discount;
         var balance = total - paid + refunded;
-        var profit = total - expenseTotal;
+
+        // D-12: the shop owes the customer what was paid above the total. Zero is written as 0.00, never -0.00.
+        var customerCredit = balance < 0m ? -balance : 0.00m;
+
+        // D-36: a cancelled order keeps only the money still held (paid minus refunded) against its expenses (D-10).
+        var profit = cancelled ? paid - refunded - expenseTotal : total - expenseTotal;
 
         // D-41 R2-06 (NET-IN-01 ruled keep): fully paid needs a subtotal above zero, not a total above zero.
         return new OrderMathResult(
@@ -88,6 +95,7 @@ public static class OrderMath
             FullyPaid: subtotal > 0m && balance <= 0m)
         {
             Refunded = refunded,
+            CustomerCredit = customerCredit,
         };
     }
 
