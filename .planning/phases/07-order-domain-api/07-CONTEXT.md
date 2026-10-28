@@ -1,6 +1,6 @@
 # Phase 7: Order Domain & API - Context
 
-*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-27T20:53:00-05:00*
+*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T10:15:00-05:00*
 
 **Gathered:** 2026-10-27
 **Status:** Ready for planning
@@ -81,6 +81,13 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 ### Legacy data (OD-15 shape, C-42; owner 2026-10-27)
 - **D-32:** `Order.Import` can give legacy payments, refunds and order expenses a **"Legacy / unassigned" holder**: a special staff record that can **never sign in** and **never appears** in any staff picker or lookup. It matches the "Legacy import" attribution already used for unknown creators (SEC-08). The import can still name a real staff member where the old data says who. The final rule stays a Phase 15 ruling (MIG-09).
 - **D-33:** **Phase 7.1 is approved**: an early, **read-only** fit check against `CSPS_Legacy_Restore` after the order rules are built, to find legacy data that breaks them. It never derives the schema, never writes to the restore, and never restores over `CSPS_Dev`. It must be inserted into the roadmap as Phase 7.1.
+
+### Research follow-ups (07-RESEARCH Open Questions 1 to 5; owner 2026-10-28)
+- **D-34:** **Refund cap on an order that is not cancelled:** at most the customer credit, so a refund never puts the customer back in debt. On a Cancelled order the cap stays paid minus earlier refunds (D-09). (owner, 2026-10-28)
+- **D-35:** **Refunds on a Cancelled order can be edited or removed without reopening it.** This widens the D-05 exception from "record" to "record, edit, remove". Every change is audited (D-31). (owner, 2026-10-28)
+- **D-36:** **Profit on a Cancelled order** is money kept minus money spent: `(paid − refunded) − expenses`. Every other status keeps `total − expenses`. This makes D-10's "shows a loss" true. (owner, 2026-10-28)
+- **D-37:** **The "Legacy / unassigned" holder (D-32) is one seeded, hidden user record** with a fixed id. It has no role, can never sign in, never appears in any staff picker, lookup or user list, and shows as "Legacy / unassigned". Phase 7 seeds only this holder. Whether the SEC-08 "Legacy import" creator reuses it stays a Phase 15 call (MIG-10). (owner, 2026-10-28)
+- **D-38:** **No direct Completed to Cancelled move.** Staff reopen the order first, then cancel it, so both steps are recorded (D-04, D-06). (owner, 2026-10-28)
 
 ### Carried forward (not re-asked)
 - **No overpayment by payment** (OD-4, 2026-10-13).
