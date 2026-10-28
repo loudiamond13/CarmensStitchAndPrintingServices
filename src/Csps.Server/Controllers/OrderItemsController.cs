@@ -56,13 +56,14 @@ public sealed class OrderItemsController(AddOrderItemHandler add, UpdateOrderIte
     /// when adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was
     /// retired after it was saved. An item id that is not on this order answers 404 <c>orders.item-not-found</c>. A version that is
     /// not the stored one answers 409 <c>edit.stale</c> and changes nothing; a form save is never retried. An edit that changes
-    /// nothing saves nothing and keeps the version. Who changed the item and when come from the token and the clock.
+    /// nothing saves nothing and keeps the version. An edit that would leave the discounts more than the new items total answers 422
+    /// <c>orders.discount-above-subtotal</c> and changes nothing. Who changed the item and when come from the token and the clock.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="itemId">The item id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the item on it does not exist, or 409 for a stale version.</returns>
+    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the item on it does not exist, 409 for a stale version, or 422 when the discounts would be more than the new items total.</returns>
     [HttpPut("{itemId:guid}")]
     [EndpointName("UpdateOrderItem")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
@@ -70,6 +71,7 @@ public sealed class OrderItemsController(AddOrderItemHandler add, UpdateOrderIte
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> Update(
         Guid orderId,
         Guid itemId,
@@ -83,12 +85,13 @@ public sealed class OrderItemsController(AddOrderItemHandler add, UpdateOrderIte
     /// <summary>
     /// Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again
     /// and decided again once. An order keeps at least one item, so removing the last one answers 422 <c>orders.last-item</c>. An item
-    /// id that is not on this order answers 404 <c>orders.item-not-found</c>. The totals are worked out again.
+    /// id that is not on this order answers 404 <c>orders.item-not-found</c>. A removal that would leave the discounts more than the
+    /// new items total answers 422 <c>orders.discount-above-subtotal</c>. The totals are worked out again.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="itemId">The item id.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 401 without a valid token, 404 when the order or the item on it does not exist, 409 when two saves lost a race twice, or 422 when it is the last item.</returns>
+    /// <returns>200 with the whole order, 401 without a valid token, 404 when the order or the item on it does not exist, 409 when two saves lost a race twice, or 422 when it is the last item or the discounts would be more than the new items total.</returns>
     [HttpDelete("{itemId:guid}")]
     [EndpointName("RemoveOrderItem")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]

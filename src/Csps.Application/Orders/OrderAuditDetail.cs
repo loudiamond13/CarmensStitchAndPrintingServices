@@ -101,7 +101,43 @@ public static class OrderAuditDetail
     /// <summary>The detail of <c>order-discount.added</c>: the discount id, kind and value, never the reason.</summary>
     /// <param name="discount">The discount that was added.</param>
     /// <returns>For example <c>discount=&lt;id&gt;;kind=percentage;value=5.00</c>.</returns>
-    public static string DiscountAdded(OrderDiscount discount)
+    public static string DiscountAdded(OrderDiscount discount) => DiscountSnapshot(discount);
+
+    /// <summary>The detail of <c>order-discount.removed</c>: the discount id, kind and value as they were, never the reason.</summary>
+    /// <param name="discount">The discount that was removed.</param>
+    /// <returns>For example <c>discount=&lt;id&gt;;kind=percentage;value=5.00</c>.</returns>
+    public static string DiscountRemoved(OrderDiscount discount) => DiscountSnapshot(discount);
+
+    /// <summary>
+    /// The detail of <c>order-discount.changed</c>: the discount id, then <c>kind</c> and <c>value</c> as <c>old&gt;new</c> where they
+    /// changed and as the current value where they did not, then <c>fields=reason</c> when the reason changed. The reason text never
+    /// goes in.
+    /// </summary>
+    /// <param name="discount">The discount after the change.</param>
+    /// <param name="changes">What the edit changed.</param>
+    /// <returns>For example <c>discount=&lt;id&gt;;kind=percentage;value=5.00&gt;10.00;fields=reason</c>.</returns>
+    public static string DiscountChanged(OrderDiscount discount, OrderDiscountChanges changes)
+    {
+        ArgumentNullException.ThrowIfNull(discount);
+        ArgumentNullException.ThrowIfNull(changes);
+
+        var parts = new List<string>
+        {
+            AuditDetailFormat.Pair("discount", discount.Id),
+            changes.Kind is { } kind
+                ? AuditDetailFormat.Change("kind", DiscountKindNames.ToKey(kind.From), DiscountKindNames.ToKey(kind.To))
+                : AuditDetailFormat.Pair("kind", DiscountKindNames.ToKey(discount.Kind)),
+            changes.Value is { } value ? AuditDetailFormat.Change("value", value.From, value.To) : AuditDetailFormat.Pair("value", discount.Value),
+        };
+        if (changes.ReasonChanged)
+        {
+            parts.Add(AuditDetailFormat.Pair("fields", "reason"));
+        }
+
+        return AuditDetailFormat.Join([.. parts]);
+    }
+
+    private static string DiscountSnapshot(OrderDiscount discount)
     {
         ArgumentNullException.ThrowIfNull(discount);
 

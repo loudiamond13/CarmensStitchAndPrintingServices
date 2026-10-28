@@ -344,6 +344,12 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Success(changes);
         }
 
+        var edited = _items.Select(existing => existing == item ? new OrderMathItem(cleaned.Quantity, cleaned.UnitPrice) : new OrderMathItem(existing.Quantity, existing.UnitPrice));
+        if (!DiscountsFit(edited, DiscountsForMath(_discounts)))
+        {
+            return Result.Failure<OrderItemChanges>(OrderRules.DiscountAboveSubtotal);
+        }
+
         item.Apply(cleaned);
         Recalculate();
         Touch(now);
@@ -370,6 +376,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderItem>(OrderRules.LastItem);
         }
 
+        if (!DiscountsFit(ItemsForMath(_items.Where(existing => existing != item)), DiscountsForMath(_discounts)))
+        {
+            return Result.Failure<OrderItem>(OrderRules.DiscountAboveSubtotal);
+        }
+
         _items.Remove(item);
         Recalculate();
         Touch(now);
@@ -391,11 +402,99 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderDiscount>(checkedDiscount.Error);
         }
 
-        var added = BuildDiscount(this, checkedDiscount.Value, _discounts.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        if (_discounts.Count >= OrderRules.MaxDiscounts)
+        {
+            return Result.Failure<OrderDiscount>(OrderRules.TooManyDiscounts);
+        }
+
+        var cleaned = checkedDiscount.Value;
+        if (!DiscountsFit(ItemsForMath(_items), DiscountsForMath(_discounts).Append(new OrderMathDiscount(cleaned.Kind, cleaned.Value))))
+        {
+            return OrderRules.Reject<OrderDiscount>(OrderRules.DiscountValueField, OrderRules.DiscountAboveSubtotalMessage);
+        }
+
+        var added = BuildDiscount(this, cleaned, _discounts.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
         _discounts.Add(added);
         Recalculate();
         Touch(now);
         return Result.Success(added);
+    }
+
+    /// <summary>
+    /// Applies a discount edit, checking every discount rule again as <see cref="AddDiscount"/> does and that the discounts still fit
+    /// under the items total. Nothing is assigned when a rule fails, and an edit that changes nothing leaves the order and its edit
+    /// version untouched. A changed edit works the totals out again and moves the edit version.
+    /// </summary>
+    /// <param name="discountId">The discount to edit; it must be on this order.</param>
+    /// <param name="values">The new values as given.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>What changed (nothing at all for an identical edit), a 404 when the discount is not on this order, or a validation error naming the first broken field.</returns>
+    public Result<OrderDiscountChanges> UpdateDiscount(Guid discountId, NewOrderDiscount values, DateTimeOffset now)
+    {
+        var discount = _discounts.Find(existing => existing.Id == discountId);
+        if (discount is null)
+        {
+            return Result.Failure<OrderDiscountChanges>(OrderRules.DiscountNotFound);
+        }
+
+        var checkedDiscount = OrderRules.CheckDiscount(null, values);
+        if (checkedDiscount.IsFailure)
+        {
+            return Result.Failure<OrderDiscountChanges>(checkedDiscount.Error);
+        }
+
+        var cleaned = checkedDiscount.Value;
+        var changes = new OrderDiscountChanges(
+            discount.Kind == cleaned.Kind ? null : new ValueChange<DiscountKind>(discount.Kind, cleaned.Kind),
+            discount.Value == cleaned.Value ? null : new ValueChange<decimal>(discount.Value, cleaned.Value),
+            !string.Equals(discount.Reason, cleaned.Reason, StringComparison.Ordinal));
+        if (!changes.HasAny)
+        {
+            return Result.Success(changes);
+        }
+
+        var edited = _discounts.Select(existing => existing == discount ? new OrderMathDiscount(cleaned.Kind, cleaned.Value) : new OrderMathDiscount(existing.Kind, existing.Value));
+        if (!DiscountsFit(ItemsForMath(_items), edited))
+        {
+            return OrderRules.Reject<OrderDiscountChanges>(OrderRules.DiscountValueField, OrderRules.DiscountAboveSubtotalMessage);
+        }
+
+        discount.Apply(cleaned);
+        Recalculate();
+        Touch(now);
+        return Result.Success(changes);
+    }
+
+    /// <summary>Takes one discount off the order. The totals are worked out again and the edit version moves.</summary>
+    /// <param name="discountId">The discount to remove; it must be on this order.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The removed discount, or a 404 when it is not on this order.</returns>
+    public Result<OrderDiscount> RemoveDiscount(Guid discountId, DateTimeOffset now)
+    {
+        var discount = _discounts.Find(existing => existing.Id == discountId);
+        if (discount is null)
+        {
+            return Result.Failure<OrderDiscount>(OrderRules.DiscountNotFound);
+        }
+
+        _discounts.Remove(discount);
+        Recalculate();
+        Touch(now);
+        return Result.Success(discount);
+    }
+
+    private static IEnumerable<OrderMathItem> ItemsForMath(IEnumerable<OrderItem> items) =>
+        items.Select(static item => new OrderMathItem(item.Quantity, item.UnitPrice));
+
+    private static IEnumerable<OrderMathDiscount> DiscountsForMath(IEnumerable<OrderDiscount> discounts) =>
+        discounts.Select(static discount => new OrderMathDiscount(discount.Kind, discount.Value));
+
+    // The one discount cap (ORD-05): the discounts, worked out by OrderMath, may not be more than the items total, so the total never
+    // goes below zero. It runs on the figures a change would give, before anything is assigned.
+    private static bool DiscountsFit(IEnumerable<OrderMathItem> items, IEnumerable<OrderMathDiscount> discounts)
+    {
+        var figures = OrderMath.Compute([.. items], [.. discounts], [], []);
+        return figures.Discount <= figures.Subtotal;
     }
 
     private static OrderDiscount BuildDiscount(Order order, NewOrderDiscount discount, int position, DateTimeOffset now) =>
@@ -417,8 +516,8 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     private void Recalculate()
     {
         var figures = OrderMath.Compute(
-            [.. _items.Select(static item => new OrderMathItem(item.Quantity, item.UnitPrice))],
-            [.. _discounts.Select(static discount => new OrderMathDiscount(discount.Kind, discount.Value))],
+            [.. ItemsForMath(_items)],
+            [.. DiscountsForMath(_discounts)],
             [],
             [],
             [],

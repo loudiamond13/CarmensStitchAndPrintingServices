@@ -51,4 +51,12 @@ public sealed class OrderDiscount : IAttributedRecord
 
     /// <inheritdoc />
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
+
+    // Takes the new values, already checked and trimmed by Order.UpdateDiscount.
+    internal void Apply(NewOrderDiscount values)
+    {
+        Kind = values.Kind;
+        Value = values.Value;
+        Reason = values.Reason;
+    }
 }

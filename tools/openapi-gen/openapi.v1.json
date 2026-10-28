@@ -2632,6 +2632,49 @@
         ],
         "type": "object"
       },
+      "UpdateOrderDiscountRequest": {
+        "description": "The Edit Discount form on a saved order (D-15, ORD-05). It carries the order's version as the form was opened. Any other member\nin the body, such as a forged `updatedById`, is ignored: who changed the discount and when come from the token and the\nclock (SEC-08).",
+        "properties": {
+          "kind": {
+            "description": "The kind: `fixed` or `percentage`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "description": "Why the discount is given.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "description": "The peso amount (fixed) or the percent (percentage).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "reason",
+          "version"
+        ],
+        "type": "object"
+      },
       "UpdateOrderItemRequest": {
         "description": "The Edit Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in\nthe body, such as a forged `updatedById` or `lineTotal`, is ignored: who changed the item and when come from the token\nand the clock (SEC-08), and the line total is worked out by the server.",
         "properties": {
@@ -5719,9 +5762,214 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
         "summary": "Adds a discount to a saved order with the order's version the form was opened with. The kind is `fixed` (a value from\n0.01 to 1,000,000.00) or `percentage` (a value above 0 and up to 100), each with at most two decimal places, and the\nreason is 1 to 100 characters. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. The server works out the order's totals. Who added the discount and when come from the token and\nthe clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored answer and adds nothing more.",
+        "tags": [
+          "OrderDiscounts"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/discounts/{discountId}": {
+      "delete": {
+        "operationId": "RemoveOrderDiscount",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The discount id.",
+            "in": "path",
+            "name": "discountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Removes one discount of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. A discount id that is not on this order answers 404 `orders.discount-not-found`. The\ntotals are worked out again.",
+        "tags": [
+          "OrderDiscounts"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOrderDiscount",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The discount id.",
+            "in": "path",
+            "name": "discountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderDiscountRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderDiscountRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderDiscountRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves an edit of one discount of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding, and the discounts together may not be more than the items total (400 on `value`). A discount id that is not\non this order answers 404 `orders.discount-not-found`. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing saves nothing and keeps\nthe version. Who changed the discount and when come from the token and the clock.",
         "tags": [
           "OrderDiscounts"
         ]
@@ -5928,7 +6176,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again\nand decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item\nid that is not on this order answers 404 `orders.item-not-found`. The totals are worked out again.",
+        "summary": "Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again\nand decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item\nid that is not on this order answers 404 `orders.item-not-found`. A removal that would leave the discounts more than the\nnew items total answers 422 `orders.discount-above-subtotal`. The totals are worked out again.",
         "tags": [
           "OrderItems"
         ]
@@ -6048,9 +6296,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Saves an edit of one item of a saved order with the order's version the form was opened with. The item rules are the same as\nwhen adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was\nretired after it was saved. An item id that is not on this order answers 404 `orders.item-not-found`. A version that is\nnot the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes\nnothing saves nothing and keeps the version. Who changed the item and when come from the token and the clock.",
+        "summary": "Saves an edit of one item of a saved order with the order's version the form was opened with. The item rules are the same as\nwhen adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was\nretired after it was saved. An item id that is not on this order answers 404 `orders.item-not-found`. A version that is\nnot the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes\nnothing saves nothing and keeps the version. An edit that would leave the discounts more than the new items total answers 422\n`orders.discount-above-subtotal` and changes nothing. Who changed the item and when come from the token and the clock.",
         "tags": [
           "OrderItems"
         ]

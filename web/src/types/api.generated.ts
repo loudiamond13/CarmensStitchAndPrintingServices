@@ -603,6 +603,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/discounts/{discountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one discount of a saved order with the order's version the form was opened with. The rules are the same as
+         *     when adding, and the discounts together may not be more than the items total (400 on `value`). A discount id that is not
+         *     on this order answers 404 `orders.discount-not-found`. A version that is not the stored one answers 409
+         *     `edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing saves nothing and keeps
+         *     the version. Who changed the discount and when come from the token and the clock.
+         */
+        put: operations["UpdateOrderDiscount"];
+        post?: never;
+        /**
+         * Removes one discount of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
+         *     again and decided again once. A discount id that is not on this order answers 404 `orders.discount-not-found`. The
+         *     totals are worked out again.
+         */
+        delete: operations["RemoveOrderDiscount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/items": {
         parameters: {
             query?: never;
@@ -641,14 +669,16 @@ export interface paths {
          *     when adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was
          *     retired after it was saved. An item id that is not on this order answers 404 `orders.item-not-found`. A version that is
          *     not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes
-         *     nothing saves nothing and keeps the version. Who changed the item and when come from the token and the clock.
+         *     nothing saves nothing and keeps the version. An edit that would leave the discounts more than the new items total answers 422
+         *     `orders.discount-above-subtotal` and changes nothing. Who changed the item and when come from the token and the clock.
          */
         put: operations["UpdateOrderItem"];
         post?: never;
         /**
          * Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again
          *     and decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item
-         *     id that is not on this order answers 404 `orders.item-not-found`. The totals are worked out again.
+         *     id that is not on this order answers 404 `orders.item-not-found`. A removal that would leave the discounts more than the
+         *     new items total answers 422 `orders.discount-above-subtotal`. The totals are worked out again.
          */
         delete: operations["RemoveOrderItem"];
         options?: never;
@@ -2184,6 +2214,24 @@ export interface components {
             /** @description The team or club name. */
             teamName: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Discount form on a saved order (D-15, ORD-05). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `updatedById`, is ignored: who changed the discount and when come from the token and the
+         *     clock (SEC-08).
+         */
+        UpdateOrderDiscountRequest: {
+            /** @description The kind: `fixed` or `percentage`. */
+            kind: null | string;
+            /** @description Why the discount is given. */
+            reason: null | string;
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
         /**
@@ -4181,6 +4229,135 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderDiscount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The discount id. */
+                discountId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderDiscountRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderDiscountRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderDiscountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderDiscount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The discount id. */
+                discountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     AddOrderItem: {
@@ -4317,6 +4494,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

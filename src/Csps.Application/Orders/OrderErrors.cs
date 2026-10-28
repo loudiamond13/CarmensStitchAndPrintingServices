@@ -38,4 +38,10 @@ public static class OrderErrors
 
     /// <summary>Gets the 422 for adding an item to an order that already has 100.</summary>
     public static Error TooManyItems => OrderRules.TooManyItems;
+
+    /// <summary>Gets the 404 for a discount id that is not on the order in the route (CWE-639).</summary>
+    public static Error DiscountNotFound => OrderRules.DiscountNotFound;
+
+    /// <summary>Gets the 422 for adding a discount to an order that already has 20.</summary>
+    public static Error TooManyDiscounts => OrderRules.TooManyDiscounts;
 }

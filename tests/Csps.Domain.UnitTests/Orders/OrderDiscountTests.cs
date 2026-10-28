@@ -87,6 +87,16 @@ public sealed class OrderDiscountTests
         }
     }
 
+    [Fact]
+    public void ADiscountInAListIsReportedUnderItsPlaceInTheList()
+    {
+        var result = OrderRules.CheckDiscount(2, new NewOrderDiscount(DiscountKind.Fixed, 0m, "League"));
+
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["discounts[2].value"]);
+        OrderRules.DiscountPath(null, "reason").ShouldBe("reason");
+        OrderRules.DiscountPath(0, "reason").ShouldBe("discounts[0].reason");
+    }
+
     [Theory]
     [InlineData(DiscountKind.Fixed, 0.01)]
     [InlineData(DiscountKind.Fixed, 1_000_000.00)]

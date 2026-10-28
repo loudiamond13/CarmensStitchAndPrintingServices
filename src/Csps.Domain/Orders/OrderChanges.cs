@@ -21,6 +21,19 @@ public sealed record OrderDetailsChanges(ValueChange<DateOnly>? OrderDate, DueDa
 }
 
 /// <summary>
+/// What one discount edit changed (D-31). The kind and the value carry the old and new value; the reason carries only a flag,
+/// because its text never goes into the audit log.
+/// </summary>
+/// <param name="Kind">The kind change; null when it stayed.</param>
+/// <param name="Value">The value change; null when it stayed.</param>
+/// <param name="ReasonChanged">True when the reason text changed.</param>
+public sealed record OrderDiscountChanges(ValueChange<DiscountKind>? Kind, ValueChange<decimal>? Value, bool ReasonChanged)
+{
+    /// <summary>Gets a value that is true when anything at all changed.</summary>
+    public bool HasAny => Kind is not null || Value is not null || ReasonChanged;
+}
+
+/// <summary>
 /// What one item edit changed (D-31). The product type, quantity and unit price carry the old and new value; the description and
 /// the size or variant carry only their field names, because their text never goes into the audit log.
 /// </summary>
