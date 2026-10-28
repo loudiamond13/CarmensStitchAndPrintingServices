@@ -1,6 +1,7 @@
 using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Orders;
+using FluentValidation;
 using FluentValidation.Results;
 
 namespace Csps.Application.UnitTests.Orders;
@@ -10,6 +11,8 @@ public sealed class CreateOrderRequestValidatorTests
 {
     private static readonly Guid ProductTypeId = Guid.Parse("01a17fce-7800-7f5d-bc6c-5d14ceeca0c6");
     private static readonly CreateOrderRequestValidator Validator = new();
+    private static readonly Guid MethodId = Guid.Parse("01a17fce-7806-77e1-91b7-d3b852f2fd1d");
+    private static readonly Guid ReceiverId = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
 
     [Fact]
     public void ABoundaryValidFormHasNoErrors() => Fields(Valid()).ShouldBeEmpty();
@@ -269,6 +272,55 @@ public sealed class CreateOrderRequestValidatorTests
     }
 
     [Fact]
+    public void NoPaymentsAndAnEmptyListAreAccepted()
+    {
+        Fields(Valid()).ShouldBeEmpty();
+        Fields(Valid() with { Payments = [] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ABrokenPaymentIsRefusedOnItsPath()
+    {
+        One(Valid() with { Payments = [Payment() with { Amount = 0m }] }, "payments[0].amount", "Enter an amount from ₱0.01 to ₱1,000,000.00.");
+        One(Valid() with { Payments = [Payment(), Payment() with { PaymentDate = "2026-10-29" }] }, "payments[1].paymentDate", "The payment date can't be in the future.");
+        One(Valid() with { Payments = [Payment() with { ReceivedByUserId = null }] }, "payments[0].receivedByUserId", "Choose who received the money.");
+        One(Valid() with { Payments = [Payment() with { PaymentMethodId = Guid.Empty }] }, "payments[0].paymentMethodId", "Choose a payment method.");
+    }
+
+    [Fact]
+    public void AnEmptyPaymentListsEveryRequiredFieldOnItsPath() =>
+        Fields(Valid() with { Payments = [new OrderPaymentRequest(null, null, null, null, null, null)] }).Keys.Order(StringComparer.Ordinal)
+            .ShouldBe(["payments[0].amount", "payments[0].paymentDate", "payments[0].paymentMethodId", "payments[0].receivedByUserId"]);
+
+    [Fact]
+    public void ANullPaymentInTheListIsRefusedOnItsPath() =>
+        One(Valid() with { Payments = [Payment(), null!] }, "payments[1]", "Fill in this payment.");
+
+    [Fact]
+    public void OneHundredPaymentsAreAcceptedAndOneHundredAndOneAreRefused()
+    {
+        Fields(Valid() with { Payments = [.. Enumerable.Repeat(Payment(), 100)] }).ShouldBeEmpty();
+        One(Valid() with { Payments = [.. Enumerable.Repeat(Payment(), 101)] }, "payments", "An order can have at most 100 payments.");
+    }
+
+    [Fact]
+    public void APaymentWithoutTheBusinessTodayInTheContextIsAProgrammingError()
+    {
+        Should.Throw<InvalidOperationException>(() => Validator.Validate(Valid() with { Payments = [Payment()] }));
+    }
+
+    [Fact]
+    public void ThePaymentValidatorWorksOnItsOwnInterface()
+    {
+        var context = new ValidationContext<IOrderPaymentFields>(Payment() with { Amount = 10.005m });
+        context.RootContextData[OrderPaymentFieldsValidator.TodayKey] = new DateOnly(2026, 10, 28);
+
+        var result = new OrderPaymentFieldsValidator().Validate(context);
+
+        result.Errors.Select(error => error.PropertyName).ShouldBe(["Amount"]);
+    }
+
+    [Fact]
     public void TheDiscountValidatorWorksOnItsOwnInterface()
     {
         var result = new OrderDiscountFieldsValidator().Validate(Discount() with { Value = 100.01m, Kind = "percentage" });
@@ -328,11 +380,15 @@ public sealed class CreateOrderRequestValidatorTests
 
     private static OrderDiscountRequest Discount() => new("fixed", 100.00m, "League");
 
+    private static OrderPaymentRequest Payment() => new("2026-10-27", 100.00m, MethodId, null, null, ReceiverId);
+
     private static decimal Parse(string text) => decimal.Parse(text, CultureInfo.InvariantCulture);
 
     private static Dictionary<string, string[]> Fields(CreateOrderRequest request)
     {
-        ValidationResult result = Validator.Validate(request);
+        var context = new ValidationContext<CreateOrderRequest>(request);
+        context.RootContextData[OrderPaymentFieldsValidator.TodayKey] = new DateOnly(2026, 10, 28);
+        ValidationResult result = Validator.Validate(context);
         return result.IsValid
             ? []
             : ValidationResults.ToError(result, "orders.invalid-request", "Check the highlighted fields.").FieldErrors.ShouldNotBeNull()

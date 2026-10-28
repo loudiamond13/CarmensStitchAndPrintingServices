@@ -6,6 +6,7 @@ using Csps.Domain.OrderLists;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Orders;
@@ -324,6 +325,56 @@ internal static class OrderFixtures
         ["receivedByUserId"] = receivedByUserId,
         ["version"] = version,
     };
+
+    /// <summary>Builds one payment of the create body.</summary>
+    /// <param name="paymentDate">The day the money was received.</param>
+    /// <param name="amount">The amount in pesos.</param>
+    /// <param name="paymentMethodId">The payment method.</param>
+    /// <param name="receivedByUserId">Who received the money.</param>
+    /// <param name="reference">The reference text.</param>
+    /// <param name="notes">The notes text.</param>
+    /// <returns>The payment members.</returns>
+    public static Dictionary<string, object?> PaymentItem(DateOnly paymentDate, decimal amount, Guid paymentMethodId, Guid receivedByUserId, string? reference = null, string? notes = null) => new()
+    {
+        ["paymentDate"] = Date(paymentDate),
+        ["amount"] = amount,
+        ["paymentMethodId"] = paymentMethodId,
+        ["reference"] = reference,
+        ["notes"] = notes,
+        ["receivedByUserId"] = receivedByUserId,
+    };
+
+    /// <summary>Adds a payment method of its own to the test database, so a test never retires a seeded one.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="retired">True to retire it at once.</param>
+    /// <returns>The new method's id.</returns>
+    public static async Task<Guid> AddPaymentMethodAsync(CspsDatabase database, bool retired)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var method = PaymentMethod.Create($"Test {Guid.NewGuid():N}"[..21], "neutral", TimeProvider.System.GetUtcNow()).Value;
+        if (retired)
+        {
+            method.Retire(TimeProvider.System.GetUtcNow()).IsSuccess.ShouldBeTrue();
+        }
+
+        context.PaymentMethods.Add(method);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return method.Id;
+    }
+
+    /// <summary>Retires a payment method that was in use.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="paymentMethodId">The method to retire.</param>
+    /// <returns>A task that completes once the method is retired.</returns>
+    public static async Task RetirePaymentMethodAsync(CspsDatabase database, Guid paymentMethodId)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var at = TimeProvider.System.GetUtcNow();
+        await context.PaymentMethods.Where(method => method.Id == paymentMethodId)
+            .ExecuteUpdateAsync(set => set.SetProperty(method => method.RetiredAtUtc, at), TestContext.Current.CancellationToken);
+    }
 
     /// <summary>Posts a payment to a saved order with an idempotency key.</summary>
     /// <param name="client">The client.</param>

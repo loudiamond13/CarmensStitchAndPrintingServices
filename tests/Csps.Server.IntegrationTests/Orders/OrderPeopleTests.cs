@@ -1,0 +1,198 @@
+using System.Net;
+using Csps.Application.Security;
+using Csps.Domain.Identity;
+using Csps.Server.IntegrationTests.Auth;
+using Csps.Server.IntegrationTests.Http;
+using Csps.Server.IntegrationTests.Users;
+using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
+
+namespace Csps.Server.IntegrationTests.Orders;
+
+/// <summary>ORD-22, D-32, D-49, T-07-29: only an active, set-up Admin or Manager may be named as who received a payment, and a saved receiver may stay.</summary>
+public sealed class OrderPeopleTests(CspsDatabase database) : IClassFixture<CspsDatabase>
+{
+    private const string Refusal = "This person can't be chosen because their account isn't active. Choose someone else.";
+    private static readonly string TemporaryPassword = $"Tmp-{Guid.NewGuid():N}!x";
+
+    [Theory]
+    [InlineData("deactivated")]
+    [InlineData("manager-locked")]
+    [InlineData("deleted")]
+    [InlineData("invited")]
+    [InlineData("no-role")]
+    [InlineData("temporary-not-signed-in")]
+    [InlineData("legacy-holder")]
+    public async Task APersonWhoCannotBeChosenIsRefusedOnAddOnAReceiverChangeAndInTheFullCreate(string state)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var candidate = await PrepareAsync(factory, client, manager.AccessToken, state);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        using var addResponse = await OrderFixtures.AddPaymentAsync(
+            client,
+            manager.AccessToken,
+            id,
+            OrderFixtures.PaymentBody(today, 100m, OrderFixtures.CashId, candidate, created.GetProperty("version").GetString()));
+        await ExpectRefusalAsync(addResponse, "receivedByUserId");
+
+        var withPayment = await OrderFixtures.AddPaymentAndReadAsync(client, manager.AccessToken, created, today, 100m, OrderFixtures.CashId, manager.UserId);
+        var paymentId = withPayment.GetProperty("payments")[0].GetProperty("id").GetGuid();
+        using var changeResponse = await OrderFixtures.PutPaymentAsync(
+            client,
+            manager.AccessToken,
+            id,
+            paymentId,
+            OrderFixtures.PaymentBody(today, 100m, OrderFixtures.CashId, candidate, withPayment.GetProperty("version").GetString()));
+        await ExpectRefusalAsync(changeResponse, "receivedByUserId");
+        var stored = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        stored.GetProperty("payments")[0].GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["payments"] = new[]
+        {
+            OrderFixtures.PaymentItem(today, 100m, OrderFixtures.CashId, manager.UserId),
+            OrderFixtures.PaymentItem(today, 100m, OrderFixtures.CashId, candidate),
+        };
+        using var createResponse = await OrderFixtures.PostAsync(client, manager.AccessToken, body);
+        await ExpectRefusalAsync(createResponse, "payments[1].receivedByUserId");
+    }
+
+    [Fact]
+    public async Task AnActiveAdminAndAnActiveManagerAreAcceptedOnAddOnAChangeAndInTheFullCreate()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        var byAdmin = await OrderFixtures.AddPaymentAndReadAsync(client, manager.AccessToken, created, today, 100m, OrderFixtures.CashId, admin.UserId);
+        var paymentId = byAdmin.GetProperty("payments")[0].GetProperty("id").GetGuid();
+        using var changed = await OrderFixtures.PutPaymentAsync(
+            client,
+            manager.AccessToken,
+            id,
+            paymentId,
+            OrderFixtures.PaymentBody(today, 100m, OrderFixtures.CashId, manager.UserId, byAdmin.GetProperty("version").GetString()));
+
+        changed.StatusCode.ShouldBe(HttpStatusCode.OK, await changed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var stored = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        stored.GetProperty("payments")[0].GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["payments"] = new[]
+        {
+            OrderFixtures.PaymentItem(today, 100m, OrderFixtures.CashId, admin.UserId),
+            OrderFixtures.PaymentItem(today, 100m, OrderFixtures.CashId, manager.UserId),
+        };
+        using var createResponse = await OrderFixtures.PostAsync(client, manager.AccessToken, body);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created, await createResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AReceiverDeactivatedAfterThePaymentStillShowsAndThePaymentCanBeEditedWithoutChangingThem()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var receiver = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Pia", "Perez", Roles.Admin);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+        var withPayment = await OrderFixtures.AddPaymentAndReadAsync(client, manager.AccessToken, created, today, 500m, OrderFixtures.CashId, receiver.Id);
+        withPayment.GetProperty("payments")[0].GetProperty("receivedByActive").GetBoolean().ShouldBeTrue();
+        await AuthClient.DeactivateAsync(factory, receiver.Id);
+
+        var after = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        var shown = after.GetProperty("payments")[0];
+        shown.GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(receiver.Id);
+        shown.GetProperty("receivedBy").GetProperty("formerStaff").GetBoolean().ShouldBeFalse();
+        shown.GetProperty("receivedByActive").GetBoolean().ShouldBeFalse();
+
+        using var edit = await OrderFixtures.PutPaymentAsync(
+            client,
+            manager.AccessToken,
+            id,
+            shown.GetProperty("id").GetGuid(),
+            OrderFixtures.PaymentBody(today, 450m, OrderFixtures.CashId, receiver.Id, after.GetProperty("version").GetString(), notes: "Corrected"));
+
+        edit.StatusCode.ShouldBe(HttpStatusCode.OK, await edit.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var stored = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        stored.GetProperty("payments")[0].GetProperty("amount").GetDecimal().ShouldBe(450m);
+        stored.GetProperty("payments")[0].GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(receiver.Id);
+        await using var context = database.CreateContext();
+        (await context.AuditLog.CountAsync(row => row.TargetId == id.ToString("D") && row.Action == "order-payment.receiver-changed", TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AReceiverWhoWasDeletedKeepsTheirNameAndIsMarkedFormerStaff()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var receiver = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Jun", "Javier", Roles.Admin);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var withPayment = await OrderFixtures.AddPaymentAndReadAsync(client, manager.AccessToken, created, today, 500m, OrderFixtures.CashId, receiver.Id);
+        await AccountStateFixtures.MarkDeletedAsync(factory, receiver.Id);
+
+        var after = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, withPayment.GetProperty("id").GetGuid());
+
+        var shown = after.GetProperty("payments")[0];
+        shown.GetProperty("receivedBy").GetProperty("name").GetString().ShouldBe($"{receiver.FirstName} {receiver.LastName}");
+        shown.GetProperty("receivedBy").GetProperty("formerStaff").GetBoolean().ShouldBeTrue();
+        shown.GetProperty("receivedByActive").GetBoolean().ShouldBeFalse();
+    }
+
+    private static async Task ExpectRefusalAsync(HttpResponseMessage response, string field)
+    {
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.ErrorFields(problem).ShouldBe([field]);
+        OrderFixtures.FieldErrors(problem, field).ShouldBe([Refusal]);
+    }
+
+    private async Task<Guid> PrepareAsync(CspsApiFactory factory, HttpClient client, string managerToken, string state)
+    {
+        if (state == "legacy-holder")
+        {
+            return LegacyHolder.Id;
+        }
+
+        if (state == "temporary-not-signed-in")
+        {
+            return await UserFixtures.CreateWithTemporaryPasswordAsync(client, managerToken, $"tia.{Guid.NewGuid():N}@example.com", TemporaryPassword);
+        }
+
+        var person = await UserFixtures.CreateAsync(factory, UserFixtures.NewTag(), "Dee", "Dizon", Roles.Admin, withPassword: state != "invited");
+        switch (state)
+        {
+            case "deactivated":
+                await AuthClient.DeactivateAsync(factory, person.Id);
+                break;
+            case "manager-locked":
+                await AccountStateFixtures.ManagerLockAsync(factory, person.Id);
+                break;
+            case "deleted":
+                await AccountStateFixtures.MarkDeletedAsync(factory, person.Id);
+                break;
+            case "no-role":
+                await using (var context = database.CreateContext())
+                {
+                    await context.UserRoles.Where(link => link.UserId == person.Id).ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+                }
+
+                break;
+            default:
+                break;
+        }
+
+        return person.Id;
+    }
+}

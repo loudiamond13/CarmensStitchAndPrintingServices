@@ -512,6 +512,112 @@ public sealed class CreateOrderEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
+    public async Task TheOrd0148BodyWithItsDiscountAndBothPaymentsGivesPaid12000AndBalance9327()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.Ord0148ItemsBody(today);
+        body["discounts"] = new[] { new Dictionary<string, object?> { ["kind"] = "percentage", ["value"] = 5m, ["reason"] = "Barangay league discount" } };
+        body["payments"] = new[]
+        {
+            OrderFixtures.PaymentItem(today.AddDays(-3), 10000.00m, OrderFixtures.GCashId, admin.UserId, "9012 345 678901", "50% downpayment"),
+            OrderFixtures.PaymentItem(today.AddDays(-1), 2000.00m, OrderFixtures.CashId, manager.UserId, null, null),
+        };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, text);
+        using var document = JsonDocument.Parse(text);
+        var created = document.RootElement;
+        var totals = created.GetProperty("totals");
+        totals.GetProperty("total").GetDecimal().ShouldBe(21327.50m);
+        totals.GetProperty("paid").GetDecimal().ShouldBe(12000.00m);
+        totals.GetProperty("balance").GetDecimal().ShouldBe(9327.50m);
+        var payments = created.GetProperty("payments").EnumerateArray().ToList();
+        payments.Count.ShouldBe(2);
+        payments[0].GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        payments[1].GetProperty("receivedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+        payments[1].GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        var id = created.GetProperty("id").GetGuid();
+        await using var context = database.CreateContext();
+        (await context.Set<Csps.Domain.Orders.OrderPayment>().CountAsync(row => row.OrderId == id, TestContext.Current.CancellationToken)).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task PaymentsInTheBodyThatPassTheTotalAreA400OnPaymentsAndNoOrderIsCreated()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var bad = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        bad["customerName"] = $"Overpaid {Guid.NewGuid():N}";
+        bad["payments"] = new[]
+        {
+            OrderFixtures.PaymentItem(today, 9_000m, OrderFixtures.CashId, admin.UserId, null, null),
+            OrderFixtures.PaymentItem(today, 750.01m, OrderFixtures.CashId, admin.UserId, null, null),
+        };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, bad);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "payments").ShouldBe(["The payments would be more than the order total. Lower a payment first."]);
+        await using var context = database.CreateContext();
+        (await context.Orders.CountAsync(order => order.CustomerName == (string)bad["customerName"]!, TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task APaymentWithAnIneligibleReceiverInTheBodyIsListedOnItsIndexedPath()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["payments"] = new[]
+        {
+            OrderFixtures.PaymentItem(today, 100m, OrderFixtures.CashId, admin.UserId, null, null),
+            OrderFixtures.PaymentItem(today, 100m, OrderFixtures.CashId, Csps.Domain.Identity.LegacyHolder.Id, null, null),
+        };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.ErrorFields(problem).ShouldBe(["payments[1].receivedByUserId"]);
+        OrderFixtures.FieldErrors(problem, "payments[1].receivedByUserId")
+            .ShouldBe(["This person can't be chosen because their account isn't active. Choose someone else."]);
+    }
+
+    [Fact]
+    public async Task ARetiredMethodAndAFutureDateInTheBodyAreListedOnTheirIndexedPaths()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var retiredMethod = await OrderFixtures.AddPaymentMethodAsync(database, retired: true);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["payments"] = new[]
+        {
+            OrderFixtures.PaymentItem(today, 100m, retiredMethod, admin.UserId, null, null),
+            OrderFixtures.PaymentItem(today.AddDays(1), 100m, OrderFixtures.CashId, admin.UserId, null, null),
+        };
+
+        using var response = await OrderFixtures.PostAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.ErrorFields(problem).ShouldBe(["payments[0].paymentMethodId", "payments[1].paymentDate"]);
+        OrderFixtures.FieldErrors(problem, "payments[0].paymentMethodId").ShouldBe(["This payment method was retired. Choose another one."]);
+    }
+
+    [Fact]
     public async Task DiscountsInTheBodyThatPassTheItemsTotalAreA400OnDiscountsAndNoNumberIsUsed()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
