@@ -64,6 +64,49 @@ const API_ACTIONS = [
   'expense-category.retired',
   'expense-category.reactivated',
   'expense-category.deleted',
+  'order.created',
+  'order.changed',
+  'order.status-changed',
+  'order.reopened',
+  'order.deleted',
+  'order.restored',
+  'order.permanently-deleted',
+  'order-item.added',
+  'order-item.changed',
+  'order-item.removed',
+  'order-payment.added',
+  'order-payment.changed',
+  'order-payment.receiver-changed',
+  'order-payment.removed',
+  'order-refund.added',
+  'order-refund.changed',
+  'order-refund.refunder-changed',
+  'order-refund.removed',
+  'order-discount.added',
+  'order-discount.changed',
+  'order-discount.removed',
+  'order-expense.added',
+  'order-expense.changed',
+  'order-expense.payer-changed',
+  'order-expense.removed',
+  'product-type.added',
+  'product-type.renamed',
+  'product-type.recolored',
+  'product-type.retired',
+  'product-type.reactivated',
+  'product-type.deleted',
+  'payment-method.added',
+  'payment-method.renamed',
+  'payment-method.recolored',
+  'payment-method.retired',
+  'payment-method.reactivated',
+  'payment-method.deleted',
+  'order-expense-category.added',
+  'order-expense-category.renamed',
+  'order-expense-category.recolored',
+  'order-expense-category.retired',
+  'order-expense-category.reactivated',
+  'order-expense-category.deleted',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -86,14 +129,41 @@ describe('the action labels (D-28)', () => {
     expect(auditActionLabel('profile.email-change-canceled')).toBe('Email change canceled');
   });
 
-  it('names the five groups from the UI-SPEC', () => {
+  it('mirrors the 92 codes of the API', () => {
+    expect(API_ACTIONS).toHaveLength(92);
+    expect(AUDIT_ACTION_CODES).toHaveLength(92);
+  });
+
+  it('names the seven groups: the five from the UI-SPEC and the two order groups', () => {
     expect(AUDIT_GROUPS).toEqual([
       'Sign-in and security',
       'Staff accounts',
       'Profile changes',
       'Company expenses',
       'Expense categories',
+      'Orders',
+      'Order lists',
     ]);
+  });
+
+  it('reads the order and list events in plain words', () => {
+    expect(auditActionLabel('order.created')).toBe('Order created');
+    expect(auditActionLabel('order.reopened')).toBe('Order reopened');
+    expect(auditActionLabel('order-payment.receiver-changed')).toBe('Payment receiver changed');
+    expect(auditActionLabel('order-refund.added')).toBe('Refund added');
+    expect(auditActionLabel('product-type.retired')).toBe('Product type retired');
+  });
+
+  it('puts the order and child events under Orders and the list events under Order lists', () => {
+    const group = (code: string) => AUDIT_ACTIONS.find((action) => action.code === code)?.group;
+    const isList = (code: string) => /^(product-type|payment-method|order-expense-category)\./.test(code);
+
+    for (const code of API_ACTIONS.filter((item) => item.startsWith('order') && !isList(item))) {
+      expect(group(code), code).toBe('Orders');
+    }
+    for (const code of API_ACTIONS.filter(isList)) {
+      expect(group(code), code).toBe('Order lists');
+    }
   });
 
   it('uses the UI-SPEC labels of the expense and category events', () => {
