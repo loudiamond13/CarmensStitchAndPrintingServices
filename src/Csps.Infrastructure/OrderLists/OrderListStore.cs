@@ -17,9 +17,9 @@ internal sealed class OrderListStore(CspsDbContext context) : IOrderLists
         var othersId = OrderExpenseCategory.OthersId;
         var query = kind switch
         {
-            OrderListKind.ProductType => context.ProductTypes.AsNoTracking().Select(entry => new OrderListEntryView(entry.Id, entry.Name, entry.Tone, entry.RetiredAtUtc != null, false)),
-            OrderListKind.PaymentMethod => context.PaymentMethods.AsNoTracking().Select(entry => new OrderListEntryView(entry.Id, entry.Name, entry.Tone, entry.RetiredAtUtc != null, false)),
-            OrderListKind.OrderExpenseCategory => context.OrderExpenseCategories.AsNoTracking().Select(entry => new OrderListEntryView(entry.Id, entry.Name, entry.Tone, entry.RetiredAtUtc != null, entry.Id == othersId)),
+            OrderListKind.ProductType => context.ProductTypes.AsNoTracking().Select(entry => new OrderListEntryView(entry.Id, entry.Name, entry.Tone, entry.RetiredAtUtc != null, false, context.Set<OrderItem>().IgnoreQueryFilters(SoftDeleteFilter).Count(item => item.ProductTypeId == entry.Id))),
+            OrderListKind.PaymentMethod => context.PaymentMethods.AsNoTracking().Select(entry => new OrderListEntryView(entry.Id, entry.Name, entry.Tone, entry.RetiredAtUtc != null, false, context.Set<OrderPayment>().IgnoreQueryFilters(SoftDeleteFilter).Count(payment => payment.PaymentMethodId == entry.Id))),
+            OrderListKind.OrderExpenseCategory => context.OrderExpenseCategories.AsNoTracking().Select(entry => new OrderListEntryView(entry.Id, entry.Name, entry.Tone, entry.RetiredAtUtc != null, entry.Id == othersId, context.Set<OrderExpense>().IgnoreQueryFilters(SoftDeleteFilter).Count(expense => expense.OrderExpenseCategoryId == entry.Id))),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown order list."),
         };
         return await query.ToListAsync(cancellationToken).ConfigureAwait(false);

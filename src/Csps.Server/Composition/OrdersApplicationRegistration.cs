@@ -31,6 +31,10 @@ public static class OrdersApplicationRegistration
         services.AddSingleton<IValidator<OrderListEntryRequest>, OrderListEntryRequestValidator>();
         services.AddScoped<CreateOrderListEntryHandler>();
         services.AddScoped<GetOrderListEntryHandler>();
+        services.AddScoped<UpdateOrderListEntryHandler>();
+        services.AddScoped<RetireOrderListEntryHandler>();
+        services.AddScoped<ReactivateOrderListEntryHandler>();
+        services.AddScoped<DeleteOrderListEntryHandler>();
         services.AddSingleton<IValidator<ListOrdersRequest>, ListOrdersRequestValidator>();
         services.AddScoped<ListOrdersHandler>();
         services.AddScoped<CreateOrderHandler>();

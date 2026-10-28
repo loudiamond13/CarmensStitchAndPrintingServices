@@ -69,7 +69,8 @@ public interface IOrderLists
 /// <param name="Tone">One of the six colour tones.</param>
 /// <param name="Retired">True once the entry is retired.</param>
 /// <param name="IsOthers">True for the protected Others entry.</param>
-public sealed record OrderListEntryView(Guid Id, string Name, string Tone, bool Retired, bool IsOthers);
+/// <param name="UseCount">How many rows use the entry, soft-deleted orders included.</param>
+public sealed record OrderListEntryView(Guid Id, string Name, string Tone, bool Retired, bool IsOthers, int UseCount);
 
 /// <summary>Whether an entry exists and may still be chosen on a new item.</summary>
 /// <param name="Id">The entry id.</param>

@@ -512,13 +512,92 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lists every order expense category, retired ones included with status `retired`, A to Z ignoring letter case with Others
-         *     always last, then by id. Pickers hide retired ones; filters keep them. Each item has `id`, `name`, `tone`,
-         *     `status` (`active` or `retired`) and `isOthers`, which is true only for Others.
+         * Lists every order expense category, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers
+         *     hide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or
+         *     `retired`), `isOthers`, which is true only for Others, always last, and `useCount`, the number of order expenses
+         *     that use the category, soft-deleted orders included.
          */
         get: operations["ListOrderExpenseCategories"];
         put?: never;
+        /**
+         * Adds an order expense category, Managers only. The name is required, at most 40 characters and unique among all order expense categories, retired
+         *     ones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Staff can pick the new category on an order at once. Who added it and when come from the token
+         *     and the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored 201 and adds nothing more.
+         */
+        post: operations["CreateOrderExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/order-expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one order expense category with how many order expenses use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetOrderExpenseCategory"];
+        /**
+         * Renames and recolors one order expense category with the version the form was opened with, Managers only. The new name shows on every
+         *     order expense, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
+         *     answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and
+         *     keeps the version. Others keeps its name but may change colour: any other name for it answers 422 `order-expense-categories.protected`.
+         *     Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateOrderExpenseCategory"];
         post?: never;
+        /**
+         * Deletes an order expense category, Managers only, while no order expense uses it. An order expense uses it when a row exists, expenses of
+         *     soft-deleted orders included. A used category answers 422 `order-expense-categories.in-use` and should be retired instead. Others can never be deleted. It takes no
+         *     version.
+         */
+        delete: operations["DeleteOrderExpenseCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/order-expense-categories/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Brings a retired order expense category back, Managers only: it can be chosen on an order expense again. Bringing back an active category is
+         *     a 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with
+         *     the stored 204.
+         */
+        post: operations["ReactivateOrderExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/order-expense-categories/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retires an order expense category, Managers only: it can no longer be chosen on a new or changed order expense but stays in the list and
+         *     the filters, marked `retired`, and saved expenses keep it. Retiring a retired category is a 204 that changes and records
+         *     nothing. Others can never be retired. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RetireOrderExpenseCategory"];
         delete?: never;
         options?: never;
         head?: never;
@@ -965,11 +1044,89 @@ export interface paths {
         /**
          * Lists every payment method, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers
          *     hide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or
-         *     `retired`) and `isOthers`, which is always false for payment methods.
+         *     `retired`), `isOthers`, which is always false for payment methods, and `useCount`, the number of payments
+         *     that use the method, soft-deleted orders included.
          */
         get: operations["ListPaymentMethods"];
         put?: never;
+        /**
+         * Adds a payment method, Managers only. The name is required, at most 40 characters and unique among all payment methods, retired
+         *     ones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Staff can pick the new method on an order at once. Who added it and when come from the token
+         *     and the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored 201 and adds nothing more.
+         */
+        post: operations["CreatePaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-methods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one payment method with how many payments use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetPaymentMethod"];
+        /**
+         * Renames and recolors one payment method with the version the form was opened with, Managers only. The new name shows on every
+         *     payment, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
+         *     answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and
+         *     keeps the version. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdatePaymentMethod"];
         post?: never;
+        /**
+         * Deletes a payment method, Managers only, while no payment uses it. A payment uses it when a row exists, payments of
+         *     soft-deleted orders included. A used method answers 422 `payment-methods.in-use` and should be retired instead. It takes no
+         *     version.
+         */
+        delete: operations["DeletePaymentMethod"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-methods/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Brings a retired payment method back, Managers only: it can be chosen on a payment again. Bringing back an active method is
+         *     a 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with
+         *     the stored 204.
+         */
+        post: operations["ReactivatePaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-methods/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retires a payment method, Managers only: it can no longer be chosen on a new or changed payment but stays in the list and
+         *     the filters, marked `retired`, and saved payments keep it. Retiring a retired method is a 204 that changes and records
+         *     nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RetirePaymentMethod"];
         delete?: never;
         options?: never;
         head?: never;
@@ -986,7 +1143,8 @@ export interface paths {
         /**
          * Lists every product type, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers
          *     hide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or
-         *     `retired`) and `isOthers`, which is always false for product types.
+         *     `retired`), `isOthers`, which is always false for product types, and `useCount`, the number of order items
+         *     that use the type, soft-deleted orders included.
          */
         get: operations["ListProductTypes"];
         put?: never;
@@ -1013,8 +1171,61 @@ export interface paths {
         };
         /** Reads one product type with how many order items use it, who recorded and last changed it, and the version a save must send back. Managers only. */
         get: operations["GetProductType"];
-        put?: never;
+        /**
+         * Renames and recolors one product type with the version the form was opened with, Managers only. The new name shows on every
+         *     order item, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
+         *     answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and
+         *     keeps the version. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateProductType"];
         post?: never;
+        /**
+         * Deletes a product type, Managers only, while no order item uses it. An item uses it when a row exists, items of
+         *     soft-deleted orders included. A used type answers 422 `product-types.in-use` and should be retired instead. It takes no
+         *     version.
+         */
+        delete: operations["DeleteProductType"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-types/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Brings a retired product type back, Managers only: it can be chosen on an order item again. Bringing back an active type is
+         *     a 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with
+         *     the stored 204.
+         */
+        post: operations["ReactivateProductType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-types/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retires a product type, Managers only: it can no longer be chosen on a new or changed order item but stays in the list and
+         *     the filters, marked `retired`, and saved items keep it. Retiring a retired type is a 204 that changes and records
+         *     nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RetireProductType"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2492,6 +2703,11 @@ export interface components {
             status: string;
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
             tone: string;
+            /**
+             * Format: int32
+             * @description How many rows use the entry (order items, payments or order expenses by list), soft-deleted orders included; an entry with none can be deleted.
+             */
+            useCount: number | string;
         };
         /** @description An order list entry an item points at: its name and badge tone, and whether it is retired (D-18). */
         OrderListRef: {
@@ -4844,6 +5060,389 @@ export interface operations {
             };
         };
     };
+    CreateOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivateOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetireOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListOrders: {
         parameters: {
             query?: {
@@ -6409,6 +7008,371 @@ export interface operations {
             };
         };
     };
+    CreatePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdatePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeletePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivatePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetirePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListProductTypes: {
         parameters: {
             query?: never;
@@ -6533,6 +7497,267 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivateProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetireProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

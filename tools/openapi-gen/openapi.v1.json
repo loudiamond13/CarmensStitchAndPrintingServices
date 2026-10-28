@@ -2571,6 +2571,15 @@
           "tone": {
             "description": "One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`.",
             "type": "string"
+          },
+          "useCount": {
+            "description": "How many rows use the entry (order items, payments or order expenses by list), soft-deleted orders included; an entry with none can be deleted.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
           }
         },
         "required": [
@@ -2578,7 +2587,8 @@
           "name",
           "tone",
           "status",
-          "isOthers"
+          "isOthers",
+          "useCount"
         ],
         "type": "object"
       },
@@ -6682,7 +6692,517 @@
             "description": "Unauthorized"
           }
         },
-        "summary": "Lists every order expense category, retired ones included with status `retired`, A to Z ignoring letter case with Others\nalways last, then by id. Pickers hide retired ones; filters keep them. Each item has `id`, `name`, `tone`,\n`status` (`active` or `retired`) and `isOthers`, which is true only for Others.",
+        "summary": "Lists every order expense category, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`), `isOthers`, which is true only for Others, always last, and `useCount`, the number of order expenses\nthat use the category, soft-deleted orders included.",
+        "tags": [
+          "OrderExpenseCategories"
+        ]
+      },
+      "post": {
+        "operationId": "CreateOrderExpenseCategory",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Adds an order expense category, Managers only. The name is required, at most 40 characters and unique among all order expense categories, retired\nones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Staff can pick the new category on an order at once. Who added it and when come from the token\nand the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored 201 and adds nothing more.",
+        "tags": [
+          "OrderExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/order-expense-categories/{id}": {
+      "delete": {
+        "operationId": "DeleteOrderExpenseCategory",
+        "parameters": [
+          {
+            "description": "The order expense category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes an order expense category, Managers only, while no order expense uses it. An order expense uses it when a row exists, expenses of\nsoft-deleted orders included. A used category answers 422 `order-expense-categories.in-use` and should be retired instead. Others can never be deleted. It takes no\nversion.",
+        "tags": [
+          "OrderExpenseCategories"
+        ]
+      },
+      "get": {
+        "operationId": "GetOrderExpenseCategory",
+        "parameters": [
+          {
+            "description": "The order expense category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one order expense category with how many order expenses use it, who recorded and last changed it, and the version a save must send back. Managers only.",
+        "tags": [
+          "OrderExpenseCategories"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOrderExpenseCategory",
+        "parameters": [
+          {
+            "description": "The order expense category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Renames and recolors one order expense category with the version the form was opened with, Managers only. The new name shows on every\norder expense, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one\nanswers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and\nkeeps the version. Others keeps its name but may change colour: any other name for it answers 422 `order-expense-categories.protected`.\nWho changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "OrderExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/order-expense-categories/{id}/reactivate": {
+      "post": {
+        "operationId": "ReactivateOrderExpenseCategory",
+        "parameters": [
+          {
+            "description": "The order expense category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Brings a retired order expense category back, Managers only: it can be chosen on an order expense again. Bringing back an active category is\na 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with\nthe stored 204.",
+        "tags": [
+          "OrderExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/order-expense-categories/{id}/retire": {
+      "post": {
+        "operationId": "RetireOrderExpenseCategory",
+        "parameters": [
+          {
+            "description": "The order expense category id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Retires an order expense category, Managers only: it can no longer be chosen on a new or changed order expense but stays in the list and\nthe filters, marked `retired`, and saved expenses keep it. Retiring a retired category is a 204 that changes and records\nnothing. Others can never be retired. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "OrderExpenseCategories"
         ]
@@ -9151,7 +9671,497 @@
             "description": "Unauthorized"
           }
         },
-        "summary": "Lists every payment method, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`) and `isOthers`, which is always false for payment methods.",
+        "summary": "Lists every payment method, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`), `isOthers`, which is always false for payment methods, and `useCount`, the number of payments\nthat use the method, soft-deleted orders included.",
+        "tags": [
+          "PaymentMethods"
+        ]
+      },
+      "post": {
+        "operationId": "CreatePaymentMethod",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Adds a payment method, Managers only. The name is required, at most 40 characters and unique among all payment methods, retired\nones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Staff can pick the new method on an order at once. Who added it and when come from the token\nand the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored 201 and adds nothing more.",
+        "tags": [
+          "PaymentMethods"
+        ]
+      }
+    },
+    "/api/v1/payment-methods/{id}": {
+      "delete": {
+        "operationId": "DeletePaymentMethod",
+        "parameters": [
+          {
+            "description": "The payment method id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes a payment method, Managers only, while no payment uses it. A payment uses it when a row exists, payments of\nsoft-deleted orders included. A used method answers 422 `payment-methods.in-use` and should be retired instead. It takes no\nversion.",
+        "tags": [
+          "PaymentMethods"
+        ]
+      },
+      "get": {
+        "operationId": "GetPaymentMethod",
+        "parameters": [
+          {
+            "description": "The payment method id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one payment method with how many payments use it, who recorded and last changed it, and the version a save must send back. Managers only.",
+        "tags": [
+          "PaymentMethods"
+        ]
+      },
+      "put": {
+        "operationId": "UpdatePaymentMethod",
+        "parameters": [
+          {
+            "description": "The payment method id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Renames and recolors one payment method with the version the form was opened with, Managers only. The new name shows on every\npayment, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one\nanswers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and\nkeeps the version. Who changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "PaymentMethods"
+        ]
+      }
+    },
+    "/api/v1/payment-methods/{id}/reactivate": {
+      "post": {
+        "operationId": "ReactivatePaymentMethod",
+        "parameters": [
+          {
+            "description": "The payment method id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Brings a retired payment method back, Managers only: it can be chosen on a payment again. Bringing back an active method is\na 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with\nthe stored 204.",
+        "tags": [
+          "PaymentMethods"
+        ]
+      }
+    },
+    "/api/v1/payment-methods/{id}/retire": {
+      "post": {
+        "operationId": "RetirePaymentMethod",
+        "parameters": [
+          {
+            "description": "The payment method id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Retires a payment method, Managers only: it can no longer be chosen on a new or changed payment but stays in the list and\nthe filters, marked `retired`, and saved payments keep it. Retiring a retired method is a 204 that changes and records\nnothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "PaymentMethods"
         ]
@@ -9185,7 +10195,7 @@
             "description": "Unauthorized"
           }
         },
-        "summary": "Lists every product type, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`) and `isOthers`, which is always false for product types.",
+        "summary": "Lists every product type, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`), `isOthers`, which is always false for product types, and `useCount`, the number of order items\nthat use the type, soft-deleted orders included.",
         "tags": [
           "ProductTypes"
         ]
@@ -9282,6 +10292,83 @@
       }
     },
     "/api/v1/product-types/{id}": {
+      "delete": {
+        "operationId": "DeleteProductType",
+        "parameters": [
+          {
+            "description": "The product type id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes a product type, Managers only, while no order item uses it. An item uses it when a row exists, items of\nsoft-deleted orders included. A used type answers 422 `product-types.in-use` and should be retired instead. It takes no\nversion.",
+        "tags": [
+          "ProductTypes"
+        ]
+      },
       "get": {
         "operationId": "GetProductType",
         "parameters": [
@@ -9339,6 +10426,266 @@
           }
         },
         "summary": "Reads one product type with how many order items use it, who recorded and last changed it, and the version a save must send back. Managers only.",
+        "tags": [
+          "ProductTypes"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateProductType",
+        "parameters": [
+          {
+            "description": "The product type id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OrderListEntryRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListEntryDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Renames and recolors one product type with the version the form was opened with, Managers only. The new name shows on every\norder item, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one\nanswers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and\nkeeps the version. Who changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "ProductTypes"
+        ]
+      }
+    },
+    "/api/v1/product-types/{id}/reactivate": {
+      "post": {
+        "operationId": "ReactivateProductType",
+        "parameters": [
+          {
+            "description": "The product type id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Brings a retired product type back, Managers only: it can be chosen on an order item again. Bringing back an active type is\na 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with\nthe stored 204.",
+        "tags": [
+          "ProductTypes"
+        ]
+      }
+    },
+    "/api/v1/product-types/{id}/retire": {
+      "post": {
+        "operationId": "RetireProductType",
+        "parameters": [
+          {
+            "description": "The product type id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Retires a product type, Managers only: it can no longer be chosen on a new or changed order item but stays in the list and\nthe filters, marked `retired`, and saved items keep it. Retiring a retired type is a 204 that changes and records\nnothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "ProductTypes"
         ]

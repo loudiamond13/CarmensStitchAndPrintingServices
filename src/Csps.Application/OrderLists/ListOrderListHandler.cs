@@ -25,7 +25,8 @@ public sealed class ListOrderListHandler(IOrderLists lists)
                     view.Name,
                     view.Tone,
                     view.Retired ? OrderListItem.RetiredStatus : OrderListItem.ActiveStatus,
-                    view.IsOthers)),
+                    view.IsOthers,
+                    view.UseCount)),
         ];
         return Result.Success(items);
     }

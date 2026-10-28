@@ -26,7 +26,7 @@ public sealed class OrderListEntryRequestValidator : AbstractValidator<OrderList
         {
             if (string.IsNullOrWhiteSpace(text))
             {
-                context.AddFailure($"Enter a {NounOf(context.RootContextData)} name.");
+                context.AddFailure(NameRequired(context.RootContextData));
             }
             else if (text.Trim().Length > OrderListEntry.NameMaxLength)
             {
@@ -42,6 +42,6 @@ public sealed class OrderListEntryRequestValidator : AbstractValidator<OrderList
             .When(static (_, context) => context.RootContextData.TryGetValue(EditKey, out var edit) && edit is true);
     }
 
-    private static string NounOf(IDictionary<string, object> data) =>
-        data.TryGetValue(KindKey, out var kind) && kind is OrderListKind known ? OrderListDescriptor.For(known).Noun : "entry";
+    private static string NameRequired(IDictionary<string, object> data) =>
+        data.TryGetValue(KindKey, out var kind) && kind is OrderListKind known ? $"Enter a {OrderListDescriptor.For(known).Noun} name." : "Enter a name.";
 }
