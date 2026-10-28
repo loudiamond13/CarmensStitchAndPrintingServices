@@ -15,7 +15,7 @@ progress:
   completed_plans: 187
   percent: 35
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-28T03:00:00-05:00"
+updated: "2026-10-28T07:10:00-05:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 Phase: 7 — Order Domain & API
 Plan: Not started
 Status: Ready to plan (Phase 06 shipped as PR #11, awaiting merge)
-Last activity: 2026-10-28 - Completed quick task 261028-2e4: 320px chip overflow fixed; CSPS_E2E reset each e2e run (D-77)
+Last activity: 2026-10-28 - Completed quick task 261028-2e4: chip overflow, CSPS_E2E reset (D-77), long names in phone cards and dropdowns
 
 Progress: [████░░░░░░] 35%
 
