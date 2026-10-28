@@ -1,6 +1,6 @@
 // The form-control looks (App. B `/* ── Forms ── */`, App. C `.s-toolbar` and `.s-item` control rules, CSPS-UI-SPEC.md
-// §6.3) as complete Tailwind tokens (D-33). Field, PasswordField and Select share them, and so will MoneyInput and
-// OtpInput. Every string in this file is a class list (the class gate reads them all).
+// §6.3) as complete Tailwind tokens (D-33). Field, PasswordField, Select and DateInput share them, and so will
+// MoneyInput and OtpInput. Every string in this file is a class list (the class gate reads them all).
 //
 // - The region looks (`.s-toolbar .csp-…`, `.s-item .csp-input`) come from the `data-ui` marker on the region through
 //   `in-data-[ui=…]:` (rule 21b): any depth, no added specificity, like the spec's descendant selector.
@@ -18,15 +18,6 @@ import { tw } from '@/ui/tw';
 export const fieldClasses = tw(
   'flex min-w-0 flex-col gap-1.5 in-data-[ui=s-toolbar]:flex-[0_1_180px] pg-phone:in-data-[ui=s-toolbar]:flex-[1_1_140px] pg-tablet:in-data-[ui=s-toolbar]:flex-[1_1_150px]',
 );
-
-/** The row that holds a field's control box and its `beside` content. */
-export const fieldRowClasses = tw('flex min-w-0 items-center gap-2');
-
-/** The control box inside that row: it takes the width the beside content leaves. */
-export const fieldBesideBoxClasses = tw('min-w-0 flex-1');
-
-/** The chosen date written out beside a date box: the hint's size and colour, one line, never shrinking. */
-export const dateReadableClasses = tw('shrink-0 text-[12px] leading-4 whitespace-nowrap text-ink-muted');
 
 /** `.csp-label` (14/20, 600, --ink), and `.s-toolbar .csp-label` (12/16, --ink-muted). */
 export const labelClasses = tw(
@@ -70,11 +61,19 @@ const inputStart = {
   prefix: tw('pl-2 tabular-nums'),
 } as const;
 
-/** End padding: `.csp-input` 12px; `.has-suffix .csp-input` 48px; `.csp-select select` 40px, no native arrow. */
+/**
+ * End padding: `.csp-input` 12px; `.has-suffix .csp-input` 48px; `.csp-select select` 40px, no native arrow. A date input
+ * keeps 40px for the calendar icon (D-63): the browser's own indicator is stretched over that area, invisible but still
+ * the click target, and the value starts at the left on iOS. Firefox draws a calendar button that cannot be hidden, so
+ * there the input is plain and our icon is hidden (`dateIconClasses`).
+ */
 const inputEnd = {
   plain: tw('pr-3'),
   suffix: tw('pr-12'),
   select: tw('cursor-pointer appearance-none pr-10'),
+  date: tw(
+    'pr-10 supports-[-moz-appearance:none]:pr-3 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-y-0 [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:h-auto [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:text-left',
+  ),
 } as const;
 
 export interface FieldInputOptions {
@@ -86,6 +85,8 @@ export interface FieldInputOptions {
   suffix?: boolean | undefined;
   /** The box is a select, with the chevron at its end (`.csp-select select`). */
   select?: boolean | undefined;
+  /** The box is a date input, with the calendar icon at its end (D-63). */
+  date?: boolean | undefined;
 }
 
 /** The text box (`input`, `textarea` or `select`) inside the control box. */
@@ -94,10 +95,13 @@ export function fieldInputClasses({
   prefix = false,
   suffix = false,
   select = false,
+  date = false,
 }: FieldInputOptions = {}): string {
   let end: string = inputEnd.plain;
   if (select) {
     end = inputEnd.select;
+  } else if (date) {
+    end = inputEnd.date;
   } else if (suffix) {
     end = inputEnd.suffix;
   }
@@ -117,8 +121,22 @@ export const suffixButtonClasses = tw(
   'absolute right-1 grid size-9 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ink-muted hover:bg-surface-3 hover:text-ink',
 );
 
-/** `.csp-select-chev`: the chevron over the select's end. */
-export const selectChevronClasses = tw('pointer-events-none absolute right-3 text-ink-muted');
+/**
+ * The picker box of a Select or date input, added to `fieldControlClasses` (D-63): it fills with --surface-3 on hover
+ * while its select or input is enabled and the box is not focused, and the native option list and calendar follow
+ * Espresso. The select or input is named, because Firefox counts the options of a disabled select as enabled.
+ */
+export const pickerControlClasses = tw(
+  'group/picker has-[:is(select,input):enabled]:hover:not-focus-within:bg-surface-3 dark:scheme-dark',
+);
+
+/** The picker icon, the date input's calendar or the select's chevron: over the box's end, --ink-muted, --ink on focus or enabled hover. */
+export const pickerIconClasses = tw(
+  'pointer-events-none absolute right-3 text-ink-muted group-focus-within/picker:text-ink group-hover/picker:group-has-[:is(select,input):enabled]/picker:text-ink',
+);
+
+/** The calendar icon steps aside in Firefox, which draws its own calendar button in a date input. */
+export const dateIconClasses = tw('supports-[-moz-appearance:none]:hidden');
 
 /** `.csp-select select option`. */
 export const selectOptionClasses = tw('bg-surface-3 text-ink');

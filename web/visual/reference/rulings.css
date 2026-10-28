@@ -277,6 +277,23 @@ button.csp-nav {
   height: 42px;
 }
 
+/* D-63 (owner, 2026-10-27) the dropdown shares one picker look with the date box: its box fills with --surface-3 on hover
+   while the select is enabled and the box is not focused. */
+.csp-select:has(select:enabled):hover:not(:focus-within) {
+  background: var(--surface-3);
+}
+
+/* D-63 the chevron darkens from --ink-muted to --ink on enabled hover and while the box has focus. */
+.csp-select:has(select:enabled):hover .csp-select-chev,
+.csp-select:focus-within .csp-select-chev {
+  color: var(--ink);
+}
+
+/* D-63 in Espresso the browser's own option list renders dark. */
+[data-theme="dark"] .csp-select {
+  color-scheme: dark;
+}
+
 /* D-42 (owner, 2026-10-13, UAT G-2-199) a dialog in the Overlay region always fits or can be scrolled to on a short
    window. The region becomes a column with a 16px top padding and a ::before spacer of 124px above the dialog, so the
    dialog still sits 140px down (16 + 124) wherever it fits; on a shorter window only the spacer shrinks, down to 0, and

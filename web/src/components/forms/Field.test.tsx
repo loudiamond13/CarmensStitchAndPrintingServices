@@ -6,7 +6,6 @@ import { renderNode } from '@/dev/renderScenario';
 import { scenarios as formScenarios } from '@/dev/scenarios/groups/forms';
 import { expectNoAxeViolations } from '@/test/axe';
 import { Field } from '@/components/forms';
-import { fieldBesideBoxClasses, fieldRowClasses } from './field.recipe';
 
 // The converted App. D.3 Field (plan 02-20, CSPS-UI-SPEC.md §6.3, UI-SPEC D-01 and D-02 FYI-01): the label, the control
 // box, the text box and the message, with the assistive-technology wiring (label association, aria-describedby,
@@ -156,26 +155,12 @@ describe('Field markup and labelling (App. D.3, A11Y-01)', () => {
     expect(screen.getByRole('textbox', { name: 'Customer name' })).toBeRequired();
   });
 
-  it('keeps the plain markup (label, box, message) when no beside content is given', () => {
+  it('keeps the plain markup: the label, the box, then the message', () => {
     const { container } = render(<Field label="Date" hint="Pick one." />);
     const field = container.firstElementChild;
 
     expect([...(field?.children ?? [])].map((child) => child.localName)).toEqual(['label', 'div', 'p']);
     expect(classTokens(field?.children[1])).toEqual(tokens(CONTROL));
-  });
-
-  it('puts the box and the beside content in one row, with the message under the row', () => {
-    const { container } = render(<Field label="Date" hint="Pick one." beside={<span>Sep 26, 2026</span>} />);
-    const field = container.firstElementChild;
-    const [label, row, message] = [...(field?.children ?? [])];
-
-    expect(label?.localName).toBe('label');
-    expect(classTokens(row)).toEqual(tokens(fieldRowClasses));
-    expect([...(row?.children ?? [])].map((child) => child.localName)).toEqual(['div', 'span']);
-    expect(classTokens(row?.children[0])).toEqual(tokens(CONTROL, fieldBesideBoxClasses));
-    expect(row?.children[1]).toHaveTextContent('Sep 26, 2026');
-    expect(message?.localName).toBe('p');
-    expect(screen.getByRole('textbox', { name: 'Date' })).toHaveAccessibleDescription('Pick one.');
   });
 
   it('renders a textarea for multiline, with the multiline box look', () => {
