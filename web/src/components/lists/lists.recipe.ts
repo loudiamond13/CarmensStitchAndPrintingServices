@@ -255,8 +255,11 @@ export const resultBarClasses = tw('flex flex-wrap items-center justify-between 
 /** App. E.7's `<strong style="color: var(--ink)">` count. */
 export const resultCountClasses = tw('text-ink');
 
-/** The chip group (UI-SPEC overflow row): chips wrap onto new lines 8px apart and never widen the page. */
-export const chipGroupClasses = tw('flex max-w-full min-w-0 flex-wrap gap-2');
+/**
+ * The chip group (UI-SPEC overflow row): chips wrap onto new lines 8px apart and never widen the page. The 5px end padding
+ * keeps a clear button's 44px tap area, which reaches 5px past the chip's end, inside the group's own box.
+ */
+export const chipGroupClasses = tw('flex max-w-full min-w-0 flex-wrap gap-2 pr-1.25');
 
 /** `.s-filter-chip`: 28px, `--accent-soft` / `--accent-ink`, 12px 600, radius 4, at most the bar's width. */
 export const filterChipClasses = tw(
