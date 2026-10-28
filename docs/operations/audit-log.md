@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-28T11:40:00-05:00
+updated: 2026-10-28T15:23:15-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -184,7 +184,7 @@ transaction as the change.
 | `order-discount.changed` | A discount is saved with different values | `Order` id | The same pairs, with `old>new` on the ones that changed, then `fields=reason` when the reason changed (never its text) |
 | `order-discount.removed` | A discount is removed | `Order` id | `discount=<discount id>;kind=<kind>;value=<value>` |
 | `order-expense.added` | An order expense is added | `Order` id | `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>` |
-| `order-expense.changed` | An order expense is saved with different values | `Order` id | The same pairs, with `old>new` on the ones that changed, then `fields=description` when the description changed (never its text) |
+| `order-expense.changed` | An order expense is saved with different values | `Order` id | The same pairs, with `old>new` on the date, amount and category where they changed and the payer as it now is, then `fields=description` when the description changed (never its text) |
 | `order-expense.payer-changed` | An order expense is saved with a different payer | `Order` id | `expense=<expense id>;payer=<old id>><new id>` |
 | `order-expense.removed` | An order expense is removed | `Order` id | `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>` |
 | `product-type.added`, `payment-method.added`, `order-expense-category.added` | A list entry is added | `ProductType`, `PaymentMethod` or `OrderExpenseCategory` id | `name=<encoded name>;tone=<tone>` |
