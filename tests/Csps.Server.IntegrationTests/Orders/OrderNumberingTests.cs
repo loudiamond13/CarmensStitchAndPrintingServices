@@ -1,10 +1,16 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Csps.Application.Ports;
 using Csps.Application.Security;
-using Csps.Server.IntegrationTests.Http;
+using Csps.Server.IntegrationTests.Auth;
 using Csps.Testing;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Server.IntegrationTests.Orders;
 
@@ -64,6 +70,130 @@ public sealed class OrderNumberingTests(CspsDatabase database) : IClassFixture<C
         }
     }
 
+    [Fact]
+    public async Task OneSecondBeforeManilaMidnightTheNumberIsStillInTheOldYear()
+    {
+        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2026, 12, 31, 15, 59, 59, TimeSpan.Zero));
+
+        var number = await rig.CreateAsync();
+
+        number.ShouldBe("ORD-2026-0001");
+    }
+
+    [Fact]
+    public async Task AtManilaMidnightTheFirstCreateOfTheNewYearGetsOne()
+    {
+        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2026, 12, 31, 16, 0, 0, TimeSpan.Zero));
+
+        var number = await rig.CreateAsync();
+
+        number.ShouldBe("ORD-2027-0001");
+    }
+
+    [Fact]
+    public async Task TheCountersOfTwoYearsRunSeparatelyAcrossTheMidnight()
+    {
+        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2026, 12, 31, 15, 59, 58, TimeSpan.Zero));
+
+        var before = new[] { await rig.CreateAsync(), await rig.CreateAsync() };
+        rig.Clock.Advance(TimeSpan.FromSeconds(2));
+        var after = new[] { await rig.CreateAsync(), await rig.CreateAsync() };
+
+        before.ShouldBe(["ORD-2026-0001", "ORD-2026-0002"]);
+        after.ShouldBe(["ORD-2027-0001", "ORD-2027-0002"]);
+        await using var context = database.CreateContext();
+        var counters = await context.OrderNumberCounters.AsNoTracking().OrderBy(row => row.Year).ToListAsync(TestContext.Current.CancellationToken);
+        counters.Select(row => (row.Year, row.LastValue)).ToList().ShouldBe([(2026, 2), (2027, 2)]);
+    }
+
+    [Fact]
+    public async Task AnOrderDatedLastYearButSavedThisYearGetsThisYearsNumber()
+    {
+        await using var rig = await ClockRig.StartAsync(database, new DateTimeOffset(2027, 1, 2, 2, 0, 0, TimeSpan.Zero));
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, new DateOnly(2026, 12, 30));
+        body["dueDate"] = OrderFixtures.Date(new DateOnly(2027, 1, 13));
+
+        var number = await rig.CreateAsync(body);
+
+        number.ShouldBe("ORD-2027-0001");
+    }
+
     private static string Number(int year, int sequence) =>
         $"ORD-{year.ToString(CultureInfo.InvariantCulture)}-{sequence.ToString("D4", CultureInfo.InvariantCulture)}";
+
+    // A host whose clock starts at a fixed instant, with one Admin signed in by that clock.
+    private sealed class ClockRig : IAsyncDisposable
+    {
+        private readonly CspsApiFactory _baseFactory;
+        private readonly WebApplicationFactory<Program> _factory;
+        private readonly HttpClient _client;
+        private readonly StartedSession _admin;
+
+        private ClockRig(CspsApiFactory baseFactory, WebApplicationFactory<Program> factory, FakeTimeProvider clock, StartedSession admin)
+        {
+            _baseFactory = baseFactory;
+            _factory = factory;
+            Clock = clock;
+            _client = factory.CreateClient();
+            _admin = admin;
+        }
+
+        public FakeTimeProvider Clock { get; }
+
+        public static async Task<ClockRig> StartAsync(CspsDatabase database, DateTimeOffset start)
+        {
+            await database.ResetAsync();
+            var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+            WebApplicationFactory<Program>? factory = null;
+            try
+            {
+                var clock = new FakeTimeProvider(start);
+
+                // The bearer check reads the wall clock, so a token issued at a December date would not be valid yet. Judge its lifetime by the test clock.
+                factory = AuthClient.WithClock(baseFactory, clock).WithWebHostBuilder(builder => builder.ConfigureTestServices(
+                    services => services.PostConfigureAll<JwtBearerOptions>(options =>
+                        options.TokenValidationParameters.LifetimeValidator = (notBefore, expires, _, parameters) =>
+                        {
+                            var now = clock.GetUtcNow().UtcDateTime;
+                            return (notBefore is null || now + parameters.ClockSkew >= notBefore) && (expires is null || now - parameters.ClockSkew <= expires);
+                        })));
+                var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+                return new ClockRig(baseFactory, factory, clock, admin);
+            }
+            catch
+            {
+                if (factory is not null)
+                {
+                    await factory.DisposeAsync();
+                }
+
+                await baseFactory.DisposeAsync();
+                throw;
+            }
+        }
+
+        // Creates one order (a plain one when no body is given) and returns its number.
+        public async Task<string> CreateAsync(Dictionary<string, object?>? body = null)
+        {
+            var created = await OrderFixtures.CreateAsync(_client, _admin.AccessToken, body ?? OrderFixtures.ValidBody(OrderFixtures.BasketballId, await TodayAsync()));
+            return created.GetProperty("number").GetString()!;
+        }
+
+        private async Task<DateOnly> TodayAsync()
+        {
+            var scope = _factory.Services.CreateAsyncScope();
+            await using (scope)
+            {
+                var calendar = scope.ServiceProvider.GetRequiredService<IBusinessCalendar>();
+                return (await calendar.GetClockAsync(TestContext.Current.CancellationToken)).Today;
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _client.Dispose();
+            await _factory.DisposeAsync();
+            await _baseFactory.DisposeAsync();
+        }
+    }
 }
