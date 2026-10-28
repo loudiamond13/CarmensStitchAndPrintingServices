@@ -173,6 +173,20 @@ public sealed class OrderExpenseHandlerTests
     }
 
     [Fact]
+    public async Task AddACategoryDeletedBeforeTheSaveIsA400OnOrderExpenseCategoryIdWithTheDeletedMessage()
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(OrderListKind.OrderExpenseCategory));
+
+        var result = await harness.Add.HandleAsync(harness.OrderId, ValidAdd(), TestContext.Current.CancellationToken);
+
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        Fields(result).Keys.ShouldBe(["orderExpenseCategoryId"]);
+        Fields(result)["orderExpenseCategoryId"].ShouldBe(["This category was deleted."]);
+        harness.Unit.Rollbacks.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task AddALostRaceAtSaveTimeIsStaleAndIsNotRetried()
     {
         var harness = new Harness();

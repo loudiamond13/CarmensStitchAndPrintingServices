@@ -127,6 +127,22 @@ public sealed class OrderItemHandlerTests
     }
 
     [Fact]
+    public async Task AddAProductTypeDeletedBeforeTheSaveIsA400OnProductTypeIdWithTheDeletedMessage()
+    {
+        var harness = new Harness();
+        harness.SetProductType(PoloType, retired: false);
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(OrderListKind.ProductType));
+
+        var result = await harness.Add.HandleAsync(harness.OrderId, ValidAdd(), TestContext.Current.CancellationToken);
+
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        Fields(result).Keys.ShouldBe(["productTypeId"]);
+        Fields(result)["productTypeId"].ShouldBe(["This product type was deleted."]);
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task AddALostRaceAtSaveTimeIsStaleAndIsNotRetried()
     {
         var harness = new Harness();

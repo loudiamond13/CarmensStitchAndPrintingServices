@@ -478,6 +478,120 @@ public sealed class OrderListsManagementTests(CspsDatabase database) : IClassFix
         list.ShouldAllBe(item => item.GetProperty("useCount").GetInt32() >= 0);
     }
 
+    [Theory]
+    [MemberData(nameof(Routes))]
+    public async Task TwoAddsOfOneNameInDifferentCaseSentTogetherGiveOneCreatedAndOneNameError(string route)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var first = await TestSessions.StartAsync(factory, Roles.Manager);
+        var second = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        for (var round = 1; round <= 10; round++)
+        {
+            var name = OrderListFixtures.UniqueName($"Cheque{round}");
+            var (a, b) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderListFixtures.PostAsync(client, route, first.AccessToken, new { name, tone = "info" }),
+                () => OrderListFixtures.PostAsync(client, route, second.AccessToken, new { name = name.ToUpperInvariant(), tone = "warning" }));
+            using var firstResponse = a;
+            using var secondResponse = b;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.Count(static status => status == HttpStatusCode.Created).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Count(static status => status == HttpStatusCode.BadRequest).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            var loser = firstResponse.StatusCode == HttpStatusCode.BadRequest ? firstResponse : secondResponse;
+            OrderListFixtures.FieldErrors(await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken), "name").ShouldBe(["That name is already used. Choose another one."], $"round {round}");
+            var normalized = name.ToUpperInvariant();
+            await using var context = database.CreateContext();
+            var count = route switch
+            {
+                OrderListFixtures.ProductTypes => await context.ProductTypes.CountAsync(entry => entry.NormalizedName == normalized, TestContext.Current.CancellationToken),
+                OrderListFixtures.PaymentMethods => await context.PaymentMethods.CountAsync(entry => entry.NormalizedName == normalized, TestContext.Current.CancellationToken),
+                _ => await context.OrderExpenseCategories.CountAsync(entry => entry.NormalizedName == normalized, TestContext.Current.CancellationToken),
+            };
+            count.ShouldBe(1, $"round {round}");
+        }
+    }
+
+    [Fact]
+    public async Task ADeleteSentTogetherWithAnOrderThatUsesTheEntryEndsInOneClearWinnerNeverA500()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var staff = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var deletedWins = 0;
+        var useWins = 0;
+
+        for (var round = 1; round <= 10; round++)
+        {
+            var id = (await OrderListFixtures.CreateAsync(client, OrderListFixtures.ProductTypes, manager.AccessToken, OrderListFixtures.UniqueName($"Fleeting{round}"), "info")).GetProperty("id").GetGuid();
+            var (delete, use) = await ConcurrentRequests.SendTogetherAsync(
+                () => OrderListFixtures.DeleteAsync(client, OrderListFixtures.ProductTypes, manager.AccessToken, id),
+                () => OrderFixtures.PostAsync(client, staff.AccessToken, OrderFixtures.ValidBody(id, today)));
+            using var deleteResponse = delete;
+            using var useResponse = use;
+
+            var label = $"round {round}: delete {(int)deleteResponse.StatusCode}, use {(int)useResponse.StatusCode}";
+            if (deleteResponse.StatusCode == HttpStatusCode.NoContent)
+            {
+                deletedWins++;
+                useResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest, label);
+                var problem = await ProblemJson.ReadAsync(useResponse, TestContext.Current.CancellationToken);
+                OrderFixtures.FieldErrors(problem, "items[0].productTypeId").Single().ShouldBeOneOf(["This product type was deleted.", "Choose a product type."]);
+            }
+            else
+            {
+                useWins++;
+                deleteResponse.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, label);
+                (await ProblemJson.ReadAsync(deleteResponse, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("product-types.in-use", label);
+                useResponse.StatusCode.ShouldBe(HttpStatusCode.Created, label);
+            }
+
+            await using var context = database.CreateContext();
+            var stillThere = await context.ProductTypes.AnyAsync(entry => entry.Id == id, TestContext.Current.CancellationToken);
+            var used = await context.Orders.AnyAsync(order => order.Items.Any(item => item.ProductTypeId == id), TestContext.Current.CancellationToken);
+            (stillThere || !used).ShouldBeTrue(label);
+        }
+
+        (deletedWins + useWins).ShouldBe(10);
+    }
+
+    [Theory]
+    [MemberData(nameof(Routes))]
+    public async Task EveryChangeWritesExactlyOneAuditEntryOfTheRightActionAndTargetTypeByTheManager(string route)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var prefix = AuditPrefix(route);
+        var target = OrderListFixtures.Lists.Single(list => list.Route == route).TargetType;
+        var name = OrderListFixtures.UniqueName("Audited");
+        var created = await OrderListFixtures.CreateAsync(client, route, manager.AccessToken, name, "info");
+        var id = created.GetProperty("id").GetGuid();
+        var rename = OrderListFixtures.BodyFrom(created);
+        rename["name"] = $"{name}x"[..Math.Min(40, name.Length + 1)];
+        rename["tone"] = "warning";
+
+        (await OrderListFixtures.PutAsync(client, route, manager.AccessToken, id, rename)).Dispose();
+        (await OrderListFixtures.RetireAsync(client, route, manager.AccessToken, id)).Dispose();
+        (await OrderListFixtures.RetireAsync(client, route, manager.AccessToken, id)).Dispose();
+        (await OrderListFixtures.ReactivateAsync(client, route, manager.AccessToken, id)).Dispose();
+        (await OrderListFixtures.ReactivateAsync(client, route, manager.AccessToken, id)).Dispose();
+        (await OrderListFixtures.DeleteAsync(client, route, manager.AccessToken, id)).Dispose();
+
+        await using var context = database.CreateContext();
+        var key = id.ToString("D");
+        var rows = await context.AuditLog.AsNoTracking().Where(row => row.TargetId == key).OrderBy(row => row.Id).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Action).ShouldBe(
+            [$"{prefix}.added", $"{prefix}.renamed", $"{prefix}.recolored", $"{prefix}.retired", $"{prefix}.reactivated", $"{prefix}.deleted"]);
+        rows.ShouldAllBe(row => row.TargetType == target && row.ActorUserId == manager.UserId);
+        rows[1].Detail.ShouldBe($"name={name}>{rename["name"]}");
+        rows[2].Detail.ShouldBe("tone=info>warning");
+        rows[3].Detail.ShouldBe($"name={rename["name"]}");
+    }
+
     // A to Z ignoring letter case; in the order expense categories Others comes last.
     private static void AssertAToZ(string route, IReadOnlyList<string?> names)
     {

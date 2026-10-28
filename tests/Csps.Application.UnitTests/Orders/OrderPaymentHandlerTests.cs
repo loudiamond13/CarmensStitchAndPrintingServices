@@ -187,6 +187,31 @@ public sealed class OrderPaymentHandlerTests
     }
 
     [Fact]
+    public async Task AddAPaymentMethodDeletedBeforeTheSaveIsA400OnPaymentMethodIdWithTheDeletedMessage()
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(OrderListKind.PaymentMethod));
+
+        var result = await harness.Add.HandleAsync(harness.OrderId, ValidAdd(), TestContext.Current.CancellationToken);
+
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        Fields(result).Keys.ShouldBe(["paymentMethodId"]);
+        Fields(result)["paymentMethodId"].ShouldBe(["This payment method was deleted."]);
+        harness.Unit.Rollbacks.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task UpdateAPaymentMethodDeletedBeforeTheSaveIsA400OnPaymentMethodId()
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(OrderListKind.PaymentMethod));
+
+        var result = await harness.Update.HandleAsync(harness.OrderId, harness.PaymentId, ValidUpdate() with { Amount = 9000m }, TestContext.Current.CancellationToken);
+
+        Fields(result)["paymentMethodId"].ShouldBe(["This payment method was deleted."]);
+    }
+
+    [Fact]
     public async Task AddALostRaceAtSaveTimeIsStaleAndIsNotRetried()
     {
         var harness = new Harness();

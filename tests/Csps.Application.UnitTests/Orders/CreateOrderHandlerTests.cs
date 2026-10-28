@@ -288,6 +288,47 @@ public sealed class CreateOrderHandlerTests
         await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
     }
 
+    [Theory]
+    [InlineData(OrderListKind.ProductType, "items[0].productTypeId", "This product type was deleted.")]
+    [InlineData(OrderListKind.PaymentMethod, "payments[0].paymentMethodId", "This payment method was deleted.")]
+    [InlineData(OrderListKind.OrderExpenseCategory, "expenses[0].orderExpenseCategoryId", "This category was deleted.")]
+    public async Task AnEntryDeletedBeforeTheSaveIsA400OnTheRowsOwnFieldWithTheDeletedMessage(OrderListKind kind, string field, string message)
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(kind));
+        var lookups = 0;
+        harness.Lists.GetStatesAsync(kind, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            lookups++;
+            IReadOnlyList<OrderListEntryState> states = lookups == 1
+                ? [.. call.Arg<IReadOnlyCollection<Guid>>().Select(static id => new OrderListEntryState(id, "Entry", Retired: false))]
+                : [];
+            return Task.FromResult(states);
+        });
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Payments = [Payment()], Expenses = [Expense()] }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, field, message);
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(OrderListKind.ProductType, "items", "This product type was deleted.")]
+    [InlineData(OrderListKind.PaymentMethod, "payments", "This payment method was deleted.")]
+    [InlineData(OrderListKind.OrderExpenseCategory, "expenses", "This category was deleted.")]
+    public async Task AnEntryDeletedThatTheRecheckStillFindsIsA400OnTheListField(OrderListKind kind, string field, string message)
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(kind));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Payments = [Payment()], Expenses = [Expense()] }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, field, message);
+    }
+
     [Fact]
     public async Task ASuccessTakesTheNumberOfTheBusinessYearAddsTheOrderOnceAndSavesOnceInOneTransaction()
     {
