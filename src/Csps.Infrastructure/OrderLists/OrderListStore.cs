@@ -3,6 +3,7 @@ using Csps.Application.Users;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Persistence;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.OrderLists;
@@ -10,7 +11,18 @@ namespace Csps.Infrastructure.OrderLists;
 /// <summary><see cref="IOrderLists"/> over EF: untracked reads of the list tables, tracked rows saved by the unit of work.</summary>
 internal sealed class OrderListStore(CspsDbContext context) : IOrderLists
 {
+    private const int ReferenceViolation = 547;
+    private const int UniqueIndexViolation = 2601;
+    private const int UniqueConstraintViolation = 2627;
+
     private static readonly string[] SoftDeleteFilter = ["SoftDelete"];
+
+    private static readonly string[] NameIndexes =
+    [
+        "IX_ProductTypes_NormalizedName",
+        "IX_PaymentMethods_NormalizedName",
+        "IX_OrderExpenseCategories_NormalizedName",
+    ];
 
     public async Task<IReadOnlyList<OrderListEntryView>> ListAsync(OrderListKind kind, CancellationToken cancellationToken)
     {
@@ -105,6 +117,61 @@ internal sealed class OrderListStore(CspsDbContext context) : IOrderLists
     {
         ArgumentNullException.ThrowIfNull(entry);
         context.Remove((object)entry);
+    }
+
+    /// <summary>
+    /// Turns a failed save into the typed exception the Application understands, or returns null when the failure is not one of the
+    /// list constraints: a unique normalized-name index raises <see cref="OrderListNameTakenException"/>, a foreign key from the order
+    /// items, payments or order expenses refusing a delete raises <see cref="OrderListEntryInUseException"/>, and the same key refusing
+    /// an insert or update whose entry was just deleted raises <see cref="OrderListEntryDeletedException"/>.
+    /// </summary>
+    /// <param name="error">The failed save.</param>
+    /// <returns>The typed exception, or null.</returns>
+    internal static Exception? TranslateSaveFailure(DbUpdateException error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+
+        if (error.InnerException is not SqlException sql)
+        {
+            return null;
+        }
+
+        if (sql.Number is UniqueIndexViolation or UniqueConstraintViolation && NameIndexes.Any(index => sql.Message.Contains(index, StringComparison.Ordinal)))
+        {
+            return new OrderListNameTakenException();
+        }
+
+        if (sql.Number != ReferenceViolation || KindOfForeignKey(sql.Message) is not { } kind)
+        {
+            return null;
+        }
+
+        // The failing entries say which side of the foreign key was refused, whatever language the server speaks.
+        if (error.Entries.Any(static entry => entry is { Entity: OrderListEntry, State: EntityState.Deleted }))
+        {
+            return new OrderListEntryInUseException();
+        }
+
+        return error.Entries.Any(static entry => entry is { Entity: OrderItem or OrderPayment or OrderExpense, State: EntityState.Added or EntityState.Modified })
+            ? new OrderListEntryDeletedException(kind)
+            : null;
+    }
+
+    private static OrderListKind? KindOfForeignKey(string message)
+    {
+        if (message.Contains("FK_OrderItems_ProductTypes_ProductTypeId", StringComparison.Ordinal))
+        {
+            return OrderListKind.ProductType;
+        }
+
+        if (message.Contains("FK_OrderPayments_PaymentMethods_PaymentMethodId", StringComparison.Ordinal))
+        {
+            return OrderListKind.PaymentMethod;
+        }
+
+        return message.Contains("FK_OrderExpenses_OrderExpenseCategories_OrderExpenseCategoryId", StringComparison.Ordinal)
+            ? OrderListKind.OrderExpenseCategory
+            : null;
     }
 
     // The recorder and the last changer come from their own user rows, so a rename shows at once and a deleted person keeps their name.

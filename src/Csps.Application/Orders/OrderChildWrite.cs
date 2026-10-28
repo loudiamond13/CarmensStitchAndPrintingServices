@@ -84,7 +84,8 @@ internal static class OrderChildWrite
             cancellationToken);
 
     /// <summary>
-    /// Saves a form: one attempt that never retries, a lost race answered as the stale-version 409, then the order read again.
+    /// Saves a form: one attempt that never retries, a lost race answered as the stale-version 409, a list entry deleted at that moment
+    /// answered as a 400 on its field, then the order read again.
     /// </summary>
     /// <param name="orders">The order store.</param>
     /// <param name="reader">The order reader.</param>
@@ -116,6 +117,11 @@ internal static class OrderChildWrite
         catch (ConcurrencyConflictException)
         {
             return Result.Failure<OrderDetailResponse>(EditErrors.Stale);
+        }
+        catch (OrderListEntryDeletedException deleted)
+        {
+            // The chosen list entry was deleted in the moment before the save: the same 400 as any other refused choice.
+            return Result.Failure<OrderDetailResponse>(OrderReferenceChecks.DeletedError(deleted.Kind));
         }
 
         return await ReadAsync(reader, orderId, cancellationToken).ConfigureAwait(false);

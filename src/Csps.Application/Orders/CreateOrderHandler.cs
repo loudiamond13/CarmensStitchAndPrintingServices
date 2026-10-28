@@ -77,6 +77,11 @@ public sealed class CreateOrderHandler(
                 },
                 cancellationToken).ConfigureAwait(false);
         }
+        catch (OrderListEntryDeletedException deleted)
+        {
+            // A list entry was deleted between the form check and the save: the rows that named it are marked on their own paths.
+            return Result.Failure<OrderDetailResponse>(await OrderReferenceChecks.DeletedErrorAsync(lists, staff, request, deleted.Kind, cancellationToken).ConfigureAwait(false));
+        }
         catch (OrderNumberBusyException)
         {
             return Result.Failure<OrderDetailResponse>(OrderErrors.Busy);

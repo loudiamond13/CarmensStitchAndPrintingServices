@@ -1,4 +1,7 @@
+using Csps.Application.Common;
+using Csps.Application.OrderLists;
 using Csps.Application.Ports;
+using Csps.Domain.Common;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using FluentValidation.Results;
@@ -358,4 +361,76 @@ public static class OrderReferenceChecks
             validation.Errors.Add(new ValidationFailure(nameof(IOrderExpenseFields.PaidByUserId), OrderRules.PaidByInactive));
         }
     }
+
+    /// <summary>
+    /// Gets the 400 for a saved row whose list entry was deleted in the moment between the form check and the save (Pitfall 7, D-19),
+    /// on the row's own field such as <c>productTypeId</c>.
+    /// </summary>
+    /// <param name="kind">Which list the deleted entry belonged to.</param>
+    /// <returns>The validation error.</returns>
+    public static Error DeletedError(OrderListKind kind) =>
+        ValidationResults.ToError(
+            new ValidationResult([new ValidationFailure(ChildField(kind), DeletedMessage(kind))]),
+            OrderErrors.ValidationCode,
+            OrderErrors.ValidationMessage);
+
+    /// <summary>
+    /// Gets the 400 for a new order whose list entry was deleted between the form check and the save. The lookups run again to find
+    /// which rows named an entry that is gone, so each is marked on its own path such as <c>items[1].productTypeId</c>; when none
+    /// is found the failure sits on the list itself.
+    /// </summary>
+    /// <param name="lists">The order lists.</param>
+    /// <param name="staff">The staff directory.</param>
+    /// <param name="request">The submitted order.</param>
+    /// <param name="kind">Which list the deleted entry belonged to.</param>
+    /// <param name="cancellationToken">Cancels the lookups.</param>
+    /// <returns>The validation error.</returns>
+    public static async Task<Error> DeletedErrorAsync(IOrderLists lists, IStaffDirectory staff, CreateOrderRequest request, OrderListKind kind, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        ArgumentNullException.ThrowIfNull(staff);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var again = new ValidationResult();
+        string fallbackField;
+        string missing;
+        switch (kind)
+        {
+            case OrderListKind.ProductType:
+                await AddProductTypeFailuresAsync(lists, request.Items, again, cancellationToken).ConfigureAwait(false);
+                fallbackField = nameof(CreateOrderRequest.Items);
+                missing = OrderRules.ProductTypeRequired;
+                break;
+            case OrderListKind.PaymentMethod:
+                await AddPaymentFailuresAsync(lists, staff, request.Payments, again, cancellationToken).ConfigureAwait(false);
+                fallbackField = nameof(CreateOrderRequest.Payments);
+                missing = OrderRules.PaymentMethodRequired;
+                break;
+            default:
+                await AddExpenseFailuresAsync(lists, staff, request.Expenses, again, cancellationToken).ConfigureAwait(false);
+                fallbackField = nameof(CreateOrderRequest.Expenses);
+                missing = OrderRules.ExpenseCategoryRequired;
+                break;
+        }
+
+        var failures = again.Errors
+            .Where(failure => failure.ErrorMessage == missing)
+            .Select(failure => new ValidationFailure(failure.PropertyName, DeletedMessage(kind)))
+            .ToList();
+        if (failures.Count == 0)
+        {
+            failures.Add(new ValidationFailure(fallbackField, DeletedMessage(kind)));
+        }
+
+        return ValidationResults.ToError(new ValidationResult(failures), OrderErrors.ValidationCode, OrderErrors.ValidationMessage);
+    }
+
+    private static string DeletedMessage(OrderListKind kind) => $"This {OrderListDescriptor.For(kind).Noun} was deleted.";
+
+    private static string ChildField(OrderListKind kind) => kind switch
+    {
+        OrderListKind.ProductType => nameof(IOrderItemFields.ProductTypeId),
+        OrderListKind.PaymentMethod => nameof(IOrderPaymentFields.PaymentMethodId),
+        _ => nameof(IOrderExpenseFields.OrderExpenseCategoryId),
+    };
 }

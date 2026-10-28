@@ -1,6 +1,7 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Expenses;
+using Csps.Infrastructure.OrderLists;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -27,9 +28,9 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
         }
         catch (DbUpdateException exception)
         {
-            // A category constraint (unique name, or an expense still using the category) becomes a typed error the handler maps.
+            // A category or order list constraint (unique name, or a row still using the entry) becomes a typed error the handler maps.
             // The failed row leaves the context, or the next save on this request would try it again.
-            var translated = ExpenseCategoryStore.TranslateSaveFailure(exception);
+            var translated = ExpenseCategoryStore.TranslateSaveFailure(exception) ?? OrderListStore.TranslateSaveFailure(exception);
             if (translated is null && !IsDeadlockVictim(exception))
             {
                 throw;
