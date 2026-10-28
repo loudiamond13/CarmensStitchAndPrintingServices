@@ -1,4 +1,5 @@
 using Csps.Application.Security;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
@@ -100,7 +101,7 @@ public sealed class IdentitySchemaTests(CspsDatabase database) : IClassFixture<C
     }
 
     [Fact]
-    public async Task ResetKeepsTheMigrationRolesAndRemovesUsers()
+    public async Task ResetKeepsTheMigrationRolesAndTheHolderAndRemovesOtherUsers()
     {
         var own = await CspsDatabase.CreateAsync();
         await using (own)
@@ -117,7 +118,7 @@ public sealed class IdentitySchemaTests(CspsDatabase database) : IClassFixture<C
             var after = own.CreateContext();
             await using (after)
             {
-                (await after.Users.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+                (await after.Users.Select(user => user.Id).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([LegacyHolder.Id]);
                 (await after.Roles.Select(role => role.Name).OrderBy(name => name).ToListAsync(TestContext.Current.CancellationToken))
                     .ShouldBe([Roles.Admin, Roles.Manager]);
             }

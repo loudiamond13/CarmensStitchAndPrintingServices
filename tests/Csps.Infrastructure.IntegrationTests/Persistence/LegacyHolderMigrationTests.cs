@@ -14,28 +14,7 @@ public sealed class LegacyHolderMigrationTests
         var database = await CspsDatabase.CreateAsync();
         await using (database)
         {
-            var row = await ReadHolderAsync(database);
-
-            row.FirstName.ShouldBe("Legacy");
-            row.LastName.ShouldBe("/ unassigned");
-            row.IsActive.ShouldBeFalse();
-            row.Email.ShouldBeNull();
-            row.NormalizedEmail.ShouldBeNull();
-            row.UserName.ShouldBeNull();
-            row.NormalizedUserName.ShouldBeNull();
-            row.PasswordHash.ShouldBeNull();
-            row.EmailConfirmed.ShouldBeFalse();
-            row.EditVersion.ShouldBe(LegacyHolder.EditVersion);
-            row.SecurityStamp.ShouldBe(LegacyHolder.SecurityStamp);
-            row.ConcurrencyStamp.ShouldBe(LegacyHolder.ConcurrencyStamp);
-            row.CreatedAtUtc.ShouldBe(LegacyHolder.CreatedAtUtc);
-            row.MustChangePassword.ShouldBeFalse();
-            row.BreachRecheckPending.ShouldBeFalse();
-            row.LockoutEnabled.ShouldBeFalse();
-            row.TwoFactorEnabled.ShouldBeFalse();
-            row.ManagerLockedAtUtc.ShouldBeNull();
-            row.DeletedAtUtc.ShouldBeNull();
-            row.CreatedById.ShouldBeNull();
+            AssertHolder(await ReadHolderAsync(database));
         }
     }
 
@@ -61,7 +40,32 @@ public sealed class LegacyHolderMigrationTests
 
             (await ScalarAsync(database, $"SELECT COUNT(*) FROM AspNetUsers WHERE Id = '{LegacyHolder.Id:D}'")).ShouldBe(1);
             (await ScalarAsync(database, "SELECT COUNT(*) FROM AspNetUsers")).ShouldBe(1);
+            AssertHolder(await ReadHolderAsync(database));
         }
+    }
+
+    private static void AssertHolder(HolderRow row)
+    {
+        row.FirstName.ShouldBe("Legacy");
+        row.LastName.ShouldBe("/ unassigned");
+        row.IsActive.ShouldBeFalse();
+        row.Email.ShouldBeNull();
+        row.NormalizedEmail.ShouldBeNull();
+        row.UserName.ShouldBeNull();
+        row.NormalizedUserName.ShouldBeNull();
+        row.PasswordHash.ShouldBeNull();
+        row.EmailConfirmed.ShouldBeFalse();
+        row.EditVersion.ShouldBe(LegacyHolder.EditVersion);
+        row.SecurityStamp.ShouldBe(LegacyHolder.SecurityStamp);
+        row.ConcurrencyStamp.ShouldBe(LegacyHolder.ConcurrencyStamp);
+        row.CreatedAtUtc.ShouldBe(LegacyHolder.CreatedAtUtc);
+        row.MustChangePassword.ShouldBeFalse();
+        row.BreachRecheckPending.ShouldBeFalse();
+        row.LockoutEnabled.ShouldBeFalse();
+        row.TwoFactorEnabled.ShouldBeFalse();
+        row.ManagerLockedAtUtc.ShouldBeNull();
+        row.DeletedAtUtc.ShouldBeNull();
+        row.CreatedById.ShouldBeNull();
     }
 
     private static async Task<int> ScalarAsync(CspsDatabase database, string sql)

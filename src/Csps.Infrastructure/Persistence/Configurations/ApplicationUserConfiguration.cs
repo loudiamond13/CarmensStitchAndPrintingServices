@@ -34,5 +34,7 @@ internal sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Ap
             .HasDatabaseName("EmailIndex")
             .IsUnique()
             .HasFilter("[NormalizedEmail] IS NOT NULL");
+
+        builder.HasData(ApplicationUser.ForLegacyHolder());
     }
 }

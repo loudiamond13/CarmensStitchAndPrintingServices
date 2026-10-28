@@ -1470,6 +1470,26 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("AspNetUsers", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("18ed889a-b94d-42f5-a5b0-ee2f47b437cd"),
+                            AccessFailedCount = 0,
+                            BreachRecheckPending = false,
+                            ConcurrencyStamp = "1C1442FA-A6FF-48DD-A9DC-A9D8E061C456",
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            EditVersion = new Guid("4094c10f-b3f9-4b9b-8368-ab918b46a3b2"),
+                            EmailConfirmed = false,
+                            FirstName = "Legacy",
+                            IsActive = false,
+                            LastName = "/ unassigned",
+                            LockoutEnabled = false,
+                            MustChangePassword = false,
+                            PhoneNumberConfirmed = false,
+                            SecurityStamp = "D794185C-717C-4A46-AFFF-FFC9616BFFE8",
+                            TwoFactorEnabled = false
+                        });
                 });
 
             modelBuilder.Entity("Csps.Infrastructure.Persistence.Locking.DatabaseLock", b =>

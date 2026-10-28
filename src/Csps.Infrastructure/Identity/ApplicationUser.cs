@@ -51,4 +51,42 @@ public sealed class ApplicationUser : IdentityUser<Guid>, IAttributedRecord, IEd
 
     /// <summary>The new email awaiting confirmation (D-24); null when no change is pending.</summary>
     public string? PendingEmail { get; set; }
+
+    /// <summary>
+    /// The Legacy / unassigned holder row (D-37), built only from the <see cref="LegacyHolder"/> literals with every column explicit.
+    /// The migration seed and the test reset both use it, so they cannot drift apart.
+    /// </summary>
+    /// <returns>A new, detached user.</returns>
+    public static ApplicationUser ForLegacyHolder() => new()
+    {
+        Id = LegacyHolder.Id,
+        FirstName = LegacyHolder.FirstName,
+        LastName = LegacyHolder.LastName,
+        UserName = null,
+        NormalizedUserName = null,
+        Email = null,
+        NormalizedEmail = null,
+        EmailConfirmed = false,
+        PasswordHash = null,
+        SecurityStamp = LegacyHolder.SecurityStamp,
+        ConcurrencyStamp = LegacyHolder.ConcurrencyStamp,
+        PhoneNumber = null,
+        PhoneNumberConfirmed = false,
+        TwoFactorEnabled = false,
+        LockoutEnd = null,
+        LockoutEnabled = false,
+        AccessFailedCount = 0,
+        IsActive = false,
+        MustChangePassword = false,
+        MustChangePasswordReason = null,
+        BreachRecheckPending = false,
+        EditVersion = LegacyHolder.EditVersion,
+        CreatedById = null,
+        CreatedAtUtc = LegacyHolder.CreatedAtUtc,
+        UpdatedById = null,
+        UpdatedAtUtc = null,
+        ManagerLockedAtUtc = null,
+        DeletedAtUtc = null,
+        PendingEmail = null,
+    };
 }

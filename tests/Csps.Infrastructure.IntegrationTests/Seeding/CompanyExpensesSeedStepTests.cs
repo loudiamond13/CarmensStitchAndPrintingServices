@@ -1,5 +1,6 @@
 using Csps.Application.Security;
 using Csps.Domain.Expenses;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Seeding;
@@ -72,7 +73,7 @@ public sealed class CompanyExpensesSeedStepTests(CspsDatabase database) : IClass
         var context = database.CreateContext();
         await using (context)
         {
-            (await context.Users.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+            (await context.Users.CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(2);
         }
     }
 
@@ -128,7 +129,7 @@ public sealed class CompanyExpensesSeedStepTests(CspsDatabase database) : IClass
         var context = database.CreateContext();
         await using (context)
         {
-            (await context.Users.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+            (await context.Users.CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(2);
         }
     }
 
