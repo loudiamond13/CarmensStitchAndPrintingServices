@@ -157,15 +157,22 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// Makes a new order, checking every field rule again so no caller can skip one. The order has no number yet, so a refused
     /// order never takes one: call <see cref="AssignNumber"/> after this succeeds.
     /// </summary>
-    /// <param name="input">The details, status, items and discounts.</param>
+    /// <param name="input">The details, status, items, discounts and payments.</param>
     /// <param name="callerId">The staff member who creates it; the first history row names them.</param>
     /// <param name="now">The current instant, which makes the keys and the history time.</param>
+    /// <param name="today">The business today, which no payment may be dated after; required when the order has payments.</param>
     /// <returns>The new, unsaved order, or a validation error naming the first broken field.</returns>
-    public static Result<Order> Create(NewOrder input, Guid callerId, DateTimeOffset now)
+    /// <exception cref="ArgumentException">The order has payments but no business today was given.</exception>
+    public static Result<Order> Create(NewOrder input, Guid callerId, DateTimeOffset now, DateOnly? today = null)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(input.Items);
         ArgumentNullException.ThrowIfNull(input.Discounts);
+        ArgumentNullException.ThrowIfNull(input.Payments);
+        if (input.Payments.Count > 0 && today is null)
+        {
+            throw new ArgumentException("The business today is needed to check the payment dates.", nameof(today));
+        }
 
         var details = OrderRules.CheckDetails(input.Details);
         if (details.IsFailure)
@@ -218,6 +225,23 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             checkedDiscounts.Add(discount.Value);
         }
 
+        if (input.Payments.Count > OrderRules.MaxPayments)
+        {
+            return OrderRules.Reject<Order>(OrderRules.PaymentsField, OrderRules.PaymentsTooMany);
+        }
+
+        var checkedPayments = new List<NewOrderPayment>(input.Payments.Count);
+        for (var index = 0; index < input.Payments.Count; index++)
+        {
+            var payment = OrderRules.CheckPayment(index, input.Payments[index], today!.Value);
+            if (payment.IsFailure)
+            {
+                return Result.Failure<Order>(payment.Error);
+            }
+
+            checkedPayments.Add(payment.Value);
+        }
+
         var cleaned = details.Value;
         var order = new Order(
             Guid.CreateVersion7(now),
@@ -246,8 +270,20 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return OrderRules.Reject<Order>(OrderRules.DiscountsField, OrderRules.DiscountAboveSubtotalMessage);
         }
 
+        for (var position = 0; position < checkedPayments.Count; position++)
+        {
+            order._payments.Add(BuildPayment(order, checkedPayments[position], position, now));
+        }
+
         order._statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), order.Id, null, status.Value, callerId, now) { Order = order });
         order.Recalculate();
+
+        // The total is never below zero here (the discounts fit), so a negative balance can only come from the payments.
+        if (order.Balance < 0m)
+        {
+            return OrderRules.Reject<Order>(OrderRules.PaymentsField, OrderRules.PaymentsAboveTotalMessage);
+        }
+
         order.Touch(now);
         return Result.Success(order);
     }
@@ -532,6 +568,80 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         Recalculate();
         Touch(now);
         return Result.Success(added);
+    }
+
+    /// <summary>
+    /// Applies a payment edit, checking every payment rule again as <see cref="AddPayment"/> does. An edit may lower the amount
+    /// freely, even on an order in credit, and may raise it only up to the balance plus the amount it had (D-11). Nothing is
+    /// assigned when a rule fails, and an edit that changes nothing leaves the order and its edit version untouched. A changed edit
+    /// works the totals out again and moves the edit version. Whether a new method or a new receiver may be chosen is not decided
+    /// here: it needs the database.
+    /// </summary>
+    /// <param name="paymentId">The payment to edit; it must be on this order.</param>
+    /// <param name="values">The new values as given.</param>
+    /// <param name="today">The business today; a payment may not be dated after it.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>What changed (nothing at all for an identical edit), a 404 when the payment is not on this order, or a validation error naming the first broken field.</returns>
+    public Result<OrderPaymentChanges> UpdatePayment(Guid paymentId, NewOrderPayment values, DateOnly today, DateTimeOffset now)
+    {
+        var payment = _payments.Find(existing => existing.Id == paymentId);
+        if (payment is null)
+        {
+            return Result.Failure<OrderPaymentChanges>(OrderRules.PaymentNotFound);
+        }
+
+        var checkedPayment = OrderRules.CheckPayment(null, values, today);
+        if (checkedPayment.IsFailure)
+        {
+            return Result.Failure<OrderPaymentChanges>(checkedPayment.Error);
+        }
+
+        var cleaned = checkedPayment.Value;
+        var fields = new List<string>();
+        AddIfChanged(fields, OrderRules.PaymentReferenceField, payment.Reference, cleaned.Reference);
+        AddIfChanged(fields, OrderRules.PaymentNotesField, payment.Notes, cleaned.Notes);
+        var changes = new OrderPaymentChanges(
+            payment.PaymentDate == cleaned.PaymentDate ? null : new ValueChange<DateOnly>(payment.PaymentDate, cleaned.PaymentDate),
+            payment.Amount == cleaned.Amount ? null : new ValueChange<decimal>(payment.Amount, cleaned.Amount),
+            payment.PaymentMethodId == cleaned.PaymentMethodId ? null : new ValueChange<Guid>(payment.PaymentMethodId, cleaned.PaymentMethodId),
+            payment.ReceivedByUserId == cleaned.ReceivedByUserId ? null : new ValueChange<Guid>(payment.ReceivedByUserId, cleaned.ReceivedByUserId),
+            fields);
+        if (!changes.HasAny)
+        {
+            return Result.Success(changes);
+        }
+
+        if (cleaned.Amount > payment.Amount)
+        {
+            var ceiling = Figures(_payments.Select(static existing => existing.Amount)).Balance + payment.Amount;
+            if (cleaned.Amount > ceiling)
+            {
+                return OrderRules.Reject<OrderPaymentChanges>(OrderRules.PaymentPath(null, OrderRules.PaymentAmountField), OrderRules.PaymentAboveBalance(ceiling));
+            }
+        }
+
+        payment.Apply(cleaned);
+        Recalculate();
+        Touch(now);
+        return Result.Success(changes);
+    }
+
+    /// <summary>Takes one payment off the order. The totals are worked out again and the edit version moves.</summary>
+    /// <param name="paymentId">The payment to remove; it must be on this order.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The removed payment, or a 404 when it is not on this order.</returns>
+    public Result<OrderPayment> RemovePayment(Guid paymentId, DateTimeOffset now)
+    {
+        var payment = _payments.Find(existing => existing.Id == paymentId);
+        if (payment is null)
+        {
+            return Result.Failure<OrderPayment>(OrderRules.PaymentNotFound);
+        }
+
+        _payments.Remove(payment);
+        Recalculate();
+        Touch(now);
+        return Result.Success(payment);
     }
 
     /// <summary>Takes one discount off the order. The totals are worked out again and the edit version moves.</summary>

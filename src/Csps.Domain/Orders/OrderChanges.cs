@@ -46,3 +46,27 @@ public sealed record OrderItemChanges(ValueChange<Guid>? ProductType, ValueChang
     /// <summary>Gets a value that is true when anything at all changed.</summary>
     public bool HasAny => ProductType is not null || Quantity is not null || UnitPrice is not null || ChangedFields.Count > 0;
 }
+
+/// <summary>
+/// What one payment edit changed (D-31, ORD-22). The date, amount and method carry the old and new value; the reference and the
+/// notes carry only their field names, because their text never goes into the audit log. A new receiver is carried on its own,
+/// because it is written to the audit log as its own entry.
+/// </summary>
+/// <param name="Date">The payment date change; null when it stayed.</param>
+/// <param name="Amount">The amount change; null when it stayed.</param>
+/// <param name="Method">The payment method change; null when it stayed.</param>
+/// <param name="Receiver">The receiver change; null when the same person kept the money.</param>
+/// <param name="ChangedFields">The names of the text fields that changed (<c>reference</c>, <c>notes</c>), in form order.</param>
+public sealed record OrderPaymentChanges(
+    ValueChange<DateOnly>? Date,
+    ValueChange<decimal>? Amount,
+    ValueChange<Guid>? Method,
+    ValueChange<Guid>? Receiver,
+    IReadOnlyList<string> ChangedFields)
+{
+    /// <summary>Gets a value that is true when anything at all changed.</summary>
+    public bool HasAny => HasFieldChange || Receiver is not null;
+
+    /// <summary>Gets a value that is true when anything other than the receiver changed.</summary>
+    public bool HasFieldChange => Date is not null || Amount is not null || Method is not null || ChangedFields.Count > 0;
+}

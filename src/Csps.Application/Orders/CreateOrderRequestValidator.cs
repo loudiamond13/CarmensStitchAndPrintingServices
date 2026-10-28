@@ -6,7 +6,10 @@ namespace Csps.Application.Orders;
 /// <summary>
 /// Checks the New Order form with the rules the browser also applies (OR-3), held in <see cref="OrderDetailsFieldsValidator"/> and
 /// <see cref="OrderItemFieldsValidator"/> so the edit forms say the same words. It adds the status rule (D-22), the item count
-/// (1 to 100) and the discounts (none to 20, each checked by <see cref="OrderDiscountFieldsValidator"/>). Whether the product types exist and may be chosen needs the database and runs in the handler.
+/// (1 to 100), the discounts (none to 20, each checked by <see cref="OrderDiscountFieldsValidator"/>) and the payments (none to 100,
+/// each checked by <see cref="OrderPaymentFieldsValidator"/>, with the business today in the validation context under
+/// <see cref="OrderPaymentFieldsValidator.TodayKey"/>). Whether the product types, payment methods and receivers exist and may be
+/// chosen needs the database and runs in the handler; whether the payments fit the total runs in the domain.
 /// </summary>
 public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderRequest>
 {
@@ -32,6 +35,13 @@ public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderR
         RuleForEach(request => request.Discounts)
             .NotNull().WithMessage(OrderRules.DiscountRequired)
             .SetValidator(new DiscountValidator());
+
+        RuleFor(request => request.Payments)
+            .Must(static payments => payments is null || payments.Count <= OrderRules.MaxPayments).WithMessage(OrderRules.PaymentsTooMany);
+
+        RuleForEach(request => request.Payments)
+            .NotNull().WithMessage(OrderRules.PaymentRequired)
+            .SetValidator(new PaymentValidator());
     }
 
     private static void CheckStatus(string? text, ValidationContext<CreateOrderRequest> context)
@@ -59,5 +69,10 @@ public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderR
     private sealed class DiscountValidator : AbstractValidator<OrderDiscountRequest>
     {
         public DiscountValidator() => Include(new OrderDiscountFieldsValidator());
+    }
+
+    private sealed class PaymentValidator : AbstractValidator<OrderPaymentRequest>
+    {
+        public PaymentValidator() => Include(new OrderPaymentFieldsValidator());
     }
 }

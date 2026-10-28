@@ -72,4 +72,15 @@ public sealed class OrderPayment : IAttributedRecord
 
     /// <inheritdoc />
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
+
+    // Takes the new values, already checked and trimmed by Order.UpdatePayment.
+    internal void Apply(NewOrderPayment values)
+    {
+        PaymentDate = values.PaymentDate;
+        Amount = values.Amount;
+        PaymentMethodId = values.PaymentMethodId;
+        Reference = values.Reference;
+        Notes = values.Notes;
+        ReceivedByUserId = values.ReceivedByUserId;
+    }
 }

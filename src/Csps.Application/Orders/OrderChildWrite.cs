@@ -8,7 +8,11 @@ namespace Csps.Application.Orders;
 /// <summary>The audit entry a child change records for its order (D-31).</summary>
 /// <param name="Action">The audit action, such as <c>order-item.added</c>.</param>
 /// <param name="Detail">The detail text, without customer or item text.</param>
-internal sealed record OrderChildAudit(string Action, string Detail);
+internal sealed record OrderChildAudit(string Action, string Detail)
+{
+    /// <summary>Gets a second entry recorded in the same save, such as a receiver change that stands on its own; null for none.</summary>
+    public OrderChildAudit? Then { get; init; }
+}
 
 /// <summary>
 /// The one flow every write to an order's children uses (ORD-08, SEC-07): inside one transaction the order is found with its
@@ -69,7 +73,11 @@ internal static class OrderChildWrite
 
                 // The order's row is locked before any child row is written, so two writers never wait on each other's rows.
                 await orders.LockAsync(order, token).ConfigureAwait(false);
-                audit.Record(entry.Action, OrderTarget, AuditKey.Of(order.Id), entry.Detail);
+                for (var each = entry; each is not null; each = each.Then)
+                {
+                    audit.Record(each.Action, OrderTarget, AuditKey.Of(order.Id), each.Detail);
+                }
+
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                 return Result.Success(true);
             },

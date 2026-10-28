@@ -86,6 +86,75 @@ public static class OrderReferenceChecks
     }
 
     /// <summary>
+    /// Adds a failure for each payment whose method does not exist or is retired (D-16) and for each whose receiver cannot be chosen
+    /// (ORD-22, D-32), on the payment's own path such as <c>payments[1].receivedByUserId</c>. One lookup serves all distinct method
+    /// ids and one all distinct receivers. A payment with no method or no receiver is skipped: the static rules already refused it.
+    /// </summary>
+    /// <param name="lists">The order lists.</param>
+    /// <param name="staff">The staff directory.</param>
+    /// <param name="payments">The submitted payments; null means none.</param>
+    /// <param name="validation">The validation result to add the failures to.</param>
+    /// <param name="cancellationToken">Cancels the lookups.</param>
+    /// <returns>A task that completes when the checks are done.</returns>
+    public static async Task AddPaymentFailuresAsync(
+        IOrderLists lists,
+        IStaffDirectory staff,
+        IReadOnlyList<OrderPaymentRequest>? payments,
+        ValidationResult validation,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        ArgumentNullException.ThrowIfNull(staff);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        var methodIds = (payments ?? [])
+            .Select(static payment => payment?.PaymentMethodId)
+            .Where(static id => id is { } value && value != Guid.Empty)
+            .Select(static id => id!.Value)
+            .Distinct()
+            .ToList();
+        Dictionary<Guid, OrderListEntryState> methods = [];
+        if (methodIds.Count > 0)
+        {
+            methods = (await lists.GetStatesAsync(OrderListKind.PaymentMethod, methodIds, cancellationToken).ConfigureAwait(false)).ToDictionary(static state => state.Id);
+        }
+
+        var eligible = new Dictionary<Guid, bool>();
+        for (var index = 0; index < (payments?.Count ?? 0); index++)
+        {
+            var payment = payments![index];
+            if (payment?.PaymentMethodId is { } methodId && methodId != Guid.Empty)
+            {
+                var path = $"{nameof(CreateOrderRequest.Payments)}[{index}].{nameof(OrderPaymentRequest.PaymentMethodId)}";
+                if (!methods.TryGetValue(methodId, out var method))
+                {
+                    validation.Errors.Add(new ValidationFailure(path, OrderRules.PaymentMethodRequired));
+                }
+                else if (method.Retired)
+                {
+                    validation.Errors.Add(new ValidationFailure(path, OrderRules.PaymentMethodRetired));
+                }
+            }
+
+            if (payment?.ReceivedByUserId is { } receiverId && receiverId != Guid.Empty)
+            {
+                if (!eligible.TryGetValue(receiverId, out var canPay))
+                {
+                    var state = await staff.GetStaffStateAsync(receiverId, cancellationToken).ConfigureAwait(false);
+                    canPay = state is { CanPay: true };
+                    eligible[receiverId] = canPay;
+                }
+
+                if (!canPay)
+                {
+                    var path = $"{nameof(CreateOrderRequest.Payments)}[{index}].{nameof(OrderPaymentRequest.ReceivedByUserId)}";
+                    validation.Errors.Add(new ValidationFailure(path, OrderRules.ReceivedByInactive));
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Adds a failure on <c>paymentMethodId</c> when the payment method does not exist or is retired (D-16). A missing id is skipped:
     /// the static rules already refused it.
     /// </summary>

@@ -1,4 +1,5 @@
 using Csps.Domain.Common;
+using Csps.Domain.Expenses;
 using Csps.Domain.Orders;
 
 namespace Csps.Domain.UnitTests.Orders;
@@ -31,7 +32,7 @@ public sealed class OrderPaymentTests
     [Fact]
     public void AddingPaymentsRecomputesThePaidTotalAndTheBalanceThroughOrderMath()
     {
-        var order = Ord0148();
+        var order = Ord0148Discounted();
         var editVersion = order.EditVersion;
 
         var first = order.AddPayment(new NewOrderPayment(Today.AddDays(-3), 10000.00m, GCash, "  9012 345 678901 ", " 50% downpayment ", Admin), Today, Later);
@@ -57,7 +58,7 @@ public sealed class OrderPaymentTests
     [Fact]
     public void AnAmountEqualToTheBalanceIsAcceptedAndOneCentavoMoreIsRefusedWithTheBalanceMessage()
     {
-        var order = Ord0148();
+        var order = Ord0148Discounted();
 
         var over = order.AddPayment(new NewOrderPayment(Today, 21327.51m, Cash, null, null, Admin), Today, Later);
         var editVersion = order.EditVersion;
@@ -524,6 +525,13 @@ public sealed class OrderPaymentTests
             new NewOrderItem(JerseyType, "Team banner", null, 1, 800.00m),
         };
         return Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Discounts = discounts, Payments = payments }, Guid.NewGuid(), Created, today);
+    }
+
+    private static Order Ord0148Discounted()
+    {
+        var order = Ord0148();
+        order.AddDiscount(new NewOrderDiscount(DiscountKind.Percentage, 5m, "League"), Created).IsSuccess.ShouldBeTrue();
+        return order;
     }
 
     private static Order Ord0148() => OrderOf(

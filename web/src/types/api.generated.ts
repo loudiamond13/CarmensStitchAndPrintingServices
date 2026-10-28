@@ -712,6 +712,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one payment of a saved order with the order's version the form was opened with. The rules are the same as
+         *     when adding. An edit may lower the amount freely and may raise it only up to the balance plus the amount it had (400 on
+         *     `amount`). The payment method and the receiver are checked only when the edit changes them, so a payment may keep a
+         *     method that was retired or a receiver who was deactivated after it was saved. A payment id that is not on this order answers
+         *     404 `orders.payment-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing;
+         *     a form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the payment and
+         *     when come from the token and the clock.
+         */
+        put: operations["UpdateOrderPayment"];
+        post?: never;
+        /**
+         * Removes one payment of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
+         *     again and decided again once. A payment id that is not on this order answers 404 `orders.payment-not-found`. The totals
+         *     are worked out again; if the order was fully paid it now has a balance again.
+         */
+        delete: operations["RemoveOrderPayment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payment-methods": {
         parameters: {
             query?: never;
@@ -1551,6 +1581,8 @@ export interface components {
             notes: null | string;
             /** @description The day the order was taken, `yyyy-MM-dd`. */
             orderDate: null | string;
+            /** @description The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts. */
+            payments?: null | components["schemas"]["OrderPaymentRequest"][];
             /** @description The status to start in: pending, mockup, production, ready or delivered; pending when not sent. */
             status: null | string;
             /** @description The team or club name. */
@@ -1939,6 +1971,30 @@ export interface components {
             retired: boolean;
             /** @description One of the six colour tones. */
             tone: string;
+        };
+        /** @description One payment of the New Order form (ORD-03, ORD-05, ORD-22). */
+        OrderPaymentRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the money was received, `yyyy-MM-dd`. */
+            paymentDate: null | string;
+            /**
+             * Format: uuid
+             * @description The payment method.
+             */
+            paymentMethodId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who received the money.
+             */
+            receivedByUserId: null | string;
+            /** @description The reference, such as a transfer number. */
+            reference: null | string;
         };
         /** @description One payment of an order (ORD-05, ORD-22). Received by is who holds the money; recorded by is who typed the payment in. */
         OrderPaymentResponse: {
@@ -2371,6 +2427,36 @@ export interface components {
              * @description The price of one, in pesos.
              */
             unitPrice: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Payment form on a saved order (ORD-05, ORD-22). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `updatedById`, is ignored: who changed the payment and when come from the token and the clock
+         *     (SEC-08). Who received the money is a separate choice, `receivedByUserId`.
+         */
+        UpdateOrderPaymentRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the money was received, `yyyy-MM-dd`. */
+            paymentDate: null | string;
+            /**
+             * Format: uuid
+             * @description The payment method.
+             */
+            paymentMethodId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who received the money.
+             */
+            receivedByUserId: null | string;
+            /** @description The reference, such as a transfer number. */
+            reference: null | string;
             /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
@@ -4751,6 +4837,126 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The payment id. */
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderPaymentRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderPaymentRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The payment id. */
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

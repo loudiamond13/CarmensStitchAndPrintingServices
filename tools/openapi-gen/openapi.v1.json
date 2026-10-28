@@ -946,6 +946,16 @@
               "string"
             ]
           },
+          "payments": {
+            "description": "The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts.",
+            "items": {
+              "$ref": "#/components/schemas/OrderPaymentRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
           "status": {
             "description": "The status to start in: pending, mockup, production, ready or delivered; pending when not sent.",
             "type": [
@@ -1914,6 +1924,67 @@
           "name",
           "tone",
           "retired"
+        ],
+        "type": "object"
+      },
+      "OrderPaymentRequest": {
+        "description": "One payment of the New Order form (ORD-03, ORD-05, ORD-22).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "notes": {
+            "description": "Free notes.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentDate": {
+            "description": "The day the money was received, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentMethodId": {
+            "description": "The payment method.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receivedByUserId": {
+            "description": "The staff member who received the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reference": {
+            "description": "The reference, such as a transfer number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "paymentDate",
+          "amount",
+          "paymentMethodId",
+          "reference",
+          "notes",
+          "receivedByUserId"
         ],
         "type": "object"
       },
@@ -2956,6 +3027,75 @@
           "sizeVariant",
           "quantity",
           "unitPrice",
+          "version"
+        ],
+        "type": "object"
+      },
+      "UpdateOrderPaymentRequest": {
+        "description": "The Edit Payment form on a saved order (ORD-05, ORD-22). It carries the order's version as the form was opened. Any other member\nin the body, such as a forged `updatedById`, is ignored: who changed the payment and when come from the token and the clock\n(SEC-08). Who received the money is a separate choice, `receivedByUserId`.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "notes": {
+            "description": "Free notes.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentDate": {
+            "description": "The day the money was received, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentMethodId": {
+            "description": "The payment method.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receivedByUserId": {
+            "description": "The staff member who received the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reference": {
+            "description": "The reference, such as a transfer number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "paymentDate",
+          "amount",
+          "paymentMethodId",
+          "reference",
+          "notes",
+          "receivedByUserId",
           "version"
         ],
         "type": "object"
@@ -6655,6 +6795,201 @@
           }
         },
         "summary": "Records a payment on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`\nday, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal\nplaces, and it may not be more than the balance: a payment above it answers 400 on `amount` with the most that can be\nentered. The payment method must exist and not be retired. `receivedByUserId` names who has the money and must be an\nactive Admin or Manager; it is separate from who typed the payment in, which comes from the token. The reference holds up to\n100 characters and the notes up to 500. A version that is not the stored one answers 409 `edit.stale` and changes\nnothing; a form save is never retried. The server works out the order's totals. A retry with the same\n`Idempotency-Key` and body answers with the stored answer and adds nothing more.",
+        "tags": [
+          "OrderPayments"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/payments/{paymentId}": {
+      "delete": {
+        "operationId": "RemoveOrderPayment",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The payment id.",
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Removes one payment of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. A payment id that is not on this order answers 404 `orders.payment-not-found`. The totals\nare worked out again; if the order was fully paid it now has a balance again.",
+        "tags": [
+          "OrderPayments"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOrderPayment",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The payment id.",
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderPaymentRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderPaymentRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderPaymentRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves an edit of one payment of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding. An edit may lower the amount freely and may raise it only up to the balance plus the amount it had (400 on\n`amount`). The payment method and the receiver are checked only when the edit changes them, so a payment may keep a\nmethod that was retired or a receiver who was deactivated after it was saved. A payment id that is not on this order answers\n404 `orders.payment-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing;\na form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the payment and\nwhen come from the token and the clock.",
         "tags": [
           "OrderPayments"
         ]

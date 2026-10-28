@@ -8,6 +8,7 @@ using Csps.Application.Staff;
 using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
+using Csps.Domain.Common;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Domain.Time;
@@ -247,7 +248,7 @@ public sealed class OrderPaymentHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         harness.Last.Payments[0].Amount.ShouldBe(9000m);
-        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, default);
+        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -270,7 +271,7 @@ public sealed class OrderPaymentHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         harness.Last.Payments[0].ReceivedByUserId.ShouldBe(Blocked);
-        await harness.Staff.DidNotReceiveWithAnyArgs().GetStaffStateAsync(default, default);
+        await harness.Staff.DidNotReceiveWithAnyArgs().GetStaffStateAsync(default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T13:35:00-05:00
+updated: 2026-10-28T15:10:00-05:00
 ---
 
 # The orders API
@@ -9,8 +9,8 @@ This is the contract behind the Orders screens, and the one a future Android app
 The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page;
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
-[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, and giving, changing and removing discounts. Later plans add the
-list, payment, expense, status and delete routes to this page.
+[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, and recording, correcting and removing payments. Later plans add the
+list, expense, refund, status and delete routes to this page.
 
 ## In plain words
 
@@ -21,8 +21,8 @@ list, payment, expense, status and delete routes to this page.
    date. The first order of a year is `0001`. After `9999` the number gets a fifth digit and is never cut short.
 4. A new order can start as Pending, Mockup, In Production, Ready or Delivered. Completed and Cancelled are refused at create
    (D-22): create the order first, then complete or cancel it.
-5. Payments and order expenses join the create body in later plans. Until then an order has items and discounts only, so the
-   balance equals the total after discount.
+5. Order expenses join the create body in a later plan. Payments can already be sent in the create body; an order with no
+   payments has a balance equal to its total after discount.
 
 ## Routes
 
@@ -37,6 +37,9 @@ list, payment, expense, status and delete routes to this page.
 | `POST /orders/{id}/discounts` | Staff | the discount form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-discounts` |
 | `PUT /orders/{id}/discounts/{discountId}` | Staff | the discount form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.discount-not-found`; `409 edit.stale` |
 | `DELETE /orders/{id}/discounts/{discountId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.discount-not-found`; `409 edit.stale` |
+| `POST /orders/{id}/payments` | Staff | the payment form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-payments` |
+| `PUT /orders/{id}/payments/{paymentId}` | Staff | the payment form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale` |
+| `DELETE /orders/{id}/payments/{paymentId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale` |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
 read every order. No answer is ever cached (`Cache-Control: no-store`).
@@ -56,6 +59,7 @@ read every order. No answer is ever cached (`Cache-Control: no-store`).
 | `notes` | no | up to 2,000 characters | Keep notes to 2,000 characters or fewer. |
 | `items` | yes | 1 to 100 items | Add at least one item. / An order can have at most 100 items. |
 | `discounts` | no | none to 20 discounts, each as in the discount form below | An order can have at most 20 discounts. |
+| `payments` | no | none to 100 payments, each as in the payment form below; together they may not be more than the total after discounts | An order can have at most 100 payments. / The payments would be more than the order total. Lower a payment first. |
 
 Each item:
 
@@ -70,6 +74,11 @@ Each item:
 Each discount in `discounts` has the same three fields and rules as the discount form below (`kind`, `value`, `reason`), without the
 `version`. They are saved in the same transaction as the order, in the order given.
 
+Each payment in `payments` has the same six fields and rules as the payment form below (`paymentDate`, `amount`,
+`paymentMethodId`, `reference`, `notes`, `receivedByUserId`), without the `version`. They are saved in the same transaction as the
+order. The ORD-2026-0148 items with the 5% discount and the two payments (`10000.00` by GCash and `2000.00` in cash) give a
+total of `21327.50`, paid `12000.00` and a balance of `9327.50`.
+
 Text is trimmed, and empty optional text is stored as `null`. Every rule is checked twice, by the validators and again by the
 order itself, so no caller can skip one. Any other member in the body, such as `createdById`, `createdAt`, `updatedById`,
 `number`, `totals`, `statusHistory`, `deletedAtUtc` or `version`, is ignored.
@@ -78,8 +87,9 @@ order itself, so no caller can skip one. Any other member in the body, such as `
 
 A bad form answers `400` with the code `orders.invalid-request`, the text "Check the highlighted fields." and an `errors` object
 that lists **every** broken field, not just the first. Item fields use a camelCase path with the item's place, for example
-`items[1].quantity` or `items[0].productTypeId`, and discount fields use `discounts[0].value` in the same way. The product type check (does it exist, is it retired) is made against the
-database and is merged into the same `400`.
+`items[1].quantity` or `items[0].productTypeId`, and discount fields use `discounts[0].value` in the same way. Payment fields use
+`payments[1].receivedByUserId` or `payments[0].amount`. The product type, payment method and receiver checks (does it exist, is it
+retired, may this person be chosen) are made against the database and are merged into the same `400`.
 
 ### The Idempotency-Key
 
@@ -187,9 +197,55 @@ new `version`.
   changed. Any attribution or `totals` member in the body is ignored.
 - A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
 
+## Payments (`/api/v1/orders/{id}/payments`)
+
+Staff record the money a customer pays, correct it and remove it on a saved order, and the create body can carry payments in a
+`payments` array. An order can hold up to 100. Every answer is the whole order, with every money figure worked out again by the
+server and a new `version`. Each payment shows **who received the money** (`receivedBy`) apart from **who recorded it**
+(`recordedBy`): a payment recorded by an Admin and received by a Manager reads `receivedBy` the Manager and `recordedBy` the Admin
+(SEC-08, ORD-22).
+
+| Field | Required | Rule | Message |
+|---|---|---|---|
+| `paymentDate` | yes | a real `yyyy-MM-dd` date, never after today in the shop's time zone | Enter the payment date. / Enter a real date. / The payment date can't be in the future. |
+| `amount` | yes | more than 0.00 and at most 1,000,000.00, at most 2 decimal places (D-30) | Enter the amount. / Enter an amount from ₱0.01 to ₱1,000,000.00. / Use at most 2 decimal places. |
+| `paymentMethodId` | yes | an existing payment method that is not retired (D-16) | Choose a payment method. / This payment method was retired. Choose another one. |
+| `reference` | no | up to 100 characters | Keep the reference to 100 characters or fewer. |
+| `notes` | no | up to 500 characters | Keep notes to 500 characters or fewer. |
+| `receivedByUserId` | yes | an active Admin or Manager who has finished set-up (ORD-22) | Choose who received the money. / This person can't be chosen because their account isn't active. Choose someone else. |
+| `version` | add and edit | the order's `version` as last read: base64 of eight bytes. Anything else is `400` on `version`, "Reload the form and try again." | |
+
+- **A payment can never pass the balance (D-11).** A new payment may be at most the balance, to the centavo. A payment above it is
+  `400` on `amount`: "This is more than the balance. Enter ₱9,327.50 or less." When nothing is owed (the balance is `0.00` or
+  below) the text is "Nothing is owed on this order." An edit may lower an amount freely, even when the order is in credit, and may
+  raise it only up to the balance plus the amount it had. Nothing is saved when a payment is refused.
+- **Other changes may leave a customer credit (D-12).** Removing an item, lowering a quantity or price, or adding or raising a
+  discount after payment is allowed. The order then shows `customerCredit` equal to paid minus the new total. For example a
+  `9750.00` order paid in full, then a fixed `500.00` discount, has a balance of `-500.00` and a `customerCredit` of `500.00`.
+- **Who may be chosen as the receiver (ORD-22, D-32, D-49).** On a new payment, on a changed receiver and in the create body the
+  person must be an active Admin or Manager, not locked, not deleted, who has a password and has signed in once. The Legacy holder
+  is never chosen. An edit that keeps the saved receiver is allowed even if they were deactivated since: the payment keeps showing
+  them, with `receivedByActive: false`, and a deleted person keeps their name with `formerStaff: true`. In the same way a saved
+  payment method that was retired since may be kept on an edit, but a new or switched one may not be retired.
+- **Phase 10, money on hand.** A payment counts toward its receiver's money on hand from the moment it is saved. Changing the
+  receiver moves it from one person to the other, and that move is its own audit entry. The receiver index carries the amount and
+  the date, so Phase 10 reads it without touching the order rows.
+- **The version contract (ORD-08).** Any payment change moves the order's version. Two payments sent together with the same version
+  give exactly one `200`; the other is `409 edit.stale`, so two people can never together pay more than the balance. Nothing of
+  the loser is stored. Add and edit are never retried.
+- **Remove sends no version.** It acts on the latest state. If it loses a race it is read again and decided again once; only a
+  second lost race is `409 edit.stale`.
+- **Payments are found only through their order (CWE-639).** A payment id that is not on the order in the route is
+  `404 orders.payment-not-found`, "This payment was not found on this order." The payment of another order is never changed.
+- **At most 100 payments (`422 orders.too-many-payments`).** "An order can have at most 100 payments." In the create body, more
+  than 100 is a `400` on `payments`.
+- **An edit that changes nothing** answers `200`, keeps the `version` and writes no audit entry.
+- **Order.** `payments` come oldest payment date first, then in the order they were added.
+- A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+
 ## The order
 
-`POST`, `GET` and `PUT` answer the same shape, and so do the item and discount routes:
+`POST`, `GET` and `PUT` answer the same shape, and so do the item, discount and payment routes:
 
 ```
 {
@@ -197,6 +253,8 @@ new `version`.
   orderDate, dueDate, status, statusChangedAt, notes,
   items: [ { id, productType: { id, name, tone, retired }, description, sizeVariant, quantity, unitPrice, lineTotal } ],
   discounts: [ { id, kind, value, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
+  payments: [ { id, paymentDate, amount, method: { id, name, tone, retired }, reference, notes,
+                receivedBy, receivedByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   statusHistory: [ { from, to, changedBy, changedAt } ],
   totals: { subtotal, discount, total, paid, refunded, balance, customerCredit, expenses, profit, fullyPaid },
   recordedBy, recordedAt, lastChangedBy, lastChangedAt, version
@@ -231,13 +289,20 @@ changed. A save that changes nothing, and every refusal, writes nothing.
 Each discount add, edit that changes something, and removal writes one entry for the order in the same save: `order-discount.added`,
 `order-discount.changed` and `order-discount.removed`, each with `discount=<discount id>;kind=<fixed|percentage>;value=<amount>`. A change
 shows `old>new` on `kind` and `value` where they changed and ends with `fields=reason` when the reason changed.
-No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, or a discount's reason. The full list of order audit codes is in
+Each payment add, edit that changes something, and removal writes one entry for the order in the same save: `order-payment.added`,
+`order-payment.changed` and `order-payment.removed`, each with `payment=<payment id>;date=<date>;amount=<amount>;method=<id>;receiver=<id>`.
+A change shows `old>new` on the date, amount and method where they changed and ends with `fields=reference,notes` naming the text
+fields that changed. A new receiver writes its own `order-payment.receiver-changed` entry, `payment=<payment id>;receiver=<old id>><new id>`,
+besides the change entry when anything else changed too.
+No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, or a payment's reference or notes. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
 
 ## What is stored (D-23, D-26)
 
 - `Orders`, `OrderItems`, `OrderStatusChanges` and `OrderNumberCounters` come from the migration `AddOrders`. `OrderDiscounts` comes from
   the migration `AddOrderDiscounts`: its `Kind` is 1 (fixed) or 2 (percentage), its `Value` is above zero, and it leaves with its order.
+  `OrderPayments` comes from the migration `AddOrderPayments`: its `Amount` is above zero, it has a `Position` like the discounts, the
+  method and every person key are NO ACTION (so removing a user or a method never rewrites a payment), and it leaves with its order.
 - The order carries `DeletedAtUtc` and `DeletedById` from the start (D-26), and a named `SoftDelete` query filter hides a deleted
   order, its items and its history from every default query.
 - The stored money figures must agree: the database checks that total equals subtotal minus discount, that balance equals total

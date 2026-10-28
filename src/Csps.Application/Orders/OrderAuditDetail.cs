@@ -1,5 +1,6 @@
 using System.Globalization;
 using Csps.Application.Common;
+using Csps.Domain.Expenses;
 using Csps.Domain.Orders;
 
 namespace Csps.Application.Orders;
@@ -141,6 +142,55 @@ public static class OrderAuditDetail
     /// <param name="payment">The payment that was added.</param>
     /// <returns>For example <c>payment=&lt;id&gt;;date=2026-10-25;amount=10000.00;method=&lt;id&gt;;receiver=&lt;id&gt;</c>.</returns>
     public static string PaymentAdded(OrderPayment payment) => PaymentSnapshot(payment);
+
+    /// <summary>The detail of <c>order-payment.removed</c>: the payment id, date, amount, method and receiver as they were, never the reference or notes.</summary>
+    /// <param name="payment">The payment that was removed.</param>
+    /// <returns>For example <c>payment=&lt;id&gt;;date=2026-10-25;amount=10000.00;method=&lt;id&gt;;receiver=&lt;id&gt;</c>.</returns>
+    public static string PaymentRemoved(OrderPayment payment) => PaymentSnapshot(payment);
+
+    /// <summary>
+    /// The detail of <c>order-payment.changed</c>: the payment id, then <c>date</c>, <c>amount</c> and <c>method</c> as
+    /// <c>old&gt;new</c> where they changed and as the current value where they did not, then the receiver as it now is, then
+    /// <c>fields=</c> naming the text fields that changed (<c>reference</c>, <c>notes</c>). Their text never goes in. A new
+    /// receiver also has its own <c>order-payment.receiver-changed</c> entry.
+    /// </summary>
+    /// <param name="payment">The payment after the change.</param>
+    /// <param name="changes">What the edit changed.</param>
+    /// <returns>For example <c>payment=&lt;id&gt;;date=2026-10-25;amount=10000.00&gt;9000.00;method=&lt;id&gt;;receiver=&lt;id&gt;;fields=notes</c>.</returns>
+    public static string PaymentChanged(OrderPayment payment, OrderPaymentChanges changes)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+        ArgumentNullException.ThrowIfNull(changes);
+
+        var parts = new List<string>
+        {
+            AuditDetailFormat.Pair("payment", payment.Id),
+            changes.Date is { } date ? AuditDetailFormat.Change("date", date.From, date.To) : AuditDetailFormat.Pair("date", payment.PaymentDate),
+            changes.Amount is { } amount ? AuditDetailFormat.Change("amount", amount.From, amount.To) : AuditDetailFormat.Pair("amount", payment.Amount),
+            changes.Method is { } method ? AuditDetailFormat.Change("method", method.From, method.To) : AuditDetailFormat.Pair("method", payment.PaymentMethodId),
+            AuditDetailFormat.Pair("receiver", payment.ReceivedByUserId),
+        };
+        if (changes.ChangedFields.Count > 0)
+        {
+            parts.Add(AuditDetailFormat.Pair("fields", string.Join(',', changes.ChangedFields)));
+        }
+
+        return AuditDetailFormat.Join([.. parts]);
+    }
+
+    /// <summary>The detail of <c>order-payment.receiver-changed</c>: the payment id and the receiver as <c>old&gt;new</c>.</summary>
+    /// <param name="payment">The payment after the change.</param>
+    /// <param name="receiver">The receiver change.</param>
+    /// <returns>For example <c>payment=&lt;id&gt;;receiver=&lt;old id&gt;&gt;&lt;new id&gt;</c>.</returns>
+    public static string PaymentReceiverChanged(OrderPayment payment, ValueChange<Guid> receiver)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+        ArgumentNullException.ThrowIfNull(receiver);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("payment", payment.Id),
+            AuditDetailFormat.Change("receiver", receiver.From, receiver.To));
+    }
 
     private static string PaymentSnapshot(OrderPayment payment)
     {
