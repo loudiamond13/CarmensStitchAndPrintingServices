@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T15:10:00-05:00
+updated: 2026-10-28T15:20:21-05:00
 ---
 
 # The orders API
@@ -9,8 +9,8 @@ This is the contract behind the Orders screens, and the one a future Android app
 The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page;
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
-[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, and recording, correcting and removing payments. Later plans add the
-list, expense, refund, status and delete routes to this page.
+[order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, recording, correcting and removing payments, and recording, correcting and removing
+order expenses. Later plans add the list, refund, status and delete routes to this page.
 
 ## In plain words
 
@@ -40,6 +40,9 @@ list, expense, refund, status and delete routes to this page.
 | `POST /orders/{id}/payments` | Staff | the payment form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-payments` |
 | `PUT /orders/{id}/payments/{paymentId}` | Staff | the payment form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale` |
 | `DELETE /orders/{id}/payments/{paymentId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale` |
+| `POST /orders/{id}/expenses` | Staff | the expense form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-expenses` |
+| `PUT /orders/{id}/expenses/{expenseId}` | Staff | the expense form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
+| `DELETE /orders/{id}/expenses/{expenseId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
 read every order. No answer is ever cached (`Cache-Control: no-store`).
@@ -60,6 +63,7 @@ read every order. No answer is ever cached (`Cache-Control: no-store`).
 | `items` | yes | 1 to 100 items | Add at least one item. / An order can have at most 100 items. |
 | `discounts` | no | none to 20 discounts, each as in the discount form below | An order can have at most 20 discounts. |
 | `payments` | no | none to 100 payments, each as in the payment form below; together they may not be more than the total after discounts | An order can have at most 100 payments. / The payments would be more than the order total. Lower a payment first. |
+| `expenses` | no | none to 100 order expenses, each as in the expense form below | An order can have at most 100 expenses. |
 
 Each item:
 
@@ -79,6 +83,12 @@ Each payment in `payments` has the same six fields and rules as the payment form
 order. The ORD-2026-0148 items with the 5% discount and the two payments (`10000.00` by GCash and `2000.00` in cash) give a
 total of `21327.50`, paid `12000.00` and a balance of `9327.50`.
 
+Each expense in `expenses` has the same five fields and rules as the expense form below (`expenseDate`, `orderExpenseCategoryId`,
+`description`, `amount`, `paidByUserId`), without the `version`. They are saved in the same transaction as the order. The whole
+ORD-2026-0148 aggregate in one call (five items, the 5% discount, the two payments and expenses of `3825.00` Fabric, `1640.00`
+Ink & paper and `600.00` Outsourcing) gives subtotal `22450.00`, discount `1122.50`, total `21327.50`, paid `12000.00`, balance
+`9327.50`, expenses `6065.00` and profit `15262.50`.
+
 Text is trimmed, and empty optional text is stored as `null`. Every rule is checked twice, by the validators and again by the
 order itself, so no caller can skip one. Any other member in the body, such as `createdById`, `createdAt`, `updatedById`,
 `number`, `totals`, `statusHistory`, `deletedAtUtc` or `version`, is ignored.
@@ -88,7 +98,8 @@ order itself, so no caller can skip one. Any other member in the body, such as `
 A bad form answers `400` with the code `orders.invalid-request`, the text "Check the highlighted fields." and an `errors` object
 that lists **every** broken field, not just the first. Item fields use a camelCase path with the item's place, for example
 `items[1].quantity` or `items[0].productTypeId`, and discount fields use `discounts[0].value` in the same way. Payment fields use
-`payments[1].receivedByUserId` or `payments[0].amount`. The product type, payment method and receiver checks (does it exist, is it
+`payments[1].receivedByUserId` or `payments[0].amount`, and expense fields use `expenses[0].paidByUserId` or
+`expenses[2].expenseDate`. The product type, payment method, receiver, expense category and payer checks (does it exist, is it
 retired, may this person be chosen) are made against the database and are merged into the same `400`.
 
 ### The Idempotency-Key
@@ -243,9 +254,49 @@ server and a new `version`. Each payment shows **who received the money** (`rece
 - **Order.** `payments` come oldest payment date first, then in the order they were added.
 - A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
 
+## Expenses (`/api/v1/orders/{id}/expenses`)
+
+Staff record what an order cost, correct it and remove it on a saved order, and the create body can carry expenses in an
+`expenses` array. An order can hold up to 100. Every answer is the whole order, with the expenses and the profit worked out again
+by the server and a new `version`. **An expense never changes the balance**: the balance is about what the customer owes, and
+profit is the total minus the expenses. Each expense shows **who paid** (`paidBy`) apart from **who recorded it** (`recordedBy`):
+an expense recorded by an Admin and paid by a Manager reads `paidBy` the Manager and `recordedBy` the Admin (SEC-08, ORD-23). There
+is no company payer: a person always paid.
+
+| Field | Required | Rule | Message |
+|---|---|---|---|
+| `expenseDate` | yes | a real `yyyy-MM-dd` date: any past day, and up to 30 days after today in the shop's time zone (D-30) | Enter the date. / Enter a real date. / Choose a date up to 30 days from today, Nov 27, 2026 at the latest. |
+| `orderExpenseCategoryId` | yes | an existing order expense category that is not retired (D-17) | Choose a category. / This category was retired. Choose another one. |
+| `description` | no | up to 200 characters | Keep the description to 200 characters or fewer. |
+| `amount` | yes | more than 0.00 and at most 1,000,000.00, at most 2 decimal places (D-30) | Enter an amount greater than ₱0.00. / Enter an amount of ₱1,000,000.00 or less. / Use at most 2 decimal places. |
+| `paidByUserId` | yes | an active Admin or Manager who has finished set-up (ORD-23) | Choose who paid. / This person can't be chosen because their account isn't active. Choose someone else. |
+| `version` | add and edit | the order's `version` as last read: base64 of eight bytes. Anything else is `400` on `version`, "Reload the form and try again." | |
+
+- **Who may be chosen as the payer (ORD-23, D-32, D-49).** On a new expense, on a changed payer and in the create body the person
+  must be an active Admin or Manager, not locked, not deleted, who has a password and has signed in once. The Legacy holder is
+  never chosen. An edit that keeps the saved payer is allowed even if they were deactivated since: the expense keeps showing them,
+  with `paidByActive: false`, and a deleted person keeps their name with `formerStaff: true`. In the same way a saved category
+  that was retired since may be kept on an edit, but a new or switched one may not be retired.
+- **Phase 10, money on hand.** An order expense counts against its payer's money on hand from the moment it is saved. Changing the
+  payer moves it from one person to the other, and that move is its own audit entry. The payer index carries the amount and the
+  date, so Phase 10 reads it without touching the order rows.
+- **A cancelled order's expenses still count (D-10).** The expenses stay on the order and in the payer's figures; profit follows
+  the cancelled-order rule (D-36).
+- **The version contract (ORD-08).** Any expense change moves the order's version. Two changes sent with the same version give
+  exactly one `200`; the other is `409 edit.stale`, and nothing of the loser is stored. Add and edit are never retried.
+- **Remove sends no version.** It acts on the latest state. If it loses a race it is read again and decided again once; only a
+  second lost race is `409 edit.stale`.
+- **Expenses are found only through their order (CWE-639).** An expense id that is not on the order in the route is
+  `404 orders.expense-not-found`, "This expense was not found on this order." The expense of another order is never changed.
+- **At most 100 expenses (`422 orders.too-many-expenses`).** "An order can have at most 100 expenses." In the create body, more
+  than 100 is a `400` on `expenses`.
+- **An edit that changes nothing** answers `200`, keeps the `version` and writes no audit entry.
+- **Order.** `expenses` come oldest expense date first, then in the order they were added.
+- A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+
 ## The order
 
-`POST`, `GET` and `PUT` answer the same shape, and so do the item, discount and payment routes:
+`POST`, `GET` and `PUT` answer the same shape, and so do the item, discount, payment and expense routes:
 
 ```
 {
@@ -255,6 +306,8 @@ server and a new `version`. Each payment shows **who received the money** (`rece
   discounts: [ { id, kind, value, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   payments: [ { id, paymentDate, amount, method: { id, name, tone, retired }, reference, notes,
                 receivedBy, receivedByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
+  expenses: [ { id, expenseDate, category: { id, name, tone, retired }, description, amount,
+                paidBy, paidByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   statusHistory: [ { from, to, changedBy, changedAt } ],
   totals: { subtotal, discount, total, paid, refunded, balance, customerCredit, expenses, profit, fullyPaid },
   recordedBy, recordedAt, lastChangedBy, lastChangedAt, version
@@ -294,7 +347,12 @@ Each payment add, edit that changes something, and removal writes one entry for 
 A change shows `old>new` on the date, amount and method where they changed and ends with `fields=reference,notes` naming the text
 fields that changed. A new receiver writes its own `order-payment.receiver-changed` entry, `payment=<payment id>;receiver=<old id>><new id>`,
 besides the change entry when anything else changed too.
-No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, or a payment's reference or notes. The full list of order audit codes is in
+Each order expense add, edit that changes something, and removal writes one entry for the order in the same save: `order-expense.added`,
+`order-expense.changed` and `order-expense.removed`, each with `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>`.
+A change shows `old>new` on the date, amount and category where they changed and ends with `fields=description` when the description
+changed. A new payer writes its own `order-expense.payer-changed` entry, `expense=<expense id>;payer=<old id>><new id>`, besides
+the change entry when anything else changed too.
+No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, a payment's reference or notes, or an expense's description. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
 
 ## What is stored (D-23, D-26)
@@ -303,6 +361,8 @@ No entry ever holds the customer name, team, contact number, email, address or n
   the migration `AddOrderDiscounts`: its `Kind` is 1 (fixed) or 2 (percentage), its `Value` is above zero, and it leaves with its order.
   `OrderPayments` comes from the migration `AddOrderPayments`: its `Amount` is above zero, it has a `Position` like the discounts, the
   method and every person key are NO ACTION (so removing a user or a method never rewrites a payment), and it leaves with its order.
+  `OrderExpenses` comes from the migration `AddOrderExpenses`: its `Amount` is above zero, it has a `Position` like the payments,
+  the category and every person key (including the payer) are NO ACTION, and it leaves with its order.
 - The order carries `DeletedAtUtc` and `DeletedById` from the start (D-26), and a named `SoftDelete` query filter hides a deleted
   order, its items and its history from every default query.
 - The stored money figures must agree: the database checks that total equals subtotal minus discount, that balance equals total

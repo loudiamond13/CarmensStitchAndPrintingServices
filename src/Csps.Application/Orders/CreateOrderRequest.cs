@@ -16,6 +16,7 @@ namespace Csps.Application.Orders;
 /// <param name="Items">The lines, one to 100.</param>
 /// <param name="Discounts">The discounts, none to 20; saved in the same transaction as the order.</param>
 /// <param name="Payments">The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts.</param>
+/// <param name="Expenses">The order expenses, none to 100, each with who paid it; saved in the same transaction as the order.</param>
 public sealed record CreateOrderRequest(
     string? CustomerName,
     string? TeamName,
@@ -28,7 +29,8 @@ public sealed record CreateOrderRequest(
     string? Notes,
     IReadOnlyList<OrderItemRequest>? Items,
     IReadOnlyList<OrderDiscountRequest>? Discounts = null,
-    IReadOnlyList<OrderPaymentRequest>? Payments = null) : IOrderDetailsFields
+    IReadOnlyList<OrderPaymentRequest>? Payments = null,
+    IReadOnlyList<OrderExpenseRequest>? Expenses = null) : IOrderDetailsFields
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static CreateOrderRequest Empty { get; } = new(null, null, null, null, null, null, null, null, null, null);
@@ -62,3 +64,16 @@ public sealed record OrderPaymentRequest(
     string? Reference,
     string? Notes,
     Guid? ReceivedByUserId) : IOrderPaymentFields;
+
+/// <summary>One order expense of the New Order form (ORD-03, ORD-05, ORD-23).</summary>
+/// <param name="ExpenseDate">The day of the expense, <c>yyyy-MM-dd</c>.</param>
+/// <param name="OrderExpenseCategoryId">The order expense category.</param>
+/// <param name="Description">A short description.</param>
+/// <param name="Amount">The amount in pesos.</param>
+/// <param name="PaidByUserId">The staff member who paid.</param>
+public sealed record OrderExpenseRequest(
+    string? ExpenseDate,
+    Guid? OrderExpenseCategoryId,
+    string? Description,
+    decimal? Amount,
+    Guid? PaidByUserId) : IOrderExpenseFields;

@@ -8,8 +8,10 @@ namespace Csps.Application.Orders;
 /// <see cref="OrderItemFieldsValidator"/> so the edit forms say the same words. It adds the status rule (D-22), the item count
 /// (1 to 100), the discounts (none to 20, each checked by <see cref="OrderDiscountFieldsValidator"/>) and the payments (none to 100,
 /// each checked by <see cref="OrderPaymentFieldsValidator"/>, with the business today in the validation context under
-/// <see cref="OrderPaymentFieldsValidator.TodayKey"/>). Whether the product types, payment methods and receivers exist and may be
-/// chosen needs the database and runs in the handler; whether the payments fit the total runs in the domain.
+/// <see cref="OrderPaymentFieldsValidator.TodayKey"/>) and the order expenses (none to 100, each checked by
+/// <see cref="OrderExpenseFieldsValidator"/>, with the same business today). Whether the product types, payment methods, receivers,
+/// expense categories and payers exist and may be chosen needs the database and runs in the handler; whether the payments fit the
+/// total runs in the domain.
 /// </summary>
 public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderRequest>
 {
@@ -42,6 +44,13 @@ public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderR
         RuleForEach(request => request.Payments)
             .NotNull().WithMessage(OrderRules.PaymentRequired)
             .SetValidator(new PaymentValidator());
+
+        RuleFor(request => request.Expenses)
+            .Must(static expenses => expenses is null || expenses.Count <= OrderRules.MaxExpenses).WithMessage(OrderRules.ExpensesTooMany);
+
+        RuleForEach(request => request.Expenses)
+            .NotNull().WithMessage(OrderRules.ExpenseRequired)
+            .SetValidator(new ExpenseValidator());
     }
 
     private static void CheckStatus(string? text, ValidationContext<CreateOrderRequest> context)
@@ -74,5 +83,10 @@ public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderR
     private sealed class PaymentValidator : AbstractValidator<OrderPaymentRequest>
     {
         public PaymentValidator() => Include(new OrderPaymentFieldsValidator());
+    }
+
+    private sealed class ExpenseValidator : AbstractValidator<OrderExpenseRequest>
+    {
+        public ExpenseValidator() => Include(new OrderExpenseFieldsValidator());
     }
 }

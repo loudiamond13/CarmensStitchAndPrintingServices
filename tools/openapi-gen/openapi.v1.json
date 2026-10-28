@@ -983,6 +983,16 @@
               "string"
             ]
           },
+          "expenses": {
+            "description": "The order expenses, none to 100, each with who paid it; saved in the same transaction as the order.",
+            "items": {
+              "$ref": "#/components/schemas/OrderExpenseRequest"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
           "items": {
             "description": "The lines, one to 100.",
             "items": {
@@ -1813,6 +1823,59 @@
           "recordedAt",
           "lastChangedBy",
           "lastChangedAt"
+        ],
+        "type": "object"
+      },
+      "OrderExpenseRequest": {
+        "description": "One order expense of the New Order form (ORD-03, ORD-05, ORD-23).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "A short description.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expenseDate": {
+            "description": "The day of the expense, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderExpenseCategoryId": {
+            "description": "The order expense category.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidByUserId": {
+            "description": "The staff member who paid.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "expenseDate",
+          "orderExpenseCategoryId",
+          "description",
+          "amount",
+          "paidByUserId"
         ],
         "type": "object"
       },
@@ -3125,6 +3188,67 @@
           "kind",
           "value",
           "reason",
+          "version"
+        ],
+        "type": "object"
+      },
+      "UpdateOrderExpenseRequest": {
+        "description": "The Edit Expense form on a saved order (ORD-05, ORD-23). It carries the order's version as the form was opened. Any other member\nin the body, such as a forged `updatedById`, is ignored: who changed the expense and when come from the token and the clock\n(SEC-08). Who paid is a separate choice, `paidByUserId`.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "A short description.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expenseDate": {
+            "description": "The day of the expense, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderExpenseCategoryId": {
+            "description": "The order expense category.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paidByUserId": {
+            "description": "The staff member who paid.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "expenseDate",
+          "orderExpenseCategoryId",
+          "description",
+          "amount",
+          "paidByUserId",
           "version"
         ],
         "type": "object"
@@ -6617,6 +6741,201 @@
           }
         },
         "summary": "Records an expense on a saved order with the order's version the form was opened with. The date is a real\n`yyyy-MM-dd` day: any past day, and up to 30 days after today in the shop's time zone. The amount is above 0.00 and at\nmost 1,000,000.00 with at most two decimal places. The category must exist and not be retired. `paidByUserId` names who\nspent the money and must be an active Admin or Manager; it is separate from who typed the expense in, which comes from the\ntoken. The description is optional, up to 200 characters. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. The server works out the expenses and the profit. A\nretry with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.",
+        "tags": [
+          "OrderExpenses"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/expenses/{expenseId}": {
+      "delete": {
+        "operationId": "RemoveOrderExpense",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "expenseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Removes one expense of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. An expense id that is not on this order answers 404 `orders.expense-not-found`. The\nexpenses and the profit are worked out again.",
+        "tags": [
+          "OrderExpenses"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOrderExpense",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The expense id.",
+            "in": "path",
+            "name": "expenseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderExpenseRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderExpenseRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves an edit of one expense of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding. The category and the payer are checked only when the edit changes them, so an expense may keep a category that\nwas retired or a payer who was deactivated after it was saved. An expense id that is not on this order answers 404\n`orders.expense-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the expense and\nwhen come from the token and the clock.",
         "tags": [
           "OrderExpenses"
         ]

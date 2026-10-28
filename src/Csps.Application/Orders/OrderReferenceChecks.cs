@@ -209,6 +209,76 @@ public static class OrderReferenceChecks
     }
 
     /// <summary>
+    /// Adds a failure for each order expense whose category does not exist or is retired (D-17) and for each whose payer cannot be
+    /// chosen (ORD-23, D-32), on the expense's own path such as <c>expenses[1].paidByUserId</c>. One lookup serves all distinct
+    /// category ids and one all distinct payers. An expense with no category or no payer is skipped: the static rules already
+    /// refused it.
+    /// </summary>
+    /// <param name="lists">The order lists.</param>
+    /// <param name="staff">The staff directory.</param>
+    /// <param name="expenses">The submitted expenses; null means none.</param>
+    /// <param name="validation">The validation result to add the failures to.</param>
+    /// <param name="cancellationToken">Cancels the lookups.</param>
+    /// <returns>A task that completes when the checks are done.</returns>
+    public static async Task AddExpenseFailuresAsync(
+        IOrderLists lists,
+        IStaffDirectory staff,
+        IReadOnlyList<OrderExpenseRequest>? expenses,
+        ValidationResult validation,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        ArgumentNullException.ThrowIfNull(staff);
+        ArgumentNullException.ThrowIfNull(validation);
+
+        var categoryIds = (expenses ?? [])
+            .Select(static expense => expense?.OrderExpenseCategoryId)
+            .Where(static id => id is { } value && value != Guid.Empty)
+            .Select(static id => id!.Value)
+            .Distinct()
+            .ToList();
+        Dictionary<Guid, OrderListEntryState> categories = [];
+        if (categoryIds.Count > 0)
+        {
+            categories = (await lists.GetStatesAsync(OrderListKind.OrderExpenseCategory, categoryIds, cancellationToken).ConfigureAwait(false)).ToDictionary(static state => state.Id);
+        }
+
+        var eligible = new Dictionary<Guid, bool>();
+        for (var index = 0; index < (expenses?.Count ?? 0); index++)
+        {
+            var expense = expenses![index];
+            if (expense?.OrderExpenseCategoryId is { } categoryId && categoryId != Guid.Empty)
+            {
+                var path = $"{nameof(CreateOrderRequest.Expenses)}[{index}].{nameof(OrderExpenseRequest.OrderExpenseCategoryId)}";
+                if (!categories.TryGetValue(categoryId, out var category))
+                {
+                    validation.Errors.Add(new ValidationFailure(path, OrderRules.ExpenseCategoryRequired));
+                }
+                else if (category.Retired)
+                {
+                    validation.Errors.Add(new ValidationFailure(path, OrderRules.ExpenseCategoryRetired));
+                }
+            }
+
+            if (expense?.PaidByUserId is { } payerId && payerId != Guid.Empty)
+            {
+                if (!eligible.TryGetValue(payerId, out var canPay))
+                {
+                    var state = await staff.GetStaffStateAsync(payerId, cancellationToken).ConfigureAwait(false);
+                    canPay = state is { CanPay: true };
+                    eligible[payerId] = canPay;
+                }
+
+                if (!canPay)
+                {
+                    var path = $"{nameof(CreateOrderRequest.Expenses)}[{index}].{nameof(OrderExpenseRequest.PaidByUserId)}";
+                    validation.Errors.Add(new ValidationFailure(path, OrderRules.PaidByInactive));
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Adds a failure on <c>orderExpenseCategoryId</c> when the order expense category does not exist or is retired (D-17). A missing
     /// id is skipped: the static rules already refused it.
     /// </summary>

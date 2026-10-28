@@ -9,9 +9,10 @@ using FluentValidation;
 namespace Csps.Application.Orders;
 
 /// <summary>
-/// Use case: a staff member creates an order with its items, discounts and payments in one call (ORD-03, D-24). The form is checked against the field rules and,
+/// Use case: a staff member creates an order with its items, discounts, payments and expenses in one call (ORD-03, D-24). The form is checked against the field rules and,
 /// in the same 400, against the database: every product type must exist and not be retired (D-18), every payment method must exist
-/// and not be retired (D-16), and every receiver must be someone who can be chosen (ORD-22). The order is then built and
+/// and not be retired (D-16), every receiver and every payer must be someone who can be chosen (ORD-22, ORD-23), and every expense
+/// category must exist and not be retired (D-17). The order is then built and
 /// checked again by the domain before any lock is taken, so a refused order allocates no number. The number, the order, its first
 /// history row, the counter and one audit entry save in one transaction. The audit entry holds the number, status, dates, item
 /// count and total, never customer details or notes (D-31). Who recorded the order and when come from the token and the clock,
@@ -50,6 +51,7 @@ public sealed class CreateOrderHandler(
         var validation = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
         await OrderReferenceChecks.AddProductTypeFailuresAsync(lists, request.Items, validation, cancellationToken).ConfigureAwait(false);
         await OrderReferenceChecks.AddPaymentFailuresAsync(lists, staff, request.Payments, validation, cancellationToken).ConfigureAwait(false);
+        await OrderReferenceChecks.AddExpenseFailuresAsync(lists, staff, request.Expenses, validation, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));
@@ -84,7 +86,7 @@ public sealed class CreateOrderHandler(
         return view is null ? Result.Failure<OrderDetailResponse>(OrderErrors.NotFound) : Result.Success(view);
     }
 
-    // The validator has passed, so the dates parse, the status is active or absent, and every item, discount and payment is present and complete.
+    // The validator has passed, so the dates parse, the status is active or absent, and every item, discount, payment and expense is present and complete.
     private static NewOrder ToNewOrder(CreateOrderRequest request)
     {
         _ = OrderDetailsFieldsValidator.TryParseDate(request.OrderDate, out var orderDate);
@@ -116,6 +118,13 @@ public sealed class CreateOrderHandler(
                 return new NewOrderPayment(paymentDate, payment.Amount!.Value, payment.PaymentMethodId!.Value, payment.Reference, payment.Notes, payment.ReceivedByUserId!.Value);
             })
             .ToList();
-        return new NewOrder(details, status, items) { Discounts = discounts, Payments = payments };
+        var expenses = (request.Expenses ?? [])
+            .Select(static expense =>
+            {
+                _ = OrderDetailsFieldsValidator.TryParseDate(expense!.ExpenseDate, out var expenseDate);
+                return new NewOrderExpense(expenseDate, expense.Amount!.Value, expense.OrderExpenseCategoryId!.Value, expense.Description, expense.PaidByUserId!.Value);
+            })
+            .ToList();
+        return new NewOrder(details, status, items) { Discounts = discounts, Payments = payments, Expenses = expenses };
     }
 }

@@ -161,21 +161,22 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// Makes a new order, checking every field rule again so no caller can skip one. The order has no number yet, so a refused
     /// order never takes one: call <see cref="AssignNumber"/> after this succeeds.
     /// </summary>
-    /// <param name="input">The details, status, items, discounts and payments.</param>
+    /// <param name="input">The details, status, items, discounts, payments and expenses.</param>
     /// <param name="callerId">The staff member who creates it; the first history row names them.</param>
     /// <param name="now">The current instant, which makes the keys and the history time.</param>
-    /// <param name="today">The business today, which no payment may be dated after; required when the order has payments.</param>
+    /// <param name="today">The business today, which no payment may be dated after and which limits the expense dates; required when the order has payments or expenses.</param>
     /// <returns>The new, unsaved order, or a validation error naming the first broken field.</returns>
-    /// <exception cref="ArgumentException">The order has payments but no business today was given.</exception>
+    /// <exception cref="ArgumentException">The order has payments or expenses but no business today was given.</exception>
     public static Result<Order> Create(NewOrder input, Guid callerId, DateTimeOffset now, DateOnly? today = null)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(input.Items);
         ArgumentNullException.ThrowIfNull(input.Discounts);
         ArgumentNullException.ThrowIfNull(input.Payments);
-        if (input.Payments.Count > 0 && today is null)
+        ArgumentNullException.ThrowIfNull(input.Expenses);
+        if ((input.Payments.Count > 0 || input.Expenses.Count > 0) && today is null)
         {
-            throw new ArgumentException("The business today is needed to check the payment dates.", nameof(today));
+            throw new ArgumentException("The business today is needed to check the payment and expense dates.", nameof(today));
         }
 
         var details = OrderRules.CheckDetails(input.Details);
@@ -246,6 +247,23 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             checkedPayments.Add(payment.Value);
         }
 
+        if (input.Expenses.Count > OrderRules.MaxExpenses)
+        {
+            return OrderRules.Reject<Order>(OrderRules.ExpensesField, OrderRules.ExpensesTooMany);
+        }
+
+        var checkedExpenses = new List<NewOrderExpense>(input.Expenses.Count);
+        for (var index = 0; index < input.Expenses.Count; index++)
+        {
+            var expense = OrderRules.CheckExpense(index, input.Expenses[index], today!.Value);
+            if (expense.IsFailure)
+            {
+                return Result.Failure<Order>(expense.Error);
+            }
+
+            checkedExpenses.Add(expense.Value);
+        }
+
         var cleaned = details.Value;
         var order = new Order(
             Guid.CreateVersion7(now),
@@ -277,6 +295,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         for (var position = 0; position < checkedPayments.Count; position++)
         {
             order._payments.Add(BuildPayment(order, checkedPayments[position], position, now));
+        }
+
+        for (var position = 0; position < checkedExpenses.Count; position++)
+        {
+            order._expenses.Add(BuildExpense(order, checkedExpenses[position], position, now));
         }
 
         order._statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), order.Id, null, status.Value, callerId, now) { Order = order });
@@ -675,6 +698,69 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         Recalculate();
         Touch(now);
         return Result.Success(added);
+    }
+
+    /// <summary>
+    /// Applies an order expense edit, checking every expense rule again as <see cref="AddExpense"/> does. Nothing is assigned when a
+    /// rule fails, and an edit that changes nothing leaves the order and its edit version untouched. A changed edit works the
+    /// expenses and the profit out again and moves the edit version. Whether a new category or a new payer may be chosen is not
+    /// decided here: it needs the database.
+    /// </summary>
+    /// <param name="expenseId">The expense to edit; it must be on this order.</param>
+    /// <param name="values">The new values as given.</param>
+    /// <param name="today">The business today; an expense may be dated up to 30 days after it.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>What changed (nothing at all for an identical edit), a 404 when the expense is not on this order, or a validation error naming the first broken field.</returns>
+    public Result<OrderExpenseChanges> UpdateExpense(Guid expenseId, NewOrderExpense values, DateOnly today, DateTimeOffset now)
+    {
+        var expense = _expenses.Find(existing => existing.Id == expenseId);
+        if (expense is null)
+        {
+            return Result.Failure<OrderExpenseChanges>(OrderRules.ExpenseNotFound);
+        }
+
+        var checkedExpense = OrderRules.CheckExpense(null, values, today);
+        if (checkedExpense.IsFailure)
+        {
+            return Result.Failure<OrderExpenseChanges>(checkedExpense.Error);
+        }
+
+        var cleaned = checkedExpense.Value;
+        var fields = new List<string>();
+        AddIfChanged(fields, OrderRules.ExpenseDescriptionField, expense.Description, cleaned.Description);
+        var changes = new OrderExpenseChanges(
+            expense.ExpenseDate == cleaned.ExpenseDate ? null : new ValueChange<DateOnly>(expense.ExpenseDate, cleaned.ExpenseDate),
+            expense.Amount == cleaned.Amount ? null : new ValueChange<decimal>(expense.Amount, cleaned.Amount),
+            expense.OrderExpenseCategoryId == cleaned.OrderExpenseCategoryId ? null : new ValueChange<Guid>(expense.OrderExpenseCategoryId, cleaned.OrderExpenseCategoryId),
+            expense.PaidByUserId == cleaned.PaidByUserId ? null : new ValueChange<Guid>(expense.PaidByUserId, cleaned.PaidByUserId),
+            fields);
+        if (!changes.HasAny)
+        {
+            return Result.Success(changes);
+        }
+
+        expense.Apply(cleaned);
+        Recalculate();
+        Touch(now);
+        return Result.Success(changes);
+    }
+
+    /// <summary>Takes one expense off the order. The expenses and the profit are worked out again and the edit version moves.</summary>
+    /// <param name="expenseId">The expense to remove; it must be on this order.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The removed expense, or a 404 when it is not on this order.</returns>
+    public Result<OrderExpense> RemoveExpense(Guid expenseId, DateTimeOffset now)
+    {
+        var expense = _expenses.Find(existing => existing.Id == expenseId);
+        if (expense is null)
+        {
+            return Result.Failure<OrderExpense>(OrderRules.ExpenseNotFound);
+        }
+
+        _expenses.Remove(expense);
+        Recalculate();
+        Touch(now);
+        return Result.Success(expense);
     }
 
     /// <summary>Takes one discount off the order. The totals are worked out again and the edit version moves.</summary>

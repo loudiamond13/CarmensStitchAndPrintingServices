@@ -197,6 +197,55 @@ public static class OrderAuditDetail
     /// <returns>For example <c>expense=&lt;id&gt;;date=2026-10-23;amount=3825.00;category=&lt;id&gt;;payer=&lt;id&gt;</c>.</returns>
     public static string ExpenseAdded(OrderExpense expense) => ExpenseSnapshot(expense);
 
+    /// <summary>The detail of <c>order-expense.removed</c>: the expense id, date, amount, category and payer as they were, never the description.</summary>
+    /// <param name="expense">The expense that was removed.</param>
+    /// <returns>For example <c>expense=&lt;id&gt;;date=2026-10-23;amount=3825.00;category=&lt;id&gt;;payer=&lt;id&gt;</c>.</returns>
+    public static string ExpenseRemoved(OrderExpense expense) => ExpenseSnapshot(expense);
+
+    /// <summary>
+    /// The detail of <c>order-expense.changed</c>: the expense id, then <c>date</c>, <c>amount</c> and <c>category</c> as
+    /// <c>old&gt;new</c> where they changed and as the current value where they did not, then the payer as it now is, then
+    /// <c>fields=description</c> when the description changed. Its text never goes in. A new payer also has its own
+    /// <c>order-expense.payer-changed</c> entry.
+    /// </summary>
+    /// <param name="expense">The expense after the change.</param>
+    /// <param name="changes">What the edit changed.</param>
+    /// <returns>For example <c>expense=&lt;id&gt;;date=2026-10-23;amount=3825.00&gt;3000.00;category=&lt;id&gt;;payer=&lt;id&gt;;fields=description</c>.</returns>
+    public static string ExpenseChanged(OrderExpense expense, OrderExpenseChanges changes)
+    {
+        ArgumentNullException.ThrowIfNull(expense);
+        ArgumentNullException.ThrowIfNull(changes);
+
+        var parts = new List<string>
+        {
+            AuditDetailFormat.Pair("expense", expense.Id),
+            changes.Date is { } date ? AuditDetailFormat.Change("date", date.From, date.To) : AuditDetailFormat.Pair("date", expense.ExpenseDate),
+            changes.Amount is { } amount ? AuditDetailFormat.Change("amount", amount.From, amount.To) : AuditDetailFormat.Pair("amount", expense.Amount),
+            changes.Category is { } category ? AuditDetailFormat.Change("category", category.From, category.To) : AuditDetailFormat.Pair("category", expense.OrderExpenseCategoryId),
+            AuditDetailFormat.Pair("payer", expense.PaidByUserId),
+        };
+        if (changes.ChangedFields.Count > 0)
+        {
+            parts.Add(AuditDetailFormat.Pair("fields", string.Join(',', changes.ChangedFields)));
+        }
+
+        return AuditDetailFormat.Join([.. parts]);
+    }
+
+    /// <summary>The detail of <c>order-expense.payer-changed</c>: the expense id and the payer as <c>old&gt;new</c>.</summary>
+    /// <param name="expense">The expense after the change.</param>
+    /// <param name="payer">The payer change.</param>
+    /// <returns>For example <c>expense=&lt;id&gt;;payer=&lt;old id&gt;&gt;&lt;new id&gt;</c>.</returns>
+    public static string ExpensePayerChanged(OrderExpense expense, ValueChange<Guid> payer)
+    {
+        ArgumentNullException.ThrowIfNull(expense);
+        ArgumentNullException.ThrowIfNull(payer);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("expense", expense.Id),
+            AuditDetailFormat.Change("payer", payer.From, payer.To));
+    }
+
     private static string ExpenseSnapshot(OrderExpense expense)
     {
         ArgumentNullException.ThrowIfNull(expense);
