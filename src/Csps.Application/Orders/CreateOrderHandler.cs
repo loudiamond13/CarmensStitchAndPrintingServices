@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
 using FluentValidation;
@@ -11,8 +12,9 @@ namespace Csps.Application.Orders;
 /// Use case: a staff member creates an order with its items in one call (ORD-03). The form is checked against the field rules and,
 /// in the same 400, against the database: every product type must exist and not be retired (D-18). The order is then built and
 /// checked again by the domain before any lock is taken, so a refused order allocates no number. The number, the order, its first
-/// history row and the counter save in one transaction. Who recorded the order and when come from the token and the clock, never
-/// from the request (SEC-08).
+/// history row, the counter and one audit entry save in one transaction. The audit entry holds the number, status, dates, item
+/// count and total, never customer details or notes (D-31). Who recorded the order and when come from the token and the clock,
+/// never from the request (SEC-08).
 /// </summary>
 public sealed class CreateOrderHandler(
     IOrders orders,
@@ -20,10 +22,13 @@ public sealed class CreateOrderHandler(
     IOrderNumbers numbers,
     IOrderLists lists,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<CreateOrderRequest> validator)
 {
+    private const string OrderTarget = "Order";
+
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -59,6 +64,7 @@ public sealed class CreateOrderHandler(
                 {
                     order.AssignNumber(await numbers.NextAsync(clock.Year, clock.UtcNow, token).ConfigureAwait(false));
                     orders.Add(order);
+                    audit.Record(AuditActions.OrderCreated, OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Created(order));
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                     return order.Id;
                 },
