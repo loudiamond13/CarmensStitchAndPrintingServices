@@ -626,6 +626,46 @@ internal static class OrderFixtures
             .ExecuteUpdateAsync(set => set.SetProperty(category => category.RetiredAtUtc, at), TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Builds the body of a status change.</summary>
+    /// <param name="status">The status key, such as <c>mockup</c>.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> StatusBody(string? status) => new() { ["status"] = status };
+
+    /// <summary>Posts a status change with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> ChangeStatusAsync(HttpClient client, string? accessToken, Guid orderId, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{orderId:D}/status", accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Changes the status, expects a 200 and returns the whole order.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="status">The status key to move to.</param>
+    /// <returns>The JSON body of the order after the change.</returns>
+    public static async Task<JsonElement> ChangeStatusAndReadAsync(HttpClient client, string accessToken, Guid orderId, string status)
+    {
+        using var response = await ChangeStatusAsync(client, accessToken, orderId, StatusBody(status));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
     /// <summary>Builds the details form an unchanged copy of an order would send, so a test can override one member.</summary>
     /// <param name="detail">The order as the API returned it.</param>
     /// <returns>The body members, with the version the detail carried.</returns>
