@@ -155,8 +155,15 @@ public sealed class CspsDatabase : IAsyncLifetime
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
-            var present = await context.ProductTypes.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
-            context.ProductTypes.AddRange(OrderListSeed.ProductTypes.Where(row => !present.Contains(row.Id)).Select(ProductType.FromSeed));
+            var productTypes = await context.ProductTypes.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
+            context.ProductTypes.AddRange(OrderListSeed.ProductTypes.Where(row => !productTypes.Contains(row.Id)).Select(ProductType.FromSeed));
+
+            var paymentMethods = await context.PaymentMethods.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
+            context.PaymentMethods.AddRange(OrderListSeed.PaymentMethods.Where(row => !paymentMethods.Contains(row.Id)).Select(PaymentMethod.FromSeed));
+
+            var categories = await context.OrderExpenseCategories.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
+            context.OrderExpenseCategories.AddRange(OrderListSeed.OrderExpenseCategories.Where(row => !categories.Contains(row.Id)).Select(OrderExpenseCategory.FromSeed));
+
             await context.SaveChangesAsync().ConfigureAwait(false);
         }
     }

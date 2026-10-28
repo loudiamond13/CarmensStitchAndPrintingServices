@@ -12,12 +12,20 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     /// <summary>The product types.</summary>
     public static OrderListDescriptor ProductTypes { get; } = new(OrderListKind.ProductType, "product-types", "ProductType", "product type");
 
+    /// <summary>The payment methods.</summary>
+    public static OrderListDescriptor PaymentMethods { get; } = new(OrderListKind.PaymentMethod, "payment-methods", "PaymentMethod", "payment method");
+
+    /// <summary>The order expense categories.</summary>
+    public static OrderListDescriptor OrderExpenseCategories { get; } = new(OrderListKind.OrderExpenseCategory, "order-expense-categories", "OrderExpenseCategory", "category");
+
     /// <summary>Gets the descriptor of a list.</summary>
     /// <param name="kind">Which list.</param>
     /// <returns>The descriptor.</returns>
     public static OrderListDescriptor For(OrderListKind kind) => kind switch
     {
         OrderListKind.ProductType => ProductTypes,
+        OrderListKind.PaymentMethod => PaymentMethods,
+        OrderListKind.OrderExpenseCategory => OrderExpenseCategories,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown order list."),
     };
 }

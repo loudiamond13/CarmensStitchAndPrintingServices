@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Csps.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CspsDbContext))]
-    [Migration("20261028140301_AddOrderLists")]
+    [Migration("20261028141016_AddOrderLists")]
     partial class AddOrderLists
     {
         /// <inheritdoc />
@@ -628,6 +628,218 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_UserSessions_UserId_RevokedAt");
 
                     b.ToTable("UserSessions", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.OrderLists.OrderExpenseCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset?>("RetiredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_OrderExpenseCategories_NormalizedName");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("OrderExpenseCategories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderExpenseCategories_Tone", "[Tone] IN (N'neutral', N'accent', N'info', N'mockup', N'warning', N'success')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("01a17fce-780b-75d1-89e0-5b3b9b185a2c"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Fabric",
+                            NormalizedName = "FABRIC",
+                            Tone = "info"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-780c-73e0-b847-33f866e42d3d"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Ink & paper",
+                            NormalizedName = "INK & PAPER",
+                            Tone = "accent"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-780d-75c8-b20b-2b2cc64dddfa"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Outsourcing",
+                            NormalizedName = "OUTSOURCING",
+                            Tone = "mockup"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-780e-700c-90b2-d45ecdc6df9d"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Labor",
+                            NormalizedName = "LABOR",
+                            Tone = "warning"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-780f-79e1-b611-1952e5eb8893"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Delivery",
+                            NormalizedName = "DELIVERY",
+                            Tone = "success"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7810-7507-bf1d-5a04ac95175a"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Others",
+                            NormalizedName = "OTHERS",
+                            Tone = "neutral"
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.OrderLists.PaymentMethod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset?>("RetiredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PaymentMethods_NormalizedName");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("PaymentMethods", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PaymentMethods_Tone", "[Tone] IN (N'neutral', N'accent', N'info', N'mockup', N'warning', N'success')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("01a17fce-7806-77e1-91b7-d3b852f2fd1d"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Cash",
+                            NormalizedName = "CASH",
+                            Tone = "neutral"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7807-751a-bb7b-3719f2840928"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "GCash",
+                            NormalizedName = "GCASH",
+                            Tone = "info"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7808-7b8c-b615-89ae2b4062c3"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Maya",
+                            NormalizedName = "MAYA",
+                            Tone = "success"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-7809-72b7-8803-599045f879c9"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Bank Transfer",
+                            NormalizedName = "BANK TRANSFER",
+                            Tone = "mockup"
+                        },
+                        new
+                        {
+                            Id = new Guid("01a17fce-780a-7fca-bf36-c6229c6ddd4a"),
+                            CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Cheque",
+                            NormalizedName = "CHEQUE",
+                            Tone = "warning"
+                        });
                 });
 
             modelBuilder.Entity("Csps.Domain.OrderLists.ProductType", b =>
@@ -1543,6 +1755,32 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Csps.Domain.OrderLists.OrderExpenseCategory", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("Csps.Domain.OrderLists.PaymentMethod", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Csps.Domain.OrderLists.ProductType", b =>

@@ -55,6 +55,12 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The product types orders point at, six of them seeded by the migration (D-18, D-19).</summary>
     public DbSet<ProductType> ProductTypes => Set<ProductType>();
 
+    /// <summary>The payment methods payments point at, five of them seeded by the migration (D-16, D-19).</summary>
+    public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
+
+    /// <summary>The order expense categories order expenses point at, six of them seeded by the migration (D-17, D-19).</summary>
+    public DbSet<OrderExpenseCategory> OrderExpenseCategories => Set<OrderExpenseCategory>();
+
     /// <summary>The company expenses; soft-deleted rows are hidden by the named <c>SoftDelete</c> query filter (CEXP-02, D-01).</summary>
     public DbSet<CompanyExpense> CompanyExpenses => Set<CompanyExpense>();
 

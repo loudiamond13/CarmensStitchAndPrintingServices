@@ -4458,6 +4458,74 @@
         ]
       }
     },
+    "/api/v1/order-expense-categories": {
+      "get": {
+        "operationId": "ListOrderExpenseCategories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrderListItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists every order expense category, retired ones included with status `retired`, A to Z ignoring letter case with Others\nalways last, then by id. Pickers hide retired ones; filters keep them. Each item has `id`, `name`, `tone`,\n`status` (`active` or `retired`) and `isOthers`, which is true only for Others.",
+        "tags": [
+          "OrderExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/payment-methods": {
+      "get": {
+        "operationId": "ListPaymentMethods",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrderListItem"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists every payment method, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers\nhide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or\n`retired`) and `isOthers`, which is always false for payment methods.",
+        "tags": [
+          "PaymentMethods"
+        ]
+      }
+    },
     "/api/v1/product-types": {
       "get": {
         "operationId": "ListProductTypes",
@@ -6374,7 +6442,13 @@
       "name": "Invite"
     },
     {
+      "name": "OrderExpenseCategories"
+    },
+    {
       "name": "Password"
+    },
+    {
+      "name": "PaymentMethods"
     },
     {
       "name": "ProductTypes"

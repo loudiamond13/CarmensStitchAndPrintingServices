@@ -149,6 +149,8 @@ public static class AuthorizationMatrix
 
         // The order lists (D-16, D-17, D-18, D-19): Staff only, both roles read them.
         new("GET", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/payment-methods", "/api/v1/payment-methods", Anonymous: 401, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/order-expense-categories", "/api/v1/order-expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
 
         // The expense category list (D-08, D-15): Staff only, both roles read it.
         new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
