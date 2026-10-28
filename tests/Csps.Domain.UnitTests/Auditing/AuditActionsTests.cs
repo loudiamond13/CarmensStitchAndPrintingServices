@@ -122,7 +122,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void ThePhaseSixCodesComeAfterThePhaseFiveCodes()
     {
-        AuditActions.All.Skip(37).ShouldBe(
+        AuditActions.All.Skip(37).Take(12).ShouldBe(
         [
             "company-expense.added",
             "company-expense.changed",

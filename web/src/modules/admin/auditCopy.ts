@@ -8,13 +8,15 @@ import type { components } from '@/types/api.generated';
 import { formatPeso } from '@/utils/csps';
 import { formatCalendarDate } from '@/utils/format';
 
-/** The groups of the Action select, in the order the UI-SPEC lists them (A1; the two expense groups are Phase 6). */
+/** The groups of the Action select, in the order the UI-SPEC lists them (A1; the two expense groups are Phase 6, the two order groups Phase 7). */
 export const AUDIT_GROUPS = [
   'Sign-in and security',
   'Staff accounts',
   'Profile changes',
   'Company expenses',
   'Expense categories',
+  'Orders',
+  'Order lists',
 ] as const;
 export type AuditGroup = (typeof AUDIT_GROUPS)[number];
 
@@ -30,6 +32,8 @@ const STAFF = AUDIT_GROUPS[1];
 const PROFILE = AUDIT_GROUPS[2];
 const EXPENSES = AUDIT_GROUPS[3];
 const CATEGORIES = AUDIT_GROUPS[4];
+const ORDERS = AUDIT_GROUPS[5];
+const ORDER_LISTS = AUDIT_GROUPS[6];
 
 /** Every action code with its plain-English label and group, in the order the select lists them. */
 export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
@@ -82,6 +86,49 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'expense-category.retired', label: 'Category retired', group: CATEGORIES },
   { code: 'expense-category.reactivated', label: 'Category back in use', group: CATEGORIES },
   { code: 'expense-category.deleted', label: 'Category deleted', group: CATEGORIES },
+  { code: 'order.created', label: 'Order created', group: ORDERS },
+  { code: 'order.changed', label: 'Order changed', group: ORDERS },
+  { code: 'order.status-changed', label: 'Order status changed', group: ORDERS },
+  { code: 'order.reopened', label: 'Order reopened', group: ORDERS },
+  { code: 'order.deleted', label: 'Order deleted', group: ORDERS },
+  { code: 'order.restored', label: 'Order restored', group: ORDERS },
+  { code: 'order.permanently-deleted', label: 'Order permanently deleted', group: ORDERS },
+  { code: 'order-item.added', label: 'Item added', group: ORDERS },
+  { code: 'order-item.changed', label: 'Item changed', group: ORDERS },
+  { code: 'order-item.removed', label: 'Item removed', group: ORDERS },
+  { code: 'order-payment.added', label: 'Payment added', group: ORDERS },
+  { code: 'order-payment.changed', label: 'Payment changed', group: ORDERS },
+  { code: 'order-payment.receiver-changed', label: 'Payment receiver changed', group: ORDERS },
+  { code: 'order-payment.removed', label: 'Payment removed', group: ORDERS },
+  { code: 'order-refund.added', label: 'Refund added', group: ORDERS },
+  { code: 'order-refund.changed', label: 'Refund changed', group: ORDERS },
+  { code: 'order-refund.refunder-changed', label: 'Refunder changed', group: ORDERS },
+  { code: 'order-refund.removed', label: 'Refund removed', group: ORDERS },
+  { code: 'order-discount.added', label: 'Discount added', group: ORDERS },
+  { code: 'order-discount.changed', label: 'Discount changed', group: ORDERS },
+  { code: 'order-discount.removed', label: 'Discount removed', group: ORDERS },
+  { code: 'order-expense.added', label: 'Order expense added', group: ORDERS },
+  { code: 'order-expense.changed', label: 'Order expense changed', group: ORDERS },
+  { code: 'order-expense.payer-changed', label: 'Order expense payer changed', group: ORDERS },
+  { code: 'order-expense.removed', label: 'Order expense removed', group: ORDERS },
+  { code: 'product-type.added', label: 'Product type added', group: ORDER_LISTS },
+  { code: 'product-type.renamed', label: 'Product type renamed', group: ORDER_LISTS },
+  { code: 'product-type.recolored', label: 'Product type color changed', group: ORDER_LISTS },
+  { code: 'product-type.retired', label: 'Product type retired', group: ORDER_LISTS },
+  { code: 'product-type.reactivated', label: 'Product type back in use', group: ORDER_LISTS },
+  { code: 'product-type.deleted', label: 'Product type deleted', group: ORDER_LISTS },
+  { code: 'payment-method.added', label: 'Payment method added', group: ORDER_LISTS },
+  { code: 'payment-method.renamed', label: 'Payment method renamed', group: ORDER_LISTS },
+  { code: 'payment-method.recolored', label: 'Payment method color changed', group: ORDER_LISTS },
+  { code: 'payment-method.retired', label: 'Payment method retired', group: ORDER_LISTS },
+  { code: 'payment-method.reactivated', label: 'Payment method back in use', group: ORDER_LISTS },
+  { code: 'payment-method.deleted', label: 'Payment method deleted', group: ORDER_LISTS },
+  { code: 'order-expense-category.added', label: 'Order expense category added', group: ORDER_LISTS },
+  { code: 'order-expense-category.renamed', label: 'Order expense category renamed', group: ORDER_LISTS },
+  { code: 'order-expense-category.recolored', label: 'Order expense category color changed', group: ORDER_LISTS },
+  { code: 'order-expense-category.retired', label: 'Order expense category retired', group: ORDER_LISTS },
+  { code: 'order-expense-category.reactivated', label: 'Order expense category back in use', group: ORDER_LISTS },
+  { code: 'order-expense-category.deleted', label: 'Order expense category deleted', group: ORDER_LISTS },
 ];
 
 /** The codes the Action filter accepts in the URL. */

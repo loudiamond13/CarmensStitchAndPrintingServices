@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-25T15:11:00-05:00
+updated: 2026-10-28T09:30:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -148,6 +148,54 @@ under the 400 character limit, which a unit test checks. Each write is `Record`,
 | `expense-category.retired` | A category is retired, so the Add picker no longer offers it | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the change |
 | `expense-category.reactivated` | A retired category is made available again | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the change |
 | `expense-category.deleted` | An unused category is deleted | `ExpenseCategory` id | `name=<encoded name>` | `Record`, with the delete |
+
+## Phase 7 orders and order lists (AUDIT-01, D-29, D-31)
+
+Same rules as the tables above: the target is the thing acted on, by id, and the code is a constant in
+`Csps.Domain.Auditing.AuditActions`. The 43 codes below are in the catalog before any slice writes them (the catalog grows from 49
+to 92), and later plans must write exactly these details. The detail format is the Phase 6 one, written and read by
+`Csps.Application.Common.AuditDetailFormat`: `key=value` and `key=old>new` pairs joined by `;`. Amounts are `0.00`, dates are
+`yyyy-MM-dd`, ids are dashed lower-case GUIDs, and a user is always an id, never a name. **Customer details and notes never appear
+in a detail** (05 D-40): a change to them is written as the field names in a `fields=` pair only. Every order and child event has
+target type `Order` with the order id, so one search on an order shows its whole story. Each write is `Record`, in the same
+transaction as the change.
+
+| Code | Written when | Target | Detail |
+|------|--------------|--------|--------|
+| `order.created` | An order is created | `Order` id | `number=<order number>;status=<status>;orderDate=<date>;dueDate=<date>;items=<count>;total=<amount>` |
+| `order.changed` | The order date, the due date or customer details or notes change | `Order` id | `orderDate=<old>><new>` and `dueDate=<old>><new>` for the dates that changed; then `fields=` naming the changed customer details and notes, never their text |
+| `order.status-changed` | The order moves to another status | `Order` id | `status=<from>><to>` |
+| `order.reopened` | A completed or canceled order is reopened | `Order` id | `status=<from>><to>` |
+| `order.deleted` | An order is deleted into the bin | `Order` id | `number=<n>;status=<status>;total=<amount>;paid=<amount>;balance=<amount>` |
+| `order.restored` | A deleted order is restored | `Order` id | The same snapshot as `order.deleted` |
+| `order.permanently-deleted` | A deleted order is removed for good (D-29) | `Order` id | `number=<n>;status=<status>;subtotal=<amount>;discount=<amount>;total=<amount>;paid=<amount>;refunded=<amount>;balance=<amount>;expenses=<amount>;receivers=<ids>;payers=<ids>;refunders=<ids>`, the three lists comma-joined user ids. Never customer details or notes |
+| `order-item.added` | An item is added | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>` |
+| `order-item.changed` | An item is saved with different values | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>`, with `old>new` on the pairs that changed, then `fields=description,sizeVariant` naming the text fields that changed |
+| `order-item.removed` | An item is removed | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>` |
+| `order-payment.added` | A payment is added | `Order` id | `payment=<payment id>;date=<date>;amount=<amount>;method=<id>;receiver=<id>` |
+| `order-payment.changed` | A payment is saved with different values | `Order` id | The same pairs, with `old>new` on the ones that changed, then `fields=reference,notes` naming the text fields that changed |
+| `order-payment.receiver-changed` | A payment is saved with a different receiver | `Order` id | `payment=<payment id>;receiver=<old id>><new id>` |
+| `order-payment.removed` | A payment is removed | `Order` id | `payment=<payment id>;date=<date>;amount=<amount>;method=<id>;receiver=<id>` |
+| `order-refund.added` | A refund is added | `Order` id | `refund=<refund id>;date=<date>;amount=<amount>;refunder=<id>` |
+| `order-refund.changed` | A refund is saved with different values | `Order` id | The same pairs, with `old>new` on the ones that changed, then `fields=reason` when the reason changed (never its text) |
+| `order-refund.refunder-changed` | A refund is saved with a different refunder | `Order` id | `refund=<refund id>;refunder=<old id>><new id>` |
+| `order-refund.removed` | A refund is removed | `Order` id | `refund=<refund id>;date=<date>;amount=<amount>;refunder=<id>` |
+| `order-discount.added` | A discount is added | `Order` id | `discount=<discount id>;kind=<kind>;value=<value>` |
+| `order-discount.changed` | A discount is saved with different values | `Order` id | The same pairs, with `old>new` on the ones that changed, then `fields=reason` when the reason changed (never its text) |
+| `order-discount.removed` | A discount is removed | `Order` id | `discount=<discount id>;kind=<kind>;value=<value>` |
+| `order-expense.added` | An order expense is added | `Order` id | `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>` |
+| `order-expense.changed` | An order expense is saved with different values | `Order` id | The same pairs, with `old>new` on the ones that changed, then `fields=description` when the description changed (never its text) |
+| `order-expense.payer-changed` | An order expense is saved with a different payer | `Order` id | `expense=<expense id>;payer=<old id>><new id>` |
+| `order-expense.removed` | An order expense is removed | `Order` id | `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>` |
+| `product-type.added`, `payment-method.added`, `order-expense-category.added` | A list entry is added | `ProductType`, `PaymentMethod` or `OrderExpenseCategory` id | `name=<encoded name>;tone=<tone>` |
+| `product-type.renamed`, `payment-method.renamed`, `order-expense-category.renamed` | A list entry is renamed | The entry id | `name=<old encoded>><new encoded>` |
+| `product-type.recolored`, `payment-method.recolored`, `order-expense-category.recolored` | A list entry changes tone | The entry id | `tone=<old>><new>` |
+| `product-type.retired`, `payment-method.retired`, `order-expense-category.retired` | A list entry is retired | The entry id | `name=<encoded name>` |
+| `product-type.reactivated`, `payment-method.reactivated`, `order-expense-category.reactivated` | A retired list entry is made available again | The entry id | `name=<encoded name>` |
+| `product-type.deleted`, `payment-method.deleted`, `order-expense-category.deleted` | An unused list entry is deleted | The entry id | `name=<encoded name>` |
+
+The list events reuse the keys of `CategoryAuditDetail`, so the names are percent-encoded the same way. The order expense Others
+is never renamed, retired or deleted, so it never appears in a rename, retire or delete event.
 
 ## Viewing the log
 
