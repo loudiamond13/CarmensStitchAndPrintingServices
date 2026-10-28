@@ -197,7 +197,54 @@ public static class OrderAuditDetail
     /// <returns>For example <c>refund=&lt;id&gt;;date=2026-10-28;amount=12000.00;refunder=&lt;id&gt;</c>.</returns>
     public static string RefundAdded(OrderRefund refund) => RefundSnapshot(refund);
 
-    /// <summary>The detail of <c>order-expense.added</c>:the expense id, date, amount, category and payer, never the description.</summary>
+    /// <summary>The detail of <c>order-refund.removed</c>: the refund id, date, amount and refunder as they were, never the reason.</summary>
+    /// <param name="refund">The refund that was removed.</param>
+    /// <returns>For example <c>refund=&lt;id&gt;;date=2026-10-28;amount=12000.00;refunder=&lt;id&gt;</c>.</returns>
+    public static string RefundRemoved(OrderRefund refund) => RefundSnapshot(refund);
+
+    /// <summary>
+    /// The detail of <c>order-refund.changed</c>: the refund id, then <c>date</c> and <c>amount</c> as <c>old&gt;new</c> where they
+    /// changed and as the current value where they did not, then the refunder as it now is, then <c>fields=reason</c> when the
+    /// reason changed. Its text never goes in. A new refunder also has its own <c>order-refund.refunder-changed</c> entry.
+    /// </summary>
+    /// <param name="refund">The refund after the change.</param>
+    /// <param name="changes">What the edit changed.</param>
+    /// <returns>For example <c>refund=&lt;id&gt;;date=2026-10-28;amount=12000.00&gt;9000.00;refunder=&lt;id&gt;;fields=reason</c>.</returns>
+    public static string RefundChanged(OrderRefund refund, OrderRefundChanges changes)
+    {
+        ArgumentNullException.ThrowIfNull(refund);
+        ArgumentNullException.ThrowIfNull(changes);
+
+        var parts = new List<string>
+        {
+            AuditDetailFormat.Pair("refund", refund.Id),
+            changes.Date is { } date ? AuditDetailFormat.Change("date", date.From, date.To) : AuditDetailFormat.Pair("date", refund.RefundDate),
+            changes.Amount is { } amount ? AuditDetailFormat.Change("amount", amount.From, amount.To) : AuditDetailFormat.Pair("amount", refund.Amount),
+            AuditDetailFormat.Pair("refunder", refund.RefundedByUserId),
+        };
+        if (changes.ReasonChanged)
+        {
+            parts.Add(AuditDetailFormat.Pair("fields", "reason"));
+        }
+
+        return AuditDetailFormat.Join([.. parts]);
+    }
+
+    /// <summary>The detail of <c>order-refund.refunder-changed</c>: the refund id and the refunder as <c>old&gt;new</c>.</summary>
+    /// <param name="refund">The refund after the change.</param>
+    /// <param name="refunder">The refunder change.</param>
+    /// <returns>For example <c>refund=&lt;id&gt;;refunder=&lt;old id&gt;&gt;&lt;new id&gt;</c>.</returns>
+    public static string RefundRefunderChanged(OrderRefund refund, ValueChange<Guid> refunder)
+    {
+        ArgumentNullException.ThrowIfNull(refund);
+        ArgumentNullException.ThrowIfNull(refunder);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("refund", refund.Id),
+            AuditDetailFormat.Change("refunder", refunder.From, refunder.To));
+    }
+
+    /// <summary>The detail of <c>order-expense.added</c>: the expense id, date, amount, category and payer, never the description.</summary>
     /// <param name="expense">The expense that was added.</param>
     /// <returns>For example <c>expense=&lt;id&gt;;date=2026-10-23;amount=3825.00;category=&lt;id&gt;;payer=&lt;id&gt;</c>.</returns>
     public static string ExpenseAdded(OrderExpense expense) => ExpenseSnapshot(expense);

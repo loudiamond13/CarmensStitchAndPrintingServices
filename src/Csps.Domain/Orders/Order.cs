@@ -853,9 +853,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     }
 
     /// <summary>
-    /// Adds one refund at the end of the list, checking every refund rule again. Unlike every other change, a refund is allowed on
-    /// a Cancelled order (D-05); a Completed order stays locked. The totals are worked out again and the edit version moves, so the
-    /// order's row version guards the add (ORD-08).
+    /// Adds one refund at the end of the list, checking every refund rule again and the cap of <see cref="OrderRules.MaxRefunds"/>.
+    /// Unlike every other change, a refund is allowed on a Cancelled order (D-05); a Completed order stays locked. A refund is
+    /// allowed only on a Cancelled order or one showing a customer credit (D-09). On an order that is not cancelled the amount may
+    /// not pass the customer credit (D-34); on a Cancelled order it may not pass what was paid and not yet refunded (D-09). The
+    /// totals are worked out again and the edit version moves, so the order's row version guards the add (ORD-08).
     /// </summary>
     /// <param name="refund">The refund as given.</param>
     /// <param name="today">The business today; a refund may not be dated after it.</param>
@@ -874,11 +876,106 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderRefund>(checkedRefund.Error);
         }
 
-        var added = BuildRefund(this, checkedRefund.Value, _refunds.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        if (_refunds.Count >= OrderRules.MaxRefunds)
+        {
+            return Result.Failure<OrderRefund>(OrderRules.TooManyRefunds);
+        }
+
+        var cleaned = checkedRefund.Value;
+        if (Status != OrderStatus.Cancelled && Figures(_payments.Select(static payment => payment.Amount)).CustomerCredit <= 0m)
+        {
+            return Result.Failure<OrderRefund>(OrderRules.RefundNotAllowed);
+        }
+
+        if (RefundCapMessage(cleaned.Amount, ownAmount: 0m) is { } tooMuch)
+        {
+            return OrderRules.Reject<OrderRefund>(OrderRules.RefundAmountField, tooMuch);
+        }
+
+        var added = BuildRefund(this, cleaned, _refunds.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
         _refunds.Add(added);
         Recalculate();
         Touch(now);
         return Result.Success(added);
+    }
+
+    /// <summary>
+    /// Applies a refund edit, checking every refund rule again as <see cref="AddRefund"/> does. An edit may lower the amount freely
+    /// and may raise it only up to the cap plus the amount it had (D-34, D-09). Like an add, an edit is allowed on a Cancelled order
+    /// without a reopen (D-35) and refused on a Completed one. Nothing is assigned when a rule fails, and an edit that changes
+    /// nothing leaves the order and its edit version untouched. A changed edit works the totals out again and moves the edit
+    /// version. Whether a new refunder may be chosen is not decided here: it needs the database.
+    /// </summary>
+    /// <param name="refundId">The refund to edit; it must be on this order.</param>
+    /// <param name="values">The new values as given.</param>
+    /// <param name="today">The business today; a refund may not be dated after it.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>What changed (nothing at all for an identical edit), a 404 when the refund is not on this order, or a validation error naming the first broken field.</returns>
+    public Result<OrderRefundChanges> UpdateRefund(Guid refundId, NewOrderRefund values, DateOnly today, DateTimeOffset now)
+    {
+        if (EnsureRefundEditable() is { } locked)
+        {
+            return Result.Failure<OrderRefundChanges>(locked);
+        }
+
+        var refund = _refunds.Find(existing => existing.Id == refundId);
+        if (refund is null)
+        {
+            return Result.Failure<OrderRefundChanges>(OrderRules.RefundNotFound);
+        }
+
+        var checkedRefund = OrderRules.CheckRefund(values, today);
+        if (checkedRefund.IsFailure)
+        {
+            return Result.Failure<OrderRefundChanges>(checkedRefund.Error);
+        }
+
+        var cleaned = checkedRefund.Value;
+        var changes = new OrderRefundChanges(
+            refund.RefundDate == cleaned.RefundDate ? null : new ValueChange<DateOnly>(refund.RefundDate, cleaned.RefundDate),
+            refund.Amount == cleaned.Amount ? null : new ValueChange<decimal>(refund.Amount, cleaned.Amount),
+            refund.RefundedByUserId == cleaned.RefundedByUserId ? null : new ValueChange<Guid>(refund.RefundedByUserId, cleaned.RefundedByUserId),
+            !string.Equals(refund.Reason, cleaned.Reason, StringComparison.Ordinal));
+        if (!changes.HasAny)
+        {
+            return Result.Success(changes);
+        }
+
+        if (cleaned.Amount > refund.Amount && RefundCapMessage(cleaned.Amount, refund.Amount) is { } tooMuch)
+        {
+            return OrderRules.Reject<OrderRefundChanges>(OrderRules.RefundAmountField, tooMuch);
+        }
+
+        refund.Apply(cleaned);
+        Recalculate();
+        Touch(now);
+        return Result.Success(changes);
+    }
+
+    /// <summary>
+    /// Takes one refund off the order. Like an add, a removal is allowed on a Cancelled order without a reopen (D-35) and refused on
+    /// a Completed one. The totals are worked out again and the edit version moves.
+    /// </summary>
+    /// <param name="refundId">The refund to remove; it must be on this order.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The removed refund, a 404 when it is not on this order, or the locked 422.</returns>
+    public Result<OrderRefund> RemoveRefund(Guid refundId, DateTimeOffset now)
+    {
+        if (EnsureRefundEditable() is { } locked)
+        {
+            return Result.Failure<OrderRefund>(locked);
+        }
+
+        var refund = _refunds.Find(existing => existing.Id == refundId);
+        if (refund is null)
+        {
+            return Result.Failure<OrderRefund>(OrderRules.RefundNotFound);
+        }
+
+        _refunds.Remove(refund);
+        Recalculate();
+        Touch(now);
+        return Result.Success(refund);
     }
 
     /// <summary>
@@ -915,6 +1012,21 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     // A refund is the one change allowed on a Cancelled order (D-05, D-35); a Completed order stays locked.
     private Error? EnsureRefundEditable() =>
         Status == OrderStatus.Completed ? Error.BusinessRule(OrderRules.LockedCode, OrderRules.Locked(Status)) : null;
+
+    // The refund caps on the figures as they stand: a Cancelled order may hand back what was paid and not yet refunded (D-09), any
+    // other order its customer credit (D-34). An edit adds back the refund's own old amount. Null when the amount fits.
+    private string? RefundCapMessage(decimal amount, decimal ownAmount)
+    {
+        var figures = Figures(_payments.Select(static payment => payment.Amount));
+        if (Status == OrderStatus.Cancelled)
+        {
+            var kept = figures.Paid - figures.Refunded + ownAmount;
+            return amount > kept ? OrderRules.RefundAboveKept(kept) : null;
+        }
+
+        var credit = figures.CustomerCredit + ownAmount;
+        return amount > credit ? OrderRules.RefundAboveCredit(credit) : null;
+    }
 
     private static IEnumerable<OrderMathItem> ItemsForMath(IEnumerable<OrderItem> items) =>
         items.Select(static item => new OrderMathItem(item.Quantity, item.UnitPrice));

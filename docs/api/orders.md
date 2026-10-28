@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T15:55:00-05:00
+updated: 2026-10-28T16:32:42-05:00
 ---
 
 # The orders API
@@ -10,7 +10,7 @@ The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scala
 the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
 [auth.md](auth.md). The order lists (product types, payment methods, order expense categories) are in
 [order-lists.md](order-lists.md). This page covers what exists today: creating an order, reading it back, editing its details, adding, editing and removing items, giving, changing and removing discounts, recording, correcting and removing payments, recording, correcting and removing
-order expenses, and moving an order between statuses. Later plans add the list, refund and delete routes to this page.
+order expenses, recording, correcting and removing refunds, and moving an order between statuses. Later plans add the list and delete routes to this page.
 
 ## In plain words
 
@@ -42,10 +42,14 @@ order expenses, and moving an order between statuses. Later plans add the list, 
 | `POST /orders/{id}/expenses` | Staff | the expense form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-expenses` |
 | `PUT /orders/{id}/expenses/{expenseId}` | Staff | the expense form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
 | `DELETE /orders/{id}/expenses/{expenseId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
+| `POST /orders/{id}/refunds` | Staff | the refund form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.refund-not-allowed`, `orders.too-many-refunds` or `orders.locked` |
+| `PUT /orders/{id}/refunds/{refundId}` | Staff | the refund form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.refund-not-found`; `409 edit.stale`; `422 orders.locked` |
+| `DELETE /orders/{id}/refunds/{refundId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.refund-not-found`; `409 edit.stale`; `422 orders.locked` |
 | `POST /orders/{id}/status` | Staff | `{ "status": "mockup" }` with an `Idempotency-Key` and no version | `200` the whole order; `400` on `status`; `404 orders.not-found`; `409 edit.stale` (two lost races); `422 orders.complete-balance-owed`, `orders.complete-credit` or `orders.reopen-first` |
 
 Every route above that changes an order's details, items, discounts, payments or expenses also answers `422 orders.locked` while the order is
-Completed or Cancelled (see Statuses below).
+Completed or Cancelled (see Statuses below). The refund routes are the one exception: they work on a Cancelled order and answer
+`422 orders.locked` only on a Completed one.
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
 read every order. No answer is ever cached (`Cache-Control: no-store`).
@@ -297,6 +301,54 @@ is no company payer: a person always paid.
 - **Order.** `expenses` come oldest expense date first, then in the order they were added.
 - A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
 
+## Refunds (`/api/v1/orders/{id}/refunds`)
+
+Staff record money handed back to the customer, correct it and remove it on a saved order. An order can hold up to 50. Every answer
+is the whole order, with `refunded`, `balance`, `customerCredit` and `profit` worked out again by the server and a new `version`.
+`balance` is total minus paid plus refunded, so a refund raises it. Each refund shows **who handed the money back** (`refundedBy`)
+apart from **who recorded it** (`recordedBy`), the same split as a payment's receiver (D-07, SEC-08).
+
+| Field | Required | Rule | Message |
+|---|---|---|---|
+| `refundDate` | yes | a real `yyyy-MM-dd` date, never after today in the shop's time zone | Enter the refund date. / Enter a real date. / The refund date can't be in the future. |
+| `amount` | yes | more than 0.00 and at most 1,000,000.00, at most 2 decimal places (D-30), and within the caps below | Enter the amount. / Enter an amount from ₱0.01 to ₱1,000,000.00. / Use at most 2 decimal places. |
+| `reason` | yes | 1 to 200 characters after trimming | Add a short reason for the refund. / Keep the reason to 200 characters or fewer. |
+| `refundedByUserId` | yes | an active Admin or Manager who has finished set-up (D-07) | Choose who handed the money back. / This person can't be chosen because their account isn't active. Choose someone else. |
+| `version` | add and edit | the order's `version` as last read: base64 of eight bytes. Anything else is `400` on `version`, "Reload the form and try again." | |
+
+- **Where a refund is allowed (D-09).** Only on a Cancelled order or on an order that shows a customer credit. Any other active order
+  is `422 orders.refund-not-allowed`, "A refund can be recorded only on a cancelled order or one with a customer credit." Any
+  staff member (Admin or Manager) may record one.
+- **The caps.** On an order that is not cancelled the amount may not pass the customer credit (D-34): `400` on `amount`, "This is more
+  than the customer credit. Enter ₱500.00 or less." On a Cancelled order it may not pass what was paid and not yet refunded (D-09):
+  "This is more than was paid and not yet refunded. Enter ₱12,000.00 or less." Once everything paid is refunded, "Everything that was
+  paid has already been refunded." An edit may lower a refund freely and may raise it up to the cap plus the refund's own old amount.
+- **Clearing a credit (D-13).** A refund of the whole credit brings the balance to 0.00, so the order can then be marked Completed.
+- **The cancelled-order exception (D-05, D-35).** A Cancelled order accepts refunds being added, edited and removed without a reopen.
+  Every other write on it stays `422 orders.locked`. A Completed order refuses all three refund writes with `422 orders.locked`
+  until it is reopened. An edit or removal on an active order follows the same lock: only a Completed order refuses it.
+- **A cancelled order's profit (D-36, D-10).** Profit is the money kept minus the money spent: `(paid - refunded) - expenses`. For
+  ORD-2026-0148 (paid 12,000.00, expenses 6,065.00), a refund of 12,000.00 reads `refunded` 12,000.00 and `profit` -6,065.00: the
+  order shows a loss. Every other status keeps total minus expenses.
+- **Who may be chosen as the refunder (D-07, D-32, D-49).** On a new refund and on a changed refunder the person must be an active
+  Admin or Manager, not locked, not deleted, who has a password and has signed in once. The Legacy holder is never chosen. An edit
+  that keeps the saved refunder is allowed even if they were deactivated since: the refund keeps showing them, with
+  `refundedByActive: false`, and a deleted person keeps their name with `formerStaff: true`.
+- **Phase 10, money on hand (D-08).** A refund lowers its refunder's money on hand from the moment it is saved. This replaces the
+  OD-16 default that refunds do not count. Changing the refunder moves it from one person to the other, and that move is its own audit
+  entry. The refunder index carries the amount and the date, so Phase 10 reads it without touching the order rows.
+- **The version contract (ORD-08).** Any refund change moves the order's version. Two changes sent with the same version give exactly
+  one `200`; the other is `409 edit.stale`, and nothing of the loser is stored, so the refunded total never passes its cap. Add and
+  edit are never retried.
+- **Remove sends no version.** It acts on the latest state. If it loses a race it is read again and decided again once; only a second
+  lost race is `409 edit.stale`.
+- **Refunds are found only through their order (CWE-639).** A refund id that is not on the order in the route is
+  `404 orders.refund-not-found`, "This refund was not found on this order." The refund of another order is never changed.
+- **At most 50 refunds (`422 orders.too-many-refunds`).** "An order can have at most 50 refunds."
+- **An edit that changes nothing** answers `200`, keeps the `version` and writes no audit entry.
+- **Order.** `refunds` come oldest refund date first, then in the order they were added.
+- A retry of an add with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+
 ## Statuses (`POST /api/v1/orders/{id}/status`)
 
 An order has seven statuses. The wire key is what the API sends and takes; the label is what staff read.
@@ -337,14 +389,15 @@ is `409 edit.stale`. A retry with the same `Idempotency-Key` and body answers wi
   is `422 orders.locked`, "This order is completed. Reopen it to make changes." (or "cancelled"), and nothing is saved. A form with a field error is
   still `400` first. The lock is then checked before the order's own rules (the payment balance, the last item, the discount cap,
   a missing item id), so those read as locked, not as their own errors. After a reopen the same writes succeed.
-  Reading the order is never locked. Refunds (a later plan) are the one write a Cancelled order will still take.
+  Reading the order is never locked. Refunds are the one write a Cancelled order still takes (see Refunds above).
 - **A cancelled order keeps its money (D-07, D-10, D-36).** Every payment stays as collected cash, so `paid` is unchanged and nothing
   is refunded by cancelling. Every expense still counts. Profit on a cancelled order is the cash collected minus the expenses: for
-  ORD-2026-0148 (paid 12,000.00, no refunds, expenses 6,065.00) it reads 5,935.00, and reopening it restores 15,262.50.
+  ORD-2026-0148 (paid 12,000.00, no refunds, expenses 6,065.00) it reads 5,935.00, and reopening it restores 15,262.50. Once the
+  12,000.00 is refunded it reads -6,065.00, a loss of its expenses.
 
 ## The order
 
-`POST`, `GET` and `PUT` answer the same shape, and so do the item, discount, payment and expense routes:
+`POST`, `GET` and `PUT` answer the same shape, and so do the item, discount, payment, refund, expense and status routes:
 
 ```
 {
@@ -354,6 +407,8 @@ is `409 edit.stale`. A retry with the same `Idempotency-Key` and body answers wi
   discounts: [ { id, kind, value, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   payments: [ { id, paymentDate, amount, method: { id, name, tone, retired }, reference, notes,
                 receivedBy, receivedByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
+  refunds: [ { id, refundDate, amount, reason, refundedBy, refundedByActive,
+               recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   expenses: [ { id, expenseDate, category: { id, name, tone, retired }, description, amount,
                 paidBy, paidByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   statusHistory: [ { from, to, changedBy, changedAt } ],
@@ -395,6 +450,11 @@ Each payment add, edit that changes something, and removal writes one entry for 
 A change shows `old>new` on the date, amount and method where they changed and ends with `fields=reference,notes` naming the text
 fields that changed. A new receiver writes its own `order-payment.receiver-changed` entry, `payment=<payment id>;receiver=<old id>><new id>`,
 besides the change entry when anything else changed too.
+Each refund add, edit that changes something, and removal writes one entry for the order in the same save: `order-refund.added`,
+`order-refund.changed` and `order-refund.removed`, each with `refund=<refund id>;date=<date>;amount=<amount>;refunder=<id>`. A change
+shows `old>new` on the date and amount where they changed and ends with `fields=reason` when the reason changed. A new refunder writes
+its own `order-refund.refunder-changed` entry, `refund=<refund id>;refunder=<old id>><new id>`, besides the change entry when anything
+else changed too.
 Each order expense add, edit that changes something, and removal writes one entry for the order in the same save: `order-expense.added`,
 `order-expense.changed` and `order-expense.removed`, each with `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>`.
 A change shows `old>new` on the date, amount and category where they changed and ends with `fields=description` when the description
@@ -403,7 +463,7 @@ the change entry when anything else changed too.
 Each status move writes one `order.status-changed` entry and each reopen from Completed or Cancelled writes one `order.reopened` entry
 (never both), in the same save as the history row, each with `status=<from>><to>` by wire key, for example `status=pending>mockup`. A
 request for the status the order already has writes nothing.
-No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, a payment's reference or notes, or an expense's description. The full list of order audit codes is in
+No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, a payment's reference or notes, a refund's reason, or an expense's description. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
 
 ## What is stored (D-23, D-26)
@@ -412,6 +472,9 @@ No entry ever holds the customer name, team, contact number, email, address or n
   the migration `AddOrderDiscounts`: its `Kind` is 1 (fixed) or 2 (percentage), its `Value` is above zero, and it leaves with its order.
   `OrderPayments` comes from the migration `AddOrderPayments`: its `Amount` is above zero, it has a `Position` like the discounts, the
   method and every person key are NO ACTION (so removing a user or a method never rewrites a payment), and it leaves with its order.
+  `OrderRefunds` comes from the migration `AddOrderRefunds`: its `Amount` is above zero, it has a `Position` like the payments, the
+  refunder and every other person key are NO ACTION, and it leaves with its order. Its refunder index carries the amount and the date
+  for Phase 10's money on hand (D-08).
   `OrderExpenses` comes from the migration `AddOrderExpenses`: its `Amount` is above zero, it has a `Position` like the payments,
   the category and every person key (including the payer) are NO ACTION, and it leaves with its order.
 - The order carries `DeletedAtUtc` and `DeletedById` from the start (D-26), and a named `SoftDelete` query filter hides a deleted

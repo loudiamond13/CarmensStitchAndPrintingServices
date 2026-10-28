@@ -151,11 +151,13 @@ public sealed class OrderRefundTests
 
         var over = order.UpdateRefund(refund.Id, Refund(500.01m), Today, Later);
         var exact = order.UpdateRefund(refund.Id, Refund(500.00m), Today, Later);
-        var lowered = order.UpdateRefund(refund.Id, Refund(100.00m), Today, Later);
 
         over.Error.FieldErrors.ShouldNotBeNull()["amount"].ShouldBe(["This is more than the customer credit. Enter ₱500.00 or less."]);
         exact.IsSuccess.ShouldBeTrue();
         order.CustomerCredit.ShouldBe(0.00m);
+
+        var lowered = order.UpdateRefund(refund.Id, Refund(100.00m), Today, Later);
+
         lowered.IsSuccess.ShouldBeTrue();
         order.CustomerCredit.ShouldBe(400.00m);
     }
@@ -269,6 +271,25 @@ public sealed class OrderRefundTests
             var fields = result.Error.FieldErrors.ShouldNotBeNull();
             fields.Keys.ShouldBe([path]);
             fields[path].ShouldBe([message], path);
+        }
+
+        Snapshot(order).ShouldBe(before);
+    }
+
+    [Fact]
+    public void AnEditWithABrokenFieldIsRefusedUnderItsOwnNameAndChangesNothing()
+    {
+        var order = CancelledOrder(paid: 12000.00m);
+        var refund = order.AddRefund(Refund(1000.00m), Today, Later).Value;
+        var before = Snapshot(order);
+
+        foreach (var (path, message, broken) in BrokenRefunds)
+        {
+            var result = order.UpdateRefund(refund.Id, broken, Today, Later);
+
+            result.IsFailure.ShouldBeTrue(path);
+            result.Error.Kind.ShouldBe(ErrorKind.Validation, path);
+            result.Error.FieldErrors.ShouldNotBeNull()[path].ShouldBe([message], path);
         }
 
         Snapshot(order).ShouldBe(before);

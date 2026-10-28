@@ -94,3 +94,25 @@ public sealed record OrderExpenseChanges(
     /// <summary>Gets a value that is true when anything other than the payer changed.</summary>
     public bool HasFieldChange => Date is not null || Amount is not null || Category is not null || ChangedFields.Count > 0;
 }
+
+/// <summary>
+/// What one refund edit changed (D-31, D-07). The date and amount carry the old and new value; the reason carries only a flag,
+/// because its text never goes into the audit log. A new refunder is carried on its own, because it is written to the audit log
+/// as its own entry.
+/// </summary>
+/// <param name="Date">The refund date change; null when it stayed.</param>
+/// <param name="Amount">The amount change; null when it stayed.</param>
+/// <param name="Refunder">The refunder change; null when the same person handed the money back.</param>
+/// <param name="ReasonChanged">True when the reason text changed.</param>
+public sealed record OrderRefundChanges(
+    ValueChange<DateOnly>? Date,
+    ValueChange<decimal>? Amount,
+    ValueChange<Guid>? Refunder,
+    bool ReasonChanged)
+{
+    /// <summary>Gets a value that is true when anything at all changed.</summary>
+    public bool HasAny => HasFieldChange || Refunder is not null;
+
+    /// <summary>Gets a value that is true when anything other than the refunder changed.</summary>
+    public bool HasFieldChange => Date is not null || Amount is not null || ReasonChanged;
+}

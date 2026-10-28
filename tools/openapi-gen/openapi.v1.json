@@ -3545,6 +3545,58 @@
         ],
         "type": "object"
       },
+      "UpdateOrderRefundRequest": {
+        "description": "The Edit Refund form on a saved order (ORD-18, D-07, D-35). It carries the order's version as the form was opened. Any other\nmember in the body, such as a forged `updatedById`, is ignored: who changed the refund and when come from the token and the\nclock (SEC-08). Who handed the money back is a separate choice, `refundedByUserId`.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "reason": {
+            "description": "A short reason, 1 to 200 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "refundDate": {
+            "description": "The day the money was handed back, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "refundedByUserId": {
+            "description": "The staff member who handed the money back.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the form was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "refundDate",
+          "amount",
+          "reason",
+          "refundedByUserId",
+          "version"
+        ],
+        "type": "object"
+      },
       "UpdateProfileNameRequest": {
         "description": "The profile name form: the names and the edit version the form was opened with (SEC-07).",
         "properties": {
@@ -8001,7 +8053,222 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Records a refund on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`\nday, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal\nplaces. The reason is 1 to 200 characters. `refundedByUserId` names who handed the money back and must be an active\nAdmin or Manager; it is separate from who typed the refund in, which comes from the token. A refund is allowed only on a\ncancelled order or one with a customer credit; on an order that is not cancelled it may not pass the credit, and on a\ncancelled order it may not pass what was paid and not yet refunded. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. A retry with the same `Idempotency-Key` and body\nanswers with the stored answer and adds nothing more.",
+        "summary": "Records a refund on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`\nday, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal\nplaces. The reason is 1 to 200 characters. `refundedByUserId` names who handed the money back and must be an active\nAdmin or Manager; it is separate from who typed the refund in, which comes from the token. A refund is allowed only on a\ncancelled order or one with a customer credit (422 `orders.refund-not-allowed` otherwise); on an order that is not\ncancelled it may not pass the credit, and on a cancelled order it may not pass what was paid and not yet refunded (400 on\n`amount`). A completed order answers 422 `orders.locked`. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. A retry with the same `Idempotency-Key` and body\nanswers with the stored answer and adds nothing more.",
+        "tags": [
+          "OrderRefunds"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/refunds/{refundId}": {
+      "delete": {
+        "operationId": "RemoveOrderRefund",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The refund id.",
+            "in": "path",
+            "name": "refundId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Removes one refund of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. A refund id that is not on this order answers 404 `orders.refund-not-found`. A completed\norder answers 422 `orders.locked`. The totals are worked out again.",
+        "tags": [
+          "OrderRefunds"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOrderRefund",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The refund id.",
+            "in": "path",
+            "name": "refundId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderRefundRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderRefundRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOrderRefundRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Saves an edit of one refund of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding, except that the cap adds back the refund's own old amount. The refunder is checked only when the edit changes\nthem, so a refund may keep a refunder who was deactivated after it was saved. A refund id that is not on this order\nanswers 404 `orders.refund-not-found`. A completed order answers 422 `orders.locked`. A version that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing\nsaves nothing and keeps the version. Who changed the refund and when come from the token and the clock.",
         "tags": [
           "OrderRefunds"
         ]

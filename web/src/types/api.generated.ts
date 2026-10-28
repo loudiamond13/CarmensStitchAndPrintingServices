@@ -837,13 +837,43 @@ export interface paths {
          *     day, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal
          *     places. The reason is 1 to 200 characters. `refundedByUserId` names who handed the money back and must be an active
          *     Admin or Manager; it is separate from who typed the refund in, which comes from the token. A refund is allowed only on a
-         *     cancelled order or one with a customer credit; on an order that is not cancelled it may not pass the credit, and on a
-         *     cancelled order it may not pass what was paid and not yet refunded. A version that is not the stored one answers 409
+         *     cancelled order or one with a customer credit (422 `orders.refund-not-allowed` otherwise); on an order that is not
+         *     cancelled it may not pass the credit, and on a cancelled order it may not pass what was paid and not yet refunded (400 on
+         *     `amount`). A completed order answers 422 `orders.locked`. A version that is not the stored one answers 409
          *     `edit.stale` and changes nothing; a form save is never retried. A retry with the same `Idempotency-Key` and body
          *     answers with the stored answer and adds nothing more.
          */
         post: operations["AddOrderRefund"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/refunds/{refundId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one refund of a saved order with the order's version the form was opened with. The rules are the same as
+         *     when adding, except that the cap adds back the refund's own old amount. The refunder is checked only when the edit changes
+         *     them, so a refund may keep a refunder who was deactivated after it was saved. A refund id that is not on this order
+         *     answers 404 `orders.refund-not-found`. A completed order answers 422 `orders.locked`. A version that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing
+         *     saves nothing and keeps the version. Who changed the refund and when come from the token and the clock.
+         */
+        put: operations["UpdateOrderRefund"];
+        post?: never;
+        /**
+         * Removes one refund of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
+         *     again and decided again once. A refund id that is not on this order answers 404 `orders.refund-not-found`. A completed
+         *     order answers 422 `orders.locked`. The totals are worked out again.
+         */
+        delete: operations["RemoveOrderRefund"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2754,6 +2784,29 @@ export interface components {
             receivedByUserId: null | string;
             /** @description The reference, such as a transfer number. */
             reference: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Refund form on a saved order (ORD-18, D-07, D-35). It carries the order's version as the form was opened. Any other
+         *     member in the body, such as a forged `updatedById`, is ignored: who changed the refund and when come from the token and the
+         *     clock (SEC-08). Who handed the money back is a separate choice, `refundedByUserId`.
+         */
+        UpdateOrderRefundRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short reason, 1 to 200 characters. */
+            reason: null | string;
+            /** @description The day the money was handed back, `yyyy-MM-dd`. */
+            refundDate: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who handed the money back.
+             */
+            refundedByUserId: null | string;
             /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
@@ -5568,6 +5621,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The refund id. */
+                refundId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderRefundRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderRefundRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The refund id. */
+                refundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
                 };
             };
             /** @description Unauthorized */
