@@ -532,7 +532,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Lists orders for both roles, with the stored money figures, never any contact details. By default it keeps the orders in play:
+         *     Pending to Delivered, plus Completed and Cancelled orders whose status changed in the last 30 days, soonest due first with
+         *     orders that have no due date last. Deleted orders never appear and never count. The total covers every page of the filter.
+         */
+        get: operations["ListOrders"];
         put?: never;
         /**
          * Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order
@@ -2333,6 +2338,74 @@ export interface components {
              */
             unitPrice: number | string;
         };
+        /** @description One order in the list (ORD-01). It carries the stored money figures and no contact details, address or notes. */
+        OrderListEntry: {
+            /**
+             * Format: double
+             * @description The balance in pesos.
+             */
+            balance: number | string;
+            /**
+             * Format: double
+             * @description What the shop owes the customer in pesos.
+             */
+            customerCredit: number | string;
+            /** @description The customer's name. */
+            customerName: string;
+            /**
+             * Format: double
+             * @description The discounts total in pesos.
+             */
+            discount: number | string;
+            /**
+             * Format: date
+             * @description The day it is due; null for an imported order that had none.
+             */
+            dueDate: null | string;
+            /** @description True when the order is paid in full. */
+            fullyPaid: boolean;
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
+            id: string;
+            /** @description The order number. */
+            number: string;
+            /**
+             * Format: date
+             * @description The day the order was taken.
+             */
+            orderDate: string;
+            /**
+             * Format: double
+             * @description What was paid in pesos.
+             */
+            paid: number | string;
+            /**
+             * Format: double
+             * @description What was handed back in pesos.
+             */
+            refunded: number | string;
+            /** @description The status key. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status last changed.
+             */
+            statusChangedAt: string;
+            /**
+             * Format: double
+             * @description The items total in pesos.
+             */
+            subtotal: number | string;
+            /** @description The team or club name; null when none. */
+            teamName: null | string;
+            /**
+             * Format: double
+             * @description The order total in pesos.
+             */
+            total: number | string;
+        };
         /** @description One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19). */
         OrderListItem: {
             /**
@@ -2362,6 +2435,26 @@ export interface components {
             retired: boolean;
             /** @description One of the six colour tones. */
             tone: string;
+        };
+        /** @description One page of the order list (ORD-01). */
+        OrderListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["OrderListEntry"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many orders match, across all pages.
+             */
+            total: number | string;
         };
         /** @description One payment of the New Order form (ORD-03, ORD-05, ORD-22). */
         OrderPaymentRequest: {
@@ -4667,6 +4760,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListOrders: {
+        parameters: {
+            query?: {
+                /** @description Search text for the order number, customer name, team or contact number; up to 100 characters. */
+                q?: string;
+                /** @description `active` (the default), `all`, or one of pending, mockup, production, ready, delivered, completed or cancelled. */
+                status?: string;
+                /** @description The first order date as `yyyy-MM-dd`. */
+                from?: string;
+                /** @description The last order date as `yyyy-MM-dd`; not before `from`. */
+                to?: string;
+                /** @description A product type id; keeps orders with at least one item of that type. */
+                productType?: string;
+                /** @description True keeps only orders whose balance is above 0.00. */
+                hasBalance?: boolean;
+                /** @description `due` (the default), `newest`, `balance` or `total`; the order id breaks every tie. */
+                sort?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Unauthorized */

@@ -2295,6 +2295,139 @@
         ],
         "type": "object"
       },
+      "OrderListEntry": {
+        "description": "One order in the list (ORD-01). It carries the stored money figures and no contact details, address or notes.",
+        "properties": {
+          "balance": {
+            "description": "The balance in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "customerCredit": {
+            "description": "What the shop owes the customer in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "customerName": {
+            "description": "The customer's name.",
+            "type": "string"
+          },
+          "discount": {
+            "description": "The discounts total in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "dueDate": {
+            "description": "The day it is due; null for an imported order that had none.",
+            "format": "date",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fullyPaid": {
+            "description": "True when the order is paid in full.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The order id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "number": {
+            "description": "The order number.",
+            "type": "string"
+          },
+          "orderDate": {
+            "description": "The day the order was taken.",
+            "format": "date",
+            "type": "string"
+          },
+          "paid": {
+            "description": "What was paid in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "refunded": {
+            "description": "What was handed back in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "status": {
+            "description": "The status key.",
+            "type": "string"
+          },
+          "statusChangedAt": {
+            "description": "When the status last changed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "subtotal": {
+            "description": "The items total in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or club name; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "The order total in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "customerName",
+          "teamName",
+          "orderDate",
+          "dueDate",
+          "status",
+          "statusChangedAt",
+          "subtotal",
+          "discount",
+          "total",
+          "paid",
+          "refunded",
+          "balance",
+          "customerCredit",
+          "fullyPaid"
+        ],
+        "type": "object"
+      },
       "OrderListItem": {
         "description": "One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19).",
         "properties": {
@@ -2355,6 +2488,52 @@
           "name",
           "tone",
           "retired"
+        ],
+        "type": "object"
+      },
+      "OrderListResponse": {
+        "description": "One page of the order list (ORD-01).",
+        "properties": {
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/OrderListEntry"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many orders match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
         ],
         "type": "object"
       },
@@ -6390,6 +6569,131 @@
       }
     },
     "/api/v1/orders": {
+      "get": {
+        "operationId": "ListOrders",
+        "parameters": [
+          {
+            "description": "Search text for the order number, customer name, team or contact number; up to 100 characters.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`active` (the default), `all`, or one of pending, mockup, production, ready, delivered, completed or cancelled.",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The first order date as `yyyy-MM-dd`.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last order date as `yyyy-MM-dd`; not before `from`.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A product type id; keeps orders with at least one item of that type.",
+            "in": "query",
+            "name": "productType",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "True keeps only orders whose balance is above 0.00.",
+            "in": "query",
+            "name": "hasBalance",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "`due` (the default), `newest`, `balance` or `total`; the order id breaks every tie.",
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists orders for both roles, with the stored money figures, never any contact details. By default it keeps the orders in play:\nPending to Delivered, plus Completed and Cancelled orders whose status changed in the last 30 days, soonest due first with\norders that have no due date last. Deleted orders never appear and never count. The total covers every page of the filter.",
+        "tags": [
+          "Orders"
+        ]
+      },
       "post": {
         "operationId": "CreateOrder",
         "requestBody": {

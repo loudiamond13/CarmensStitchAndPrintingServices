@@ -11,6 +11,7 @@ namespace Csps.Server.Controllers;
 /// The shop's orders (ORD-03, ORD-05, ORD-17): staff of either role create, read, edit and move them between statuses. Never cached.
 /// </summary>
 /// <param name="create">The create-an-order handler.</param>
+/// <param name="list">The order list handler.</param>
 /// <param name="get">The single-order read handler.</param>
 /// <param name="updateDetails">The edit-details handler.</param>
 /// <param name="changeStatus">The change-status handler.</param>
@@ -23,8 +24,45 @@ namespace Csps.Server.Controllers;
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrdersController(CreateOrderHandler create, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus, DeleteOrderHandler delete, ListDeletedOrdersHandler listDeleted, RestoreOrderHandler restore, PermanentlyDeleteOrderHandler permanentlyDelete) : ControllerBase
+public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandler list, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus, DeleteOrderHandler delete, ListDeletedOrdersHandler listDeleted, RestoreOrderHandler restore, PermanentlyDeleteOrderHandler permanentlyDelete) : ControllerBase
 {
+    /// <summary>
+    /// Lists orders for both roles, with the stored money figures, never any contact details. By default it keeps the orders in play:
+    /// Pending to Delivered, plus Completed and Cancelled orders whose status changed in the last 30 days, soonest due first with
+    /// orders that have no due date last. Deleted orders never appear and never count. The total covers every page of the filter.
+    /// </summary>
+    /// <param name="q">Search text for the order number, customer name, team or contact number; up to 100 characters.</param>
+    /// <param name="status"><c>active</c> (the default), <c>all</c>, or one of pending, mockup, production, ready, delivered, completed or cancelled.</param>
+    /// <param name="from">The first order date as <c>yyyy-MM-dd</c>.</param>
+    /// <param name="to">The last order date as <c>yyyy-MM-dd</c>; not before <c>from</c>.</param>
+    /// <param name="productType">A product type id; keeps orders with at least one item of that type.</param>
+    /// <param name="hasBalance">True keeps only orders whose balance is above 0.00.</param>
+    /// <param name="sort"><c>due</c> (the default), <c>newest</c>, <c>balance</c> or <c>total</c>; the order id breaks every tie.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="page">The page number, from 1 to 100000.</param>
+    /// <param name="pageSize">Rows per page, from 1 to 100; 20 when not sent.</param>
+    /// <returns>200 with the page, 400 for a bad filter, sort or page, or 401 without a valid token.</returns>
+    [HttpGet]
+    [EndpointName("ListOrders")]
+    [ProducesResponseType<OrderListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IResult> List(
+        [FromQuery] string? q,
+        [FromQuery] string? status,
+        [FromQuery] string? from,
+        [FromQuery] string? to,
+        [FromQuery] string? productType,
+        [FromQuery] bool? hasBalance,
+        [FromQuery] string? sort,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = ListOrdersRequest.DefaultPageSize)
+    {
+        var result = await list.HandleAsync(new ListOrdersRequest(q, status, from, to, productType, hasBalance, sort, page, pageSize), cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static orders => TypedResults.Ok(orders));
+    }
+
     /// <summary>
     /// Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order
     /// date and the due date are required, and the due date may not be before the order date. The status may be pending, mockup,

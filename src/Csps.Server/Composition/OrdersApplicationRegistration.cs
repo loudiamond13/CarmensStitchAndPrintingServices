@@ -28,6 +28,8 @@ public static class OrdersApplicationRegistration
         services.AddSingleton<IValidator<UpdateOrderRefundRequest>, UpdateOrderRefundRequestValidator>();
         services.AddSingleton<IValidator<ChangeOrderStatusRequest>, ChangeOrderStatusRequestValidator>();
         services.AddScoped<ListOrderListHandler>();
+        services.AddSingleton<IValidator<ListOrdersRequest>, ListOrdersRequestValidator>();
+        services.AddScoped<ListOrdersHandler>();
         services.AddScoped<CreateOrderHandler>();
         services.AddScoped<GetOrderHandler>();
         services.AddScoped<UpdateOrderDetailsHandler>();

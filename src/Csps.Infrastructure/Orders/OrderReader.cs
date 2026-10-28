@@ -14,6 +14,44 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
 {
     private const string SoftDeleteFilter = "SoftDelete";
 
+    public async Task<OrderListPage> ListAsync(OrderListQuery query, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // The named SoftDelete filter hides a deleted order. Every figure is a stored column.
+        var matches = context.Orders.AsNoTracking();
+
+        // Command 1: the count over every page. Command 2: the page, ending on the id so paging is stable.
+        var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
+        var rows = await matches
+            .OrderBy(order => order.DueDate == null)
+            .ThenBy(order => order.DueDate)
+            .ThenBy(order => order.Id)
+            .Select(order => new OrderListRow(
+                order.Id,
+                order.Number,
+                order.CustomerName,
+                order.TeamName,
+                order.OrderDate,
+                order.DueDate,
+                order.Status,
+                order.StatusChangedAtUtc,
+                order.Subtotal,
+                order.DiscountTotal,
+                order.Total,
+                order.PaidTotal,
+                order.RefundedTotal,
+                order.Balance,
+                order.CustomerCredit,
+                order.FullyPaid))
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new OrderListPage(rows, total);
+    }
+
     public async Task<DeletedOrderPage> ListDeletedAsync(int page, int pageSize, CancellationToken cancellationToken)
     {
         // The named SoftDelete filter is lifted for this read only, and only deleted rows are kept.
