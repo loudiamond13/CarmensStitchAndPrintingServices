@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-26T05:53:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-28T05:53:00-05:00*
 
 ## Overview
 
@@ -785,7 +785,55 @@ Plans:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
 - counter-table locking under the execution strategy
 
-**Plans**: TBD
+**Plans**: 20 plans in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [ ] 07-01-PLAN.md — Product types, payment methods and order expense categories: tables, seeds, read API, and the Phase 7 audit catalog (ORD-13; D-16 to D-20, D-31)
+- [ ] 07-02-PLAN.md — Order math learns refunds, customer credit and cancelled-order profit, v2 vectors untouched (ORD-20, ORD-18; D-12, D-13, D-36)
+- [ ] 07-03-PLAN.md — Seven statuses and the transition table (ORD-17; D-01 to D-05, D-38)
+- [ ] 07-04-PLAN.md — Draft requirement amendments and the Phase 7.1 entry for owner approval (D-33; checkpoint)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 07-05-PLAN.md — Create an order with items and read it back: schema, per-year numbering, totals, history, audit (ORD-03, ORD-13, ORD-14, ORD-16, ORD-20)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 07-06-PLAN.md — Numbering under 20 parallel creates, across New Year in Manila, gapless on rollback (ORD-14)
+- [ ] 07-07-PLAN.md — Edit order details with the 409 version check (ORD-05, ORD-08; D-25)
+- [ ] 07-08-PLAN.md — The hidden "Legacy / unassigned" holder (D-32, D-37)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 07-09-PLAN.md — Add, edit and remove items; child-only edits guarded (ORD-05, ORD-08, ORD-13)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 07-10-PLAN.md — Discounts, many per order, never above the items total (ORD-05; D-15)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 07-11-PLAN.md — Payments with Received by, no overpayment, customer credit, two-payments race (ORD-05, ORD-08, ORD-22; D-11, D-12)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 07-12-PLAN.md — Order expenses with Paid by; full ORD-2026-0148 create exact (ORD-05, ORD-20, ORD-23)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 07-13-PLAN.md — Status changes, history, reopen and the end-state lock (ORD-16, ORD-17, ORD-18)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 07-14-PLAN.md — Refunds with the owner's caps and the cancelled-order exception (ORD-18; D-07, D-09, D-34 to D-36)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 07-15-PLAN.md — Soft delete, deleted list, restore and permanent delete (ORD-06 server side; D-26 to D-29)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 07-16-PLAN.md — Order list, search, filters and sort in two commands with the p95 proof (ORD-01, ORD-02 server side; PERF-04)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 07-17-PLAN.md — Managers manage the three order lists (ORD-13; D-16 to D-19)
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [ ] 07-18-PLAN.md — Order.Import with named rule relaxations and preserved numbers (ORD-21, ORD-14)
+- [ ] 07-19-PLAN.md — The audit viewer reads every order event (ORD-16, ORD-22, ORD-23; D-31)
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [ ] 07-20-PLAN.md — Dev seed of the UI-spec orders and a testing-only seeding route (ORD-20, ORD-21)
 
 ### Phase 8: Order Screens
 
