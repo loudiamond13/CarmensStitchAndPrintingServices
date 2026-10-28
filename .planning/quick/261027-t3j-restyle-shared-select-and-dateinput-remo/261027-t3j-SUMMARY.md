@@ -1,6 +1,6 @@
 ---
 created: 2026-10-27T22:27:00-05:00
-updated: 2026-10-27T22:27:00-05:00
+updated: 2026-10-27T22:45:00-05:00
 phase: quick-261027-t3j
 plan: 01
 status: complete
@@ -17,7 +17,7 @@ actuals:
 
 Date boxes now show the app's own calendar icon over the browser's invisible indicator, the dropdown and date boxes share one picker look, and no date is written out beside any date box.
 
-Status is complete for everything the plan can check. The owner's visual check is **open** (not self-approved).
+Status is complete. The owner approved the look on 2026-10-27 (visual check passed).
 
 ## Commits (not pushed)
 
