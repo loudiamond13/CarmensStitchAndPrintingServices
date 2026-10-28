@@ -90,6 +90,8 @@ export function createToastQueue({ now, schedule }: ToastQueueOptions): ToastQue
   function start(id: number, clock: Clock): void {
     clock.startedAt = now();
     clock.cancel = schedule(() => {
+      // The timer has fired, so there is nothing left to cancel.
+      clock.cancel = undefined;
       dismiss(id);
     }, clock.remaining);
   }
