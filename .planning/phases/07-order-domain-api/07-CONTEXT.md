@@ -1,6 +1,6 @@
 # Phase 7: Order Domain & API - Context
 
-*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T17:40:00-05:00*
+*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T18:30:00-05:00*
 
 **Gathered:** 2026-10-27
 **Status:** Ready for planning
@@ -95,6 +95,7 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 - **D-41:** **The payment messages in `OrderRules.cs` are approved as written** (07-11), so Phase 8 mirrors them in zod. **A payment may be dated before the order date.** The only payment-date rule stays "not in the future" (D-30). (owner, 2026-10-28)
 - **D-42:** **The order expense messages in `OrderRules.cs` are approved as written** (07-12). **The payer audit stays as built:** `order-expense.changed` shows the current payer and a payer change also writes its own `order-expense.payer-changed` entry (old > new), the same shape as payments. (owner, 2026-10-28)
 - **D-43:** **The refund "not allowed" check applies to adding a refund only.** On an active order, an existing refund can still be lowered or removed after it cleared the credit; removing it brings the credit back. **The refund messages in `OrderRules.cs` are approved as written** (07-14). (owner, 2026-10-28)
+- **D-44:** **The permanent-delete audit entry keeps the 400-character cut-off** (07-15). The money facts always stay whole; the longest people list is cut from the end and marked `+N`. The audit column is not widened. (owner, 2026-10-28)
 
 ### Carried forward (not re-asked)
 - **No overpayment by payment** (OD-4, 2026-10-13).

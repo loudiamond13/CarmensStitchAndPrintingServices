@@ -4,7 +4,7 @@ plan: 15
 subsystem: api
 tags: [orders, soft-delete, restore, permanent-delete, deleted-list, audit, privacy, race, openapi]
 created: "2026-10-28T17:45:00-05:00"
-updated: "2026-10-28T17:45:00-05:00"
+updated: "2026-10-28T18:30:00-05:00"
 
 requires:
   - phase: 07-order-domain-api
@@ -256,6 +256,8 @@ See key-decisions above. The ones the owner should know about: the cut audit lis
 - The unit test double for the order store returns the same in-memory order on a retry, so the delete and restore lost-race tests put the order back to its starting state when the unit of work rolls back.
 
 ## Deferred Issues
+
+**Owner ruling D-44 (2026-10-28):** keep the audit cut-off as built. The column is not widened.
 
 - **For the owner: a ruling on the audit length.** The permanent-delete audit entry cannot hold all three people lists once more than about five people are involved. I cut the lists with `+N` so a purge never fails (see Deviations). Other choices: (1) keep this; (2) widen the audit detail column from 400 to a larger size, which is a schema change and one for you to approve; (3) record only the money facts and drop the three people lists. My recommendation is 1 for now, and 2 if you want every id kept.
 - **Open from D-39, parked in the STATE.md owner backlog (not decided here):** whether refunds on a soft-deleted order count toward money on hand. The docs say it is decided in Phase 10. The refund rows and the filters keep either answer possible.
