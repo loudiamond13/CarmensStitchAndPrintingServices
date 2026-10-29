@@ -45,17 +45,21 @@ internal static class FindingsWriter
         return WriteFileAsync(localRoot, "summary", summary, time, cancellationToken);
     }
 
-    /// <summary>Works out the full path of an output file and refuses anything that is not inside the _local folder.</summary>
+    /// <summary>
+    /// Works out the full path of an output file and refuses anything that is not inside the findings folder of the _local folder.
+    /// Paths are made full first, and the inside test needs a trailing separator, so a sibling such as _localx never passes.
+    /// </summary>
     internal static string ResolveTarget(string localRoot, string subFolder, string fileName)
     {
-        var root = Path.GetFullPath(localRoot);
-        if (!string.Equals(Path.GetFileName(root), LocalFolderName, StringComparison.Ordinal))
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(localRoot));
+        if (!string.Equals(Path.GetFileName(root), LocalFolderName, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("The findings folder must be the _local folder.");
         }
 
-        var target = Path.GetFullPath(Path.Combine(root, subFolder, fileName));
-        if (!target.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        var folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(root, subFolder)));
+        var target = Path.GetFullPath(Path.Combine(folder, fileName));
+        if (!IsInside(root, folder) || !IsInside(folder, target))
         {
             throw new InvalidOperationException("The findings file must sit inside the _local folder.");
         }
@@ -68,21 +72,39 @@ internal static class FindingsWriter
         var stamp = time.GetUtcNow().ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         var fileName = $"{prefix}-{stamp}.md";
         var target = ResolveTarget(localRoot, SubFolder, fileName);
-        var root = Path.GetFullPath(localRoot);
-        var folder = Path.GetFullPath(Path.Combine(root, SubFolder));
+        var folder = Path.GetDirectoryName(target)!;
+        var root = Path.GetDirectoryName(folder)!;
 
+        // A link is refused before anything is created, so nothing is ever written through one.
+        RefuseLink(new DirectoryInfo(root));
         Directory.CreateDirectory(folder);
-        if (IsLink(root) || IsLink(folder))
+        RefuseLink(new DirectoryInfo(folder));
+        var file = new FileInfo(target);
+        RefuseLink(file);
+        if (file.Exists)
         {
-            throw new InvalidOperationException("The _local folder and its findings folder must not be links.");
+            throw new InvalidOperationException("An output file with this name already exists and is not overwritten.");
         }
 
-        await File.WriteAllTextAsync(target, text, cancellationToken).ConfigureAwait(false);
+        var stream = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        await using (stream.ConfigureAwait(false))
+        {
+            await stream.WriteAsync(new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(text), cancellationToken).ConfigureAwait(false);
+        }
+
         return $"{LocalFolderName}/{SubFolder}/{fileName}";
     }
 
-    private static bool IsLink(string path) =>
-        new DirectoryInfo(path).Attributes.HasFlag(FileAttributes.ReparsePoint);
+    private static bool IsInside(string parent, string child) =>
+        child.StartsWith(parent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+
+    private static void RefuseLink(FileSystemInfo info)
+    {
+        if (info.LinkTarget is not null || (info.Exists && info.Attributes.HasFlag(FileAttributes.ReparsePoint)))
+        {
+            throw new InvalidOperationException("The _local folder, its findings folder and the output files must not be links.");
+        }
+    }
 
     private static string Cell(string? value) =>
         value is null
