@@ -607,6 +607,60 @@ public sealed class FitCheckRunnerTests
         }
     }
 
+    [Fact]
+    public async Task ExpensesLinkedToAnOrderMissingFromTheRestoreAreCountedWithNoValues()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            var spent = new DateTime(2025, 6, 11, 3, 0, 0, DateTimeKind.Unspecified);
+            await fake.AddOrderRowAsync(new LegacyOrderRow { OrderId = 2, OrderName = "Sample Deleted Club", OrderDate = spent, IsDeleted = true, OrderTypeId = 1, StatusId = 1 }, token);
+            await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 1, OrderId = 1, Description = "Sample thread", SpentDate = spent, IsCompanyExpenses = false, Amount = 10m, PaidBy = "Sample payer" }, token);
+            await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 2, OrderId = null, Description = "Sample rent", SpentDate = spent, IsCompanyExpenses = true, Amount = 900m, PaidBy = "Sample payer" }, token);
+            await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 3, OrderId = 9871, Description = "SENTINEL-MISSING-DESC", SpentDate = spent, IsCompanyExpenses = false, Amount = 777.77m, PaidBy = "SENTINEL-MISSING-PAYER" }, token);
+            await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 4, OrderId = 9872, Description = "SENTINEL-MISSING-DESC", SpentDate = null, IsCompanyExpenses = false, Amount = 777.77m, PaidBy = string.Empty }, token);
+            await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 5, OrderId = null, Description = "Sample unplaced", SpentDate = spent, IsCompanyExpenses = false, Amount = 5m, PaidBy = string.Empty }, token);
+            await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 6, OrderId = 2, Description = "Sample ribbon", SpentDate = spent, IsCompanyExpenses = false, Amount = 8m, PaidBy = string.Empty }, token);
+            await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 7, OrderId = 9873, Description = "Sample company link", SpentDate = spent, IsCompanyExpenses = true, Amount = 20m, PaidBy = string.Empty }, token);
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token);
+
+                exit.ShouldBe(0, error.ToString());
+                output.ToString().ShouldContain("Company expenses checked: 2.");
+                var folder = Path.Combine(localRoot, "legacy-fit-check");
+                var full = await File.ReadAllTextAsync(Directory.EnumerateFiles(folder, "findings-*.md").ShouldHaveSingleItem(), token);
+                Count(full, "| expense.order-missing |").ShouldBe(2);
+                Count(full, "| Expenses:3 | CannotMap | expense.order-missing |").ShouldBe(1);
+                Count(full, "| Expenses:4 | CannotMap | expense.order-missing |").ShouldBe(1);
+                Count(full, "| expense.unplaced |").ShouldBe(1);
+                full.ShouldNotContain("SENTINEL-MISSING");
+                full.ShouldNotContain("777.77");
+                full.ShouldNotContain("9871");
+                full.ShouldNotContain("9872");
+
+                var summary = await File.ReadAllTextAsync(Directory.EnumerateFiles(folder, "summary-*.md").ShouldHaveSingleItem(), token);
+                summary.ShouldContain("Expenses linked to an order that is not in the old data (counted only, not judged): 2 expenses");
+                summary.ShouldContain("Expenses with no order and not marked as company expenses (counted only, not judged): 1 expense");
+                summary.ShouldNotContain("SENTINEL", Case.Insensitive);
+                summary.ShouldNotContain("777.77");
+                summary.ShouldNotContain("987");
+                summary.ShouldNotContain("Expenses:3", Case.Sensitive);
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
     private static async Task AddSentinelOrderAsync(FakeLegacyDatabase fake, string description, CancellationToken token)
     {
         await fake.AddOrderTypeAsync(new LegacyOrderTypeRow { OrderTypeId = 2, OrderTypeName = "Fixture Garments" }, token);
