@@ -256,6 +256,9 @@ type AuditExpenseSnapshot = components['schemas']['AuditExpenseSnapshot'];
 type AuditOrderSnapshot = components['schemas']['AuditOrderSnapshot'];
 type AuditPerson = components['schemas']['ActorRef'];
 
+/** What a change to a field the viewer does not know reads as. Its name and values are never shown (D-84). */
+const OTHER_DETAIL_CHANGED = 'Other detail changed';
+
 /** What a category reads as once it has been deleted. */
 const DELETED_CATEGORY = 'a deleted category';
 
@@ -371,9 +374,9 @@ function discountValueText(value: string): string | null {
  * One typed change line as a fixed sentence (D-27, D-31, UI-SPEC A1): amounts in pesos, dates in the Manila style, list entries and
  * people by name. A text field says only that it changed, because its text is never stored in the log (05 D-40). With `stated`, the
  * line gives a value as it was added or removed (see isStatedValueAction), so it has no old value. A value the viewer cannot read
- * gives "<Field> changed"; only a field the viewer does not know gives null.
+ * gives "<Field> changed", and a field the viewer does not know gives "Other detail changed" (D-84).
  */
-export function describeAuditChange(line: AuditChangeLine, stated = false): string | null {
+export function describeAuditChange(line: AuditChangeLine, stated = false): string {
   switch (line.field) {
     case 'amount':
       return valuePair('Amount', line, stated, formatPeso);
@@ -419,7 +422,7 @@ export function describeAuditChange(line: AuditChangeLine, stated = false): stri
       return to === null || (line.from !== null && from === null) ? changedOnly('Color') : pair('Color', from, to);
     }
     default:
-      return TEXT_FIELD_SENTENCES.get(line.field) ?? null;
+      return TEXT_FIELD_SENTENCES.get(line.field) ?? OTHER_DETAIL_CHANGED;
   }
 }
 

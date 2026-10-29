@@ -317,19 +317,25 @@ describe('describeAuditChange for every field (D-27, UI-SPEC A1)', () => {
     expect(describeAuditChange(change('tone', null, 'info'))).toBe('Color: Blue');
   });
 
-  it('reads a line it cannot read as "<Field> changed", and leaves out only a field it does not know (D-81)', () => {
+  it('reads a line it cannot read as "<Field> changed" (D-81)', () => {
     expect(describeAuditChange(change('tone', 'warning', 'purple'))).toBe('Color changed');
     expect(describeAuditChange(change('date', 'soon', 'later'))).toBe('Date changed');
     expect(describeAuditChange(change('amount', null, '5.00'))).toBe('Amount changed');
     expect(describeAuditChange(change('name', 'Supplies', null))).toBe('Name changed');
-    expect(describeAuditChange(change('shoe-size', 'a', 'b'))).toBeNull();
+  });
+
+  it('reads a field it does not know as "Other detail changed", never its name or values (D-84)', () => {
+    const other = describeAuditChange(change('shoe-size', 'small', 'large'));
+    expect(other).toBe('Other detail changed');
+    expect(other).not.toMatch(/shoe|small|large/i);
+    expect(describeAuditChange(change('shoe-size', 'small', 'large'), true)).toBe('Other detail changed');
   });
 
   it('never puts an unreadable stored value in the fallback sentence', () => {
-    const date = describeAuditChange(change('date', 'soon', 'later')) ?? '';
+    const date = describeAuditChange(change('date', 'soon', 'later'));
     expect(date).not.toContain('soon');
     expect(date).not.toContain('later');
-    const value = describeAuditChange(change('value', 'five', '10.00')) ?? '';
+    const value = describeAuditChange(change('value', 'five', '10.00'));
     expect(value).toBe('Discount value changed');
     expect(value).not.toContain('five');
     expect(value).not.toContain('10.00');

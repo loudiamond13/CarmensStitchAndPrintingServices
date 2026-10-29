@@ -206,6 +206,28 @@ describe('AuditDetail', () => {
     expect(lines).toEqual(['Amount changed', 'Payment method: Cash to GCash']);
   });
 
+  it('lists fields it does not know as one "Other detail changed" line (D-84)', () => {
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order.changed',
+          detail: 'order=x',
+          orderNumber: 'ORD-2026-0148',
+          changes: [
+            { field: 'shoeSize', from: 'small', to: 'large', fromPerson: null, toPerson: null },
+            { field: 'notes', from: null, to: null, fromPerson: null, toPerson: null },
+            { field: 'jerseyCut', from: 'slim', to: 'loose', fromPerson: null, toPerson: null },
+          ],
+        })}
+      />,
+    );
+
+    const lines = within(valueOf(container, 'What changed'))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(lines).toEqual(['Other detail changed', 'Notes changed']);
+  });
+
   it('reads the snapshot of a deleted order after the order is gone (ORD-16)', () => {
     const { container } = render(
       <AuditDetail

@@ -45,15 +45,14 @@ export interface AuditDetailProps {
   id?: string | undefined;
 }
 
-/** The typed lines of an expense, order or list entry, as fixed sentences: the snapshots first, then each change line (one with an unreadable value reads "<Field> changed"). */
+/** The typed lines of an expense, order or list entry, as fixed sentences: the snapshots first, then each change line once (an unreadable value reads "<Field> changed", an unknown field "Other detail changed"). */
 function changeSentences(item: AuditLogItem): string[] {
   const stated = isStatedValueAction(item.action);
   return [
     ...(item.snapshot === null ? [] : [describeAuditSnapshot(item.snapshot)]),
     ...(item.orderSnapshot === null ? [] : [describeAuditOrderSnapshot(item.orderSnapshot)]),
-    ...item.changes
-      .map((line) => describeAuditChange(line, stated))
-      .filter((sentence): sentence is string => sentence !== null),
+    // Several unknown fields read the same, so each sentence shows once.
+    ...new Set(item.changes.map((line) => describeAuditChange(line, stated))),
   ];
 }
 
