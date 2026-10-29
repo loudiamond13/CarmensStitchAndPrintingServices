@@ -455,6 +455,12 @@ public static class OrderRules
     /// <summary>The machine code of a change that would leave the discounts above the items total.</summary>
     public const string DiscountAboveSubtotalCode = "orders.discount-above-subtotal";
 
+    /// <summary>The machine code of a payment change that would leave the payments below the refunds (D-09, D-49).</summary>
+    public const string PaymentBelowRefundsCode = "orders.payment-below-refunds";
+
+    /// <summary>The plain-English text for a payment change that would leave the payments below the refunds.</summary>
+    public const string PaymentBelowRefundsMessage = "The refunds would be more than the payments. Lower or remove a refund first.";
+
     /// <summary>The machine code of an item id that is not on the order in the route.</summary>
     public const string ItemNotFoundCode = "orders.item-not-found";
 
@@ -502,6 +508,9 @@ public static class OrderRules
 
     /// <summary>Gets the 422 for adding a payment to an order that already has the most.</summary>
     public static Error TooManyPayments { get; } = Error.BusinessRule(TooManyPaymentsCode, PaymentsTooMany);
+
+    /// <summary>Gets the 422 for a payment change that would leave the payments below the refunds.</summary>
+    public static Error PaymentBelowRefunds { get; } = Error.BusinessRule(PaymentBelowRefundsCode, PaymentBelowRefundsMessage);
 
     /// <summary>Gets the 404 for a discount id that is not on the order.</summary>
     public static Error DiscountNotFound { get; } = Error.NotFound(DiscountNotFoundCode, DiscountNotFoundMessage);

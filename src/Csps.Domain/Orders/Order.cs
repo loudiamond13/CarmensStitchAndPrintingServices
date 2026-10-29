@@ -744,7 +744,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <param name="values">The new values as given.</param>
     /// <param name="today">The business today; a payment may not be dated after it.</param>
     /// <param name="now">The current instant, which makes the new edit version.</param>
-    /// <returns>What changed (nothing at all for an identical edit), a 404 when the payment is not on this order, or a validation error naming the first broken field.</returns>
+    /// <returns>What changed (nothing at all for an identical edit), a 404 when the payment is not on this order, a validation error naming the first broken field, or a 422 when a lower amount would leave the payments below the refunds.</returns>
     public Result<OrderPaymentChanges> UpdatePayment(Guid paymentId, NewOrderPayment values, DateOnly today, DateTimeOffset now)
     {
         if (EnsureEditable() is { } locked)
@@ -787,6 +787,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
                 return OrderRules.Reject<OrderPaymentChanges>(OrderRules.PaymentPath(null, OrderRules.PaymentAmountField), OrderRules.PaymentAboveBalance(ceiling));
             }
         }
+        else if (cleaned.Amount < payment.Amount
+            && Figures(_payments.Select(existing => existing == payment ? cleaned.Amount : existing.Amount)).Paid < RefundedTotal)
+        {
+            return Result.Failure<OrderPaymentChanges>(OrderRules.PaymentBelowRefunds);
+        }
 
         payment.Apply(cleaned);
         Recalculate();
@@ -797,7 +802,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <summary>Takes one payment off the order. The totals are worked out again and the edit version moves.</summary>
     /// <param name="paymentId">The payment to remove; it must be on this order.</param>
     /// <param name="now">The current instant, which makes the new edit version.</param>
-    /// <returns>The removed payment, or a 404 when it is not on this order.</returns>
+    /// <returns>The removed payment, a 404 when it is not on this order, or a 422 when the payments left would be below the refunds.</returns>
     public Result<OrderPayment> RemovePayment(Guid paymentId, DateTimeOffset now)
     {
         if (EnsureEditable() is { } locked)
@@ -809,6 +814,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         if (payment is null)
         {
             return Result.Failure<OrderPayment>(OrderRules.PaymentNotFound);
+        }
+
+        if (Figures(_payments.Where(existing => existing != payment).Select(static existing => existing.Amount)).Paid < RefundedTotal)
+        {
+            return Result.Failure<OrderPayment>(OrderRules.PaymentBelowRefunds);
         }
 
         _payments.Remove(payment);

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T19:54:00-05:00
+updated: 2026-10-28T23:00:00-05:00
 ---
 
 # The orders API
@@ -38,8 +38,8 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `PUT /orders/{id}/discounts/{discountId}` | Staff | the discount form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.discount-not-found`; `409 edit.stale` |
 | `DELETE /orders/{id}/discounts/{discountId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.discount-not-found`; `409 edit.stale` |
 | `POST /orders/{id}/payments` | Staff | the payment form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-payments` |
-| `PUT /orders/{id}/payments/{paymentId}` | Staff | the payment form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale` |
-| `DELETE /orders/{id}/payments/{paymentId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale` |
+| `PUT /orders/{id}/payments/{paymentId}` | Staff | the payment form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale`; `422 orders.payment-below-refunds` |
+| `DELETE /orders/{id}/payments/{paymentId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.payment-not-found`; `409 edit.stale`; `422 orders.payment-below-refunds` |
 | `POST /orders/{id}/expenses` | Staff | the expense form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-expenses` |
 | `PUT /orders/{id}/expenses/{expenseId}` | Staff | the expense form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
 | `DELETE /orders/{id}/expenses/{expenseId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.expense-not-found`; `409 edit.stale` |
@@ -276,6 +276,10 @@ server and a new `version`. Each payment shows **who received the money** (`rece
   is never chosen. An edit that keeps the saved receiver is allowed even if they were deactivated since: the payment keeps showing
   them, with `receivedByActive: false`, and a deleted person keeps their name with `formerStaff: true`. In the same way a saved
   payment method that was retired since may be kept on an edit, but a new or switched one may not be retired.
+- **Payments never drop below refunds (D-09, D-49).** A removal, or an edit that lowers the amount, that would leave the payments
+  below the refunds already recorded is `422 orders.payment-below-refunds`, "The refunds would be more than the payments. Lower or
+  remove a refund first." Nothing is saved. Lowering to exactly the refunds is allowed. A legacy import keeps its refunds as they
+  were (D-47) and is not judged by this rule.
 - **Phase 10, money on hand.** A payment counts toward its receiver's money on hand from the moment it is saved. Changing the
   receiver moves it from one person to the other, and that move is its own audit entry. The receiver index carries the amount and
   the date, so Phase 10 reads it without touching the order rows.
