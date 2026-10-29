@@ -739,6 +739,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07 UI review]: D-81 (owner, 2026-10-29, UI-REVIEW fix 3): a change line whose values cannot be read shows "<Field> changed" (for example "Amount changed") with no values, instead of being dropped.
 - [Phase 07 UI review]: D-82 (owner, 2026-10-29, UI-REVIEW fix 3): order sub-entry action labels name the order: "Order item added", "Order payment added", "Order refund added", "Order discount added", and the same for changed, removed and the receiver or refunder changes.
 - [Phase 07 UI review]: D-83 (owner, 2026-10-29, quick 261029-87p open items 1 and 2): keep the Audit Log copy as built: "Payer changed", "Receiver changed", "Refunder changed" for unreadable person lines, and "Group" and "All groups" for the Group select. A change line for a field the screen does not know about stays left out (no generic sentence), because the screen and the API ship together.
+- [Phase 07 UI review]: D-84 (owner, 2026-10-29, replaces the unknown-field part of D-83): a change line for a field the screen does not know about reads "Other detail changed", with no field name or values, and shows once per entry however many unknown fields there are. The rest of D-83 (the copy) stands.
 
 ### Pending Todos
 
