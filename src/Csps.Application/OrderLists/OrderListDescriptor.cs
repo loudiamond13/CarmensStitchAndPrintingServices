@@ -40,7 +40,8 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     {
         OrderListKind.ProductType => AuditActions.ProductTypeAdded,
         OrderListKind.PaymentMethod => AuditActions.PaymentMethodAdded,
-        _ => AuditActions.OrderExpenseCategoryAdded,
+        OrderListKind.OrderExpenseCategory => AuditActions.OrderExpenseCategoryAdded,
+        _ => throw Unknown(),
     };
 
     /// <summary>Gets the audit action of a rename.</summary>
@@ -48,7 +49,8 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     {
         OrderListKind.ProductType => AuditActions.ProductTypeRenamed,
         OrderListKind.PaymentMethod => AuditActions.PaymentMethodRenamed,
-        _ => AuditActions.OrderExpenseCategoryRenamed,
+        OrderListKind.OrderExpenseCategory => AuditActions.OrderExpenseCategoryRenamed,
+        _ => throw Unknown(),
     };
 
     /// <summary>Gets the audit action of a recolor.</summary>
@@ -56,7 +58,8 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     {
         OrderListKind.ProductType => AuditActions.ProductTypeRecolored,
         OrderListKind.PaymentMethod => AuditActions.PaymentMethodRecolored,
-        _ => AuditActions.OrderExpenseCategoryRecolored,
+        OrderListKind.OrderExpenseCategory => AuditActions.OrderExpenseCategoryRecolored,
+        _ => throw Unknown(),
     };
 
     /// <summary>Gets the audit action of a retire.</summary>
@@ -64,7 +67,8 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     {
         OrderListKind.ProductType => AuditActions.ProductTypeRetired,
         OrderListKind.PaymentMethod => AuditActions.PaymentMethodRetired,
-        _ => AuditActions.OrderExpenseCategoryRetired,
+        OrderListKind.OrderExpenseCategory => AuditActions.OrderExpenseCategoryRetired,
+        _ => throw Unknown(),
     };
 
     /// <summary>Gets the audit action of a reactivation.</summary>
@@ -72,7 +76,8 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     {
         OrderListKind.ProductType => AuditActions.ProductTypeReactivated,
         OrderListKind.PaymentMethod => AuditActions.PaymentMethodReactivated,
-        _ => AuditActions.OrderExpenseCategoryReactivated,
+        OrderListKind.OrderExpenseCategory => AuditActions.OrderExpenseCategoryReactivated,
+        _ => throw Unknown(),
     };
 
     /// <summary>Gets the audit action of a delete.</summary>
@@ -80,7 +85,8 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     {
         OrderListKind.ProductType => AuditActions.ProductTypeDeleted,
         OrderListKind.PaymentMethod => AuditActions.PaymentMethodDeleted,
-        _ => AuditActions.OrderExpenseCategoryDeleted,
+        OrderListKind.OrderExpenseCategory => AuditActions.OrderExpenseCategoryDeleted,
+        _ => throw Unknown(),
     };
 
     /// <summary>Gets the descriptor of a list.</summary>
@@ -103,8 +109,11 @@ public sealed record OrderListDescriptor(OrderListKind Kind, string RouteSegment
     {
         OrderListKind.ProductType => Widen(ProductType.Create(name, tone, now)),
         OrderListKind.PaymentMethod => Widen(PaymentMethod.Create(name, tone, now)),
-        _ => Widen(OrderExpenseCategory.Create(name, tone, now)),
+        OrderListKind.OrderExpenseCategory => Widen(OrderExpenseCategory.Create(name, tone, now)),
+        _ => throw Unknown(),
     };
+
+    private ArgumentOutOfRangeException Unknown() => new(nameof(Kind), Kind, "Unknown order list.");
 
     private static Result<OrderListEntry> Widen<TEntry>(Result<TEntry> created)
         where TEntry : OrderListEntry =>
