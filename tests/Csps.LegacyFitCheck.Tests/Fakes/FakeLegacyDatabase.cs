@@ -79,6 +79,16 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
         }
     }
 
+    /// <summary>Reads the name of one order, for tests that prove a write did not land.</summary>
+    public async Task<string?> OrderNameAsync(int orderId, CancellationToken cancellationToken)
+    {
+        var context = FakeLegacyWriteContext.Open(ConnectionString);
+        await using (context.ConfigureAwait(false))
+        {
+            return await context.Orders.Where(row => row.OrderId == orderId).Select(row => row.OrderName).SingleAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>Counts the rows of the two order tables.</summary>
     public async Task<(int Orders, int Items)> CountAsync(CancellationToken cancellationToken)
     {
