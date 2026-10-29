@@ -1,10 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import type { ReactElement } from 'react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as moneyScenarios } from '@/dev/scenarios/groups/money';
 import type { ScenarioNode } from '@/dev/scenarios/types';
-import type { Order, Totals } from '@/utils/csps';
+import type { Order, OrderFigures } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { skeletonClasses } from '@/components/feedback/feedback.recipe';
 import { KpiCard, Money, OrderTotals } from '@/components/money';
@@ -14,6 +15,7 @@ import {
   balancePaidClasses,
   balanceToneClasses,
   balanceValueClasses,
+  balanceWrapClasses,
   deltaClasses,
   deltaToneClasses,
   kpiClasses,
@@ -163,20 +165,54 @@ describe('Money (App. D.3)', () => {
   });
 });
 
-describe('OrderTotals (App. D.3)', () => {
-  it('shows the spec §12.2 figures for ORD-2026-0148 in the panel: Subtotal, Discount and Paid as negatives (D-41 R2-06)', () => {
+/** Server figures for ORD-2026-0148, as the API sends them (decimal strings). */
+const SERVER_0148: OrderFigures = {
+  subtotal: '22450.00',
+  discount: '1122.50',
+  total: '21327.50',
+  paid: '12000.00',
+  refunded: '0.00',
+  balance: '9327.50',
+  customerCredit: '0.00',
+  fullyPaid: false,
+  expenses: '6065.00',
+  profit: '15262.50',
+};
+
+describe('OrderTotals (D-01 to D-07, D-45)', () => {
+  it('shows the figures for ORD-2026-0148 in the panel: Subtotal, Discount, Total and Paid, then expenses and profit (D-01, D-06)', () => {
     const { container } = renderCase('order-totals-0148');
     const [main, internal] = [...container.querySelectorAll('dl')];
 
     expect(figures(main)).toEqual([
       ['Subtotal', '₱22,450.00'],
-      ['Total Discount', `${MINUS}₱1,122.50`],
-      ['Total Paid', `${MINUS}₱12,000.00`],
+      ['Discount', `${MINUS}₱1,122.50`],
+      ['Total', '₱21,327.50'],
+      ['Paid', `${MINUS}₱12,000.00`],
     ]);
     expect(figures(internal)).toEqual([
       ['Order Expenses', '₱6,065.00'],
       ['Estimated Profit', '₱15,262.50'],
     ]);
+    expect(container.textContent).not.toMatch(/Total Discount|Total Paid|Internal only/);
+  });
+
+  it('shows server decimal strings as they are, with no float rounding (ORD-01 precision)', () => {
+    const { container } = render(<OrderTotals totals={SERVER_0148} status="production" />);
+
+    expect(figures(container.querySelector('dl'))).toEqual([
+      ['Subtotal', '₱22,450.00'],
+      ['Discount', `${MINUS}₱1,122.50`],
+      ['Total', '₱21,327.50'],
+      ['Paid', `${MINUS}₱12,000.00`],
+    ]);
+    expect(container.firstElementChild?.children[1]?.lastElementChild?.textContent).toBe('₱9,327.50');
+
+    const big = render(
+      <OrderTotals totals={{ ...SERVER_0148, subtotal: 99999999.99, total: '1000000.00', balance: 99999999.99 }} />,
+    );
+    expect(big.container.textContent).toContain('₱99,999,999.99');
+    expect(big.container.textContent).toContain('₱1,000,000.00');
   });
 
   it('shows ORD-2026-0148 as balance due: the warning ground, "Balance due" and ₱9,327.50', () => {
@@ -195,7 +231,7 @@ describe('OrderTotals (App. D.3)', () => {
     expect(screen.queryByText('Fully Paid')).toBeNull();
   });
 
-  it('renders the App. D.3 panel markup: rows list, balance, then the dashed internal list with the note', () => {
+  it('renders the panel markup: rows list, balance, then the dashed internal list with the Staff only note', () => {
     const { container } = renderCase('order-totals-0148');
     const root = container.firstElementChild;
     const [main, , internal] = [...(root?.children ?? [])];
@@ -207,23 +243,22 @@ describe('OrderTotals (App. D.3)', () => {
     expect(classTokens(main)).toEqual(tokens(totalsRowsClasses.panel));
     expect(internal?.localName).toBe('dl');
     expect(classTokens(internal)).toEqual(tokens(`${totalsRowsClasses.panel} ${totalsInternalClasses}`));
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(6);
     for (const row of rows) {
       expect(classTokens(row)).toEqual(tokens(totalsRowClasses.panel));
       expect(classTokens(row.querySelector('dd'))).toEqual(tokens(totalsFigureClasses));
     }
     expect(classTokens(rows[0]?.querySelector('dt'))).toEqual(tokens(totalsTermClasses.normal));
-    expect(classTokens(rows[4]?.querySelector('dt'))).toEqual(tokens(totalsTermClasses.strong));
+    expect(classTokens(rows[5]?.querySelector('dt'))).toEqual(tokens(totalsTermClasses.strong));
     expect(note?.localName).toBe('p');
-    expect(note?.textContent).toBe(`Profit = Subtotal ${MINUS} Discount ${MINUS} Expenses. Internal only.`);
+    expect(note?.textContent).toBe(`Profit = Total ${MINUS} Expenses. Staff only.`);
     expect(classTokens(note)).toEqual(tokens(totalsNoteClasses));
   });
 
   it('keeps the note inside the internal list as a definition, so the list stays valid (A11Y-01)', () => {
     const { container } = renderCase('order-totals-0148');
-    const note = container.querySelector('dl p');
 
-    expect(note?.getAttribute('role')).toBe('definition');
+    expect(container.querySelector('dl p')?.getAttribute('role')).toBe('definition');
   });
 
   it('shows ORD-2026-0151 as fully paid: the success ground, "Balance", the check icon and "Fully Paid"', () => {
@@ -234,8 +269,9 @@ describe('OrderTotals (App. D.3)', () => {
 
     expect(figures(container.querySelector('dl'))).toEqual([
       ['Subtotal', '₱23,000.00'],
-      ['Total Discount', `${MINUS}₱500.00`],
-      ['Total Paid', `${MINUS}₱22,500.00`],
+      ['Discount', `${MINUS}₱500.00`],
+      ['Total', '₱22,500.00'],
+      ['Paid', `${MINUS}₱22,500.00`],
     ]);
     expect(classTokens(balance)).toEqual(tokens(`${balanceClasses.panel} ${balanceToneClasses.paid}`));
     expect(overline?.textContent).toBe('Balance');
@@ -257,7 +293,7 @@ describe('OrderTotals (App. D.3)', () => {
     ]);
   });
 
-  it('renders the compact card variant: tighter rows, the 28px balance, 18px check, and no expenses or profit', () => {
+  it('renders the compact card variant: one Total row, the 28px balance, 18px check, and no discount, expenses or profit (D-04, D-06)', () => {
     const { container } = renderCase('order-totals-card-0148');
     const root = container.firstElementChild;
     const balance = root?.children[1];
@@ -265,37 +301,16 @@ describe('OrderTotals (App. D.3)', () => {
     expect(root?.children).toHaveLength(2);
     expect(classTokens(root)).toEqual(tokens(totalsClasses.card));
     expect(classTokens(root?.firstElementChild)).toEqual(tokens(totalsRowsClasses.card));
+    expect(figures(root?.firstElementChild)).toEqual([['Total', '₱21,327.50']]);
     expect(classTokens(root?.querySelector('dl > div'))).toEqual(tokens(totalsRowClasses.card));
     expect(classTokens(balance)).toEqual(tokens(`${balanceClasses.card} ${balanceToneClasses.due}`));
     expect(classTokens(balance?.lastElementChild)).toEqual(tokens(balanceValueClasses.card));
-    expect(container.textContent).not.toContain('Estimated Profit');
+    expect(container.textContent).not.toMatch(/Estimated Profit|Order Expenses|Discount/);
 
     const paid = render(
-      <OrderTotals variant="card" totals={{ ...ZERO_TOTALS, subtotal: 100, total: 100, fullyPaid: true }} />,
+      <OrderTotals variant="card" totals={{ ...SERVER_0148, balance: '0.00', fullyPaid: true }} />,
     );
     expect(paid.container.querySelector('svg')?.getAttribute('width')).toBe('18');
-  });
-
-  it('shows the figures it is given (the server totals) instead of computing a preview (D-09)', () => {
-    const server: Totals = {
-      subtotal: 23000,
-      discount: 500,
-      total: 22500,
-      paid: 10000,
-      balance: 12500,
-      expenses: 9300,
-      profit: 13200,
-      fullyPaid: false,
-    };
-    const order: Partial<Order> = { items: [{ quantity: 1, unitPrice: 1 }] };
-    const { container } = render(<OrderTotals order={order} totals={server} />);
-
-    expect(figures(container.querySelector('dl'))).toEqual([
-      ['Subtotal', '₱23,000.00'],
-      ['Total Discount', `${MINUS}₱500.00`],
-      ['Total Paid', `${MINUS}₱10,000.00`],
-    ]);
-    expect(container.firstElementChild?.children[1]?.lastElementChild?.textContent).toBe('₱12,500.00');
   });
 
   it('computes a preview with the D-09 centavo rounding: 7.5% of ₱17.00 is ₱1.28', () => {
@@ -305,16 +320,143 @@ describe('OrderTotals (App. D.3)', () => {
     };
     const { container } = render(<OrderTotals order={order} />);
 
-    expect(figures(container.querySelector('dl'))[1]).toEqual(['Total Discount', `${MINUS}₱1.28`]);
+    expect(figures(container.querySelector('dl'))[1]).toEqual(['Discount', `${MINUS}₱1.28`]);
   });
 
-  it('shows a negative profit in the danger colour', () => {
-    const order: Partial<Order> = { items: [{ quantity: 1, unitPrice: 1000 }], expenses: [{ amount: 1500 }] };
-    const { container } = render(<OrderTotals order={order} />);
+  it('shows a customer credit in the info block with the D-02 line and never as a negative balance', () => {
+    const { container } = render(<OrderTotals totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '1000.00' }} />);
+    const balance = container.firstElementChild?.children[1];
+
+    expect(balance?.textContent).toContain('Customer credit');
+    expect(balance?.textContent).toContain('₱1,000.00');
+    expect(balance?.textContent).toContain('Paid over the total. Record a refund to clear it.');
+    expect(classTokens(balance)).toEqual(
+      tokens(`${balanceClasses.panel} ${balanceToneClasses.credit} ${balanceWrapClasses}`),
+    );
+    expect(classTokens(balance?.firstElementChild)).toEqual(tokens(balanceOverlineClasses.credit));
+    expect(balance?.textContent).not.toContain(MINUS);
+    expect(container.textContent).not.toContain('Balance due');
+    expect(container.textContent).not.toContain('Fully Paid');
+  });
+
+  it('shows the credit before Fully Paid when both are true (D-02)', () => {
+    render(<OrderTotals totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '0.01', fullyPaid: true }} />);
+
+    expect(screen.getByText('Customer credit')).toBeTruthy();
+    expect(screen.getByText('₱0.01')).toBeTruthy();
+    expect(screen.queryByText('Fully Paid')).toBeNull();
+  });
+
+  it('shows Record Refund in the credit block only when the caller gives a handler, and calls it (D-19)', () => {
+    const credit = { ...SERVER_0148, balance: '0.00', customerCredit: '1000.00' };
+    const { rerender } = render(<OrderTotals totals={credit} />);
+    expect(screen.queryByRole('button', { name: 'Record Refund' })).toBeNull();
+
+    const onRecordRefund = vi.fn();
+    rerender(<OrderTotals totals={credit} onRecordRefund={onRecordRefund} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Record Refund' }));
+    expect(onRecordRefund).toHaveBeenCalledTimes(1);
+
+    rerender(<OrderTotals totals={SERVER_0148} onRecordRefund={onRecordRefund} />);
+    expect(screen.queryByRole('button', { name: 'Record Refund' })).toBeNull();
+  });
+
+  it('shows a credit on the card as a "Credit ₱X" info badge on the neutral ground, with no refund button (D-04)', () => {
+    const { container } = render(
+      <OrderTotals
+        variant="card"
+        totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '1000.00' }}
+        onRecordRefund={vi.fn()}
+      />,
+    );
+    const balance = container.firstElementChild?.children[1];
+
+    expect(classTokens(balance)).toEqual(tokens(`${balanceClasses.card} ${balanceToneClasses.neutral}`));
+    expect(balance?.firstElementChild?.textContent).toBe('Balance');
+    expect(within(balance as HTMLElement).getByText('Credit ₱1,000.00')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(container.textContent).not.toContain(MINUS);
+  });
+
+  it('shows Not collected for a Cancelled order with a balance, on the neutral ground (D-45)', () => {
+    const { container } = render(
+      <OrderTotals totals={{ ...SERVER_0148, balance: '500.00' }} status="cancelled" />,
+    );
+    const balance = container.firstElementChild?.children[1];
+
+    expect(balance?.firstElementChild?.textContent).toBe('Not collected');
+    expect(balance?.lastElementChild?.textContent).toBe('₱500.00');
+    expect(classTokens(balance)).toEqual(tokens(`${balanceClasses.panel} ${balanceToneClasses.neutral}`));
+    expect(classTokens(balance?.firstElementChild)).toEqual(tokens(balanceOverlineClasses.neutral));
+    expect(container.textContent).not.toContain('Balance due');
+  });
+
+  it('keeps Balance due on a Cancelled order with nothing owed, and Fully Paid when it is paid', () => {
+    const { rerender } = render(<OrderTotals totals={{ ...SERVER_0148, balance: '0.00' }} status="cancelled" />);
+    expect(screen.getByText('Balance due')).toBeTruthy();
+    expect(screen.queryByText('Not collected')).toBeNull();
+
+    rerender(<OrderTotals totals={{ ...SERVER_0148, balance: '0.00', fullyPaid: true }} status="cancelled" />);
+    expect(screen.getByText('Fully Paid')).toBeTruthy();
+  });
+
+  it('draws the balance edge cases by the centavo (ORD-01 adjacency)', () => {
+    const { rerender } = render(<OrderTotals totals={{ ...SERVER_0148, balance: '0.00', fullyPaid: true }} />);
+    expect(screen.getByText('Fully Paid')).toBeTruthy();
+
+    rerender(<OrderTotals totals={{ ...SERVER_0148, balance: '0.01' }} />);
+    expect(screen.getByText('Balance due')).toBeTruthy();
+    expect(screen.getByText('₱0.01')).toBeTruthy();
+
+    rerender(<OrderTotals totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '0.01' }} />);
+    expect(screen.getByText('Customer credit')).toBeTruthy();
+    expect(screen.getByText('₱0.01')).toBeTruthy();
+  });
+
+  it('shows the Refunded row as +₱ only when something was refunded (D-03)', () => {
+    const { container, rerender } = render(<OrderTotals totals={SERVER_0148} />);
+    expect(container.textContent).not.toContain('Refunded');
+
+    rerender(<OrderTotals totals={{ ...SERVER_0148, refunded: '500.00' }} />);
+    expect(figures(container.querySelector('dl'))).toEqual([
+      ['Subtotal', '₱22,450.00'],
+      ['Discount', `${MINUS}₱1,122.50`],
+      ['Total', '₱21,327.50'],
+      ['Paid', `${MINUS}₱12,000.00`],
+      ['Refunded', '+₱500.00'],
+    ]);
+  });
+
+  it('reads the Cancelled profit note: money kept (Paid - Refunded) minus Expenses (D-07)', () => {
+    const { container } = render(<OrderTotals totals={SERVER_0148} status="cancelled" />);
+
+    expect(container.querySelector('dl p')?.textContent).toBe(
+      `Cancelled: profit = money kept (Paid ${MINUS} Refunded) ${MINUS} Expenses. Staff only.`,
+    );
+  });
+
+  it('shows a negative profit in the danger colour with the true minus', () => {
+    const { container } = render(<OrderTotals totals={{ ...SERVER_0148, profit: '-1200.00' }} />);
     const profit = container.querySelectorAll('dl')[1]?.querySelectorAll('dd')[1];
 
-    expect(profit?.textContent).toBe(`${MINUS}₱500.00`);
+    expect(profit?.textContent).toBe(`${MINUS}₱1,200.00`);
     expect(classTokens(profit)).toEqual(tokens(`${totalsFigureClasses} ${totalsNegativeClasses}`));
+  });
+
+  it('leaves the expenses and profit list out when the figures carry none', () => {
+    const listFigures: OrderFigures = {
+      subtotal: '22450.00',
+      discount: '1122.50',
+      total: '21327.50',
+      paid: '12000.00',
+      refunded: '0.00',
+      balance: '9327.50',
+      customerCredit: '0.00',
+      fullyPaid: false,
+    };
+    const { container } = render(<OrderTotals totals={listFigures} />);
+
+    expect(container.querySelectorAll('dl')).toHaveLength(1);
   });
 
   it('treats an empty order as ₱0.00 due, not fully paid (Fully Paid needs Subtotal > 0)', () => {
@@ -323,8 +465,9 @@ describe('OrderTotals (App. D.3)', () => {
 
     expect(figures(container.querySelector('dl'))).toEqual([
       ['Subtotal', '₱0.00'],
-      ['Total Discount', '₱0.00'],
-      ['Total Paid', '₱0.00'],
+      ['Discount', '₱0.00'],
+      ['Total', '₱0.00'],
+      ['Paid', '₱0.00'],
     ]);
     expect(balance?.firstElementChild?.textContent).toBe('Balance due');
     expect(balance?.lastElementChild?.textContent).toBe('₱0.00');
@@ -341,14 +484,47 @@ describe('OrderTotals (App. D.3)', () => {
 
     expect(figures(container.querySelector('dl'))).toEqual([
       ['Subtotal', '₱51.00'],
-      ['Total Discount', `${MINUS}₱51.00`],
-      ['Total Paid', '₱0.00'],
+      ['Discount', `${MINUS}₱51.00`],
+      ['Total', '₱0.00'],
+      ['Paid', '₱0.00'],
     ]);
     expect(balance?.firstElementChild?.textContent).toBe('Balance');
     expect(balance?.lastElementChild?.textContent).toBe('Fully Paid');
   });
 
-  it('has no axe violations, due and fully paid, panel and card', async () => {
+  it('previews an overpaid order as a customer credit, never a negative balance', () => {
+    const order: Partial<Order> = { items: [{ quantity: 1, unitPrice: 100 }], payments: [{ amount: 130 }] };
+    const { container } = render(<OrderTotals order={order} />);
+
+    expect(container.firstElementChild?.children[1]?.textContent).toContain('Customer credit');
+    expect(container.firstElementChild?.children[1]?.textContent).toContain('₱30.00');
+    expect(container.firstElementChild?.children[1]?.textContent).not.toContain(MINUS);
+  });
+
+  it('has no axe violations for every balance state, panel and card', async () => {
+    const states: [string, ReactElement][] = [
+      ['due', <OrderTotals key="a" totals={SERVER_0148} />],
+      ['paid', <OrderTotals key="b" totals={{ ...SERVER_0148, balance: '0.00', fullyPaid: true }} />],
+      [
+        'credit',
+        <OrderTotals
+          key="c"
+          totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '1000.00', refunded: '200.00' }}
+          onRecordRefund={vi.fn()}
+        />,
+      ],
+      ['not collected', <OrderTotals key="d" totals={{ ...SERVER_0148, balance: '500.00' }} status="cancelled" />],
+      ['card due', <OrderTotals key="e" variant="card" totals={SERVER_0148} />],
+      [
+        'card credit',
+        <OrderTotals key="f" variant="card" totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '5.00' }} />,
+      ],
+    ];
+    for (const [, element] of states) {
+      const { container, unmount } = render(element);
+      await expectNoAxeViolations(container);
+      unmount();
+    }
     for (const id of ['order-totals-0148', 'order-totals-0151', 'order-totals-card-0148']) {
       const { container, unmount } = renderCase(id);
       await expectNoAxeViolations(container);
@@ -357,14 +533,14 @@ describe('OrderTotals (App. D.3)', () => {
   });
 
   it('re-renders from the React Compiler memo cache with the same output, and updates on new props', () => {
-    const totals: Totals = { ...ZERO_TOTALS, subtotal: 100, total: 100, balance: 100 };
+    const totals: OrderFigures = { ...SERVER_0148, subtotal: '100.00', total: '100.00', balance: '100.00' };
     const { container, rerender } = render(<OrderTotals totals={totals} />);
     const first = container.innerHTML;
 
     rerender(<OrderTotals totals={totals} />);
     expect(container.innerHTML).toBe(first);
 
-    rerender(<OrderTotals totals={{ ...totals, balance: 0, paid: 100, fullyPaid: true }} variant="card" />);
+    rerender(<OrderTotals totals={{ ...totals, balance: '0.00', paid: '100.00', fullyPaid: true }} variant="card" />);
     expect(within(container).getByText('Fully Paid')).toBeTruthy();
   });
 });
@@ -670,17 +846,6 @@ describe('KpiCard empty and text values (OR-4, D-39; plan 06-09)', () => {
     }
   });
 });
-
-const ZERO_TOTALS: Totals = {
-  subtotal: 0,
-  discount: 0,
-  total: 0,
-  paid: 0,
-  balance: 0,
-  expenses: 0,
-  profit: 0,
-  fullyPaid: false,
-};
 
 describe('money scenarios (the money parity group)', () => {
   it('declares Money in the default look, negative in danger, and the other sizes and tones', () => {

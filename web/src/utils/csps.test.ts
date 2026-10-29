@@ -4,6 +4,9 @@ import {
   discountAmount,
   formatDate,
   formatPeso,
+  isNegativeMoney,
+  isPositiveMoney,
+  negateMoney,
   orderNumber,
   orderTotals,
   passwordStrength,
@@ -230,5 +233,45 @@ describe('App. D.1 characterization', () => {
   it('pads the order sequence to four digits', () => {
     expect(orderNumber(2026, 7)).toBe('ORD-2026-0007');
     expect(orderNumber(2026, 12345)).toBe('ORD-2026-12345');
+  });
+});
+
+// Plan 08-02: server money values (number or decimal string) are judged by the centavo, never by a float compare.
+describe('server money helpers (ORD-01 precision)', () => {
+  it.for([
+    ['0.01', true],
+    [0.01, true],
+    ['0.00', false],
+    [0, false],
+    ['-0.01', false],
+    ['0.004', false],
+    ['0.005', true],
+    ['99999999.99', true],
+    [null, false],
+    [undefined, false],
+  ] as const)('isPositiveMoney(%j) is %s', ([value, expected]) => {
+    expect(isPositiveMoney(value)).toBe(expected);
+  });
+
+  it.for([
+    ['-0.01', true],
+    [-0.01, true],
+    ['0.00', false],
+    ['-0.004', false],
+    ['-0.005', true],
+    ['1200.00', false],
+    [null, false],
+  ] as const)('isNegativeMoney(%j) is %s', ([value, expected]) => {
+    expect(isNegativeMoney(value)).toBe(expected);
+  });
+
+  it('negates a figure through its centavos as exact decimal text, with no minus on zero', () => {
+    expect(negateMoney('1122.50')).toBe('-1122.50');
+    expect(negateMoney(99999999.99)).toBe('-99999999.99');
+    expect(negateMoney('-12.30')).toBe('12.30');
+    expect(negateMoney('0.00')).toBe('0.00');
+    expect(negateMoney(0)).toBe('0.00');
+    expect(formatPeso(negateMoney('1122.50'))).toBe('−₱1,122.50');
+    expect(formatPeso(negateMoney('0.00'))).toBe('₱0.00');
   });
 });
