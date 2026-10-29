@@ -36,6 +36,7 @@ public sealed class PublishOutputTests
             File.Exists(Path.Combine(output, "web.config")).ShouldBeTrue("The package must carry web.config.");
             File.Exists(Path.Combine(output, "Csps.Server.dll")).ShouldBeTrue("The package must carry Csps.Server.dll.");
             Directory.EnumerateFiles(output, "publish-proof-*", SearchOption.AllDirectories).ShouldBeEmpty("The sentinel log file must not be published.");
+            Directory.EnumerateFiles(output, "Csps.LegacyFitCheck*", SearchOption.AllDirectories).ShouldBeEmpty("The deploy package must not carry the legacy fit check (07.1 D-14).");
             File.Exists(Path.Combine(output, "hostfxr.dll")).ShouldBeTrue("The package must bundle the .NET runtime.");
 
             AssertWebConfig(XDocument.Load(Path.Combine(output, "web.config")));

@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-17T10:40:10-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-29T08:00:00-05:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
@@ -179,7 +179,7 @@ One job whose name carries the mode. It sets `DOTNET_NOLOGO` and `DOTNET_CLI_TEL
 | `2 build` | All modes | `dotnet build`. Any compiler or analyzer warning fails it, because warnings are errors | Run `dotnet build Csps.slnx` and fix what it prints |
 | `2 format check` | All modes | Fails when `dotnet format` would change any file | Run `dotnet format Csps.slnx` and commit the result |
 | `3 unit tests` | All modes | Domain, Application and HostProbe unit tests | Run `dotnet test --project tests/Csps.Domain.UnitTests` (or the other two projects) |
-| `3 integration tests` | Full only | Infrastructure and Server integration tests. With `CSPS_TEST_SQL=container` the tests start their own throwaway SQL Server 2025 container on the runner (through Testcontainers), from a fixed image version | Run the same projects on your machine (they use LocalDB there). A container download or start-up problem, which is not a test failure, may be re-run once |
+| `3 integration tests` | Full only | Infrastructure and Server integration tests, plus the legacy fit check tests (`tests/Csps.LegacyFitCheck.Tests`, made-up rows in throwaway databases only). With `CSPS_TEST_SQL=container` the tests start their own throwaway SQL Server 2025 container on the runner (through Testcontainers), from a fixed image version | Run the same projects on your machine (they use LocalDB there). A container download or start-up problem, which is not a test failure, may be re-run once |
 | `3 architecture tests` | All modes | The layer rules, plus the tests that read repository files: `CiWorkflowTests`, `HygieneWorkflowTests`, `SecurityWorkflowTests`, `DeployWorkflowTests`, `DependencyRegistryTests`, `HostingRecordTests` and `RepoRulesTests` | Run `dotnet test --project tests/Csps.ArchitectureTests`. The message names the file and the rule |
 | `4 web typecheck` | All modes | TypeScript type check | `npm --prefix web run typecheck` |
 | `4 web lint` | All modes | ESLint with zero warnings allowed | `npm --prefix web run lint` |

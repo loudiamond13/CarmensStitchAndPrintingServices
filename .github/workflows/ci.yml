@@ -137,6 +137,7 @@ jobs:
         run: |
           dotnet test --project tests/Csps.Infrastructure.IntegrationTests --no-build
           dotnet test --project tests/Csps.Server.IntegrationTests --no-build
+          dotnet test --project tests/Csps.LegacyFitCheck.Tests --no-build
 
       - name: 3 architecture tests
         run: dotnet test --project tests/Csps.ArchitectureTests --no-build
