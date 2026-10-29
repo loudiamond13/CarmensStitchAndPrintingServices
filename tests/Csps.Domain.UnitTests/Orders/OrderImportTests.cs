@@ -406,6 +406,9 @@ public sealed class OrderImportTests
             ("refunds added up", Valid() with { Refunds = [Refund(Big), Refund(Big)] }, "refunds"),
             ("expense", Valid() with { Expenses = [Expense(TooBig)] }, "expenses[0].amount"),
             ("expenses added up", Valid() with { Expenses = [Expense(Big), Expense(Big)] }, "expenses"),
+            ("discounts added up", Valid() with { Discounts = [new NewOrderDiscount(DiscountKind.Fixed, Big, "Team deal"), new NewOrderDiscount(DiscountKind.Fixed, Big, "Team deal")] }, "discounts"),
+            ("balance from items and refunds", Valid() with { Items = [Item(quantity: 1, unitPrice: Big)], Refunds = [Refund(Big)] }, "payments"),
+            ("profit from a large discount and expense", Valid() with { Items = [Item(quantity: 1, unitPrice: 1.00m)], Discounts = [new NewOrderDiscount(DiscountKind.Fixed, Big, "Team deal")], Expenses = [Expense(Big)] }, "expenses"),
         };
 
         foreach (var (name, snapshot, path) in cases)

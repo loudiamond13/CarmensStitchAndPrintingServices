@@ -1300,7 +1300,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     {
         static bool Over(decimal figure) => Math.Abs(figure) > OrderRules.MoneyColumnMax;
 
-        if (Over(Subtotal) || Over(Total))
+        if (Over(Subtotal))
         {
             return OrderRules.ItemsField;
         }
@@ -1325,8 +1325,14 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return OrderRules.ExpensesField;
         }
 
-        // What is left can only come from the figures above taken together.
-        return Over(Balance) || Over(CustomerCredit) ? OrderRules.PaymentsField : Over(Profit) ? OrderRules.ExpensesField : null;
+        // What is left comes from the figures above taken together. The total and the credit are the subtotal less the discount and
+        // the balance without its sign, so they cannot be over on their own.
+        if (Over(Balance))
+        {
+            return OrderRules.PaymentsField;
+        }
+
+        return Over(Profit) ? OrderRules.ExpensesField : null;
     }
 
     // Moves the edit version, so the Orders row is updated with its row version even when only a child changed.

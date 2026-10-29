@@ -52,6 +52,17 @@ public sealed class OrderLegacyEditTests
     }
 
     [Fact]
+    public void ALegacyPriceLeftAsSavedStillMakesTheLineTotalFitTheMoneyColumn()
+    {
+        var order = Legacy(items: [Item(quantity: 1, unitPrice: 9_000_000_000_000_000.00m)]);
+
+        var result = order.UpdateItem(order.Items[0].Id, Item(quantity: 10, unitPrice: 9_000_000_000_000_000.00m), Later);
+
+        result.Error.FieldErrors.ShouldNotBeNull()["items[0].quantity"].ShouldBe([OrderRules.LineTotalTooLarge]);
+        order.Items[0].Quantity.ShouldBe(1);
+    }
+
+    [Fact]
     public void ALegacyPaymentAboveTheCapAndDatedInTheFutureTakesANotesEditButNotANewAmountOrDateAboveTheRules()
     {
         var order = Legacy(payments: [Payment(2_000_000.00m) with { PaymentDate = Today.AddDays(5) }]);
