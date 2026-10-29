@@ -3,6 +3,7 @@ using Csps.Application.Common;
 using Csps.Application.Orders;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
+using Csps.Domain.Expenses;
 using Csps.Domain.Orders;
 
 namespace Csps.Application.Audit;
@@ -385,13 +386,13 @@ public static class AuditChangeLines
             : ParsedAuditChanges.None;
     }
 
-    // name=<name>, name=<old>><new>, tone=<tone> or tone=<old>><new>
+    // name=<name>, name=<old>><new>, tone=<tone> or tone=<old>><new>. A tone that is not one of the six, on either side, leaves the line out.
     private static ParsedAuditChanges ReadCategory(string detail)
     {
         List<ParsedAuditChange> lines =
         [
             .. AuditDetailFormat.Parse(detail)
-                .Where(part => part.Key is NameField or ToneField)
+                .Where(part => part.Key is NameField || part.Key is ToneField && CategoryTones.IsValid(part.To) && (part.From is null || CategoryTones.IsValid(part.From)))
                 .Select(part => new ParsedAuditChange(part.Key, part.From, part.To)),
         ];
         return Build(lines, null, null);
