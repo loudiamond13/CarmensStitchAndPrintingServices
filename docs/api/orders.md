@@ -31,7 +31,7 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `GET /orders?q=&status=&from=&to=&productType=&hasBalance=&sort=&page=&pageSize=` | Staff | none | `200` the list page; `400` field errors |
 | `GET /orders/{id}` | Staff | none | `200` the order; `404 orders.not-found` |
 | `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale` |
-| `POST /orders/{id}/items` | Staff | the item form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-items` |
+| `POST /orders/{id}/items` | Staff | the item form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-items` or `orders.discount-above-subtotal` |
 | `PUT /orders/{id}/items/{itemId}` | Staff | the item form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.item-not-found`; `409 edit.stale`; `422 orders.discount-above-subtotal` |
 | `DELETE /orders/{id}/items/{itemId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.item-not-found`; `409 edit.stale`; `422 orders.last-item` or `orders.discount-above-subtotal` |
 | `POST /orders/{id}/discounts` | Staff | the discount form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-discounts` |
@@ -229,7 +229,7 @@ new `version`.
 - **The discounts never pass the items total (ORD-05).** After every discount add or edit, and after every item edit or removal,
   the discounts added up may not be more than the subtotal, so the total never goes below zero. A discount form that would break
   this is `400` on `value`: "The discounts would be more than the items total. Lower or remove a discount first." In the create
-  body the same text is on `discounts`. An item edit or removal that would break it is
+  body the same text is on `discounts`. An item add, edit or removal that would break it is
   `422 orders.discount-above-subtotal` with the same text. Nothing is saved in any of these cases. Equal is allowed: discounts
   that add up to exactly the subtotal give a total of `0.00`.
 - **At most 20 discounts (`422 orders.too-many-discounts`).** "An order can have at most 20 discounts." In the create body,

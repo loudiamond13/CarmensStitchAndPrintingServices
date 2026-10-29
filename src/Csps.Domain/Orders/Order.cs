@@ -487,7 +487,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// </summary>
     /// <param name="item">The item as given.</param>
     /// <param name="now">The current instant, which makes the item key and the new edit version.</param>
-    /// <returns>The new item, a validation error naming the first broken field, or a 422 when the order already has 100 items.</returns>
+    /// <returns>The new item, a validation error naming the first broken field, a 422 when the order already has 100 items, or a 422 when the rounded discounts would pass the new items total.</returns>
     public Result<OrderItem> AddItem(NewOrderItem item, DateTimeOffset now)
     {
         if (EnsureEditable() is { } locked)
@@ -506,7 +506,13 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderItem>(OrderRules.TooManyItems);
         }
 
-        var added = BuildItem(this, checkedItem.Value, _items.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
+        var cleaned = checkedItem.Value;
+        if (!DiscountsFit(ItemsForMath(_items).Append(new OrderMathItem(cleaned.Quantity, cleaned.UnitPrice)), DiscountsForMath(_discounts)))
+        {
+            return Result.Failure<OrderItem>(OrderRules.DiscountAboveSubtotal);
+        }
+
+        var added = BuildItem(this, cleaned, _items.Select(static existing => existing.Position).DefaultIfEmpty(-1).Max() + 1, now);
         _items.Add(added);
         Recalculate();
         Touch(now);
