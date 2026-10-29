@@ -48,6 +48,9 @@ internal static class FitCheckRunner
             var mapped = read.Orders;
             var findings = mapped.SelectMany(static order => order.Findings).ToList();
             findings.Add(EvidenceFinding(read.Before));
+            var inventory = ColumnInventory.Check(read.Columns);
+            findings.AddRange(inventory.Findings);
+            findings.Add(InventoryFinding(inventory));
 
             var trialName = TrialDatabaseName.NewName();
             try
@@ -90,6 +93,17 @@ internal static class FitCheckRunner
             null,
             null);
 
+    private static Finding InventoryFinding(ColumnInventoryResult inventory) =>
+        new(
+            RecordKind.Run,
+            "Run",
+            FindingType.Info,
+            "column.inventory",
+            null,
+            string.Create(CultureInfo.InvariantCulture, $"Column inventory: {inventory.ColumnsRead} columns read, {inventory.Unknown} unknown, {inventory.Missing} missing"),
+            null,
+            null);
+
     private static async Task<ReadResult> ReadAndMapAsync(string sourceConnectionString, FitCheckHooks? hooks, CancellationToken cancellationToken)
     {
         var source = LegacyDbContext.Open(sourceConnectionString);
@@ -115,6 +129,7 @@ internal static class FitCheckRunner
             .ToLookup(static row => row.OrderId);
 
         var mapped = orders.Select(order => DraftMapping.MapOrder(order, [.. items[order.OrderId]], types, statuses)).ToList();
+        var columns = await source.Columns.Where(static column => column.TableSchema == "dbo").ToListAsync(cancellationToken).ConfigureAwait(false);
 
         if (hooks?.BetweenEvidence is { } between)
         {
@@ -122,8 +137,8 @@ internal static class FitCheckRunner
         }
 
         var after = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
-        return new ReadResult(mapped, before, after);
+        return new ReadResult(mapped, columns, before, after);
     }
 
-    private sealed record ReadResult(IReadOnlyList<MappedOrder> Orders, WriteEvidenceSnapshot Before, WriteEvidenceSnapshot After);
+    private sealed record ReadResult(IReadOnlyList<MappedOrder> Orders, IReadOnlyList<LegacyColumn> Columns, WriteEvidenceSnapshot Before, WriteEvidenceSnapshot After);
 }
