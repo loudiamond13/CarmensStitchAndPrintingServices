@@ -107,7 +107,6 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsDescending(true, true, false)
             .HasFilter("[DeletedAtUtc] IS NULL")
             .HasDatabaseName("IX_Orders_OrderDate");
-        builder.HasIndex(order => order.CreatedAtUtc).IsDescending().HasFilter("[DeletedAtUtc] IS NULL").HasDatabaseName("IX_Orders_CreatedAtUtc");
         builder.HasIndex(order => new { order.Balance, order.Id }).IsDescending(true, false).HasFilter("[DeletedAtUtc] IS NULL").HasDatabaseName("IX_Orders_Balance");
         builder.HasIndex(order => new { order.Total, order.Id }).IsDescending(true, false).HasFilter("[DeletedAtUtc] IS NULL").HasDatabaseName("IX_Orders_Total");
     }

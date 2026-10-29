@@ -38,7 +38,6 @@ internal sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderIte
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(item => item.UpdatedById).OnDelete(DeleteBehavior.NoAction);
 
         builder.HasIndex(item => item.OrderId).HasDatabaseName("IX_OrderItems_OrderId");
-        builder.HasIndex(item => item.ProductTypeId).HasDatabaseName("IX_OrderItems_ProductTypeId");
 
         // The list's product type filter looks up the orders that have an item of one type.
         builder.HasIndex(item => new { item.ProductTypeId, item.OrderId }).HasDatabaseName("IX_OrderItems_ProductTypeId_OrderId");

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T09:33:00-05:00
-updated: 2026-10-28T18:10:00-05:00
+updated: 2026-10-28T21:00:00-05:00
 ---
 
 # Runbook: how fast the lists are, and how to check it
@@ -58,14 +58,13 @@ The order list has the same two rules: a fixed number of SQL commands and a p95 
 
 The timing test builds about 14,600 orders (8 a day for five years, one to four items each, payments on most, expenses on many, six staff, 2 percent soft-deleted) in its own throwaway `CSPS_Test_<guid>` database, through the domain and EF in batches, with a seeded random so every run is the same. It warms up with 20 requests, then times 200 requests for each case, and prints the p50 and p95 of each. It takes about 1 to 1.5 minutes. The class runs alone, like the expense one.
 
-The indexes (migration `AddOrderListIndexes`) all keep live orders only (`[DeletedAtUtc] IS NULL`), because the list never shows a deleted order:
+The indexes (migration `AddOrderListIndexes`; `DropUnusedOrderIndexes` later removed two nobody used, `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductTypeId`) all keep live orders only (`[DeletedAtUtc] IS NULL`), because the list never shows a deleted order:
 
 | Index | Serves |
 | --- | --- |
 | `IX_Orders_List_Due` (due date, id) with every list column included | the default sort, read from one index |
 | `IX_Orders_Status_StatusChangedAtUtc` | the status filter and the 30 day window of the active scope |
 | `IX_Orders_OrderDate` (order date descending, recorded descending, id) | the newest sort and the order date range |
-| `IX_Orders_CreatedAtUtc` (descending) | the order a staff member recorded first or last |
 | `IX_Orders_Balance` and `IX_Orders_Total` (descending, id) | the balance and total sorts |
 | `IX_OrderItems_ProductTypeId_OrderId` | the product type filter |
 

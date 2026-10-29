@@ -1071,11 +1071,6 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAtUtc")
-                        .IsDescending()
-                        .HasDatabaseName("IX_Orders_CreatedAtUtc")
-                        .HasFilter("[DeletedAtUtc] IS NULL");
-
                     b.HasIndex("CreatedById")
                         .HasDatabaseName("IX_Orders_CreatedById");
 
@@ -1302,9 +1297,6 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrderId")
                         .HasDatabaseName("IX_OrderItems_OrderId");
-
-                    b.HasIndex("ProductTypeId")
-                        .HasDatabaseName("IX_OrderItems_ProductTypeId");
 
                     b.HasIndex("UpdatedById")
                         .HasDatabaseName("IX_OrderItems_UpdatedById");
