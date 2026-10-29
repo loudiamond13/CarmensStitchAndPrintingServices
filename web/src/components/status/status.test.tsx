@@ -143,6 +143,16 @@ describe('Badge (App. D.3)', () => {
 });
 
 describe('StatusBadge (App. D.3)', () => {
+  it('shows Delivered with its dot in the accent tone, apart from Ready and Completed', () => {
+    render(<StatusBadge status="delivered" />);
+    const badge = screen.getByText('Delivered');
+
+    expect(classTokens(badge)).toEqual(lookFor('accent'));
+    expect(classTokens(badge)).not.toEqual(lookFor(STATUS_TONE.ready));
+    expect(classTokens(badge)).not.toEqual(lookFor(STATUS_TONE.completed));
+    expect(badge.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it.each(STATUSES)('shows the %s label in its tone with a dot', (status) => {
     render(<StatusBadge status={status} />);
     const badge = screen.getByText(ORDER_STATUSES[status]);
@@ -169,6 +179,7 @@ describe('StatusBadge (App. D.3)', () => {
 
   it('never treats an inherited object key as a status', () => {
     expect(isOrderStatus('production')).toBe(true);
+    expect(isOrderStatus('delivered')).toBe(true);
     expect(isOrderStatus('toString')).toBe(false);
     expect(isOrderStatus('')).toBe(false);
   });
@@ -283,6 +294,7 @@ describe('the §6.2 tone tables', () => {
       mockup: 'mockup',
       production: 'warning',
       ready: 'info',
+      delivered: 'accent',
       completed: 'success',
       cancelled: 'danger',
     });
@@ -343,7 +355,8 @@ describe('status scenarios (the status parity group)', () => {
     for (const scenario of badgeScenarios) {
       expect(scenario.themes, scenario.id).toEqual(['light', 'dark']);
       expect(scenario.states, scenario.id).toEqual(['rest']);
-      expect(scenario.parity, scenario.id).toBe(true);
+      // The frozen design has no Delivered status, so that case has no reference to compare with.
+      expect(scenario.parity, scenario.id).toBe(scenario.id !== 'status-badge-delivered');
       expect(scenario.responsive, scenario.id).toBe(false);
     }
   });

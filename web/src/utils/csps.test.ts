@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  ACTIVE_STATUSES,
   cascadeSentence,
   discountAmount,
   formatDate,
@@ -8,6 +9,7 @@ import {
   isPositiveMoney,
   negateMoney,
   orderNumber,
+  ORDER_STATUSES,
   orderTotals,
   passwordStrength,
   round2, // SPEC-DEVIATION: D-09 rounding tests below (not in App. D.2)
@@ -273,5 +275,33 @@ describe('server money helpers (ORD-01 precision)', () => {
     expect(negateMoney(0)).toBe('0.00');
     expect(formatPeso(negateMoney('1122.50'))).toBe('−₱1,122.50');
     expect(formatPeso(negateMoney('0.00'))).toBe('₱0.00');
+  });
+});
+
+// Plan 08-02: Delivered is the seventh status (07 D-01) and refunds join the delete counts.
+describe('Delivered and refunds (plan 08-02)', () => {
+  it('lists seven statuses in order, Delivered between Ready and Completed', () => {
+    expect(Object.values(ORDER_STATUSES)).toEqual([
+      'Pending',
+      'Mockup',
+      'In Production',
+      'Ready',
+      'Delivered',
+      'Completed',
+      'Cancelled',
+    ]);
+    expect(Object.keys(ORDER_STATUSES)).toContain('delivered');
+  });
+
+  it('counts five active statuses, Delivered included', () => {
+    expect(ACTIVE_STATUSES).toEqual(['pending', 'mockup', 'production', 'ready', 'delivered']);
+  });
+
+  it('counts refunds after expenses and before images in the delete sentence', () => {
+    expect(cascadeSentence({ items: 5, payments: 2, discounts: 1, expenses: 3, refunds: 2, images: 4 })).toBe(
+      'This will also delete 5 items, 2 payments, 1 discount, 3 expenses, 2 refunds, and 4 images.',
+    );
+    expect(cascadeSentence({ refunds: 1 })).toBe('This will also delete 1 refund.');
+    expect(cascadeSentence({ refunds: 1200, images: 1 })).toBe('This will also delete 1,200 refunds, and 1 image.');
   });
 });
