@@ -10,7 +10,7 @@ import { formatBusinessDate, formatCalendarDate, formatCount } from './format';
 
 /* ───────────── domain types ───────────── */
 
-export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'delivered' | 'completed' | 'cancelled';
 export type ProductType =
   'Basketball Jersey' | 'Volleyball Jersey' | 'Moto Riding Jersey' | 'Long Sleeves' | 'Polo Shirt' | 'Custom Design';
 export type PaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'Bank Transfer';
@@ -121,6 +121,7 @@ export interface CascadeCounts {
   payments?: number;
   discounts?: number;
   expenses?: number;
+  refunds?: number;
   images?: number;
 }
 
@@ -143,15 +144,17 @@ export const ORDER_EXPENSE_CATEGORIES: OrderExpenseCategory[] = [
   'Delivery',
   'Others',
 ];
+// SPEC-DEVIATION: 07 D-01 (owner). Delivered is the seventh status, between Ready and Completed, and counts as active.
 export const ORDER_STATUSES: Record<OrderStatus, string> = {
   pending: 'Pending',
   mockup: 'Mockup',
   production: 'In Production',
   ready: 'Ready',
+  delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
 };
-export const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'mockup', 'production', 'ready'];
+export const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'mockup', 'production', 'ready', 'delivered'];
 
 /* ───────────── formatting ───────────── */
 
@@ -316,10 +319,11 @@ export const CASCADE_LABELS: readonly (readonly [keyof CascadeCounts, string])[]
   ['payments', 'payment'],
   ['discounts', 'discount'],
   ['expenses', 'expense'],
+  ['refunds', 'refund'],
   ['images', 'image'],
 ];
 
-/** "This will also delete 5 items, 2 payments, 1 discount, 3 expenses, and 4 images." ('' when all zero) */
+/** "This will also delete 5 items, 2 payments, 1 discount, 3 expenses, 2 refunds, and 4 images." ('' when all zero) */
 export function cascadeSentence(counts: CascadeCounts = {}): string {
   const parts = CASCADE_LABELS.map(([k, one]) => [counts[k] ?? 0, one] as const)
     .filter(([n]) => n > 0)

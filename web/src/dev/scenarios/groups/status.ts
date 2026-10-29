@@ -9,8 +9,11 @@
 // All are compared at rest in both themes (a badge has no hover, focus or width-dependent rules).
 import type { Scenario, ScenarioNode, ScenarioProps } from '../types';
 
-/** A status case compared at rest in both themes, at 390 and 1440 px. */
-function statusCase(id: string, node: ScenarioNode): Scenario {
+/**
+ * A status case compared at rest in both themes, at 390 and 1440 px. `parity` is false only for Delivered (07 D-01), which
+ * the frozen design never drew, so it has no reference to compare with.
+ */
+function statusCase(id: string, node: ScenarioNode, parity = true): Scenario {
   return {
     id,
     group: 'status',
@@ -18,7 +21,7 @@ function statusCase(id: string, node: ScenarioNode): Scenario {
     themes: ['light', 'dark'],
     responsive: false,
     states: ['rest'],
-    parity: true,
+    parity,
   };
 }
 
@@ -50,6 +53,7 @@ export const scenarios: readonly Scenario[] = [
   statusCase('status-badge-mockup', statusBadge('mockup')),
   statusCase('status-badge-production', statusBadge('production')),
   statusCase('status-badge-ready', statusBadge('ready')),
+  statusCase('status-badge-delivered', statusBadge('delivered'), false),
   statusCase('status-badge-completed', statusBadge('completed')),
   statusCase('status-badge-cancelled', statusBadge('cancelled')),
   statusCase('payment-badge-gcash', badge({ tone: 'info', children: 'GCash' })),

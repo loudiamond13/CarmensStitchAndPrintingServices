@@ -10,12 +10,16 @@ import { ORDER_STATUSES, type OrderStatus, type PaymentMethod } from '@/utils/cs
 
 export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'info' | 'mockup' | 'danger' | 'solid';
 
-/** Order status → badge tone (§6.2 StatusBadge table). */
+/**
+ * Order status → badge tone (§6.2 StatusBadge table). SPEC-DEVIATION: 07 D-01 Delivered takes the accent tone, which no other
+ * status uses, so it reads apart from Ready (info) and Completed (success); the word and dot carry it too.
+ */
 export const STATUS_TONE: Readonly<Record<OrderStatus, BadgeTone>> = {
   pending: 'neutral',
   mockup: 'mockup',
   production: 'warning',
   ready: 'info',
+  delivered: 'accent',
   completed: 'success',
   cancelled: 'danger',
 };
