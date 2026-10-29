@@ -114,6 +114,24 @@ public sealed class TestingOrdersTests(CspsDatabase database) : IClassFixture<Cs
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    [Theory]
+    [InlineData("""{"items":[null]}""", "items")]
+    [InlineData("""{"discounts":[null]}""", "discounts")]
+    [InlineData("""{"payments":[null]}""", "payments")]
+    [InlineData("""{"expenses":[null]}""", "expenses")]
+    public async Task ANullListMemberIs400OnItsListNotA500(string json, string field)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using var response = await client.PostAsync(new Uri(Route, UriKind.Relative), content, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        ExpenseFixtures.ErrorFields(problem).ShouldContain(field);
+    }
+
     [Fact]
     public async Task AnUnknownStatusIs400OnTheStatusField()
     {
