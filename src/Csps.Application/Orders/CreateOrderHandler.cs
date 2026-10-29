@@ -35,7 +35,7 @@ public sealed class CreateOrderHandler(
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new order, a 400 listing every field that failed, a 409 when the number lock timed out, or a 401 when the token names no usable account.</returns>
+    /// <returns>The new order, a 400 listing every field that failed, a 409 when the number lock timed out or the save was a deadlock victim, or a 401 when the token names no usable account.</returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(CreateOrderRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -84,6 +84,11 @@ public sealed class CreateOrderHandler(
         }
         catch (OrderNumberBusyException)
         {
+            return Result.Failure<OrderDetailResponse>(OrderErrors.Busy);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            // A new order has no version to lose, so a conflict at save is a deadlock victim (the unit of work maps it): same answer as a busy lock.
             return Result.Failure<OrderDetailResponse>(OrderErrors.Busy);
         }
 

@@ -76,7 +76,7 @@ public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandle
     /// </summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>201 with the order and its location, 400 for field errors, 401 without a valid token, or 409 <c>orders.busy</c> when another order is being numbered and the wait timed out.</returns>
+    /// <returns>201 with the order and its location, 400 for field errors, 401 without a valid token, or 409 <c>orders.busy</c> when another order is being numbered and the wait timed out, or the save was a deadlock victim.</returns>
     [HttpPost]
     [EndpointName("CreateOrder")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status201Created)]

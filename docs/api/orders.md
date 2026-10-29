@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T17:55:00-05:00
+updated: 2026-10-28T21:20:00-05:00
 ---
 
 # The orders API
@@ -145,10 +145,11 @@ retired, may this person be chosen) are made against the database and are merged
 A retry with the same key and body answers with the stored `201` (and the header `Idempotent-Replayed: true`) and creates
 nothing more: one order, one number, one audit entry. The same key with a different body is refused.
 
-### When the number lock is busy
+### When orders are being saved (409 `orders.busy`)
 
 Every create takes the order number lock first, so two creates can never get the same number. A wait that times out (about
-10 seconds) answers `409 orders.busy`, "Orders are being saved right now. Try again in a moment." Nothing was saved; send the
+10 seconds) answers `409 orders.busy`, "Orders are being saved right now. Try again in a moment." So does a save that SQL Server
+ended as a deadlock victim (two saves waiting on each other; the database keeps one and stops the other). Nothing was saved; send the
 form again.
 
 ## Editing the details (`PUT /api/v1/orders/{id}`)
