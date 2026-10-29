@@ -390,7 +390,20 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             order._statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), order.Id, row.FromStatus, row.ToStatus, row.ChangedById, row.ChangedAtUtc) { Order = order });
         }
 
-        order.Recalculate();
+        try
+        {
+            order.Recalculate();
+        }
+        catch (OverflowException)
+        {
+            // Only a percentage of a very large subtotal can overflow a decimal here.
+            return OrderRules.Reject<Order>(OrderRules.DiscountsField, OrderRules.AmountTooLarge);
+        }
+
+        if (order.OversizedFigureField() is { } oversized)
+        {
+            return OrderRules.Reject<Order>(oversized, OrderRules.AmountTooLarge);
+        }
 
         // These rules need the worked-out figures. The words are the create path's own.
         if (!rules.AllowDiscountAboveSubtotal && order.DiscountTotal > order.Subtotal)
@@ -1234,6 +1247,40 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         ExpensesTotal = figures.Expenses;
         Profit = figures.Profit;
         FullyPaid = figures.FullyPaid;
+    }
+
+    // The list a worked-out figure belongs to when it is above what its money column holds; null when every figure fits.
+    private string? OversizedFigureField()
+    {
+        static bool Over(decimal figure) => Math.Abs(figure) > OrderRules.MoneyColumnMax;
+
+        if (Over(Subtotal) || Over(Total))
+        {
+            return OrderRules.ItemsField;
+        }
+
+        if (Over(DiscountTotal))
+        {
+            return OrderRules.DiscountsField;
+        }
+
+        if (Over(PaidTotal))
+        {
+            return OrderRules.PaymentsField;
+        }
+
+        if (Over(RefundedTotal))
+        {
+            return OrderImportChecks.RefundsField;
+        }
+
+        if (Over(ExpensesTotal))
+        {
+            return OrderRules.ExpensesField;
+        }
+
+        // What is left can only come from the figures above taken together.
+        return Over(Balance) || Over(CustomerCredit) ? OrderRules.PaymentsField : Over(Profit) ? OrderRules.ExpensesField : null;
     }
 
     // Moves the edit version, so the Orders row is updated with its row version even when only a child changed.

@@ -83,6 +83,9 @@ public static class OrderRules
     /// <summary>The most decimal places a money amount may have.</summary>
     public const int MoneyScale = 2;
 
+    /// <summary>The largest amount a money column (<c>decimal(18,2)</c>) can hold; no amount or worked-out figure may pass it.</summary>
+    public const decimal MoneyColumnMax = 9_999_999_999_999_999.99m;
+
     /// <summary>The date format of the wire and the audit log.</summary>
     public const string DateFormat = "yyyy-MM-dd";
 
@@ -298,6 +301,12 @@ public static class OrderRules
 
     /// <summary>The message for a money amount with more than two decimal places.</summary>
     public const string MoneyDecimals = "Use at most 2 decimal places.";
+
+    /// <summary>The message for an amount above what a money column can hold.</summary>
+    public static readonly string AmountTooLarge = $"Enter an amount of {Pesos.Format(MoneyColumnMax)} or less.";
+
+    /// <summary>The message for a quantity at its unit price that is above what a money column can hold.</summary>
+    public static readonly string LineTotalTooLarge = $"The quantity at this price is more than {Pesos.Format(MoneyColumnMax)}. Lower one of them.";
 
     /// <summary>The message for a discount that is missing from the list.</summary>
     public const string DiscountRequired = "Fill in this discount.";
@@ -715,9 +724,20 @@ public static class OrderRules
             return Reject<NewOrderItem>(ItemPath(index, UnitPriceField), rules.IgnoreAmountCaps ? UnitPriceNegative : UnitPriceOutOfRange);
         }
 
+        if (item.UnitPrice > MoneyColumnMax)
+        {
+            return Reject<NewOrderItem>(ItemPath(index, UnitPriceField), AmountTooLarge);
+        }
+
         if (!HasValidScale(item.UnitPrice))
         {
             return Reject<NewOrderItem>(ItemPath(index, UnitPriceField), MoneyDecimals);
+        }
+
+        // The price is below the column limit, so this product cannot overflow a decimal.
+        if (item.Quantity * item.UnitPrice > MoneyColumnMax)
+        {
+            return Reject<NewOrderItem>(ItemPath(index, QuantityField), LineTotalTooLarge);
         }
 
         return Result.Success(item with { Description = description, SizeVariant = sizeVariant });
@@ -749,6 +769,11 @@ public static class OrderRules
         if (!inRange)
         {
             return Reject<NewOrderDiscount>(DiscountPath(index, DiscountValueField), fixedKind ? FixedDiscountOutOfRange : PercentDiscountOutOfRange);
+        }
+
+        if (discount.Value > MoneyColumnMax)
+        {
+            return Reject<NewOrderDiscount>(DiscountPath(index, DiscountValueField), AmountTooLarge);
         }
 
         if (!HasValidScale(discount.Value))
@@ -800,6 +825,11 @@ public static class OrderRules
         if (payment.Amount <= 0m || !rules.IgnoreAmountCaps && payment.Amount > PaymentAmountMax)
         {
             return Reject<NewOrderPayment>(PaymentPath(index, PaymentAmountField), PaymentAmountOutOfRange);
+        }
+
+        if (payment.Amount > MoneyColumnMax)
+        {
+            return Reject<NewOrderPayment>(PaymentPath(index, PaymentAmountField), AmountTooLarge);
         }
 
         if (!HasValidScale(payment.Amount))
@@ -869,6 +899,11 @@ public static class OrderRules
             return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), ExpenseRules.AmountTooLarge);
         }
 
+        if (expense.Amount > MoneyColumnMax)
+        {
+            return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), AmountTooLarge);
+        }
+
         if (!HasValidScale(expense.Amount))
         {
             return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), MoneyDecimals);
@@ -915,6 +950,11 @@ public static class OrderRules
         if (refund.Amount <= 0m || !rules.IgnoreAmountCaps && refund.Amount > PaymentAmountMax)
         {
             return Reject<NewOrderRefund>(RefundAmountField, PaymentAmountOutOfRange);
+        }
+
+        if (refund.Amount > MoneyColumnMax)
+        {
+            return Reject<NewOrderRefund>(RefundAmountField, AmountTooLarge);
         }
 
         if (!HasValidScale(refund.Amount))

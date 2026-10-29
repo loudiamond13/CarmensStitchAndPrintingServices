@@ -563,7 +563,7 @@ What it does, in order:
 **Rules that never bend** (they hold under every rules instance): a number that is not empty, is at most 32 characters and uses plain
 characters only (the number column cannot hold more without changing it); a status of 1 to 7 and a discount kind of fixed or
 percentage; a quantity or unit price that is not negative; money with at most two decimal places; a discount, payment, refund and
-expense amount above 0.00 (the database checks these); and text that fits its column. Everything else is a named relaxation, except the
+expense amount above 0.00 (the database checks these); amounts, line totals and worked-out figures that fit a money column (at most 9,999,999,999,999,999.99, otherwise a field error such as "Enter an amount of ₱9,999,999,999,999,999.99 or less."); and text that fits its column. Everything else is a named relaxation, except the
 field rules that have none: the characters of a contact number, the shape of an email address and a due date before the order date still
 refuse an order. If Phase 7.1 finds legacy data that breaks one of them, the owner decides whether it gets a name of its own.
 
