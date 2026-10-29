@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-10-29T22:48:37.825Z"
+stopped_at: Completed 08-05-PLAN.md
+last_updated: "2026-10-29T22:59:18.829Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: ff12e431a94cd07489da4c0a5f866410ff5c038f
+state_head: 0900898e59fbac854404a72b83a0add3e20ed3e1
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 223
+  completed_plans: 224
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T14:28:12-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 5 of 24
+Plan: 6 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -283,6 +283,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P02 | 27 min | 3 tasks | 17 files |
 | Phase 08 P03 | 13 min | 3 tasks | 7 files |
 | Phase 08 P04 | 20 min | 3 tasks | 13 files |
+| Phase 08 P05 | 9 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -808,6 +809,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-03: ConfirmDialog describeFailure keeps title-and-body and also accepts a sentence or null; no existing caller changed
 - [Phase 08]: 08-03: jsdom scrollIntoView no-op lives once in web/src/test/setup.ts
 - [Phase 08]: 08-04: ListEntrySelect reads its query hook from a list config map; ExpenseCategorySelect is a thin wrapper
+- [Phase 08]: dueFlagState never throws: an unreadable due date has no flag, an unreadable today keeps the date; unknown statuses show the date only (08-05)
 
 ### Pending Todos
 
@@ -912,6 +914,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T22:48:36.835Z
-Stopped at: Completed 08-04-PLAN.md
+Last session: 2026-10-29T22:59:17.848Z
+Stopped at: Completed 08-05-PLAN.md
 Resume file: None
