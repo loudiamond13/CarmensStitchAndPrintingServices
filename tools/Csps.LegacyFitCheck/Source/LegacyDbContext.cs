@@ -9,6 +9,18 @@ internal sealed class LegacyDbContext(DbContextOptions<LegacyDbContext> options)
 
     public IQueryable<LegacyOrderItemRow> OrderItems => Set<LegacyOrderItemRow>();
 
+    public IQueryable<LegacyPaymentRow> Payments => Set<LegacyPaymentRow>();
+
+    public IQueryable<LegacyDiscountRow> Discounts => Set<LegacyDiscountRow>();
+
+    public IQueryable<LegacyExpenseRow> Expenses => Set<LegacyExpenseRow>();
+
+    public IQueryable<LegacyUserRow> Users => Set<LegacyUserRow>();
+
+    public IQueryable<LegacyRoleRow> Roles => Set<LegacyRoleRow>();
+
+    public IQueryable<LegacyUserRoleRow> UserRoles => Set<LegacyUserRoleRow>();
+
     public IQueryable<LegacyOrderTypeRow> OrderTypes => Set<LegacyOrderTypeRow>();
 
     public IQueryable<LegacyStatusRow> Statuses => Set<LegacyStatusRow>();
@@ -20,6 +32,8 @@ internal sealed class LegacyDbContext(DbContextOptions<LegacyDbContext> options)
     public IQueryable<CatalogPartitionRow> CatalogPartitions => Set<CatalogPartitionRow>();
 
     public IQueryable<CatalogIndexUsageRow> CatalogIndexUsage => Set<CatalogIndexUsageRow>();
+
+    public IQueryable<LegacyColumn> Columns => Set<LegacyColumn>();
 
     /// <summary>Opens a read context on the given connection string. No logging is attached.</summary>
     public static LegacyDbContext Open(string connectionString) =>

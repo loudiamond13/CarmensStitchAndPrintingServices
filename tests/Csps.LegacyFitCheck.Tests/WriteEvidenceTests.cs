@@ -20,7 +20,7 @@ public sealed class WriteEvidenceTests
                 var before = await WriteEvidence.CaptureAsync(context, token);
                 var after = await WriteEvidence.CaptureAsync(context, token);
 
-                before.Tables.ShouldBe(4);
+                before.Tables.ShouldBe(10);
                 before.Rows.ShouldBe(5);
                 after.ShouldBe(before);
                 WriteEvidence.Compare(before, after).ShouldBe(WriteEvidenceVerdict.Unchanged);

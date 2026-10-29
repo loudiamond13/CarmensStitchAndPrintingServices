@@ -9,20 +9,32 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
 {
     public const string SentinelName = "SENTINEL-NAME-7Q";
 
-    private readonly CspsDatabase _database;
+    /// <summary>The two columns every fake restore holds beyond the mapped ones, standing for creator attribution (Phase 15).</summary>
+    public static readonly IReadOnlyList<ShadowColumn> StandardShadowColumns =
+    [
+        new("Orders", "CreatedBy"),
+        new("Payments", "UpdatedBy"),
+    ];
 
-    private FakeLegacyDatabase(CspsDatabase database) => _database = database;
+    private readonly CspsDatabase _database;
+    private readonly IReadOnlyList<ShadowColumn> _shadowColumns;
+
+    private FakeLegacyDatabase(CspsDatabase database, IReadOnlyList<ShadowColumn> shadowColumns)
+    {
+        _database = database;
+        _shadowColumns = shadowColumns;
+    }
 
     public string ConnectionString => _database.ConnectionString;
 
-    /// <summary>Creates the fake restore with one order type, one status, one order and two items.</summary>
-    public static async Task<FakeLegacyDatabase> CreateWithOneOrderAsync(CancellationToken cancellationToken)
+    /// <summary>Creates the fake restore with one order type, one status, one order and two items, plus any extra shadow columns.</summary>
+    public static async Task<FakeLegacyDatabase> CreateWithOneOrderAsync(CancellationToken cancellationToken, params ShadowColumn[] extraColumns)
     {
         var database = await CspsDatabase.CreateEmptyAsync(150).ConfigureAwait(false);
-        var fake = new FakeLegacyDatabase(database);
+        var fake = new FakeLegacyDatabase(database, [.. StandardShadowColumns, .. extraColumns]);
         try
         {
-            var context = FakeLegacyWriteContext.Open(database.ConnectionString);
+            var context = fake.OpenWrite();
             await using (context.ConfigureAwait(false))
             {
                 await context.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
@@ -61,7 +73,7 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
     /// <summary>Adds one more made-up order, as a stray write to the restore would.</summary>
     public async Task AddOrderAsync(int orderId, CancellationToken cancellationToken)
     {
-        var context = FakeLegacyWriteContext.Open(ConnectionString);
+        var context = OpenWrite();
         await using (context.ConfigureAwait(false))
         {
             context.Orders.Add(new LegacyOrderRow
@@ -82,7 +94,7 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
     /// <summary>Reads the name of one order, for tests that prove a write did not land.</summary>
     public async Task<string?> OrderNameAsync(int orderId, CancellationToken cancellationToken)
     {
-        var context = FakeLegacyWriteContext.Open(ConnectionString);
+        var context = OpenWrite();
         await using (context.ConfigureAwait(false))
         {
             return await context.Orders.Where(row => row.OrderId == orderId).Select(row => row.OrderName).SingleAsync(cancellationToken).ConfigureAwait(false);
@@ -92,7 +104,7 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
     /// <summary>Counts the rows of the two order tables.</summary>
     public async Task<(int Orders, int Items)> CountAsync(CancellationToken cancellationToken)
     {
-        var context = FakeLegacyWriteContext.Open(ConnectionString);
+        var context = OpenWrite();
         await using (context.ConfigureAwait(false))
         {
             var orders = await context.Orders.CountAsync(cancellationToken).ConfigureAwait(false);
@@ -102,4 +114,6 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
     }
 
     public ValueTask DisposeAsync() => _database.DisposeAsync();
+
+    private FakeLegacyWriteContext OpenWrite() => FakeLegacyWriteContext.Open(ConnectionString, _shadowColumns);
 }

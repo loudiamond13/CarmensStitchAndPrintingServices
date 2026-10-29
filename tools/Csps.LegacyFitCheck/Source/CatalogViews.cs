@@ -42,7 +42,19 @@ internal sealed class CatalogIndexUsageRow
     public long UserUpdates { get; set; }
 }
 
-/// <summary>Keyless views of the SQL Server catalog, read with LINQ only. They hold the write evidence.</summary>
+/// <summary>A row of INFORMATION_SCHEMA.COLUMNS: one column of one table.</summary>
+internal sealed class LegacyColumn
+{
+    public string TableSchema { get; set; } = string.Empty;
+
+    public string TableName { get; set; } = string.Empty;
+
+    public string ColumnName { get; set; } = string.Empty;
+
+    public string DataType { get; set; } = string.Empty;
+}
+
+/// <summary>Keyless views of the SQL Server catalog, read with LINQ only. They hold the write evidence and the column list.</summary>
 internal static class CatalogViews
 {
     public static void Configure(ModelBuilder builder)
@@ -83,6 +95,16 @@ internal static class CatalogViews
             entity.Property(row => row.DatabaseId).HasColumnName("database_id");
             entity.Property(row => row.ObjectId).HasColumnName("object_id");
             entity.Property(row => row.UserUpdates).HasColumnName("user_updates");
+        });
+
+        builder.Entity<LegacyColumn>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView("COLUMNS", "INFORMATION_SCHEMA");
+            entity.Property(row => row.TableSchema).HasColumnName("TABLE_SCHEMA");
+            entity.Property(row => row.TableName).HasColumnName("TABLE_NAME");
+            entity.Property(row => row.ColumnName).HasColumnName("COLUMN_NAME");
+            entity.Property(row => row.DataType).HasColumnName("DATA_TYPE");
         });
     }
 }

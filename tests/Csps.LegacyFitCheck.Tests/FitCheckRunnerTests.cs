@@ -76,7 +76,7 @@ public sealed class FitCheckRunnerTests
                 exit.ShouldBe(0, error.ToString());
                 var file = Directory.EnumerateFiles(Path.Combine(localRoot, "legacy-fit-check"), "findings-*.md").ShouldHaveSingleItem();
                 var text = await File.ReadAllTextAsync(file, token);
-                text.ShouldContain("Write evidence: unchanged (4 tables, 5 rows,");
+                text.ShouldContain("Write evidence: unchanged (10 tables, 5 rows,");
                 output.ToString().ShouldNotContain("Write evidence");
             }
             finally
