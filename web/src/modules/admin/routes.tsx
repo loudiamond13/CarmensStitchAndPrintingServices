@@ -6,8 +6,7 @@
 //   - Below it, the lazy pathless UrlStateLayout (the one NuqsAdapter around `<Outlet/>`, WEB-10), so the admin lists of
 //     later phases keep their state in the URL. Its AdminRouteErrorBoundary shows the admin error screen inside the
 //     shell's `main` when a page crashes or a page chunk fails to load.
-//   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
-//     come in Phases 7-9 show the page-not-found screen inside the shell.
+//   - Until the dashboard exists (Phase 10) the index goes to Orders (D-61).
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
@@ -25,10 +24,6 @@ const devUser: LoaderFunction = async () => (await import('@/modules/admin/secti
 
 const previewPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AdminPreviewPage')).AdminPreviewRoute,
-}));
-
-const notFoundPage = /* @__PURE__ */ lazyRoute(async () => ({
-  Component: (await import('@/modules/admin/pages/AdminNotFoundPage')).AdminNotFoundPage,
 }));
 
 const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
@@ -91,6 +86,10 @@ const expensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ExpensesPage')).ExpensesRoute,
 }));
 
+const ordersPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/OrdersPage')).default,
+}));
+
 const deletedExpensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/DeletedExpensesPage')).DeletedExpensesRoute,
 }));
@@ -143,11 +142,11 @@ export const adminRoutes: RouteObject[] = [
             element: null,
             loader: () => {
               // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's redirect() is thrown by design.
-              throw redirect('/admin/sessions');
+              throw redirect('/admin/orders');
             },
           },
           { path: 'sessions', lazy: sessionsPage },
-          { path: 'orders', lazy: notFoundPage },
+          { path: 'orders', lazy: ordersPage },
           { path: 'expenses', lazy: expensesPage },
           // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },
@@ -196,10 +195,7 @@ export const devRoutes: RouteObject[] = [
       {
         ErrorBoundary: AdminRouteErrorBoundary,
         lazy: urlStateLayout,
-        children: [
-          { index: true, lazy: previewPage },
-          { path: 'orders', lazy: previewPage },
-        ],
+        children: [{ index: true, lazy: previewPage }],
       },
     ],
   },

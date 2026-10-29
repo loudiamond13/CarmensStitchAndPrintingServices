@@ -3,6 +3,17 @@
 import { formatCount } from '@/utils/format';
 
 export const ORDERS_COPY = {
+  /** The Orders list (L1, plan 08-06). */
+  list: {
+    documentTitle: 'Orders',
+    title: 'Orders',
+    /** D-41: every non-deleted order and the active ones, from the list response (en-PH thousands, "1 order"). */
+    subline: (all: number, active: number): string =>
+      `${formatCount(all)} ${all === 1 ? 'order' : 'orders'} · ${formatCount(active)} active`,
+    newOrder: 'New Order',
+    /** The visually hidden heading above the results (D-54e). */
+    results: 'Results',
+  },
   /** The due date and its flag (D-36 to D-38). The empty value is the EmptyValue icon, not text. */
   due: {
     label: 'Due',

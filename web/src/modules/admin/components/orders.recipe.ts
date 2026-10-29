@@ -20,3 +20,11 @@ export const dueFlagSoonClasses = tw('text-[14px] leading-5 font-semibold text-i
 export const dueFlagOverdueClasses = tw(
   'inline-flex items-center gap-1 text-[14px] leading-5 font-semibold text-danger',
 );
+
+/**
+ * The order grid (`.s-orders`): four columns, three up to 1279px, two on tablets, one on phones, 20px apart. The page
+ * container variants are emitted widest first, so the narrower rules are important and the tablet and phone rules do not overlap.
+ */
+export const ordersGridClasses = tw(
+  'grid grid-cols-[repeat(4,minmax(0,1fr))] gap-5 pg-phone:grid-cols-[minmax(0,1fr)]! pg-tablet:grid-cols-[repeat(2,minmax(0,1fr))]! pg-lt-xl:grid-cols-[repeat(3,minmax(0,1fr))]',
+);

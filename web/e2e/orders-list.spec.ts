@@ -78,7 +78,7 @@ function ordersWord(count: number): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'order' : 'orders'}`;
 }
 
-test('@orders-list a Manager lands on Orders and sees a seeded order as a card with its number, pieces and Total', async ({
+test('@orders-list a Manager opens Orders and sees a seeded order as a card with its number, pieces and Total', async ({
   page,
   request,
   guard,
@@ -99,13 +99,9 @@ test('@orders-list a Manager lands on Orders and sees a seeded order as a card w
   });
   await signInAs(page, request, manager);
 
-  // D-61: /admin lands on Orders. The first list answer of the visit is what the page draws.
-  const landed = page.waitForResponse((response) => isListUrl(response.url()) && response.request().method() === 'GET');
-  await page.goto('/admin');
-  const first: unknown = await (await landed).json();
-  if (!isListBody(first)) {
-    throw new Error('GET /api/v1/orders returned an unexpected body.');
-  }
+  // The e2e bundle's dev routes keep /admin as the Dashboard preview, so the D-61 redirect is proved in routes.test.tsx and the
+  // page is opened directly. The list answer of this visit is what the page draws.
+  const first = await openList(page, '/admin/orders');
   await expect(page).toHaveURL(/\/admin\/orders$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
   await expect(page).toHaveTitle('Orders · CSPS Admin');

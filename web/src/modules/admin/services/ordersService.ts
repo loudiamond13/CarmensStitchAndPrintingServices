@@ -21,12 +21,31 @@ export interface OrdersListQuery {
 }
 
 export interface OrdersService {
+  /**
+   * `GET /api/v1/orders`: one page of orders with their stored money figures and piece counts, plus the list-wide counts
+   * (`allOrders`, `activeOrders`, which ignore every filter) and the business `today` (D-41, D-59). With no filters the
+   * server shows the active orders, soonest due first. 400 lists the field errors of a bad filter.
+   */
   list(query: OrdersListQuery, signal?: AbortSignal): Promise<OrderListResponse>;
 }
 
 export function createOrdersService(client: HttpClient): OrdersService {
   return {
-    list: (query, signal) => client.get<OrderListResponse>('/orders', { params: { page: query.page }, signal }),
+    list: (query, signal) =>
+      client.get<OrderListResponse>('/orders', {
+        params: {
+          q: query.q,
+          status: query.status,
+          from: query.from,
+          to: query.to,
+          productType: query.productType,
+          hasBalance: query.hasBalance,
+          sort: query.sort,
+          page: query.page,
+          pageSize: query.pageSize,
+        },
+        signal,
+      }),
   };
 }
 
