@@ -33,17 +33,20 @@ internal static class WriteEvidence
             where partition.IndexId == HeapIndexId || partition.IndexId == ClusteredIndexId
             select (long?)partition.Rows).SumAsync(cancellationToken).ConfigureAwait(false);
 
-        var databaseName = context.Database.GetDbConnection().Database;
-        var databaseId = (short)await context.CatalogDatabases
-            .Where(database => database.Name == databaseName)
-            .Select(database => database.DatabaseId)
-            .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var databaseId = (short)await DatabaseIdAsync(context, context.Database.GetDbConnection().Database, cancellationToken).ConfigureAwait(false);
         var updates = await context.CatalogIndexUsage
             .Where(usage => usage.DatabaseId == databaseId)
             .SumAsync(usage => (long?)usage.UserUpdates, cancellationToken).ConfigureAwait(false);
 
         return new WriteEvidenceSnapshot(tables, rows ?? 0, updates ?? 0);
     }
+
+    /// <summary>Finds the server's id for the named database.</summary>
+    internal static Task<int> DatabaseIdAsync(LegacyDbContext context, string databaseName, CancellationToken cancellationToken) =>
+        context.CatalogDatabases
+            .Where(database => database.Name == databaseName)
+            .Select(database => database.DatabaseId)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public static WriteEvidenceVerdict Compare(WriteEvidenceSnapshot before, WriteEvidenceSnapshot after)
     {

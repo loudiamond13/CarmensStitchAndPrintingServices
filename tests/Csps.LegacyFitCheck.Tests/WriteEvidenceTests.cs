@@ -44,7 +44,26 @@ public sealed class WriteEvidenceTests
                 var after = await WriteEvidence.CaptureAsync(context, token);
 
                 after.Rows.ShouldBe(before.Rows + 1);
+                after.UserUpdates.ShouldBeGreaterThan(before.UserUpdates);
                 WriteEvidence.Compare(before, after).ShouldBe(WriteEvidenceVerdict.Changed);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ADatabaseTheServerDoesNotListFailsClosed()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            var context = LegacyDbContext.Open(fake.ConnectionString);
+            await using (context.ConfigureAwait(true))
+            {
+                await context.Database.OpenConnectionAsync(token);
+
+                (await WriteEvidence.DatabaseIdAsync(context, context.Database.GetDbConnection().Database, token)).ShouldBeGreaterThan(0);
+                await Should.ThrowAsync<InvalidOperationException>(() => WriteEvidence.DatabaseIdAsync(context, "CSPS_Test_00000000-0000-0000-0000-000000000000", token));
             }
         }
     }
