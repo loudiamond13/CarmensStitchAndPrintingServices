@@ -321,6 +321,19 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(order);
     }
 
+    /// <summary>Builds an order from legacy data (ORD-21).</summary>
+    /// <param name="snapshot">The legacy order.</param>
+    /// <param name="rules">The relaxations to apply.</param>
+    /// <param name="now">The current instant.</param>
+    /// <param name="today">The business today.</param>
+    /// <returns>The new, unsaved order, or a validation error.</returns>
+    public static Result<Order> Import(OrderImportSnapshot snapshot, OrderImportRules rules, DateTimeOffset now, DateOnly? today = null)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(rules);
+        return Result.Failure<Order>(Error.BusinessRule("orders.import-pending", $"The import is not built yet ({now}, {today})."));
+    }
+
     /// <summary>Sets the order number once, after the order passed its checks.</summary>
     /// <param name="number">The number from <see cref="OrderNumber.Format"/>.</param>
     /// <exception cref="InvalidOperationException">The order already has a number.</exception>

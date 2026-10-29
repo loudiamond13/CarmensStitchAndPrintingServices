@@ -61,6 +61,7 @@ public static class OrdersApplicationRegistration
         services.AddScoped<RestoreOrderHandler>();
         services.AddScoped<PermanentlyDeleteOrderHandler>();
         services.AddScoped<ListDeletedOrdersHandler>();
+        services.AddScoped<ImportOrderHandler>();
         return services;
     }
 }

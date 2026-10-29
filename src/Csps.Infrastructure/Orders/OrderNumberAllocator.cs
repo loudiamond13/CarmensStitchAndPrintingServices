@@ -30,15 +30,7 @@ internal sealed class OrderNumberAllocator : IOrderNumbers
 
     public async Task<string> NextAsync(int year, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        try
-        {
-            await DatabaseLocks.TakeAsync(_context, DatabaseLocks.OrderNumbers, now, _lockWait, OrderErrors.BusyMessage, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (InvalidOperationException error) when (error.Message == OrderErrors.BusyMessage)
-        {
-            throw new OrderNumberBusyException();
-        }
+        await TakeLockAsync(now, cancellationToken).ConfigureAwait(false);
 
         var counter = await _context.OrderNumberCounters.SingleOrDefaultAsync(row => row.Year == year, cancellationToken).ConfigureAwait(false);
         if (counter is null)
@@ -49,5 +41,24 @@ internal sealed class OrderNumberAllocator : IOrderNumbers
 
         // The counter row saves with the order, in the same SaveChanges.
         return OrderNumber.Format(year, counter.Next());
+    }
+
+    public Task ReserveLegacyAsync(string number, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+        return TakeLockAsync(now, cancellationToken);
+    }
+
+    private async Task TakeLockAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await DatabaseLocks.TakeAsync(_context, DatabaseLocks.OrderNumbers, now, _lockWait, OrderErrors.BusyMessage, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (InvalidOperationException error) when (error.Message == OrderErrors.BusyMessage)
+        {
+            throw new OrderNumberBusyException();
+        }
     }
 }
