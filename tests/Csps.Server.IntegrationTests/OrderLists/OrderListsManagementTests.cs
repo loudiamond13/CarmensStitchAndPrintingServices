@@ -427,8 +427,10 @@ public sealed class OrderListsManagementTests(CspsDatabase database) : IClassFix
         using var retired = await OrderListFixtures.RetireAsync(client, route, manager.AccessToken, OthersId);
         using var deleted = await OrderListFixtures.DeleteAsync(client, route, manager.AccessToken, OthersId);
 
-        renamed.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
-        (await ProblemJson.ReadAsync(renamed, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("order-expense-categories.protected");
+        renamed.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var renamedProblem = await ProblemJson.ReadAsync(renamed, TestContext.Current.CancellationToken);
+        renamedProblem.GetProperty("code").GetString().ShouldBe("order-expense-categories.invalid-request");
+        OrderListFixtures.FieldErrors(renamedProblem, "name").ShouldBe(["The Others name can't change."]);
         recolored.StatusCode.ShouldBe(HttpStatusCode.OK);
         retired.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
         deleted.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);

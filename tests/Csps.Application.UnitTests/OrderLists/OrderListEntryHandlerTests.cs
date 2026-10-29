@@ -260,14 +260,15 @@ public sealed class OrderListEntryHandlerTests
     }
 
     [Fact]
-    public async Task RenamingOthersIsRefusedAsProtectedAndNothingChanges()
+    public async Task RenamingOthersIsA400OnNameLikePhase6AndNothingChanges()
     {
         var harness = new Harness(OrderListKind.OrderExpenseCategory, others: true);
 
         var result = await harness.Update.HandleAsync(OrderListKind.OrderExpenseCategory, harness.Id, Valid() with { Name = "Misc", Tone = "success" }, TestContext.Current.CancellationToken);
 
-        result.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
-        result.Error.Code.ShouldBe("order-expense-categories.protected");
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.Code.ShouldBe("order-expense-categories.invalid-request");
+        result.Error.FieldErrors.ShouldNotBeNull()["name"].ShouldBe(["The Others name can't change."]);
         harness.Entry.Name.ShouldBe("Others");
         harness.Entry.Tone.ShouldBe("neutral");
         harness.Unit.Saves.ShouldBe(0);
