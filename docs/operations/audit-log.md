@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-28T20:32:00-05:00
+updated: 2026-10-28T22:00:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -242,7 +242,7 @@ API never change an entry (the log is append-only, see above).
   - **Done to is the payer** for an expense entry (for a payer change, the new payer) and empty for a category entry.
     The Done to filter also finds an expense entry whose detail names that person as the payer, current, old or new, so a
     Manager can list everything that touched one person's money. The match is a LIKE on the stored detail with the shared
-    escaping, limited to codes that start with `company-expense.`.
+    escaping, limited to codes that start with `company-expense.`. Order entries are found the same way (D-48), see below.
 - **Order and list entries (Phase 7, D-31).** The 43 `order*`, `product-type.*`, `payment-method.*` and
   `order-expense-category.*` codes are read the same way. Each entry carries `changes`, plus `orderSnapshot` and `orderNumber`
   (both null for every other entry). `AuditChangeLines` reads only the documented keys, each in the shape its writer gives it;
@@ -270,7 +270,11 @@ API never change an entry (the log is append-only, see above).
     "Paid by: {name} to {name}", "Refunded by: {name} to {name}" and "Customer name changed". A snapshot reads "ORD-2026-0148,
     Cancelled, total ₱21,327.50, paid ₱12,000.00, balance ₱9,327.50". The detail panel adds an Order row with the number.
   - Done to stays empty for order entries (it shows the order number instead). Receiver, payer and refunder changes are read from
-    the lines; the Done to filter does not search order entries.
+    the lines. The Done to filter still finds them (D-48): a person matches an order payment, refund or order expense entry
+    (codes starting `order-payment.`, `order-refund.` or `order-expense.`, so the `*-changed` entries with `receiver=old>new`,
+    `payer=old>new` or `refunder=old>new` count, old or new) and an `order.permanently-deleted` entry whose `receivers=`, `payers=`
+    or `refunders=` list holds their id. A person left out of a list by the `+N` cut-off (D-44) cannot be found, because the
+    log never stored the id. The match is the same LIKE on the stored detail with the shared escaping.
 - **No export.** There is no download or CSV route (D-29). The log is read on screen only.
 
 ## Residual risk

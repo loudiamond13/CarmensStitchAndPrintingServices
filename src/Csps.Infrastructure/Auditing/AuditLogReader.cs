@@ -23,6 +23,9 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
     private const string OrderTarget = "Order";
     private const string SoftDeleteFilter = "SoftDelete";
     private const string ExpenseActionPrefix = "company-expense.";
+    private const string OrderPaymentActionPrefix = "order-payment.";
+    private const string OrderRefundActionPrefix = "order-refund.";
+    private const string OrderExpenseActionPrefix = "order-expense.";
 
     public async Task<AuditLogPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken)
     {
@@ -209,12 +212,17 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
             var targetKey = AuditKey.Of(target);
             var targetSessions = await SessionKeysAsync(target, cancellationToken).ConfigureAwait(false);
 
-            // An expense event is about its payer: the detail names the payer's id, as the current payer or as the old or new one.
+            // An expense event is about its payer, and an order payment, refund, expense or permanent delete about its receiver, refunder
+            // or payer: the detail names that person's id, as the current, old or new one or in the delete's people lists.
             var payerPattern = LikePattern.Contains(targetKey);
             matches = matches.Where(entry =>
                 (entry.TargetType == UserTarget && entry.TargetId == targetKey)
                 || (entry.TargetType == SessionTarget && entry.TargetId != null && targetSessions.Contains(entry.TargetId))
-                || (entry.Action.StartsWith(ExpenseActionPrefix)
+                || ((entry.Action.StartsWith(ExpenseActionPrefix)
+                        || entry.Action.StartsWith(OrderPaymentActionPrefix)
+                        || entry.Action.StartsWith(OrderRefundActionPrefix)
+                        || entry.Action.StartsWith(OrderExpenseActionPrefix)
+                        || entry.Action == AuditActions.OrderPermanentlyDeleted)
                     && entry.Detail != null
                     && EF.Functions.Like(entry.Detail, payerPattern, LikePattern.EscapeCharacter)));
         }
