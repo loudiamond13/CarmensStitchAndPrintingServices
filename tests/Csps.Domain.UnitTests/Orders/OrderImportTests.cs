@@ -216,6 +216,18 @@ public sealed class OrderImportTests
     }
 
     [Fact]
+    public void ANumberWithSpacesAroundItIsStoredTrimmedSoALookupByTheCleanNumberFindsIt()
+    {
+        var lenient = Order.Import(Valid() with { Number = "  ORD-2026-0148 " }, OrderImportRules.Default, Now).Value;
+        var strict = Order.Import(Valid() with { Number = " ORD-2026-0148" }, OrderImportRules.Strict, Now, Today).Value;
+        var spaceOnly = Order.Import(Valid() with { Number = "   " }, OrderImportRules.Default, Now);
+
+        lenient.Number.ShouldBe("ORD-2026-0148");
+        strict.Number.ShouldBe("ORD-2026-0148");
+        ShouldRefuseOn(spaceOnly, "number", "blank");
+    }
+
+    [Fact]
     public void TextIsTrimmedAndEmptyOptionalTextBecomesNullLikeAnyOtherOrder()
     {
         var details = Details() with { CustomerName = "  Juan Dela Cruz ", TeamName = " ", Email = "", Address = " Brgy. San Roque ", Notes = "\t" };

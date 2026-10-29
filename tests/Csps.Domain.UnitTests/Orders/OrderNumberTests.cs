@@ -40,6 +40,8 @@ public sealed class OrderNumberTests
     [InlineData("ORD-2026--001")]
     [InlineData("ORD-2026-99999999999")]
     [InlineData("ord-2026-0001")]
+    [InlineData("ORD-2026-0000")]
+    [InlineData("ORD-0000-0001")]
     public void ATextThatIsNotANumberFailsAndLeavesZeros(string? text)
     {
         OrderNumber.TryParse(text, out var year, out var sequence).ShouldBeFalse();
