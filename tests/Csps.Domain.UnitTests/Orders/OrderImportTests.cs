@@ -216,6 +216,26 @@ public sealed class OrderImportTests
     }
 
     [Fact]
+    public void ASnapshotWithAMissingListIsAnArgumentErrorNotANullReference()
+    {
+        var snapshots = new (string Name, OrderImportSnapshot Snapshot)[]
+        {
+            ("items", Valid() with { Items = null! }),
+            ("discounts", Valid() with { Discounts = null! }),
+            ("payments", Valid() with { Payments = null! }),
+            ("refunds", Valid() with { Refunds = null! }),
+            ("expenses", Valid() with { Expenses = null! }),
+            ("status history", Valid() with { StatusHistory = null! }),
+            ("details", Valid() with { Details = null! }),
+        };
+
+        foreach (var (name, snapshot) in snapshots)
+        {
+            Should.Throw<ArgumentNullException>(() => Order.Import(snapshot, OrderImportRules.Default, Now), name);
+        }
+    }
+
+    [Fact]
     public void ANumberWithSpacesAroundItIsStoredTrimmedSoALookupByTheCleanNumberFindsIt()
     {
         var lenient = Order.Import(Valid() with { Number = "  ORD-2026-0148 " }, OrderImportRules.Default, Now).Value;
