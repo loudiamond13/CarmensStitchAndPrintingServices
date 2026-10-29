@@ -162,7 +162,7 @@ public static class AuditActions
     /// <summary>An order moved to another status (D-31).</summary>
     public const string OrderStatusChanged = "order.status-changed";
 
-    /// <summary>A completed or canceled order was reopened (D-31).</summary>
+    /// <summary>A completed or cancelled order was reopened (D-31).</summary>
     public const string OrderReopened = "order.reopened";
 
     /// <summary>An order was deleted into the bin (D-31).</summary>
@@ -264,16 +264,16 @@ public static class AuditActions
     /// <summary>An unused payment method was deleted (D-31).</summary>
     public const string PaymentMethodDeleted = "payment-method.deleted";
 
-    /// <summary>A order expense category was added (D-31).</summary>
+    /// <summary>An order expense category was added (D-31).</summary>
     public const string OrderExpenseCategoryAdded = "order-expense-category.added";
 
-    /// <summary>A order expense category was renamed (D-31).</summary>
+    /// <summary>An order expense category was renamed (D-31).</summary>
     public const string OrderExpenseCategoryRenamed = "order-expense-category.renamed";
 
-    /// <summary>A order expense category's tone changed (D-31).</summary>
+    /// <summary>An order expense category's tone changed (D-31).</summary>
     public const string OrderExpenseCategoryRecolored = "order-expense-category.recolored";
 
-    /// <summary>A order expense category was retired (D-31).</summary>
+    /// <summary>An order expense category was retired (D-31).</summary>
     public const string OrderExpenseCategoryRetired = "order-expense-category.retired";
 
     /// <summary>A retired order expense category was reactivated (D-31).</summary>
