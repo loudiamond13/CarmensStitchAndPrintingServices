@@ -19,7 +19,7 @@ public sealed class CompanyExpenseCheckTests(CspsDatabase database) : IClassFixt
     private static readonly DateOnly Today = new(2026, 10, 29);
     private static readonly DateTimeOffset Now = new(2026, 10, 29, 0, 0, 0, TimeSpan.Zero);
 
-    private int _staffNumber;
+    private static int _staffNumber;
 
     [Fact]
     public async Task EveryFieldFailureIsReportedInOneCall()

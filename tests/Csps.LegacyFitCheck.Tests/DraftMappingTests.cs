@@ -1,3 +1,4 @@
+using Csps.Domain.Expenses;
 using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
@@ -255,6 +256,32 @@ public sealed class DraftMappingTests
         expense.PaidByUserId.ShouldBe(LegacyHolder.Id);
         Single(mapped, FindingType.CannotMap, "order-expense.no-date").LegacyKey.ShouldBe("Expenses:2");
         Single(mapped, FindingType.CannotMap, "order-expense.no-category").LegacyKey.ShouldBe("Expenses:1");
+    }
+
+    [Fact]
+    public void ACompanyExpenseBecomesAnAddExpenseRequestWithOthersAndTheManilaDate()
+    {
+        var mapped = DraftMapping.MapCompanyExpense(new LegacyExpenseRow { ExpenseId = 5, Description = "  Sample rent  ", SpentDate = ManilaNextDay, IsCompanyExpenses = true, Amount = 12.3456m, PaidBy = "Sample payer" });
+
+        mapped.LegacyKey.ShouldBe("Expenses:5");
+        mapped.Request.Date.ShouldBe("2026-01-01");
+        mapped.Request.CategoryId.ShouldBe(ExpenseCategorySeed.OthersId);
+        mapped.Request.Description.ShouldBe("Sample rent");
+        mapped.Request.Amount.ShouldBe(12.3456m);
+        mapped.Request.PaidByUserId.ShouldBe(LegacyHolder.Id);
+        mapped.Request.Notes.ShouldBeNull();
+        mapped.Findings.ShouldContain(static finding => finding.Type == FindingType.CannotMap && finding.RuleKey == "company-expense.no-category" && finding.Kind == RecordKind.CompanyExpense);
+        mapped.Findings.ShouldContain(static finding => finding.Type == FindingType.LegacyHolderUsed && finding.Kind == RecordKind.CompanyExpense);
+        mapped.Findings.ShouldContain(static finding => finding.Type == FindingType.Info && finding.RuleKey == "dates.reading-differs");
+    }
+
+    [Fact]
+    public void ACompanyExpenseWithNoDateKeepsTheDateEmptyForTheValidator()
+    {
+        var mapped = DraftMapping.MapCompanyExpense(new LegacyExpenseRow { ExpenseId = 6, Description = "Sample", SpentDate = null, IsCompanyExpenses = true, Amount = 5m, PaidBy = string.Empty });
+
+        mapped.Request.Date.ShouldBeNull();
+        mapped.Findings.ShouldNotContain(static finding => finding.RuleKey == "dates.reading-differs");
     }
 
     private static MappedOrder Map(LegacyOrderRow order, LegacyOrderParts? parts = null, string statusName = "Open")
