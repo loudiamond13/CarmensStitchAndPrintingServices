@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T09:40:00-05:00
-updated: 2026-10-28T20:10:00-05:00
+updated: 2026-10-28T21:45:00-05:00
 ---
 
 # Phase 7 deferred items
@@ -27,3 +27,10 @@ The owner approved dropping `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductT
 - A deadlock victim in `CreateOrderHandler` maps to the existing "orders are being saved" 409 (`orders.busy`), not a 500.
 
 Done together with the D-45 index drop, after plan 07-17.
+
+## Done: D-45 and D-46 (2026-10-28)
+
+- **D-45 index drop.** RED `2b847b7e`, GREEN `7c4e4b4d`. Migration `DropUnusedOrderIndexes` drops only `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductTypeId` (Down recreates just those two). The Fluent config no longer names them, and the model snapshot lost exactly those two lines. `OrderListIndexesMigrationTests` now proves the Orders set is the old four plus the five list indexes, and the OrderItems set is `CreatedById`, `OrderId`, `ProductTypeId_OrderId`, `UpdatedById`. The order list timing test after the drop: default list p95 10.3 ms, customer-name search 69.7 ms, product type filter 19.4 ms, has balance 7.6 ms, far page at size 100 25.2 ms, newest sort 5.2 ms, balance sort 5.0 ms, total sort 5.0 ms (limit 300 ms). `OrderListQueryCountTests`: 9 of 9 pass, still 2 SQL commands whatever the page size.
+- **D-46a Others rename.** RED `bd935e9b`, GREEN `25231c0d`. Renaming the order expense Others now answers 400 on `name` with "The Others name can't change." (code `order-expense-categories.invalid-request`). Recolor is still 200; retire and delete are still 422 `order-expense-categories.protected`. `docs/api/order-lists.md` is updated.
+- **D-46b deadlock on create.** RED `2265d18b`, GREEN `ca59de32`. The unit of work already turned SQL error 1205 into a conflict; `CreateOrderHandler` now maps that conflict to the `orders.busy` 409 instead of a 500, with a unit test using a faked failed save. `docs/api/orders.md` lists the cause.
+- **Evidence.** `dotnet build -warnaserror`: 0 warnings, 0 errors. Domain 1142 of 1142, Application 1825 of 1825, Architecture 241 of 241, Infrastructure integration 738 passed and 1 skipped (the live HIBP test, as before), Server integration 1775 of 1775 (including the expense timing test, which passed this run). Coverage gate passed: Domain line 100% and branch 100%, Application line 98.1%. `npm --prefix tools/openapi-gen run check`: types match the snapshot; the OpenAPI document did not change, so no refresh was needed.
