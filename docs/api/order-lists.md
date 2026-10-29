@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T09:20:00-05:00
-updated: 2026-10-28T21:10:00-05:00
+updated: 2026-10-28T23:00:00-05:00
 ---
 
 # The order lists API
@@ -34,7 +34,7 @@ Each of the three lists has the same eight routes. `{list}` is `product-types`, 
 | Method and path | Who | Answers |
 |---|---|---|
 | `GET /{list}` | Staff | `200` an array of list items |
-| `POST /{list}` | Manager | `201` the entry detail and its `Location`; `400` field errors |
+| `POST /{list}` | Manager | `201` the entry detail and its `Location`; `400` field errors; `409 auth.session-busy` when the save lost a deadlock |
 | `GET /{list}/{id}` | Manager | `200` the entry detail; `404` |
 | `PUT /{list}/{id}` | Manager | `200` the saved detail; `400` (also a new name for Others), `404`, `409 edit.stale` |
 | `POST /{list}/{id}/retire` | Manager | `204`; `404`; `422` (Others) |
@@ -139,6 +139,7 @@ The migration `AddOrderLists` writes these seventeen rows once, with fixed ids, 
 | `400` | `{list}.invalid-request` | A broken field. Messages: "The Others name can't change." (order expense Others only), "Enter a product type name." (also "payment method" and "category"), "Keep the name to 40 characters or fewer.", "Choose a badge color.", "Reload the form and try again." (bad version), "That name is already used. Choose another one." |
 | `404` | `{list}.not-found` | "This product type was deleted." (also "payment method" and "category") |
 | `409` | `edit.stale` | "This was changed by someone else. Reload and try again." |
+| `409` | `auth.session-busy` | "Something changed at the same time. Try again." (a create that lost a deadlock, or a retire, reactivate or delete that lost two races in a row) |
 | `422` | `{list}.in-use` | "This product type is used by an order, so it can't be deleted. Retire it instead." (also "payment method" and "category") |
 | `422` | `order-expense-categories.protected` | "The Others category can't be renamed, retired or deleted." (retire and delete only; a rename is the `400` above) |
 

@@ -1,3 +1,4 @@
+using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Auditing;
@@ -12,7 +13,8 @@ namespace Csps.Application.OrderLists;
 /// Use case: a Manager adds an entry to the product types, payment methods or order expense categories (D-19, D-20). The form is
 /// checked against the field rules and, in the same 400, against the other names: no entry of the list, retired ones included, may
 /// hold the same name in any letter case. The unique index decides a race, and that loss is the same field error. Who added it and
-/// when come from the token and the clock (SEC-08). One audit entry joins the save (D-31).
+/// when come from the token and the clock (SEC-08). One audit entry joins the save (D-31). A save that loses a deadlock is a 409 and
+/// is not retried.
 /// </summary>
 public sealed class CreateOrderListEntryHandler(
     IOrderLists lists,
@@ -25,7 +27,7 @@ public sealed class CreateOrderListEntryHandler(
     /// <param name="kind">Which list.</param>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new entry as the detail read shows it, or a 400 listing every field that failed.</returns>
+    /// <returns>The new entry as the detail read shows it, a 400 listing every field that failed, or a 409 when the save lost a deadlock.</returns>
     public async Task<Result<OrderListEntryDetailResponse>> HandleAsync(OrderListKind kind, OrderListEntryRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -67,6 +69,11 @@ public sealed class CreateOrderListEntryHandler(
         catch (OrderListNameTakenException)
         {
             return Failed(descriptor, new ValidationResult([OrderListErrors.NameTakenFailure()]));
+        }
+        catch (ConcurrencyConflictException)
+        {
+            // A deadlock victim: the server rolled the insert back, so nothing was saved. A create has no version to read again.
+            return Result.Failure<OrderListEntryDetailResponse>(AuthErrors.SessionBusy);
         }
 
         var view = await lists.GetDetailAsync(kind, entry.Id, cancellationToken).ConfigureAwait(false);
