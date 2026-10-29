@@ -185,7 +185,9 @@ public sealed class FitCheckRunnerTests
                 Count(text, "| CannotMap | payment.deleted-dropped |").ShouldBe(1);
                 Count(text, "| CannotMap | order-expense.no-category |").ShouldBe(1);
                 Count(text, "| CannotMap | order.no-number |").ShouldBe(2);
-                Count(text, "| LegacyHolderUsed |").ShouldBe(2);
+                Count(text, "| Payment | Payments:1 | LegacyHolderUsed |").ShouldBe(1);
+                Count(text, "| OrderExpense | Expenses:1 | LegacyHolderUsed |").ShouldBe(1);
+                Count(text, "| CompanyExpense | Expenses:2 | LegacyHolderUsed |").ShouldBe(1);
                 Count(text, "| TrialImport |").ShouldBe(0);
                 Count(text, "| Info | trial.imported |").ShouldBe(2);
             }

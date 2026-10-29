@@ -1,4 +1,6 @@
 using System.Globalization;
+using Csps.Application.Expenses;
+using Csps.Domain.Expenses;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.LegacyFitCheck.Findings;
@@ -12,6 +14,12 @@ namespace Csps.LegacyFitCheck.Mapping;
 /// <param name="Findings">What the mapping found.</param>
 /// <param name="StoredTotals">The totals the legacy order stores, or null when the order was not mapped.</param>
 internal sealed record MappedOrder(string LegacyKey, OrderImportSnapshot? Snapshot, IReadOnlyList<Finding> Findings, LegacyStoredTotals? StoredTotals = null);
+
+/// <summary>One legacy company expense after the draft mapping: the request staff would send, ready for the Phase 6 rule check.</summary>
+/// <param name="LegacyKey">The legacy table and id.</param>
+/// <param name="Request">The add-expense request built from the legacy row.</param>
+/// <param name="Findings">What the mapping found.</param>
+internal sealed record MappedCompanyExpense(string LegacyKey, CreateCompanyExpenseRequest Request, IReadOnlyList<Finding> Findings);
 
 /// <summary>The money totals a legacy order stores, kept to compare with the CSPS math (D-08).</summary>
 /// <param name="TotalAmount">The stored total after discounts; null when the order stores none.</param>
@@ -115,6 +123,30 @@ internal static class DraftMapping
         };
 
         return new MappedOrder(key, snapshot, findings, new LegacyStoredTotals(order.TotalAmount, order.TotalDiscount, order.PaidAmount, order.TotalBalance, order.TotalExpenses));
+    }
+
+    /// <summary>
+    /// Builds the add-expense request for one legacy company expense (D-12, D-16). The legacy row has no category, so Others is used.
+    /// A missing date stays null so the validator reports it.
+    /// </summary>
+    public static MappedCompanyExpense MapCompanyExpense(LegacyExpenseRow expense, PeopleMatching? people = null)
+    {
+        ArgumentNullException.ThrowIfNull(expense);
+
+        var key = Key("Expenses", expense.ExpenseId);
+        var findings = new List<Finding>();
+        string? date = null;
+        if (expense.SpentDate is { } spent)
+        {
+            date = LegacyDates.ToManilaDate(spent).ToString(ExpenseRules.DateFormat, CultureInfo.InvariantCulture);
+            AddDateReading(findings, RecordKind.CompanyExpense, key, spent);
+        }
+
+        findings.Add(new Finding(RecordKind.CompanyExpense, key, FindingType.CannotMap, "company-expense.no-category", null, "The legacy company expense has no category; Others is used.", null, null));
+        var payer = (people ?? PeopleMatching.Empty).Resolve(expense.PaidBy);
+        AddHolderUse(findings, RecordKind.CompanyExpense, key, "paidByUserId", "payer", payer);
+        var request = new CreateCompanyExpenseRequest(date, ExpenseCategorySeed.OthersId, expense.Description?.Trim(), expense.Amount, payer.UserId, null);
+        return new MappedCompanyExpense(key, request, findings);
     }
 
     private static List<NewOrderItem> MapItems(IReadOnlyList<LegacyOrderItemRow> rows, ProductTypeMatch productType, string? typeName, List<Finding> findings)

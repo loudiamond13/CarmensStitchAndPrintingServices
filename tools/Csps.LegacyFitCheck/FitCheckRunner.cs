@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Csps.LegacyFitCheck;
 
 /// <summary>
-/// The end-to-end run: read the legacy restore, map each order, import it into a throwaway trial database, drop that database,
+/// The end-to-end run: read the legacy restore, map each order, import it into a throwaway trial database, check each company expense, drop that database,
 /// and write the full findings under _local. The console gets counts and a relative path only, and a failure names the exception
 /// type only, because console text can reach logs and transcripts.
 /// </summary>
@@ -78,6 +78,7 @@ internal static class FitCheckRunner
                 }
             }
 
+            findings.AddRange(read.CompanyExpenses.SelectMany(static expense => expense.Findings));
             findings.Add(EvidenceFinding(read.Before));
             var inventory = ColumnInventory.Check(read.Columns);
             findings.AddRange(inventory.Findings);
@@ -92,7 +93,7 @@ internal static class FitCheckRunner
                     await afterCreated(trialName, cancellationToken).ConfigureAwait(false);
                 }
 
-                findings.AddRange(await TrialImport.RunAsync(trialConnection, mapped, read.TrialEntries, read.TrialStaff, time, cancellationToken).ConfigureAwait(false));
+                findings.AddRange(await TrialImport.RunAsync(trialConnection, mapped, read.TrialEntries, read.TrialStaff, time, cancellationToken, companyExpenses: read.CompanyExpenses).ConfigureAwait(false));
                 if (hooks?.BeforeTrialDropped is { } beforeDrop)
                 {
                     await beforeDrop(trialName, cancellationToken).ConfigureAwait(false);
@@ -112,6 +113,7 @@ internal static class FitCheckRunner
             var path = await FindingsWriter.WriteAsync(localRoot, findings, time, cancellationToken).ConfigureAwait(false);
             var problems = findings.Count(static finding => finding.Type != FindingType.Info);
             await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Orders checked: {mapped.Count}. Findings: {problems}.")).ConfigureAwait(false);
+            await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Company expenses checked: {read.CompanyExpenses.Count}.")).ConfigureAwait(false);
             await output.WriteLineAsync($"Full list (never commit): {path}").ConfigureAwait(false);
             return Program.Succeeded;
         }
@@ -194,6 +196,8 @@ internal static class FitCheckRunner
         var expenses = (await source.Expenses.Where(static row => !row.IsCompanyExpenses && row.OrderId != null).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false))
             .ToLookup(static row => row.OrderId!.Value);
 
+        var companyRows = await source.Expenses.Where(static row => row.IsCompanyExpenses).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false);
+
         var people = PeopleMatching.Build(
             await source.Users.ToListAsync(cancellationToken).ConfigureAwait(false),
             await source.Roles.ToListAsync(cancellationToken).ConfigureAwait(false),
@@ -203,6 +207,7 @@ internal static class FitCheckRunner
         var mapped = orders
             .Select(order => DraftMapping.MapOrder(order, new LegacyOrderParts([.. items[order.OrderId]], [.. discounts[order.OrderId]], [.. payments[order.OrderId]], [.. expenses[order.OrderId]]), types, statuses, lists, people))
             .ToList();
+        var companyExpenses = companyRows.Select(row => DraftMapping.MapCompanyExpense(row, people)).ToList();
         var columns = await source.Columns.Where(static column => column.TableSchema == "dbo").ToListAsync(cancellationToken).ConfigureAwait(false);
 
         if (hooks?.BetweenEvidence is { } between)
@@ -211,8 +216,15 @@ internal static class FitCheckRunner
         }
 
         var after = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
-        return new ReadResult(mapped, lists.TrialEntries, people.TrialStaff, columns, before, after);
+        return new ReadResult(mapped, companyExpenses, lists.TrialEntries, people.TrialStaff, columns, before, after);
     }
 
-    private sealed record ReadResult(IReadOnlyList<MappedOrder> Orders, IReadOnlyList<TrialListEntry> TrialEntries, IReadOnlyList<TrialStaff> TrialStaff, IReadOnlyList<LegacyColumn> Columns, WriteEvidenceSnapshot Before, WriteEvidenceSnapshot After);
+    private sealed record ReadResult(
+        IReadOnlyList<MappedOrder> Orders,
+        IReadOnlyList<MappedCompanyExpense> CompanyExpenses,
+        IReadOnlyList<TrialListEntry> TrialEntries,
+        IReadOnlyList<TrialStaff> TrialStaff,
+        IReadOnlyList<LegacyColumn> Columns,
+        WriteEvidenceSnapshot Before,
+        WriteEvidenceSnapshot After);
 }

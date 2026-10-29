@@ -7,6 +7,7 @@ using Csps.Infrastructure;
 using Csps.Infrastructure.Expenses;
 using Csps.Infrastructure.Orders;
 using Csps.Infrastructure.Persistence;
+using Csps.LegacyFitCheck.Checks;
 using Csps.LegacyFitCheck.Findings;
 using Csps.LegacyFitCheck.Mapping;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,8 @@ internal static class TrialImport
         IReadOnlyList<TrialStaff> trialStaff,
         TimeProvider time,
         CancellationToken cancellationToken,
-        Func<string, int, Result<Guid>?>? overrideResult = null)
+        Func<string, int, Result<Guid>?>? overrideResult = null,
+        IReadOnlyList<MappedCompanyExpense>? companyExpenses = null)
     {
         ArgumentNullException.ThrowIfNull(orders);
         ArgumentNullException.ThrowIfNull(trialEntries);
@@ -51,8 +53,37 @@ internal static class TrialImport
             }
 
             findings.AddRange(await CounterFindingsAsync(provider, cancellationToken).ConfigureAwait(false));
+            findings.AddRange(await CheckCompanyExpensesAsync(provider, companyExpenses ?? [], time, cancellationToken).ConfigureAwait(false));
             return findings;
         }
+    }
+
+    // Company expenses are only judged against the Phase 6 rules, in one scope that reads the trial categories and staff. Nothing is saved.
+    private static async Task<IReadOnlyList<Finding>> CheckCompanyExpensesAsync(
+        ServiceProvider provider,
+        IReadOnlyList<MappedCompanyExpense> expenses,
+        TimeProvider time,
+        CancellationToken cancellationToken)
+    {
+        if (expenses.Count == 0)
+        {
+            return [];
+        }
+
+        var clock = await new ToolCalendar(time).GetClockAsync(cancellationToken).ConfigureAwait(false);
+        var findings = new List<Finding>();
+        var scope = provider.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            var categories = scope.ServiceProvider.GetRequiredService<IExpenseCategories>();
+            var staff = scope.ServiceProvider.GetRequiredService<IStaffDirectory>();
+            foreach (var expense in expenses)
+            {
+                findings.AddRange(await CompanyExpenseCheck.CheckAsync(expense.LegacyKey, expense.Request, clock.Today, categories, staff, cancellationToken).ConfigureAwait(false));
+            }
+        }
+
+        return findings;
     }
 
     // One scope per attempt: a fresh context each time, so a failed save cannot touch the next order or the retry. A busy answer is
