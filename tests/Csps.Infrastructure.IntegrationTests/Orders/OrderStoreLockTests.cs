@@ -75,6 +75,27 @@ public sealed class OrderStoreLockTests(CspsDatabase database) : IClassFixture<C
         stored.Items.Select(static item => item.Description).Order(StringComparer.Ordinal).ShouldBe(["Jersey top", "Rival item"]);
     }
 
+    [Fact]
+    public async Task ALockThatTimesOutWaitingForTheRowIsTheSameConflictAndDropsTheTrackedState()
+    {
+        var id = await CreateOrderAsync();
+        await using var context = database.CreateContext();
+        var store = new OrderStore(context);
+        var order = (await store.FindAsync(id, includeDeleted: false, TestContext.Current.CancellationToken))!;
+        await using var holder = database.CreateContext();
+        var holding = await holder.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (holding)
+        {
+            await holder.Orders.Where(row => row.Id == id).ExecuteUpdateAsync(set => set.SetProperty(row => row.EditVersion, Guid.NewGuid()), TestContext.Current.CancellationToken);
+            context.Database.SetCommandTimeout(1);
+
+            var conflict = await Should.ThrowAsync<ConcurrencyConflictException>(() => store.LockAsync(order, TestContext.Current.CancellationToken));
+
+            conflict.OuterTransactionEnded.ShouldBeFalse();
+            context.ChangeTracker.Entries().ShouldBeEmpty();
+        }
+    }
+
     private async Task<Guid> CreateOrderAsync()
     {
         await database.ResetAsync();
