@@ -15,7 +15,7 @@ progress:
   completed_plans: 219
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T11:50:00-05:00"
+updated: "2026-10-29T20:30:00-05:00"
 ---
 
 # Project State
@@ -756,6 +756,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1 execute]: D-86 (owner, 2026-10-29, plan 07.1-02 follow-up): named exception to the no-raw-SQL rule: `ReadOnlyGuardTests` in `tests/Csps.LegacyFitCheck.Tests` keep their `ExecuteSqlRaw`, `FromSqlRaw` and `SqlQueryRaw` calls. They run only against the throwaway fake restore and exist to prove the read-only guard refuses raw SQL. The tool itself holds none, and `ToolSourceRulesTests` keeps it that way.
 - [Phase 07.1 execute]: D-87 (owner, 2026-10-29, plan 07.1-08 follow-up): legacy `Expenses` rows with `isCompanyExpenses` false and no `OrderId` are counted, not ignored. The fit check reports them as a new finding (for example `expense.unplaced`, kind CannotMap), counts only with no values, so the real run shows how many exist. Built in plan 07.1-09 alongside the report split.
 - [Phase 07.1 execute]: 07.1 D-17 to D-20 (owner, 2026-10-29): real fit-check run approved (Claude runs it); summary self-check stays strict; expenses pointing at a missing order are counted too; the joint PR opens from the 7.1 branch. Full text in 07.1-CONTEXT.md.
+- [Phase 07.1 execute]: D-88 (owner, 2026-10-29, follows D-76): `ExpenseListTimingTests` fails locally even run alone (five years, last page, size 100: p95 359.3 ms against 300 ms; Phase 6 measured 197.8 ms). Phase 7.1 changed nothing under src except one InternalsVisibleTo line. Investigate the five-year last-page query as its own task; the joint Phase 7 and 7.1 PR waits for the result. Also recorded: `LastManagerGuardTests.TwoManagersDeactivatingEachOtherTogetherLeaveExactlyOneActiveEveryTime` failed once in the full local run and passed alone (flake, recorded, not hidden).
 - [Phase 07.1]: Fit check tool gets InternalsVisibleTo on Csps.Infrastructure to register the internal CspsUnitOfWork; no new public DI surface
 - [Phase 07.1]: Fit check tests run in CI step 3 integration tests (full mode, container SQL) because they need a real SQL Server
 - [Phase 07.1]: 07.1-02: read window is one never-committed ReadCommitted transaction; write evidence (tables, rows, index updates) must match before and after or the run fails. The transaction also keeps one connection open, because auto-close resets index counters.
