@@ -62,15 +62,31 @@ public sealed partial class FindingsTests : IDisposable
         other.ShouldStartWith("_local/legacy-fit-check/findings-");
     }
 
+    // Forward slashes are a separator on both Windows and Linux, so these run in the ubuntu CI too.
+    [Theory]
+    [InlineData("legacy-fit-check", "../x.md")]
+    [InlineData("legacy-fit-check", "../../evil.md")]
+    [InlineData("legacy-fit-check", "../../../evil.md")]
+    [InlineData("../../_localx", "x.md")]
+    [InlineData("..", "x.md")]
+    [InlineData("legacy-fit-check", "sub/../../x.md")]
+    public void ATargetThatLeavesTheFolderIsRefused(string subFolder, string fileName)
+    {
+        var root = Path.Combine(_temp, "_local");
+
+        Should.Throw<InvalidOperationException>(() => FindingsWriter.ResolveTarget(root, subFolder, fileName));
+    }
+
+    // A backslash is a separator only on Windows. On Linux it is an ordinary name character.
     [Theory]
     [InlineData("legacy-fit-check", "..\\x.md")]
     [InlineData("legacy-fit-check", "..\\..\\evil.md")]
-    [InlineData("legacy-fit-check", "../../../evil.md")]
     [InlineData("..\\..\\_localx", "x.md")]
-    [InlineData("..", "x.md")]
     [InlineData("legacy-fit-check", "sub\\..\\..\\x.md")]
-    public void ATargetThatLeavesTheFolderIsRefused(string subFolder, string fileName)
+    [InlineData("..\\_localx", "x.md")]
+    public void OnWindowsATargetThatLeavesTheFolderThroughBackslashesIsRefused(string subFolder, string fileName)
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Backslash paths are only separators on Windows.");
         var root = Path.Combine(_temp, "_local");
 
         Should.Throw<InvalidOperationException>(() => FindingsWriter.ResolveTarget(root, subFolder, fileName));
@@ -91,7 +107,7 @@ public sealed partial class FindingsTests : IDisposable
     {
         var root = Path.Combine(_temp, "_local");
 
-        Should.Throw<InvalidOperationException>(() => FindingsWriter.ResolveTarget(root, "..\\_localx", "x.md"));
+        Should.Throw<InvalidOperationException>(() => FindingsWriter.ResolveTarget(root, "../_localx", "x.md"));
         FindingsWriter.ResolveTarget(root, "legacy-fit-check", "findings-1.md").ShouldStartWith(Path.Combine(root, "legacy-fit-check") + Path.DirectorySeparatorChar);
     }
 
