@@ -65,6 +65,59 @@ public sealed class OrderRefundTests
     }
 
     [Fact]
+    public void RemovingThePaymentThatTheRefundsCameFromIsRefusedAndChangesNothing()
+    {
+        var order = OrderInCredit(500.00m);
+        order.AddRefund(Refund(500.00m), Today, Later).IsSuccess.ShouldBeTrue();
+        var before = Snapshot(order);
+
+        var result = order.RemovePayment(order.Payments[0].Id, Later.AddHours(1));
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
+        result.Error.Code.ShouldBe("orders.payment-below-refunds");
+        result.Error.Message.ShouldBe("The refunds would be more than the payments. Lower or remove a refund first.");
+        order.Payments.Count.ShouldBe(1);
+        Snapshot(order).ShouldBe(before);
+    }
+
+    [Fact]
+    public void LoweringAPaymentBelowTheRefundsIsRefusedButLoweringItToExactlyTheRefundsIsAccepted()
+    {
+        var order = OrderInCredit(500.00m);
+        order.AddRefund(Refund(500.00m), Today, Later).IsSuccess.ShouldBeTrue();
+        var paymentId = order.Payments[0].Id;
+        var before = Snapshot(order);
+
+        var below = order.UpdatePayment(paymentId, new NewOrderPayment(Today, 499.99m, Cash, null, null, Admin), Today, Later.AddHours(1));
+
+        below.IsFailure.ShouldBeTrue();
+        below.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
+        below.Error.Code.ShouldBe("orders.payment-below-refunds");
+        Snapshot(order).ShouldBe(before);
+
+        var exact = order.UpdatePayment(paymentId, new NewOrderPayment(Today, 500.00m, Cash, null, null, Admin), Today, Later.AddHours(1));
+
+        exact.IsSuccess.ShouldBeTrue();
+        order.PaidTotal.ShouldBe(500.00m);
+        order.RefundedTotal.ShouldBe(500.00m);
+    }
+
+    [Fact]
+    public void RemovingOneOfTwoPaymentsIsAcceptedWhileThePaymentsLeftStillCoverTheRefunds()
+    {
+        var order = FullOrder(paid: 20000.00m);
+        order.AddPayment(new NewOrderPayment(Today, 1327.50m, Cash, null, null, Admin), Today, Later).IsSuccess.ShouldBeTrue();
+        order.AddDiscount(new NewOrderDiscount(DiscountKind.Fixed, 500.00m, "Late delivery"), Later).IsSuccess.ShouldBeTrue();
+        order.AddRefund(Refund(500.00m), Today, Later).IsSuccess.ShouldBeTrue();
+
+        var removed = order.RemovePayment(order.Payments[1].Id, Later.AddHours(1));
+
+        removed.IsSuccess.ShouldBeTrue();
+        order.PaidTotal.ShouldBe(20000.00m);
+    }
+
+    [Fact]
     public void ARefundedCreditLetsTheOrderBeMarkedCompleted()
     {
         var order = OrderInCredit(500.00m);
