@@ -301,6 +301,62 @@ public sealed class OrderImportTests
     }
 
     [Fact]
+    public void TheStrictRulesRefuseAHistoryThatDoesNotAgreeWithTheStatusAndTheDefaultRulesKeepAcceptingIt()
+    {
+        var first = new DateTimeOffset(2026, 9, 1, 2, 0, 0, TimeSpan.Zero);
+        var second = first.AddDays(5);
+        var broken = new (string Name, OrderImportSnapshot Snapshot, string Path)[]
+        {
+            (
+                "ends in another status",
+                Valid() with
+                {
+                    Status = OrderStatus.Cancelled,
+                    StatusHistory = [new ImportedStatusChange(null, OrderStatus.Pending, Admin, first), new ImportedStatusChange(OrderStatus.Pending, OrderStatus.Mockup, Admin, second)],
+                },
+                "statusHistory[1].toStatus"),
+            (
+                "rows that do not chain",
+                Valid() with
+                {
+                    Status = OrderStatus.InProduction,
+                    StatusHistory = [new ImportedStatusChange(null, OrderStatus.Pending, Admin, first), new ImportedStatusChange(OrderStatus.Mockup, OrderStatus.InProduction, Admin, second)],
+                },
+                "statusHistory[1].fromStatus"),
+            (
+                "a later row with no earlier status",
+                Valid() with
+                {
+                    Status = OrderStatus.InProduction,
+                    StatusHistory = [new ImportedStatusChange(null, OrderStatus.Pending, Admin, first), new ImportedStatusChange(null, OrderStatus.InProduction, Admin, second)],
+                },
+                "statusHistory[1].fromStatus"),
+            (
+                "times out of order",
+                Valid() with
+                {
+                    Status = OrderStatus.InProduction,
+                    StatusHistory = [new ImportedStatusChange(null, OrderStatus.Pending, Admin, second), new ImportedStatusChange(OrderStatus.Pending, OrderStatus.InProduction, Admin, first)],
+                },
+                "statusHistory[1].changedAtUtc"),
+            (
+                "a move to the same status",
+                Valid() with
+                {
+                    Status = OrderStatus.Pending,
+                    StatusHistory = [new ImportedStatusChange(null, OrderStatus.Pending, Admin, first), new ImportedStatusChange(OrderStatus.Pending, OrderStatus.Pending, Admin, second)],
+                },
+                "statusHistory[1]"),
+        };
+
+        foreach (var (name, snapshot, path) in broken)
+        {
+            ShouldRefuseOn(Order.Import(snapshot, OrderImportRules.Strict, Now, Today), path, name);
+            Order.Import(snapshot, OrderImportRules.Default, Now).IsSuccess.ShouldBeTrue(name);
+        }
+    }
+
+    [Fact]
     public void ACancelledLegacyOrderUsesTheCancelledProfitRule()
     {
         var snapshot = Valid() with { Status = OrderStatus.Cancelled, Payments = [Payment(1000.00m)], Refunds = [Refund(400.00m)], Expenses = [Expense(100.00m)] };
