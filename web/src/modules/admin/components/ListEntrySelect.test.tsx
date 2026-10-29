@@ -95,7 +95,10 @@ describe('ListEntrySelect product types, picker mode', () => {
   });
 
   it('keeps the saved retired entry as "{name} (retired)", selected, and hides every other retired entry', async () => {
-    listBackend('product-types', [...PRODUCT_TYPES, entry('d4c3b2a1-0f9e-4d8c-8b7a-1a2b3c4d5e6f', 'Old Cut', { status: 'retired' })]);
+    listBackend('product-types', [
+      ...PRODUCT_TYPES,
+      entry('d4c3b2a1-0f9e-4d8c-8b7a-1a2b3c4d5e6f', 'Old Cut', { status: 'retired' }),
+    ]);
     renderPicker({ value: RETIRED_TYPE_ID, savedEntry: RETIRED_TYPE_ID });
 
     const select = screen.getByRole('combobox', { name: /Product type/ });

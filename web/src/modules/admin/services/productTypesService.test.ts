@@ -24,7 +24,14 @@ function serviceWith(plans: Parameters<typeof createFakeFetch>[0]) {
 const ID = '3b0a4a6e-5d7c-4c31-9a58-2f6f6f0c1a11';
 const ITEMS: Item[] = [
   { id: ID, name: 'Basketball Jersey', tone: 'accent', status: 'active', isOthers: false, useCount: 12 },
-  { id: '8c1a2d3e-4f50-4a61-8b72-93a4b5c6d7e8', name: 'Polo Shirt', tone: 'info', status: 'retired', isOthers: false, useCount: '3' },
+  {
+    id: '8c1a2d3e-4f50-4a61-8b72-93a4b5c6d7e8',
+    name: 'Polo Shirt',
+    tone: 'info',
+    status: 'retired',
+    isOthers: false,
+    useCount: '3',
+  },
 ];
 const DETAIL: Detail = {
   id: ID,
@@ -72,7 +79,7 @@ describe('productTypesService.list', () => {
 describe('productTypesService.create', () => {
   it('calls POST /api/v1/product-types with the body and the Idempotency-Key and resolves the new entry', async () => {
     const { fake, service } = serviceWith([{ status: 201, body: DETAIL }]);
-    const body = { name: 'Hoodie', tone: 'info', version: null };
+    const body = { name: 'Hoodie', tone: 'info' };
 
     await expect(service.create(body, 'key-1')).resolves.toEqual(DETAIL);
 
