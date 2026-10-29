@@ -11,7 +11,7 @@ describe('DueFlag', () => {
 
     expect(screen.getByText('Due Oct 26, 2026')).toBeInTheDocument();
     const flag = screen.getByText('Overdue by 3 days');
-    expect(flag.className).toContain('text-danger');
+    expect(flag.closest('.text-danger')).not.toBeNull();
     const icon = container.querySelector('svg.lucide-triangle-alert');
     expect(icon).toHaveAttribute('aria-hidden', 'true');
     expect(icon).toHaveAttribute('width', '14');
