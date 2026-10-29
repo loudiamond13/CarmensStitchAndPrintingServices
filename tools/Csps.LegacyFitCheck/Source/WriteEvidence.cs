@@ -33,7 +33,8 @@ internal static class WriteEvidence
             where partition.IndexId == HeapIndexId || partition.IndexId == ClusteredIndexId
             select (long?)partition.Rows).SumAsync(cancellationToken).ConfigureAwait(false);
 
-        var databaseId = (short)await DatabaseIdAsync(context, context.Database.GetDbConnection().Database, cancellationToken).ConfigureAwait(false);
+        // The usage id is widened to int for the compare, so the database id is never narrowed.
+        var databaseId = await DatabaseIdAsync(context, context.Database.GetDbConnection().Database, cancellationToken).ConfigureAwait(false);
         var updates = await context.CatalogIndexUsage
             .Where(usage => usage.DatabaseId == databaseId)
             .SumAsync(usage => (long?)usage.UserUpdates, cancellationToken).ConfigureAwait(false);
@@ -41,12 +42,19 @@ internal static class WriteEvidence
         return new WriteEvidenceSnapshot(tables, rows ?? 0, updates ?? 0);
     }
 
-    /// <summary>Finds the server's id for the named database.</summary>
-    internal static Task<int> DatabaseIdAsync(LegacyDbContext context, string databaseName, CancellationToken cancellationToken) =>
-        context.CatalogDatabases
+    /// <summary>Finds the server's id for the named database. Fails closed when the server does not list exactly one.</summary>
+    internal static async Task<int> DatabaseIdAsync(LegacyDbContext context, string databaseName, CancellationToken cancellationToken)
+    {
+        var ids = await context.CatalogDatabases
             .Where(database => database.Name == databaseName)
             .Select(database => database.DatabaseId)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Take(2)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        return ids.Count == 1
+            ? ids[0]
+            : throw new InvalidOperationException("The database is not in the server's database list, so the index update check cannot run.");
+    }
 
     public static WriteEvidenceVerdict Compare(WriteEvidenceSnapshot before, WriteEvidenceSnapshot after)
     {
