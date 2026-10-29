@@ -70,6 +70,79 @@ public sealed class OrderAttributionTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public async Task AnItemSaysWhoRecordedItAndWhoLastChangedItAndEveryAnswerCarriesTheBusinessToday()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var recorder = await TestSessions.StartAsync(factory, Roles.Admin);
+        var editor = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var before = TimeProvider.System.GetUtcNow();
+        var created = await OrderFixtures.CreateAsync(client, recorder.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var after = TimeProvider.System.GetUtcNow();
+
+        var first = created.GetProperty("items")[0];
+        first.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(recorder.UserId);
+        first.GetProperty("recordedAt").GetDateTimeOffset().ShouldBeInRange(before.AddSeconds(-1), after.AddSeconds(1));
+        OrderFixtures.IsNull(first, "lastChangedBy").ShouldBeTrue();
+        OrderFixtures.IsNull(first, "lastChangedAt").ShouldBeTrue();
+        created.GetProperty("today").GetString().ShouldBe(OrderFixtures.Date(today));
+
+        var itemId = first.GetProperty("id").GetGuid();
+        using var edit = await OrderFixtures.PutItemAsync(
+            client,
+            editor.AccessToken,
+            created.GetProperty("id").GetGuid(),
+            itemId,
+            OrderFixtures.ItemBody(OrderFixtures.BasketballId, created.GetProperty("version").GetString(), "Jersey top", "S-XL", 16, 650.00m));
+        var editedText = await edit.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        edit.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, editedText);
+        using var editedDocument = System.Text.Json.JsonDocument.Parse(editedText);
+        var edited = editedDocument.RootElement.GetProperty("items")[0];
+        edited.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(recorder.UserId);
+        edited.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(editor.UserId);
+        edited.GetProperty("lastChangedAt").GetDateTimeOffset().ShouldBeGreaterThan(before.AddSeconds(-1));
+        editedDocument.RootElement.GetProperty("today").GetString().ShouldBe(OrderFixtures.Date(today));
+
+        var read = await OrderFixtures.ReadDetailAsync(client, recorder.AccessToken, created.GetProperty("id").GetGuid());
+        read.GetProperty("today").GetString().ShouldBe(OrderFixtures.Date(today));
+        read.GetProperty("items")[0].GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(editor.UserId);
+    }
+
+    [Fact]
+    public async Task ForgedItemAttributionInTheRequestBodyIsIgnored()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var caller = await TestSessions.StartAsync(factory, Roles.Admin);
+        var other = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, caller.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var body = OrderFixtures.ItemBody(OrderFixtures.PoloId, created.GetProperty("version").GetString());
+        body["recordedBy"] = other.UserId;
+        body["createdById"] = other.UserId;
+        body["lastChangedBy"] = other.UserId;
+        body["updatedById"] = other.UserId;
+        body["recordedAt"] = "1999-01-01T00:00:00Z";
+        body["lastChangedAt"] = "1999-01-01T00:00:00Z";
+        body["createdAtUtc"] = "1999-01-01T00:00:00Z";
+        var before = TimeProvider.System.GetUtcNow();
+
+        using var response = await OrderFixtures.AddItemAsync(client, caller.AccessToken, created.GetProperty("id").GetGuid(), body);
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = System.Text.Json.JsonDocument.Parse(text);
+        var added = document.RootElement.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("description").GetString() == "Coach polo");
+        added.GetProperty("recordedBy").GetProperty("id").GetGuid().ShouldBe(caller.UserId);
+        added.GetProperty("recordedAt").GetDateTimeOffset().ShouldBeGreaterThan(before.AddSeconds(-1));
+        OrderFixtures.IsNull(added, "lastChangedBy").ShouldBeTrue();
+        OrderFixtures.IsNull(added, "lastChangedAt").ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task ARowWithNoCreatorReadsRecordedByNull()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

@@ -14,7 +14,7 @@ namespace Csps.Infrastructure.Orders;
 /// <see cref="IOrderReader"/> over EF: untracked reads. The order detail is one statement for the order and one for each child list and
 /// the history, then one that checks the row version has not moved.
 /// </summary>
-internal sealed class OrderReader(CspsDbContext context) : IOrderReader
+internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calendar) : IOrderReader
 {
     private const string SoftDeleteFilter = "SoftDelete";
     private const int DetailReadAttempts = 3;
@@ -179,6 +179,7 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
         // The header and each list are separate statements, so a save can land between them. The row version is read again after
         // the lists, as OrderStore.FindAsync does; when it moved, the order is read again so the totals, the lists and the version
         // come from one save. After the last attempt the latest read is returned, as a save that keeps landing is not worth a failure.
+        _ = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         OrderDetailResponse? view = null;
         for (var attempt = 1; attempt <= DetailReadAttempts; attempt++)
         {
@@ -243,7 +244,11 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
                 item.SizeVariant,
                 item.Quantity,
                 item.UnitPrice,
-                item.LineTotal))
+                item.LineTotal,
+                null,
+                default,
+                null,
+                null))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -511,6 +516,7 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
                 ? new ActorRef(changed, $"{header.ChangerFirst} {header.ChangerLast}", header.ChangerFormer)
                 : null,
             order.UpdatedAtUtc,
-            RowVersions.ToText(order.RowVersion));
+            RowVersions.ToText(order.RowVersion),
+            default);
     }
 }

@@ -17,7 +17,22 @@ public sealed record OrderListRef(Guid Id, string Name, string Tone, bool Retire
 /// <param name="Quantity">How many.</param>
 /// <param name="UnitPrice">The price of one, in pesos.</param>
 /// <param name="LineTotal">The quantity times the unit price.</param>
-public sealed record OrderItemResponse(Guid Id, OrderListRef ProductType, string Description, string? SizeVariant, int Quantity, decimal UnitPrice, decimal LineTotal);
+/// <param name="RecordedBy">Who added it; null reads as System.</param>
+/// <param name="RecordedAt">When it was added.</param>
+/// <param name="LastChangedBy">Who last changed it; null until an edit.</param>
+/// <param name="LastChangedAt">When it was last changed; null until an edit.</param>
+public sealed record OrderItemResponse(
+    Guid Id,
+    OrderListRef ProductType,
+    string Description,
+    string? SizeVariant,
+    int Quantity,
+    decimal UnitPrice,
+    decimal LineTotal,
+    ActorRef? RecordedBy,
+    DateTimeOffset RecordedAt,
+    ActorRef? LastChangedBy,
+    DateTimeOffset? LastChangedAt);
 
 /// <summary>One discount of an order (D-15, ORD-05).</summary>
 /// <param name="Id">The discount id.</param>
@@ -171,6 +186,7 @@ public sealed record OrderTotalsResponse(
 /// <param name="LastChangedBy">Who last changed it; null until an edit.</param>
 /// <param name="LastChangedAt">When it was last changed; null until an edit.</param>
 /// <param name="Version">The base64 of the eight-byte row version a save must send back.</param>
+/// <param name="Today">The business today, so the browser never reads the device clock for it.</param>
 public sealed record OrderDetailResponse(
     Guid Id,
     string Number,
@@ -195,4 +211,5 @@ public sealed record OrderDetailResponse(
     DateTimeOffset RecordedAt,
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAt,
-    string Version);
+    string Version,
+    DateOnly Today);

@@ -300,7 +300,8 @@ public sealed class UpdateOrderDetailsHandlerTests
             Now,
             null,
             null,
-            "AAAAAAAAH6Q=");
+            "AAAAAAAAH6Q=",
+            new DateOnly(2026, 10, 28));
     }
 
     // Remembers how many saves had happened when each entry was recorded, so a test can prove the entry joins the change's save.

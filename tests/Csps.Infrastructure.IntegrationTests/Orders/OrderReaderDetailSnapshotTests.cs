@@ -27,7 +27,7 @@ public sealed class OrderReaderDetailSnapshotTests(CspsDatabase database) : ICla
         var hook = new SaveDuringReadHook(database, id);
         await using var context = database.CreateContext(hook);
 
-        var view = await new OrderReader(context).GetDetailAsync(id, TestContext.Current.CancellationToken);
+        var view = await new OrderReader(context, new FixedBusinessCalendar(Now)).GetDetailAsync(id, TestContext.Current.CancellationToken);
 
         hook.Fired.ShouldBeTrue();
         var detail = view.ShouldNotBeNull();
@@ -45,10 +45,29 @@ public sealed class OrderReaderDetailSnapshotTests(CspsDatabase database) : ICla
         await using var context = database.CreateContext(counter);
 
         counter.Reset();
-        var view = await new OrderReader(context).GetDetailAsync(id, TestContext.Current.CancellationToken);
+        var view = await new OrderReader(context, new FixedBusinessCalendar(Now)).GetDetailAsync(id, TestContext.Current.CancellationToken);
 
         view.ShouldNotBeNull().CustomerName.ShouldBe("Juan Dela Cruz");
         counter.Count.ShouldBe(8, string.Join(Environment.NewLine, counter.Commands));
+    }
+
+    [Fact]
+    public async Task TheDetailCarriesTheBusinessTodayAndEachItemSaysWhoRecordedIt()
+    {
+        var id = await SeedAsync();
+        await using var context = database.CreateContext();
+        var lateUtc = new DateTimeOffset(2026, 10, 28, 20, 0, 0, TimeSpan.Zero);
+
+        var view = await new OrderReader(context, new FixedBusinessCalendar(lateUtc)).GetDetailAsync(id, TestContext.Current.CancellationToken);
+
+        var detail = view.ShouldNotBeNull();
+        detail.Today.ShouldBe(new DateOnly(2026, 10, 29));
+        var item = detail.Items.ShouldHaveSingleItem();
+        item.RecordedBy.ShouldNotBeNull().Name.ShouldBe("Mina Mercado");
+        item.RecordedBy.FormerStaff.ShouldBeFalse();
+        item.RecordedAt.ShouldBe(Now);
+        item.LastChangedBy.ShouldBeNull();
+        item.LastChangedAt.ShouldBeNull();
     }
 
     private async Task<Guid> SeedAsync()
