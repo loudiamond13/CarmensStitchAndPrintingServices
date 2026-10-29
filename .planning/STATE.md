@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
 Plan: 12 of 12
-Status: Ready to execute (owner rulings done, D-22 to D-42; no new relaxation approved, so plan 07.1-12 has an empty relaxation list)
-Last activity: 2026-10-29 — Plan 07.1-11: counts-only findings published; every findings group ruled (owner, 2026-10-29)
+Status: Phase 7.1 execution complete (plan 07.1-12 done on the "none approved" path, 07.1 D-42: nothing built, no re-run). Next: `/gsd-code-review 07.1`, then `/gsd-secure-phase 07.1`, then `/gsd-verify-work 07.1`, then `/gsd-ship` for the joint Phase 7 + 7.1 PR
+Last activity: 2026-10-29 — Plan 07.1-12: no relaxation approved (07.1 D-42), findings file records "None approved", hand-off to the reviews and the joint ship
 
 Progress: [████░░░░░░] 39%
 
@@ -832,6 +832,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [x] **Ruled D-78 (owner, 2026-10-29): option 1, keep `auth.session-busy`.** **List writes busy code (APX-IN-04):** a list create, retire, reactivate or delete that loses a race twice answers the shared `auth.session-busy` code (Phase 6 does the same). Pick one. (1) Recommended: keep it. (2) Give order lists their own busy code.
 - [ ] **Confirmed for the Phase 8 UI review (owner, 2026-10-29, 07-UAT test 4).** **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
 - [x] **Ruled 07.1 D-22 to D-42 (owner, 2026-10-29): publish as shown; every group answered, all recommendations accepted (Group 8 decide in Phase 15, Group 11 map Manager to CSPS Manager); no new relaxation. Still open: delete the refused run's full list by hand.** **Phase 7.1 rulings session (plan 07.1-11, owner, 2026-10-29):** the real fit-check run is done (07.1 D-17, D-21): the restore was proven unchanged and the trial database removed. A plain-words briefing with options for every finding group is in `_local/legacy-fit-check/briefing-20261029-162702.md` (private, never committed). Read it and rule on each group. Also delete the first, refused run's full list `_local/legacy-fit-check/findings-20261029-161931.md` by hand (it was never opened).
+- [ ] **Phase 7.1 hand-off to reviews and joint ship (plan 07.1-12, 2026-10-29):** execution is complete; no import relaxation was built (07.1 D-42). Run in this order: (1) `/gsd-code-review 07.1`; (2) `/gsd-secure-phase 07.1` (07.1 D-14: check the restore is only read, nothing writes outside the trial database, and no personal data reaches git or logs; no UI review, because there are no screens); (3) `/gsd-verify-work 07.1`; (4) `/gsd-ship` for the joint Phase 7 and 7.1 PR, opened from `gsd/phase-07.1-legacy-fit-check-read-only` (07.1 D-13, D-20; STATE D-85). Merge only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's word. The ROADMAP goal already names the company expenses (07.1 D-16); nothing changed there.
 - [ ] **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
 
 ### Blockers/Concerns
