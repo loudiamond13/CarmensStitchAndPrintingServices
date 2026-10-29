@@ -8,12 +8,6 @@ namespace Csps.Application.OrderLists;
 /// <summary>The error values and messages the order list use cases return (D-19). Codes and nouns come from the list's <see cref="OrderListDescriptor"/>.</summary>
 public static class OrderListErrors
 {
-    /// <summary>The field name of the entry name.</summary>
-    public const string NameField = OrderListEntry.NameField;
-
-    /// <summary>The field name of the row version.</summary>
-    public const string VersionField = "Version";
-
     /// <summary>The message for a name that another entry of the list, retired ones included, already holds.</summary>
     public const string NameTaken = "That name is already used. Choose another one.";
 
