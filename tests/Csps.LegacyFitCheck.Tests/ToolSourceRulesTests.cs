@@ -39,7 +39,11 @@ public sealed partial class ToolSourceRulesTests
         files.ShouldNotBeEmpty();
 
         var offenders = files
-            .SelectMany(file => File.ReadLines(file).SelectMany(Offences).Select(offence => $"{Path.GetRelativePath(toolRoot, file)}: {offence}"))
+            .SelectMany(file =>
+            {
+                var relative = Path.GetRelativePath(toolRoot, file).Replace(Path.DirectorySeparatorChar, '/');
+                return FileOffences(File.ReadLines(file), relative).Select(offence => $"{relative}: {offence}");
+            })
             .ToList();
 
         offenders.ShouldBeEmpty("The tool holds no raw SQL and no EF logging hooks.");
@@ -68,7 +72,16 @@ public sealed partial class ToolSourceRulesTests
     [InlineData("builder.EnableSensitiveDataLogging();")]
     [InlineData("builder.LogTo(Console.WriteLine);")]
     [InlineData("builder.UseLoggerFactory(factory);")]
-    public void TheScannerFlagsEachBannedLine(string line) => Offences(line).ShouldNotBeEmpty();
+    [InlineData("SqlCommand command = new(sql, connection);")]
+    [InlineData("var command = new Microsoft.Data.SqlClient.SqlCommand(sql, connection);")]
+    [InlineData("var command = connection.CreateCommand();")]
+    [InlineData("var command = context.Database.GetDbConnection().CreateCommand();")]
+    [InlineData("var reader = command.ExecuteReader();")]
+    [InlineData("await using var reader = await command.ExecuteReaderAsync(ct);")]
+    [InlineData("private static void Run(DbCommand command)")]
+    [InlineData("await using var connection = new SqlConnection(text);")]
+    [InlineData("SqlConnection connection = new(text);")]
+    public void TheScannerFlagsEachBannedLine(string line) => FileOffences([line], "Checks/Sample.cs").ShouldNotBeEmpty();
 
     [Theory]
     [InlineData("var allowed = ReadOnlyCommandGuard.IsAllowedRead(eventData.CommandSource, command.CommandText);")]
@@ -78,11 +91,38 @@ public sealed partial class ToolSourceRulesTests
     [InlineData("await context.Orders.ExecuteDeleteAsync(ct);")]
     [InlineData("    // The old code assigned CommandText and used ExecuteSqlRaw.")]
     [InlineData("    /// <summary>Never call FromSql or LogTo(.</summary>")]
-    [InlineData("     * ExecuteScalar is banned")]
-    public void TheScannerAllowsReadsAndComments(string line) => Offences(line).ShouldBeEmpty();
+    [InlineData("SqlConnection.ClearAllPools();")]
+    [InlineData("var builder = new SqlConnectionStringBuilder(text);")]
+    public void TheScannerAllowsReadsAndComments(string line) => FileOffences([line], "Checks/Sample.cs").ShouldBeEmpty();
+
+    [Fact]
+    public void OnlyTheReadOnlyGuardMayNameDbCommand()
+    {
+        const string GuardLine = "public override InterceptionResult<int> NonQueryExecuting(DbCommand command, CommandEventData eventData, InterceptionResult<int> result) =>";
+
+        FileOffences([GuardLine], "Source/ReadOnlyCommandGuard.cs").ShouldBeEmpty();
+        FileOffences([GuardLine], "Source/LegacySource.cs").ShouldNotBeEmpty();
+        FileOffences(["var command = connection.CreateCommand();"], "Source/ReadOnlyCommandGuard.cs").ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public void ABlockCommentIsSkippedButALineStartingWithAStarOutsideOneIsScanned()
+    {
+        FileOffences(["/*", "     * ExecuteScalar is banned", "     */"], "Checks/Sample.cs").ShouldBeEmpty();
+        FileOffences(["var total = factor", "    * (int)command.ExecuteScalar();"], "Checks/Sample.cs").ShouldNotBeEmpty();
+        FileOffences(["/* note */ var count = command.ExecuteScalar();"], "Checks/Sample.cs").ShouldNotBeEmpty();
+        FileOffences(["/*", " note", " */ var count = command.ExecuteScalar();"], "Checks/Sample.cs").ShouldNotBeEmpty();
+    }
 
     [GeneratedRegex(@"\bCommandText\s*[-+*/]?=(?![=>])", RegexOptions.CultureInvariant)]
     private static partial Regex CommandTextAssignment();
+
+    // Scans the lines of one file.
+    private static IEnumerable<string> FileOffences(IEnumerable<string> lines, string relativePath)
+    {
+        _ = relativePath;
+        return lines.SelectMany(Offences);
+    }
 
     // A comment-only line is skipped, so documentation may name the banned calls.
     private static IEnumerable<string> Offences(string line)
