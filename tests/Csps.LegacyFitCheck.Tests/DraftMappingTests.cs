@@ -284,6 +284,19 @@ public sealed class DraftMappingTests
         mapped.Findings.ShouldNotContain(static finding => finding.RuleKey == "dates.reading-differs");
     }
 
+    [Fact]
+    public void AnExpenseWithNoOrderThatIsNotACompanyExpenseIsOneCannotMapFindingWithNoValues()
+    {
+        var finding = DraftMapping.MapUnplacedExpense(new LegacyExpenseRow { ExpenseId = 9, OrderId = null, Description = "SENTINEL-DESC-7Q", SpentDate = SameDay, IsCompanyExpenses = false, Amount = 777.77m, PaidBy = "SENTINEL-PAYER-7Q" });
+
+        finding.Kind.ShouldBe(RecordKind.UnplacedExpense);
+        finding.Type.ShouldBe(FindingType.CannotMap);
+        finding.RuleKey.ShouldBe("expense.unplaced");
+        finding.LegacyKey.ShouldBe("Expenses:9");
+        $"{finding.Path}{finding.Message}{finding.ListValue}{finding.Detail}".ShouldNotContain("SENTINEL");
+        $"{finding.Path}{finding.Message}{finding.ListValue}{finding.Detail}".ShouldNotContain("777");
+    }
+
     private static MappedOrder Map(LegacyOrderRow order, LegacyOrderParts? parts = null, string statusName = "Open")
     {
         var types = new Dictionary<int, string?> { [1] = "Polo Shirt" };

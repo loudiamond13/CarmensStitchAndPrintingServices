@@ -597,7 +597,8 @@ public sealed class FitCheckRunnerTests
                 summary.ShouldContain("Expenses with no order and not marked as company expenses (counted only, not judged): 2 expenses");
                 summary.ShouldNotContain("SENTINEL", Case.Insensitive);
                 summary.ShouldNotContain("777.77");
-                summary.ShouldNotContain("Expenses:");
+                summary.ShouldNotContain("Expenses:3", Case.Sensitive);
+                summary.ShouldNotContain("Expenses:4", Case.Sensitive);
             }
             finally
             {

@@ -278,6 +278,45 @@ public sealed partial class FindingsTests : IDisposable
     }
 
     [Fact]
+    public void ColumnsLeftForPhase15AreNotMixedWithColumnsThatHaveNoPlace()
+    {
+        Finding[] findings =
+        [
+            Make("column.not-mapped", FindingType.NotChecked, RecordKind.Column, "Orders", null),
+            Make("column.not-mapped", FindingType.NotChecked, RecordKind.Column, "Payments", null),
+            Make("column.not-mapped", FindingType.CannotMap, RecordKind.Column, "OrderItems", null),
+        ];
+
+        var lines = Render(findings).Split('\n').Where(static line => line.Contains("column", StringComparison.Ordinal) && line.StartsWith("- ", StringComparison.Ordinal)).ToList();
+
+        lines.Count.ShouldBe(3);
+        lines.Distinct().Count().ShouldBe(lines.Count);
+        lines.ShouldContain("- Columns left for Phase 15 (not checked): 2 columns");
+        lines.ShouldContain("- Columns with no place in CSPS (cannot map): 1 column");
+    }
+
+    [Fact]
+    public void AKeyEndingInAFullStopDoesNotDoubleUpWithTheColon()
+    {
+        Finding[] findings = [Make("PaidByUserId: Choose someone else.", FindingType.ExpenseRule, RecordKind.CompanyExpense, "Expenses:1", null)];
+
+        Render(findings).ShouldContain("- PaidByUserId: Choose someone else: 1 company expense");
+    }
+
+    [Fact]
+    public void UnplacedExpensesGetTheirOwnCountedLine()
+    {
+        Finding[] findings =
+        [
+            Make("expense.unplaced", FindingType.CannotMap, RecordKind.UnplacedExpense, "Expenses:3", null),
+            Make("expense.unplaced", FindingType.CannotMap, RecordKind.UnplacedExpense, "Expenses:4", null),
+        ];
+
+        Render(findings).ShouldContain("Expenses with no order and not marked as company expenses (counted only, not judged): 2 expenses");
+        Render([findings[0]]).ShouldContain("(counted only, not judged): 1 expense");
+    }
+
+    [Fact]
     public void TheSectionsAppearInTheAgreedOrderWithTheClosingLimits()
     {
         var text = Render(Every());
@@ -326,6 +365,7 @@ public sealed partial class FindingsTests : IDisposable
         _ when key.StartsWith("payment.", StringComparison.Ordinal) => RecordKind.Payment,
         _ when key.StartsWith("column.", StringComparison.Ordinal) => RecordKind.Column,
         _ when key.StartsWith("company-expense.", StringComparison.Ordinal) => RecordKind.CompanyExpense,
+        "expense.unplaced" => RecordKind.UnplacedExpense,
         _ when key.StartsWith("order-expense.", StringComparison.Ordinal) => RecordKind.OrderExpense,
         _ when key.StartsWith("item.", StringComparison.Ordinal) || key == "list.product-type" => RecordKind.OrderItem,
         _ when key.StartsWith("discount.", StringComparison.Ordinal) => RecordKind.Discount,

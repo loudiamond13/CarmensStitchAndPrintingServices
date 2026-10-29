@@ -67,6 +67,7 @@ internal static class SummaryRenderer
         ["order-expense.no-date"] = "Order expenses with no date, left out",
         ["order-expense.no-category"] = "Order expenses with no category (Others is used)",
         ["company-expense.no-category"] = "Company expenses with no category (Others is used)",
+        ["expense.unplaced"] = "Expenses with no order and not marked as company expenses (counted only, not judged)",
         ["person.blank"] = "Person text is empty",
         ["person.role-no-match"] = "Person is a legacy user whose role '{value}' has no CSPS staff match",
         ["person.unknown-name"] = "Person text matches no legacy user",
@@ -74,7 +75,7 @@ internal static class SummaryRenderer
         ["dates.reading-differs"] = "Date differs between the as-stored and the Manila reading",
         ["column.unknown"] = "Columns the draft mapping does not know",
         ["column.missing"] = "Mapped columns missing from the restore",
-        ["column.not-mapped"] = "Columns left for Phase 15 (not mapped)",
+        ["column.not-mapped"] = "Columns with no place in CSPS (cannot map)",
         ["totals.total"] = "Stored total differs from the CSPS total",
         ["totals.discount"] = "Stored discount differs from the CSPS discount",
         ["totals.paid"] = "Stored paid amount differs from the CSPS paid amount",
@@ -105,6 +106,12 @@ internal static class SummaryRenderer
         ["AllowInactivePeople"] = "Relies on inactive people",
     };
 
+    // A rule key whose finding type changes what the line means.
+    private static readonly Dictionary<string, string> NotCheckedLabels = new(StringComparer.Ordinal)
+    {
+        ["column.not-mapped"] = "Columns left for Phase 15 (not checked)",
+    };
+
     private static readonly Dictionary<RecordKind, (string One, string Many)> Nouns = new()
     {
         [RecordKind.Run] = ("note", "notes"),
@@ -115,6 +122,7 @@ internal static class SummaryRenderer
         [RecordKind.Discount] = ("discount", "discounts"),
         [RecordKind.OrderExpense] = ("order expense", "order expenses"),
         [RecordKind.CompanyExpense] = ("company expense", "company expenses"),
+        [RecordKind.UnplacedExpense] = ("expense", "expenses"),
         [RecordKind.Person] = ("person", "people"),
         [RecordKind.ListValue] = ("list value", "list values"),
     };
@@ -203,7 +211,10 @@ internal static class SummaryRenderer
 
     private static string Line(GroupKey key, int count)
     {
-        var label = Labels.TryGetValue(key.RuleKey, out var known) ? known : key.RuleKey;
+        var label = key.Type == FindingType.NotChecked && NotCheckedLabels.TryGetValue(key.RuleKey, out var notChecked)
+            ? notChecked
+            : Labels.TryGetValue(key.RuleKey, out var known) ? known : key.RuleKey;
+        label = label.TrimEnd('.');
         label = label.Replace(ValueMark, key.Value, StringComparison.Ordinal);
         var (one, many) = Nouns[key.Kind];
         return string.Create(CultureInfo.InvariantCulture, $"{label}: {count} {(count == 1 ? one : many)}");

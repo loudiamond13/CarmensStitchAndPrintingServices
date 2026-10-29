@@ -80,6 +80,7 @@ internal static class FitCheckRunner
             }
 
             findings.AddRange(read.CompanyExpenses.SelectMany(static expense => expense.Findings));
+            findings.AddRange(read.UnplacedExpenses);
             findings.Add(EvidenceFinding(read.Before));
             var inventory = ColumnInventory.Check(read.Columns);
             findings.AddRange(inventory.Findings);
@@ -209,6 +210,7 @@ internal static class FitCheckRunner
             .ToLookup(static row => row.OrderId!.Value);
 
         var companyRows = await source.Expenses.Where(static row => row.IsCompanyExpenses).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var unplacedRows = await source.Expenses.Where(static row => !row.IsCompanyExpenses && row.OrderId == null).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false);
 
         var users = await source.Users.ToListAsync(cancellationToken).ConfigureAwait(false);
         var roles = await source.Roles.ToListAsync(cancellationToken).ConfigureAwait(false);
@@ -236,6 +238,7 @@ internal static class FitCheckRunner
             .. payments.SelectMany(static group => group).SelectMany(static row => new[] { row.PaidBy, row.PaidTo }),
             .. expenses.SelectMany(static group => group).SelectMany(static row => new[] { row.Description, row.PaidBy }),
             .. companyRows.SelectMany(static row => new[] { row.Description, row.PaidBy }),
+            .. unplacedRows.SelectMany(static row => new[] { row.Description, row.PaidBy }),
             .. users.SelectMany(static user => new[] { user.UserName, user.Email }),
         ];
 
@@ -252,7 +255,7 @@ internal static class FitCheckRunner
         ];
         var allowedWords = allowed.Where(static word => !string.IsNullOrWhiteSpace(word)).Select(static word => word!.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return new ReadResult(mapped, companyExpenses, lists.TrialEntries, people.TrialStaff, columns, before, after, [.. readValues.Where(static value => !string.IsNullOrWhiteSpace(value)).Select(static value => value!)], allowedWords);
+        return new ReadResult(mapped, companyExpenses, lists.TrialEntries, people.TrialStaff, columns, before, after, [.. unplacedRows.Select(static row => DraftMapping.MapUnplacedExpense(row))], [.. readValues.Where(static value => !string.IsNullOrWhiteSpace(value)).Select(static value => value!)], allowedWords);
     }
 
     private sealed record ReadResult(
@@ -263,6 +266,7 @@ internal static class FitCheckRunner
         IReadOnlyList<LegacyColumn> Columns,
         WriteEvidenceSnapshot Before,
         WriteEvidenceSnapshot After,
+        IReadOnlyList<Finding> UnplacedExpenses,
         IReadOnlyList<string> ReadValues,
         IReadOnlySet<string> AllowedWords);
 }

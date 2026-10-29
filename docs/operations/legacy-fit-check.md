@@ -1,6 +1,6 @@
 # Guide: running the legacy fit check
 
-*Created: 2026-10-29T10:30:00-05:00 · Updated: 2026-10-29T10:30:00-05:00*
+*Created: 2026-10-29T10:30:00-05:00 · Updated: 2026-10-29T10:42:00-05:00*
 
 The legacy fit check (Phase 7.1) answers one question before Phase 8 builds on the order rules: which legacy records break the CSPS order and expense rules? It lists them. It changes nothing. This page says what it reads, what it writes, how to run it, and what to do with its two output files.
 
@@ -9,6 +9,7 @@ The legacy fit check (Phase 7.1) answers one question before Phase 8 builds on t
 - It reads the legacy orders, items, payments, discounts, expenses, lists and the people tables from the restored legacy database (07.1 D-07). It never writes to it and never restores over anything.
 - It turns each legacy order into the shape the Phase 7 import expects, using a draft mapping that is provisional (D-04), and runs it through the order rules. It lists every rule a record breaks, every relaxation it relies on, and every stored total that differs from the CSPS math (D-08).
 - It imports each mappable order into a throwaway trial database, to prove the real import path accepts it. It also judges each legacy company expense against the Phase 6 expense rules, report only (D-12). Nothing is saved to any real database.
+- A legacy expense that belongs to no order and is not marked as a company expense is read by no rule. The check only counts these (D-87), so the real run shows how many exist.
 - It never derives a schema. The CSPS schema comes from the EF migrations, as always (D-33).
 
 ## What it touches

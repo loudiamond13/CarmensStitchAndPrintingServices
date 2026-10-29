@@ -28,6 +28,7 @@ internal enum RecordKind
     Discount,
     OrderExpense,
     CompanyExpense,
+    UnplacedExpense,
     Person,
     ListValue,
 }
