@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T21:20:00-05:00
+updated: 2026-10-28T19:54:00-05:00
 ---
 
 # The orders API
@@ -535,6 +535,73 @@ The audit log holds 400 characters per entry, so when many people are involved t
 left out. A second delete, a restore of an order that is not deleted, and every refusal write nothing.
 No entry ever holds the customer name, team, contact number, email, address or notes, an item's description or size, a discount's reason, a payment's reference or notes, a refund's reason, or an expense's description. The full list of order audit codes is in
 [../operations/audit-log.md](../operations/audit-log.md).
+
+## Importing legacy orders (ORD-21, ORD-14)
+
+There is **no HTTP route** for this. It is a use case, `ImportOrderHandler`, that migration tooling calls: the Phase 7.1 fit check
+and the Phase 16 import. It is separate on purpose, so nobody can reach the lenient rules from a browser or a phone. The same code
+(`Order.Import`) builds the order whether the tool then saves it or only checks it.
+
+What it does, in order:
+
+1. `Order.Import` builds the order from the legacy data (number, details, status, items, discounts, payments, refunds, order expenses
+   and status history) and checks it. Nothing is taken from the data except the facts: **every money figure is worked out again by
+   `OrderMath` from the children**, so an imported ORD-2026-0148 reads the same seven figures as one created by hand, and an order that
+   was already overpaid keeps every payment and shows the matching `customerCredit` (D-14). Text is trimmed like on any order, and text
+   that is too long for its column is refused, never cut short.
+2. The handler checks that every product type, payment method and order expense category exists, and that every receiver, refunder,
+   payer and status history person is a known account. All failures come back together in one `400` on their own paths, such as
+   `items[1].productTypeId` or `payments[0].receivedByUserId`.
+3. Only then is the order number lock taken. The number must not be used by any order, deleted ones included (`422 orders.number-taken`,
+   "This order number is already used."), the year's counter is lifted (below), and the order, its history and the counter save in one
+   transaction. A lock that times out, or a save that was a deadlock victim, is the same `409 orders.busy` as on create.
+
+**Rules that never bend** (they hold under every rules instance): a number that is not empty, is at most 32 characters and uses plain
+characters only (the number column cannot hold more without changing it); a status of 1 to 7 and a discount kind of fixed or
+percentage; a quantity or unit price that is not negative; money with at most two decimal places; a discount, payment, refund and
+expense amount above 0.00 (the database checks these); and text that fits its column. Everything else is a named relaxation, except the
+field rules that have none: the characters of a contact number, the shape of an email address and a due date before the order date still
+refuse an order. If Phase 7.1 finds legacy data that breaks one of them, the owner decides whether it gets a name of its own.
+
+**The named relaxations.** They live in `OrderImportRules`. `OrderImportRules.Default` has every one on; `OrderImportRules.Strict` has
+every one off and gives the same checks, in the same words, as creating an order by hand (except that a status of Completed or
+Cancelled is allowed). When the owner rules on a legacy oddity, one value changes here; no schema changes.
+
+| Relaxation | With it on (the default) | With it off |
+|------------|--------------------------|-------------|
+| `KeepLegacyNumber` | The number is kept exactly as given, any format, up to 32 characters | The number must read `ORD-{YYYY}-{NNNN}` |
+| `DueDateOptional` (D-22) | An order may have no due date | A due date is required |
+| `ContactNumberOptional` | An order may have no contact number | A contact number is required |
+| `AllowOverpaid` (D-14) | Payments may add up to more than the total; the excess is the customer credit | The payments may not pass the total |
+| `AllowCompletedWithBalance` (D-14) | A Completed order may still have a balance or a credit (D-03 is not applied) | A Completed order must have a zero balance |
+| `AllowDiscountAboveSubtotal` (D-40) | The discounts may add up to more than the items total | The discounts may not pass the items total |
+| `IgnoreAmountCaps` (06 D-33) | The limits are skipped: quantity 1 to 10,000 (0 is allowed, negative never), unit price up to 1,000,000.00, fixed discount up to 1,000,000.00, percentage up to 100, payment, refund and expense up to 1,000,000.00 | The limits apply |
+| `AllowFutureDates` | Payment and refund dates, and order expense dates, may be in the future | Payments and refunds may not be dated after the business today; expenses may be up to 30 days ahead |
+| `AllowRetiredListEntries` | A retired product type, payment method or expense category may be named | A retired entry is refused |
+| `AllowLegacyHolder` (D-32, D-37) | The hidden "Legacy / unassigned" holder may be named as receiver, refunder, payer or history person | The holder is refused: "This person can't be chosen because their account isn't active. Choose someone else." |
+| `AllowInactivePeople` | A person who was deactivated, locked or deleted may be named | Only an active Admin or Manager who finished set-up may be named |
+| `AllowAnyStatusHistory` | The history may hold moves the status rules refuse, such as Cancelled straight to Completed | Each move must be one the status rules allow |
+| `IgnoreChildCaps` | The limits on how many items (100), discounts (20), payments (100), refunds (50) and expenses (100) an order holds are skipped | The limits apply |
+| `AllowNoItems` | An order may have no items | At least one item is required |
+
+A person who does not exist at all is always refused, whatever the rules say. A payment may be dated before the order date (D-41). The
+refund rules that depend on the order's figures (a refund only on a cancelled order or one in credit, and the refund caps) are
+not applied to imported refunds: the legacy refunds are taken as they were.
+
+**The order number counter (ORD-14).** Importing a number that reads `ORD-{YYYY}-{NNNN}` lifts that year's counter to at least NNNN
+under the order number lock, and never lowers it, so after importing `ORD-2026-0148` the next new order of 2026 is `ORD-2026-0149`.
+A number in any other form, such as `LEG-0042`, leaves every counter alone. If two imports race for one number, the unique number index
+stops the second one and the answer is the same `422 orders.number-taken`.
+
+**No audit entry.** An import is tooling, not a staff change, so it writes no audit entry and no `recordedBy` person (it reads
+**System**). The Phase 16 reconciliation report is the record of what came in.
+
+**Open question (MIG-09, Phase 15).** Who the receiver of a legacy payment, the refunder of a legacy refund and the payer of a legacy
+expense should be when the old data does not say is the owner's final ruling in Phase 15. Until then the import accepts the hidden
+"Legacy / unassigned" holder (D-32) or a named staff member, and the holder never shows in any picker.
+
+After an import the order is an ordinary order: a Completed or Cancelled one is locked until it is reopened (D-05), and editing the
+details of an order that came in without a due date asks for one (D-22).
 
 ## What is stored (D-23, D-26)
 
