@@ -15,7 +15,7 @@ progress:
   completed_plans: 216
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T18:00:00-05:00"
+updated: "2026-10-29T18:30:00-05:00"
 ---
 
 # Project State
@@ -749,9 +749,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07 UI review]: D-82 (owner, 2026-10-29, UI-REVIEW fix 3): order sub-entry action labels name the order: "Order item added", "Order payment added", "Order refund added", "Order discount added", and the same for changed, removed and the receiver or refunder changes.
 - [Phase 07 UI review]: D-83 (owner, 2026-10-29, quick 261029-87p open items 1 and 2): keep the Audit Log copy as built: "Payer changed", "Receiver changed", "Refunder changed" for unreadable person lines, and "Group" and "All groups" for the Group select. A change line for a field the screen does not know about stays left out (no generic sentence), because the screen and the API ship together.
 - [Phase 07 UI review]: D-84 (owner, 2026-10-29, replaces the unknown-field part of D-83): a change line for a field the screen does not know about reads "Other detail changed", with no field name or values, and shows once per entry however many unknown fields there are. The rest of D-83 (the copy) stands.
-- [Phase 07.1 execute]: D-85 (owner, 2026-10-29): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 still ships on its own PR first; 7.1 follows it.
+- [Phase 07.1 execute]: D-85 (owner, 2026-10-29; PR part corrected the same day by 07.1 D-20): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 and 7.1 ship together in one PR from this branch (07.1 D-13, D-15, D-20).
 - [Phase 07.1 execute]: D-86 (owner, 2026-10-29, plan 07.1-02 follow-up): named exception to the no-raw-SQL rule: `ReadOnlyGuardTests` in `tests/Csps.LegacyFitCheck.Tests` keep their `ExecuteSqlRaw`, `FromSqlRaw` and `SqlQueryRaw` calls. They run only against the throwaway fake restore and exist to prove the read-only guard refuses raw SQL. The tool itself holds none, and `ToolSourceRulesTests` keeps it that way.
 - [Phase 07.1 execute]: D-87 (owner, 2026-10-29, plan 07.1-08 follow-up): legacy `Expenses` rows with `isCompanyExpenses` false and no `OrderId` are counted, not ignored. The fit check reports them as a new finding (for example `expense.unplaced`, kind CannotMap), counts only with no values, so the real run shows how many exist. Built in plan 07.1-09 alongside the report split.
+- [Phase 07.1 execute]: 07.1 D-17 to D-20 (owner, 2026-10-29): real fit-check run approved (Claude runs it); summary self-check stays strict; expenses pointing at a missing order are counted too; the joint PR opens from the 7.1 branch. Full text in 07.1-CONTEXT.md.
 - [Phase 07.1]: Fit check tool gets InternalsVisibleTo on Csps.Infrastructure to register the internal CspsUnitOfWork; no new public DI surface
 - [Phase 07.1]: Fit check tests run in CI step 3 integration tests (full mode, container SQL) because they need a real SQL Server
 - [Phase 07.1]: 07.1-02: read window is one never-committed ReadCommitted transaction; write evidence (tables, rows, index updates) must match before and after or the run fails. The transaction also keeps one connection open, because auto-close resets index counters.
