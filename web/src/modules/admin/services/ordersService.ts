@@ -6,6 +6,9 @@ type Schemas = components['schemas'];
 
 export type OrderListResponse = Schemas['OrderListResponse'];
 export type OrderListEntry = Schemas['OrderListEntry'];
+export type OrderDetailResponse = Schemas['OrderDetailResponse'];
+export type CreateOrderRequest = Schemas['CreateOrderRequest'];
+export type UpdateOrderDetailsRequest = Schemas['UpdateOrderDetailsRequest'];
 
 /** What `GET /api/v1/orders` is asked for. A null or missing value is not sent. */
 export interface OrdersListQuery {
@@ -27,6 +30,11 @@ export interface OrdersService {
    * server shows the active orders, soonest due first. 400 lists the field errors of a bad filter.
    */
   list(query: OrdersListQuery, signal?: AbortSignal): Promise<OrderListResponse>;
+  get(id: string, signal?: AbortSignal): Promise<OrderDetailResponse>;
+  create(body: CreateOrderRequest, idempotencyKey: string, signal?: AbortSignal): Promise<OrderDetailResponse>;
+  updateDetails(id: string, body: UpdateOrderDetailsRequest, signal?: AbortSignal): Promise<OrderDetailResponse>;
+  changeStatus(id: string, status: string, idempotencyKey: string, signal?: AbortSignal): Promise<OrderDetailResponse>;
+  remove(id: string, signal?: AbortSignal): Promise<void>;
 }
 
 export function createOrdersService(client: HttpClient): OrdersService {
@@ -46,6 +54,11 @@ export function createOrdersService(client: HttpClient): OrdersService {
         },
         signal,
       }),
+    get: () => Promise.reject(new Error('not implemented')),
+    create: () => Promise.reject(new Error('not implemented')),
+    updateDetails: () => Promise.reject(new Error('not implemented')),
+    changeStatus: () => Promise.reject(new Error('not implemented')),
+    remove: () => Promise.reject(new Error('not implemented')),
   };
 }
 
