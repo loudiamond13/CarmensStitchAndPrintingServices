@@ -5,7 +5,7 @@ namespace Csps.Application.Orders;
 
 /// <summary>
 /// Checks the New Order form with the rules the browser also applies (OR-3), held in <see cref="OrderDetailsFieldsValidator"/> and
-/// <see cref="OrderItemFieldsValidator"/> so the edit forms say the same words. It adds the status rule (D-22), the item count
+/// <see cref="OrderItemFieldsValidator"/> so the edit forms say the same words. It adds the status rule (D-01, D-02: a new order starts in an active status), the item count
 /// (1 to 100), the discounts (none to 20, each checked by <see cref="OrderDiscountFieldsValidator"/>) and the payments (none to 100,
 /// each checked by <see cref="OrderPaymentFieldsValidator"/>, with the business today in the validation context under
 /// <see cref="OrderPaymentFieldsValidator.TodayKey"/>) and the order expenses (none to 100, each checked by

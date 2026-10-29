@@ -29,11 +29,12 @@ public sealed class OrderExpensesController(AddOrderExpenseHandler add, UpdateOr
     /// token. The description is optional, up to 200 characters. A version that is not the stored one answers 409
     /// <c>edit.stale</c> and changes nothing; a form save is never retried. The server works out the expenses and the profit. A
     /// retry with the same <c>Idempotency-Key</c> and body answers with the stored answer and adds nothing more.
+    /// A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order does not exist or was deleted, 409 for a stale version, or 422 when the order already has 100 expenses.</returns>
+    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order does not exist or was deleted, 409 for a stale version, or 422 when the order already has 100 expenses or is completed or cancelled (<c>orders.locked</c>).</returns>
     [HttpPost]
     [EndpointName("AddOrderExpense")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
@@ -58,12 +59,13 @@ public sealed class OrderExpensesController(AddOrderExpenseHandler add, UpdateOr
     /// <c>orders.expense-not-found</c>. A version that is not the stored one answers 409 <c>edit.stale</c> and changes nothing; a
     /// form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the expense and
     /// when come from the token and the clock.
+    /// A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="expenseId">The expense id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the expense on it does not exist, or 409 for a stale version.</returns>
+    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the expense on it does not exist, 409 for a stale version, or 422 <c>orders.locked</c> when the order is completed or cancelled.</returns>
     [HttpPut("{expenseId:guid}")]
     [EndpointName("UpdateOrderExpense")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
@@ -71,6 +73,7 @@ public sealed class OrderExpensesController(AddOrderExpenseHandler add, UpdateOr
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> Update(
         Guid orderId,
         Guid expenseId,
@@ -85,17 +88,19 @@ public sealed class OrderExpensesController(AddOrderExpenseHandler add, UpdateOr
     /// Removes one expense of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
     /// again and decided again once. An expense id that is not on this order answers 404 <c>orders.expense-not-found</c>. The
     /// expenses and the profit are worked out again.
+    /// A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="expenseId">The expense id.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 401 without a valid token, 404 when the order or the expense on it does not exist, or 409 when two saves lost a race twice.</returns>
+    /// <returns>200 with the whole order, 401 without a valid token, 404 when the order or the expense on it does not exist, 409 when two saves lost a race twice, or 422 <c>orders.locked</c> when the order is completed or cancelled.</returns>
     [HttpDelete("{expenseId:guid}")]
     [EndpointName("RemoveOrderExpense")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> Remove(Guid orderId, Guid expenseId, CancellationToken cancellationToken)
     {
         var result = await remove.HandleAsync(orderId, expenseId, cancellationToken).ConfigureAwait(false);

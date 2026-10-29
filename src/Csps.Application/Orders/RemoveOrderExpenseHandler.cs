@@ -26,7 +26,7 @@ public sealed class RemoveOrderExpenseHandler(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>
     /// The order as saved, a 401 when the token names no usable account, a 404 when the order or the expense on it does not exist,
-    /// or a 409 when two saves lost a race twice.
+    /// a 409 when two saves lost a race twice, or a 422 when the order is completed or cancelled.
     /// </returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(Guid orderId, Guid expenseId, CancellationToken cancellationToken)
     {

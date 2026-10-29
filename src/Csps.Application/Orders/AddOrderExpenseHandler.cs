@@ -34,7 +34,7 @@ public sealed class AddOrderExpenseHandler(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>
     /// The order as saved, a 400 listing every field that failed, a 401 when the token names no usable account, a 404 when the order
-    /// does not exist or was deleted, a 409 for a stale version or a lost race, or a 422 when the order already has 100 expenses.
+    /// does not exist or was deleted, a 409 for a stale version or a lost race, or a 422 when the order already has 100 expenses or is completed or cancelled.
     /// </returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(Guid orderId, AddOrderExpenseRequest request, CancellationToken cancellationToken)
     {

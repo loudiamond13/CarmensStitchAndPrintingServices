@@ -38,7 +38,7 @@ public sealed class UpdateOrderPaymentHandler(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>
     /// The order as saved, a 400 listing every field that failed, a 401 when the token names no usable account, a 404 when the order
-    /// or the payment on it does not exist, or a 409 for a stale version or a lost race.
+    /// or the payment on it does not exist, a 409 for a stale version or a lost race, or a 422 when the order is completed or cancelled or the payments would drop below the refunds.
     /// </returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(Guid orderId, Guid paymentId, UpdateOrderPaymentRequest request, CancellationToken cancellationToken)
     {

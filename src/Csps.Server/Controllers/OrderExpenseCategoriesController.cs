@@ -50,7 +50,7 @@ public sealed class OrderExpenseCategoriesController(ListOrderListHandler list, 
     /// </summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>201 with the order expense category and its location, 400 for field errors, 401 without a valid token, or 403 for an Admin.</returns>
+    /// <returns>201 with the order expense category and its location, 400 for field errors, 401 without a valid token, 403 for an Admin, or 409 when the save lost a deadlock.</returns>
     [HttpPost]
     [Authorize(Policy = Policies.Manager)]
     [EndpointName("CreateOrderExpenseCategory")]
@@ -58,6 +58,7 @@ public sealed class OrderExpenseCategoriesController(ListOrderListHandler list, 
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> Create(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] OrderListEntryRequest? body,
         CancellationToken cancellationToken)
@@ -87,13 +88,13 @@ public sealed class OrderExpenseCategoriesController(ListOrderListHandler list, 
     /// Renames and recolors one order expense category with the version the form was opened with, Managers only. The new name shows on every
     /// order expense, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
     /// answers 409 <c>edit.stale</c> and changes nothing; a form edit is never retried. A form with no change saves nothing and
-    /// keeps the version. Others keeps its name but may change colour: any other name for it answers 422 <c>order-expense-categories.protected</c>.
+    /// keeps the version. Others keeps its name but may change colour: any other name for it answers 400 on <c>name</c> with "The Others name can't change.".
     /// Who changed it and when come from the token and the clock; any such member in the body is ignored.
     /// </summary>
     /// <param name="id">The order expense category id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the saved order expense category, 400 for field errors, 401 without a valid token, 403 for an Admin, 404 when it does not exist, 409 for a stale version, or 422 for a new name for Others.</returns>
+    /// <returns>200 with the saved order expense category, 400 for field errors (also a new name for Others), 401 without a valid token, 403 for an Admin, 404 when it does not exist, or 409 for a stale version.</returns>
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.Manager)]
     [EndpointName("UpdateOrderExpenseCategory")]
@@ -103,7 +104,6 @@ public sealed class OrderExpenseCategoriesController(ListOrderListHandler list, 
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> Update(
         Guid id,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] OrderListEntryRequest? body,

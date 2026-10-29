@@ -6848,6 +6848,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "summary": "Adds an order expense category, Managers only. The name is required, at most 40 characters and unique among all order expense categories, retired\nones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Staff can pick the new category on an order at once. Who added it and when come from the token\nand the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored 201 and adds nothing more.",
@@ -7110,19 +7120,9 @@
               }
             },
             "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Renames and recolors one order expense category with the version the form was opened with, Managers only. The new name shows on every\norder expense, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one\nanswers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and\nkeeps the version. Others keeps its name but may change colour: any other name for it answers 422 `order-expense-categories.protected`.\nWho changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "summary": "Renames and recolors one order expense category with the version the form was opened with, Managers only. The new name shows on every\norder expense, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one\nanswers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and\nkeeps the version. Others keeps its name but may change colour: any other name for it answers 400 on `name` with \"The Others name can't change.\".\nWho changed it and when come from the token and the clock; any such member in the body is ignored.",
         "tags": [
           "OrderExpenseCategories"
         ]
@@ -7788,9 +7788,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are\nthe same as when creating, and the due date is required even for an imported order that had none. A version that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any\norder. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the\nclock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.",
+        "summary": "Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are\nthe same as when creating, and the due date is required even for an imported order that had none. A version that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any\norder. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the\nclock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "Orders"
         ]
@@ -8194,7 +8204,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Adds a discount to a saved order with the order's version the form was opened with. The kind is `fixed` (a value from\n0.01 to 1,000,000.00) or `percentage` (a value above 0 and up to 100), each with at most two decimal places, and the\nreason is 1 to 100 characters. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. The server works out the order's totals. Who added the discount and when come from the token and\nthe clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored answer and adds nothing more.",
+        "summary": "Adds a discount to a saved order with the order's version the form was opened with. The kind is `fixed` (a value from\n0.01 to 1,000,000.00) or `percentage` (a value above 0 and up to 100), each with at most two decimal places, and the\nreason is 1 to 100 characters. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. The server works out the order's totals. Who added the discount and when come from the token and\nthe clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored answer and adds nothing more.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderDiscounts"
         ]
@@ -8265,9 +8275,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Removes one discount of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. A discount id that is not on this order answers 404 `orders.discount-not-found`. The\ntotals are worked out again.",
+        "summary": "Removes one discount of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. A discount id that is not on this order answers 404 `orders.discount-not-found`. The\ntotals are worked out again.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderDiscounts"
         ]
@@ -8387,9 +8407,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Saves an edit of one discount of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding, and the discounts together may not be more than the items total (400 on `value`). A discount id that is not\non this order answers 404 `orders.discount-not-found`. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing saves nothing and keeps\nthe version. Who changed the discount and when come from the token and the clock.",
+        "summary": "Saves an edit of one discount of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding, and the discounts together may not be more than the items total (400 on `value`). A discount id that is not\non this order answers 404 `orders.discount-not-found`. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing saves nothing and keeps\nthe version. Who changed the discount and when come from the token and the clock.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderDiscounts"
         ]
@@ -8513,7 +8543,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Records an expense on a saved order with the order's version the form was opened with. The date is a real\n`yyyy-MM-dd` day: any past day, and up to 30 days after today in the shop's time zone. The amount is above 0.00 and at\nmost 1,000,000.00 with at most two decimal places. The category must exist and not be retired. `paidByUserId` names who\nspent the money and must be an active Admin or Manager; it is separate from who typed the expense in, which comes from the\ntoken. The description is optional, up to 200 characters. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. The server works out the expenses and the profit. A\nretry with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.",
+        "summary": "Records an expense on a saved order with the order's version the form was opened with. The date is a real\n`yyyy-MM-dd` day: any past day, and up to 30 days after today in the shop's time zone. The amount is above 0.00 and at\nmost 1,000,000.00 with at most two decimal places. The category must exist and not be retired. `paidByUserId` names who\nspent the money and must be an active Admin or Manager; it is separate from who typed the expense in, which comes from the\ntoken. The description is optional, up to 200 characters. A version that is not the stored one answers 409\n`edit.stale` and changes nothing; a form save is never retried. The server works out the expenses and the profit. A\nretry with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderExpenses"
         ]
@@ -8584,9 +8614,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Removes one expense of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. An expense id that is not on this order answers 404 `orders.expense-not-found`. The\nexpenses and the profit are worked out again.",
+        "summary": "Removes one expense of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. An expense id that is not on this order answers 404 `orders.expense-not-found`. The\nexpenses and the profit are worked out again.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderExpenses"
         ]
@@ -8706,9 +8746,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Saves an edit of one expense of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding. The category and the payer are checked only when the edit changes them, so an expense may keep a category that\nwas retired or a payer who was deactivated after it was saved. An expense id that is not on this order answers 404\n`orders.expense-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the expense and\nwhen come from the token and the clock.",
+        "summary": "Saves an edit of one expense of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding. The category and the payer are checked only when the edit changes them, so an expense may keep a category that\nwas retired or a payer who was deactivated after it was saved. An expense id that is not on this order answers 404\n`orders.expense-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the expense and\nwhen come from the token and the clock.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderExpenses"
         ]
@@ -8832,7 +8882,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Adds an item to a saved order with the order's version the form was opened with. The item rules are the same as when creating\nan order: a product type that exists and is not retired, a description of up to 200 characters, an optional size or variant\nof up to 100, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places. An order has at\nmost 100 items. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never\nretried. The server works out the line total and the order's totals. Who added the item and when come from the token and the\nclock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored\nanswer and adds nothing more.",
+        "summary": "Adds an item to a saved order with the order's version the form was opened with. The item rules are the same as when creating\nan order: a product type that exists and is not retired, a description of up to 200 characters, an optional size or variant\nof up to 100, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places. An order has at\nmost 100 items. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never\nretried. The server works out the line total and the order's totals. Who added the item and when come from the token and the\nclock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored\nanswer and adds nothing more.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.\nAn item that makes the rounded discounts more than the new items total answers 422 `orders.discount-above-subtotal`.",
         "tags": [
           "OrderItems"
         ]
@@ -8915,7 +8965,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again\nand decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item\nid that is not on this order answers 404 `orders.item-not-found`. A removal that would leave the discounts more than the\nnew items total answers 422 `orders.discount-above-subtotal`. The totals are worked out again.",
+        "summary": "Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again\nand decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item\nid that is not on this order answers 404 `orders.item-not-found`. A removal that would leave the discounts more than the\nnew items total answers 422 `orders.discount-above-subtotal`. The totals are worked out again.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderItems"
         ]
@@ -9047,7 +9097,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Saves an edit of one item of a saved order with the order's version the form was opened with. The item rules are the same as\nwhen adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was\nretired after it was saved. An item id that is not on this order answers 404 `orders.item-not-found`. A version that is\nnot the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes\nnothing saves nothing and keeps the version. An edit that would leave the discounts more than the new items total answers 422\n`orders.discount-above-subtotal` and changes nothing. Who changed the item and when come from the token and the clock.",
+        "summary": "Saves an edit of one item of a saved order with the order's version the form was opened with. The item rules are the same as\nwhen adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was\nretired after it was saved. An item id that is not on this order answers 404 `orders.item-not-found`. A version that is\nnot the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes\nnothing saves nothing and keeps the version. An edit that would leave the discounts more than the new items total answers 422\n`orders.discount-above-subtotal` and changes nothing. Who changed the item and when come from the token and the clock.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderItems"
         ]
@@ -9171,7 +9221,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Records a payment on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`\nday, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal\nplaces, and it may not be more than the balance: a payment above it answers 400 on `amount` with the most that can be\nentered. The payment method must exist and not be retired. `receivedByUserId` names who has the money and must be an\nactive Admin or Manager; it is separate from who typed the payment in, which comes from the token. The reference holds up to\n100 characters and the notes up to 500. A version that is not the stored one answers 409 `edit.stale` and changes\nnothing; a form save is never retried. The server works out the order's totals. A retry with the same\n`Idempotency-Key` and body answers with the stored answer and adds nothing more.",
+        "summary": "Records a payment on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`\nday, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal\nplaces, and it may not be more than the balance: a payment above it answers 400 on `amount` with the most that can be\nentered. The payment method must exist and not be retired. `receivedByUserId` names who has the money and must be an\nactive Admin or Manager; it is separate from who typed the payment in, which comes from the token. The reference holds up to\n100 characters and the notes up to 500. A version that is not the stored one answers 409 `edit.stale` and changes\nnothing; a form save is never retried. The server works out the order's totals. A retry with the same\n`Idempotency-Key` and body answers with the stored answer and adds nothing more.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderPayments"
         ]
@@ -9242,9 +9292,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Removes one payment of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. A payment id that is not on this order answers 404 `orders.payment-not-found`. The totals\nare worked out again; if the order was fully paid it now has a balance again.",
+        "summary": "Removes one payment of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read\nagain and decided again once. A payment id that is not on this order answers 404 `orders.payment-not-found`. The totals\nare worked out again; if the order was fully paid it now has a balance again.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.\nA change that would leave the payments below the refunds already recorded answers 422 `orders.payment-below-refunds` and changes nothing.",
         "tags": [
           "OrderPayments"
         ]
@@ -9364,9 +9424,19 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Saves an edit of one payment of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding. An edit may lower the amount freely and may raise it only up to the balance plus the amount it had (400 on\n`amount`). The payment method and the receiver are checked only when the edit changes them, so a payment may keep a\nmethod that was retired or a receiver who was deactivated after it was saved. A payment id that is not on this order answers\n404 `orders.payment-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing;\na form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the payment and\nwhen come from the token and the clock.",
+        "summary": "Saves an edit of one payment of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding. An edit may lower the amount freely and may raise it only up to the balance plus the amount it had (400 on\n`amount`). The payment method and the receiver are checked only when the edit changes them, so a payment may keep a\nmethod that was retired or a receiver who was deactivated after it was saved. A payment id that is not on this order answers\n404 `orders.payment-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing;\na form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the payment and\nwhen come from the token and the clock.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.\nA change that would leave the payments below the refunds already recorded answers 422 `orders.payment-below-refunds` and changes nothing.",
         "tags": [
           "OrderPayments"
         ]
@@ -9827,6 +9897,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "summary": "Adds a payment method, Managers only. The name is required, at most 40 characters and unique among all payment methods, retired\nones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Staff can pick the new method on an order at once. Who added it and when come from the token\nand the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored 201 and adds nothing more.",
@@ -10351,6 +10431,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "summary": "Adds a product type, Managers only. The name is required, at most 40 characters and unique among all product types, retired\nones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,\n`warning` or `success`. Staff can pick the new type on an order at once. Who added it and when come from the token\nand the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the\nstored 201 and adds nothing more.",

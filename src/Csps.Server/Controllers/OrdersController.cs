@@ -115,11 +115,12 @@ public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandle
     /// stored one answers 409 <c>edit.stale</c> and changes nothing; a form edit is never retried. Any staff member may edit any
     /// order. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the
     /// clock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.
+    /// A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing.
     /// </summary>
     /// <param name="id">The order id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the saved order, 400 for field errors, 401 without a valid token, 404 when it does not exist or was deleted, or 409 for a stale version.</returns>
+    /// <returns>200 with the saved order, 400 for field errors, 401 without a valid token, 404 when it does not exist or was deleted, 409 for a stale version, or 422 <c>orders.locked</c> when the order is completed or cancelled.</returns>
     [HttpPut("{id:guid}")]
     [EndpointName("UpdateOrderDetails")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
@@ -127,6 +128,7 @@ public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandle
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> UpdateDetails(
         Guid id,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateOrderDetailsRequest? body,

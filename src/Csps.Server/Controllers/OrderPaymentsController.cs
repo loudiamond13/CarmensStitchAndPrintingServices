@@ -31,11 +31,12 @@ public sealed class OrderPaymentsController(AddOrderPaymentHandler add, UpdateOr
     /// 100 characters and the notes up to 500. A version that is not the stored one answers 409 <c>edit.stale</c> and changes
     /// nothing; a form save is never retried. The server works out the order's totals. A retry with the same
     /// <c>Idempotency-Key</c> and body answers with the stored answer and adds nothing more.
+    /// A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order does not exist or was deleted, 409 for a stale version, or 422 when the order already has 100 payments.</returns>
+    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order does not exist or was deleted, 409 for a stale version, or 422 when the order already has 100 payments or is completed or cancelled (<c>orders.locked</c>).</returns>
     [HttpPost]
     [EndpointName("AddOrderPayment")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
@@ -61,12 +62,14 @@ public sealed class OrderPaymentsController(AddOrderPaymentHandler add, UpdateOr
     /// 404 <c>orders.payment-not-found</c>. A version that is not the stored one answers 409 <c>edit.stale</c> and changes nothing;
     /// a form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the payment and
     /// when come from the token and the clock.
+    /// A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing.
+    /// A change that would leave the payments below the refunds already recorded answers 422 <c>orders.payment-below-refunds</c> and changes nothing.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="paymentId">The payment id.</param>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the payment on it does not exist, or 409 for a stale version.</returns>
+    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the payment on it does not exist, 409 for a stale version, or 422 when the order is completed or cancelled (<c>orders.locked</c>) or the payments would drop below the refunds (<c>orders.payment-below-refunds</c>).</returns>
     [HttpPut("{paymentId:guid}")]
     [EndpointName("UpdateOrderPayment")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
@@ -74,6 +77,7 @@ public sealed class OrderPaymentsController(AddOrderPaymentHandler add, UpdateOr
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> Update(
         Guid orderId,
         Guid paymentId,
@@ -88,17 +92,20 @@ public sealed class OrderPaymentsController(AddOrderPaymentHandler add, UpdateOr
     /// Removes one payment of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
     /// again and decided again once. A payment id that is not on this order answers 404 <c>orders.payment-not-found</c>. The totals
     /// are worked out again; if the order was fully paid it now has a balance again.
+    /// A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing.
+    /// A change that would leave the payments below the refunds already recorded answers 422 <c>orders.payment-below-refunds</c> and changes nothing.
     /// </summary>
     /// <param name="orderId">The order id.</param>
     /// <param name="paymentId">The payment id.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole order, 401 without a valid token, 404 when the order or the payment on it does not exist, or 409 when two saves lost a race twice.</returns>
+    /// <returns>200 with the whole order, 401 without a valid token, 404 when the order or the payment on it does not exist, 409 when two saves lost a race twice, or 422 when the order is completed or cancelled (<c>orders.locked</c>) or the payments left would be below the refunds (<c>orders.payment-below-refunds</c>).</returns>
     [HttpDelete("{paymentId:guid}")]
     [EndpointName("RemoveOrderPayment")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> Remove(Guid orderId, Guid paymentId, CancellationToken cancellationToken)
     {
         var result = await remove.HandleAsync(orderId, paymentId, cancellationToken).ConfigureAwait(false);

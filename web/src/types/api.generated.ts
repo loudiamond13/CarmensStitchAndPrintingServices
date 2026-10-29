@@ -546,7 +546,7 @@ export interface paths {
          * Renames and recolors one order expense category with the version the form was opened with, Managers only. The new name shows on every
          *     order expense, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
          *     answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and
-         *     keeps the version. Others keeps its name but may change colour: any other name for it answers 422 `order-expense-categories.protected`.
+         *     keeps the version. Others keeps its name but may change colour: any other name for it answers 400 on `name` with "The Others name can't change.".
          *     Who changed it and when come from the token and the clock; any such member in the body is ignored.
          */
         put: operations["UpdateOrderExpenseCategory"];
@@ -674,6 +674,7 @@ export interface paths {
          *     stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any
          *     order. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the
          *     clock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         put: operations["UpdateOrderDetails"];
         post?: never;
@@ -777,6 +778,7 @@ export interface paths {
          *     form save is never retried. The server works out the order's totals. Who added the discount and when come from the token and
          *     the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
          *     stored answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         post: operations["AddOrderDiscount"];
         delete?: never;
@@ -799,6 +801,7 @@ export interface paths {
          *     on this order answers 404 `orders.discount-not-found`. A version that is not the stored one answers 409
          *     `edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing saves nothing and keeps
          *     the version. Who changed the discount and when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         put: operations["UpdateOrderDiscount"];
         post?: never;
@@ -806,6 +809,7 @@ export interface paths {
          * Removes one discount of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
          *     again and decided again once. A discount id that is not on this order answers 404 `orders.discount-not-found`. The
          *     totals are worked out again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         delete: operations["RemoveOrderDiscount"];
         options?: never;
@@ -830,6 +834,7 @@ export interface paths {
          *     token. The description is optional, up to 200 characters. A version that is not the stored one answers 409
          *     `edit.stale` and changes nothing; a form save is never retried. The server works out the expenses and the profit. A
          *     retry with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         post: operations["AddOrderExpense"];
         delete?: never;
@@ -853,6 +858,7 @@ export interface paths {
          *     `orders.expense-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a
          *     form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the expense and
          *     when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         put: operations["UpdateOrderExpense"];
         post?: never;
@@ -860,6 +866,7 @@ export interface paths {
          * Removes one expense of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
          *     again and decided again once. An expense id that is not on this order answers 404 `orders.expense-not-found`. The
          *     expenses and the profit are worked out again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         delete: operations["RemoveOrderExpense"];
         options?: never;
@@ -884,6 +891,8 @@ export interface paths {
          *     retried. The server works out the line total and the order's totals. Who added the item and when come from the token and the
          *     clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored
          *     answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         *     An item that makes the rounded discounts more than the new items total answers 422 `orders.discount-above-subtotal`.
          */
         post: operations["AddOrderItem"];
         delete?: never;
@@ -907,6 +916,7 @@ export interface paths {
          *     not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes
          *     nothing saves nothing and keeps the version. An edit that would leave the discounts more than the new items total answers 422
          *     `orders.discount-above-subtotal` and changes nothing. Who changed the item and when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         put: operations["UpdateOrderItem"];
         post?: never;
@@ -915,6 +925,7 @@ export interface paths {
          *     and decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item
          *     id that is not on this order answers 404 `orders.item-not-found`. A removal that would leave the discounts more than the
          *     new items total answers 422 `orders.discount-above-subtotal`. The totals are worked out again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         delete: operations["RemoveOrderItem"];
         options?: never;
@@ -940,6 +951,7 @@ export interface paths {
          *     100 characters and the notes up to 500. A version that is not the stored one answers 409 `edit.stale` and changes
          *     nothing; a form save is never retried. The server works out the order's totals. A retry with the same
          *     `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         post: operations["AddOrderPayment"];
         delete?: never;
@@ -964,6 +976,8 @@ export interface paths {
          *     404 `orders.payment-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing;
          *     a form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the payment and
          *     when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         *     A change that would leave the payments below the refunds already recorded answers 422 `orders.payment-below-refunds` and changes nothing.
          */
         put: operations["UpdateOrderPayment"];
         post?: never;
@@ -971,6 +985,8 @@ export interface paths {
          * Removes one payment of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
          *     again and decided again once. A payment id that is not on this order answers 404 `orders.payment-not-found`. The totals
          *     are worked out again; if the order was fully paid it now has a balance again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         *     A change that would leave the payments below the refunds already recorded answers 422 `orders.payment-below-refunds` and changes nothing.
          */
         delete: operations["RemoveOrderPayment"];
         options?: never;
@@ -5146,6 +5162,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     GetOrderExpenseCategory: {
@@ -5264,15 +5289,6 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5745,6 +5761,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     DeleteOrder: {
@@ -6143,6 +6168,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     RemoveOrderDiscount: {
@@ -6188,6 +6222,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6338,6 +6381,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     RemoveOrderExpense: {
@@ -6383,6 +6435,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6746,6 +6807,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     RemoveOrderPayment: {
@@ -6791,6 +6861,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7087,6 +7166,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7481,6 +7569,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -50,7 +50,7 @@ public sealed class ProductTypesController(ListOrderListHandler list, CreateOrde
     /// </summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>201 with the product type and its location, 400 for field errors, 401 without a valid token, or 403 for an Admin.</returns>
+    /// <returns>201 with the product type and its location, 400 for field errors, 401 without a valid token, 403 for an Admin, or 409 when the save lost a deadlock.</returns>
     [HttpPost]
     [Authorize(Policy = Policies.Manager)]
     [EndpointName("CreateProductType")]
@@ -58,6 +58,7 @@ public sealed class ProductTypesController(ListOrderListHandler list, CreateOrde
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> Create(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] OrderListEntryRequest? body,
         CancellationToken cancellationToken)
