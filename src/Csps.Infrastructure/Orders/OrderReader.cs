@@ -10,10 +10,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Orders;
 
-/// <summary><see cref="IOrderReader"/> over EF: untracked reads, one statement for the order, one for the items and one for the history.</summary>
+/// <summary>
+/// <see cref="IOrderReader"/> over EF: untracked reads. The order detail is one statement for the order and one for each child list and
+/// the history, then one that checks the row version has not moved.
+/// </summary>
 internal sealed class OrderReader(CspsDbContext context) : IOrderReader
 {
     private const string SoftDeleteFilter = "SoftDelete";
+    private const int DetailReadAttempts = 3;
 
     public async Task<OrderListPage> ListAsync(OrderListQuery query, DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -160,6 +164,34 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
     }
 
     public async Task<OrderDetailResponse?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
+    {
+        // The header and each list are separate statements, so a save can land between them. The row version is read again after
+        // the lists, as OrderStore.FindAsync does; when it moved, the order is read again so the totals, the lists and the version
+        // come from one save. After the last attempt the latest read is returned, as a save that keeps landing is not worth a failure.
+        OrderDetailResponse? view = null;
+        for (var attempt = 1; attempt <= DetailReadAttempts; attempt++)
+        {
+            view = await ReadDetailOnceAsync(id, cancellationToken).ConfigureAwait(false);
+            if (view is null)
+            {
+                return null;
+            }
+
+            var current = await context.Orders.AsNoTracking()
+                .Where(row => row.Id == id)
+                .Select(row => row.RowVersion)
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (current is null || RowVersions.ToText(current) == view.Version)
+            {
+                return current is null ? null : view;
+            }
+        }
+
+        return view;
+    }
+
+    private async Task<OrderDetailResponse?> ReadDetailOnceAsync(Guid id, CancellationToken cancellationToken)
     {
         // The named SoftDelete filter hides a deleted order. The recorder and the last changer come from their own user rows, so a
         // rename shows at once and a deleted person keeps their name (D-08, D-11).
