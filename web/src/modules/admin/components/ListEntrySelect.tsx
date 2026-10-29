@@ -7,10 +7,12 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Select } from '@/components/forms';
+import { useOrderExpenseCategoriesQuery } from '@/modules/admin/hooks/useOrderExpenseCategoriesQuery';
+import { usePaymentMethodsQuery } from '@/modules/admin/hooks/usePaymentMethodsQuery';
 import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
 import { ORDER_LISTS_COPY } from '@/modules/admin/orderListsCopy';
 
-export type ListKey = 'product-types';
+export type ListKey = 'product-types' | 'payment-methods' | 'order-expense-categories';
 
 interface EntryLike {
   id: string;
@@ -30,6 +32,16 @@ const LISTS: Record<ListKey, ListConfig> = {
     useEntries: useProductTypesQuery,
     copy: ORDER_LISTS_COPY['product-types'],
     fieldName: 'productTypeId',
+  },
+  'payment-methods': {
+    useEntries: usePaymentMethodsQuery,
+    copy: ORDER_LISTS_COPY['payment-methods'],
+    fieldName: 'paymentMethodId',
+  },
+  'order-expense-categories': {
+    useEntries: useOrderExpenseCategoriesQuery,
+    copy: ORDER_LISTS_COPY['order-expense-categories'],
+    fieldName: 'categoryId',
   },
 };
 

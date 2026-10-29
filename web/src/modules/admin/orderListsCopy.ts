@@ -11,4 +11,19 @@ export const ORDER_LISTS_COPY = {
     loading: 'Loading product types…',
     loadFailed: "Couldn't load the product types. Close this form and try again.",
   },
+  // SPEC-GAP: the payment method list has no filter in the spec; "All methods" is the same shape as the others.
+  'payment-methods': {
+    label: 'Method',
+    all: 'All methods',
+    placeholder: 'Choose a method',
+    loading: 'Loading methods…',
+    loadFailed: "Couldn't load the payment methods. Close this form and try again.",
+  },
+  'order-expense-categories': {
+    label: 'Category',
+    all: 'All categories',
+    placeholder: 'Choose a category',
+    loading: 'Loading categories…',
+    loadFailed: "Couldn't load the categories. Close this form and try again.",
+  },
 } as const;
