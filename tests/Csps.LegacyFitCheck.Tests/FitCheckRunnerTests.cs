@@ -115,6 +115,39 @@ public sealed class FitCheckRunnerTests
         }
     }
 
+    [Fact]
+    public async Task ARefusedSourceExitsTwoAndCreatesNoTrialDatabase()
+    {
+        // Unreachable loopback address: even a bug cannot reach a real database from this test.
+        const string unreachable = "Data Source=127.0.0.1,1;Integrated Security=true;Connect Timeout=1";
+        var targets = new FitCheckTargets(unreachable + ";Initial Catalog=CSPS_Dev", unreachable);
+        var localRoot = NewLocalRoot();
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var trialCreated = false;
+        var hooks = new FitCheckHooks((_, _) =>
+        {
+            trialCreated = true;
+            return Task.CompletedTask;
+        });
+
+        try
+        {
+            var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, TestContext.Current.CancellationToken, hooks);
+
+            exit.ShouldBe(2);
+            error.ToString().ShouldStartWith("Refused: ");
+            error.ToString().ShouldNotContain("127.0.0.1");
+            output.ToString().ShouldBeEmpty();
+            trialCreated.ShouldBeFalse();
+            Directory.Exists(Path.Combine(localRoot, "legacy-fit-check")).ShouldBeFalse();
+        }
+        finally
+        {
+            DeleteRoot(localRoot);
+        }
+    }
+
     private static string NewLocalRoot() => Path.Combine(Path.GetTempPath(), $"csps-fitcheck-{Guid.NewGuid():N}", "_local");
 
     private static FakeTimeProvider NewTime() => new(new DateTimeOffset(2026, 10, 29, 0, 0, 0, TimeSpan.Zero));
