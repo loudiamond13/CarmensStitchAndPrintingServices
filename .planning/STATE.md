@@ -738,6 +738,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07 UI review]: D-80 (owner, 2026-10-29, UI-REVIEW fix 2): the Audit Log filters get a "Group" select (the AUDIT_GROUPS list) that only shortens the Action select, in the browser. No server change: the log still filters by one action code.
 - [Phase 07 UI review]: D-81 (owner, 2026-10-29, UI-REVIEW fix 3): a change line whose values cannot be read shows "<Field> changed" (for example "Amount changed") with no values, instead of being dropped.
 - [Phase 07 UI review]: D-82 (owner, 2026-10-29, UI-REVIEW fix 3): order sub-entry action labels name the order: "Order item added", "Order payment added", "Order refund added", "Order discount added", and the same for changed, removed and the receiver or refunder changes.
+- [Phase 07 UI review]: D-83 (owner, 2026-10-29, quick 261029-87p open items 1 and 2): keep the Audit Log copy as built: "Payer changed", "Receiver changed", "Refunder changed" for unreadable person lines, and "Group" and "All groups" for the Group select. A change line for a field the screen does not know about stays left out (no generic sentence), because the screen and the API ship together.
 
 ### Pending Todos
 
