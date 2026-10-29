@@ -1,5 +1,6 @@
 using System.Data;
 using System.Globalization;
+using Csps.LegacyFitCheck.Checks;
 using Csps.LegacyFitCheck.Findings;
 using Csps.LegacyFitCheck.Mapping;
 using Csps.LegacyFitCheck.Source;
@@ -47,6 +48,12 @@ internal static class FitCheckRunner
 
             var mapped = read.Orders;
             var findings = mapped.SelectMany(static order => order.Findings).ToList();
+            var clock = await new ToolCalendar(time).GetClockAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var order in mapped.Where(static order => order.Snapshot is not null))
+            {
+                findings.AddRange(OrderRuleProbe.Probe(order.LegacyKey, order.Snapshot!, clock.UtcNow, clock.Today));
+            }
+
             findings.Add(EvidenceFinding(read.Before));
             var inventory = ColumnInventory.Check(read.Columns);
             findings.AddRange(inventory.Findings);
