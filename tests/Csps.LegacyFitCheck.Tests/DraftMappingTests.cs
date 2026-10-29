@@ -149,6 +149,114 @@ public sealed class DraftMappingTests
         snapshot.Payments[0].ReceivedByUserId.ShouldBe(LegacyHolder.Id);
     }
 
+    [Fact]
+    public void AnItemKeepsItsValuesAndADoneFlagIsCannotMap()
+    {
+        var parts = new LegacyOrderParts(
+            [
+                new LegacyOrderItemRow { OrderItemId = 5, OrderId = 1, Description = "  Sample polo ", Quantity = 3, Price = 12.3456m, IsDone = true },
+                new LegacyOrderItemRow { OrderItemId = 6, OrderId = 1, Description = "Sample cap", Quantity = 1, Price = 2m, IsDone = false },
+            ],
+            [],
+            [],
+            []);
+
+        var mapped = Map(Order(1), parts);
+
+        var items = mapped.Snapshot.ShouldNotBeNull().Items;
+        items[0].Description.ShouldBe("Sample polo");
+        items[0].Quantity.ShouldBe(3);
+        items[0].UnitPrice.ShouldBe(12.3456m);
+        items[0].SizeVariant.ShouldBeNull();
+        Single(mapped, FindingType.CannotMap, "item.done-flag").LegacyKey.ShouldBe("OrderItems:5");
+    }
+
+    [Fact]
+    public void ADiscountIsFixedAndAGiverNameIsCannotMap()
+    {
+        var parts = new LegacyOrderParts(
+            [],
+            [
+                new LegacyDiscountRow { OrderDiscountId = 3, OrderId = 1, Description = "  Sample promo ", Amount = 20.125m, DiscountedBy = "Sample staff" },
+                new LegacyDiscountRow { OrderDiscountId = 4, OrderId = 1, Description = "Other promo", Amount = 5m, DiscountedBy = "  " },
+            ],
+            [],
+            []);
+
+        var mapped = Map(Order(1), parts);
+
+        var discounts = mapped.Snapshot.ShouldNotBeNull().Discounts;
+        discounts[0].ShouldBe(new NewOrderDiscount(DiscountKind.Fixed, 20.125m, "Sample promo"));
+        discounts[1].Value.ShouldBe(5m);
+        Single(mapped, FindingType.CannotMap, "discount.giver").LegacyKey.ShouldBe("Discounts:3");
+    }
+
+    [Fact]
+    public void APaymentKeepsThePayerTextInTheNotes()
+    {
+        var parts = new LegacyOrderParts(
+            [],
+            [],
+            [
+                new LegacyPaymentRow { PaymentId = 7, OrderId = 1, PaymentDate = SameDay, PaidBy = " Sample payer ", Amount = 10.5m, PaidTo = "Sample receiver" },
+                new LegacyPaymentRow { PaymentId = 8, OrderId = 1, PaymentDate = SameDay, PaidBy = null, Amount = 4m, PaidTo = "Sample receiver" },
+            ],
+            []);
+
+        var mapped = Map(Order(1), parts);
+
+        var payments = mapped.Snapshot.ShouldNotBeNull().Payments;
+        payments[0].Notes.ShouldBe("Sample payer");
+        payments[0].Amount.ShouldBe(10.5m);
+        payments[0].Reference.ShouldBeNull();
+        payments[0].PaymentMethodId.ShouldBe(ListMatches.UnknownPaymentMethodId);
+        payments[1].Notes.ShouldBeNull();
+        Single(mapped, FindingType.Info, "payment.payer-text-in-notes").LegacyKey.ShouldBe("Payments:7");
+    }
+
+    [Fact]
+    public void ADeletedPaymentIsLeftOutAndEachIsReported()
+    {
+        var parts = new LegacyOrderParts(
+            [],
+            [],
+            [
+                new LegacyPaymentRow { PaymentId = 7, OrderId = 1, PaymentDate = SameDay, Amount = 10m, IsDeleted = true },
+                new LegacyPaymentRow { PaymentId = 8, OrderId = 1, PaymentDate = SameDay, Amount = 4m, IsDeleted = false },
+            ],
+            []);
+
+        var mapped = Map(Order(1), parts);
+
+        mapped.Snapshot.ShouldNotBeNull().Payments.ShouldHaveSingleItem().Amount.ShouldBe(4m);
+        Single(mapped, FindingType.CannotMap, "payment.deleted-dropped").LegacyKey.ShouldBe("Payments:7");
+        Single(mapped, FindingType.CannotMap, "payment.no-method").LegacyKey.ShouldBe("Payments:8");
+    }
+
+    [Fact]
+    public void AnOrderExpenseUsesOthersAndOneWithNoDateIsLeftOut()
+    {
+        var parts = new LegacyOrderParts(
+            [],
+            [],
+            [],
+            [
+                new LegacyExpenseRow { ExpenseId = 1, OrderId = 1, Description = " Sample thread ", SpentDate = SameDay, Amount = 30.5m, IsCompanyExpenses = false },
+                new LegacyExpenseRow { ExpenseId = 2, OrderId = 1, Description = "No date", SpentDate = null, Amount = 5m, IsCompanyExpenses = false },
+                new LegacyExpenseRow { ExpenseId = 3, OrderId = null, Description = "Sample rent", SpentDate = SameDay, Amount = 900m, IsCompanyExpenses = true },
+            ]);
+
+        var mapped = Map(Order(1), parts);
+
+        var expense = mapped.Snapshot.ShouldNotBeNull().Expenses.ShouldHaveSingleItem();
+        expense.Description.ShouldBe("Sample thread");
+        expense.Amount.ShouldBe(30.5m);
+        expense.OrderExpenseCategoryId.ShouldBe(OrderListSeed.OrderExpenseOthersId);
+        expense.PaidByUserId.ShouldBe(LegacyHolder.Id);
+        Single(mapped, FindingType.CannotMap, "order-expense.no-date").LegacyKey.ShouldBe("Expenses:2");
+        Single(mapped, FindingType.CannotMap, "order-expense.no-category").LegacyKey.ShouldBe("Expenses:1");
+    }
+
     private static MappedOrder Map(LegacyOrderRow order, LegacyOrderParts? parts = null, string statusName = "Open")
     {
         var types = new Dictionary<int, string?> { [1] = "Polo Shirt" };
