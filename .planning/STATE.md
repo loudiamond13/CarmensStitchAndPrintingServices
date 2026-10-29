@@ -15,7 +15,7 @@ progress:
   completed_plans: 215
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T15:30:00-05:00"
+updated: "2026-10-29T18:00:00-05:00"
 ---
 
 # Project State
@@ -750,6 +750,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07 UI review]: D-84 (owner, 2026-10-29, replaces the unknown-field part of D-83): a change line for a field the screen does not know about reads "Other detail changed", with no field name or values, and shows once per entry however many unknown fields there are. The rest of D-83 (the copy) stands.
 - [Phase 07.1 execute]: D-85 (owner, 2026-10-29): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 still ships on its own PR first; 7.1 follows it.
 - [Phase 07.1 execute]: D-86 (owner, 2026-10-29, plan 07.1-02 follow-up): named exception to the no-raw-SQL rule: `ReadOnlyGuardTests` in `tests/Csps.LegacyFitCheck.Tests` keep their `ExecuteSqlRaw`, `FromSqlRaw` and `SqlQueryRaw` calls. They run only against the throwaway fake restore and exist to prove the read-only guard refuses raw SQL. The tool itself holds none, and `ToolSourceRulesTests` keeps it that way.
+- [Phase 07.1 execute]: D-87 (owner, 2026-10-29, plan 07.1-08 follow-up): legacy `Expenses` rows with `isCompanyExpenses` false and no `OrderId` are counted, not ignored. The fit check reports them as a new finding (for example `expense.unplaced`, kind CannotMap), counts only with no values, so the real run shows how many exist. Built in plan 07.1-09 alongside the report split.
 - [Phase 07.1]: Fit check tool gets InternalsVisibleTo on Csps.Infrastructure to register the internal CspsUnitOfWork; no new public DI surface
 - [Phase 07.1]: Fit check tests run in CI step 3 integration tests (full mode, container SQL) because they need a real SQL Server
 - [Phase 07.1]: 07.1-02: read window is one never-committed ReadCommitted transaction; write evidence (tables, rows, index updates) must match before and after or the run fails. The transaction also keeps one connection open, because auto-close resets index counters.
