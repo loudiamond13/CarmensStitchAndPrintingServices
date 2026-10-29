@@ -72,6 +72,6 @@ public sealed class ListOrdersHandler(
                 row.FullyPaid,
                 row.Pieces)),
         ];
-        return Result.Success(new OrderListResponse(items, page.Total, request.Page, request.PageSize, page.AllOrders, page.ActiveOrders, default));
+        return Result.Success(new OrderListResponse(items, page.Total, request.Page, request.PageSize, page.AllOrders, page.ActiveOrders, clock.Today));
     }
 }

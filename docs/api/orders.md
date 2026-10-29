@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T23:00:00-05:00
+updated: 2026-10-29T16:30:00-05:00
 ---
 
 # The orders API
@@ -61,8 +61,8 @@ read every order. No answer is ever cached (`Cache-Control: no-store`).
 
 ## Listing and searching (`GET /api/v1/orders`) (ORD-01, ORD-02)
 
-Both roles may list. Every part of the query is optional. The answer is `{ items, total, page, pageSize }`, where `total` counts
-every page of the filter. Deleted orders never appear and never count. The order screens that use this list come in Phase 8.
+Both roles may list. Every part of the query is optional. The answer is `{ items, total, page, pageSize, allOrders, activeOrders, today }`,
+where `total` counts every page of the filter. Deleted orders never appear and never count. The order screens that use this list come in Phase 8.
 
 | Parameter | What it does | Default | Refused when |
 |---|---|---|---|
@@ -77,11 +77,15 @@ every page of the filter. Deleted orders never appear and never count. The order
 
 Each row has `id`, `number`, `customerName`, `teamName`, `orderDate`, `dueDate` (null when an imported order had none), `status`
 (the wire key), `statusChangedAt`, and the stored money figures `subtotal`, `discount`, `total`, `paid`, `refunded`, `balance`,
-`customerCredit` and `fullyPaid`. The server reads these figures from what it stored when the order last changed; the list works out
+`customerCredit` and `fullyPaid`, and `pieces`. The server reads the money figures from what it stored when the order last changed; the list works out
 no money. A row never carries contact details, the address or notes. For ORD-2026-0148 the figures are 22,450.00, 1,122.50,
 21,327.50, 12,000.00 and 9,327.50 for subtotal, discount, total, paid and balance.
 
-The list runs two SQL commands (the count and the page) whatever the page size, and answers under 300 ms at the 95th percentile on
+- `pieces` is how many pieces the order has: the sum of its item quantities (D-40). An order with items of 25 and 15 reads `40`.
+- `allOrders` is every order that is not deleted, and `activeOrders` is the part of those in Pending, Mockup, In Production, Ready or Delivered (D-41). Both ignore `q`, `status`, the dates, `productType` and `hasBalance`, so a screen can show "showing 5 of 40" whatever the filters are.
+- `today` is the business date from the shop's time zone (D-59), so the browser never reads the device clock for a due date.
+
+The list runs three SQL commands (the count, the page and the two list-wide counts) whatever the page size, filter or sort (D-60), and answers under 300 ms at the 95th percentile on
 about five years of orders. How that is proved is in [list-performance.md](../operations/list-performance.md).
 
 ## The order form (`POST /orders`)

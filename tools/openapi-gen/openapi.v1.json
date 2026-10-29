@@ -2432,6 +2432,15 @@
               "string"
             ]
           },
+          "pieces": {
+            "description": "How many pieces: the sum of the item quantities.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
           "refunded": {
             "description": "What was handed back in pesos.",
             "format": "double",
@@ -2492,7 +2501,8 @@
           "refunded",
           "balance",
           "customerCredit",
-          "fullyPaid"
+          "fullyPaid",
+          "pieces"
         ],
         "type": "object"
       },
@@ -2692,6 +2702,24 @@
       "OrderListResponse": {
         "description": "One page of the order list (ORD-01).",
         "properties": {
+          "activeOrders": {
+            "description": "Orders that are not deleted and are Pending to Delivered, whatever the filters.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "allOrders": {
+            "description": "Every order that is not deleted, whatever the filters.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
           "items": {
             "description": "The rows of this page.",
             "items": {
@@ -2717,6 +2745,11 @@
               "string"
             ]
           },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
           "total": {
             "description": "How many orders match, across all pages.",
             "format": "int32",
@@ -2731,7 +2764,10 @@
           "items",
           "total",
           "page",
-          "pageSize"
+          "pageSize",
+          "allOrders",
+          "activeOrders",
+          "today"
         ],
         "type": "object"
       },

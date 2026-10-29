@@ -24,14 +24,14 @@ public interface IOrderReader
     Task<DeletedOrderPage> ListDeletedAsync(int page, int pageSize, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Reads one page of live orders that match the query, in the query's order, and the count over every page, in two SQL commands
-    /// whatever the page size (ORD-01, ORD-02, PERF-04). Every figure is a stored column; nothing is computed here. Deleted orders
-    /// are never listed or counted.
+    /// Reads one page of live orders that match the query, in the query's order, the count over every page, and the two list-wide
+    /// counts (all orders, active orders) that ignore every filter, in three SQL commands whatever the page size (ORD-01, ORD-02,
+    /// PERF-04, D-60). Every figure is a stored column or a sum of item quantities. Deleted orders are never listed or counted.
     /// </summary>
     /// <param name="query">The filters, sort and page.</param>
     /// <param name="now">The current instant, which sets the recent window of the active scope.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>The rows of the page and the total count.</returns>
+    /// <returns>The rows of the page, the total count and the two list-wide counts.</returns>
     Task<OrderListPage> ListAsync(OrderListQuery query, DateTimeOffset now, CancellationToken cancellationToken);
 }
 

@@ -2667,6 +2667,11 @@ export interface components {
              */
             paid: number | string;
             /**
+             * Format: int32
+             * @description How many pieces: the sum of the item quantities.
+             */
+            pieces: number | string;
+            /**
              * Format: double
              * @description What was handed back in pesos.
              */
@@ -2775,6 +2780,16 @@ export interface components {
         };
         /** @description One page of the order list (ORD-01). */
         OrderListResponse: {
+            /**
+             * Format: int32
+             * @description Orders that are not deleted and are Pending to Delivered, whatever the filters.
+             */
+            activeOrders: number | string;
+            /**
+             * Format: int32
+             * @description Every order that is not deleted, whatever the filters.
+             */
+            allOrders: number | string;
             /** @description The rows of this page. */
             items: components["schemas"]["OrderListEntry"][];
             /**
@@ -2787,6 +2802,11 @@ export interface components {
              * @description The page size asked for.
              */
             pageSize: number | string;
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
             /**
              * Format: int32
              * @description How many orders match, across all pages.

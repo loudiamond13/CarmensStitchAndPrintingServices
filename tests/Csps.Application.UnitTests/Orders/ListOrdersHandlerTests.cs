@@ -140,9 +140,7 @@ public sealed class ListOrdersHandlerTests
     public async Task TheListCarriesTheListWideCountsAndTheBusinessTodayNotTheUtcDate()
     {
         var lateUtc = new DateTimeOffset(2026, 10, 27, 20, 0, 0, TimeSpan.Zero);
-        var harness = new Harness(clockAt: lateUtc);
-        harness.Reader.ListAsync(Arg.Any<OrderListQuery>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(new OrderListPage([], 0, 40, 31)));
+        var harness = new Harness(clockAt: lateUtc) { Page = new OrderListPage([], 0, 40, 31) };
 
         var result = await harness.Handler.HandleAsync(new ListOrdersRequest(Q: "nobody"), TestContext.Current.CancellationToken);
 
@@ -198,7 +196,7 @@ public sealed class ListOrdersHandlerTests
                 {
                     Asked = call.Arg<OrderListQuery>();
                     AskedAt = call.Arg<DateTimeOffset>();
-                    return Task.FromResult(new OrderListPage([], 0, 0, 0));
+                    return Task.FromResult(Page);
                 });
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43"));
@@ -208,6 +206,8 @@ public sealed class ListOrdersHandlerTests
         public IOrderReader Reader { get; }
 
         public ListOrdersHandler Handler { get; }
+
+        public OrderListPage Page { get; init; } = new([], 0, 0, 0);
 
         public OrderListQuery? Asked { get; private set; }
 

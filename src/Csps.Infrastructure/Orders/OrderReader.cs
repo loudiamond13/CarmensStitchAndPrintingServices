@@ -19,6 +19,9 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
     private const string SoftDeleteFilter = "SoftDelete";
     private const int DetailReadAttempts = 3;
 
+    // Pending to Delivered; listed by name so the count never depends on the enum order.
+    private static readonly OrderStatus[] ActiveStatuses = [OrderStatus.Pending, OrderStatus.Mockup, OrderStatus.InProduction, OrderStatus.Ready, OrderStatus.Delivered];
+
     public async Task<OrderListPage> ListAsync(OrderListQuery query, DateTimeOffset now, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -26,7 +29,8 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
         // The named SoftDelete filter hides a deleted order. Every figure is a stored column.
         var matches = Filter(context.Orders.AsNoTracking(), query, now);
 
-        // Command 1: the count over every page. Command 2: the page, ending on the id so paging is stable.
+        // Command 1: the count over every page. Command 2: the page, ending on the id so paging is stable. Command 3: the two
+        // list-wide counts, which ignore every filter (D-41, D-60). The piece count of a row is a correlated sum inside command 2.
         var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
         var rows = await Sort(matches, query.Sort)
             .Select(order => new OrderListRow(
@@ -46,13 +50,19 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
                 order.Balance,
                 order.CustomerCredit,
                 order.FullyPaid,
-                0))
+                context.Set<OrderItem>().Where(item => item.OrderId == order.Id).Sum(item => item.Quantity)))
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new OrderListPage(rows, total, 0, 0);
+        var counts = await context.Orders.AsNoTracking()
+            .GroupBy(static _ => 1)
+            .Select(group => new { All = group.Count(), Active = group.Count(order => ActiveStatuses.Contains(order.Status)) })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new OrderListPage(rows, total, counts?.All ?? 0, counts?.Active ?? 0);
     }
 
     // The statuses, the search, the order dates, the product type and the balance. A typed wildcard stays literal (CWE-943).
