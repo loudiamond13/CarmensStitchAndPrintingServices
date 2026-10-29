@@ -11,7 +11,7 @@ namespace Csps.Application.OrderLists;
 /// <summary>
 /// Use case: a Manager renames or recolors an entry of one of the three order lists with the version the form was opened with
 /// (D-19, SEC-07). The steps run in this order and stop at the first failure: the form is checked (400), the entry is found (404),
-/// the version is the stored one (409), then Others is protected from a rename (422) and the other names are checked (400). A form
+/// the version is the stored one (409), then the name is checked (400, and Others cannot take another name). A form
 /// save never retries on a conflict: the person reloads and decides. A form with no change saves nothing, writes no audit entry and
 /// keeps the version. A rename writes the list's <c>.renamed</c> entry and a recolor its <c>.recolored</c> entry, both in the same
 /// save (D-31). Who changed it and when come from the token and the clock (SEC-08).
@@ -27,7 +27,7 @@ public sealed class UpdateOrderListEntryHandler(
     /// <param name="id">The entry to edit.</param>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The entry as saved, a 400 listing every field that failed, a 404 when it does not exist, a 409 for a stale version or a lost race, or a 422 for a rename of Others.</returns>
+    /// <returns>The entry as saved, a 400 listing every field that failed, a 404 when it does not exist, or a 409 for a stale version or a lost race.</returns>
     public async Task<Result<OrderListEntryDetailResponse>> HandleAsync(OrderListKind kind, Guid id, OrderListEntryRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -81,12 +81,7 @@ public sealed class UpdateOrderListEntryHandler(
             return Result.Failure<bool>(EditErrors.Stale);
         }
 
-        // Others keeps its name: any other name is a protected-entry answer, and its own name needs no lookup.
-        if (entry.IsOthers && !string.Equals(name.Trim(), entry.Name, StringComparison.Ordinal))
-        {
-            return Result.Failure<bool>(entry.Protected());
-        }
-
+        // Others keeps its name (the domain refuses another one with a 400 on name) and needs no name lookup.
         if (!entry.IsOthers && await NameTakenByAnotherAsync(descriptor.Kind, entry, name, cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure<bool>(OrderListErrors.Invalid(descriptor, new ValidationResult([OrderListErrors.NameTakenFailure()])));

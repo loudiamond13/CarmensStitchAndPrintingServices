@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T09:20:00-05:00
-updated: 2026-10-28T18:52:00-05:00
+updated: 2026-10-28T21:10:00-05:00
 ---
 
 # The order lists API
@@ -36,7 +36,7 @@ Each of the three lists has the same eight routes. `{list}` is `product-types`, 
 | `GET /{list}` | Staff | `200` an array of list items |
 | `POST /{list}` | Manager | `201` the entry detail and its `Location`; `400` field errors |
 | `GET /{list}/{id}` | Manager | `200` the entry detail; `404` |
-| `PUT /{list}/{id}` | Manager | `200` the saved detail; `400`, `404`, `409 edit.stale`, `422` (Others) |
+| `PUT /{list}/{id}` | Manager | `200` the saved detail; `400` (also a new name for Others), `404`, `409 edit.stale` |
 | `POST /{list}/{id}/retire` | Manager | `204`; `404`; `422` (Others) |
 | `POST /{list}/{id}/reactivate` | Manager | `204`; `404` |
 | `DELETE /{list}/{id}` | Manager | `204`; `404`; `422` (in use, or Others) |
@@ -96,8 +96,8 @@ The rules, checked in this order for an edit and stopping at the first failure:
    bytes. A bad form is `400` with every broken field listed.
 2. The entry must exist: `404`.
 3. The `version` must be the stored one: `409` `edit.stale`. A form edit is never retried; the person reloads and decides.
-4. Others keeps its name: any other name for it is `422` `order-expense-categories.protected`. Sending Others its own name is
-   accepted and changes nothing.
+4. Others keeps its name: any other name for it is `400` on `name` with "The Others name can't change." (the same answer as the company
+   expense category). Sending Others its own name is accepted and changes nothing.
 5. The name must not be held by another entry of the same list, retired ones included, in any letter case: `400` on `name`.
 
 A form with no change saves nothing, writes no audit entry and keeps the version. A rename writes `<prefix>.renamed` and a recolor
@@ -136,11 +136,11 @@ The migration `AddOrderLists` writes these seventeen rows once, with fixed ids, 
 
 | Status | Code | When |
 |---|---|---|
-| `400` | `{list}.invalid-request` | A broken field. Messages: "Enter a product type name." (also "payment method" and "category"), "Keep the name to 40 characters or fewer.", "Choose a badge color.", "Reload the form and try again." (bad version), "That name is already used. Choose another one." |
+| `400` | `{list}.invalid-request` | A broken field. Messages: "The Others name can't change." (order expense Others only), "Enter a product type name." (also "payment method" and "category"), "Keep the name to 40 characters or fewer.", "Choose a badge color.", "Reload the form and try again." (bad version), "That name is already used. Choose another one." |
 | `404` | `{list}.not-found` | "This product type was deleted." (also "payment method" and "category") |
 | `409` | `edit.stale` | "This was changed by someone else. Reload and try again." |
 | `422` | `{list}.in-use` | "This product type is used by an order, so it can't be deleted. Retire it instead." (also "payment method" and "category") |
-| `422` | `order-expense-categories.protected` | "The Others category can't be renamed, retired or deleted." |
+| `422` | `order-expense-categories.protected` | "The Others category can't be renamed, retired or deleted." (retire and delete only; a rename is the `400` above) |
 
 An order that names a retired entry is refused with `400` on the field: "This product type was retired. Choose another one.",
 "This payment method was retired. Choose another one." or "This category was retired. Choose another one." An order that names
