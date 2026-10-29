@@ -483,6 +483,107 @@ public sealed class FitCheckRunnerTests
         }
     }
 
+    [Fact]
+    public async Task TheSummaryHoldsCountsAndListWordsOnly()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            await AddSentinelOrderAsync(fake, "SENTINEL-DESC-7Q", token);
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token);
+
+                exit.ShouldBe(0, error.ToString());
+                var folder = Path.Combine(localRoot, "legacy-fit-check");
+                var full = await File.ReadAllTextAsync(Directory.EnumerateFiles(folder, "findings-*.md").ShouldHaveSingleItem(), token);
+                full.ShouldContain("SENTINEL-UNKNOWN-7Q");
+
+                var summaryLines = await File.ReadAllLinesAsync(Directory.EnumerateFiles(folder, "summary-*.md").ShouldHaveSingleItem(), token);
+                summaryLines[1].ShouldStartWith("*Created: ");
+                var summary = string.Join('\n', summaryLines);
+                summary.ShouldNotContain("SENTINEL", Case.Insensitive);
+                summary.ShouldNotContain("ORD-");
+                summary.ShouldNotContain("Orders:");
+                summary.ShouldContain("Product type 'Fixture Garments' has no match: 1 item");
+                summary.ShouldContain("Write evidence: unchanged");
+                summary.ShouldContain("Trial database removed: yes");
+
+                var console = output.ToString();
+                console.ShouldContain("Orders checked: 2. Company expenses checked: 1. Findings: ");
+                console.ShouldContain("Full list (never commit): _local/legacy-fit-check/findings-");
+                console.ShouldContain("Summary (counts only): _local/legacy-fit-check/summary-");
+                console.ShouldNotContain("SENTINEL", Case.Insensitive);
+                error.ToString().ShouldNotContain("SENTINEL", Case.Insensitive);
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ASummaryHoldingAReadValueIsNotWritten()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            await AddSentinelOrderAsync(fake, "Trial database removed", token);
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token);
+
+                exit.ShouldBe(1);
+                error.ToString().TrimEnd().ShouldBe("Failed: the summary held a personal value, so it was not written.");
+                var folder = Path.Combine(localRoot, "legacy-fit-check");
+                Directory.EnumerateFiles(folder, "summary-*.md").ShouldBeEmpty();
+                output.ToString().ShouldNotContain("Summary (counts only)");
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
+    private static async Task AddSentinelOrderAsync(FakeLegacyDatabase fake, string description, CancellationToken token)
+    {
+        await fake.AddOrderTypeAsync(new LegacyOrderTypeRow { OrderTypeId = 2, OrderTypeName = "Fixture Garments" }, token);
+        await fake.AddUserAsync(new LegacyUserRow { Id = "user-1", UserName = "SENTINEL-USER-7Q@example.invalid", Email = "SENTINEL-USER-7Q@example.invalid" }, token);
+        await fake.AddOrderRowAsync(
+            new LegacyOrderRow
+            {
+                OrderId = 2,
+                OrderName = FakeLegacyDatabase.SentinelName,
+                Note = "SENTINEL-NOTE-7Q",
+                OrderDate = new DateTime(2025, 6, 10, 3, 0, 0, DateTimeKind.Unspecified),
+                IsDeleted = false,
+                OrderTypeId = 2,
+                StatusId = 1,
+            },
+            token);
+        await fake.AddItemAsync(new LegacyOrderItemRow { OrderItemId = 3, OrderId = 2, Description = description, Quantity = 1, Price = 100m }, token);
+        await fake.AddDiscountAsync(new LegacyDiscountRow { OrderDiscountId = 1, OrderId = 2, Description = "SENTINEL-DESC-7Q", Amount = 5m, DiscountedBy = "SENTINEL-GIVER-7Q" }, token);
+        await fake.AddPaymentAsync(new LegacyPaymentRow { PaymentId = 1, OrderId = 2, PaymentDate = new DateTime(2025, 6, 11, 3, 0, 0, DateTimeKind.Unspecified), PaidBy = "SENTINEL-PAYER-7Q", IsDeleted = false, Amount = 40m, PaidTo = "SENTINEL-UNKNOWN-7Q" }, token);
+        await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 1, OrderId = 2, Description = "SENTINEL-DESC-7Q", SpentDate = new DateTime(2025, 6, 11, 3, 0, 0, DateTimeKind.Unspecified), IsCompanyExpenses = false, Amount = 10m, PaidBy = "SENTINEL-PAYER-7Q" }, token);
+        await fake.AddExpenseAsync(new LegacyExpenseRow { ExpenseId = 2, OrderId = null, Description = "SENTINEL-DESC-7Q", SpentDate = new DateTime(2025, 6, 11, 3, 0, 0, DateTimeKind.Unspecified), IsCompanyExpenses = true, Amount = 0m, PaidBy = "SENTINEL-PAYER-7Q" }, token);
+    }
+
     private static async Task<(int Expenses, int Audits)> ReadTrialExpenseCountsAsync(string serverConnection, string name, CancellationToken token)
     {
         var builder = new DbContextOptionsBuilder<CspsDbContext>();
