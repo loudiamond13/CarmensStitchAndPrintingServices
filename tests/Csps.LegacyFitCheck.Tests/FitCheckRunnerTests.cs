@@ -294,6 +294,48 @@ public sealed class FitCheckRunnerTests
         }
     }
 
+    [Fact]
+    public async Task AStoredTotalOffByACentavoIsListedWithAmountsOnlyInTheLocalFile()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            await fake.AddOrderRowAsync(
+                new LegacyOrderRow { OrderId = 2, OrderName = "Sample club", OrderDate = new DateTime(2025, 6, 10, 3, 0, 0, DateTimeKind.Unspecified), IsDeleted = false, OrderTypeId = 1, StatusId = 1, TotalAmount = 100.0000m, TotalBalance = 100m },
+                token);
+            await fake.AddOrderRowAsync(
+                new LegacyOrderRow { OrderId = 3, OrderName = "Sample team", OrderDate = new DateTime(2025, 6, 10, 3, 0, 0, DateTimeKind.Unspecified), IsDeleted = false, OrderTypeId = 1, StatusId = 1, TotalAmount = 99.99m, TotalBalance = 100m },
+                token);
+            await fake.AddItemAsync(new LegacyOrderItemRow { OrderItemId = 3, OrderId = 2, Description = "Sample shirt", Quantity = 1, Price = 100m }, token);
+            await fake.AddItemAsync(new LegacyOrderItemRow { OrderItemId = 4, OrderId = 3, Description = "Sample shirt", Quantity = 1, Price = 100m }, token);
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token);
+
+                exit.ShouldBe(0, error.ToString());
+                var file = Directory.EnumerateFiles(Path.Combine(localRoot, "legacy-fit-check"), "findings-*.md").ShouldHaveSingleItem();
+                var lines = await File.ReadAllLinesAsync(file, token);
+                var mismatches = lines.Where(static line => line.Contains("| TotalMismatch |", StringComparison.Ordinal)).ToList();
+                var one = mismatches.ShouldHaveSingleItem();
+                one.ShouldContain("| Orders:3 |");
+                one.ShouldContain("| totals.total |");
+                one.ShouldContain("99.99");
+                output.ToString().ShouldNotContain("99.99");
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
     private sealed record TrialStaffRow(Guid Id, string FirstName, string LastName, string Email);
 
     private sealed record TrialPeople(IReadOnlyList<TrialStaffRow> Staff, IReadOnlyList<Guid> Receivers, IReadOnlyList<Guid> Payers);
