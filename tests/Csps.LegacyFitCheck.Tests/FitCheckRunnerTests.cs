@@ -1,3 +1,4 @@
+using Csps.Domain.Expenses;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.LegacyFitCheck.Source;
@@ -431,6 +432,65 @@ public sealed class FitCheckRunnerTests
         finally
         {
             DeleteRoot(localRoot);
+        }
+    }
+
+    [Fact]
+    public async Task CompanyExpensesAreCheckedAndNothingIsSaved()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            await fake.AddExpenseAsync(
+                new LegacyExpenseRow { ExpenseId = 1, OrderId = null, Description = "Sample rent", SpentDate = new DateTime(2025, 3, 4, 2, 30, 0, DateTimeKind.Unspecified), IsCompanyExpenses = true, Amount = 0.0000m, PaidBy = "SENTINEL-NOBODY" },
+                token);
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+            (int Expenses, int Audits) before = default;
+            (int Expenses, int Audits) after = default;
+            var hooks = new FitCheckHooks(
+                AfterTrialCreated: async (name, ct) => before = await ReadTrialExpenseCountsAsync(server.MasterConnectionString, name, ct),
+                BeforeTrialDropped: async (name, ct) => after = await ReadTrialExpenseCountsAsync(server.MasterConnectionString, name, ct));
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token, hooks);
+
+                exit.ShouldBe(0, error.ToString());
+                output.ToString().ShouldContain("Company expenses checked: 1.");
+                output.ToString().ShouldNotContain("SENTINEL");
+                after.Expenses.ShouldBe(0);
+                after.Audits.ShouldBe(before.Audits);
+
+                var file = Directory.EnumerateFiles(Path.Combine(localRoot, "legacy-fit-check"), "findings-*.md").ShouldHaveSingleItem();
+                var lines = (await File.ReadAllLinesAsync(file, token)).Where(static line => line.StartsWith("| CompanyExpense | Expenses:1 |", StringComparison.Ordinal)).ToList();
+                lines.Count(static line => line.Contains($"| ExpenseRule | Amount: {ExpenseRules.AmountTooSmall} |", StringComparison.Ordinal)).ShouldBe(1);
+                lines.Count(static line => line.Contains($"| ExpenseRule | PaidByUserId: {ExpenseRules.PaidByInactive} |", StringComparison.Ordinal)).ShouldBe(1);
+                lines.Count(static line => line.Contains("| CannotMap | company-expense.no-category |", StringComparison.Ordinal)).ShouldBe(1);
+                lines.Count(static line => line.Contains("| LegacyHolderUsed | person.legacy-holder |", StringComparison.Ordinal)).ShouldBe(1);
+                lines.Count(static line => line.Contains("| ExpenseRule |", StringComparison.Ordinal)).ShouldBe(2);
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
+    private static async Task<(int Expenses, int Audits)> ReadTrialExpenseCountsAsync(string serverConnection, string name, CancellationToken token)
+    {
+        var builder = new DbContextOptionsBuilder<CspsDbContext>();
+        CspsDbContextOptions.Configure(builder, TrialDatabase.ConnectionStringFor(serverConnection, name));
+        var context = new CspsDbContext(builder.Options);
+        await using (context.ConfigureAwait(false))
+        {
+            var expenses = await context.CompanyExpenses.IgnoreQueryFilters().CountAsync(token);
+            var audits = await context.AuditLog.CountAsync(token);
+            return (expenses, audits);
         }
     }
 
