@@ -1,6 +1,6 @@
 # Phase 7: Order Domain & API - Context
 
-*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T22:45:00-05:00*
+*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-29T12:05:00-05:00*
 
 **Gathered:** 2026-10-27
 **Status:** Ready for planning
@@ -92,6 +92,7 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 ### Amendment approval (plan 07-04; owner 2026-10-28)
 - **D-39:** **The drafted requirement and roadmap wording in `07-AMENDMENTS.md` is approved as drafted (approve-all).** It is applied to ORD-05, ORD-06, ORD-13, ORD-17, ORD-18 and MONEY-01, the Phase 7 notes line under the roadmap success criteria (including the clause that criterion 2's "overpayment rule across all mutation types" is superseded by D-12), and Phase 7.1 "Legacy Fit Check (read-only)" is inserted (D-33). **Left open on purpose:** whether refunds on a soft-deleted order count toward money on hand. No wording was added; it is parked in the STATE.md Owner backlog for when the money-on-hand reports are planned. (owner, 2026-10-28)
 - **D-40:** **The discount cap stays in the domain only for now.** No database check on `Orders` (such as discount total at most subtotal) is added in Phase 7. Revisit after Phase 7.1 measures the legacy rows. **The discount messages in `OrderRules.cs` are approved as written** (07-10), so Phase 8 mirrors them in zod. (owner, 2026-10-28)
+  Settled by 07.1 D-27 (owner, 2026-10-29): the cap stays in the domain and validators only; no database check.
 - **D-41:** **The payment messages in `OrderRules.cs` are approved as written** (07-11), so Phase 8 mirrors them in zod. **A payment may be dated before the order date.** The only payment-date rule stays "not in the future" (D-30). (owner, 2026-10-28)
 - **D-42:** **The order expense messages in `OrderRules.cs` are approved as written** (07-12). **The payer audit stays as built:** `order-expense.changed` shows the current payer and a payer change also writes its own `order-expense.payer-changed` entry (old > new), the same shape as payments. (owner, 2026-10-28)
 - **D-43:** **The refund "not allowed" check applies to adding a refund only.** On an active order, an existing refund can still be lowered or removed after it cleared the credit; removing it brings the credit back. **The refund messages in `OrderRules.cs` are approved as written** (07-14). (owner, 2026-10-28)
@@ -99,6 +100,7 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 - **D-45:** **The order list `newest` sort is order date first (latest first), then recorded time, then id** (07-16). **Drop the two unused indexes `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductTypeId`** in a small indexes-only migration (no data affected). **"Choose a sort order." is approved.** (owner, 2026-10-28)
 - **D-46:** **Renaming the order expense Others answers like Phase 6:** 400 on `name` with "The Others name can't change." (07-17). **The 07-17 list messages are approved as written.** **A deadlock victim on order create maps to the existing "orders are being saved" 409**, not a 500. (owner, 2026-10-28)
 - **D-47:** **Legacy import keeps refunds as they were** (no refund eligibility or cap rules on import) **and `IgnoreAmountCaps` allows a quantity of 0** (07-18). **The import-only messages are approved as written.** Whether contact-number characters, email shape or a due date before the order date get a named relaxation waits for the Phase 7.1 findings. (owner, 2026-10-28)
+  Settled by 07.1 D-28 (owner, 2026-10-29): closed with no relaxation.
 - **D-48:** **The 07-19 audit viewer copy is approved as written.** **The audit Done to filter also finds order entries by receiver, payer and refunder**, using the same rule as the company-expense payer filter. **The audit page subline becomes** "Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months." (owner, 2026-10-28)
 - **D-49:** Code review rulings (07-REVIEW.md). **(a)** Removing or lowering a payment that would leave paid below refunded is refused with "The refunds would be more than the payments. Lower or remove a refund first." (DOM-CR-01). **(b)** An edit re-checks only the fields it changes, so imported legacy values stay until someone edits them (DOM-WR-04). **(c)** A full create body keeps its single `order.created` audit entry; no per-child entries (APO-WR-02, accepted). **(d)** A first due date on an imported order reads "Due date: Not set to Nov 18, 2026" in the audit viewer (IWB-WR-01). (owner, 2026-10-28)
 

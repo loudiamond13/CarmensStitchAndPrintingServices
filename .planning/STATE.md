@@ -771,6 +771,27 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1]: ExpenseRule findings use the rule key '{field}: {Phase 6 message}' with the field as the path; plan 09 groups company expense findings by it
 - [Phase 07.1]: Plan 07.1-09: the full findings file is written before the summary self-check and stays when the self-check refuses; a refusal exits 1 with fixed text and writes no summary
 - [Phase 07.1]: Plan 07.1-09: D-87 built as rule key expense.unplaced (CannotMap, RecordKind.UnplacedExpense), counts only; summary line 'Expenses with no order and not marked as company expenses (counted only, not judged)'
+- [Phase 07.1]: D-22 (owner, 2026-10-29): counts-only summary published as shown in `07.1-FINDINGS.md` (one-way, public repo)
+- [Phase 07.1]: D-23 (owner, 2026-10-29): Group 1 keep the probe, no Domain change
+- [Phase 07.1]: D-24 (owner, 2026-10-29): Group 2 read stored times as UTC and show in Manila time
+- [Phase 07.1]: D-25 (owner, 2026-10-29): Group 3 keep `ORD-{year}-{legacy id}` for the check; final scheme in Phase 15
+- [Phase 07.1]: D-26 (owner, 2026-10-29): Group 4 keep legacy table and column names in committed docs
+- [Phase 07.1]: D-27 (owner, 2026-10-29): Group 5 / 07 D-40: discount cap stays in domain and validators only; no schema change
+- [Phase 07.1]: D-28 (owner, 2026-10-29): Group 6 / 07 D-47: closed with no relaxation
+- [Phase 07.1]: D-29 (owner, 2026-10-29): Group 7 orders with no order number: map in Phase 15 with the built number
+- [Phase 07.1]: D-30 (owner, 2026-10-29): Group 8 product type 'Garments' has no match: decide in Phase 15 with the real product list (map to an existing type or add it as a new type)
+- [Phase 07.1]: D-31 (owner, 2026-10-29): Group 9 payments with no payment method: map in Phase 15 (placeholder method or new list entry, with owner approval then)
+- [Phase 07.1]: D-32 (owner, 2026-10-29): Group 10 payer text stays in the payment notes
+- [Phase 07.1]: D-33 (owner, 2026-10-29): Group 11 map legacy Manager to CSPS Manager in Phase 15 (mapping ruling, not an import relaxation); provisional rule is legacy Admin and Manager map to staff; tool code unchanged
+- [Phase 07.1]: D-34 (owner, 2026-10-29): Group 12 expenses with no category: map to `Others`, classify later in Phase 15 or 16
+- [Phase 07.1]: D-35 (owner, 2026-10-29): Group 13 deleted payments (3): keep as notes in Phase 15
+- [Phase 07.1]: D-36 (owner, 2026-10-29): Group 14 discount giver (52 discounts): keep as a note in Phase 15
+- [Phase 07.1]: D-37 (owner, 2026-10-29): Group 15 orders with no status history: accept, the tool writes one row
+- [Phase 07.1]: D-38 (owner, 2026-10-29): Group 16 items with a done flag (2): accept as dropped with a reconciliation note
+- [Phase 07.1]: D-39 (owner, 2026-10-29): Group 17 unmapped columns: decide each in Phase 15 when the schema document is written
+- [Phase 07.1]: D-40 (owner, 2026-10-29): Group 18 discount above subtotal also shows `AllowOverpaid`: leave as is
+- [Phase 07.1]: D-41 (owner, 2026-10-29): Group 20 keep the two relaxations already relied on (missing contact number, missing due date) for the Phase 16 import
+- [Phase 07.1]: D-42 (owner, 2026-10-29): no new import relaxation approved; plan 07.1-12's relaxation list is empty. Groups 19, 21, 22 noted, nothing to rule
 
 ### Pending Todos
 
@@ -809,7 +830,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [ ] **Reminder after Phase 8 ships (owner, 2026-10-29, 07-UAT test 1 deferred):** remind the owner to read the DOM-WR-04 code: `LegacyEditFilter.cs`, the six `UpdateOrder*Handler.cs` files and the legacy edit checks in `Order.cs` (tests: `OrderLegacyEditTests`, `LegacyEditHandlerTests`). Also ask them to confirm that a legacy order with no due date still needs one on edit, unlike a missing contact number. Raise this at the start of the first session after Phase 8 is complete.
 - [x] **Ruled D-78 (owner, 2026-10-29): option 1, keep `auth.session-busy`.** **List writes busy code (APX-IN-04):** a list create, retire, reactivate or delete that loses a race twice answers the shared `auth.session-busy` code (Phase 6 does the same). Pick one. (1) Recommended: keep it. (2) Give order lists their own busy code.
 - [ ] **Confirmed for the Phase 8 UI review (owner, 2026-10-29, 07-UAT test 4).** **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
-- [ ] **Phase 7.1 rulings session (plan 07.1-11, owner, 2026-10-29):** the real fit-check run is done (07.1 D-17, D-21): the restore was proven unchanged and the trial database removed. A plain-words briefing with options for every finding group is in `_local/legacy-fit-check/briefing-20261029-162702.md` (private, never committed). Read it and rule on each group. Also delete the first, refused run's full list `_local/legacy-fit-check/findings-20261029-161931.md` by hand (it was never opened).
+- [x] **Ruled 07.1 D-22 to D-42 (owner, 2026-10-29): publish as shown; every group answered, all recommendations accepted (Group 8 decide in Phase 15, Group 11 map Manager to CSPS Manager); no new relaxation. Still open: delete the refused run's full list by hand.** **Phase 7.1 rulings session (plan 07.1-11, owner, 2026-10-29):** the real fit-check run is done (07.1 D-17, D-21): the restore was proven unchanged and the trial database removed. A plain-words briefing with options for every finding group is in `_local/legacy-fit-check/briefing-20261029-162702.md` (private, never committed). Read it and rule on each group. Also delete the first, refused run's full list `_local/legacy-fit-check/findings-20261029-161931.md` by hand (it was never opened).
 - [ ] **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
 
 ### Blockers/Concerns
