@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T09:40:00-05:00
-updated: 2026-10-28T19:20:00-05:00
+updated: 2026-10-28T20:10:00-05:00
 ---
 
 # Phase 7 deferred items
@@ -20,3 +20,10 @@ Plans 07-07 and 07-09 listed this as open. It is not open. D-05 locks a Complete
 ## Orchestrator action: drop two unused indexes (D-45)
 
 The owner approved dropping `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductTypeId` (owner, 2026-10-28). Do it after plan 07-17, in one indexes-only migration with a test, before the phase closes.
+
+## Orchestrator action: two small fixes (D-46)
+
+- Renaming the order expense Others answers 400 on `name` with "The Others name can't change." (the Phase 6 answer), not 422 `order-expense-categories.protected`.
+- A deadlock victim in `CreateOrderHandler` maps to the existing "orders are being saved" 409 (`orders.busy`), not a 500.
+
+Done together with the D-45 index drop, after plan 07-17.

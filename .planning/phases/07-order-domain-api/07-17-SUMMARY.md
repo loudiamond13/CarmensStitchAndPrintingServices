@@ -4,7 +4,7 @@ plan: 17
 subsystem: api
 tags: [order-lists, product-types, payment-methods, order-expense-categories, manager-routes, races, audit, openapi]
 created: "2026-10-28T19:08:00-05:00"
-updated: "2026-10-28T19:08:00-05:00"
+updated: "2026-10-28T20:10:00-05:00"
 
 requires:
   - phase: 07-order-domain-api
@@ -282,6 +282,8 @@ None. The tables, unique indexes and foreign keys came from 07-01 and the child 
 - The OpenAPI snapshot run with the write flag fails by design; the run without it passes.
 
 ## Deferred Issues
+
+**Owner ruling D-46 (2026-10-28):** Others rename answers like Phase 6 (400 on `name`), the list messages are approved, and an order-create deadlock maps to the 409. The two code changes are queued in `deferred-items.md`.
 
 - **Open from 07-16, still waiting on the owner:** the `newest` sort ruling (D-45 recorded), `IX_Orders_CreatedAtUtc` and the redundant `IX_OrderItems_ProductTypeId`. Nothing here touches them; no index or column was dropped.
 - **Open from D-39:** refunds on a soft-deleted order and money on hand (parked in the STATE.md owner backlog).
