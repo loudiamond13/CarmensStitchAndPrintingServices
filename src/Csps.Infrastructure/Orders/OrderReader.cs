@@ -12,7 +12,7 @@ namespace Csps.Infrastructure.Orders;
 
 /// <summary>
 /// <see cref="IOrderReader"/> over EF: untracked reads. The order detail is one statement for the order and one for each child list and
-/// the history, then one that checks the row version has not moved.
+/// the history, then one that checks the row version has not moved. The business today is stamped from the calendar after the reads.
 /// </summary>
 internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calendar) : IOrderReader
 {
@@ -179,7 +179,6 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         // The header and each list are separate statements, so a save can land between them. The row version is read again after
         // the lists, as OrderStore.FindAsync does; when it moved, the order is read again so the totals, the lists and the version
         // come from one save. After the last attempt the latest read is returned, as a save that keeps landing is not worth a failure.
-        _ = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         OrderDetailResponse? view = null;
         for (var attempt = 1; attempt <= DetailReadAttempts; attempt++)
         {
@@ -196,11 +195,18 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                 .ConfigureAwait(false);
             if (current is null || RowVersions.ToText(current) == view.Version)
             {
-                return current is null ? null : view;
+                return current is null ? null : await StampTodayAsync(view, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        return view;
+        return view is null ? null : await StampTodayAsync(view, cancellationToken).ConfigureAwait(false);
+    }
+
+    // The business today comes from the calendar once per answer (D-59), after the reads, so a retried read never repeats it.
+    private async Task<OrderDetailResponse> StampTodayAsync(OrderDetailResponse view, CancellationToken cancellationToken)
+    {
+        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
+        return view with { Today = clock.Today };
     }
 
     private async Task<OrderDetailResponse?> ReadDetailOnceAsync(Guid id, CancellationToken cancellationToken)
@@ -232,23 +238,29 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             return null;
         }
 
-        var items = await (
+        var itemRows = await (
             from item in context.Set<OrderItem>().AsNoTracking()
             where item.OrderId == id
             join productType in context.ProductTypes.AsNoTracking() on item.ProductTypeId equals productType.Id
+            join recorderUser in context.Users on item.CreatedById equals (Guid?)recorderUser.Id into recorders
+            from recorder in recorders.DefaultIfEmpty()
+            join changerUser in context.Users on item.UpdatedById equals (Guid?)changerUser.Id into changers
+            from changer in changers.DefaultIfEmpty()
             orderby item.Position
-            select new OrderItemResponse(
-                item.Id,
-                new OrderListRef(productType.Id, productType.Name, productType.Tone, productType.RetiredAtUtc != null),
-                item.Description,
-                item.SizeVariant,
-                item.Quantity,
-                item.UnitPrice,
-                item.LineTotal,
-                null,
-                default,
-                null,
-                null))
+            select new
+            {
+                Item = item,
+                ProductTypeName = productType.Name,
+                ProductTypeTone = productType.Tone,
+                ProductTypeRetired = productType.RetiredAtUtc != null,
+                RecorderFirst = (string?)recorder.FirstName,
+                RecorderLast = (string?)recorder.LastName,
+                RecorderFormer = recorder.DeletedAtUtc != null,
+                ChangerId = (Guid?)changer.Id,
+                ChangerFirst = (string?)changer.FirstName,
+                ChangerLast = (string?)changer.LastName,
+                ChangerFormer = changer.DeletedAtUtc != null,
+            })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -418,7 +430,24 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             OrderStatusNames.ToKey(order.Status),
             order.StatusChangedAtUtc,
             order.Notes,
-            items,
+            [
+                .. itemRows.Select(row => new OrderItemResponse(
+                    row.Item.Id,
+                    new OrderListRef(row.Item.ProductTypeId, row.ProductTypeName, row.ProductTypeTone, row.ProductTypeRetired),
+                    row.Item.Description,
+                    row.Item.SizeVariant,
+                    row.Item.Quantity,
+                    row.Item.UnitPrice,
+                    row.Item.LineTotal,
+                    row.Item.CreatedById is { } recordedBy && row.RecorderFirst is not null
+                        ? new ActorRef(recordedBy, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer)
+                        : null,
+                    row.Item.CreatedAtUtc,
+                    row.ChangerId is { } changedBy && row.ChangerFirst is not null
+                        ? new ActorRef(changedBy, $"{row.ChangerFirst} {row.ChangerLast}", row.ChangerFormer)
+                        : null,
+                    row.Item.UpdatedAtUtc)),
+            ],
             [
                 .. discountRows.Select(row => new OrderDiscountResponse(
                     row.Discount.Id,

@@ -56,6 +56,9 @@ public sealed class OrderReaderDetailSnapshotTests(CspsDatabase database) : ICla
     {
         var id = await SeedAsync();
         await using var context = database.CreateContext();
+        var staffId = await context.Users.Where(user => user.FirstName == "Mina").Select(user => user.Id).SingleAsync(TestContext.Current.CancellationToken);
+        await context.Set<OrderItem>().Where(item => item.OrderId == id)
+            .ExecuteUpdateAsync(set => set.SetProperty(item => item.CreatedById, (Guid?)staffId).SetProperty(item => item.CreatedAtUtc, Now), TestContext.Current.CancellationToken);
         var lateUtc = new DateTimeOffset(2026, 10, 28, 20, 0, 0, TimeSpan.Zero);
 
         var view = await new OrderReader(context, new FixedBusinessCalendar(lateUtc)).GetDetailAsync(id, TestContext.Current.CancellationToken);

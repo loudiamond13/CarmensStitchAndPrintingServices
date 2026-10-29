@@ -2466,6 +2466,11 @@ export interface components {
             statusHistory: components["schemas"]["OrderStatusChangeResponse"][];
             /** @description The team name; null when none. */
             teamName: null | string;
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
             /** @description The money figures. */
             totals: components["schemas"]["OrderTotalsResponse"];
             /** @description The base64 of the eight-byte row version a save must send back. */
@@ -2604,6 +2609,12 @@ export interface components {
              */
             id: string;
             /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /**
              * Format: double
              * @description The quantity times the unit price.
              */
@@ -2615,6 +2626,12 @@ export interface components {
              * @description How many.
              */
             quantity: number | string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
             /** @description The size or variant; null when none. */
             sizeVariant: null | string;
             /**

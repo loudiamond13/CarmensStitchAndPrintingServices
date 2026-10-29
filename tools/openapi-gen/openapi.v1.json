@@ -1956,6 +1956,11 @@
               "string"
             ]
           },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
           "totals": {
             "$ref": "#/components/schemas/OrderTotalsResponse",
             "description": "The money figures."
@@ -1989,7 +1994,8 @@
           "recordedAt",
           "lastChangedBy",
           "lastChangedAt",
-          "version"
+          "version",
+          "today"
         ],
         "type": "object"
       },
@@ -2313,6 +2319,25 @@
             "format": "uuid",
             "type": "string"
           },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
           "lineTotal": {
             "description": "The quantity times the unit price.",
             "format": "double",
@@ -2333,6 +2358,22 @@
             "type": [
               "integer",
               "string"
+            ]
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System."
+              }
             ]
           },
           "sizeVariant": {
@@ -2359,7 +2400,11 @@
           "sizeVariant",
           "quantity",
           "unitPrice",
-          "lineTotal"
+          "lineTotal",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt"
         ],
         "type": "object"
       },

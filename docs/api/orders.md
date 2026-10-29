@@ -475,7 +475,8 @@ Who may do what:
 {
   id, number, customerName, teamName, contactNumber, email, address,
   orderDate, dueDate, status, statusChangedAt, notes,
-  items: [ { id, productType: { id, name, tone, retired }, description, sizeVariant, quantity, unitPrice, lineTotal } ],
+  items: [ { id, productType: { id, name, tone, retired }, description, sizeVariant, quantity, unitPrice, lineTotal,
+             recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   discounts: [ { id, kind, value, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   payments: [ { id, paymentDate, amount, method: { id, name, tone, retired }, reference, notes,
                 receivedBy, receivedByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
@@ -485,7 +486,7 @@ Who may do what:
                 paidBy, paidByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   statusHistory: [ { from, to, changedBy, changedAt } ],
   totals: { subtotal, discount, total, paid, refunded, balance, customerCredit, expenses, profit, fullyPaid },
-  recordedBy, recordedAt, lastChangedBy, lastChangedAt, version
+  recordedBy, recordedAt, lastChangedBy, lastChangedAt, version, today
 }
 ```
 
@@ -499,6 +500,11 @@ Who may do what:
   subtotal of `22450.00`.
 - `recordedBy` is the staff member who created the order, `null` reads as **System**; `lastChangedBy` and `lastChangedAt` are
   `null` until a change. A person whose account was deleted keeps their name with `formerStaff: true`.
+- Each item has `recordedBy`, `recordedAt`, `lastChangedBy` and `lastChangedAt` like a discount does (D-44): who added the line and when,
+  and who last edited it and when (both `null` until an edit). They come from the token and the server clock; any such member in an
+  item request body is ignored (SEC-08).
+- `today` is the business date from the shop's time zone (D-59). Every order answer carries it (create, read, details, items, discounts,
+  payments, refunds, expenses and status), so the browser never reads the device clock for a due date.
 - `productType.retired` is true when a Manager later retired the type; old orders keep showing it.
 - `version` is the base64 of the eight-byte row version a later save must send back.
 
