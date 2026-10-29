@@ -339,6 +339,9 @@ function personPair(label: string, line: AuditChangeLine, stated: boolean): stri
   return line.fromPerson === null ? null : pair(label, personText(line.fromPerson), personText(line.toPerson));
 }
 
+/** What the empty side of a change reads as (the same words as the hidden text of EmptyValue). */
+const NOT_SET = 'Not set';
+
 const NUMBER_TEXT = /^\d+$/u;
 const DISCOUNT_VALUE_TEXT = /^-?\d+(?:\.\d+)?%?$/u;
 
@@ -368,8 +371,14 @@ export function describeAuditChange(line: AuditChangeLine, stated = false): stri
       return valuePair('Date', line, stated, dateText);
     case 'orderDate':
       return valuePair('Order date', line, stated, dateText);
-    case 'dueDate':
+    case 'dueDate': {
+      // An imported order may have had no due date, so the first one is a change from nothing (D-49d).
+      if (!stated && line.from === null && line.to !== null) {
+        const to = dateText(line.to);
+        return to === null ? null : pair('Due date', NOT_SET, to);
+      }
       return valuePair('Due date', line, stated, dateText);
+    }
     case 'quantity':
       return valuePair('Quantity', line, stated, (value) => (NUMBER_TEXT.test(value) ? value : null));
     case 'status':
