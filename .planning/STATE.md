@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
-stopped_at: Phase 07.1 context gathered
-last_updated: "2026-10-29T12:45:48.146Z"
+stopped_at: Completed 07.1-01-PLAN.md
+last_updated: "2026-10-29T13:02:24.053Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07.1 execution started
-state_head: 6e93ae6064342271e94348bbd5ec8ce228f35782
+state_head: 379a64d0fa54d1ecd3fe3f72a4693b9b17a63b8a
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 219
-  completed_plans: 207
+  completed_plans: 208
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T13:00:00-05:00"
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
-Plan: 1 of 12
-Status: Executing Phase 07.1
+Plan: 2 of 12
+Status: Ready to execute
 Last activity: 2026-10-29 — Phase 07.1 execution started
 
 Progress: [████░░░░░░] 39%
@@ -266,6 +266,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07 P18 | 35 min | 3 tasks | 22 files |
 | Phase 07 P19 | 41 min | 3 tasks | 18 files |
 | Phase 07 P20 | 35 min | 2 tasks | 10 files |
+| Phase 07.1 P01 | 25 min | 2 tasks | 28 files |
 
 ## Accumulated Context
 
@@ -741,6 +742,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07 UI review]: D-83 (owner, 2026-10-29, quick 261029-87p open items 1 and 2): keep the Audit Log copy as built: "Payer changed", "Receiver changed", "Refunder changed" for unreadable person lines, and "Group" and "All groups" for the Group select. A change line for a field the screen does not know about stays left out (no generic sentence), because the screen and the API ship together.
 - [Phase 07 UI review]: D-84 (owner, 2026-10-29, replaces the unknown-field part of D-83): a change line for a field the screen does not know about reads "Other detail changed", with no field name or values, and shows once per entry however many unknown fields there are. The rest of D-83 (the copy) stands.
 - [Phase 07.1 execute]: D-85 (owner, 2026-10-29): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 still ships on its own PR first; 7.1 follows it.
+- [Phase 07.1]: Fit check tool gets InternalsVisibleTo on Csps.Infrastructure to register the internal CspsUnitOfWork; no new public DI surface
+- [Phase 07.1]: Fit check tests run in CI step 3 integration tests (full mode, container SQL) because they need a real SQL Server
 
 ### Pending Todos
 
@@ -843,6 +846,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T11:36:44.887Z
-Stopped at: Phase 07.1 context gathered
-Resume file: .planning/phases/07.1-legacy-fit-check-read-only/07.1-CONTEXT.md
+Last session: 2026-10-29T13:02:11.970Z
+Stopped at: Completed 07.1-01-PLAN.md
+Resume file: None
