@@ -5,26 +5,27 @@ namespace Csps.LegacyFitCheck.Tests;
 /// <summary>
 /// The fit check holds no hand-written SQL (owner rule, D-50) and no EF logging hooks (D-02, T-07.1-06). Every C# file under
 /// tools/Csps.LegacyFitCheck is scanned. Reading the command text EF generated is allowed, because the read-only guard needs it;
-/// assigning it is not.
+/// assigning it is not. Raw commands and connections are banned in every form, and only the read-only guard may name DbCommand.
 /// </summary>
 public sealed partial class ToolSourceRulesTests
 {
     private const string ToolFolder = "tools/Csps.LegacyFitCheck";
+    private const string GuardFile = "Source/ReadOnlyCommandGuard.cs";
 
     private static readonly string[] BannedTokens =
     [
         "ExecuteSql",
         "FromSql",
         "SqlQuery",
-        "new SqlCommand",
+        "SqlCommand",
+        "CreateCommand(",
+        "ExecuteReader",
         "ExecuteNonQuery",
         "ExecuteScalar",
         "EnableSensitiveDataLogging",
         "LogTo(",
         "LoggerFactory",
     ];
-
-    private static readonly string[] CommentPrefixes = ["//", "/*", "*"];
 
     [Fact]
     public void NoToolFileHoldsHandWrittenSqlOrLogging()
@@ -117,26 +118,66 @@ public sealed partial class ToolSourceRulesTests
     [GeneratedRegex(@"\bCommandText\s*[-+*/]?=(?![=>])", RegexOptions.CultureInvariant)]
     private static partial Regex CommandTextAssignment();
 
-    // Scans the lines of one file.
-    private static IEnumerable<string> FileOffences(IEnumerable<string> lines, string relativePath)
-    {
-        _ = relativePath;
-        return lines.SelectMany(Offences);
-    }
+    // A raw connection in any form. Clearing the pools and the connection string builder are allowed.
+    [GeneratedRegex(@"\bSqlConnection\b(?!\.ClearAllPools\b)", RegexOptions.CultureInvariant)]
+    private static partial Regex RawConnection();
 
-    // A comment-only line is skipped, so documentation may name the banned calls.
-    private static IEnumerable<string> Offences(string line)
+    [GeneratedRegex(@"\bDbCommand\b", RegexOptions.CultureInvariant)]
+    private static partial Regex DbCommandType();
+
+    // Scans the lines of one file. Line comments and block comments are skipped, so documentation may name the banned calls.
+    private static List<string> FileOffences(IEnumerable<string> lines, string relativePath)
     {
-        var trimmed = line.TrimStart();
-        if (CommentPrefixes.Any(prefix => trimmed.StartsWith(prefix, StringComparison.Ordinal)))
+        var found = new List<string>();
+        var inBlock = false;
+        foreach (var line in lines)
         {
-            return [];
+            var code = line.TrimStart();
+            if (!inBlock && code.StartsWith("/*", StringComparison.Ordinal))
+            {
+                inBlock = true;
+                code = code[2..];
+            }
+
+            if (inBlock)
+            {
+                var end = code.IndexOf("*/", StringComparison.Ordinal);
+                if (end < 0)
+                {
+                    continue;
+                }
+
+                inBlock = false;
+                code = code[(end + 2)..].TrimStart();
+            }
+
+            if (code.Length == 0 || code.StartsWith("//", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            found.AddRange(Offences(code, relativePath));
         }
 
-        var found = BannedTokens.Where(token => line.Contains(token, StringComparison.Ordinal)).ToList();
-        if (CommandTextAssignment().IsMatch(line))
+        return found;
+    }
+
+    private static List<string> Offences(string code, string relativePath)
+    {
+        var found = BannedTokens.Where(token => code.Contains(token, StringComparison.Ordinal)).ToList();
+        if (CommandTextAssignment().IsMatch(code))
         {
             found.Add("CommandText assignment");
+        }
+
+        if (RawConnection().IsMatch(code))
+        {
+            found.Add("SqlConnection");
+        }
+
+        if (DbCommandType().IsMatch(code) && relativePath != GuardFile)
+        {
+            found.Add("DbCommand");
         }
 
         return found;
