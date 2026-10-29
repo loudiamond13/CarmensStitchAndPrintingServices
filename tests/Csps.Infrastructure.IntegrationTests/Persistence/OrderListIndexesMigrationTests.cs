@@ -13,7 +13,6 @@ public sealed class OrderListIndexesMigrationTests(CspsDatabase database) : ICla
     private static readonly string[] ListIndexes =
     [
         "IX_Orders_Balance",
-        "IX_Orders_CreatedAtUtc",
         "IX_Orders_List_Due",
         "IX_Orders_OrderDate",
         "IX_Orders_Status_StatusChangedAtUtc",
@@ -21,12 +20,24 @@ public sealed class OrderListIndexesMigrationTests(CspsDatabase database) : ICla
     ];
 
     [Fact]
-    public async Task TheOrdersIndexSetHoldsTheOldIndexesAndTheSixListIndexes()
+    public async Task TheOrdersIndexSetHoldsTheOldIndexesAndTheFiveListIndexes()
     {
         var indexes = await ReadIndexesAsync("Orders");
 
         indexes.Keys.Order(StringComparer.Ordinal).ShouldBe(
             [.. ExistingIndexes.Concat(ListIndexes).Order(StringComparer.Ordinal)]);
+    }
+
+    [Fact]
+    public async Task TheUnusedRecordedTimeAndProductTypeOnlyIndexesAreGone()
+    {
+        var orders = await ReadIndexesAsync("Orders");
+        var items = await ReadIndexesAsync("OrderItems");
+
+        orders.Keys.ShouldNotContain("IX_Orders_CreatedAtUtc");
+        items.Keys.ShouldNotContain("IX_OrderItems_ProductTypeId");
+        items.Keys.Order(StringComparer.Ordinal).ShouldBe(
+            ["IX_OrderItems_CreatedById", "IX_OrderItems_OrderId", "IX_OrderItems_ProductTypeId_OrderId", "IX_OrderItems_UpdatedById"]);
     }
 
     [Fact]
@@ -70,7 +81,6 @@ public sealed class OrderListIndexesMigrationTests(CspsDatabase database) : ICla
     [Theory]
     [InlineData("IX_Orders_Status_StatusChangedAtUtc", new[] { "Status:asc", "StatusChangedAtUtc:asc" })]
     [InlineData("IX_Orders_OrderDate", new[] { "OrderDate:desc", "CreatedAtUtc:desc", "Id:asc" })]
-    [InlineData("IX_Orders_CreatedAtUtc", new[] { "CreatedAtUtc:desc" })]
     [InlineData("IX_Orders_Balance", new[] { "Balance:desc", "Id:asc" })]
     [InlineData("IX_Orders_Total", new[] { "Total:desc", "Id:asc" })]
     public async Task EachSortIndexHasTheKeysAndDirectionsOfItsSort(string name, string[] expected)
