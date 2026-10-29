@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
-stopped_at: Completed 07.1-04-PLAN.md
-last_updated: "2026-10-29T13:57:33.160Z"
+stopped_at: Completed 07.1-05-PLAN.md
+last_updated: "2026-10-29T14:09:25.637Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07.1 execution started
-state_head: e3e440aa47f8a320421889189ba8d70896111825
+state_head: bd0f211d0d357acae8860922e1333af4b421e749
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 219
-  completed_plans: 211
+  completed_plans: 212
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T15:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
-Plan: 5 of 12
+Plan: 6 of 12
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 07.1 execution started
 
@@ -270,6 +270,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P02 | 26 min | 3 tasks | 14 files |
 | Phase 07.1 P03 | 20 min | 3 tasks | 13 files |
 | Phase 07.1 P04 | 22 min | 3 tasks | 12 files |
+| Phase 07.1 P05 | 9 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -754,6 +755,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1]: 07.1-03: legacy AspNetUsers and AspNetRoles ids are modelled as nvarchar(450) strings (Identity v2 default); first confirmed by the real run in 07.1-10.
 - [Phase 07.1]: 07.1-04: a blank order type word is CannotMap list.name-blank and the order is not imported
 - [Phase 07.1]: 07.1-04: payments and order expenses stay on the Legacy holder (LegacyHolderUsed person.legacy-holder) until plan 05 matches people
+- [Phase 07.1]: 07.1-05: only the legacy role Admin maps to pseudonymous trial staff; Company, Employee, Manager and no role use the Legacy holder (person.role-no-match). Open for the owner: whether legacy Manager should map to CSPS Manager once the real counts are known.
+- [Phase 07.1]: 07.1-05: every holder use is UnmatchedPerson plus LegacyHolderUsed person.legacy-holder per payment receiver and order expense payer; the trial staff placeholder password hash is AAAA so verification fails instead of throwing
 
 ### Pending Todos
 
@@ -856,6 +859,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T13:57:18.444Z
-Stopped at: Completed 07.1-04-PLAN.md
+Last session: 2026-10-29T14:09:24.918Z
+Stopped at: Completed 07.1-05-PLAN.md
 Resume file: None
