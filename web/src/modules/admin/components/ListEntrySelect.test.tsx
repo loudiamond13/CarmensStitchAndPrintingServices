@@ -5,6 +5,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { expectNoAxeViolations } from '@/test/axe';
+import { categoriesBackend, EXPENSE_CATEGORIES, problemResponse, RETIRED_CATEGORY_ID } from '@/test/expenseFixtures';
 import { server } from '@/test/msw';
 import type { components } from '@/types/api.generated';
 import { ListEntrySelect, type ListEntrySelectProps } from './ListEntrySelect';
@@ -176,11 +177,11 @@ const PAYMENT_METHODS: readonly Item[] = [
   entry('11111111-aaaa-4bbb-8ccc-000000000004', 'GCash'),
 ];
 
-const RETIRED_CATEGORY_ID = '9e8d7c6b-5a49-4382-9170-6f5e4d3c2b1a';
+const RETIRED_ORDER_CATEGORY_ID = '9e8d7c6b-5a49-4382-9170-6f5e4d3c2b1a';
 const ORDER_CATEGORIES: readonly Item[] = [
   entry('22222222-aaaa-4bbb-8ccc-000000000001', 'Delivery'),
   entry('22222222-aaaa-4bbb-8ccc-000000000002', 'Fabric'),
-  entry(RETIRED_CATEGORY_ID, 'Outsourcing', { status: 'retired' }),
+  entry(RETIRED_ORDER_CATEGORY_ID, 'Outsourcing', { status: 'retired' }),
   entry('22222222-aaaa-4bbb-8ccc-000000000004', 'Others', { isOthers: true }),
 ];
 
@@ -198,7 +199,7 @@ describe.each([
   {
     list: 'order-expense-categories',
     items: ORDER_CATEGORIES,
-    retiredId: RETIRED_CATEGORY_ID,
+    retiredId: RETIRED_ORDER_CATEGORY_ID,
     label: /Category/,
     placeholder: 'Choose a category',
     loading: 'Loading categories…',
@@ -328,5 +329,72 @@ describe('ListEntrySelect product types, filter mode', () => {
       expect(select).toBeEnabled();
     });
     expect(optionTexts(select)).toEqual(['All products']);
+  });
+});
+
+describe('ListEntrySelect expense-categories (company expenses)', () => {
+  it('filter mode lists All categories, then every category in the server order, retired ones marked', async () => {
+    categoriesBackend();
+    renderSelect({ list: 'expense-categories', mode: 'filter', value: null, onChange: () => undefined });
+
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    expect(select).toBeDisabled();
+    expect(optionTexts(select)).toEqual(['Loading categories…']);
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)).toEqual([
+      'All categories',
+      ...EXPENSE_CATEGORIES.map((category) =>
+        category.status === 'retired' ? `${category.name} (retired)` : category.name,
+      ),
+    ]);
+  });
+
+  it('picker mode lists only active categories under "Choose a category" and names the field categoryId', async () => {
+    categoriesBackend();
+    const view = renderSelect({
+      list: 'expense-categories',
+      mode: 'picker',
+      value: '',
+      onChange: () => undefined,
+      savedEntry: null,
+    });
+
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)[0]).toBe('Choose a category');
+    expect(optionTexts(select)).not.toContain('Old subscriptions');
+    expect(optionTexts(select)).not.toContain('Old subscriptions (retired)');
+    expect(select).toHaveAttribute('name', 'categoryId');
+    await expectNoAxeViolations(view.container);
+  });
+
+  it('picker mode keeps the saved retired category as "{name} (retired)"', async () => {
+    categoriesBackend();
+    renderSelect({
+      list: 'expense-categories',
+      mode: 'picker',
+      value: RETIRED_CATEGORY_ID,
+      onChange: () => undefined,
+      savedEntry: RETIRED_CATEGORY_ID,
+    });
+
+    const select = screen.getByRole('combobox', { name: 'Category' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)).toContain('Old subscriptions (retired)');
+    expect(select).toHaveValue(RETIRED_CATEGORY_ID);
+  });
+
+  it('picker mode is disabled with the Phase 6 message when the list cannot be read', async () => {
+    categoriesBackend(() => problemResponse(500));
+    renderSelect({ list: 'expense-categories', mode: 'picker', value: '', onChange: () => undefined });
+
+    expect(await screen.findByText("Couldn't load the categories. Close this form and try again.")).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Category' })).toBeDisabled();
   });
 });
