@@ -62,7 +62,7 @@ internal static class FitCheckRunner
                 }
 
                 var trialConnection = TrialDatabase.ConnectionStringFor(targets.TrialServerConnectionString, trialName);
-                findings.AddRange(await TrialImport.RunAsync(trialConnection, mapped, time, cancellationToken).ConfigureAwait(false));
+                findings.AddRange(await TrialImport.RunAsync(trialConnection, mapped, read.TrialEntries, time, cancellationToken).ConfigureAwait(false));
                 if (hooks?.BeforeTrialDropped is { } beforeDrop)
                 {
                     await beforeDrop(trialName, cancellationToken).ConfigureAwait(false);
@@ -132,7 +132,16 @@ internal static class FitCheckRunner
         var items = (await source.OrderItems.OrderBy(static row => row.OrderItemId).ToListAsync(cancellationToken).ConfigureAwait(false))
             .ToLookup(static row => row.OrderId);
 
-        var mapped = orders.Select(order => DraftMapping.MapOrder(order, [.. items[order.OrderId]], types, statuses)).ToList();
+        var discounts = (await source.Discounts.OrderBy(static row => row.OrderDiscountId).ToListAsync(cancellationToken).ConfigureAwait(false)).ToLookup(static row => row.OrderId);
+        var payments = (await source.Payments.OrderBy(static row => row.PaymentId).ToListAsync(cancellationToken).ConfigureAwait(false)).ToLookup(static row => row.OrderId);
+        var expenses = (await source.Expenses.Where(static row => !row.IsCompanyExpenses && row.OrderId != null).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false))
+            .ToLookup(static row => row.OrderId!.Value);
+
+        var typeWords = orders.Select(order => order.OrderTypeId is { } id && types.TryGetValue(id, out var word) ? word : null);
+        var lists = ListMatching.ForProductTypes(typeWords);
+        var mapped = orders
+            .Select(order => DraftMapping.MapOrder(order, new LegacyOrderParts([.. items[order.OrderId]], [.. discounts[order.OrderId]], [.. payments[order.OrderId]], [.. expenses[order.OrderId]]), types, statuses, lists))
+            .ToList();
         var columns = await source.Columns.Where(static column => column.TableSchema == "dbo").ToListAsync(cancellationToken).ConfigureAwait(false);
 
         if (hooks?.BetweenEvidence is { } between)
@@ -141,8 +150,8 @@ internal static class FitCheckRunner
         }
 
         var after = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
-        return new ReadResult(mapped, columns, before, after);
+        return new ReadResult(mapped, lists.TrialEntries, columns, before, after);
     }
 
-    private sealed record ReadResult(IReadOnlyList<MappedOrder> Orders, IReadOnlyList<LegacyColumn> Columns, WriteEvidenceSnapshot Before, WriteEvidenceSnapshot After);
+    private sealed record ReadResult(IReadOnlyList<MappedOrder> Orders, IReadOnlyList<TrialListEntry> TrialEntries, IReadOnlyList<LegacyColumn> Columns, WriteEvidenceSnapshot Before, WriteEvidenceSnapshot After);
 }

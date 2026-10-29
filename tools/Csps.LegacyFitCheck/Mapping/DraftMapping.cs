@@ -1,4 +1,5 @@
 using System.Globalization;
+using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Domain.Time;
@@ -13,6 +14,21 @@ namespace Csps.LegacyFitCheck.Mapping;
 /// <param name="Findings">What the mapping found.</param>
 internal sealed record MappedOrder(string LegacyKey, OrderImportSnapshot? Snapshot, IReadOnlyList<Finding> Findings);
 
+/// <summary>The rows that hang off one legacy order.</summary>
+/// <param name="Items">The order items.</param>
+/// <param name="Discounts">The discounts.</param>
+/// <param name="Payments">The payments, deleted ones included.</param>
+/// <param name="Expenses">The expenses of the order.</param>
+internal sealed record LegacyOrderParts(
+    IReadOnlyList<LegacyOrderItemRow> Items,
+    IReadOnlyList<LegacyDiscountRow> Discounts,
+    IReadOnlyList<LegacyPaymentRow> Payments,
+    IReadOnlyList<LegacyExpenseRow> Expenses)
+{
+    /// <summary>Gets an order with no children.</summary>
+    public static LegacyOrderParts None { get; } = new([], [], [], []);
+}
+
 /// <summary>
 /// The draft mapping from a legacy order to an import snapshot (D-04). It is provisional: it is good enough to run the check, and
 /// Phase 15 writes the real mapping. Anything it cannot place is reported as "cannot map" (D-05), never guessed.
@@ -23,16 +39,18 @@ internal static class DraftMapping
 
     public static MappedOrder MapOrder(
         LegacyOrderRow order,
-        IReadOnlyList<LegacyOrderItemRow> items,
+        LegacyOrderParts parts,
         IReadOnlyDictionary<int, string?> orderTypeNames,
-        IReadOnlyDictionary<int, string?> statusNames)
+        IReadOnlyDictionary<int, string?> statusNames,
+        ListMatches lists)
     {
         ArgumentNullException.ThrowIfNull(order);
-        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(parts);
         ArgumentNullException.ThrowIfNull(orderTypeNames);
         ArgumentNullException.ThrowIfNull(statusNames);
+        ArgumentNullException.ThrowIfNull(lists);
 
-        var key = $"Orders:{order.OrderId.ToString(CultureInfo.InvariantCulture)}";
+        var key = Key("Orders", order.OrderId);
         var findings = new List<Finding>();
 
         if (order.OrderDate is not { } stored)
@@ -50,17 +68,19 @@ internal static class DraftMapping
         }
 
         var typeName = order.OrderTypeId is { } typeId && orderTypeNames.TryGetValue(typeId, out var name) ? name?.Trim() : null;
-        var productType = OrderListSeed.ProductTypes.FirstOrDefault(row => string.Equals(row.Name, typeName, StringComparison.OrdinalIgnoreCase));
-        if (productType is null)
+        var productType = lists.ForProductType(typeName);
+        var typeMissing = productType.Id is null && parts.Items.Count > 0;
+        if (typeMissing)
         {
-            findings.Add(new Finding(RecordKind.OrderItem, key, FindingType.CannotMap, "order.product-type", null, "The order type matches no CSPS product type.", typeName, null));
+            findings.Add(CannotMap(key, "list.product-type", "The order type cannot become a product type."));
         }
 
-        if (status is null || productType is null)
+        if (status is null || typeMissing)
         {
             return new MappedOrder(key, null, findings);
         }
 
+        findings.Add(CannotMap(key, "order.no-number", "The legacy order has no order number; one is built from the year and the legacy id."));
         var number = $"ORD-{orderDate.Year.ToString("D4", CultureInfo.InvariantCulture)}-{order.OrderId.ToString("D4", CultureInfo.InvariantCulture)}";
         var details = new OrderDetails(
             (order.OrderName ?? string.Empty).Trim(),
@@ -71,12 +91,87 @@ internal static class DraftMapping
             orderDate,
             null,
             string.IsNullOrWhiteSpace(order.Note) ? null : order.Note.Trim());
-        var lines = items
-            .Select(item => new NewOrderItem(productType.Id, item.Description.Trim(), null, item.Quantity, item.Price))
-            .ToList();
+        var snapshot = new OrderImportSnapshot(number, details, status!.Value, MapItems(parts.Items, productType, typeName, findings))
+        {
+            Discounts = [.. parts.Discounts.Select(static discount => new NewOrderDiscount(DiscountKind.Fixed, discount.Amount, discount.Description.Trim()))],
+            Payments = MapPayments(parts.Payments, findings),
+            Expenses = MapExpenses(parts.Expenses, findings),
+        };
 
-        return new MappedOrder(key, new OrderImportSnapshot(number, details, status.Value, lines), findings);
+        return new MappedOrder(key, snapshot, findings);
     }
+
+    private static List<NewOrderItem> MapItems(IReadOnlyList<LegacyOrderItemRow> rows, ProductTypeMatch productType, string? typeName, List<Finding> findings)
+    {
+        var items = new List<NewOrderItem>();
+        foreach (var item in rows)
+        {
+            items.Add(new NewOrderItem(productType.Id!.Value, item.Description.Trim(), null, item.Quantity, item.Price));
+            if (productType.TrialOnly)
+            {
+                findings.Add(new Finding(
+                    RecordKind.OrderItem,
+                    Key("OrderItems", item.OrderItemId),
+                    FindingType.UnmatchedList,
+                    "list.product-type",
+                    null,
+                    "The order type matches no CSPS product type; a trial-only product type was used.",
+                    typeName,
+                    null));
+            }
+        }
+
+        return items;
+    }
+
+    private static List<NewOrderPayment> MapPayments(IReadOnlyList<LegacyPaymentRow> rows, List<Finding> findings)
+    {
+        var payments = new List<NewOrderPayment>();
+        foreach (var payment in rows)
+        {
+            var key = Key("Payments", payment.PaymentId);
+            if (payment.IsDeleted == true)
+            {
+                findings.Add(new Finding(RecordKind.Payment, key, FindingType.CannotMap, "payment.deleted-dropped", null, "A deleted payment is left out, as the legacy paid amount leaves it out.", null, null));
+                continue;
+            }
+
+            var path = $"payments[{payments.Count.ToString(CultureInfo.InvariantCulture)}]";
+            payments.Add(new NewOrderPayment(
+                ToBusinessDate(payment.PaymentDate),
+                payment.Amount,
+                ListMatches.UnknownPaymentMethodId,
+                null,
+                string.IsNullOrWhiteSpace(payment.PaidBy) ? null : payment.PaidBy.Trim(),
+                LegacyHolder.Id));
+            findings.Add(new Finding(RecordKind.Payment, key, FindingType.CannotMap, "payment.no-method", null, "The legacy payment has no payment method.", null, null));
+            findings.Add(new Finding(RecordKind.Payment, key, FindingType.LegacyHolderUsed, "person.legacy-holder", $"{path}.receivedByUserId", "The receiver is the Legacy holder until people are matched.", null, null));
+        }
+
+        return payments;
+    }
+
+    private static List<NewOrderExpense> MapExpenses(IReadOnlyList<LegacyExpenseRow> rows, List<Finding> findings)
+    {
+        var expenses = new List<NewOrderExpense>();
+        foreach (var expense in rows.Where(static row => !row.IsCompanyExpenses && row.SpentDate is not null))
+        {
+            var key = Key("Expenses", expense.ExpenseId);
+            var path = $"expenses[{expenses.Count.ToString(CultureInfo.InvariantCulture)}]";
+            expenses.Add(new NewOrderExpense(
+                ToBusinessDate(expense.SpentDate!.Value),
+                expense.Amount,
+                OrderListSeed.OrderExpenseOthersId,
+                string.IsNullOrWhiteSpace(expense.Description) ? null : expense.Description.Trim(),
+                LegacyHolder.Id));
+            findings.Add(new Finding(RecordKind.OrderExpense, key, FindingType.CannotMap, "order-expense.no-category", null, "The legacy order expense has no category; Others is used.", null, null));
+            findings.Add(new Finding(RecordKind.OrderExpense, key, FindingType.LegacyHolderUsed, "person.legacy-holder", $"{path}.paidByUserId", "The payer is the Legacy holder until people are matched.", null, null));
+        }
+
+        return expenses;
+    }
+
+    private static string Key(string table, int id) => $"{table}:{id.ToString(CultureInfo.InvariantCulture)}";
 
     // The stored datetime is read as UTC and moved to the business zone before the date is taken (provisional guess, 07.1 A3).
     private static DateOnly ToBusinessDate(DateTime stored)
