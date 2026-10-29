@@ -11,7 +11,7 @@ import { CASCADE_LABELS, cascadeSentence, type CascadeCounts } from '@/utils/csp
 import { describeHttpError, type ErrorCopy } from '@/utils/describeHttpError';
 import { formatCount } from '@/utils/format';
 import { Button } from '@/components/actions';
-import { Icon } from '@/components/brand';
+import { Icon, type IconName } from '@/components/brand';
 import { Field, messageClasses } from '@/components/forms';
 import { Modal } from './Modal';
 import {
@@ -36,6 +36,10 @@ export interface ConfirmDialogProps {
   /** Type-to-confirm text (e.g. the order number). */
   confirmText?: string | undefined;
   confirmLabel?: string;
+  /** The dismiss button's words and the Esc action's name. Default "Cancel". */
+  cancelLabel?: string;
+  /** The confirm button's icon. Default the trash. */
+  confirmIcon?: IconName;
   /** The confirm button's words while the action runs ("Deleting"); the confirm label stays when it is not set. */
   pendingLabel?: string;
   // SPEC-DEVIATION: WEB-06 / T-02-53. App. D.3 took `() => void`. The action may now return a promise: while it is
@@ -44,8 +48,8 @@ export interface ConfirmDialogProps {
   /** The confirmed action. Return its promise so the dialog can track the attempt. */
   onConfirm?: () => unknown;
   onCancel?: () => void;
-  /** Words for a failure the caller recognises; undefined leaves the line to describeHttpError. */
-  describeFailure?: (error: unknown) => ErrorCopy | undefined;
+  /** Words for a failure the caller recognises (a sentence, or title and body); null or undefined leaves the line to describeHttpError. */
+  describeFailure?: (error: unknown) => ErrorCopy | string | null | undefined;
   inline?: boolean;
   loading?: boolean;
 }
@@ -77,6 +81,8 @@ export function ConfirmDialog({
   counts,
   confirmText,
   confirmLabel = 'Delete',
+  cancelLabel = 'Cancel',
+  confirmIcon = 'trash-2',
   pendingLabel,
   onConfirm,
   onCancel,
@@ -108,7 +114,8 @@ export function ConfirmDialog({
   const cascade = counts === undefined ? '' : cascadeSentence(counts);
 
   const fail = (error: unknown) => {
-    setFailure(describeFailure?.(error) ?? describeHttpError(error));
+    const words = describeFailure?.(error);
+    setFailure(typeof words === 'string' ? { title: words, body: '' } : (words ?? describeHttpError(error)));
     // The button leaves its pending state and takes focus back for a retry.
     confirmRef.current?.focus();
   };
@@ -168,9 +175,9 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="secondary" onClick={cancel} ref={cancelRef}>
-            Cancel
+            {cancelLabel}
           </Button>
-          <Button variant="danger" icon="trash-2" disabled={!ok} loading={busy} onClick={confirm} ref={confirmRef}>
+          <Button variant="danger" icon={confirmIcon} disabled={!ok} loading={busy} onClick={confirm} ref={confirmRef}>
             {pending && pendingLabel !== undefined ? pendingLabel : confirmLabel}
           </Button>
         </>
