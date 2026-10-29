@@ -347,6 +347,17 @@ public sealed partial class CiWorkflowTests
     }
 
     [Fact]
+    public void IntegrationTestsRunTheLegacyFitCheckTests()
+    {
+        var step = WorkflowText.Steps(GateJob().Lines)
+            .Single(candidate => WorkflowText.StepName(candidate) == "3 integration tests")
+            .Select(line => line.Trim())
+            .ToList();
+
+        step.ShouldContain("dotnet test --project tests/Csps.LegacyFitCheck.Tests --no-build");
+    }
+
+    [Fact]
     public void ContainerImageMatchesTheFixture()
     {
         var fixture = ContainerImageLiteral().Match(File.ReadAllText(RepoRoot.PathOf("tests/Csps.Testing/SqlServerInstance.cs")));
