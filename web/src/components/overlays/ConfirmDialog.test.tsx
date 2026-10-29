@@ -513,6 +513,79 @@ describe('ConfirmDialog scenarios (the overlays parity group)', () => {
   });
 });
 
+// Phase 8 (D-57, D-58): the dismiss words, the confirm icon and a one-line failure mapper are props.
+describe('ConfirmDialog dismiss words, confirm icon and failure line (Phase 8)', () => {
+  it('keeps Cancel and the trash icon when the new props are not set', () => {
+    render(<DeleteOrder confirmText={undefined} counts={undefined} />);
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
+    expect(deleteButton().querySelector('svg')).toHaveClass('lucide-trash-2');
+  });
+
+  it('shows Keep Editing and Discard Changes, focuses Keep Editing first and treats Esc as Keep Editing', async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <ConfirmDialog
+        title="Discard changes?"
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Discard Changes' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+
+    await user.keyboard('{Escape}');
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws the confirm icon it is given instead of the trash', () => {
+    render(<DeleteOrder confirmText={undefined} counts={undefined} confirmIcon="x" />);
+
+    const icon = deleteButton().querySelector('svg');
+    expect(icon).toHaveClass('lucide-x');
+    expect(icon).not.toHaveClass('lucide-trash-2');
+  });
+
+  it('shows a one-line string from describeFailure and falls back to the mapper on null', async () => {
+    const user = userEvent.setup();
+    const guard = new Error('guard');
+    const describeFailure = (error: unknown) =>
+      error === guard ? 'Type the order number exactly to delete it for good.' : null;
+    const onConfirm = vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({ ok: false, error: guard })
+      .mockResolvedValueOnce({ ok: false, error: serverError('00-other') });
+    render(<DeleteOrder onConfirm={onConfirm} describeFailure={describeFailure} />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+    expect(await screen.findByText('Type the order number exactly to delete it for good.')).toBeVisible();
+    await user.click(deleteButton());
+
+    expect(await screen.findByText(/Reference: 00-other/)).toBeVisible();
+    expect(screen.queryByText('Type the order number exactly to delete it for good.')).toBeNull();
+  });
+
+  it('has no axe violations with the Phase 8 words', async () => {
+    const { container } = render(
+      <ConfirmDialog
+        title="Discard changes?"
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+        confirmIcon="x"
+        onCancel={vi.fn()}
+      />,
+    );
+
+    await expectNoAxeViolations(container);
+  });
+});
+
 // D-39: the dialog may stay mounted with `open` false so its close animation can play; each new open starts clean.
 describe('ConfirmDialog open prop (D-39)', () => {
   it('renders nothing while open is false', () => {
