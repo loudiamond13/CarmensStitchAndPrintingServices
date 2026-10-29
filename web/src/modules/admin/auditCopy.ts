@@ -246,10 +246,49 @@ export function describeAuditDetail(action: string, detail: string | null): stri
 
 type AuditChangeLine = components['schemas']['AuditChangeLine'];
 type AuditExpenseSnapshot = components['schemas']['AuditExpenseSnapshot'];
+type AuditOrderSnapshot = components['schemas']['AuditOrderSnapshot'];
 type AuditPerson = components['schemas']['ActorRef'];
 
 /** What a category reads as once it has been deleted. */
 const DELETED_CATEGORY = 'a deleted category';
+
+/** The seven order statuses the API sends as keys (D-01). */
+const ORDER_STATUS_LABEL: ReadonlyMap<string, string> = new Map([
+  ['pending', 'Pending'],
+  ['mockup', 'Mockup'],
+  ['production', 'In Production'],
+  ['ready', 'Ready'],
+  ['delivered', 'Delivered'],
+  ['completed', 'Completed'],
+  ['cancelled', 'Cancelled'],
+]);
+
+const DISCOUNT_KIND_LABEL: ReadonlyMap<string, string> = new Map([
+  ['fixed', 'Fixed amount'],
+  ['percentage', 'Percentage'],
+]);
+
+/** The text fields a line can name. Only the fact that one changed is ever said, never its text (05 D-40). */
+const TEXT_FIELD_SENTENCES: ReadonlyMap<string, string> = new Map([
+  ['customerName', 'Customer name changed'],
+  ['teamName', 'Team name changed'],
+  ['contactNumber', 'Contact number changed'],
+  ['email', 'Email changed'],
+  ['address', 'Address changed'],
+  ['notes', 'Notes changed'],
+  ['description', 'Description changed'],
+  ['sizeVariant', 'Size or variant changed'],
+  ['reference', 'Reference changed'],
+  ['reason', 'Reason changed'],
+]);
+
+/** The entries whose lines state each value as it was added or removed, so they have no old value. */
+const STATED_VALUE_ACTION = /^(?:order\.created|order-(?:item|payment|refund|discount|expense)\.(?:added|removed))$/u;
+
+/** True when the lines of an action state each value as it is, instead of old and new. */
+export function isStatedValueAction(action: string): boolean {
+  return STATED_VALUE_ACTION.test(action);
+}
 
 /** A person's name, then " (former staff)" for an account that was deleted. */
 function personText(person: AuditPerson): string {
@@ -271,29 +310,86 @@ function pair(label: string, from: string | null, to: string): string {
 }
 
 /**
- * One typed change line as a fixed sentence (D-27, UI-SPEC A1): amounts in pesos, dates in the Manila style, categories and
- * payers by name. A description or notes change says only that it changed, because their text is never stored in the log
- * (05 D-40). A value the viewer cannot read gives null and the line is left out.
+ * A line with a value on each side. A stated value (an added or removed entry) needs only the new side; a change needs both, and a
+ * value the formatter cannot read leaves the line out.
  */
-export function describeAuditChange(line: AuditChangeLine): string | null {
+function valuePair(
+  label: string,
+  line: AuditChangeLine,
+  stated: boolean,
+  format: (value: string) => string | null,
+): string | null {
+  const to = line.to === null ? null : format(line.to);
+  if (to === null) return null;
+  if (stated) return pair(label, null, to);
+  const from = line.from === null ? null : format(line.from);
+  return from === null ? null : pair(label, from, to);
+}
+
+/** A line whose sides are list entry names; a side with no name is an entry that has been deleted. */
+function namePair(label: string, deleted: string, line: AuditChangeLine, stated: boolean): string {
+  const to = line.to ?? deleted;
+  return stated ? pair(label, null, to) : pair(label, line.from ?? deleted, to);
+}
+
+/** A line whose sides are people. A stated value needs only the new person; a change needs both. */
+function personPair(label: string, line: AuditChangeLine, stated: boolean): string | null {
+  if (line.toPerson === null) return null;
+  if (stated) return pair(label, null, personText(line.toPerson));
+  return line.fromPerson === null ? null : pair(label, personText(line.fromPerson), personText(line.toPerson));
+}
+
+const NUMBER_TEXT = /^\d+$/u;
+const DISCOUNT_VALUE_TEXT = /^-?\d+(?:\.\d+)?%?$/u;
+
+function dateText(value: string): string | null {
+  return formatCalendarDate(value);
+}
+
+/** A discount value: "5%" for a percentage (the server ends it with a percent sign), pesos otherwise. */
+function discountValueText(value: string): string | null {
+  if (!DISCOUNT_VALUE_TEXT.test(value)) return null;
+  return value.endsWith('%') ? `${String(Number(value.slice(0, -1)))}%` : formatPeso(value);
+}
+
+/**
+ * One typed change line as a fixed sentence (D-27, D-31, UI-SPEC A1): amounts in pesos, dates in the Manila style, list entries and
+ * people by name. A text field says only that it changed, because its text is never stored in the log (05 D-40). With `stated`, the
+ * line gives a value as it was added or removed (see isStatedValueAction), so it has no old value. A value the viewer cannot read
+ * gives null and the line is left out.
+ */
+export function describeAuditChange(line: AuditChangeLine, stated = false): string | null {
   switch (line.field) {
     case 'amount':
-      return line.from === null || line.to === null ? null : pair('Amount', formatPeso(line.from), formatPeso(line.to));
-    case 'date': {
-      const from = line.from === null ? null : formatCalendarDate(line.from);
-      const to = line.to === null ? null : formatCalendarDate(line.to);
-      return from === null || to === null ? null : pair('Date', from, to);
-    }
+      return valuePair('Amount', line, stated, formatPeso);
+    case 'unitPrice':
+      return valuePair('Unit price', line, stated, formatPeso);
+    case 'date':
+      return valuePair('Date', line, stated, dateText);
+    case 'orderDate':
+      return valuePair('Order date', line, stated, dateText);
+    case 'dueDate':
+      return valuePair('Due date', line, stated, dateText);
+    case 'quantity':
+      return valuePair('Quantity', line, stated, (value) => (NUMBER_TEXT.test(value) ? value : null));
+    case 'status':
+      return valuePair('Status', line, stated, (value) => ORDER_STATUS_LABEL.get(value) ?? null);
+    case 'kind':
+      return valuePair('Discount type', line, stated, (value) => DISCOUNT_KIND_LABEL.get(value) ?? null);
+    case 'value':
+      return valuePair('Discount value', line, stated, discountValueText);
     case 'category':
-      return pair('Category', categoryText(line.from), categoryText(line.to));
+      return namePair('Category', DELETED_CATEGORY, line, stated);
+    case 'method':
+      return namePair('Payment method', 'a deleted payment method', line, stated);
+    case 'productType':
+      return namePair('Product type', 'a deleted product type', line, stated);
     case 'payer':
-      return line.fromPerson === null || line.toPerson === null
-        ? null
-        : pair('Paid by', personText(line.fromPerson), personText(line.toPerson));
-    case 'description':
-      return 'Description changed';
-    case 'notes':
-      return 'Notes changed';
+      return personPair('Paid by', line, stated);
+    case 'receiver':
+      return personPair('Received by', line, stated);
+    case 'refunder':
+      return personPair('Refunded by', line, stated);
     case 'name':
       return line.to === null ? null : pair('Name', line.from, line.to);
     case 'tone': {
@@ -302,7 +398,7 @@ export function describeAuditChange(line: AuditChangeLine): string | null {
       return to === null || (line.from !== null && from === null) ? null : pair('Color', from, to);
     }
     default:
-      return null;
+      return TEXT_FIELD_SENTENCES.get(line.field) ?? null;
   }
 }
 
@@ -316,6 +412,17 @@ export function describeAuditSnapshot(snapshot: AuditExpenseSnapshot): string {
   ]
     .filter((part): part is string => part !== null)
     .join(' · ');
+}
+
+/** "ORD-2026-0148, Cancelled, total ₱21,327.50, paid ₱12,000.00, balance ₱9,327.50": the facts of an order an entry names (ORD-16). */
+export function describeAuditOrderSnapshot(snapshot: AuditOrderSnapshot): string {
+  return [
+    snapshot.number,
+    ORDER_STATUS_LABEL.get(snapshot.status) ?? snapshot.status,
+    `total ${formatPeso(snapshot.total)}`,
+    `paid ${formatPeso(snapshot.paid)}`,
+    `balance ${formatPeso(snapshot.balance)}`,
+  ].join(', ');
 }
 
 /** One "What changed" sentence: the action and the stored word that give it. */
@@ -372,6 +479,7 @@ export const AUDIT_COPY = {
   },
   detail: {
     whatChanged: 'What changed',
+    order: 'Order',
     ipAddress: 'IP address',
     device: 'Device',
     reference: 'Reference',

@@ -5,7 +5,14 @@
 // snapshot of expense and category events (D-27), which never carry description or notes text (05 D-40).
 import type { ReactNode } from 'react';
 import { EmptyValue } from '@/components/states';
-import { AUDIT_COPY, describeAuditChange, describeAuditDetail, describeAuditSnapshot } from '@/modules/admin/auditCopy';
+import {
+  AUDIT_COPY,
+  describeAuditChange,
+  describeAuditDetail,
+  describeAuditOrderSnapshot,
+  describeAuditSnapshot,
+  isStatedValueAction,
+} from '@/modules/admin/auditCopy';
 import {
   auditChangeListClasses,
   auditDetailClasses,
@@ -38,11 +45,15 @@ export interface AuditDetailProps {
   id?: string | undefined;
 }
 
-/** The typed lines of an expense or category entry, as fixed sentences: the snapshot first, then each change that can be read. */
+/** The typed lines of an expense, order or list entry, as fixed sentences: the snapshots first, then each change that can be read. */
 function changeSentences(item: AuditLogItem): string[] {
+  const stated = isStatedValueAction(item.action);
   return [
     ...(item.snapshot === null ? [] : [describeAuditSnapshot(item.snapshot)]),
-    ...item.changes.map(describeAuditChange).filter((sentence): sentence is string => sentence !== null),
+    ...(item.orderSnapshot === null ? [] : [describeAuditOrderSnapshot(item.orderSnapshot)]),
+    ...item.changes
+      .map((line) => describeAuditChange(line, stated))
+      .filter((sentence): sentence is string => sentence !== null),
   ];
 }
 
@@ -53,6 +64,7 @@ export function AuditDetail({ item, id }: AuditDetailProps) {
   const hasDevice = item.device !== null && item.device !== '' && item.device !== STORED_UNKNOWN_DEVICE;
   return (
     <dl id={id} className={auditDetailClasses}>
+      {item.orderNumber !== null && <DetailRow term={AUDIT_COPY.detail.order}>{item.orderNumber}</DetailRow>}
       {sentences.length > 0 ? (
         <DetailRow term={AUDIT_COPY.detail.whatChanged}>
           <ul className={auditChangeListClasses}>

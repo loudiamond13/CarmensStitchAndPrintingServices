@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-28T17:32:00-05:00
+updated: 2026-10-28T20:32:00-05:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -243,6 +243,34 @@ API never change an entry (the log is append-only, see above).
     The Done to filter also finds an expense entry whose detail names that person as the payer, current, old or new, so a
     Manager can list everything that touched one person's money. The match is a LIKE on the stored detail with the shared
     escaping, limited to codes that start with `company-expense.`.
+- **Order and list entries (Phase 7, D-31).** The 43 `order*`, `product-type.*`, `payment-method.*` and
+  `order-expense-category.*` codes are read the same way. Each entry carries `changes`, plus `orderSnapshot` and `orderNumber`
+  (both null for every other entry). `AuditChangeLines` reads only the documented keys, each in the shape its writer gives it;
+  an unknown key or a value of another shape is left out and never throws.
+  - **Lines.** `status` (a key, `from>to`), `orderDate`, `dueDate`, `date`, `amount`, `quantity`, `unitPrice`, `kind` and `value`
+    as old and new values; `method`, `productType` and `category` (an order expense category) as the entry's current name,
+    retired entries included, and `null` when the entry is gone; `receiver`, `payer` and `refunder` as people
+    (`fromPerson`, `toPerson`, former staff marked). A person who is the Legacy holder reads "Legacy / unassigned". A percentage
+    discount value ends with `%` (`5.00%`), so each side carries its own unit.
+  - **Added, removed and created entries state each value** (`from` is null, `to` is the value). An edit entry has a line only for
+    a value that changed: the unchanged current values in the stored detail are not repeated. A due date that an imported order
+    gains reads as a new value with no old one.
+  - **Text fields are names only.** `fields=` becomes one line per name (`customerName`, `teamName`, `contactNumber`, `email`,
+    `address`, `notes`, `description`, `sizeVariant`, `reference`, `reason`) with no values. Customer details, notes, references
+    and reasons never leave the server (05 D-40).
+  - **Order snapshot.** A deleted, restored or permanently deleted order carries `orderSnapshot` `{ number, status, total, paid,
+    balance }` read from the entry's own detail, so it is still readable after the row is gone.
+  - **Order number.** Every entry whose target is an order carries `orderNumber`: the order's current number (deleted orders
+    included), or, when the row is gone, the number its own detail holds. The Done to column shows it for these entries.
+  - **Lookups.** One query per page for each list that is named (product types, payment methods, order expense categories), one
+    for the orders, and the existing one for people, so a page stays a fixed number of commands.
+  - The screen reads the lines as fixed sentences: "Status: Ready to Completed", "Order date: Oct 28, 2026 to Oct 29, 2026",
+    "Quantity: 15 to 20", "Unit price: ₱650.00 to ₱700.00", "Discount type: Percentage to Fixed amount", "Discount value: 5% to
+    10%", "Payment method: Cash to GCash", "Product type: Basketball Jersey to Polo Shirt", "Received by: {name} to {name}",
+    "Paid by: {name} to {name}", "Refunded by: {name} to {name}" and "Customer name changed". A snapshot reads "ORD-2026-0148,
+    Cancelled, total ₱21,327.50, paid ₱12,000.00, balance ₱9,327.50". The detail panel adds an Order row with the number.
+  - Done to stays empty for order entries (it shows the order number instead). Receiver, payer and refunder changes are read from
+    the lines; the Done to filter does not search order entries.
 - **No export.** There is no download or CSV route (D-29). The log is read on screen only.
 
 ## Residual risk

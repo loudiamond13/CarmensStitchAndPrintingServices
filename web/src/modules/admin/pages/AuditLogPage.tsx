@@ -106,7 +106,7 @@ function columnsFor(
     {
       key: 'doneTo',
       header: COPY.columns.doneTo,
-      cell: (item) => (item.doneTo === null ? null : <ActorName actor={item.doneTo} />),
+      cell: (item) => (item.doneTo !== null ? <ActorName actor={item.doneTo} /> : item.orderNumber),
     },
     {
       key: 'actions',
