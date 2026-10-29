@@ -52,9 +52,20 @@ internal static class OrderImportChecks
     /// <param name="rules">The relaxations to apply.</param>
     /// <param name="today">The business today; needed unless the rules allow future dates.</param>
     /// <returns>The cleaned snapshot, or a validation error naming the first broken field.</returns>
+    /// <exception cref="ArgumentNullException">The snapshot, the rules or one of the snapshot lists is null.</exception>
     /// <exception cref="ArgumentException">No business today was given and the rules do not allow future dates.</exception>
     internal static Result<OrderImportSnapshot> Check(OrderImportSnapshot snapshot, OrderImportRules rules, DateOnly? today)
     {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(rules);
+        ArgumentNullException.ThrowIfNull(snapshot.Details);
+        ArgumentNullException.ThrowIfNull(snapshot.Items);
+        ArgumentNullException.ThrowIfNull(snapshot.Discounts);
+        ArgumentNullException.ThrowIfNull(snapshot.Payments);
+        ArgumentNullException.ThrowIfNull(snapshot.Refunds);
+        ArgumentNullException.ThrowIfNull(snapshot.Expenses);
+        ArgumentNullException.ThrowIfNull(snapshot.StatusHistory);
+
         if (!rules.AllowFutureDates && today is null)
         {
             throw new ArgumentException("The business today is needed to check the dates.", nameof(today));
