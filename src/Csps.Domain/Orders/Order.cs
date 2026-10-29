@@ -445,7 +445,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>
     /// Applies a details edit, checking every field rule again as <see cref="Create"/> does; the due date is required even when an
-    /// imported order had none (D-22). Nothing is assigned when a rule fails, and an edit that changes nothing leaves the order and
+    /// imported order had none (D-22), but a contact number that was missing stays accepted when the edit leaves it missing (D-49b). Nothing is assigned when a rule fails, and an edit that changes nothing leaves the order and
     /// its edit version untouched. Items, status and money figures are not touched.
     /// </summary>
     /// <param name="details">The customer and date details as given.</param>
@@ -458,7 +458,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderDetailsChanges>(locked);
         }
 
-        var checkedDetails = OrderRules.CheckDetails(details);
+        ArgumentNullException.ThrowIfNull(details);
+
+        // A stored number may be missing (an imported order); a missing number on the form is only accepted when it stays missing.
+        var unchangedContact = ContactNumber is null && string.IsNullOrWhiteSpace(details.ContactNumber);
+        var checkedDetails = OrderRules.CheckDetails(details, OrderImportRules.Strict with { ContactNumberOptional = unchangedContact });
         if (checkedDetails.IsFailure)
         {
             return Result.Failure<OrderDetailsChanges>(checkedDetails.Error);
@@ -533,7 +537,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     }
 
     /// <summary>
-    /// Applies an item edit, checking every item rule again as <see cref="AddItem"/> does. Nothing is assigned when a rule fails, and
+    /// Applies an item edit, checking every item rule again as <see cref="AddItem"/> does. A quantity or price left as saved is not checked against the caps again (D-49b). Nothing is assigned when a rule fails, and
     /// an edit that changes nothing leaves the order and its edit version untouched. A changed edit works the totals out again and
     /// moves the edit version.
     /// </summary>
@@ -554,13 +558,27 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderItemChanges>(OrderRules.ItemNotFound);
         }
 
-        var checkedItem = OrderRules.CheckItem(_items.IndexOf(item), values);
+        ArgumentNullException.ThrowIfNull(values);
+
+        // A quantity or price left as saved is not judged again (an imported item may sit outside the caps); a stand-in that always
+        // passes goes through the check in its place, and the line total is checked on the real figures.
+        var probe = values with
+        {
+            Quantity = values.Quantity == item.Quantity ? OrderRules.QuantityMin : values.Quantity,
+            UnitPrice = values.UnitPrice == item.UnitPrice ? 0m : values.UnitPrice,
+        };
+        var checkedItem = OrderRules.CheckItem(_items.IndexOf(item), probe);
         if (checkedItem.IsFailure)
         {
             return Result.Failure<OrderItemChanges>(checkedItem.Error);
         }
 
-        var cleaned = checkedItem.Value;
+        var cleaned = checkedItem.Value with { Quantity = values.Quantity, UnitPrice = values.UnitPrice };
+        if (cleaned.Quantity * cleaned.UnitPrice > OrderRules.MoneyColumnMax)
+        {
+            return OrderRules.Reject<OrderItemChanges>(OrderRules.ItemPath(_items.IndexOf(item), OrderRules.QuantityField), OrderRules.LineTotalTooLarge);
+        }
+
         var fields = new List<string>();
         AddIfChanged(fields, OrderRules.DescriptionField, item.Description, cleaned.Description);
         AddIfChanged(fields, OrderRules.SizeVariantField, item.SizeVariant, cleaned.SizeVariant);
@@ -662,7 +680,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>
     /// Applies a discount edit, checking every discount rule again as <see cref="AddDiscount"/> does and that the discounts still fit
-    /// under the items total. Nothing is assigned when a rule fails, and an edit that changes nothing leaves the order and its edit
+    /// under the items total. A value left as saved is not checked against the caps again (D-49b). Nothing is assigned when a rule fails, and an edit that changes nothing leaves the order and its edit
     /// version untouched. A changed edit works the totals out again and moves the edit version.
     /// </summary>
     /// <param name="discountId">The discount to edit; it must be on this order.</param>
@@ -682,7 +700,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderDiscountChanges>(OrderRules.DiscountNotFound);
         }
 
-        var checkedDiscount = OrderRules.CheckDiscount(null, values);
+        ArgumentNullException.ThrowIfNull(values);
+
+        // A value left as saved, with the same kind, is not judged against the caps again (an imported discount may sit above them).
+        var unchangedValue = values.Kind == discount.Kind && values.Value == discount.Value;
+        var checkedDiscount = OrderRules.CheckDiscount(null, values, OrderImportRules.Strict with { IgnoreAmountCaps = unchangedValue });
         if (checkedDiscount.IsFailure)
         {
             return Result.Failure<OrderDiscountChanges>(checkedDiscount.Error);
@@ -754,7 +776,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>
     /// Applies a payment edit, checking every payment rule again as <see cref="AddPayment"/> does. An edit may lower the amount
-    /// freely, even on an order in credit, and may raise it only up to the balance plus the amount it had (D-11). Nothing is
+    /// freely, even on an order in credit, and may raise it only up to the balance plus the amount it had (D-11). An amount or date left as saved is not checked against the caps or the calendar again (D-49b). Nothing is
     /// assigned when a rule fails, and an edit that changes nothing leaves the order and its edit version untouched. A changed edit
     /// works the totals out again and moves the edit version. Whether a new method or a new receiver may be chosen is not decided
     /// here: it needs the database.
@@ -777,7 +799,15 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderPaymentChanges>(OrderRules.PaymentNotFound);
         }
 
-        var checkedPayment = OrderRules.CheckPayment(null, values, today);
+        ArgumentNullException.ThrowIfNull(values);
+
+        // An amount or date left as saved is not judged against the caps or the calendar again (an imported payment may sit outside them).
+        var leftAsSaved = OrderImportRules.Strict with
+        {
+            IgnoreAmountCaps = values.Amount == payment.Amount,
+            AllowFutureDates = values.PaymentDate == payment.PaymentDate,
+        };
+        var checkedPayment = OrderRules.CheckPayment(null, values, today, leftAsSaved);
         if (checkedPayment.IsFailure)
         {
             return Result.Failure<OrderPaymentChanges>(checkedPayment.Error);
@@ -882,7 +912,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>
     /// Applies an order expense edit, checking every expense rule again as <see cref="AddExpense"/> does. Nothing is assigned when a
-    /// rule fails, and an edit that changes nothing leaves the order and its edit version untouched. A changed edit works the
+    /// rule fails, an amount or date left as saved is not checked against the caps or the calendar again (D-49b), and an edit that changes nothing leaves the order and its edit version untouched. A changed edit works the
     /// expenses and the profit out again and moves the edit version. Whether a new category or a new payer may be chosen is not
     /// decided here: it needs the database.
     /// </summary>
@@ -904,7 +934,15 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderExpenseChanges>(OrderRules.ExpenseNotFound);
         }
 
-        var checkedExpense = OrderRules.CheckExpense(null, values, today);
+        ArgumentNullException.ThrowIfNull(values);
+
+        // An amount or date left as saved is not judged against the caps or the calendar again (an imported expense may sit outside them).
+        var leftAsSaved = OrderImportRules.Strict with
+        {
+            IgnoreAmountCaps = values.Amount == expense.Amount,
+            AllowFutureDates = values.ExpenseDate == expense.ExpenseDate,
+        };
+        var checkedExpense = OrderRules.CheckExpense(null, values, today, leftAsSaved);
         if (checkedExpense.IsFailure)
         {
             return Result.Failure<OrderExpenseChanges>(checkedExpense.Error);
@@ -1026,7 +1064,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <summary>
     /// Applies a refund edit, checking every refund rule again as <see cref="AddRefund"/> does. An edit may lower the amount freely
     /// and may raise it only up to the cap plus the amount it had (D-34, D-09). Like an add, an edit is allowed on a Cancelled order
-    /// without a reopen (D-35) and refused on a Completed one. Nothing is assigned when a rule fails, and an edit that changes
+    /// without a reopen (D-35) and refused on a Completed one. An amount or date left as saved is not checked again (D-49b). Nothing is assigned when a rule fails, and an edit that changes
     /// nothing leaves the order and its edit version untouched. A changed edit works the totals out again and moves the edit
     /// version. Whether a new refunder may be chosen is not decided here: it needs the database.
     /// </summary>
@@ -1048,7 +1086,15 @@ public sealed class Order : IAttributedRecord, IEditVersioned
             return Result.Failure<OrderRefundChanges>(OrderRules.RefundNotFound);
         }
 
-        var checkedRefund = OrderRules.CheckRefund(values, today);
+        ArgumentNullException.ThrowIfNull(values);
+
+        // An amount or date left as saved is not judged against the caps or the calendar again (an imported refund may sit outside them).
+        var leftAsSaved = OrderImportRules.Strict with
+        {
+            IgnoreAmountCaps = values.Amount == refund.Amount,
+            AllowFutureDates = values.RefundDate == refund.RefundDate,
+        };
+        var checkedRefund = OrderRules.CheckRefund(values, today, leftAsSaved);
         if (checkedRefund.IsFailure)
         {
             return Result.Failure<OrderRefundChanges>(checkedRefund.Error);

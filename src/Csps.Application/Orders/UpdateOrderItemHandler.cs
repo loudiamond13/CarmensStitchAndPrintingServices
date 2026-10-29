@@ -46,7 +46,16 @@ public sealed class UpdateOrderItemHandler(
             return Result.Failure<OrderDetailResponse>(AuthErrors.SessionEnded);
         }
 
-        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        var validation = await LegacyEditFilter.RelaxAsync(
+            await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false),
+            reader,
+            orderId,
+            view => view.Items.FirstOrDefault(item => item.Id == itemId) is { } saved
+                ? LegacyEditFilter.Unchanged(
+                    (nameof(IOrderItemFields.Quantity), request.Quantity == saved.Quantity),
+                    (nameof(IOrderItemFields.UnitPrice), request.UnitPrice == saved.UnitPrice))
+                : LegacyEditFilter.Unchanged(),
+            cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));

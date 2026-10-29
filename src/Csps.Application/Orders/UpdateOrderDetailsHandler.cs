@@ -44,7 +44,13 @@ public sealed class UpdateOrderDetailsHandler(
             return Result.Failure<OrderDetailResponse>(AuthErrors.SessionEnded);
         }
 
-        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        var validation = await LegacyEditFilter.RelaxAsync(
+            await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false),
+            reader,
+            id,
+            view => LegacyEditFilter.Unchanged(
+                (nameof(IOrderDetailsFields.ContactNumber), string.IsNullOrWhiteSpace(request.ContactNumber) && string.IsNullOrWhiteSpace(view.ContactNumber))),
+            cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));

@@ -607,6 +607,14 @@ expense should be when the old data does not say is the owner's final ruling in 
 After an import the order is an ordinary order: a Completed or Cancelled one is locked until it is reopened (D-05), and editing the
 details of an order that came in without a due date asks for one (D-22).
 
+**Editing imported values (D-49b).** An edit re-checks only the fields it changes. An imported value that breaks the normal limits (an
+amount above ₱1,000,000.00, a quantity of 0 or above 10,000, a payment or refund dated ahead, an expense dated more than 30 days
+ahead, an order with no contact number) stays as it is while other fields of that item are corrected; the form does not ask for it
+to be changed. Changing the value itself is judged by the normal rules. The rules that depend on the order's totals still apply to
+every edit: the discounts may not pass the items total, a payment may not be raised above the balance, and a refund may not be
+raised above its cap. The lock on a Completed or Cancelled order is unchanged. The due date is still required when the details of an
+order are edited (D-22).
+
 ## What is stored (D-23, D-26)
 
 - `Orders`, `OrderItems`, `OrderStatusChanges` and `OrderNumberCounters` come from the migration `AddOrders`. `OrderDiscounts` comes from

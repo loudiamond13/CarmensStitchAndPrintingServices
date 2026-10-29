@@ -52,7 +52,16 @@ public sealed class UpdateOrderExpenseHandler(
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var context = new ValidationContext<UpdateOrderExpenseRequest>(request);
         context.RootContextData[OrderExpenseFieldsValidator.TodayKey] = clock.Today;
-        var validation = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
+        var validation = await LegacyEditFilter.RelaxAsync(
+            await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false),
+            reader,
+            orderId,
+            view => view.Expenses.FirstOrDefault(expense => expense.Id == expenseId) is { } saved
+                ? LegacyEditFilter.Unchanged(
+                    (nameof(IOrderExpenseFields.Amount), request.Amount == saved.Amount),
+                    (nameof(IOrderExpenseFields.ExpenseDate), OrderDetailsFieldsValidator.TryParseDate(request.ExpenseDate, out var date) && date == saved.ExpenseDate))
+                : LegacyEditFilter.Unchanged(),
+            cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));

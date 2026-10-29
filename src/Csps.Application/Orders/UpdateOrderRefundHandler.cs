@@ -51,7 +51,16 @@ public sealed class UpdateOrderRefundHandler(
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var context = new ValidationContext<UpdateOrderRefundRequest>(request);
         context.RootContextData[OrderRefundFieldsValidator.TodayKey] = clock.Today;
-        var validation = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
+        var validation = await LegacyEditFilter.RelaxAsync(
+            await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false),
+            reader,
+            orderId,
+            view => view.Refunds.FirstOrDefault(refund => refund.Id == refundId) is { } saved
+                ? LegacyEditFilter.Unchanged(
+                    (nameof(IOrderRefundFields.Amount), request.Amount == saved.Amount),
+                    (nameof(IOrderRefundFields.RefundDate), OrderDetailsFieldsValidator.TryParseDate(request.RefundDate, out var date) && date == saved.RefundDate))
+                : LegacyEditFilter.Unchanged(),
+            cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));

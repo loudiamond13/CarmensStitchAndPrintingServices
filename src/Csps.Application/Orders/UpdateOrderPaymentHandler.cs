@@ -52,7 +52,16 @@ public sealed class UpdateOrderPaymentHandler(
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var context = new ValidationContext<UpdateOrderPaymentRequest>(request);
         context.RootContextData[OrderPaymentFieldsValidator.TodayKey] = clock.Today;
-        var validation = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
+        var validation = await LegacyEditFilter.RelaxAsync(
+            await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false),
+            reader,
+            orderId,
+            view => view.Payments.FirstOrDefault(payment => payment.Id == paymentId) is { } saved
+                ? LegacyEditFilter.Unchanged(
+                    (nameof(IOrderPaymentFields.Amount), request.Amount == saved.Amount),
+                    (nameof(IOrderPaymentFields.PaymentDate), OrderDetailsFieldsValidator.TryParseDate(request.PaymentDate, out var date) && date == saved.PaymentDate))
+                : LegacyEditFilter.Unchanged(),
+            cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));

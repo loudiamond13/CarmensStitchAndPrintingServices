@@ -45,8 +45,8 @@ public sealed class OrderLegacyEditTests
         var fixedQuantity = order.UpdateItem(itemId, Item(quantity: 10, unitPrice: 2_000_000.00m), Later);
 
         text.IsSuccess.ShouldBeTrue();
-        quantity.Error.FieldErrors.ShouldNotBeNull()["quantity"].ShouldBe([OrderRules.QuantityOutOfRange]);
-        price.Error.FieldErrors.ShouldNotBeNull()["unitPrice"].ShouldBe([OrderRules.UnitPriceOutOfRange]);
+        quantity.Error.FieldErrors.ShouldNotBeNull()["items[0].quantity"].ShouldBe([OrderRules.QuantityOutOfRange]);
+        price.Error.FieldErrors.ShouldNotBeNull()["items[0].unitPrice"].ShouldBe([OrderRules.UnitPriceOutOfRange]);
         fixedQuantity.IsSuccess.ShouldBeTrue();
         order.Items[0].Quantity.ShouldBe(10);
     }
@@ -145,8 +145,8 @@ public sealed class OrderLegacyEditTests
     [Fact]
     public void AnOrderWithoutAContactNumberTakesAnEditOfOtherDetailsButAChangedNumberIsStillChecked()
     {
-        var order = Legacy();
         var details = Details() with { ContactNumber = null };
+        var order = Legacy(details: details);
 
         var notes = order.UpdateDetails(details with { Notes = "Pick up at the shop" }, Later);
         var bad = order.UpdateDetails(details with { ContactNumber = "call me" }, Later);

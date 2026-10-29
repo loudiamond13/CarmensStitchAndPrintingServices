@@ -43,7 +43,15 @@ public sealed class UpdateOrderDiscountHandler(
             return Result.Failure<OrderDetailResponse>(AuthErrors.SessionEnded);
         }
 
-        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        var validation = await LegacyEditFilter.RelaxAsync(
+            await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false),
+            reader,
+            orderId,
+            view => view.Discounts.FirstOrDefault(discount => discount.Id == discountId) is { } saved
+                ? LegacyEditFilter.Unchanged(
+                    (nameof(IOrderDiscountFields.Value), DiscountKindNames.TryParse(request.Kind, out var kind) && DiscountKindNames.ToKey(kind) == saved.Kind && request.Value == saved.Value))
+                : LegacyEditFilter.Unchanged(),
+            cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             return Result.Failure<OrderDetailResponse>(ValidationResults.ToError(validation, OrderErrors.ValidationCode, OrderErrors.ValidationMessage));
