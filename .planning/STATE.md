@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
-status: planning
-stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-10-29T21:03:54.815Z"
-last_activity: "2026-10-29: Phases 7 and 7.1 shipped as PR #17"
-state_head: 5d99be377c597c3cb8a32a09cd2a866d4e093fe5
+status: executing
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-10-29T21:48:45.780Z"
+last_activity: 2026-10-29
+last_activity_desc: Phase 08 execution started
+state_head: 7189481ab28619f707953b0ce07b9389beae12e3
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 219
+  completed_plans: 220
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T14:28:12-05:00"
-last_activity_desc: Phases 7 and 7.1 shipped as PR
 ---
 
 # Project State
@@ -25,14 +25,14 @@ last_activity_desc: Phases 7 and 7.1 shipped as PR
 See: .planning/PROJECT.md (updated 2026-10-29)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 07.1 — Legacy Fit Check (read-only)
+**Current focus:** Phase 08 — Order Screens
 
 ## Current Position
 
-Phase: 08 (Order Screens) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to plan (Phases 7 and 7.1 shipped as PR #17, awaiting owner merge)
-Last activity: 2026-10-29: Phases 7 and 7.1 shipped as PR #17
+Phase: 08 (Order Screens) — EXECUTING
+Plan: 2 of 24
+Status: Ready to execute
+Last activity: 2026-10-29 — Phase 08 execution started
 
 Progress: [████░░░░░░] 39%
 
@@ -279,6 +279,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P10 | 35 min | 2 tasks | 5 files |
 | Phase 07.1 P11 | 15 min | 2 tasks | 6 files |
 | Phase 07.1 P12 | 5 min | 2 tasks | 3 files |
+| Phase 08 P01 | 35 min | 2 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -796,6 +797,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1]: D-40 (owner, 2026-10-29): Group 18 discount above subtotal also shows `AllowOverpaid`: leave as is
 - [Phase 07.1]: D-41 (owner, 2026-10-29): Group 20 keep the two relaxations already relied on (missing contact number, missing due date) for the Phase 16 import
 - [Phase 07.1]: D-42 (owner, 2026-10-29): no new import relaxation approved; plan 07.1-12's relaxation list is empty. Groups 19, 21, 22 noted, nothing to rule
+- [Phase 08]: ListOrdersHandler takes IBusinessCalendar instead of TimeProvider and reads the clock once for the recent window and today (D-59)
+- [Phase 08]: OrderReader stamps Today after the detail read loop so every order answer carries the business date with no handler change
+- [Phase 08]: List-wide counts use one GroupBy-on-constant LINQ command with the five active statuses listed by name (D-41, D-60: list is 3 fixed commands)
 
 ### Pending Todos
 
@@ -900,6 +904,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T19:27:59.380Z
-Stopped at: Phase 8 UI-SPEC approved
-Resume file: .planning/phases/08-order-screens/08-UI-SPEC.md
+Last session: 2026-10-29T21:48:44.788Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None
