@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-25T22:05:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-28T21:10:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -66,6 +66,8 @@ Run these once, in this order.
    When this command creates a new database, SQL Server gives it the server's default compatibility level (170 on SQL Server 2025). The seed in step 5 pins it to 160, the level the app's SQL is generated for, so always run step 5 after creating a database.
 
 5. **Seed development data.** The seed is an explicit command. Nothing seeds or migrates when the API starts. It only accepts `CSPS_Dev` (the default) or `CSPS_E2E`, and only on the `(localdb)\MSSQLLocalDB` instance or on a SQL Server container on this machine addressed as `127.0.0.1,<port>` or `localhost,<port>` (the container the CI tests use). It refuses every other database (including every `BetsLLC_*` database on the shared instance) and every other server, including other LocalDB instances, named-pipe (`np:`) and `tcp:` addresses, named instances, hosted servers such as the SmarterASP.NET database, and any connection string with a `Failover Partner`. A refusal exits with code 2 before anything connects. It also applies any pending migrations before seeding, and is safe to re-run. The seed also adds demo company expenses (60 over the last 60 days and 4 coming up, with made-up amounts) when the expenses table is empty and at least one active Admin or Manager who has signed in exists. It never creates accounts, so create your first Manager (see "Signing in locally") and run the seed again to get them.
+
+   The seed also adds the eight orders of the UI spec (ORD-2026-0139 to ORD-2026-0159, with their items, discounts, payments and order expenses) when the Orders table is empty. They come in through the same import path as the legacy migration, so every figure is worked out from the children: ORD-2026-0148 reads a balance of 9,327.50 and ORD-2026-0151 reads Fully Paid. The next new order is ORD-2026-0160. Receivers and payers are the active staff who can pay, so create your first Manager and run the seed again before you rely on real names; with no staff yet, the seed uses the Legacy holder ("Legacy / unassigned") and still never creates an account. The names and the email in these orders are made up (the email ends in example.com). Order images are not seeded.
 
    ```powershell
    dotnet run --project tools/Csps.DevSeed -- --reset
