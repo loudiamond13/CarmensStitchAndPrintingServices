@@ -18,20 +18,29 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
 
     private readonly CspsDatabase _database;
     private readonly IReadOnlyList<ShadowColumn> _shadowColumns;
+    private readonly IReadOnlyList<ShadowColumn> _missingColumns;
 
-    private FakeLegacyDatabase(CspsDatabase database, IReadOnlyList<ShadowColumn> shadowColumns)
+    private FakeLegacyDatabase(CspsDatabase database, IReadOnlyList<ShadowColumn> shadowColumns, IReadOnlyList<ShadowColumn> missingColumns)
     {
         _database = database;
         _shadowColumns = shadowColumns;
+        _missingColumns = missingColumns;
     }
 
     public string ConnectionString => _database.ConnectionString;
 
     /// <summary>Creates the fake restore with one order type, one status, one order and two items, plus any extra shadow columns.</summary>
-    public static async Task<FakeLegacyDatabase> CreateWithOneOrderAsync(CancellationToken cancellationToken, params ShadowColumn[] extraColumns)
+    public static Task<FakeLegacyDatabase> CreateWithOneOrderAsync(CancellationToken cancellationToken, params ShadowColumn[] extraColumns) =>
+        CreateAsync([.. StandardShadowColumns, .. extraColumns], [], cancellationToken);
+
+    /// <summary>Creates the same fake restore with one mapped column left out of its table.</summary>
+    public static Task<FakeLegacyDatabase> CreateWithOneOrderMissingAsync(ShadowColumn missingColumn, CancellationToken cancellationToken) =>
+        CreateAsync(StandardShadowColumns, [missingColumn], cancellationToken);
+
+    private static async Task<FakeLegacyDatabase> CreateAsync(IReadOnlyList<ShadowColumn> shadowColumns, IReadOnlyList<ShadowColumn> missingColumns, CancellationToken cancellationToken)
     {
         var database = await CspsDatabase.CreateEmptyAsync(150).ConfigureAwait(false);
-        var fake = new FakeLegacyDatabase(database, [.. StandardShadowColumns, .. extraColumns]);
+        var fake = new FakeLegacyDatabase(database, shadowColumns, missingColumns);
         try
         {
             var context = fake.OpenWrite();
@@ -156,5 +165,5 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
         }
     }
 
-    private FakeLegacyWriteContext OpenWrite() => FakeLegacyWriteContext.Open(ConnectionString, _shadowColumns);
+    private FakeLegacyWriteContext OpenWrite() => FakeLegacyWriteContext.Open(ConnectionString, _shadowColumns, _missingColumns);
 }

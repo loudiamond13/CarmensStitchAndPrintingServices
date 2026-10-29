@@ -46,6 +46,56 @@ public sealed class ColumnInventoryTests
     }
 
     [Fact]
+    public async Task AMappedColumnMissingFromTheRestoreStopsTheRunBeforeAnyTableIsRead()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderMissingAsync(new ShadowColumn("Orders", "Note"), token);
+        await using (fake.ConfigureAwait(true))
+        {
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = Path.Combine(Path.GetTempPath(), $"csps-fitcheck-{Guid.NewGuid():N}", "_local");
+            var time = new FakeTimeProvider(new DateTimeOffset(2026, 10, 29, 0, 0, 0, TimeSpan.Zero));
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+            var trialCreated = false;
+            var hooks = new FitCheckHooks((_, _) =>
+            {
+                trialCreated = true;
+                return Task.CompletedTask;
+            });
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, time, output, error, token, hooks);
+
+                exit.ShouldBe(1);
+                error.ToString().TrimEnd().ShouldBe("Failed: mapped columns missing from the restore: 1. No table was read.");
+                output.ToString().ShouldContain("_local/legacy-fit-check/findings-");
+                output.ToString().ShouldNotContain("SENTINEL");
+                trialCreated.ShouldBeFalse();
+
+                var folder = Path.Combine(localRoot, "legacy-fit-check");
+                var text = await File.ReadAllTextAsync(Directory.EnumerateFiles(folder, "findings-*.md").ShouldHaveSingleItem(), token);
+                var missing = text.Split('\n').Where(static line => line.Contains("column.missing", StringComparison.Ordinal)).ShouldHaveSingleItem();
+                missing.ShouldContain("CannotMap");
+                missing.ShouldContain("Orders.Note");
+                text.ShouldContain("0 unknown, 1 missing");
+                text.ShouldNotContain("SENTINEL");
+                Directory.EnumerateFiles(folder, "summary-*.md").ShouldBeEmpty();
+            }
+            finally
+            {
+                var root = Path.GetDirectoryName(localRoot);
+                if (root is not null && Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void TheFullResearchColumnSetGivesNoUnknownAndNoMissingColumn()
     {
         var result = ColumnInventory.Check(ResearchColumns());
