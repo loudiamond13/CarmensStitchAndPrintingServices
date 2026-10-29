@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
-stopped_at: Completed 07.1-01-PLAN.md
-last_updated: "2026-10-29T13:02:24.053Z"
+stopped_at: Completed 07.1-02-PLAN.md
+last_updated: "2026-10-29T13:25:58.468Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07.1 execution started
-state_head: 379a64d0fa54d1ecd3fe3f72a4693b9b17a63b8a
+state_head: e574c7c7cdbd8e2abce9795365148c196aaf36f4
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 219
-  completed_plans: 208
+  completed_plans: 209
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T13:00:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
-Plan: 2 of 12
+Plan: 3 of 12
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 07.1 execution started
 
@@ -267,6 +267,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07 P19 | 41 min | 3 tasks | 18 files |
 | Phase 07 P20 | 35 min | 2 tasks | 10 files |
 | Phase 07.1 P01 | 25 min | 2 tasks | 28 files |
+| Phase 07.1 P02 | 26 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -744,6 +745,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1 execute]: D-85 (owner, 2026-10-29): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 still ships on its own PR first; 7.1 follows it.
 - [Phase 07.1]: Fit check tool gets InternalsVisibleTo on Csps.Infrastructure to register the internal CspsUnitOfWork; no new public DI surface
 - [Phase 07.1]: Fit check tests run in CI step 3 integration tests (full mode, container SQL) because they need a real SQL Server
+- [Phase 07.1]: 07.1-02: read window is one never-committed ReadCommitted transaction; write evidence (tables, rows, index updates) must match before and after or the run fails. The transaction also keeps one connection open, because auto-close resets index counters.
+- [Phase 07.1]: 07.1-02: LegacySource allows the restore on LocalDB only; CSPS_Test_{guid} fakes also on loopback containers; refusal text is fixed and never repeats the connection string.
 
 ### Pending Todos
 
@@ -846,6 +849,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T13:02:11.970Z
-Stopped at: Completed 07.1-01-PLAN.md
+Last session: 2026-10-29T13:25:57.345Z
+Stopped at: Completed 07.1-02-PLAN.md
 Resume file: None
