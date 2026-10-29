@@ -356,6 +356,24 @@ public sealed class AuditChangeLinesTests
     }
 
     [Theory]
+    [InlineData("tone=info>purple")]
+    [InlineData("tone=purple>info")]
+    [InlineData("tone=purple")]
+    [InlineData("tone=<b>info</b>")]
+    public void AToneThatIsNotOneOfTheSixIsLeftOutOfTheLines(string detail)
+    {
+        AuditChangeLines.For(AuditActions.ExpenseCategoryRecolored, detail).Lines.ShouldBeEmpty();
+        AuditChangeLines.For(AuditActions.OrderExpenseCategoryRecolored, detail).Lines.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ANameLineStaysWhenItsToneLineIsDropped()
+    {
+        AuditChangeLines.For(AuditActions.ExpenseCategoryAdded, "name=Fuel;tone=purple").Lines
+            .ShouldBe([new ParsedAuditChange("name", null, "Fuel")]);
+    }
+
+    [Theory]
     [InlineData(AuditActions.ProductTypeRenamed, "name=Polo>Polo Shirt", "name", "Polo", "Polo Shirt")]
     [InlineData(AuditActions.PaymentMethodRecolored, "tone=info>success", "tone", "info", "success")]
     [InlineData(AuditActions.OrderExpenseCategoryAdded, "name=Fabric%3BMesh;tone=neutral", "name", null, "Fabric;Mesh")]
