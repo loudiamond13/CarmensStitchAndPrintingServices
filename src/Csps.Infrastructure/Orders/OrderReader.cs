@@ -90,9 +90,8 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
 
         if (query.ProductTypeId is { } productTypeId)
         {
-            // The outer query already hides deleted orders, so the item filter is lifted to keep the subquery a plain lookup.
-            var items = context.Set<OrderItem>().IgnoreQueryFilters([SoftDeleteFilter]);
-            orders = orders.Where(order => items.Any(item => item.OrderId == order.Id && item.ProductTypeId == productTypeId));
+            // No IgnoreQueryFilters here: EF applies it to the whole query, so it would lift the outer SoftDelete filter too.
+            orders = orders.Where(order => context.Set<OrderItem>().Any(item => item.OrderId == order.Id && item.ProductTypeId == productTypeId));
         }
 
         return query.HasBalance ? orders.Where(order => order.Balance > 0m) : orders;
