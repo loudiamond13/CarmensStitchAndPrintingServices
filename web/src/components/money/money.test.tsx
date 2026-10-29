@@ -928,12 +928,14 @@ describe('money scenarios (the money parity group)', () => {
     expect(byId.get('kpi-loading')?.passes).toEqual(['motion']);
   });
 
+  // The OrderTotals cases changed by owner rulings (D-01 to D-07, D-45), so the frozen design has no panel or card to
+  // compare with: they run in the implementation only. Money and KpiCard keep the parity comparison.
   it('compares every case in both themes at rest; the totals at every width, Money at 390 and 1440', () => {
     for (const scenario of moneyScenarios) {
       expect(scenario.group, scenario.id).toBe('money');
       expect(scenario.themes, scenario.id).toEqual(['light', 'dark']);
       expect(scenario.states, scenario.id).toEqual(['rest']);
-      expect(scenario.parity, scenario.id).toBe(true);
+      expect(scenario.parity, scenario.id).toBe(totalsNode(scenario.id)?.component !== 'OrderTotals');
       expect(scenario.responsive, scenario.id).toBe(totalsNode(scenario.id)?.component === 'OrderTotals');
     }
   });

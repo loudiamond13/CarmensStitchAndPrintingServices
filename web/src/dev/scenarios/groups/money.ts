@@ -12,8 +12,10 @@
 //     reduced-motion pass where the shimmer stops, D-31 O-6).
 // The figures are never typed here: both sides compute them from the seed order with orderTotals (the reference with
 // App. D.1, the implementation with the D-09 centavo math), and spec §12.2 lists the expected results, which
-// money.test.tsx asserts. Each case is compared in both themes at rest. The panels sit in the DefinedTotalsNote wrapper
-// pair (see totalsPanel); the card variant has no note and needs none.
+// money.test.tsx asserts. Each case is shown in both themes at rest. The panels sit in the DefinedTotalsNote wrapper
+// pair (see totalsPanel); the card variant has no note and needs none. The OrderTotals cases changed by owner rulings
+// (plan 08-02: D-01 to D-07, D-45), so the frozen design has no panel or card to compare with: they run in the
+// implementation only (parity false).
 import type { Scenario, ScenarioNode, ScenarioPass, ScenarioProps } from '../types';
 
 function node(component: string, props: ScenarioProps): ScenarioNode {
@@ -23,11 +25,13 @@ function node(component: string, props: ScenarioProps): ScenarioNode {
 interface CaseOptions {
   readonly responsive?: boolean;
   readonly passes?: readonly ScenarioPass[];
+  /** False for a case the frozen design cannot be compared with (OrderTotals, changed by owner rulings D-01 to D-07). */
+  readonly parity?: boolean;
 }
 
-/** A money case compared in both themes at rest. */
+/** A money case shown in both themes at rest; compared with the reference unless `parity` is false. */
 function moneyCase(id: string, node: ScenarioNode, options: CaseOptions = {}): Scenario {
-  const { responsive = false, passes } = options;
+  const { responsive = false, passes, parity = true } = options;
   return {
     id,
     group: 'money',
@@ -35,7 +39,7 @@ function moneyCase(id: string, node: ScenarioNode, options: CaseOptions = {}): S
     themes: ['light', 'dark'],
     responsive,
     states: ['rest'],
-    parity: true,
+    parity,
     ...(passes === undefined ? {} : { passes }),
   };
 }
@@ -113,10 +117,11 @@ export const scenarios: readonly Scenario[] = [
   moneyCase('money-lg-success', node('Money', { amount: 126450, size: 'lg', tone: 'success' })),
   moneyCase('money-sm-muted', node('Money', { amount: 38226.95, size: 'sm', tone: 'muted' })),
   moneyCase('money-warning', node('Money', { amount: 9327.5, tone: 'warning' })),
-  moneyCase('order-totals-0148', totalsPanel(ORDER_0148), { responsive: true }),
-  moneyCase('order-totals-0151', totalsPanel(ORDER_0151), { responsive: true }),
+  moneyCase('order-totals-0148', totalsPanel(ORDER_0148), { responsive: true, parity: false }),
+  moneyCase('order-totals-0151', totalsPanel(ORDER_0151), { responsive: true, parity: false }),
   moneyCase('order-totals-card-0148', node('OrderTotals', { order: ORDER_0148, variant: 'card' }), {
     responsive: true,
+    parity: false,
   }),
   moneyCase(
     'kpi-income',

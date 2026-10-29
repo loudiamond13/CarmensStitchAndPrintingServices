@@ -2,12 +2,19 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
-import { CARD_0148, ORDER_0153, scenarios as dataScenarios, TABLE_ROWS } from '@/dev/scenarios/groups/data';
+import {
+  CARD_0148,
+  CARD_0151,
+  CARD_0153,
+  ORDER_0153,
+  scenarios as dataScenarios,
+  TABLE_ROWS,
+} from '@/dev/scenarios/groups/data';
 import { ORDER_0148, ORDER_0151 } from '@/dev/scenarios/groups/money';
-import type { ScenarioNode } from '@/dev/scenarios/types';
-import { formatPeso, orderTotals, type Order, type Totals } from '@/utils/csps';
+import type { ScenarioNode, ScenarioProps } from '@/dev/scenarios/types';
+import { formatPeso, orderTotals, type Order } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
-import { DataTable, OrderCard, WALK_IN_CUSTOMER, type DataTableColumn } from '@/components/data';
+import { DataTable, OrderCard, WALK_IN_CUSTOMER, type DataTableColumn, type OrderCardOrder } from '@/components/data';
 import { skeletonClasses } from '@/components/feedback/feedback.recipe';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import {
@@ -20,10 +27,8 @@ import {
   orderDatesClasses,
   orderHeadClasses,
   orderImageClasses,
-  orderLastActionClasses,
   orderMediaClasses,
   orderNumberClasses,
-  orderOverdueClasses,
   orderPlaceholderClasses,
   orderQtyClasses,
   orderStatusBadgeClasses,
@@ -70,9 +75,18 @@ function renderCase(id: string) {
   return render(renderNode(kit, scenario.node, scenario.handlers ?? []));
 }
 
-const order0148 = CARD_0148 as unknown as Order;
-const order0151 = ORDER_0151 as unknown as Order;
-const order0153 = ORDER_0153 as unknown as Order;
+/** A list row as the API sends it, with the figures as decimal text (ORD-2026-0148). */
+const row0148: OrderCardOrder = CARD_0148 as unknown as OrderCardOrder;
+const row0151: OrderCardOrder = CARD_0151 as unknown as OrderCardOrder;
+const row0153: OrderCardOrder = CARD_0153 as unknown as OrderCardOrder;
+
+const creditRow: OrderCardOrder = { ...row0151, balance: '0.00', customerCredit: '1000.00', fullyPaid: false };
+const cancelledRow: OrderCardOrder = {
+  ...row0148,
+  status: 'cancelled',
+  paid: '1000.00',
+  balance: '20327.50',
+};
 
 /** The label → figure pairs of the card's totals list, in DOM order. */
 function figures(container: HTMLElement): [string, string][] {
@@ -82,9 +96,9 @@ function figures(container: HTMLElement): [string, string][] {
   ]);
 }
 
-describe('OrderCard (App. D.3)', () => {
+describe('OrderCard (list contract, D-04, D-22, D-27, D-40, D-46, D-57)', () => {
   it('renders ORD-2026-0148: the number, 48 pcs, the team, the customer, the dates and the status', () => {
-    render(<OrderCard order={order0148} />);
+    render(<OrderCard order={row0148} />);
     const card = screen.getByRole('article');
 
     expect(within(card).getByText('ORD-2026-0148')).toBeTruthy();
@@ -96,97 +110,178 @@ describe('OrderCard (App. D.3)', () => {
     expect(within(card).getByText('In Production')).toBeTruthy();
   });
 
-  it('shows the spec §12.2 figures for ORD-2026-0148 in the compact totals: balance due ₱9,327.50', () => {
-    const { container } = render(<OrderCard order={order0148} />);
+  it('shows the piece count with en-PH thousands, and a text count as it comes from the API (D-40)', () => {
+    const { rerender } = render(<OrderCard order={{ ...row0148, pieces: 1234 }} />);
+    expect(screen.getByText('1,234 pcs')).toBeTruthy();
 
-    expect(figures(container)).toEqual([
-      ['Subtotal', '₱22,450.00'],
-      ['Total Discount', '−₱1,122.50'],
-      ['Total Paid', '−₱12,000.00'],
-    ]);
+    rerender(<OrderCard order={{ ...row0148, pieces: '12' }} />);
+    expect(screen.getByText('12 pcs')).toBeTruthy();
+
+    rerender(<OrderCard order={{ ...row0148, pieces: 0 }} />);
+    expect(screen.getByText('0 pcs')).toBeTruthy();
+  });
+
+  it('shows Total and Balance due for ORD-2026-0148 and no discount, expenses or profit (D-04, D-06, ORD-19)', () => {
+    const { container } = render(<OrderCard order={row0148} />);
+
+    expect(figures(container)).toEqual([['Total', '₱21,327.50']]);
     expect(screen.getByText('Balance due')).toBeTruthy();
     expect(screen.getByText('₱9,327.50')).toBeTruthy();
-    expect(screen.queryByText('Order Expenses')).toBeNull();
+    expect(container.textContent).not.toMatch(/Discount|Order Expenses|Estimated Profit|Profit/);
   });
 
   it('shows ORD-2026-0151 as Fully Paid', () => {
-    render(<OrderCard order={order0151} />);
+    render(<OrderCard order={row0151} />);
 
     expect(screen.getByText('Fully Paid')).toBeTruthy();
     expect(screen.getByText('Tondo Riders MC')).toBeTruthy();
     expect(screen.getByText('Ready')).toBeTruthy();
   });
 
-  it('shows the server totals it is given instead of computing a preview (D-09)', () => {
-    const totals: Totals = {
-      subtotal: 23000,
-      discount: 500,
-      total: 22500,
-      paid: 10000,
-      balance: 12500,
-      expenses: 0,
-      profit: 22500,
-      fullyPaid: false,
-    };
-    render(<OrderCard order={order0151} totals={totals} />);
+  it('shows a customer credit as a "Credit ₱X" info badge, never as a negative balance (ORD-12)', () => {
+    const { container } = render(<OrderCard order={creditRow} />);
 
-    expect(screen.getByText('−₱10,000.00')).toBeTruthy();
+    expect(screen.getByText('Credit ₱1,000.00')).toBeTruthy();
+    expect(screen.queryByText('Fully Paid')).toBeNull();
+    expect(screen.queryByText('Balance due')).toBeNull();
+    expect(container.textContent).not.toContain('−');
+  });
+
+  it('shows Not collected with the figure for a Cancelled order with money unpaid (D-45)', () => {
+    render(<OrderCard order={cancelledRow} />);
+
+    expect(screen.getByText('Not collected')).toBeTruthy();
+    expect(screen.getByText('₱20,327.50')).toBeTruthy();
+    expect(screen.queryByText('Balance due')).toBeNull();
+  });
+
+  it('shows the server figures it is given, as text, without any browser arithmetic (D-09)', () => {
+    render(<OrderCard order={{ ...row0151, total: '99999999.99', balance: '12500.00', fullyPaid: false }} />);
+
+    expect(screen.getByText('₱99,999,999.99')).toBeTruthy();
     expect(screen.getByText('₱12,500.00')).toBeTruthy();
     expect(screen.queryByText('Fully Paid')).toBeNull();
   });
 
-  it('shows a large image count with a thousands separator in the cover name and chip', () => {
-    const images = Array.from({ length: 1200 }, (_, index) => ({ id: `img-${String(index)}` }));
-    render(<OrderCard order={{ ...order0148, images }} />);
-    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 1,200 images' });
-    expect(media.textContent).toContain('1,200');
+  it('has no Delete action anywhere on the card (D-22)', () => {
+    render(<OrderCard order={row0148} />);
+
+    expect(screen.queryByRole('button', { name: /delete/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /delete/i })).toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(3);
   });
 
-  it('makes the cover a button named with the order, its status and image count, holding all three (UI-WR-12)', () => {
-    render(<OrderCard order={order0148} />);
-    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 4 images' });
+  it('shows "No images yet" on the cover and names it with the order and its status (D-27, UIC-54)', () => {
+    render(<OrderCard order={row0148} />);
+    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production' });
 
     expect(media.getAttribute('type')).toBe('button');
     expect(classTokens(media)).toEqual(tokens(orderMediaClasses));
-    const placeholder = within(media).getByRole('img', { name: 'front-mockup.png (no image yet)' });
+    const placeholder = within(media).getByRole('img', { name: 'No images yet (no image yet)' });
     expect(hasClasses(placeholder, orderPlaceholderClasses)).toBe(true);
-    expect(placeholder.textContent).toContain('23');
     const status = within(media).getByText('In Production').parentElement;
     expect(classTokens(status)).toEqual(tokens(orderStatusClasses));
     expect(hasClasses(within(media).getByText('In Production'), orderStatusBadgeClasses)).toBe(true);
-    const count = within(media).getByText('4');
-    expect(classTokens(count)).toEqual(tokens(orderCountClasses));
-    expect(count.querySelector('svg')).not.toBeNull();
   });
 
-  it('names the cover with the status alone for one image, and with the raw text for a status it does not know', () => {
-    const single: Order = { ...order0148, images: [{ id: 'cover', name: 'front.png', src: '/media/front.png' }] };
-    const { rerender } = render(<OrderCard order={single} />);
-    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production' })).toBeTruthy();
+  it('names the footer buttons by their order: "View order {number}" and "Edit details of order {number}" (D-46, D-57)', () => {
+    render(<OrderCard order={row0148} />);
+    const view = screen.getByRole('button', { name: 'View order ORD-2026-0148' });
+    const edit = screen.getByRole('button', { name: 'Edit details of order ORD-2026-0148' });
 
-    const unknown = { ...order0148, images: [], status: 'on_hold' } as unknown as Order;
-    rerender(<OrderCard order={unknown} />);
-    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148, on_hold' })).toBeTruthy();
+    expect(view.textContent).toBe('View Order');
+    expect(edit.textContent).toBe('Edit Details');
   });
 
-  it('shows a cover image with an empty alt, and no count chip for a single image', () => {
-    const order: Order = { ...order0148, images: [{ id: 'cover', name: 'front.png', src: '/media/front.png' }] };
-    const { container } = render(<OrderCard order={order} />);
+  it.each(['completed', 'cancelled'] as const)('hides Edit Details on a %s order (D-15)', (status) => {
+    render(<OrderCard order={{ ...row0148, status }} />);
+
+    expect(screen.queryByRole('button', { name: /Edit details/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148' })).toBeTruthy();
+  });
+
+  it.each(['pending', 'mockup', 'production', 'ready', 'delivered'] as const)(
+    'offers Edit Details on a %s order',
+    (status) => {
+      render(<OrderCard order={{ ...row0148, status }} />);
+
+      expect(screen.getByRole('button', { name: 'Edit details of order ORD-2026-0148' })).toBeTruthy();
+    },
+  );
+
+  it('calls onView from the cover and the View Order button, and onEdit from Edit Details', () => {
+    const onView = vi.fn();
+    const onEdit = vi.fn();
+    render(<OrderCard order={row0148} onView={onView} onEdit={onEdit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View order ORD-2026-0148' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details of order ORD-2026-0148' }));
+
+    expect(onView).toHaveBeenCalledTimes(2);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the footer to View Order and Edit Details, in the actions look', () => {
+    const { container } = render(<OrderCard order={row0148} />);
+    const actions = container.firstElementChild?.lastElementChild;
+
+    expect(classTokens(actions)).toEqual(tokens(orderActionsClasses));
+    expect([...(actions?.children ?? [])].map((button) => button.textContent)).toEqual(['View Order', 'Edit Details']);
+  });
+
+  it('puts the due slot after the clock icon instead of the plain due date', () => {
+    const { container } = render(<OrderCard order={row0148} due={<span>Due in 3 days</span>} />);
+    const clock = container.querySelector('svg.lucide-clock')?.parentElement;
+
+    expect(clock?.textContent).toBe('Due in 3 days');
+    expect(screen.queryByText('Due Oct 14, 2026')).toBeNull();
+  });
+
+  it('shows a cover image with an empty alt, the name with its image count, and a count chip (Phase 9 cover)', () => {
+    const { container } = render(
+      <OrderCard order={row0148} cover={{ src: '/media/front.png', name: 'front.png', count: 1200 }} />,
+    );
     const image = container.querySelector('img');
 
     expect(image?.getAttribute('src')).toBe('/media/front.png');
     expect(image?.getAttribute('alt')).toBe('');
     expect(classTokens(image)).toEqual(tokens(orderImageClasses));
+    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 1,200 images' });
+    expect(media.textContent).toContain('1,200');
+    expect(classTokens(within(media).getByText('1,200'))).toEqual(tokens(orderCountClasses));
     expect(screen.queryByRole('img', { name: /no image yet/ })).toBeNull();
+  });
+
+  it('draws a cover placeholder with its file name and number, and no count chip for one image', () => {
+    const { container } = render(
+      <OrderCard order={row0148} cover={{ name: 'front-mockup.png', number: '23', count: 1 }} />,
+    );
+    const placeholder = screen.getByRole('img', { name: 'front-mockup.png (no image yet)' });
+
+    expect(placeholder.textContent).toContain('23');
     expect([...container.querySelectorAll('span')].some((span) => hasClasses(span, orderCountClasses))).toBe(false);
+    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production' })).toBeTruthy();
+  });
+
+  it('names a cover placeholder without a file name "No image yet"', () => {
+    render(<OrderCard order={row0148} cover={{}} />);
+
+    expect(screen.getByRole('img', { name: 'No image yet' })).toBeTruthy();
+  });
+
+  it('names the cover with the raw text for a status it does not know', () => {
+    render(<OrderCard order={{ ...row0148, status: 'on_hold' as unknown as OrderCardOrder['status'] }} />);
+
+    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148, on_hold' })).toBeTruthy();
   });
 
   it('pins the walk-in wording to the spec §8.3 table rows: "Walk-in customer"', () => {
     expect(WALK_IN_CUSTOMER).toBe('Walk-in customer');
   });
 
-  it('shows the customer as the title of a no-team order and "Walk-in customer" on the customer line (D-40)', () => {
-    render(<OrderCard order={order0153} />);
+  it('shows the customer as the title of a no-team order and "Walk-in customer" on the next line (D-40, UIC-5)', () => {
+    render(<OrderCard order={row0153} />);
     const card = screen.getByRole('article');
     const title = within(card).getByRole('heading', { level: 3 });
 
@@ -202,7 +297,7 @@ describe('OrderCard (App. D.3)', () => {
   });
 
   it('reads an empty team as no team: the customer is the title and the line says "Walk-in customer" (D-40)', () => {
-    render(<OrderCard order={{ ...order0148, team: '' }} />);
+    render(<OrderCard order={{ ...row0148, teamName: '' }} />);
     const title = screen.getByRole('heading', { level: 3 });
 
     expect(title.textContent).toBe('Juan Dela Cruz');
@@ -210,7 +305,7 @@ describe('OrderCard (App. D.3)', () => {
   });
 
   it('keeps a team order unchanged: the team is the title and the customer is on the customer line (D-40)', () => {
-    render(<OrderCard order={order0148} />);
+    render(<OrderCard order={row0148} />);
     const title = screen.getByRole('heading', { level: 3 });
 
     expect(title.textContent).toBe('Brgy. San Roque Ballers');
@@ -219,18 +314,8 @@ describe('OrderCard (App. D.3)', () => {
     expect(screen.queryByText('Walk-in customer')).toBeNull();
   });
 
-  it('marks an overdue due date in the danger colour, and only the due date', () => {
-    render(<OrderCard order={order0153} />);
-    const due = screen.getByText('Due Oct 5, 2026');
-    const ordered = screen.getByText('Oct 3, 2026');
-
-    expect(classTokens(due)).toEqual(tokens(`${orderDateClasses} ${orderOverdueClasses}`));
-    expect(classTokens(ordered)).toEqual(tokens(orderDateClasses));
-    expect(due.querySelector('svg')).not.toBeNull();
-  });
-
-  it('renders the App. D.3 structure in the order-card looks', () => {
-    const { container } = render(<OrderCard order={order0148} />);
+  it('renders the card structure in the order-card looks', () => {
+    const { container } = render(<OrderCard order={row0148} />);
     const card = container.firstElementChild;
     const [media, body, actions] = [...(card?.children ?? [])];
     const [head, team, customer, dates] = [...(body?.children ?? [])];
@@ -245,40 +330,13 @@ describe('OrderCard (App. D.3)', () => {
     expect(classTokens(team)).toEqual(tokens(orderTeamClasses));
     expect(customer?.textContent).toBe('Juan Dela Cruz');
     expect(classTokens(dates)).toEqual(tokens(orderDatesClasses));
+    expect(dates?.children).toHaveLength(2);
+    expect(classTokens(dates?.children[0])).toEqual(tokens(orderDateClasses));
     expect(classTokens(actions)).toEqual(tokens(orderActionsClasses));
   });
 
-  it('ends with View, Edit and an icon-only Delete pushed right, each calling its handler', () => {
-    const onView = vi.fn();
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    render(<OrderCard order={order0148} onView={onView} onEdit={onEdit} onDelete={onDelete} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 4 images' }));
-    // UI-WR-12: the visible words lead each name (WCAG 2.5.3), and the order number tells the cards apart.
-    fireEvent.click(screen.getByRole('button', { name: 'View order ORD-2026-0148' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Edit order ORD-2026-0148' }));
-    const remove = screen.getByRole('button', { name: 'Delete order ORD-2026-0148' });
-    fireEvent.click(remove);
-
-    expect(onView).toHaveBeenCalledTimes(2);
-    expect(onEdit).toHaveBeenCalledTimes(1);
-    expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(remove.textContent).toBe('');
-    expect(remove.parentElement?.lastElementChild).toBe(remove);
-    expect(hasClasses(remove, orderLastActionClasses)).toBe(true);
-  });
-
-  it('counts pieces from item quantities, reading a missing item list as 0 pcs', () => {
-    const { number, customer, orderDate, dueDate, status } = order0148;
-    render(<OrderCard order={{ number, customer, orderDate, dueDate, status }} />);
-
-    expect(screen.getByText('0 pcs')).toBeTruthy();
-    expect(screen.getByRole('img', { name: 'No images yet (no image yet)' })).toBeTruthy();
-  });
-
   it('shows the empty-value icon where the due date is missing, and keeps a valid order date (OR-4)', async () => {
-    const { container } = render(<OrderCard order={{ ...order0148, dueDate: '' }} />);
+    const { container } = render(<OrderCard order={{ ...row0148, dueDate: null }} />);
     const due = screen.getByText(/^Due/);
 
     expect(due.textContent).toBe('Due Not set');
@@ -288,7 +346,7 @@ describe('OrderCard (App. D.3)', () => {
   });
 
   it('shows the empty-value icon where the order date is invalid (OR-4)', async () => {
-    const { container } = render(<OrderCard order={{ ...order0148, orderDate: 'garbage' }} />);
+    const { container } = render(<OrderCard order={{ ...row0148, orderDate: 'garbage' }} />);
     const orderDate = container.querySelector('svg.lucide-calendar')?.parentElement;
 
     expect(orderDate?.textContent).toBe('Not set');
@@ -297,59 +355,45 @@ describe('OrderCard (App. D.3)', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('counts a missing or non-numeric quantity as 0, as App. D.3 does', () => {
-    const order: Order = {
-      ...order0148,
-      items: [
-        { quantity: 3, unitPrice: 100 },
-        { quantity: Number.NaN, unitPrice: 100 },
-      ],
-    };
-    render(<OrderCard order={order} />);
-
-    expect(screen.getByText('3 pcs')).toBeTruthy();
-  });
-
-  it('names a cover placeholder without a file name "No image yet"', () => {
-    render(<OrderCard order={{ ...order0148, images: [{ id: 'cover' }] }} />);
-
-    expect(screen.getByRole('img', { name: 'No image yet' })).toBeTruthy();
-  });
-
-  it('has no axe violations on the three seed cards', async () => {
+  it('has no axe violations on the seed cards, the credit card and the Not collected card', async () => {
     for (const id of ['order-card-0148', 'order-card-0151', 'order-card-walk-in']) {
       const { container, unmount } = renderCase(id);
+      await expectNoAxeViolations(container);
+      unmount();
+    }
+    for (const order of [creditRow, cancelledRow, { ...row0148, status: 'completed' as const }]) {
+      const { container, unmount } = render(<OrderCard order={order} />);
       await expectNoAxeViolations(container);
       unmount();
     }
   });
 
   it('re-renders from the React Compiler memo cache with the same output, and updates on new props', () => {
-    const { container, rerender } = render(<OrderCard order={order0148} />);
+    const { container, rerender } = render(<OrderCard order={row0148} />);
     const first = container.innerHTML;
 
-    rerender(<OrderCard order={order0148} />);
+    rerender(<OrderCard order={row0148} />);
     expect(container.innerHTML).toBe(first);
 
-    rerender(<OrderCard order={order0151} />);
+    rerender(<OrderCard order={row0151} />);
     expect(screen.getByText('Fully Paid')).toBeTruthy();
   });
 
   it('re-renders between a walk-in order and a team order, switching the customer line (D-40)', () => {
-    const { container, rerender } = render(<OrderCard order={order0153} />);
+    const { container, rerender } = render(<OrderCard order={row0153} />);
     const first = container.innerHTML;
     const line = (): string | null | undefined =>
       screen.getByRole('heading', { level: 3 }).nextElementSibling?.textContent;
 
-    rerender(<OrderCard order={order0153} />);
+    rerender(<OrderCard order={row0153} />);
     expect(container.innerHTML).toBe(first);
     expect(line()).toBe('Walk-in customer');
 
-    rerender(<OrderCard order={order0151} />);
-    expect(line()).toBe(order0151.customer);
+    rerender(<OrderCard order={row0151} />);
+    expect(line()).toBe(row0151.customerName);
     expect(screen.queryByText('Walk-in customer')).toBeNull();
 
-    rerender(<OrderCard order={order0153} />);
+    rerender(<OrderCard order={row0153} />);
     expect(line()).toBe('Walk-in customer');
   });
 });
@@ -520,7 +564,7 @@ describe('DataTable (App. D.3)', () => {
   });
 });
 
-describe('data scenarios (the data parity group, OrderCard and DataTable)', () => {
+describe('data scenarios (the data group, OrderCard and DataTable)', () => {
   it('declares OrderCard on the spec seed orders: ORD-2026-0148, ORD-2026-0151 and the no-team ORD-2026-0153', () => {
     const cards = dataScenarios.filter(
       (scenario) => scenario.node.component === 'OrderCard' || scenario.node.component === 'WalkInOrderCard',
@@ -528,10 +572,34 @@ describe('data scenarios (the data parity group, OrderCard and DataTable)', () =
 
     expect(cards.map((scenario) => scenario.id)).toEqual(['order-card-0148', 'order-card-0151', 'order-card-walk-in']);
     for (const card of cards) {
-      expect(card.handlers, card.id).toEqual(['onView', 'onEdit', 'onDelete']);
+      expect(card.handlers, card.id).toEqual(['onView', 'onEdit']);
     }
     expect(byId.get('order-card-0148')?.states).toEqual(['rest', 'hover']);
-    expect(ORDER_0153.team).toBeUndefined();
+    expect(CARD_0153.teamName).toBeNull();
+  });
+
+  // The card rows are plain data (the scenario list cannot import the app), so their figures are checked here against
+  // the order math for the same seed orders.
+  it('gives the seed cards the figures and piece counts that orderTotals gives for the seed orders', () => {
+    const seeds: [ScenarioProps, ScenarioProps][] = [
+      [CARD_0148, ORDER_0148],
+      [CARD_0151, ORDER_0151],
+      [CARD_0153, ORDER_0153],
+    ];
+    for (const [card, seed] of seeds) {
+      const totals = orderTotals(seed as unknown as Order);
+      const pieces = (seed.items as { quantity: number }[]).reduce((sum, item) => sum + item.quantity, 0);
+      const id = card.number as string;
+      expect(formatPeso(card.subtotal as string), id).toBe(formatPeso(totals.subtotal));
+      expect(formatPeso(card.discount as string), id).toBe(formatPeso(totals.discount));
+      expect(formatPeso(card.total as string), id).toBe(formatPeso(totals.total));
+      expect(formatPeso(card.paid as string), id).toBe(formatPeso(totals.paid));
+      expect(formatPeso(card.balance as string), id).toBe(formatPeso(totals.balance));
+      expect(card.fullyPaid, id).toBe(totals.fullyPaid);
+      expect(card.pieces, id).toBe(pieces);
+      expect(card.customerName, id).toBe(seed.customer);
+      expect(card.status, id).toBe(seed.status);
+    }
   });
 
   it('wraps the no-team card, and only it, in the WalkInOrderCard pair: one plain block, "Walk-in customer" shown (D-40)', () => {
@@ -540,7 +608,7 @@ describe('data scenarios (the data parity group, OrderCard and DataTable)', () =
     expect(wrapped.map((scenario) => scenario.id)).toEqual(['order-card-walk-in']);
     const inner = wrapped[0]?.node.props?.children as ScenarioNode | undefined;
     expect(inner?.component).toBe('OrderCard');
-    expect(inner?.props?.order).toBe(ORDER_0153);
+    expect(inner?.props?.order).toBe(CARD_0153);
 
     const { container } = renderCase('order-card-walk-in');
     const block = container.firstElementChild;
@@ -592,12 +660,15 @@ describe('data scenarios (the data parity group, OrderCard and DataTable)', () =
     ]);
   });
 
-  it('compares every case in both themes at 390 and 1440', () => {
+  // The OrderCard cases changed by owner rulings (D-04, D-22, D-27, D-40), so the frozen design has no card to compare
+  // with: they run in the implementation only. The DataTable cases keep the parity comparison.
+  it('compares every case in both themes at 390 and 1440, the DataTable and chart cases against the reference', () => {
     for (const scenario of dataScenarios) {
+      const card = scenario.node.component === 'OrderCard' || scenario.node.component === 'WalkInOrderCard';
       expect(scenario.group, scenario.id).toBe('data');
       expect(scenario.themes, scenario.id).toEqual(['light', 'dark']);
       expect(scenario.responsive, scenario.id).toBe(false);
-      expect(scenario.parity, scenario.id).toBe(true);
+      expect(scenario.parity, scenario.id).toBe(!card);
     }
   });
 });
