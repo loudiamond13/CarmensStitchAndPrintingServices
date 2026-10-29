@@ -344,6 +344,12 @@ describe('describeAuditChange for order entries (D-31, ORD-16, ORD-22, ORD-23)',
     expect(describeAuditChange(change('orderDate', 'soon', 'later'))).toBeNull();
   });
 
+  it('says a first due date on an imported order replaced nothing (D-49d)', () => {
+    expect(describeAuditChange(change('dueDate', null, '2026-11-18'))).toBe('Due date: Not set to Nov 18, 2026');
+    expect(describeAuditChange(change('dueDate', null, 'soon'))).toBeNull();
+    expect(describeAuditChange(change('orderDate', null, '2026-11-18'))).toBeNull();
+  });
+
   it('reads quantity and unit price', () => {
     expect(describeAuditChange(change('quantity', '15', '20'))).toBe('Quantity: 15 to 20');
     expect(describeAuditChange(change('quantity', null, '2'), true)).toBe('Quantity: 2');
