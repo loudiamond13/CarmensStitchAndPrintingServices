@@ -41,7 +41,7 @@
     {
       "number": "8",
       "name": "Order Screens",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "9",
@@ -94,5 +94,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 08 of 18 · 39% · executing"
   },
-  "updated_at": "2026-10-29T21:48:27.942Z"
+  "updated_at": "2026-10-29T22:19:43.299Z"
 }
