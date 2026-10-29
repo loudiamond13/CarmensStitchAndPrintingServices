@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Csps.Domain.Orders;
 using Csps.LegacyFitCheck.Findings;
 using Microsoft.Extensions.Time.Testing;
 
@@ -340,11 +341,44 @@ public sealed partial class FindingsTests : IDisposable
     }
 
     [Fact]
-    public void AKeyEndingInAFullStopDoesNotDoubleUpWithTheColon()
+    public void AnUnlabelledKeyShowsItsFieldButNotItsMessage()
     {
         Finding[] findings = [Make("PaidByUserId: Choose someone else.", FindingType.ExpenseRule, RecordKind.CompanyExpense, "Expenses:1", null)];
 
-        Render(findings).ShouldContain("- PaidByUserId: Choose someone else: 1 company expense");
+        var text = Render(findings);
+
+        text.ShouldContain("- Rule break on PaidByUserId (message in the local list): 1 company expense");
+        text.ShouldNotContain("Choose someone else");
+    }
+
+    [Fact]
+    public void ARuleKeyThatEmbedsAnAmountNeverReachesTheSummary()
+    {
+        Finding[] findings =
+        [
+            Make($"Payments[].Amount: {OrderRules.PaymentAboveBalance(1234m)}", FindingType.RuleBreak, RecordKind.Order, "Orders:1", null),
+            Make($"Payments[].Amount: {OrderRules.PaymentAboveBalance(98765.43m)}", FindingType.RuleBreak, RecordKind.Order, "Orders:2", null),
+            Make($"Amount: {OrderRules.RefundAboveCredit(4321m)}", FindingType.ExpenseRule, RecordKind.CompanyExpense, "Expenses:1", null),
+            Make($"{OrderStatusRules.CompleteBalanceOwedMessage(555m)}", FindingType.RuleBreak, RecordKind.Order, "Orders:3", null),
+        ];
+
+        var text = Render(findings);
+
+        text.ShouldNotContain("₱");
+        text.ShouldNotContain("1,234");
+        text.ShouldNotContain("98,765");
+        text.ShouldNotContain("4,321");
+        text.ShouldNotContain("555");
+        text.ShouldContain("- Rule break on Payments[].Amount (message in the local list): 2 orders");
+        text.ShouldContain("- Rule break on Amount (message in the local list): 1 company expense");
+        text.ShouldContain("- Other rule break (message in the local list): 1 order");
+    }
+
+    [Fact]
+    public void APesoAmountInTheSummaryRefuses()
+    {
+        PrivacySelfCheck.Check("Enter ₱1,234.00 or less: 1 order", [], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Payments with no payment method: 155 payments", [], []).ShouldBe(PrivacyVerdict.Clean);
     }
 
     [Fact]
