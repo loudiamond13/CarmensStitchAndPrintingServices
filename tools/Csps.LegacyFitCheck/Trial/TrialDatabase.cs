@@ -1,4 +1,5 @@
 using Csps.Infrastructure.Persistence;
+using Csps.LegacyFitCheck.Source;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -16,7 +17,7 @@ internal static class TrialDatabase
         return new SqlConnectionStringBuilder(serverTemplate) { InitialCatalog = name }.ConnectionString;
     }
 
-    /// <summary>Creates the database and applies every migration.</summary>
+    /// <summary>Creates the database, applies every migration and checks its compatibility level.</summary>
     public static async Task CreateAsync(string serverTemplate, string name, CancellationToken cancellationToken)
     {
         var context = OpenContext(serverTemplate, name);
@@ -24,6 +25,30 @@ internal static class TrialDatabase
         {
             await context.GetService<IRelationalDatabaseCreator>().CreateAsync(cancellationToken).ConfigureAwait(false);
             await context.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await CheckCompatibilityAsync(serverTemplate, name, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads the compatibility level of the database from the server catalog with LINQ and throws unless it equals
+    /// <see cref="SqlCompatibility.Level"/>. The tool never sets the level.
+    /// </summary>
+    public static async Task CheckCompatibilityAsync(string serverTemplate, string name, CancellationToken cancellationToken)
+    {
+        EnsureDisposable(name);
+        var catalog = LegacyDbContext.Open(LegacySource.Prepare(serverTemplate));
+        await using (catalog.ConfigureAwait(false))
+        {
+            var level = await catalog.CatalogDatabases
+                .Where(row => row.Name == name)
+                .Select(static row => (int?)row.CompatibilityLevel)
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (level != SqlCompatibility.Level)
+            {
+                throw new InvalidOperationException("The trial database compatibility level is not the level CSPS pins.");
+            }
         }
     }
 

@@ -5,6 +5,7 @@ using Csps.LegacyFitCheck.Findings;
 using Csps.LegacyFitCheck.Mapping;
 using Csps.LegacyFitCheck.Source;
 using Csps.LegacyFitCheck.Trial;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Csps.LegacyFitCheck;
@@ -37,6 +38,25 @@ internal static class FitCheckRunner
             return Program.Refused;
         }
 
+        var trialCheck = TrialTarget.Check(targets.TrialServerConnectionString);
+        if (!trialCheck.Allowed)
+        {
+            await error.WriteLineAsync($"Refused: {trialCheck.Reason}").ConfigureAwait(false);
+            return Program.Refused;
+        }
+
+        var trialName = TrialDatabaseName.NewName();
+        string trialConnection;
+        try
+        {
+            trialConnection = TrialTarget.For(targets.TrialServerConnectionString, trialName, new SqlConnectionStringBuilder(targets.SourceConnectionString).InitialCatalog);
+        }
+        catch (InvalidOperationException refusal)
+        {
+            await error.WriteLineAsync($"Refused: {refusal.Message}").ConfigureAwait(false);
+            return Program.Refused;
+        }
+
         try
         {
             var read = await ReadAndMapAsync(LegacySource.Prepare(targets.SourceConnectionString), hooks, cancellationToken).ConfigureAwait(false);
@@ -63,7 +83,7 @@ internal static class FitCheckRunner
             findings.AddRange(inventory.Findings);
             findings.Add(InventoryFinding(inventory));
 
-            var trialName = TrialDatabaseName.NewName();
+            bool removed;
             try
             {
                 await TrialDatabase.CreateAsync(targets.TrialServerConnectionString, trialName, cancellationToken).ConfigureAwait(false);
@@ -72,7 +92,6 @@ internal static class FitCheckRunner
                     await afterCreated(trialName, cancellationToken).ConfigureAwait(false);
                 }
 
-                var trialConnection = TrialDatabase.ConnectionStringFor(targets.TrialServerConnectionString, trialName);
                 findings.AddRange(await TrialImport.RunAsync(trialConnection, mapped, read.TrialEntries, read.TrialStaff, time, cancellationToken).ConfigureAwait(false));
                 if (hooks?.BeforeTrialDropped is { } beforeDrop)
                 {
@@ -81,9 +100,15 @@ internal static class FitCheckRunner
             }
             finally
             {
-                await TrialDatabase.DropAsync(targets.TrialServerConnectionString, trialName).ConfigureAwait(false);
+                removed = await RemoveTrialAsync(targets.TrialServerConnectionString, trialName, error).ConfigureAwait(false);
             }
 
+            if (!removed)
+            {
+                return Program.Failed;
+            }
+
+            findings.Add(new Finding(RecordKind.Run, "Run", FindingType.Info, "trial.removed", null, "Trial database removed: yes", null, null));
             var path = await FindingsWriter.WriteAsync(localRoot, findings, time, cancellationToken).ConfigureAwait(false);
             var problems = findings.Count(static finding => finding.Type != FindingType.Info);
             await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Orders checked: {mapped.Count}. Findings: {problems}.")).ConfigureAwait(false);
@@ -95,6 +120,27 @@ internal static class FitCheckRunner
             await error.WriteLineAsync($"Failed: {exception.GetType().Name}").ConfigureAwait(false);
             return Program.Failed;
         }
+    }
+
+    // Drops the trial database with no cancellation, then asks the server again by name. A hard kill is the only way past this, and
+    // Remove-StaleTestDatabases.ps1 cleans up after one.
+    private static async Task<bool> RemoveTrialAsync(string serverTemplate, string trialName, TextWriter error)
+    {
+        try
+        {
+            await TrialDatabase.DropAsync(serverTemplate, trialName).ConfigureAwait(false);
+            if (!await TrialDatabase.ExistsAsync(serverTemplate, trialName, CancellationToken.None).ConfigureAwait(false))
+            {
+                return true;
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Fall through to the failure text: the exception type is not needed beyond the missing confirmation.
+        }
+
+        await error.WriteLineAsync("Failed: the trial database could not be removed. Run tools/scripts/Remove-StaleTestDatabases.ps1.").ConfigureAwait(false);
+        return false;
     }
 
     private static Finding EvidenceFinding(WriteEvidenceSnapshot snapshot) =>
