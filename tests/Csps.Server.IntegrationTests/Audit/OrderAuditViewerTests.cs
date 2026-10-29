@@ -256,6 +256,112 @@ public sealed class OrderAuditViewerTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public async Task TheDoneToFilterFindsPaymentExpenseAndRefundEntriesByTheReceiverPayerAndRefunderOldOrNew()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var oldReceiver = await TestSessions.StartAsync(factory, Roles.Admin);
+        var newReceiver = await TestSessions.StartAsync(factory, Roles.Admin);
+        var oldPayer = await TestSessions.StartAsync(factory, Roles.Admin);
+        var newPayer = await TestSessions.StartAsync(factory, Roles.Admin);
+        var oldRefunder = await TestSessions.StartAsync(factory, Roles.Admin);
+        var newRefunder = await TestSessions.StartAsync(factory, Roles.Admin);
+        var bystander = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        var withPayment = await OrderFixtures.AddPaymentAndReadAsync(client, admin.AccessToken, created, today, 3000m, OrderFixtures.GCashId, oldReceiver.UserId);
+        var paymentId = withPayment.GetProperty("payments")[0].GetProperty("id").GetGuid();
+        using (var moved = await OrderFixtures.PutPaymentAsync(
+            client,
+            admin.AccessToken,
+            id,
+            paymentId,
+            OrderFixtures.PaymentBody(today, 3000m, OrderFixtures.GCashId, newReceiver.UserId, withPayment.GetProperty("version").GetString())))
+        {
+            moved.StatusCode.ShouldBe(HttpStatusCode.OK, await moved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        var withExpense = await OrderFixtures.AddExpenseAndReadAsync(
+            client, admin.AccessToken, await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id), today, OrderFixtures.FabricId, 500m, oldPayer.UserId);
+        var expenseId = withExpense.GetProperty("expenses")[0].GetProperty("id").GetGuid();
+        using (var moved = await OrderFixtures.PutExpenseAsync(
+            client,
+            admin.AccessToken,
+            id,
+            expenseId,
+            OrderFixtures.ExpenseBody(today, OrderFixtures.FabricId, null, 500m, newPayer.UserId, withExpense.GetProperty("version").GetString())))
+        {
+            moved.StatusCode.ShouldBe(HttpStatusCode.OK, await moved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "cancelled");
+        var withRefund = await OrderFixtures.AddRefundAndReadAsync(
+            client, admin.AccessToken, await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id), today, 400m, oldRefunder.UserId);
+        var refundId = withRefund.GetProperty("refunds")[0].GetProperty("id").GetGuid();
+        using (var moved = await OrderFixtures.PutRefundAsync(
+            client,
+            admin.AccessToken,
+            id,
+            refundId,
+            OrderFixtures.RefundBody(today, 400m, "Order cancelled by the team", newRefunder.UserId, withRefund.GetProperty("version").GetString())))
+        {
+            moved.StatusCode.ShouldBe(HttpStatusCode.OK, await moved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        var oldRecv = await DoneToActionsAsync(client, manager.AccessToken, oldReceiver.UserId);
+        var newRecv = await DoneToActionsAsync(client, manager.AccessToken, newReceiver.UserId);
+        var oldPay = await DoneToActionsAsync(client, manager.AccessToken, oldPayer.UserId);
+        var newPay = await DoneToActionsAsync(client, manager.AccessToken, newPayer.UserId);
+        var oldRef = await DoneToActionsAsync(client, manager.AccessToken, oldRefunder.UserId);
+        var newRef = await DoneToActionsAsync(client, manager.AccessToken, newRefunder.UserId);
+        var nobody = await DoneToActionsAsync(client, manager.AccessToken, bystander.UserId);
+
+        oldRecv.ShouldBe([AuditActions.OrderPaymentReceiverChanged, AuditActions.OrderPaymentAdded], ignoreOrder: true);
+        newRecv.ShouldBe([AuditActions.OrderPaymentReceiverChanged], ignoreOrder: true);
+        oldPay.ShouldBe([AuditActions.OrderExpensePayerChanged, AuditActions.OrderExpenseAdded], ignoreOrder: true);
+        newPay.ShouldBe([AuditActions.OrderExpensePayerChanged], ignoreOrder: true);
+        oldRef.ShouldBe([AuditActions.OrderRefundRefunderChanged, AuditActions.OrderRefundAdded], ignoreOrder: true);
+        newRef.ShouldBe([AuditActions.OrderRefundRefunderChanged], ignoreOrder: true);
+        nobody.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheDoneToFilterFindsAPermanentDeleteSnapshotByEveryPersonItNamesEvenWhenTheListEndsWithACutOffCount()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var refunder = await TestSessions.StartAsync(factory, Roles.Admin);
+        var bystander = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.Ord0148FullBody(today, admin.UserId, manager.UserId));
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString()!;
+        var cutDetail = $"number=ORD-2026-9999;status=pending;subtotal=1.00;discount=0.00;total=1.00;paid=1.00;refunded=0.00;balance=0.00;expenses=0.00;receivers={refunder.UserId:D},+2;payers=;refunders=";
+        await using (var context = database.CreateContext())
+        {
+            context.AuditLog.Add(AuditEntry.Create(
+                TimeProvider.System.GetUtcNow(), manager.UserId, AuditActions.OrderPermanentlyDeleted, "Order", Guid.NewGuid().ToString("D"), null, null, Guid.NewGuid().ToString("N"), cutDetail));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using (var removed = await OrderFixtures.PermanentlyDeleteAsync(client, manager.AccessToken, id, number))
+        {
+            removed.StatusCode.ShouldBe(HttpStatusCode.NoContent, await removed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        (await DoneToActionsAsync(client, manager.AccessToken, admin.UserId)).ShouldContain(AuditActions.OrderPermanentlyDeleted);
+        (await DoneToActionsAsync(client, manager.AccessToken, manager.UserId)).ShouldContain(AuditActions.OrderPermanentlyDeleted);
+        (await DoneToActionsAsync(client, manager.AccessToken, refunder.UserId)).ShouldBe([AuditActions.OrderPermanentlyDeleted]);
+        (await DoneToActionsAsync(client, manager.AccessToken, bystander.UserId)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task AnEntryNamingTheLegacyHolderReadsLegacyUnassigned()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -325,6 +431,13 @@ public sealed class OrderAuditViewerTests(CspsDatabase database) : IClassFixture
         item.GetProperty("changes").EnumerateArray().Single(line => line.GetProperty("field").GetString() == field);
 
     private static string Action(JsonElement item) => item.GetProperty("action").GetString() ?? string.Empty;
+
+    // The order actions the Done to filter finds for one person.
+    private static async Task<List<string>> DoneToActionsAsync(HttpClient client, string token, Guid person)
+    {
+        var (items, _) = await ReadItemsAsync(client, token, $"target={person:D}&pageSize=100");
+        return [.. items.Select(Action).Where(static action => action.StartsWith("order", StringComparison.Ordinal))];
+    }
 
     private static async Task<(List<JsonElement> Items, string Text)> ReadItemsAsync(HttpClient client, string token, string query)
     {
