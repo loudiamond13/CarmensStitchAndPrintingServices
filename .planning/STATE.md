@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-10-29T21:48:45.780Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-10-29T22:19:52.813Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: 7189481ab28619f707953b0ce07b9389beae12e3
+state_head: df99a48c19bfcd0b02d86ee294cf760990f36183
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 220
+  completed_plans: 221
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T14:28:12-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 2 of 24
+Plan: 3 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -280,6 +280,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P11 | 15 min | 2 tasks | 6 files |
 | Phase 07.1 P12 | 5 min | 2 tasks | 3 files |
 | Phase 08 P01 | 35 min | 2 tasks | 26 files |
+| Phase 08 P02 | 27 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -800,6 +801,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: ListOrdersHandler takes IBusinessCalendar instead of TimeProvider and reads the clock once for the recent window and today (D-59)
 - [Phase 08]: OrderReader stamps Today after the detail read loop so every order answer carries the business date with no handler change
 - [Phase 08]: List-wide counts use one GroupBy-on-constant LINQ command with the five active statuses listed by name (D-41, D-60: list is 3 fixed commands)
+- [Phase 08]: 08-02: OrderTotals and OrderCard parity scenarios run implementation-only (parity false) because the frozen design cannot show the owner's new money rows, balance states and card actions
+- [Phase 08]: 08-02: the credit block is info-soft on the panel and neutral with a Credit badge on the card; the create-form preview turns an overpayment into a credit
 
 ### Pending Todos
 
@@ -904,6 +907,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T21:48:44.788Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-10-29T22:19:51.828Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
