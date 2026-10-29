@@ -4,7 +4,7 @@ plan: 18
 subsystem: api
 tags: [orders, legacy-import, import-rules, order-numbers, counter, migration-path, zero-loss]
 created: "2026-10-28T20:06:00-05:00"
-updated: "2026-10-28T20:06:00-05:00"
+updated: "2026-10-28T21:00:00-05:00"
 status: complete
 
 requires:
@@ -249,6 +249,8 @@ coverage:
 **Total deviations:** 3 auto-fixed (1 missing critical, 2 blocking) plus the shape choices above. **Impact:** none on the plan's goal; no schema change, no package, no migration.
 
 ## Owner Questions and New Wording for Review
+
+**Owner ruling D-47 (2026-10-28):** imported refunds and the zero quantity stay as built, and the import messages are approved. The three field rules without a relaxation wait for the Phase 7.1 findings.
 
 **Open for Phase 7.1 (not decided here).** Three field rules have no relaxation and refuse an order under every rules instance: the characters of a contact number (digits, spaces and + - ( ) only), the shape of an email address, and a due date before the order date. If the read-only fit check finds legacy rows that break one of them, the owner decides whether it gets a named relaxation or the data is cleaned in Phase 15. The Default rules will otherwise refuse those rows.
 

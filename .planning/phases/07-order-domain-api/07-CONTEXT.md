@@ -1,6 +1,6 @@
 # Phase 7: Order Domain & API - Context
 
-*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T20:10:00-05:00*
+*Created: 2026-10-27T20:53:00-05:00 · Updated: 2026-10-28T21:00:00-05:00*
 
 **Gathered:** 2026-10-27
 **Status:** Ready for planning
@@ -98,6 +98,7 @@ Out of scope: order screens and the Settings page sections for the new lists (Ph
 - **D-44:** **The permanent-delete audit entry keeps the 400-character cut-off** (07-15). The money facts always stay whole; the longest people list is cut from the end and marked `+N`. The audit column is not widened. (owner, 2026-10-28)
 - **D-45:** **The order list `newest` sort is order date first (latest first), then recorded time, then id** (07-16). **Drop the two unused indexes `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductTypeId`** in a small indexes-only migration (no data affected). **"Choose a sort order." is approved.** (owner, 2026-10-28)
 - **D-46:** **Renaming the order expense Others answers like Phase 6:** 400 on `name` with "The Others name can't change." (07-17). **The 07-17 list messages are approved as written.** **A deadlock victim on order create maps to the existing "orders are being saved" 409**, not a 500. (owner, 2026-10-28)
+- **D-47:** **Legacy import keeps refunds as they were** (no refund eligibility or cap rules on import) **and `IgnoreAmountCaps` allows a quantity of 0** (07-18). **The import-only messages are approved as written.** Whether contact-number characters, email shape or a due date before the order date get a named relaxation waits for the Phase 7.1 findings. (owner, 2026-10-28)
 
 ### Carried forward (not re-asked)
 - **No overpayment by payment** (OD-4, 2026-10-13).
