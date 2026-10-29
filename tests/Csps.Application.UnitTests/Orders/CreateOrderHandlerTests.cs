@@ -288,6 +288,23 @@ public sealed class CreateOrderHandlerTests
         await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task ADeadlockVictimAtSaveIsTheSame409AsABusyNumberLockAndTheTransactionRollsBack()
+    {
+        var harness = new Harness();
+        harness.Unit.FailFirstSaveWithConflict();
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("orders.busy");
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
+    }
+
     [Theory]
     [InlineData(OrderListKind.ProductType, "items[0].productTypeId", "This product type was deleted.")]
     [InlineData(OrderListKind.PaymentMethod, "payments[0].paymentMethodId", "This payment method was deleted.")]
