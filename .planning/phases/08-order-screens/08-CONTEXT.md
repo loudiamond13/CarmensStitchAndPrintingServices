@@ -1,6 +1,6 @@
 # Phase 8: Order Screens - Context
 
-*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-29T14:50:40-05:00*
+*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-29T15:15:00-05:00*
 
 **Gathered:** 2026-10-29
 **Status:** Ready for planning
@@ -101,6 +101,13 @@ Out of scope: image upload, gallery and cover (ORD-04, Phase 9); money on hand a
 - **D-56 (OQ-18):** New copy is built as written and reviewed before release (05 D-48). (owner, 2026-10-29)
 - **D-57 (checker Dimension 1):** One-word action buttons gain a noun: "Reopen Order", "Delete Order", "Discard Changes". Dismiss buttons that drop work name what they keep, for example "Keep Editing" and "Keep Order". Plain "Cancel" stays only where it closes a window without losing anything. (owner, 2026-10-29)
 - **D-58:** The item, payment, discount, expense and refund windows keep a plain **"Cancel"**. When something was typed, Cancel, Esc, the scrim and the close button first ask **"Discard changes?"** with "Keep Editing" and "Discard Changes", as the full forms do. A clean window closes at once. (owner, 2026-10-29)
+
+### Planning rulings (Open Questions 1 to 5 in `08-RESEARCH.md`, /gsd-plan-phase 8)
+- **D-59 (OQ 1):** "Today" for due flags, date presets, form defaults and future-date checks comes from the server. The order list and detail responses gain a `today` field (the business date from `IBusinessCalendar`), as Phase 6 does with `CompanyExpenseListResponse.Today`. The browser never reads the device clock for it. (owner, 2026-10-29)
+- **D-60 (OQ 2):** The order list may run 3 fixed SQL commands: count, page, and one command for both D-41 list-wide counts. `OrderReaderQueryCountTests`, the endpoint count test and `list-performance.md` are updated together. The number stays fixed, so PERF-04 holds. (owner, 2026-10-29)
+- **D-61 (OQ 3):** `/admin` lands on `/admin/orders` in this phase, until the dashboard ships. (owner, 2026-10-29)
+- **D-62 (OQ 4):** E2E specs seed refunds through the testing seed endpoint (`POST /api/testing/orders`, Debug Testing builds only, never shipped). (owner, 2026-10-29)
+- Note (OQ 5, not an owner ruling): golden vectors v3 stay deferred as before, because no Phase 8 preview computes refunds. Raise it with the owner if a plan needs them.
 
 ### Carried forward (not re-asked)
 - Create holds details and items. Payments, discounts and expenses are added on the order page afterwards (C-3, 07 D-24).
