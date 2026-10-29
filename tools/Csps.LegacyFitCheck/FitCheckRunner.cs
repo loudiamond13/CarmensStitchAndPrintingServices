@@ -80,7 +80,7 @@ internal static class FitCheckRunner
             }
 
             findings.AddRange(read.CompanyExpenses.SelectMany(static expense => expense.Findings));
-            findings.AddRange(read.UnplacedExpenses);
+            findings.AddRange(read.CountedOnlyExpenses);
             findings.Add(EvidenceFinding(read.Before));
             var inventory = ColumnInventory.Check(read.Columns);
             findings.AddRange(inventory.Findings);
@@ -206,8 +206,12 @@ internal static class FitCheckRunner
 
         var discounts = (await source.Discounts.OrderBy(static row => row.OrderDiscountId).ToListAsync(cancellationToken).ConfigureAwait(false)).ToLookup(static row => row.OrderId);
         var payments = (await source.Payments.OrderBy(static row => row.PaymentId).ToListAsync(cancellationToken).ConfigureAwait(false)).ToLookup(static row => row.OrderId);
-        var expenses = (await source.Expenses.Where(static row => !row.IsCompanyExpenses && row.OrderId != null).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false))
-            .ToLookup(static row => row.OrderId!.Value);
+        var linkedRows = await source.Expenses.Where(static row => !row.IsCompanyExpenses && row.OrderId != null).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var expenses = linkedRows.ToLookup(static row => row.OrderId!.Value);
+
+        // A soft-deleted order is still a row here, so its expenses are not "missing"; only an id with no order row at all is.
+        var orderIds = orders.Select(static order => order.OrderId).ToHashSet();
+        var orderMissingRows = linkedRows.Where(row => !orderIds.Contains(row.OrderId!.Value)).ToList();
 
         var companyRows = await source.Expenses.Where(static row => row.IsCompanyExpenses).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false);
         var unplacedRows = await source.Expenses.Where(static row => !row.IsCompanyExpenses && row.OrderId == null).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false);
@@ -255,7 +259,7 @@ internal static class FitCheckRunner
         ];
         var allowedWords = allowed.Where(static word => !string.IsNullOrWhiteSpace(word)).Select(static word => word!.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return new ReadResult(mapped, companyExpenses, lists.TrialEntries, people.TrialStaff, columns, before, after, [.. unplacedRows.Select(static row => DraftMapping.MapUnplacedExpense(row))], [.. readValues.Where(static value => !string.IsNullOrWhiteSpace(value)).Select(static value => value!)], allowedWords);
+        return new ReadResult(mapped, companyExpenses, lists.TrialEntries, people.TrialStaff, columns, before, after, [.. unplacedRows.Select(static row => DraftMapping.MapUnplacedExpense(row)), .. orderMissingRows.Select(static row => DraftMapping.MapOrderMissingExpense(row))], [.. readValues.Where(static value => !string.IsNullOrWhiteSpace(value)).Select(static value => value!)], allowedWords);
     }
 
     private sealed record ReadResult(
@@ -266,7 +270,7 @@ internal static class FitCheckRunner
         IReadOnlyList<LegacyColumn> Columns,
         WriteEvidenceSnapshot Before,
         WriteEvidenceSnapshot After,
-        IReadOnlyList<Finding> UnplacedExpenses,
+        IReadOnlyList<Finding> CountedOnlyExpenses,
         IReadOnlyList<string> ReadValues,
         IReadOnlySet<string> AllowedWords);
 }

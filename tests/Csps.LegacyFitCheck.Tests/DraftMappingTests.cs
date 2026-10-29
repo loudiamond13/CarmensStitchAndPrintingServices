@@ -297,6 +297,20 @@ public sealed class DraftMappingTests
         $"{finding.Path}{finding.Message}{finding.ListValue}{finding.Detail}".ShouldNotContain("777");
     }
 
+    [Fact]
+    public void AnExpenseLinkedToAMissingOrderIsOneCannotMapFindingWithNoValues()
+    {
+        var finding = DraftMapping.MapOrderMissingExpense(new LegacyExpenseRow { ExpenseId = 11, OrderId = 424242, Description = "SENTINEL-DESC-7Q", SpentDate = SameDay, IsCompanyExpenses = false, Amount = 777.77m, PaidBy = "SENTINEL-PAYER-7Q" });
+
+        finding.Kind.ShouldBe(RecordKind.OrderMissingExpense);
+        finding.Type.ShouldBe(FindingType.CannotMap);
+        finding.RuleKey.ShouldBe("expense.order-missing");
+        finding.LegacyKey.ShouldBe("Expenses:11");
+        $"{finding.Path}{finding.Message}{finding.ListValue}{finding.Detail}".ShouldNotContain("SENTINEL");
+        $"{finding.Path}{finding.Message}{finding.ListValue}{finding.Detail}".ShouldNotContain("777");
+        $"{finding.Path}{finding.Message}{finding.ListValue}{finding.Detail}".ShouldNotContain("424242");
+    }
+
     private static MappedOrder Map(LegacyOrderRow order, LegacyOrderParts? parts = null, string statusName = "Open")
     {
         var types = new Dictionary<int, string?> { [1] = "Polo Shirt" };

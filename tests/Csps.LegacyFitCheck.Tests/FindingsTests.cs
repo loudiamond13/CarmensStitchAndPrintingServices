@@ -317,6 +317,23 @@ public sealed partial class FindingsTests : IDisposable
     }
 
     [Fact]
+    public void ExpensesLinkedToAMissingOrderGetTheirOwnCountedLine()
+    {
+        Finding[] findings =
+        [
+            Make("expense.order-missing", FindingType.CannotMap, RecordKind.OrderMissingExpense, "Expenses:3", null),
+            Make("expense.order-missing", FindingType.CannotMap, RecordKind.OrderMissingExpense, "Expenses:4", null),
+            Make("expense.unplaced", FindingType.CannotMap, RecordKind.UnplacedExpense, "Expenses:5", null),
+        ];
+
+        var text = Render(findings);
+
+        text.ShouldContain("- Expenses linked to an order that is not in the old data (counted only, not judged): 2 expenses");
+        text.ShouldContain("- Expenses with no order and not marked as company expenses (counted only, not judged): 1 expense");
+        Render([findings[0]]).ShouldContain("not in the old data (counted only, not judged): 1 expense");
+    }
+
+    [Fact]
     public void TheSectionsAppearInTheAgreedOrderWithTheClosingLimits()
     {
         var text = Render(Every());
@@ -366,6 +383,7 @@ public sealed partial class FindingsTests : IDisposable
         _ when key.StartsWith("column.", StringComparison.Ordinal) => RecordKind.Column,
         _ when key.StartsWith("company-expense.", StringComparison.Ordinal) => RecordKind.CompanyExpense,
         "expense.unplaced" => RecordKind.UnplacedExpense,
+        "expense.order-missing" => RecordKind.OrderMissingExpense,
         _ when key.StartsWith("order-expense.", StringComparison.Ordinal) => RecordKind.OrderExpense,
         _ when key.StartsWith("item.", StringComparison.Ordinal) || key == "list.product-type" => RecordKind.OrderItem,
         _ when key.StartsWith("discount.", StringComparison.Ordinal) => RecordKind.Discount,

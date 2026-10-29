@@ -168,6 +168,25 @@ internal static class DraftMapping
             null);
     }
 
+    /// <summary>
+    /// Reports one legacy expense whose <c>OrderId</c> points at an order that is not in the restore (D-19). It is read into no order and
+    /// judged by no rule, so it is counted only. The finding holds the legacy expense key and no amount, description, person text or order id.
+    /// </summary>
+    public static Finding MapOrderMissingExpense(LegacyExpenseRow expense)
+    {
+        ArgumentNullException.ThrowIfNull(expense);
+
+        return new Finding(
+            RecordKind.OrderMissingExpense,
+            Key("Expenses", expense.ExpenseId),
+            FindingType.CannotMap,
+            "expense.order-missing",
+            null,
+            "The legacy expense is linked to an order that is not in the restore, so no check reads it.",
+            null,
+            null);
+    }
+
     private static List<NewOrderItem> MapItems(IReadOnlyList<LegacyOrderItemRow> rows, ProductTypeMatch productType, string? typeName, List<Finding> findings)
     {
         var items = new List<NewOrderItem>();

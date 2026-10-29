@@ -68,6 +68,7 @@ internal static class SummaryRenderer
         ["order-expense.no-category"] = "Order expenses with no category (Others is used)",
         ["company-expense.no-category"] = "Company expenses with no category (Others is used)",
         ["expense.unplaced"] = "Expenses with no order and not marked as company expenses (counted only, not judged)",
+        ["expense.order-missing"] = "Expenses linked to an order that is not in the old data (counted only, not judged)",
         ["person.blank"] = "Person text is empty",
         ["person.role-no-match"] = "Person is a legacy user whose role '{value}' has no CSPS staff match",
         ["person.unknown-name"] = "Person text matches no legacy user",
@@ -123,6 +124,7 @@ internal static class SummaryRenderer
         [RecordKind.OrderExpense] = ("order expense", "order expenses"),
         [RecordKind.CompanyExpense] = ("company expense", "company expenses"),
         [RecordKind.UnplacedExpense] = ("expense", "expenses"),
+        [RecordKind.OrderMissingExpense] = ("expense", "expenses"),
         [RecordKind.Person] = ("person", "people"),
         [RecordKind.ListValue] = ("list value", "list values"),
     };
