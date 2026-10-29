@@ -357,6 +357,49 @@ public sealed class OrderImportTests
     }
 
     [Fact]
+    public void AnAmountThatTheMoneyColumnCannotHoldIsAFieldErrorUnderEveryRulesInstanceNotAnException()
+    {
+        const decimal Big = 9_000_000_000_000_000.00m;
+        const decimal TooBig = 10_000_000_000_000_000.00m;
+        var cases = new (string Name, OrderImportSnapshot Snapshot, string Path)[]
+        {
+            ("unit price", Valid() with { Items = [Item(unitPrice: TooBig)] }, "items[0].unitPrice"),
+            ("quantity times unit price", Valid() with { Items = [Item(quantity: int.MaxValue, unitPrice: 5_000_000_000_000_000.00m)] }, "items[0].quantity"),
+            ("items added up", Valid() with { Items = [Item(quantity: 1, unitPrice: Big), Item(quantity: 1, unitPrice: Big)] }, "items"),
+            ("fixed discount", Valid() with { Discounts = [new NewOrderDiscount(DiscountKind.Fixed, TooBig, "Team deal")] }, "discounts[0].value"),
+            ("percent discount that overflows the sum", Valid() with { Items = [Item(quantity: 1, unitPrice: Big)], Discounts = [new NewOrderDiscount(DiscountKind.Percentage, Big, "Team deal")] }, "discounts"),
+            ("payment", Valid() with { Payments = [Payment(TooBig)] }, "payments[0].amount"),
+            ("payments added up", Valid() with { Payments = [Payment(Big), Payment(Big)] }, "payments"),
+            ("refund", Valid() with { Refunds = [Refund(TooBig)] }, "refunds[0].amount"),
+            ("refunds added up", Valid() with { Refunds = [Refund(Big), Refund(Big)] }, "refunds"),
+            ("expense", Valid() with { Expenses = [Expense(TooBig)] }, "expenses[0].amount"),
+            ("expenses added up", Valid() with { Expenses = [Expense(Big), Expense(Big)] }, "expenses"),
+        };
+
+        foreach (var (name, snapshot, path) in cases)
+        {
+            var lenient = Order.Import(snapshot, OrderImportRules.Default, Now);
+            ShouldRefuseOn(lenient, path, $"default: {name}");
+
+            var strict = Order.Import(snapshot, OrderImportRules.Strict, Now, Today);
+            strict.IsFailure.ShouldBeTrue($"strict: {name}");
+        }
+
+        MessageOf(Order.Import(cases[5].Snapshot, OrderImportRules.Default, Now), "payments[0].amount").ShouldBe("Enter an amount of ₱9,999,999,999,999,999.99 or less.");
+    }
+
+    [Fact]
+    public void AnAmountAtTheTopOfTheMoneyColumnIsStillAccepted()
+    {
+        var snapshot = Valid() with { Items = [Item(quantity: 1, unitPrice: 9_999_999_999_999_999.99m)], Payments = [Payment(9_999_999_999_999_999.99m)] };
+
+        var order = Order.Import(snapshot, OrderImportRules.Default, Now);
+
+        order.IsSuccess.ShouldBeTrue();
+        order.Value.Balance.ShouldBe(0.00m);
+    }
+
+    [Fact]
     public void ACancelledLegacyOrderUsesTheCancelledProfitRule()
     {
         var snapshot = Valid() with { Status = OrderStatus.Cancelled, Payments = [Payment(1000.00m)], Refunds = [Refund(400.00m)], Expenses = [Expense(100.00m)] };
