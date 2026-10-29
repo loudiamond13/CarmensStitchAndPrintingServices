@@ -2,7 +2,6 @@ using System.Globalization;
 using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
-using Csps.Domain.Time;
 using Csps.LegacyFitCheck.Findings;
 using Csps.LegacyFitCheck.Source;
 
@@ -35,8 +34,6 @@ internal sealed record LegacyOrderParts(
 /// </summary>
 internal static class DraftMapping
 {
-    private static readonly (TimeZoneInfo Zone, ZoneSource Source) Business = TimeZoneResolver.Resolve(TimeZoneResolver.DefaultIana);
-
     public static MappedOrder MapOrder(
         LegacyOrderRow order,
         LegacyOrderParts parts,
@@ -53,18 +50,21 @@ internal static class DraftMapping
         var key = Key("Orders", order.OrderId);
         var findings = new List<Finding>();
 
-        if (order.OrderDate is not { } stored)
+        if (order.IsDeleted == true)
         {
-            findings.Add(CannotMap(key, "order.date", "The order has no date."));
+            findings.Add(CannotMap(key, "order.deleted", "The order is soft-deleted in the legacy data and is not imported."));
             return new MappedOrder(key, null, findings);
         }
 
-        var orderDate = ToBusinessDate(stored);
+        if (order.OrderDate is null)
+        {
+            findings.Add(CannotMap(key, "order.no-date", "The order has no date."));
+        }
 
         var status = ReadStatus(order.StatusId, statusNames);
         if (status is null)
         {
-            findings.Add(CannotMap(key, "order.status", "The status has no clear CSPS status."));
+            findings.Add(CannotMap(key, "order.status-unknown", "The status has no clear CSPS status."));
         }
 
         var typeName = order.OrderTypeId is { } typeId && orderTypeNames.TryGetValue(typeId, out var name) ? name?.Trim() : null;
@@ -75,12 +75,15 @@ internal static class DraftMapping
             findings.Add(CannotMap(key, "list.product-type", "The order type cannot become a product type."));
         }
 
-        if (status is null || typeMissing)
+        if (order.OrderDate is not { } stored || status is null || typeMissing)
         {
             return new MappedOrder(key, null, findings);
         }
 
+        var orderDate = LegacyDates.ToManilaDate(stored);
+        AddDateReading(findings, RecordKind.Order, key, stored);
         findings.Add(CannotMap(key, "order.no-number", "The legacy order has no order number; one is built from the year and the legacy id."));
+        findings.Add(CannotMap(key, "order.no-status-history", "The legacy order has no status history; the import writes one row."));
         var number = $"ORD-{orderDate.Year.ToString("D4", CultureInfo.InvariantCulture)}-{order.OrderId.ToString("D4", CultureInfo.InvariantCulture)}";
         var details = new OrderDetails(
             (order.OrderName ?? string.Empty).Trim(),
@@ -138,12 +141,13 @@ internal static class DraftMapping
 
             var path = $"payments[{payments.Count.ToString(CultureInfo.InvariantCulture)}]";
             payments.Add(new NewOrderPayment(
-                ToBusinessDate(payment.PaymentDate),
+                LegacyDates.ToManilaDate(payment.PaymentDate),
                 payment.Amount,
                 ListMatches.UnknownPaymentMethodId,
                 null,
                 string.IsNullOrWhiteSpace(payment.PaidBy) ? null : payment.PaidBy.Trim(),
                 LegacyHolder.Id));
+            AddDateReading(findings, RecordKind.Payment, key, payment.PaymentDate);
             findings.Add(new Finding(RecordKind.Payment, key, FindingType.CannotMap, "payment.no-method", null, "The legacy payment has no payment method.", null, null));
             findings.Add(new Finding(RecordKind.Payment, key, FindingType.LegacyHolderUsed, "person.legacy-holder", $"{path}.receivedByUserId", "The receiver is the Legacy holder until people are matched.", null, null));
         }
@@ -159,11 +163,12 @@ internal static class DraftMapping
             var key = Key("Expenses", expense.ExpenseId);
             var path = $"expenses[{expenses.Count.ToString(CultureInfo.InvariantCulture)}]";
             expenses.Add(new NewOrderExpense(
-                ToBusinessDate(expense.SpentDate!.Value),
+                LegacyDates.ToManilaDate(expense.SpentDate!.Value),
                 expense.Amount,
                 OrderListSeed.OrderExpenseOthersId,
                 string.IsNullOrWhiteSpace(expense.Description) ? null : expense.Description.Trim(),
                 LegacyHolder.Id));
+            AddDateReading(findings, RecordKind.OrderExpense, key, expense.SpentDate.Value);
             findings.Add(new Finding(RecordKind.OrderExpense, key, FindingType.CannotMap, "order-expense.no-category", null, "The legacy order expense has no category; Others is used.", null, null));
             findings.Add(new Finding(RecordKind.OrderExpense, key, FindingType.LegacyHolderUsed, "person.legacy-holder", $"{path}.paidByUserId", "The payer is the Legacy holder until people are matched.", null, null));
         }
@@ -173,23 +178,29 @@ internal static class DraftMapping
 
     private static string Key(string table, int id) => $"{table}:{id.ToString(CultureInfo.InvariantCulture)}";
 
-    // The stored datetime is read as UTC and moved to the business zone before the date is taken (provisional guess, 07.1 A3).
-    private static DateOnly ToBusinessDate(DateTime stored)
+    // A record whose two date readings differ is counted for the owner's ruling (provisional, 07.1 A3).
+    private static void AddDateReading(List<Finding> findings, RecordKind kind, string key, DateTime stored)
     {
-        var utc = DateTime.SpecifyKind(stored, DateTimeKind.Utc);
-        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utc, Business.Zone));
+        if (LegacyDates.Differs(stored))
+        {
+            findings.Add(new Finding(kind, key, FindingType.Info, "dates.reading-differs", null, "The date differs between the as-stored and the Manila reading.", null, null));
+        }
     }
 
     private static OrderStatus? ReadStatus(int? statusId, IReadOnlyDictionary<int, string?> statusNames)
     {
         var name = statusId is { } id && statusNames.TryGetValue(id, out var found) ? found?.Trim() : null;
-        return name switch
+        if (string.Equals(name, "Open", StringComparison.OrdinalIgnoreCase))
         {
-            "Open" => OrderStatus.Pending,
-            "In Progress" => OrderStatus.InProduction,
-            "Completed" => OrderStatus.Completed,
-            _ => null,
-        };
+            return OrderStatus.Pending;
+        }
+
+        if (string.Equals(name, "In Progress", StringComparison.OrdinalIgnoreCase))
+        {
+            return OrderStatus.InProduction;
+        }
+
+        return string.Equals(name, "Completed", StringComparison.OrdinalIgnoreCase) ? OrderStatus.Completed : null;
     }
 
     private static Finding CannotMap(string key, string rule, string message) =>
