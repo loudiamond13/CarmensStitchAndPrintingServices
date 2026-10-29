@@ -12,6 +12,9 @@ namespace Csps.Application.Orders;
 /// </summary>
 public static class OrderAuditDetail
 {
+    /// <summary>The audit target type of every order entry; the audit viewer and the Done to filter read it.</summary>
+    internal const string OrderTarget = "Order";
+
     /// <summary>The detail of <c>order.created</c>: number, status, dates, item count and total.</summary>
     /// <param name="order">The new order, numbered and checked.</param>
     /// <returns>For example <c>number=ORD-2026-0001;status=pending;orderDate=2026-10-28;dueDate=2026-11-11;items=1;total=9750.00</c>.</returns>

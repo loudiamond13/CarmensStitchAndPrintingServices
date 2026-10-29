@@ -25,8 +25,6 @@ public sealed class UpdateOrderDetailsHandler(
     IRequestContext requestContext,
     IValidator<UpdateOrderDetailsRequest> validator)
 {
-    private const string OrderTarget = "Order";
-
     /// <summary>Saves the edit.</summary>
     /// <param name="id">The order to edit.</param>
     /// <param name="request">The form.</param>
@@ -105,7 +103,7 @@ public sealed class UpdateOrderDetailsHandler(
             return Result.Success(false);
         }
 
-        audit.Record(AuditActions.OrderChanged, OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.DetailsChanged(changes.Value));
+        audit.Record(AuditActions.OrderChanged, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.DetailsChanged(changes.Value));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }

@@ -22,8 +22,6 @@ public sealed class PermanentlyDeleteOrderHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
 {
-    private const string OrderTarget = "Order";
-
     /// <summary>Deletes the order for good.</summary>
     /// <param name="id">The order to remove.</param>
     /// <param name="confirm">The order number as typed by the caller; null when none was sent.</param>
@@ -59,7 +57,7 @@ public sealed class PermanentlyDeleteOrderHandler(
 
         audit.Record(
             AuditActions.OrderPermanentlyDeleted,
-            OrderTarget,
+            OrderAuditDetail.OrderTarget,
             AuditKey.Of(order.Id),
             OrderAuditDetail.PermanentlyDeleted(order));
         orders.Remove(order);

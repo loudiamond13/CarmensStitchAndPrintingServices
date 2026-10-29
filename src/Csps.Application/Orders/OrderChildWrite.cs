@@ -24,8 +24,6 @@ internal sealed record OrderChildAudit(string Action, string Detail)
 /// </summary>
 internal static class OrderChildWrite
 {
-    private const string OrderTarget = "Order";
-
     /// <summary>
     /// Runs one attempt. A lost race at save time throws <see cref="ConcurrencyConflictException"/> for the caller to turn into a 409
     /// or to retry.
@@ -75,7 +73,7 @@ internal static class OrderChildWrite
                 await orders.LockAsync(order, token).ConfigureAwait(false);
                 for (var each = entry; each is not null; each = each.Then)
                 {
-                    audit.Record(each.Action, OrderTarget, AuditKey.Of(order.Id), each.Detail);
+                    audit.Record(each.Action, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), each.Detail);
                 }
 
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);

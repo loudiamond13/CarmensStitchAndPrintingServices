@@ -30,8 +30,6 @@ public sealed class CreateOrderHandler(
     IRequestContext requestContext,
     IValidator<CreateOrderRequest> validator)
 {
-    private const string OrderTarget = "Order";
-
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -71,7 +69,7 @@ public sealed class CreateOrderHandler(
                 {
                     order.AssignNumber(await numbers.NextAsync(clock.Year, clock.UtcNow, token).ConfigureAwait(false));
                     orders.Add(order);
-                    audit.Record(AuditActions.OrderCreated, OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Created(order));
+                    audit.Record(AuditActions.OrderCreated, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Created(order));
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
                     return order.Id;
                 },

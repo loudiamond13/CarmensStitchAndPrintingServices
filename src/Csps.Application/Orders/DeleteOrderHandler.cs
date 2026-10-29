@@ -20,8 +20,6 @@ public sealed class DeleteOrderHandler(
     IRequestContext requestContext,
     TimeProvider time)
 {
-    private const string OrderTarget = "Order";
-
     /// <summary>Deletes the order.</summary>
     /// <param name="id">The order to delete.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -50,7 +48,7 @@ public sealed class DeleteOrderHandler(
         }
 
         await orders.LockAsync(order, cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.OrderDeleted, OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Deleted(order));
+        audit.Record(AuditActions.OrderDeleted, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Deleted(order));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }
