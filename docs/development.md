@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-28T21:10:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-28T20:55:00-05:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -160,6 +160,7 @@ Run the preflight check (above) before a full test run.
 
 - **Database tests** create their own `CSPS_Test_<guid>` database on `(localdb)\MSSQLLocalDB` and drop it when they finish.
 - **`CSPS_TEST_SQL`** picks the SQL backend for integration tests: unset or `localdb` uses LocalDB (the only local option), and `container` uses a SQL Server 2025 container (CI only). Set it only for a single process or terminal, for example `$env:CSPS_TEST_SQL = 'localdb'` in one PowerShell window. Never set it at User or Machine level.
+- **Seeding an order for an end-to-end spec.** `POST /api/testing/orders` exists only in the Testing environment of a Debug build; a Release build has no such route. It needs no token and no `Idempotency-Key`. The body uses the member names of the create-order call plus `number`, for example `{ number, status, customerName, orderDate, dueDate, items, discounts, payments, expenses }`, where each payment names its `receivedByUserId` and each expense its `paidByUserId` (create a staff user first with `POST /api/testing/staff`). The order goes in through the legacy import path, so the number is kept as given, any of the seven statuses works (a Completed order with a balance too), and the server works out every figure. It answers `201 { id }`, a `400` listing the fields that failed, or `422 orders.number-taken`. Importing `ORD-YYYY-NNNN` lifts that year's counter to at least NNNN, so the next new order follows it; a number in any other form (for example `E2E-0001`) leaves the counters alone.
 - **Breached-password check.** Tests never reach the internet. In the Testing environment (Debug builds only) an offline stand-in replaces the HIBP service: `Pwned#Pass2026` is reported as found in a breach, `Hibp-Down#2026` simulates the service being down, and every other password is reported clean. The real client is tested with recorded responses. One opt-in smoke test against the live service (`HibpLiveTests`) runs only when `CSPS_LIVE_HIBP=1` is set for that single process, for example `$env:CSPS_LIVE_HIBP = '1'` in one PowerShell window.
 - **Leftover test databases** from a crashed run can be listed, and then removed, with:
 
