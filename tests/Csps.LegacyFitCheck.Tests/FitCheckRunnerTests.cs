@@ -336,6 +336,104 @@ public sealed class FitCheckRunnerTests
         }
     }
 
+    [Fact]
+    public async Task AThrowAfterTheTrialDatabaseExistsStillDropsIt()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+            string? trialName = null;
+            var hooks = new FitCheckHooks((name, _) =>
+            {
+                trialName = name;
+                throw new InvalidOperationException("SENTINEL-NAME-7Q");
+            });
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token, hooks);
+
+                exit.ShouldBe(1);
+                error.ToString().TrimEnd().ShouldBe("Failed: InvalidOperationException");
+                output.ToString().ShouldNotContain("SENTINEL");
+                Directory.Exists(Path.Combine(localRoot, "legacy-fit-check")).ShouldBeFalse();
+                trialName.ShouldNotBeNull();
+                (await TrialDatabase.ExistsAsync(server.MasterConnectionString, trialName, token)).ShouldBeFalse();
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TheRunConfirmsTheTrialDatabaseIsGone()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token);
+
+                exit.ShouldBe(0, error.ToString());
+                var file = Directory.EnumerateFiles(Path.Combine(localRoot, "legacy-fit-check"), "findings-*.md").ShouldHaveSingleItem();
+                (await File.ReadAllTextAsync(file, token)).ShouldContain("Trial database removed: yes");
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ARefusedTrialServerExitsTwoBeforeAnyConnection()
+    {
+        // Both addresses are unreachable: a bug cannot reach a real server from this test.
+        var source = "Data Source=127.0.0.1,1;Integrated Security=true;Connect Timeout=1;Initial Catalog=" + TrialDatabaseName.NewName();
+        var targets = new FitCheckTargets(source, "Data Source=SENTINEL-HOST.example.invalid;Integrated Security=true;Connect Timeout=1");
+        var localRoot = NewLocalRoot();
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var trialCreated = false;
+        var hooks = new FitCheckHooks((_, _) =>
+        {
+            trialCreated = true;
+            return Task.CompletedTask;
+        });
+
+        try
+        {
+            var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, TestContext.Current.CancellationToken, hooks);
+
+            exit.ShouldBe(2);
+            error.ToString().ShouldStartWith("Refused: ");
+            error.ToString().ShouldNotContain("SENTINEL");
+            output.ToString().ShouldBeEmpty();
+            trialCreated.ShouldBeFalse();
+            Directory.Exists(Path.Combine(localRoot, "legacy-fit-check")).ShouldBeFalse();
+        }
+        finally
+        {
+            DeleteRoot(localRoot);
+        }
+    }
+
     private sealed record TrialStaffRow(Guid Id, string FirstName, string LastName, string Email);
 
     private sealed record TrialPeople(IReadOnlyList<TrialStaffRow> Staff, IReadOnlyList<Guid> Receivers, IReadOnlyList<Guid> Payers);
