@@ -10,10 +10,8 @@ interface AdminPath {
   readonly label: string;
 }
 
-const PATHS: readonly AdminPath[] = [
-  { path: '/admin', label: 'Dashboard' },
-  { path: '/admin/orders', label: 'Orders' },
-];
+// /admin/orders is the real signed-in Orders page since plan 08-06, so it has no dev preview; its journey is orders-list.spec.ts.
+const PATHS: readonly AdminPath[] = [{ path: '/admin', label: 'Dashboard' }];
 
 /** The text of the first element in document order that Tab can reach (a page script: the node program has no DOM). */
 const FIRST_FOCUSABLE_TEXT = `document.querySelector('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')?.textContent ?? null`;

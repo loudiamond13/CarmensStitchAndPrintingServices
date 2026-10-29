@@ -18,10 +18,10 @@ export interface PageCase {
   readonly admin: boolean;
 }
 
-// /admin/expenses is a signed-in page with no dev preview; its sweep is expenses-sweep.spec.ts.
+// /admin/expenses and /admin/orders are signed-in pages with no dev preview; the sweep of the first is expenses-sweep.spec.ts,
+// and the order pages join this list with their own sign-in step (plan 08-24).
 const ADMIN_PAGES = [
   { path: '/admin', h1: 'Dashboard' },
-  { path: '/admin/orders', h1: 'Orders' },
   { path: '/dev/components', h1: 'Component Showcase' },
 ] as const;
 

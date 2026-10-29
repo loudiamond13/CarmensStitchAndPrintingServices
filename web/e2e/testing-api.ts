@@ -124,6 +124,82 @@ export async function createExpense(request: APIRequestContext, input: ExpenseSe
   return body.id;
 }
 
+/** The seeded Basketball Jersey product type (the id is the fixed migration seed literal). */
+export const BASKETBALL_JERSEY_ID = '01a17fce-7800-7f5d-bc6c-5d14ceeca0c6';
+
+/** One line of a seeded order. */
+export interface OrderSeedItem {
+  readonly productTypeId: string;
+  readonly description: string;
+  readonly quantity: number;
+  readonly unitPrice: number;
+  readonly sizeVariant?: string;
+}
+
+/** One payment of a seeded order. The method is a payment method id; the receiver is a staff user id. */
+export interface OrderSeedPayment {
+  /** The payment date as yyyy-MM-dd. */
+  readonly paymentDate: string;
+  readonly amount: number;
+  readonly paymentMethodId: string;
+  readonly receivedByUserId: string;
+  readonly reference?: string;
+  readonly notes?: string;
+}
+
+/** One order expense of a seeded order. The category is an order expense category id; the payer is a staff user id. */
+export interface OrderSeedExpense {
+  /** The expense date as yyyy-MM-dd. */
+  readonly expenseDate: string;
+  readonly amount: number;
+  readonly orderExpenseCategoryId: string;
+  readonly paidByUserId: string;
+  readonly description?: string;
+}
+
+/** One discount of a seeded order. */
+export interface OrderSeedDiscount {
+  readonly kind: 'percentage' | 'fixed';
+  readonly value: number;
+  readonly reason: string;
+}
+
+/**
+ * What a spec chooses for a seeded order (POST /api/testing/orders, the member names of the create call plus `number`).
+ * Only the number and the items are needed; the server works out every figure.
+ */
+export interface OrderSeedInput {
+  /** The order number, kept as given; use a unique one per run. */
+  readonly number: string;
+  /** pending, mockup, production, ready, delivered, completed or cancelled; pending when left out. */
+  readonly status?: string;
+  readonly customerName?: string;
+  readonly teamName?: string;
+  readonly contactNumber?: string;
+  readonly email?: string;
+  readonly address?: string;
+  /** The order date as yyyy-MM-dd; the business today when left out. */
+  readonly orderDate?: string;
+  /** The due date as yyyy-MM-dd. */
+  readonly dueDate?: string;
+  readonly notes?: string;
+  readonly items: readonly OrderSeedItem[];
+  readonly discounts?: readonly OrderSeedDiscount[];
+  readonly payments?: readonly OrderSeedPayment[];
+  readonly expenses?: readonly OrderSeedExpense[];
+}
+
+/** Seeds one order through the legacy import path with a chosen number, status and lines, and returns its id. */
+export async function createOrder(request: APIRequestContext, input: OrderSeedInput): Promise<string> {
+  const response = await request.post('/api/testing/orders', { data: input });
+  expect(response.status(), 'POST /api/testing/orders').toBe(201);
+  const body: unknown = await response.json();
+  if (!isRecord(body) || typeof body.id !== 'string') {
+    throw new Error('POST /api/testing/orders returned an unexpected body.');
+  }
+  return body.id;
+}
+
 /** Reads the sink's mail after a cursor id, optionally for one address. Oldest first. */
 export async function readEmails(
   request: APIRequestContext,

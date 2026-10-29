@@ -20,6 +20,7 @@ import {
 } from '@/test/expenseFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
+import { useOrderHandlers } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -70,6 +71,7 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
 
   it('with a refresh cookie the shell shows the signed-in user instead of the dev placeholder', async () => {
     const probe = answerRefresh(sessionResponse());
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
@@ -92,6 +94,7 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
         },
       }),
     );
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
@@ -101,21 +104,15 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
   });
 
-  it('opening /admin with a session goes to Signed-in devices (D-43) until the dashboard exists', async () => {
+  it('opening /admin with a session goes to Orders (D-61) until the dashboard exists', async () => {
     answerRefresh(sessionResponse());
-    // The Sessions page loads its list after the redirect; answer it so the request never goes unhandled.
-    let listCalls = 0;
-    server.use(
-      http.get('*/api/v1/sessions', () => {
-        listCalls += 1;
-        return HttpResponse.json([]);
-      }),
-    );
+    // The Orders page loads its list after the redirect; answer it so the request never goes unhandled.
+    const backend = useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
-    await expect.poll(() => listCalls, { timeout: 5000 }).toBe(1);
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
+    await expect.poll(() => backend.lists.length, { timeout: 5000 }).toBe(1);
   });
 
   it('keeps the return path of a deep link with a query', async () => {
@@ -141,20 +138,15 @@ const adminSession = () =>
   });
 
 describe('Manager-only routes (USER-08)', () => {
-  /** The Signed-in devices list the index redirect lands on. */
-  function answerSessionsList(): void {
-    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
-  }
-
   it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
-    'an Admin who opens %s lands on /admin and then Signed-in devices',
+    'an Admin who opens %s lands on /admin and then Orders',
     async (path) => {
       answerRefresh(adminSession());
-      answerSessionsList();
+      useOrderHandlers();
       const router = createMemoryRouter(routes, { initialEntries: [path] });
       render(<RouterProvider router={router} />);
 
-      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
 
       await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
       expect(screen.queryByRole('link', { name: /^Users/ })).toBeNull();
@@ -391,13 +383,13 @@ describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
     });
   }, 30_000);
 
-  it('an Admin who opens /admin/components lands on /admin and then Signed-in devices, like /admin/users', async () => {
+  it('an Admin who opens /admin/components lands on /admin and then Orders, like /admin/users', async () => {
     answerRefresh(adminSession());
-    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
 
     await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
     expect(screen.queryByRole('heading', { level: 1, name: /Component Showcase/ })).toBeNull();
@@ -465,14 +457,28 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.queryByText('Component Showcase')).toBeNull();
   });
 
-  it('the production /admin section routes are guarded and show the page-not-found screen inside the shell', async () => {
+  it('the production /admin/orders is the guarded real Orders page inside the shell', async () => {
     answerRefresh(sessionResponse());
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByText('148 orders · 37 active', {}, { timeout: 10_000 })).toBeVisible();
     expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
-  });
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
+
+  it('with the dev routes added, /admin/orders is still the guarded real page: no preview shadows it (Pitfall 1)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/admin/orders'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText('148 orders · 37 active', {}, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
 
   it('with the dev routes added, /admin/expenses is still the guarded real page: no preview shadows it (T-06-18)', async () => {
     answerRefresh(sessionResponse());
@@ -494,11 +500,11 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.getByText('Demo data')).toBeVisible();
     first.unmount();
 
-    const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin/orders'] });
+    const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
     render(<RouterProvider router={preview} />);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' }, { timeout: 5000 })).toBeVisible();
     expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeVisible();
-    expect(preview.state.location.pathname).toBe('/admin/orders');
+    expect(preview.state.location.pathname).toBe('/admin');
     expect(probe.count).toBe(0);
   });
 
