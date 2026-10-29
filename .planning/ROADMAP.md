@@ -787,7 +787,7 @@ Plans:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
 - counter-table locking under the execution strategy
 
-**Plans**: 19/20 plans executed in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
+**Plans**: 20/20 plans executed in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 07-01-PLAN.md — Product types, payment methods and order expense categories: tables, seeds, read API, and the Phase 7 audit catalog (ORD-13; D-16 to D-20, D-31)
@@ -835,7 +835,7 @@ Plans:
 - [x] 07-19-PLAN.md — The audit viewer reads every order event (ORD-16, ORD-22, ORD-23; D-31)
 
 **Wave 14** *(blocked on Wave 13 completion)*
-- [ ] 07-20-PLAN.md — Dev seed of the UI-spec orders and a testing-only seeding route (ORD-20, ORD-21)
+- [x] 07-20-PLAN.md — Dev seed of the UI-spec orders and a testing-only seeding route (ORD-20, ORD-21)
 
 ### Phase 07.1: Legacy Fit Check (read-only) (INSERTED)
 
@@ -1272,7 +1272,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
-| 7. Order Domain & API | 19/20 | In Progress | - |
+| 7. Order Domain & API | 20/20 | In Progress | - |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
