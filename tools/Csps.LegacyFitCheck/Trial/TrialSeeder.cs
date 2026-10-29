@@ -11,7 +11,8 @@ namespace Csps.LegacyFitCheck.Trial;
 /// <summary>Writes the trial-only list entries into the trial database (D-06). It only ever gets the trial context.</summary>
 internal static class TrialSeeder
 {
-    private const string PlaceholderPasswordHash = "legacy-fit-check-not-a-hash";
+    // Valid base64 but too short to be a hash, so the password hasher fails the check instead of throwing.
+    private const string PlaceholderPasswordHash = "AAAA";
 
     public static async Task SeedListsAsync(
         CspsDbContext trialContext,
