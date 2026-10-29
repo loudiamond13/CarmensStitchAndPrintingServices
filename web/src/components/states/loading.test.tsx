@@ -65,6 +65,13 @@ describe('SkeletonText', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('renders one full-width line when asked for one (the Orders subline)', async () => {
+    const { container } = render(<SkeletonText lines={1} />);
+    expect(first(container)).toHaveAttribute('aria-hidden', 'true');
+    expect(sizes(container)).toEqual([{ width: '100%', height: '14px', radius: '6px' }]);
+    await expectNoAxeViolations(container);
+  });
+
   it('uses the shimmering Skeleton look, which stops under reduced motion (O-6)', () => {
     const { container } = render(<SkeletonText />);
     for (const skel of container.querySelectorAll('span')) {

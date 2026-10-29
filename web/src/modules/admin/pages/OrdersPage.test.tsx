@@ -1,7 +1,8 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { delay } from 'msw';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
@@ -13,6 +14,7 @@ import {
   buildOrderList,
   creditOrder,
   listEntryOf,
+  orderProblem,
   order0148,
   order0151,
   order0153,
@@ -52,11 +54,12 @@ function locationNow(): { path: string; state: unknown } {
   return JSON.parse(screen.getByTestId('location').textContent) as { path: string; state: unknown };
 }
 
-function renderPage(search = '') {
+function renderPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
   return render(
     <QueryClientProvider client={queryClient}>
       <NuqsTestingAdapter
         searchParams={search}
+        onUrlUpdate={onUrlUpdate}
         defaultOptions={URL_STATE_DEFAULTS}
         processUrlSearchParams={orderSearchParams}
         hasMemory
@@ -243,5 +246,208 @@ describe('the fixtures', () => {
   it('derive the list row from the detail', () => {
     const list = buildOrderList([order0153, creditOrder].map(listEntryOf), { all: 2, active: 2 });
     expect(list.items.map((item) => item.pieces)).toEqual([12, 10]);
+  });
+});
+
+describe('the list states (UIC-1, UIC-12, UIC-18)', () => {
+  it('announces Loading orders… on the first load with 4 skeleton cards and a one-line subline, then shows the cards', async () => {
+    useOrderHandlers({
+      list: async () => {
+        await delay(150);
+        return standardOrderList();
+      },
+    });
+    renderPage();
+
+    expect(await screen.findByText('Loading orders…')).toBeInTheDocument();
+    const busy = document.querySelector('[aria-busy="true"]');
+    expect(busy?.firstElementChild?.children).toHaveLength(4);
+    expect(screen.queryByRole('article')).toBeNull();
+    // The subline is one skeleton line until the counts arrive.
+    const head = screen.getByRole('heading', { level: 1, name: 'Orders' }).parentElement;
+    expect(head?.querySelectorAll('[aria-hidden="true"] > span')).toHaveLength(1);
+
+    await screen.findByText('148 orders · 37 active');
+    expect(screen.queryByText('Loading orders…')).toBeNull();
+    expect(screen.getAllByRole('article')).toHaveLength(4);
+  });
+
+  it("shows Couldn't load orders. with Try Again, and Try Again reads the list again", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    useOrderHandlers({
+      list: () => {
+        calls += 1;
+        return calls === 1 ? orderProblem(500) : standardOrderList();
+      },
+    });
+    const view = renderPage();
+
+    expect(await screen.findByText("Couldn't load orders.")).toBeVisible();
+    expect(screen.queryByRole('article')).toBeNull();
+    await expectNoAxeViolations(view.container);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await screen.findByText('148 orders · 37 active');
+    expect(screen.queryByText("Couldn't load orders.")).toBeNull();
+    expect(calls).toBe(2);
+  });
+
+  it('shows No active orders with the D-55 words and New Order when the default view has no rows', async () => {
+    useOrderHandlers({ list: buildOrderList([], { all: 0, active: 0 }) });
+    const view = renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'No active orders' })).toBeVisible();
+    expect(
+      screen.getByText(
+        'Orders in progress, and orders finished or cancelled in the last 30 days, show here. Older orders are under All statuses.',
+      ),
+    ).toBeVisible();
+    // The header action and the first-use action.
+    expect(screen.getAllByRole('link', { name: 'New Order' })).toHaveLength(2);
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(screen.getByText('0 orders · 0 active')).toBeVisible();
+    await expectNoAxeViolations(view.container);
+  });
+
+  it('reads 1 order · 1 active for a shop with one order', async () => {
+    useOrderHandlers({ list: buildOrderList([listEntryOf(order0148)]) });
+    renderPage();
+
+    expect(await screen.findByText('1 order · 1 active')).toBeVisible();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+  });
+
+  it('keeps the cards and dims them by colour after 200 ms while the next page loads', async () => {
+    const user = userEvent.setup();
+    useOrderHandlers({
+      list: async (url) => {
+        if (url.searchParams.get('page') === '2') {
+          await delay(700);
+        }
+        return buildOrderList([order0148, order0151].map(listEntryOf), {
+          all: 148,
+          active: 37,
+          total: 45,
+          page: Number(url.searchParams.get('page')),
+        });
+      },
+    });
+    renderPage();
+    await screen.findByText('148 orders · 37 active');
+    const grid = screen.getAllByRole('article')[0]?.parentElement;
+    expect(grid).not.toHaveAttribute('data-refetching');
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(grid).not.toHaveAttribute('data-refetching');
+    await waitFor(() => {
+      expect(grid).toHaveAttribute('data-refetching', 'true');
+    });
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    await waitFor(() => {
+      expect(grid).not.toHaveAttribute('data-refetching');
+    });
+  });
+});
+
+describe('paging and rows per page (ORD-01, EDGE ORD-01 boundary)', () => {
+  const MANY = (url: URL) =>
+    buildOrderList([order0148, order0151, order0153].map(listEntryOf), {
+      all: 148,
+      active: 37,
+      total: 45,
+      page: Number(url.searchParams.get('page')),
+      pageSize: Number(url.searchParams.get('pageSize')),
+    });
+
+  it('asks for the page and the size in the URL and shows Page 2 of 3', async () => {
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('?page=2');
+
+    await screen.findByText('148 orders · 37 active');
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '2', pageSize: '20' });
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 3');
+  });
+
+  it('sends a size of 50 from the URL as pageSize 50', async () => {
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('?size=50');
+
+    await screen.findByText('148 orders · 37 active');
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '50' });
+  });
+
+  it('offers 10, 20, 50 and 100 rows per page', async () => {
+    useOrderHandlers({ list: MANY });
+    renderPage();
+
+    await screen.findByText('148 orders · 37 active');
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['10', '20', '50', '100']);
+    expect(select).toHaveValue('20');
+  });
+
+  it('a rows per page change asks for that size and goes back to page 1', async () => {
+    const user = userEvent.setup();
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('?page=2');
+
+    await screen.findByText('148 orders · 37 active');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50');
+
+    await waitFor(() => {
+      expect(Object.fromEntries(backend.lists.at(-1)?.searchParams ?? [])).toEqual({ page: '1', pageSize: '50' });
+    });
+  });
+
+  it('Next pushes the next page into the URL and asks the server for it', async () => {
+    const user = userEvent.setup();
+    const updates: string[] = [];
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('', (event) => {
+      updates.push(`${event.options.history}:${event.queryString}`);
+    });
+
+    await screen.findByText('148 orders · 37 active');
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 3');
+    });
+    expect(updates).toContain('push:?page=2');
+    expect(backend.lists.at(-1)?.searchParams.get('page')).toBe('2');
+  });
+
+  it('replaces a page past the last (?page=9 with 3 pages) with the last page', async () => {
+    const updates: string[] = [];
+    useOrderHandlers({ list: MANY });
+    renderPage('?page=9', (event) => {
+      updates.push(`${event.options.history}:${event.queryString}`);
+    });
+
+    await waitFor(() => {
+      expect(updates).toContain('replace:?page=3');
+    });
+  });
+
+  it('falls back from a size outside 10, 20, 50 and 100 with one replace and asks for the default', async () => {
+    const updates: string[] = [];
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('?size=33&page=0', (event) => {
+      updates.push(`${event.options.history}:${event.queryString}`);
+    });
+
+    await screen.findByText('148 orders · 37 active');
+    await waitFor(() => {
+      expect(updates).toEqual(['replace:']);
+    });
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '20' });
   });
 });
