@@ -1,9 +1,9 @@
 ---
 phase: 07-order-domain-api
 created: 2026-10-28T23:30:00-05:00
-updated: 2026-10-28T23:30:00-05:00
+updated: 2026-10-29T05:17:37-05:00
 review_path: .planning/phases/07-order-domain-api/07-REVIEW.md
-rulings: D-46, D-49 (owner, 2026-10-28)
+rulings: D-46, D-49 (owner, 2026-10-28), D-78 (owner, 2026-10-29)
 findings: 31
 fixed: 25
 deferred: 4
@@ -44,7 +44,7 @@ Counts: 31 findings, 25 fixed, 4 deferred, 2 accepted. Every critical and warnin
 | APX-IN-01 | Info | deferred | The audit lines leave out the current payer, receiver, refunder and the created total. The owner decides in the Phase 8 UI review. |
 | APX-IN-02 | Info | fixed | Red `a2fe2b8b`, green `b72f0c70`. The audit reader leaves out a category tone that is not one of the six. |
 | APX-IN-03 | Info | fixed | `d8b5e5e7`. The audit port docs list the order and list target types and the D-48 match. Comments only. |
-| APX-IN-04 | Info | deferred | `auth.session-busy` is shared with Phase 6 and with all list handlers. A list-scoped busy code is a contract change across both phases. Question for the owner: should the list writes get their own busy code? APX-WR-01 uses the existing shared code. |
+| APX-IN-04 | Info | accepted by owner | `auth.session-busy` is shared with Phase 6 and with all list handlers. Ruled D-78 (owner, 2026-10-29): keep the shared code; no list-specific busy code. |
 | APX-IN-05 | Info | fixed | `7ce5f21d`. Removed the unused `NameField` and `VersionField` constants. Dead code only. |
 | APX-IN-06 | Info | fixed | Red `93fa62f5`, green `299415ae`. The descriptor names the order expense categories explicitly and throws for an unknown list. |
 | IWB-IN-01 | Info | fixed | `13ccadfb`, with IWB-WR-04. The `OrderReader` summary gives the real statement count. |

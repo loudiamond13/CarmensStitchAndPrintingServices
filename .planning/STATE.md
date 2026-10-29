@@ -15,7 +15,7 @@ progress:
   completed_plans: 207
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-28T23:30:00-05:00"
+updated: "2026-10-29T05:17:37-05:00"
 ---
 
 # Project State
@@ -732,6 +732,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-19: a percentage discount value is sent as text ending in % on each side, so a kind change reads correctly in one value line
 - [Phase 07]: 07-19: order audit entries carry orderNumber and the Done to column shows it; the API doneTo stays null and the Done to filter still searches only company-expense entries
 - [Phase 07]: 07-20: the orders seed gives each order one status-history row at 09:00 Manila on its order date; receivers and payers are the active payers or the Legacy holder; the testing route POST /api/testing/orders is Debug and Testing only
+- [Phase 07 UAT]: D-78 (owner, 2026-10-29, APX-IN-04, option 1 of 2): a list create, retire, reactivate or delete that loses its race twice keeps answering the shared `auth.session-busy` code ("Something changed at the same time. Try again."), the same as Phase 6. No list-specific busy code.
 
 ### Pending Todos
 
@@ -765,10 +766,11 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 
 Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing here was auto-approved):
 
-- [ ] **Phase 7 sign-off (07-UAT.md):** the verifier passed all 7 must-haves with no gaps; the status is `human_needed` only for the items below. Run `/gsd-verify-work 7` to walk them and mark the phase complete. The phase is not marked complete until you do.
+- [x] **UAT walked (owner, 2026-10-29): 2 passed, 3 deferred (tests 1, 4, 5), 0 issues.** **Phase 7 sign-off (07-UAT.md):** the verifier passed all 7 must-haves with no gaps; the status is `human_needed` only for the items below. Run `/gsd-verify-work 7` to walk them and mark the phase complete. The phase is not marked complete until you do.
 - [ ] **Your check of two logic changes from the code review (07-REVIEW-DISPOSITION.md):** (1) DOM-WR-04, D-49b: edits now re-check only the fields they change (`LegacyEditFilter.cs` and the six edit handlers); the D-05 lock and the totals caps (overpayment, discount cap, refunds above payments) still run on every edit. (2) APO-WR-01, commit `529510b1`: a deadlock inside the duplicate-request guard's transaction now answers 409 "busy" instead of 500, and is not retried. Confirm both, or ask for changes.
-- [ ] **List writes busy code (APX-IN-04):** a list create, retire, reactivate or delete that loses a race twice answers the shared `auth.session-busy` code (Phase 6 does the same). Pick one. (1) Recommended: keep it. (2) Give order lists their own busy code.
-- [ ] **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
+- [ ] **Reminder after Phase 8 ships (owner, 2026-10-29, 07-UAT test 1 deferred):** remind the owner to read the DOM-WR-04 code: `LegacyEditFilter.cs`, the six `UpdateOrder*Handler.cs` files and the legacy edit checks in `Order.cs` (tests: `OrderLegacyEditTests`, `LegacyEditHandlerTests`). Also ask them to confirm that a legacy order with no due date still needs one on edit, unlike a missing contact number. Raise this at the start of the first session after Phase 8 is complete.
+- [x] **Ruled D-78 (owner, 2026-10-29): option 1, keep `auth.session-busy`.** **List writes busy code (APX-IN-04):** a list create, retire, reactivate or delete that loses a race twice answers the shared `auth.session-busy` code (Phase 6 does the same). Pick one. (1) Recommended: keep it. (2) Give order lists their own busy code.
+- [ ] **Confirmed for the Phase 8 UI review (owner, 2026-10-29, 07-UAT test 4).** **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
 - [ ] **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
 
 ### Blockers/Concerns
