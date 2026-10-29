@@ -1,5 +1,6 @@
 using Csps.LegacyFitCheck.Source;
 using Csps.LegacyFitCheck.Tests.Fakes;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.LegacyFitCheck.Tests;
 
@@ -15,6 +16,7 @@ public sealed class WriteEvidenceTests
             var context = LegacyDbContext.Open(fake.ConnectionString);
             await using (context.ConfigureAwait(true))
             {
+                await context.Database.OpenConnectionAsync(token);
                 var before = await WriteEvidence.CaptureAsync(context, token);
                 var after = await WriteEvidence.CaptureAsync(context, token);
 
@@ -36,6 +38,7 @@ public sealed class WriteEvidenceTests
             var context = LegacyDbContext.Open(fake.ConnectionString);
             await using (context.ConfigureAwait(true))
             {
+                await context.Database.OpenConnectionAsync(token);
                 var before = await WriteEvidence.CaptureAsync(context, token);
                 await fake.AddOrderAsync(2, token);
                 var after = await WriteEvidence.CaptureAsync(context, token);

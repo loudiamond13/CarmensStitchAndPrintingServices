@@ -1,3 +1,4 @@
+using System.Data;
 using System.Globalization;
 using Csps.LegacyFitCheck.Findings;
 using Csps.LegacyFitCheck.Mapping;
@@ -28,9 +29,16 @@ internal static class FitCheckRunner
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
+        var sourceCheck = LegacySource.Check(targets.SourceConnectionString);
+        if (!sourceCheck.Allowed)
+        {
+            await error.WriteLineAsync($"Refused: {sourceCheck.Reason}").ConfigureAwait(false);
+            return Program.Refused;
+        }
+
         try
         {
-            var read = await ReadAndMapAsync(targets.SourceConnectionString, hooks, cancellationToken).ConfigureAwait(false);
+            var read = await ReadAndMapAsync(LegacySource.Prepare(targets.SourceConnectionString), hooks, cancellationToken).ConfigureAwait(false);
             if (WriteEvidence.Compare(read.Before, read.After) == WriteEvidenceVerdict.Changed)
             {
                 await error.WriteLineAsync("Failed: the restore changed during the run.").ConfigureAwait(false);
@@ -87,23 +95,34 @@ internal static class FitCheckRunner
         var source = LegacyDbContext.Open(sourceConnectionString);
         await using (source.ConfigureAwait(false))
         {
-            var before = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
-            var types = await source.OrderTypes.ToDictionaryAsync(static row => row.OrderTypeId, static row => row.OrderTypeName, cancellationToken).ConfigureAwait(false);
-            var statuses = await source.Statuses.ToDictionaryAsync(static row => row.StatusId, static row => row.StatusName, cancellationToken).ConfigureAwait(false);
-            var orders = await source.Orders.OrderBy(static row => row.OrderId).ToListAsync(cancellationToken).ConfigureAwait(false);
-            var items = (await source.OrderItems.OrderBy(static row => row.OrderItemId).ToListAsync(cancellationToken).ConfigureAwait(false))
-                .ToLookup(static row => row.OrderId);
-
-            var mapped = orders.Select(order => DraftMapping.MapOrder(order, [.. items[order.OrderId]], types, statuses)).ToList();
-
-            if (hooks?.BetweenEvidence is { } between)
+            // One transaction around the whole read window, never committed: disposal rolls it back. It also keeps one connection
+            // open, because a database with auto-close resets its index usage counters when the last connection closes.
+            var transaction = await source.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
             {
-                await between(cancellationToken).ConfigureAwait(false);
+                return await ReadWindowAsync(source, hooks, cancellationToken).ConfigureAwait(false);
             }
-
-            var after = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
-            return new ReadResult(mapped, before, after);
         }
+    }
+
+    private static async Task<ReadResult> ReadWindowAsync(LegacyDbContext source, FitCheckHooks? hooks, CancellationToken cancellationToken)
+    {
+        var before = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
+        var types = await source.OrderTypes.ToDictionaryAsync(static row => row.OrderTypeId, static row => row.OrderTypeName, cancellationToken).ConfigureAwait(false);
+        var statuses = await source.Statuses.ToDictionaryAsync(static row => row.StatusId, static row => row.StatusName, cancellationToken).ConfigureAwait(false);
+        var orders = await source.Orders.OrderBy(static row => row.OrderId).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var items = (await source.OrderItems.OrderBy(static row => row.OrderItemId).ToListAsync(cancellationToken).ConfigureAwait(false))
+            .ToLookup(static row => row.OrderId);
+
+        var mapped = orders.Select(order => DraftMapping.MapOrder(order, [.. items[order.OrderId]], types, statuses)).ToList();
+
+        if (hooks?.BetweenEvidence is { } between)
+        {
+            await between(cancellationToken).ConfigureAwait(false);
+        }
+
+        var after = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
+        return new ReadResult(mapped, before, after);
     }
 
     private sealed record ReadResult(IReadOnlyList<MappedOrder> Orders, WriteEvidenceSnapshot Before, WriteEvidenceSnapshot After);
