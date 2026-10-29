@@ -96,6 +96,23 @@ public sealed class OrderListEntryHandlerTests
         harness.Unit.Rollbacks.ShouldBe(1);
     }
 
+    [Theory]
+    [InlineData(OrderListKind.ProductType)]
+    [InlineData(OrderListKind.PaymentMethod)]
+    [InlineData(OrderListKind.OrderExpenseCategory)]
+    public async Task AddingThatLosesADeadlockIsA409LikeTheOtherWritesAndIsNotRetried(OrderListKind kind)
+    {
+        var harness = new Harness(kind);
+        harness.Unit.ThrowOnSave(new ConcurrencyConflictException(new InvalidOperationException("A deadlock victim.")));
+
+        var result = await harness.Create.HandleAsync(kind, new OrderListEntryRequest("Hoodie", "info", null), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(AuthErrors.SessionBusy);
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Rollbacks.ShouldBe(1);
+    }
+
     [Fact]
     public async Task AnEntryThatVanishesBeforeTheFinalReadIsA404()
     {
