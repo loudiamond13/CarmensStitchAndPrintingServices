@@ -42,7 +42,8 @@ public sealed class FitCheckRunnerTests
                 lines[1].ShouldStartWith("*Created: ");
                 var text = string.Join('\n', lines);
                 text.ShouldContain("Never commit");
-                text.ShouldContain("imported", Case.Insensitive);
+                text.ShouldContain("import.imported");
+                text.ShouldNotContain("TrialImport");
 
                 trialName.ShouldNotBeNull();
                 (await TrialDatabase.ExistsAsync(server.MasterConnectionString, trialName, token)).ShouldBeFalse();
