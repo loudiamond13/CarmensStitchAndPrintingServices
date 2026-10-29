@@ -185,6 +185,27 @@ describe('AuditDetail', () => {
     ]);
   });
 
+  it('lists a line it cannot read as "<Field> changed" instead of dropping it (D-81)', () => {
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order-payment.changed',
+          detail: 'payment=x',
+          orderNumber: 'ORD-2026-0148',
+          changes: [
+            { field: 'amount', from: null, to: '10000.00', fromPerson: null, toPerson: null },
+            { field: 'method', from: 'Cash', to: 'GCash', fromPerson: null, toPerson: null },
+          ],
+        })}
+      />,
+    );
+
+    const lines = within(valueOf(container, 'What changed'))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(lines).toEqual(['Amount changed', 'Payment method: Cash to GCash']);
+  });
+
   it('reads the snapshot of a deleted order after the order is gone (ORD-16)', () => {
     const { container } = render(
       <AuditDetail

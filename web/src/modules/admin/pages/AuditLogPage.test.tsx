@@ -1001,9 +1001,9 @@ describe('A1 order entries (D-31)', () => {
     backend(ORDER_ITEMS);
     await openPage();
 
-    expect(cellOf(rowOf('Payment receiver changed'), 'Done to')).toHaveTextContent('ORD-2026-0148');
+    expect(cellOf(rowOf('Order payment receiver changed'), 'Done to')).toHaveTextContent('ORD-2026-0148');
     expect(cellOf(rowOf('Order permanently deleted'), 'Done to')).toHaveTextContent('ORD-2026-0150');
-    expect(within(cellOf(rowOf('Item added'), 'Done to')).getByText('Not set')).toBeInTheDocument();
+    expect(within(cellOf(rowOf('Order item added'), 'Done to')).getByText('Not set')).toBeInTheDocument();
   });
 
   it('reads who received a payment before and after, and the snapshot of a deleted order, with no axe violations', async () => {
@@ -1012,7 +1012,7 @@ describe('A1 order entries (D-31)', () => {
     const user = userEvent.setup();
     const { container } = await openPage();
 
-    await user.click(screen.getByRole('button', { name: /^Show details for Payment receiver changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Order payment receiver changed/ }));
     await user.click(screen.getByRole('button', { name: /^Show details for Order permanently deleted/ }));
 
     expect(screen.getByText('Received by: Carmen Reyes to Paolo Garcia')).toBeInTheDocument();

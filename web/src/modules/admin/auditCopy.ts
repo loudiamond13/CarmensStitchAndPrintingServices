@@ -93,20 +93,20 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'order.deleted', label: 'Order deleted', group: ORDERS },
   { code: 'order.restored', label: 'Order restored', group: ORDERS },
   { code: 'order.permanently-deleted', label: 'Order permanently deleted', group: ORDERS },
-  { code: 'order-item.added', label: 'Item added', group: ORDERS },
-  { code: 'order-item.changed', label: 'Item changed', group: ORDERS },
-  { code: 'order-item.removed', label: 'Item removed', group: ORDERS },
-  { code: 'order-payment.added', label: 'Payment added', group: ORDERS },
-  { code: 'order-payment.changed', label: 'Payment changed', group: ORDERS },
-  { code: 'order-payment.receiver-changed', label: 'Payment receiver changed', group: ORDERS },
-  { code: 'order-payment.removed', label: 'Payment removed', group: ORDERS },
-  { code: 'order-refund.added', label: 'Refund added', group: ORDERS },
-  { code: 'order-refund.changed', label: 'Refund changed', group: ORDERS },
-  { code: 'order-refund.refunder-changed', label: 'Refunder changed', group: ORDERS },
-  { code: 'order-refund.removed', label: 'Refund removed', group: ORDERS },
-  { code: 'order-discount.added', label: 'Discount added', group: ORDERS },
-  { code: 'order-discount.changed', label: 'Discount changed', group: ORDERS },
-  { code: 'order-discount.removed', label: 'Discount removed', group: ORDERS },
+  { code: 'order-item.added', label: 'Order item added', group: ORDERS },
+  { code: 'order-item.changed', label: 'Order item changed', group: ORDERS },
+  { code: 'order-item.removed', label: 'Order item removed', group: ORDERS },
+  { code: 'order-payment.added', label: 'Order payment added', group: ORDERS },
+  { code: 'order-payment.changed', label: 'Order payment changed', group: ORDERS },
+  { code: 'order-payment.receiver-changed', label: 'Order payment receiver changed', group: ORDERS },
+  { code: 'order-payment.removed', label: 'Order payment removed', group: ORDERS },
+  { code: 'order-refund.added', label: 'Order refund added', group: ORDERS },
+  { code: 'order-refund.changed', label: 'Order refund changed', group: ORDERS },
+  { code: 'order-refund.refunder-changed', label: 'Order refunder changed', group: ORDERS },
+  { code: 'order-refund.removed', label: 'Order refund removed', group: ORDERS },
+  { code: 'order-discount.added', label: 'Order discount added', group: ORDERS },
+  { code: 'order-discount.changed', label: 'Order discount changed', group: ORDERS },
+  { code: 'order-discount.removed', label: 'Order discount removed', group: ORDERS },
   { code: 'order-expense.added', label: 'Order expense added', group: ORDERS },
   { code: 'order-expense.changed', label: 'Order expense changed', group: ORDERS },
   { code: 'order-expense.payer-changed', label: 'Order expense payer changed', group: ORDERS },
@@ -309,21 +309,26 @@ function pair(label: string, from: string | null, to: string): string {
   return from === null ? `${label}: ${to}` : `${label}: ${from} to ${to}`;
 }
 
+/** The line for a value that cannot be read: it says the field changed and never shows the stored value. */
+function changedOnly(label: string): string {
+  return `${label} changed`;
+}
+
 /**
- * A line with a value on each side. A stated value (an added or removed entry) needs only the new side; a change needs both, and a
- * value the formatter cannot read leaves the line out.
+ * A line with a value on each side. A stated value (an added or removed entry) needs only the new side; a change needs both. A
+ * value the formatter cannot read gives "<Label> changed".
  */
 function valuePair(
   label: string,
   line: AuditChangeLine,
   stated: boolean,
   format: (value: string) => string | null,
-): string | null {
+): string {
   const to = line.to === null ? null : format(line.to);
-  if (to === null) return null;
+  if (to === null) return changedOnly(label);
   if (stated) return pair(label, null, to);
   const from = line.from === null ? null : format(line.from);
-  return from === null ? null : pair(label, from, to);
+  return from === null ? changedOnly(label) : pair(label, from, to);
 }
 
 /** A line whose sides are list entry names; a side with no name is an entry that has been deleted. */
@@ -332,11 +337,11 @@ function namePair(label: string, deleted: string, line: AuditChangeLine, stated:
   return stated ? pair(label, null, to) : pair(label, line.from ?? deleted, to);
 }
 
-/** A line whose sides are people. A stated value needs only the new person; a change needs both. */
-function personPair(label: string, line: AuditChangeLine, stated: boolean): string | null {
-  if (line.toPerson === null) return null;
+/** A line whose sides are people. A stated value needs only the new person; a change needs both, else `fallback` is the line. */
+function personPair(label: string, fallback: string, line: AuditChangeLine, stated: boolean): string {
+  if (line.toPerson === null) return fallback;
   if (stated) return pair(label, null, personText(line.toPerson));
-  return line.fromPerson === null ? null : pair(label, personText(line.fromPerson), personText(line.toPerson));
+  return line.fromPerson === null ? fallback : pair(label, personText(line.fromPerson), personText(line.toPerson));
 }
 
 /** What the empty side of a change reads as (the same words as the hidden text of EmptyValue). */
@@ -359,7 +364,7 @@ function discountValueText(value: string): string | null {
  * One typed change line as a fixed sentence (D-27, D-31, UI-SPEC A1): amounts in pesos, dates in the Manila style, list entries and
  * people by name. A text field says only that it changed, because its text is never stored in the log (05 D-40). With `stated`, the
  * line gives a value as it was added or removed (see isStatedValueAction), so it has no old value. A value the viewer cannot read
- * gives null and the line is left out.
+ * gives "<Field> changed"; only a field the viewer does not know gives null.
  */
 export function describeAuditChange(line: AuditChangeLine, stated = false): string | null {
   switch (line.field) {
@@ -375,7 +380,7 @@ export function describeAuditChange(line: AuditChangeLine, stated = false): stri
       // An imported order may have had no due date, so the first one is a change from nothing (D-49d).
       if (!stated && line.from === null && line.to !== null) {
         const to = dateText(line.to);
-        return to === null ? null : pair('Due date', NOT_SET, to);
+        return to === null ? changedOnly('Due date') : pair('Due date', NOT_SET, to);
       }
       return valuePair('Due date', line, stated, dateText);
     }
@@ -394,17 +399,17 @@ export function describeAuditChange(line: AuditChangeLine, stated = false): stri
     case 'productType':
       return namePair('Product type', 'a deleted product type', line, stated);
     case 'payer':
-      return personPair('Paid by', line, stated);
+      return personPair('Paid by', 'Payer changed', line, stated);
     case 'receiver':
-      return personPair('Received by', line, stated);
+      return personPair('Received by', 'Receiver changed', line, stated);
     case 'refunder':
-      return personPair('Refunded by', line, stated);
+      return personPair('Refunded by', 'Refunder changed', line, stated);
     case 'name':
-      return line.to === null ? null : pair('Name', line.from, line.to);
+      return line.to === null ? changedOnly('Name') : pair('Name', line.from, line.to);
     case 'tone': {
       const to = toneText(line.to);
       const from = line.from === null ? null : toneText(line.from);
-      return to === null || (line.from !== null && from === null) ? null : pair('Color', from, to);
+      return to === null || (line.from !== null && from === null) ? changedOnly('Color') : pair('Color', from, to);
     }
     default:
       return TEXT_FIELD_SENTENCES.get(line.field) ?? null;

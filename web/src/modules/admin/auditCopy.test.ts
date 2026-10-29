@@ -151,9 +151,32 @@ describe('the action labels (D-28)', () => {
   it('reads the order and list events in plain words', () => {
     expect(auditActionLabel('order.created')).toBe('Order created');
     expect(auditActionLabel('order.reopened')).toBe('Order reopened');
-    expect(auditActionLabel('order-payment.receiver-changed')).toBe('Payment receiver changed');
-    expect(auditActionLabel('order-refund.added')).toBe('Refund added');
+    expect(auditActionLabel('order-payment.receiver-changed')).toBe('Order payment receiver changed');
+    expect(auditActionLabel('order-refund.added')).toBe('Order refund added');
     expect(auditActionLabel('product-type.retired')).toBe('Product type retired');
+  });
+
+  it('names the order in all 14 order sub-entry labels (D-82)', () => {
+    const expected: [string, string][] = [
+      ['order-item.added', 'Order item added'],
+      ['order-item.changed', 'Order item changed'],
+      ['order-item.removed', 'Order item removed'],
+      ['order-payment.added', 'Order payment added'],
+      ['order-payment.changed', 'Order payment changed'],
+      ['order-payment.receiver-changed', 'Order payment receiver changed'],
+      ['order-payment.removed', 'Order payment removed'],
+      ['order-refund.added', 'Order refund added'],
+      ['order-refund.changed', 'Order refund changed'],
+      ['order-refund.refunder-changed', 'Order refunder changed'],
+      ['order-refund.removed', 'Order refund removed'],
+      ['order-discount.added', 'Order discount added'],
+      ['order-discount.changed', 'Order discount changed'],
+      ['order-discount.removed', 'Order discount removed'],
+    ];
+    for (const [code, label] of expected) {
+      expect(auditActionLabel(code), code).toBe(label);
+    }
+    expect(auditActionLabel('order-expense.added')).toBe('Order expense added');
   });
 
   it('puts the order and child events under Orders and the list events under Order lists', () => {
@@ -286,11 +309,22 @@ describe('describeAuditChange for every field (D-27, UI-SPEC A1)', () => {
     expect(describeAuditChange(change('tone', null, 'info'))).toBe('Color: Blue');
   });
 
-  it('leaves out a line it cannot read', () => {
-    expect(describeAuditChange(change('tone', 'warning', 'purple'))).toBeNull();
-    expect(describeAuditChange(change('date', 'soon', 'later'))).toBeNull();
-    expect(describeAuditChange(change('amount', null, '5.00'))).toBeNull();
+  it('reads a line it cannot read as "<Field> changed", and leaves out only a field it does not know (D-81)', () => {
+    expect(describeAuditChange(change('tone', 'warning', 'purple'))).toBe('Color changed');
+    expect(describeAuditChange(change('date', 'soon', 'later'))).toBe('Date changed');
+    expect(describeAuditChange(change('amount', null, '5.00'))).toBe('Amount changed');
+    expect(describeAuditChange(change('name', 'Supplies', null))).toBe('Name changed');
     expect(describeAuditChange(change('shoe-size', 'a', 'b'))).toBeNull();
+  });
+
+  it('never puts an unreadable stored value in the fallback sentence', () => {
+    const date = describeAuditChange(change('date', 'soon', 'later')) ?? '';
+    expect(date).not.toContain('soon');
+    expect(date).not.toContain('later');
+    const value = describeAuditChange(change('value', 'five', '10.00')) ?? '';
+    expect(value).toBe('Discount value changed');
+    expect(value).not.toContain('five');
+    expect(value).not.toContain('10.00');
   });
 
   it('never returns text from a description or notes line, even if the server sent some', () => {
@@ -330,7 +364,7 @@ describe('describeAuditChange for order entries (D-31, ORD-16, ORD-22, ORD-23)',
     expect(describeAuditChange(change('status', 'completed', 'cancelled'))).toBe('Status: Completed to Cancelled');
     expect(describeAuditChange(change('status', 'mockup', 'delivered'))).toBe('Status: Mockup to Delivered');
     expect(describeAuditChange(change('status', null, 'pending'), true)).toBe('Status: Pending');
-    expect(describeAuditChange(change('status', 'ready', 'bogus'))).toBeNull();
+    expect(describeAuditChange(change('status', 'ready', 'bogus'))).toBe('Status changed');
   });
 
   it('reads the order and due dates, with a due date that had no old value', () => {
@@ -341,21 +375,22 @@ describe('describeAuditChange for order entries (D-31, ORD-16, ORD-22, ORD-23)',
       'Due date: Nov 11, 2026 to Nov 18, 2026',
     );
     expect(describeAuditChange(change('dueDate', null, '2026-11-18'), true)).toBe('Due date: Nov 18, 2026');
-    expect(describeAuditChange(change('orderDate', 'soon', 'later'))).toBeNull();
+    expect(describeAuditChange(change('orderDate', 'soon', 'later'))).toBe('Order date changed');
   });
 
   it('says a first due date on an imported order replaced nothing (D-49d)', () => {
     expect(describeAuditChange(change('dueDate', null, '2026-11-18'))).toBe('Due date: Not set to Nov 18, 2026');
-    expect(describeAuditChange(change('dueDate', null, 'soon'))).toBeNull();
-    expect(describeAuditChange(change('orderDate', null, '2026-11-18'))).toBeNull();
+    expect(describeAuditChange(change('dueDate', null, 'soon'))).toBe('Due date changed');
+    expect(describeAuditChange(change('orderDate', null, '2026-11-18'))).toBe('Order date changed');
   });
 
   it('reads quantity and unit price', () => {
     expect(describeAuditChange(change('quantity', '15', '20'))).toBe('Quantity: 15 to 20');
     expect(describeAuditChange(change('quantity', null, '2'), true)).toBe('Quantity: 2');
-    expect(describeAuditChange(change('quantity', 'lots', '2'))).toBeNull();
+    expect(describeAuditChange(change('quantity', 'lots', '2'))).toBe('Quantity changed');
     expect(describeAuditChange(change('unitPrice', '650.00', '700.00'))).toBe('Unit price: ₱650.00 to ₱700.00');
     expect(describeAuditChange(change('unitPrice', null, '550.00'), true)).toBe('Unit price: ₱550.00');
+    expect(describeAuditChange(change('unitPrice', null, '550.00'))).toBe('Unit price changed');
   });
 
   it('reads a discount kind and value, a percent value without a peso sign', () => {
@@ -363,11 +398,11 @@ describe('describeAuditChange for order entries (D-31, ORD-16, ORD-22, ORD-23)',
       'Discount type: Percentage to Fixed amount',
     );
     expect(describeAuditChange(change('kind', null, 'percentage'), true)).toBe('Discount type: Percentage');
-    expect(describeAuditChange(change('kind', 'huge', 'fixed'))).toBeNull();
+    expect(describeAuditChange(change('kind', 'huge', 'fixed'))).toBe('Discount type changed');
     expect(describeAuditChange(change('value', '5.00%', '10.00%'))).toBe('Discount value: 5% to 10%');
     expect(describeAuditChange(change('value', '5.00%', '500.00'))).toBe('Discount value: 5% to ₱500.00');
     expect(describeAuditChange(change('value', null, '12.50%'), true)).toBe('Discount value: 12.5%');
-    expect(describeAuditChange(change('value', 'five', '10.00'))).toBeNull();
+    expect(describeAuditChange(change('value', 'five', '10.00'))).toBe('Discount value changed');
   });
 
   it('names payment methods, product types and order categories, or a deleted one', () => {
@@ -396,19 +431,28 @@ describe('describeAuditChange for order entries (D-31, ORD-16, ORD-22, ORD-23)',
     expect(
       describeAuditChange({ field: 'refunder', from: null, to: null, fromPerson: null, toPerson: ana }, true),
     ).toBe('Refunded by: Ana Reyes');
-    expect(
-      describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: ana, toPerson: null }),
-    ).toBeNull();
+    expect(describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: ana, toPerson: null })).toBe(
+      'Receiver changed',
+    );
     expect(
       describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: null, toPerson: null }, true),
-    ).toBeNull();
+    ).toBe('Receiver changed');
+    expect(describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: null, toPerson: bea })).toBe(
+      'Receiver changed',
+    );
+    expect(describeAuditChange({ field: 'payer', from: null, to: null, fromPerson: ana, toPerson: null })).toBe(
+      'Payer changed',
+    );
+    expect(
+      describeAuditChange({ field: 'refunder', from: null, to: null, fromPerson: null, toPerson: null }, true),
+    ).toBe('Refunder changed');
   });
 
   it('reads a single amount and date of an added line', () => {
     expect(describeAuditChange(change('amount', null, '3000.00'), true)).toBe('Amount: ₱3,000.00');
     expect(describeAuditChange(change('date', null, '2026-10-25'), true)).toBe('Date: Oct 25, 2026');
-    expect(describeAuditChange(change('amount', null, null), true)).toBeNull();
-    expect(describeAuditChange(change('date', null, 'soon'), true)).toBeNull();
+    expect(describeAuditChange(change('amount', null, null), true)).toBe('Amount changed');
+    expect(describeAuditChange(change('date', null, 'soon'), true)).toBe('Date changed');
   });
 
   it('says only that a text field changed, never its text', () => {
