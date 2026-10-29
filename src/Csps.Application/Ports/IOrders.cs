@@ -38,6 +38,6 @@ public interface IOrders
     /// <param name="order">The tracked order, as found by <see cref="FindAsync"/>.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes once the lock is held and the order carries the new row version.</returns>
-    /// <exception cref="Csps.Application.Common.ConcurrencyConflictException">Another request changed the order after it was found; the tracked state has been dropped.</exception>
+    /// <exception cref="Csps.Application.Common.ConcurrencyConflictException">Another request changed the order after it was found, the wait for its row timed out, or the wait lost a deadlock; the tracked state has been dropped.</exception>
     Task LockAsync(Order order, CancellationToken cancellationToken);
 }

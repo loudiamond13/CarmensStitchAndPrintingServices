@@ -91,10 +91,21 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
         // The update takes the row's exclusive lock to the end of the transaction. It matches only the row version the order was
         // loaded with, so a request that lost the race changes nothing and is told so before it writes any child row. Any update
         // moves the row version; EditVersion gets a new value so the row really changes.
-        var locked = await context.Orders
-            .Where(row => row.Id == order.Id && row.RowVersion == order.RowVersion)
-            .ExecuteUpdateAsync(set => set.SetProperty(row => row.EditVersion, Guid.NewGuid()), cancellationToken)
-            .ConfigureAwait(false);
+        int locked;
+        try
+        {
+            locked = await context.Orders
+                .Where(row => row.Id == order.Id && row.RowVersion == order.RowVersion)
+                .ExecuteUpdateAsync(set => set.SetProperty(row => row.EditVersion, Guid.NewGuid()), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception error) when (SqlErrors.Has(error, SqlErrors.Timeout, SqlErrors.DeadlockVictim))
+        {
+            // A wait for the row that ran out of time, or a deadlock victim, is a lost race like any other.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
+        }
+
         if (locked != 1)
         {
             context.ChangeTracker.Clear();
