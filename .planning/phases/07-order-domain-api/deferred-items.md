@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T09:40:00-05:00
-updated: 2026-10-28T21:45:00-05:00
+updated: 2026-10-28T22:10:00-05:00
 ---
 
 # Phase 7 deferred items
@@ -41,3 +41,10 @@ Done together with the D-45 index drop, after plan 07-17.
 - Change `AUDIT_COPY.subline` to "Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months."
 
 Done after plan 07-20, before the phase closes.
+
+## Done: D-48 audit viewer follow-ups (2026-10-28)
+
+- **Done to filter.** RED `2720ceae`, GREEN `2fa7167b`. A person now also matches order payment, refund and order expense entries (codes starting `order-payment.`, `order-refund.`, `order-expense.`, so the `*-changed` entries count, old or new person) and `order.permanently-deleted` entries whose `receivers=`, `payers=` or `refunders=` list holds their id. It is the same LIKE on the stored detail with the shared escaping (`LikePattern`), in LINQ only. A person cut off by the D-44 `+N` marker cannot be found because the id was never stored (the test seeds a `+2` list). `docs/operations/audit-log.md` is updated. The audit list has no command-count or timing test, so there was no guarantee to keep.
+- **Subline.** RED `161cf5ca`, GREEN `e7eb80e4`. `AUDIT_COPY.subline` now reads "Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months." The page test and the Playwright audit spec that pin it are updated.
+- **Formatting.** `3ca3cbbf` ran prettier on two audit test files from plan 07-19 (`auditCopy.test.ts`, `AuditDetail.test.tsx`) that failed `format:check`. No behavior change.
+- **Evidence.** `dotnet build -warnaserror`: 0 warnings, 0 errors. Application 1875 of 1875, Architecture 241 of 241, Infrastructure integration 752 passed and 1 skipped (the live HIBP test, as before), Server integration 1804 of 1804 (the expense timing test passed this run). Coverage gate passed: Domain line 100% and branch 100%, Application line 98.4%. `npm --prefix tools/openapi-gen run check`: types match the snapshot; the API surface did not change, so no refresh. Web: lint 0 warnings, typecheck clean, prettier check clean, `vitest run --coverage` 202 files and 6033 tests passed, thresholds met (all files 95.55% lines; `auditCopy.ts` 100%, `AuditLogPage.tsx` 95.68%), axe zero violations in the audit page tests.
