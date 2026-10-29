@@ -240,6 +240,23 @@ public sealed class ImportOrderHandlerTests
         harness.Unit.Rollbacks.ShouldBe(1);
     }
 
+    [Theory]
+    [InlineData(OrderListKind.ProductType, "items", "This product type was deleted.")]
+    [InlineData(OrderListKind.PaymentMethod, "payments", "This payment method was deleted.")]
+    [InlineData(OrderListKind.OrderExpenseCategory, "expenses", "This category was deleted.")]
+    public async Task AnEntryDeletedInTheMomentBeforeTheSaveIsA400OnTheListNotAnException(OrderListKind kind, string field, string message)
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(kind));
+
+        var result = await harness.Handler.HandleAsync(Valid(), OrderImportRules.Default, TestContext.Current.CancellationToken);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        result.Error.FieldErrors.ShouldNotBeNull()[field].ShouldBe([message]);
+        harness.Unit.Rollbacks.ShouldBe(1);
+    }
+
     [Fact]
     public async Task ALockThatCannotBeHadInTimeIsThe409OrdersBusyAnswer()
     {
