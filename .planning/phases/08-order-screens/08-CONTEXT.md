@@ -1,6 +1,6 @@
 # Phase 8: Order Screens - Context
 
-*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-29T14:05:00-05:00*
+*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-29T14:50:40-05:00*
 
 **Gathered:** 2026-10-29
 **Status:** Ready for planning
@@ -78,7 +78,29 @@ Out of scope: image upload, gallery and cover (ORD-04, Phase 9); money on hand a
 ### Due dates (ORD-11)
 - **D-36:** The due wording follows the design: "Due Nov 18, 2026 · 5 days left", "Due today", "Due tomorrow", and "Overdue by 3 days" in the danger color **with an icon** (not color alone). Days count in Manila calendar days through `IBusinessCalendar` and the client business date. (owner, 2026-10-29)
 - **D-37:** Overdue and days-left show **only for Pending, Mockup, In Production and Ready**. Delivered, Completed and Cancelled show the due date plainly. (owner, 2026-10-29)
-- **D-38:** An imported order with **no due date shows `EmptyValue`** (OR-4) and no flag, and it **sorts last** in the due-date sort. The planner checks how the Phase 7 list sort handles a null due date, and asks the owner before any API change. (owner, 2026-10-29)
+- **D-38:** An imported order with **no due date shows `EmptyValue`** (OR-4) and no flag, and it **sorts last** in the due-date sort. The planner checks how the Phase 7 list sort handles a null due date, and asks the owner before any API change. (owner, 2026-10-29) The UI-SPEC research found the `due` sort already puts null due dates last, so no API change is needed.
+
+### UI-SPEC rulings (OQ-1 to OQ-18 in `08-UI-SPEC.md`, /gsd-ui-phase 8)
+- **D-39 (OQ-6):** D-15 also covers the header **Delete Order**: it is hidden on a Completed or Cancelled order until the order is reopened. (owner, 2026-10-29)
+- **D-40 (OQ-1):** Add a **piece count** to each order list row so cards show "{n} pcs" as designed. This is an approved small API change. (owner, 2026-10-29)
+- **D-41 (OQ-2):** The Orders subline reads **"{n} orders · {active} active"**, with no date wording. The list API also returns an active-order count. This is an approved small API change. (owner, 2026-10-29)
+- **D-42 (OQ-3):** The order-date filter starts at **"Any date"**. (owner, 2026-10-29)
+- **D-43 (OQ-4):** Balance filter is a **checkbox, "Only orders with a balance"**. (owner, 2026-10-29)
+- **D-44 (OQ-5):** Each item in the order response gains **recordedBy, recordedAt, lastChangedBy and lastChangedAt**, so the item window shows "Recorded by" like the others. This is an approved API change. (owner, 2026-10-29)
+- **D-45 (OQ-7):** A Cancelled order with money unpaid shows a **neutral "Not collected"** block with the figure, not amber "Balance due". (owner, 2026-10-29)
+- **D-46 (OQ-8):** The edit button reads **"Edit Details"**. (owner, 2026-10-29)
+- **D-47 (OQ-9):** **No confirm** before Mark Completed. Reopen undoes it. (owner, 2026-10-29)
+- **D-48 (OQ-10):** Buttons that can only fail are **hidden with a short note**: Delete on the last item, and Add Payment when nothing is owed. This is an approved exception to D-35. (owner, 2026-10-29)
+- **D-49 (OQ-11):** A new order opens with **one blank item row** and no product type chosen. (owner, 2026-10-29)
+- **D-50 (OQ-12):** Status history shows the **newest 5 with "Show All {n}"**. (owner, 2026-10-29)
+- **D-51 (OQ-13):** The order page back link returns to the **list as the user left it**: filters, page and view. (owner, 2026-10-29)
+- **D-52 (OQ-14):** Deleted Orders has **paging only**, newest deleted first, and no search. (owner, 2026-10-29)
+- **D-53 (OQ-15):** The topbar search is wired: **Enter opens Orders** searched for that text. (owner, 2026-10-29)
+- **D-54 (OQ-16):** All six accessibility fixes are accepted as written: (a) row actions named by row, (b) 44 px item fields on phones, (c) "Keep Order", (d) the save bar never hides the focused field, (e) a hidden "Results" heading, (f) chips only for non-default filters. (owner, 2026-10-29)
+- **D-55 (OQ-17):** The reworded spec copy is accepted as written. (owner, 2026-10-29)
+- **D-56 (OQ-18):** New copy is built as written and reviewed before release (05 D-48). (owner, 2026-10-29)
+- **D-57 (checker Dimension 1):** One-word action buttons gain a noun: "Reopen Order", "Delete Order", "Discard Changes". Dismiss buttons that drop work name what they keep, for example "Keep Editing" and "Keep Order". Plain "Cancel" stays only where it closes a window without losing anything. (owner, 2026-10-29)
+- **D-58:** The item, payment, discount, expense and refund windows keep a plain **"Cancel"**. When something was typed, Cancel, Esc, the scrim and the close button first ask **"Discard changes?"** with "Keep Editing" and "Discard Changes", as the full forms do. A clean window closes at once. (owner, 2026-10-29)
 
 ### Carried forward (not re-asked)
 - Create holds details and items. Payments, discounts and expenses are added on the order page afterwards (C-3, 07 D-24).
@@ -111,7 +133,7 @@ Out of scope: image upload, gallery and cover (ORD-04, Phase 9); money on hand a
 
 ### API and behavior
 - `docs/api/orders.md`: every order route, the list filters and sorts, statuses, delete, restore and purge, and the response shapes
-- `docs/CSPS-UI-SPEC.md` §6.4 OrderTotals (line 568), §8.5 to §8.7 order screens (around line 1040 to 1235), §9 formulas (line 1340), §12.2 fixtures (line 1465). Superseded where D-01 to D-38 differ.
+- `docs/CSPS-UI-SPEC.md` §6.4 OrderTotals (line 568), §8.5 to §8.7 order screens (around line 1040 to 1235), §9 formulas (line 1340), §12.2 fixtures (line 1465). Superseded where D-01 to D-58 differ.
 - `CSPS-PRD.md` §6.4 (Orders)
 - `docs/operations/audit-log.md`: the order audit events, including the open APX-IN-01 UI-review item in STATE.md
 
