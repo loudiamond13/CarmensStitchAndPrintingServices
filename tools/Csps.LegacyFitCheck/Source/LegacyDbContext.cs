@@ -13,6 +13,14 @@ internal sealed class LegacyDbContext(DbContextOptions<LegacyDbContext> options)
 
     public IQueryable<LegacyStatusRow> Statuses => Set<LegacyStatusRow>();
 
+    public IQueryable<CatalogDatabaseRow> CatalogDatabases => Set<CatalogDatabaseRow>();
+
+    public IQueryable<CatalogTableRow> CatalogTables => Set<CatalogTableRow>();
+
+    public IQueryable<CatalogPartitionRow> CatalogPartitions => Set<CatalogPartitionRow>();
+
+    public IQueryable<CatalogIndexUsageRow> CatalogIndexUsage => Set<CatalogIndexUsageRow>();
+
     /// <summary>Opens a read context on the given connection string. No logging is attached.</summary>
     public static LegacyDbContext Open(string connectionString) =>
         new(new DbContextOptionsBuilder<LegacyDbContext>()
@@ -28,7 +36,11 @@ internal sealed class LegacyDbContext(DbContextOptions<LegacyDbContext> options)
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default) => throw ReadOnly();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) => LegacyModel.Configure(modelBuilder);
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        LegacyModel.Configure(modelBuilder);
+        CatalogViews.Configure(modelBuilder);
+    }
 
     private static InvalidOperationException ReadOnly() => new("The legacy restore is read-only.");
 }

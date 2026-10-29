@@ -30,8 +30,16 @@ internal static class FitCheckRunner
 
         try
         {
-            var mapped = await ReadAndMapAsync(targets.SourceConnectionString, cancellationToken).ConfigureAwait(false);
+            var read = await ReadAndMapAsync(targets.SourceConnectionString, hooks, cancellationToken).ConfigureAwait(false);
+            if (WriteEvidence.Compare(read.Before, read.After) == WriteEvidenceVerdict.Changed)
+            {
+                await error.WriteLineAsync("Failed: the restore changed during the run.").ConfigureAwait(false);
+                return Program.Failed;
+            }
+
+            var mapped = read.Orders;
             var findings = mapped.SelectMany(static order => order.Findings).ToList();
+            findings.Add(EvidenceFinding(read.Before));
 
             var trialName = TrialDatabaseName.NewName();
             try
@@ -63,18 +71,40 @@ internal static class FitCheckRunner
         }
     }
 
-    private static async Task<IReadOnlyList<MappedOrder>> ReadAndMapAsync(string sourceConnectionString, CancellationToken cancellationToken)
+    private static Finding EvidenceFinding(WriteEvidenceSnapshot snapshot) =>
+        new(
+            RecordKind.Run,
+            "Run",
+            FindingType.Info,
+            "write-evidence",
+            null,
+            string.Create(CultureInfo.InvariantCulture, $"Write evidence: unchanged ({snapshot.Tables} tables, {snapshot.Rows} rows, {snapshot.UserUpdates} index updates before and after)"),
+            null,
+            null);
+
+    private static async Task<ReadResult> ReadAndMapAsync(string sourceConnectionString, FitCheckHooks? hooks, CancellationToken cancellationToken)
     {
         var source = LegacyDbContext.Open(sourceConnectionString);
         await using (source.ConfigureAwait(false))
         {
+            var before = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
             var types = await source.OrderTypes.ToDictionaryAsync(static row => row.OrderTypeId, static row => row.OrderTypeName, cancellationToken).ConfigureAwait(false);
             var statuses = await source.Statuses.ToDictionaryAsync(static row => row.StatusId, static row => row.StatusName, cancellationToken).ConfigureAwait(false);
             var orders = await source.Orders.OrderBy(static row => row.OrderId).ToListAsync(cancellationToken).ConfigureAwait(false);
             var items = (await source.OrderItems.OrderBy(static row => row.OrderItemId).ToListAsync(cancellationToken).ConfigureAwait(false))
                 .ToLookup(static row => row.OrderId);
 
-            return [.. orders.Select(order => DraftMapping.MapOrder(order, [.. items[order.OrderId]], types, statuses))];
+            var mapped = orders.Select(order => DraftMapping.MapOrder(order, [.. items[order.OrderId]], types, statuses)).ToList();
+
+            if (hooks?.BetweenEvidence is { } between)
+            {
+                await between(cancellationToken).ConfigureAwait(false);
+            }
+
+            var after = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
+            return new ReadResult(mapped, before, after);
         }
     }
+
+    private sealed record ReadResult(IReadOnlyList<MappedOrder> Orders, WriteEvidenceSnapshot Before, WriteEvidenceSnapshot After);
 }
