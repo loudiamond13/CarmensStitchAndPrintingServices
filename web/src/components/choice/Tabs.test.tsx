@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as choiceScenarios } from '@/dev/scenarios/groups/choice';
@@ -45,6 +45,75 @@ function tabIndexes(): number[] {
 function tab(name: string): HTMLElement {
   return screen.getByRole('tab', { name: new RegExp(`^${name}`) });
 }
+
+describe('Tabs keep the selected tab in view (Phase 8, D-34)', () => {
+  function reduceMotion(reduce: boolean) {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query) => ({ matches: reduce, media: query }) as unknown as MediaQueryList,
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not scroll on the first render', () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    render(<Tabs idBase="order" items={ORDER_TABS} />);
+
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a click', async (user: ReturnType<typeof userEvent.setup>) => user.click(tab('Discounts')), 'Discounts'],
+    ['ArrowRight', async (user: ReturnType<typeof userEvent.setup>) => user.keyboard('{ArrowRight}'), 'Payments'],
+    ['End', async (user: ReturnType<typeof userEvent.setup>) => user.keyboard('{End}'), 'Expenses'],
+  ])('scrolls the new tab into view, nearest on both axes and smooth, after %s', async (_name, act, expected) => {
+    reduceMotion(false);
+    const user = userEvent.setup();
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    render(<Tabs idBase="order" items={ORDER_TABS} />);
+    await user.click(tab('Items'));
+    scroll.mockClear();
+
+    await act(user);
+
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    expect(scroll.mock.contexts[0]).toBe(tab(expected));
+  });
+
+  it('jumps without animation under prefers-reduced-motion: reduce', async () => {
+    reduceMotion(true);
+    const user = userEvent.setup();
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    render(<Tabs idBase="order" items={ORDER_TABS} />);
+
+    await user.click(tab('Payments'));
+
+    expect(scroll).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+  });
+
+  it('scrolls when a controlling parent changes the value', () => {
+    reduceMotion(false);
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { rerender } = render(<Tabs idBase="order" items={ORDER_TABS} value="items" />);
+
+    rerender(<Tabs idBase="order" items={ORDER_TABS} value="expenses" />);
+
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll.mock.contexts[0]).toBe(tab('Expenses'));
+  });
+
+  it('does not scroll again when only the counts change', () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { rerender } = render(<Tabs idBase="order" items={ORDER_TABS} value="items" />);
+
+    rerender(<Tabs idBase="order" items={ORDER_TABS.map((item) => ({ ...item, count: 9 }))} value="items" />);
+
+    expect(scroll).not.toHaveBeenCalled();
+  });
+});
 
 describe('Tabs markup and ARIA (App. D.3, WEB-02)', () => {
   it('renders a tablist of type="button" tabs, each its label then its count chip, the first selected by default', () => {
