@@ -58,6 +58,27 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
         }
     }
 
+    /// <summary>Adds one more made-up order, as a stray write to the restore would.</summary>
+    public async Task AddOrderAsync(int orderId, CancellationToken cancellationToken)
+    {
+        var context = FakeLegacyWriteContext.Open(ConnectionString);
+        await using (context.ConfigureAwait(false))
+        {
+            context.Orders.Add(new LegacyOrderRow
+            {
+                OrderId = orderId,
+                OrderName = "SENTINEL-NAME-7Q Extra",
+                OrderDate = new DateTime(2025, 3, 5, 2, 30, 0, DateTimeKind.Unspecified),
+                TotalAmount = 100m,
+                IsDeleted = false,
+                TotalBalance = 100m,
+                OrderTypeId = 1,
+                StatusId = 1,
+            });
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>Counts the rows of the two order tables.</summary>
     public async Task<(int Orders, int Items)> CountAsync(CancellationToken cancellationToken)
     {
