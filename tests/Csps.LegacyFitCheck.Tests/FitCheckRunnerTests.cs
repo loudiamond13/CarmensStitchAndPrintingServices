@@ -252,6 +252,48 @@ public sealed class FitCheckRunnerTests
         }
     }
 
+    [Fact]
+    public async Task EveryRuleAnOrderBreaksIsReported()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var fake = await FakeLegacyDatabase.CreateWithOneOrderAsync(token);
+        await using (fake.ConfigureAwait(true))
+        {
+            await fake.AddOrderRowAsync(
+                new LegacyOrderRow { OrderId = 2, OrderName = "Sample club", OrderDate = new DateTime(2025, 6, 10, 3, 0, 0, DateTimeKind.Unspecified), IsDeleted = false, OrderTypeId = 1, StatusId = 1 },
+                token);
+            await fake.AddItemAsync(new LegacyOrderItemRow { OrderItemId = 3, OrderId = 2, Description = "Sample shirt", Quantity = 1, Price = 12.3450m }, token);
+            await fake.AddPaymentAsync(new LegacyPaymentRow { PaymentId = 1, OrderId = 2, PaymentDate = new DateTime(2025, 6, 11, 3, 0, 0, DateTimeKind.Unspecified), PaidBy = "Sample payer", IsDeleted = false, Amount = 0.0000m, PaidTo = "Sample receiver" }, token);
+            var server = await SqlServerInstance.GetSharedAsync();
+            var targets = new FitCheckTargets(fake.ConnectionString, server.MasterConnectionString);
+            var localRoot = NewLocalRoot();
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            try
+            {
+                var exit = await FitCheckRunner.RunAsync(targets, localRoot, NewTime(), output, error, token);
+
+                exit.ShouldBe(0, error.ToString());
+                var file = Directory.EnumerateFiles(Path.Combine(localRoot, "legacy-fit-check"), "findings-*.md").ShouldHaveSingleItem();
+                var lines = (await File.ReadAllLinesAsync(file, token)).Where(static line => line.Contains("| Orders:2 |", StringComparison.Ordinal)).ToList();
+
+                lines.Count(static line => line.Contains("| RuleBreak |", StringComparison.Ordinal) && line.Contains("| items[0].unitPrice |", StringComparison.Ordinal)).ShouldBe(1);
+                lines.Count(static line => line.Contains("| RuleBreak |", StringComparison.Ordinal) && line.Contains("| payments[0].amount |", StringComparison.Ordinal)).ShouldBe(1);
+                lines.Count(static line => line.Contains("| ReliesOnRelaxation | ContactNumberOptional |", StringComparison.Ordinal)).ShouldBe(1);
+
+                // The trial import stops at the first failure only.
+                var trial = lines.Where(static line => line.Contains("| TrialImport |", StringComparison.Ordinal)).ToList();
+                trial.ShouldHaveSingleItem().ShouldContain("| items[0].unitPrice |");
+                output.ToString().ShouldNotContain("SENTINEL");
+            }
+            finally
+            {
+                DeleteRoot(localRoot);
+            }
+        }
+    }
+
     private sealed record TrialStaffRow(Guid Id, string FirstName, string LastName, string Email);
 
     private sealed record TrialPeople(IReadOnlyList<TrialStaffRow> Staff, IReadOnlyList<Guid> Receivers, IReadOnlyList<Guid> Payers);
