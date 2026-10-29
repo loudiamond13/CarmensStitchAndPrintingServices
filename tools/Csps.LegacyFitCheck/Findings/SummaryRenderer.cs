@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Csps.LegacyFitCheck.Findings;
 
@@ -27,12 +28,14 @@ internal sealed record SummaryFacts(
 /// <summary>
 /// Renders the counts-only summary (D-02). It reads only the type, kind, rule key and list word of each finding and the legacy key
 /// to count distinct records. It never reads a path, a message or a detail, because those can hold personal data. A list word is
-/// printed only when it is on the allow-list.
+/// printed only when it is on the allow-list. A rule key with no label can embed a domain message, which can hold an amount, so only
+/// its plain field name or code is printed (D-08: amounts stay in _local).
 /// </summary>
-internal static class SummaryRenderer
+internal static partial class SummaryRenderer
 {
     private const string ValueMark = "{value}";
     private const string ListValueStandIn = "(a list value)";
+    private const string OtherRuleBreak = "Other rule break (message in the local list)";
 
     private static readonly string[] Sections =
     [
@@ -202,7 +205,21 @@ internal static class SummaryRenderer
     {
         var shows = Labels.TryGetValue(finding.RuleKey, out var label) && label.Contains(ValueMark, StringComparison.Ordinal);
         var value = !shows ? null : finding.ListValue is { } word && allowedWords.Contains(word.Trim()) ? word.Trim() : ListValueStandIn;
-        return new GroupKey(finding.Type, finding.Kind, finding.RuleKey, value);
+        return new GroupKey(finding.Type, finding.Kind, ShownKey(finding.RuleKey), value);
+    }
+
+    // A labelled key or a plain code is kept. Otherwise only the field before ": " is kept, and the message is dropped.
+    private static string ShownKey(string ruleKey)
+    {
+        if (Labels.ContainsKey(ruleKey) || PlainKey().IsMatch(ruleKey))
+        {
+            return ruleKey;
+        }
+
+        var colon = ruleKey.IndexOf(": ", StringComparison.Ordinal);
+        return colon > 0 && PlainKey().IsMatch(ruleKey[..colon])
+            ? $"Rule break on {ruleKey[..colon]} (message in the local list)"
+            : OtherRuleBreak;
     }
 
     // A run note and a column are one finding each. Everything else counts the distinct legacy records.
@@ -233,6 +250,10 @@ internal static class SummaryRenderer
         FindingType.ExpenseRule => "Company expenses",
         _ => ruleKey.StartsWith("trial.", StringComparison.Ordinal) ? "Trial import" : "Other notes",
     };
+
+    // Letters, dots, hyphens, underscores and the [] of an index-free path. No digits, spaces or signs, so no amount fits.
+    [GeneratedRegex(@"^[A-Za-z][A-Za-z._\[\]-]*$", RegexOptions.CultureInvariant)]
+    private static partial Regex PlainKey();
 
     private sealed record GroupKey(FindingType Type, RecordKind Kind, string RuleKey, string? Value);
 
