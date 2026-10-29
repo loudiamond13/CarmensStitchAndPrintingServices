@@ -188,6 +188,34 @@ public sealed partial class FindingsTests : IDisposable
     }
 
     [Fact]
+    public void AReadValueInsideAnotherWordDoesNotRefuse()
+    {
+        PrivacySelfCheck.Check("Banana split: 3 items", ["Ana"], []).ShouldBe(PrivacyVerdict.Clean);
+        PrivacySelfCheck.Check("Order2025x and xORD-1", ["2025", "ORD-1"], []).ShouldBe(PrivacyVerdict.Clean);
+        PrivacySelfCheck.Check("Cruzado line", ["Juan Dela Cruz", "Cruz"], []).ShouldBe(PrivacyVerdict.Clean);
+    }
+
+    [Fact]
+    public void AReadValueAsAWholeWordRefuses()
+    {
+        PrivacySelfCheck.Check("Ana", ["Ana"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Ana is here", ["ana"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Seen: ANA", ["Ana"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Orders for 'Ana', (Ana); Ana.", ["Ana"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Banana and Ana", ["Ana"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+    }
+
+    [Fact]
+    public void AMultiWordEmailOrPhoneValueRefusesOnWordBoundaries()
+    {
+        PrivacySelfCheck.Check("Customer juan dela cruz has no match", ["Juan Dela Cruz"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Mail: sample.person@example.test.", ["sample.person@example.test"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Phone 0917-123-4567, again", ["0917-123-4567"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Order ORD-2025-0001 broke", ["ORD-2025-0001"], []).ShouldBe(PrivacyVerdict.HeldPersonalValue);
+        PrivacySelfCheck.Check("Phone x0917-123-4567", ["0917-123-4567"], []).ShouldBe(PrivacyVerdict.Clean);
+    }
+
+    [Fact]
     public void NumbersAloneInTheSummaryNeverRefuse()
     {
         PrivacySelfCheck.Check("Payments with no payment method: 155 payments", [Sentinel, "SENTINEL-DESC-7Q", "ORD-2025-0001"], []).ShouldBe(PrivacyVerdict.Clean);
