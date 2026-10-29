@@ -27,7 +27,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasKey(order => order.Id);
         builder.Property(order => order.Id).ValueGeneratedNever();
 
-        builder.Property(order => order.Number).IsRequired().IsUnicode(false).HasMaxLength(32);
+        builder.Property(order => order.Number).IsRequired().IsUnicode(false).HasMaxLength(OrderNumber.MaxLength);
         builder.Property(order => order.CustomerName).IsRequired().IsUnicode().HasMaxLength(OrderRules.CustomerNameMaxLength);
         builder.Property(order => order.TeamName).IsUnicode().HasMaxLength(OrderRules.TeamNameMaxLength);
         builder.Property(order => order.ContactNumber).IsUnicode().HasMaxLength(OrderRules.ContactNumberMaxLength);

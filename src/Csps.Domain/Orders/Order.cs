@@ -335,8 +335,14 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(rules);
-        _ = today;
 
+        var checkedSnapshot = OrderImportChecks.Check(snapshot, rules, today);
+        if (checkedSnapshot.IsFailure)
+        {
+            return Result.Failure<Order>(checkedSnapshot.Error);
+        }
+
+        snapshot = checkedSnapshot.Value;
         var details = snapshot.Details;
         IReadOnlyList<ImportedStatusChange> history = snapshot.StatusHistory.Count == 0
             ? [new ImportedStatusChange(null, snapshot.Status, null, now)]
@@ -385,6 +391,27 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
 
         order.Recalculate();
+
+        // These rules need the worked-out figures. The words are the create path's own.
+        if (!rules.AllowDiscountAboveSubtotal && order.DiscountTotal > order.Subtotal)
+        {
+            return OrderRules.Reject<Order>(OrderRules.DiscountsField, OrderRules.DiscountAboveSubtotalMessage);
+        }
+
+        if (!rules.AllowOverpaid && order.Balance < 0m)
+        {
+            return OrderRules.Reject<Order>(OrderRules.PaymentsField, OrderRules.PaymentsAboveTotalMessage);
+        }
+
+        if (!rules.AllowCompletedWithBalance && order.Status == OrderStatus.Completed)
+        {
+            var settled = OrderStatusRules.Check(OrderStatus.Delivered, OrderStatus.Completed, order.Balance);
+            if (settled.IsFailure)
+            {
+                return OrderRules.Reject<Order>(OrderRules.StatusField, settled.Error.Message);
+            }
+        }
+
         order.Touch(now);
         return Result.Success(order);
     }

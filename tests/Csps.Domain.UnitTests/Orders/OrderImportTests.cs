@@ -82,6 +82,17 @@ public sealed class OrderImportTests
     }
 
     [Fact]
+    public void ACompletedOrderWithNothingOwedIsAcceptedUnderTheStrictRulesToo()
+    {
+        var snapshot = Valid() with { Status = OrderStatus.Completed, Payments = [Payment(9750.00m)] };
+
+        var order = Order.Import(snapshot, OrderImportRules.Strict, Now, Today).Value;
+
+        order.Status.ShouldBe(OrderStatus.Completed);
+        order.Balance.ShouldBe(0.00m);
+    }
+
+    [Fact]
     public void EveryRelaxationIsAcceptedByTheDefaultRulesAndRefusedByTheStrictRulesOnTheSameField()
     {
         foreach (var relaxation in Relaxations)

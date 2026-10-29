@@ -290,6 +290,12 @@ public static class OrderRules
     /// <summary>The message for a unit price outside ₱0.00 to ₱1,000,000.00.</summary>
     public const string UnitPriceOutOfRange = "Enter a unit price from ₱0.00 to ₱1,000,000.00.";
 
+    /// <summary>The message for a negative quantity on an imported item.</summary>
+    public const string QuantityNegative = "The quantity can't be negative.";
+
+    /// <summary>The message for a negative unit price on an imported item.</summary>
+    public const string UnitPriceNegative = "The unit price can't be negative.";
+
     /// <summary>The message for a money amount with more than two decimal places.</summary>
     public const string MoneyDecimals = "Use at most 2 decimal places.";
 
@@ -571,7 +577,13 @@ public static class OrderRules
     /// <summary>Checks and cleans the customer and date details, returning the first broken rule.</summary>
     /// <param name="details">The details as given.</param>
     /// <returns>The details with text trimmed and empty optional text turned into null, or a validation error naming the first broken field.</returns>
-    public static Result<OrderDetails> CheckDetails(OrderDetails details)
+    public static Result<OrderDetails> CheckDetails(OrderDetails details) => CheckDetails(details, OrderImportRules.Strict);
+
+    /// <summary>Checks and cleans the customer and date details under the import relaxations, returning the first broken rule.</summary>
+    /// <param name="details">The details as given.</param>
+    /// <param name="rules">The import relaxations; <see cref="OrderImportRules.Strict"/> gives the normal rules.</param>
+    /// <returns>The details with text trimmed and empty optional text turned into null, or a validation error naming the first broken field.</returns>
+    internal static Result<OrderDetails> CheckDetails(OrderDetails details, OrderImportRules rules)
     {
         ArgumentNullException.ThrowIfNull(details);
         ArgumentNullException.ThrowIfNull(details.CustomerName);
@@ -594,17 +606,17 @@ public static class OrderRules
         }
 
         var contactNumber = Clean(details.ContactNumber);
-        if (contactNumber is null)
+        if (contactNumber is null && !rules.ContactNumberOptional)
         {
             return Reject<OrderDetails>(ContactNumberField, ContactNumberRequired);
         }
 
-        if (contactNumber.Length > ContactNumberMaxLength)
+        if (contactNumber is { Length: > ContactNumberMaxLength })
         {
             return Reject<OrderDetails>(ContactNumberField, ContactNumberTooLong);
         }
 
-        if (!IsValidContactNumber(contactNumber))
+        if (contactNumber is not null && !IsValidContactNumber(contactNumber))
         {
             return Reject<OrderDetails>(ContactNumberField, ContactNumberInvalid);
         }
@@ -626,12 +638,12 @@ public static class OrderRules
             return Reject<OrderDetails>(AddressField, AddressTooLong);
         }
 
-        if (details.DueDate is not { } dueDate)
+        if (details.DueDate is null && !rules.DueDateOptional)
         {
             return Reject<OrderDetails>(DueDateField, DueDateRequired);
         }
 
-        if (dueDate < details.OrderDate)
+        if (details.DueDate < details.OrderDate)
         {
             return Reject<OrderDetails>(DueDateField, DueDateBeforeOrderDate);
         }
@@ -642,14 +654,21 @@ public static class OrderRules
             return Reject<OrderDetails>(NotesField, NotesTooLong);
         }
 
-        return Result.Success(new OrderDetails(customerName, teamName, contactNumber, email, address, details.OrderDate, dueDate, notes));
+        return Result.Success(new OrderDetails(customerName, teamName, contactNumber, email, address, details.OrderDate, details.DueDate, notes));
     }
 
     /// <summary>Checks and cleans one item, returning the first broken rule under the item's path.</summary>
     /// <param name="index">The zero-based place of the item, used in the field path.</param>
     /// <param name="item">The item as given.</param>
     /// <returns>The item with text trimmed and an empty size or variant turned into null, or a validation error naming the first broken field.</returns>
-    public static Result<NewOrderItem> CheckItem(int index, NewOrderItem item)
+    public static Result<NewOrderItem> CheckItem(int index, NewOrderItem item) => CheckItem(index, item, OrderImportRules.Strict);
+
+    /// <summary>Checks and cleans one item under the import relaxations, returning the first broken rule under the item's path.</summary>
+    /// <param name="index">The zero-based place of the item, used in the field path.</param>
+    /// <param name="item">The item as given.</param>
+    /// <param name="rules">The import relaxations; <see cref="OrderImportRules.Strict"/> gives the normal rules.</param>
+    /// <returns>The item with text trimmed and an empty size or variant turned into null, or a validation error naming the first broken field.</returns>
+    internal static Result<NewOrderItem> CheckItem(int index, NewOrderItem item, OrderImportRules rules)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(item.Description);
@@ -676,14 +695,15 @@ public static class OrderRules
             return Reject<NewOrderItem>(ItemPath(index, SizeVariantField), SizeVariantTooLong);
         }
 
-        if (item.Quantity is < QuantityMin or > QuantityMax)
+        // With the limits skipped only the database's own rule is left: a quantity or a price below zero is never stored.
+        if (rules.IgnoreAmountCaps ? item.Quantity < 0 : item.Quantity is < QuantityMin or > QuantityMax)
         {
-            return Reject<NewOrderItem>(ItemPath(index, QuantityField), QuantityOutOfRange);
+            return Reject<NewOrderItem>(ItemPath(index, QuantityField), rules.IgnoreAmountCaps ? QuantityNegative : QuantityOutOfRange);
         }
 
-        if (item.UnitPrice < 0m || item.UnitPrice > UnitPriceMax)
+        if (item.UnitPrice < 0m || !rules.IgnoreAmountCaps && item.UnitPrice > UnitPriceMax)
         {
-            return Reject<NewOrderItem>(ItemPath(index, UnitPriceField), UnitPriceOutOfRange);
+            return Reject<NewOrderItem>(ItemPath(index, UnitPriceField), rules.IgnoreAmountCaps ? UnitPriceNegative : UnitPriceOutOfRange);
         }
 
         if (!HasValidScale(item.UnitPrice))
@@ -698,7 +718,14 @@ public static class OrderRules
     /// <param name="index">The zero-based place of the discount in a list, used in the field path; null for a single-discount form.</param>
     /// <param name="discount">The discount as given.</param>
     /// <returns>The discount with the reason trimmed, or a validation error naming the first broken field.</returns>
-    public static Result<NewOrderDiscount> CheckDiscount(int? index, NewOrderDiscount discount)
+    public static Result<NewOrderDiscount> CheckDiscount(int? index, NewOrderDiscount discount) => CheckDiscount(index, discount, OrderImportRules.Strict);
+
+    /// <summary>Checks and cleans one discount under the import relaxations, returning the first broken rule under the discount's path.</summary>
+    /// <param name="index">The zero-based place of the discount in a list, used in the field path; null for a single-discount form.</param>
+    /// <param name="discount">The discount as given.</param>
+    /// <param name="rules">The import relaxations; <see cref="OrderImportRules.Strict"/> gives the normal rules.</param>
+    /// <returns>The discount with the reason trimmed, or a validation error naming the first broken field.</returns>
+    internal static Result<NewOrderDiscount> CheckDiscount(int? index, NewOrderDiscount discount, OrderImportRules rules)
     {
         ArgumentNullException.ThrowIfNull(discount);
         ArgumentNullException.ThrowIfNull(discount.Reason);
@@ -709,7 +736,7 @@ public static class OrderRules
         }
 
         var fixedKind = discount.Kind == DiscountKind.Fixed;
-        var inRange = discount.Value > 0m && discount.Value <= (fixedKind ? FixedDiscountMax : PercentMax);
+        var inRange = discount.Value > 0m && (rules.IgnoreAmountCaps || discount.Value <= (fixedKind ? FixedDiscountMax : PercentMax));
         if (!inRange)
         {
             return Reject<NewOrderDiscount>(DiscountPath(index, DiscountValueField), fixedKind ? FixedDiscountOutOfRange : PercentDiscountOutOfRange);
@@ -739,7 +766,15 @@ public static class OrderRules
     /// <param name="payment">The payment as given.</param>
     /// <param name="today">The business today; a payment may not be dated after it.</param>
     /// <returns>The payment with the reference and notes trimmed and empty ones turned into null, or a validation error naming the first broken field.</returns>
-    public static Result<NewOrderPayment> CheckPayment(int? index, NewOrderPayment payment, DateOnly today)
+    public static Result<NewOrderPayment> CheckPayment(int? index, NewOrderPayment payment, DateOnly today) => CheckPayment(index, payment, today, OrderImportRules.Strict);
+
+    /// <summary>Checks and cleans one payment under the import relaxations, returning the first broken rule under the payment's path.</summary>
+    /// <param name="index">The zero-based place of the payment in a list, used in the field path; null for a single-payment form.</param>
+    /// <param name="payment">The payment as given.</param>
+    /// <param name="today">The business today; a payment may not be dated after it unless the rules allow future dates.</param>
+    /// <param name="rules">The import relaxations; <see cref="OrderImportRules.Strict"/> gives the normal rules.</param>
+    /// <returns>The payment with the reference and notes trimmed and empty ones turned into null, or a validation error naming the first broken field.</returns>
+    internal static Result<NewOrderPayment> CheckPayment(int? index, NewOrderPayment payment, DateOnly today, OrderImportRules rules)
     {
         ArgumentNullException.ThrowIfNull(payment);
 
@@ -748,12 +783,12 @@ public static class OrderRules
             return Reject<NewOrderPayment>(PaymentPath(index, PaymentMethodField), PaymentMethodRequired);
         }
 
-        if (payment.PaymentDate > today)
+        if (!rules.AllowFutureDates && payment.PaymentDate > today)
         {
             return Reject<NewOrderPayment>(PaymentPath(index, PaymentDateField), PaymentDateInFuture);
         }
 
-        if (payment.Amount <= 0m || payment.Amount > PaymentAmountMax)
+        if (payment.Amount <= 0m || !rules.IgnoreAmountCaps && payment.Amount > PaymentAmountMax)
         {
             return Reject<NewOrderPayment>(PaymentPath(index, PaymentAmountField), PaymentAmountOutOfRange);
         }
@@ -792,7 +827,15 @@ public static class OrderRules
     /// <param name="expense">The expense as given.</param>
     /// <param name="today">The business today.</param>
     /// <returns>The expense with the description trimmed and an empty one turned into null, or a validation error naming the first broken field.</returns>
-    public static Result<NewOrderExpense> CheckExpense(int? index, NewOrderExpense expense, DateOnly today)
+    public static Result<NewOrderExpense> CheckExpense(int? index, NewOrderExpense expense, DateOnly today) => CheckExpense(index, expense, today, OrderImportRules.Strict);
+
+    /// <summary>Checks and cleans one order expense under the import relaxations, returning the first broken rule under the expense's path.</summary>
+    /// <param name="index">The zero-based place of the expense in a list, used in the field path; null for a single-expense form.</param>
+    /// <param name="expense">The expense as given.</param>
+    /// <param name="today">The business today.</param>
+    /// <param name="rules">The import relaxations; <see cref="OrderImportRules.Strict"/> gives the normal rules.</param>
+    /// <returns>The expense with the description trimmed and an empty one turned into null, or a validation error naming the first broken field.</returns>
+    internal static Result<NewOrderExpense> CheckExpense(int? index, NewOrderExpense expense, DateOnly today, OrderImportRules rules)
     {
         ArgumentNullException.ThrowIfNull(expense);
 
@@ -802,7 +845,7 @@ public static class OrderRules
         }
 
         var latest = ExpenseRules.Latest(today);
-        if (expense.ExpenseDate > latest)
+        if (!rules.AllowFutureDates && expense.ExpenseDate > latest)
         {
             return Reject<NewOrderExpense>(ExpensePath(index, ExpenseDateField), ExpenseRules.DateTooFar(latest));
         }
@@ -812,7 +855,7 @@ public static class OrderRules
             return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), ExpenseRules.AmountTooSmall);
         }
 
-        if (expense.Amount > ExpenseAmountMax)
+        if (!rules.IgnoreAmountCaps && expense.Amount > ExpenseAmountMax)
         {
             return Reject<NewOrderExpense>(ExpensePath(index, ExpenseAmountField), ExpenseRules.AmountTooLarge);
         }
@@ -844,16 +887,23 @@ public static class OrderRules
     /// <param name="refund">The refund as given.</param>
     /// <param name="today">The business today; a refund may not be dated after it.</param>
     /// <returns>The refund with the reason trimmed, or a validation error naming the first broken field.</returns>
-    public static Result<NewOrderRefund> CheckRefund(NewOrderRefund refund, DateOnly today)
+    public static Result<NewOrderRefund> CheckRefund(NewOrderRefund refund, DateOnly today) => CheckRefund(refund, today, OrderImportRules.Strict);
+
+    /// <summary>Checks and cleans one refund under the import relaxations, returning the first broken rule under the refund's field.</summary>
+    /// <param name="refund">The refund as given.</param>
+    /// <param name="today">The business today; a refund may not be dated after it unless the rules allow future dates.</param>
+    /// <param name="rules">The import relaxations; <see cref="OrderImportRules.Strict"/> gives the normal rules.</param>
+    /// <returns>The refund with the reason trimmed, or a validation error naming the first broken field.</returns>
+    internal static Result<NewOrderRefund> CheckRefund(NewOrderRefund refund, DateOnly today, OrderImportRules rules)
     {
         ArgumentNullException.ThrowIfNull(refund);
 
-        if (refund.RefundDate > today)
+        if (!rules.AllowFutureDates && refund.RefundDate > today)
         {
             return Reject<NewOrderRefund>(RefundDateField, RefundDateInFuture);
         }
 
-        if (refund.Amount <= 0m || refund.Amount > PaymentAmountMax)
+        if (refund.Amount <= 0m || !rules.IgnoreAmountCaps && refund.Amount > PaymentAmountMax)
         {
             return Reject<NewOrderRefund>(RefundAmountField, PaymentAmountOutOfRange);
         }

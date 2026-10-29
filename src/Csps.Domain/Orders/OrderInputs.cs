@@ -1,6 +1,6 @@
 namespace Csps.Domain.Orders;
 
-/// <summary>The customer and date details of an order (D-21, D-22). Text is checked and trimmed by <see cref="OrderRules.CheckDetails"/>.</summary>
+/// <summary>The customer and date details of an order (D-21, D-22). Text is checked and trimmed by <see cref="OrderRules.CheckDetails(OrderDetails)"/>.</summary>
 /// <param name="CustomerName">The customer's name.</param>
 /// <param name="TeamName">The team or club name; empty means none.</param>
 /// <param name="ContactNumber">The contact number.</param>

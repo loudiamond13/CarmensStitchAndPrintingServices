@@ -9,6 +9,9 @@ public static class OrderNumber
     private const int YearDigits = 4;
     private const int MinimumDigits = 4;
 
+    /// <summary>The most characters an order number can hold; the number column is this wide.</summary>
+    public const int MaxLength = 32;
+
     /// <summary>Writes a number.</summary>
     /// <param name="year">The business year of the save.</param>
     /// <param name="sequence">The order's place in that year, from 1.</param>
