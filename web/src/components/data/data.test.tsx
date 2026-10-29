@@ -587,7 +587,7 @@ describe('data scenarios (the data group, OrderCard and DataTable)', () => {
       [CARD_0153, ORDER_0153],
     ];
     for (const [card, seed] of seeds) {
-      const totals = orderTotals(seed as unknown as Order);
+      const totals = orderTotals(seed);
       const pieces = (seed.items as { quantity: number }[]).reduce((sum, item) => sum + item.quantity, 0);
       const id = card.number as string;
       expect(formatPeso(card.subtotal as string), id).toBe(formatPeso(totals.subtotal));

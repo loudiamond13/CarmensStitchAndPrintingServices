@@ -68,14 +68,8 @@ export const orderDatesClasses = tw('mt-1 mb-3 flex flex-wrap gap-x-4 gap-y-1 te
 /** `.csp-order-dates span`: an icon and its date, 4px apart. */
 export const orderDateClasses = tw('inline-flex items-center gap-1');
 
-/** `.csp-order-dates .is-overdue`: an overdue due date in `--danger`, 600. */
-export const orderOverdueClasses = tw('font-semibold text-danger');
-
 /** `.csp-order-actions`: the footer buttons, 2px apart, 8px by 12px padded, below a 1px `--line` rule. */
 export const orderActionsClasses = tw('flex gap-0.5 border-t border-line px-3 py-2');
-
-/** `.csp-order-actions .csp-btn:last-child`: the delete button pushed to the right. */
-export const orderLastActionClasses = tw('ml-auto');
 
 /* ───────────── DataTable ───────────── */
 

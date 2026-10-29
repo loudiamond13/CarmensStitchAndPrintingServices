@@ -124,6 +124,7 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
       '2payments',
       '1discount',
       '3expenses',
+      '0refunds',
       '4images',
     ]);
     expect(foot?.textContent).toBe("This can't be undone.");
@@ -147,7 +148,14 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     const items = [...screen.getByRole('list').children];
 
     expect(screen.getByRole('alert').firstElementChild?.textContent).toBe('This will also delete 1 item.');
-    expect(items.map((item) => item.textContent)).toEqual(['1item', '0payments', '0discounts', '0expenses', '0images']);
+    expect(items.map((item) => item.textContent)).toEqual([
+      '1item',
+      '0payments',
+      '0discounts',
+      '0expenses',
+      '0refunds',
+      '0images',
+    ]);
     expect(classTokens(items[0])).toEqual(tokens(cascadeItemClasses));
     expect(classTokens(items[0]?.firstElementChild)).toEqual(tokens(cascadeCountClasses({ zero: false })));
     expect(classTokens(items[1]?.firstElementChild)).toEqual(tokens(cascadeCountClasses({ zero: true })));
