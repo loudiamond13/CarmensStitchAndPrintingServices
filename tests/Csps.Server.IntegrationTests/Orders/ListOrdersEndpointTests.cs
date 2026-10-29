@@ -200,6 +200,21 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task ADeletedOrderIsNotListedOrCountedByTheProductTypeFilter()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.NewOrderAsync("Kept Polo", items: [OrderFixtures.Item(OrderFixtures.PoloId)]);
+        var gone = await rig.NewOrderAsync("Deleted Polo", items: [OrderFixtures.Item(OrderFixtures.PoloId)]);
+        using var deleted = await OrderFixtures.DeleteAsync(rig.Client, rig.Admin.AccessToken, gone.GetProperty("id").GetGuid());
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        var polo = await rig.ReadAsync($"productType={OrderFixtures.PoloId:D}");
+
+        Names(polo).ShouldBe(["Kept Polo"]);
+        polo.GetProperty("total").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
     public async Task HasBalanceTrueDropsOrdersThatOweNothingAndFalseOrNothingKeepsAll()
     {
         await using var rig = await Rig.StartAsync(database);
