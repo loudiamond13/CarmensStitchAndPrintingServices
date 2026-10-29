@@ -1,12 +1,18 @@
+using Csps.Application.Security;
 using Csps.Domain.OrderLists;
+using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Csps.LegacyFitCheck.Mapping;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.LegacyFitCheck.Trial;
 
 /// <summary>Writes the trial-only list entries into the trial database (D-06). It only ever gets the trial context.</summary>
 internal static class TrialSeeder
 {
+    private const string PlaceholderPasswordHash = "legacy-fit-check-not-a-hash";
+
     public static async Task SeedListsAsync(
         CspsDbContext trialContext,
         IReadOnlyList<TrialListEntry> entries,
@@ -29,6 +35,49 @@ internal static class TrialSeeder
                 default:
                     throw new ArgumentOutOfRangeException(nameof(entries), entry.Kind, "Only product types and payment methods get trial-only entries.");
             }
+        }
+
+        await trialContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Writes one pseudonymous Admin account per trial staff member, set up the way the payer rule asks (password hash, confirmed
+    /// email). The hash is not a valid hash, so nobody can sign in. Nothing here holds a legacy name or email.
+    /// </summary>
+    public static async Task SeedStaffAsync(
+        CspsDbContext trialContext,
+        IReadOnlyList<TrialStaff> staff,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(trialContext);
+        ArgumentNullException.ThrowIfNull(staff);
+
+        if (staff.Count == 0)
+        {
+            return;
+        }
+
+        var adminRoleId = await trialContext.Roles.Where(static role => role.Name == Roles.Admin).Select(static role => role.Id).SingleAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var member in staff)
+        {
+            var space = member.Pseudonym.IndexOf(' ', StringComparison.Ordinal);
+            trialContext.Users.Add(new ApplicationUser
+            {
+                Id = member.Id,
+                FirstName = member.Pseudonym[..space],
+                LastName = member.Pseudonym[(space + 1)..],
+                UserName = member.Email,
+                NormalizedUserName = member.Email.ToUpperInvariant(),
+                Email = member.Email,
+                NormalizedEmail = member.Email.ToUpperInvariant(),
+                EmailConfirmed = true,
+                PasswordHash = PlaceholderPasswordHash,
+                SecurityStamp = Guid.NewGuid().ToString("N"),
+                IsActive = true,
+                CreatedAtUtc = now,
+            });
+            trialContext.UserRoles.Add(new IdentityUserRole<Guid> { UserId = member.Id, RoleId = adminRoleId });
         }
 
         await trialContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

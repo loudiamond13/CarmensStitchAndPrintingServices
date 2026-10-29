@@ -18,11 +18,13 @@ internal static class TrialImport
         string trialConnectionString,
         IReadOnlyList<MappedOrder> orders,
         IReadOnlyList<TrialListEntry> trialEntries,
+        IReadOnlyList<TrialStaff> trialStaff,
         TimeProvider time,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(orders);
         ArgumentNullException.ThrowIfNull(trialEntries);
+        ArgumentNullException.ThrowIfNull(trialStaff);
 
         var services = new ServiceCollection();
         services.AddSingleton(time);
@@ -36,7 +38,7 @@ internal static class TrialImport
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            await SeedAsync(provider, trialEntries, time, cancellationToken).ConfigureAwait(false);
+            await SeedAsync(provider, trialEntries, trialStaff, time, cancellationToken).ConfigureAwait(false);
 
             var findings = new List<Finding>();
             foreach (var order in orders.Where(static order => order.Snapshot is not null))
@@ -55,13 +57,14 @@ internal static class TrialImport
         }
     }
 
-    private static async Task SeedAsync(ServiceProvider provider, IReadOnlyList<TrialListEntry> trialEntries, TimeProvider time, CancellationToken cancellationToken)
+    private static async Task SeedAsync(ServiceProvider provider, IReadOnlyList<TrialListEntry> trialEntries, IReadOnlyList<TrialStaff> trialStaff, TimeProvider time, CancellationToken cancellationToken)
     {
         var scope = provider.CreateAsyncScope();
         await using (scope.ConfigureAwait(false))
         {
             var context = scope.ServiceProvider.GetRequiredService<CspsDbContext>();
             await TrialSeeder.SeedListsAsync(context, trialEntries, time.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+            await TrialSeeder.SeedStaffAsync(context, trialStaff, time.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         }
     }
 

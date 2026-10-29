@@ -1,5 +1,4 @@
 using System.Globalization;
-using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.LegacyFitCheck.Findings;
@@ -39,7 +38,8 @@ internal static class DraftMapping
         LegacyOrderParts parts,
         IReadOnlyDictionary<int, string?> orderTypeNames,
         IReadOnlyDictionary<int, string?> statusNames,
-        ListMatches lists)
+        ListMatches lists,
+        PeopleMatching? people = null)
     {
         ArgumentNullException.ThrowIfNull(order);
         ArgumentNullException.ThrowIfNull(parts);
@@ -49,6 +49,7 @@ internal static class DraftMapping
 
         var key = Key("Orders", order.OrderId);
         var findings = new List<Finding>();
+        people ??= PeopleMatching.Empty;
 
         if (order.IsDeleted == true)
         {
@@ -100,8 +101,8 @@ internal static class DraftMapping
         var snapshot = new OrderImportSnapshot(number, details, status!.Value, MapItems(parts.Items, productType, typeName, findings))
         {
             Discounts = MapDiscounts(parts.Discounts, findings),
-            Payments = MapPayments(parts.Payments, findings),
-            Expenses = MapExpenses(parts.Expenses, findings),
+            Payments = MapPayments(parts.Payments, people, findings),
+            Expenses = MapExpenses(parts.Expenses, people, findings),
         };
 
         return new MappedOrder(key, snapshot, findings);
@@ -150,7 +151,7 @@ internal static class DraftMapping
         return discounts;
     }
 
-    private static List<NewOrderPayment> MapPayments(IReadOnlyList<LegacyPaymentRow> rows, List<Finding> findings)
+    private static List<NewOrderPayment> MapPayments(IReadOnlyList<LegacyPaymentRow> rows, PeopleMatching people, List<Finding> findings)
     {
         var payments = new List<NewOrderPayment>();
         foreach (var payment in rows)
@@ -163,16 +164,17 @@ internal static class DraftMapping
             }
 
             var path = $"payments[{payments.Count.ToString(CultureInfo.InvariantCulture)}]";
+            var receiver = people.Resolve(payment.PaidTo);
             payments.Add(new NewOrderPayment(
                 LegacyDates.ToManilaDate(payment.PaymentDate),
                 payment.Amount,
                 ListMatches.UnknownPaymentMethodId,
                 null,
                 string.IsNullOrWhiteSpace(payment.PaidBy) ? null : payment.PaidBy.Trim(),
-                LegacyHolder.Id));
+                receiver.UserId));
             AddDateReading(findings, RecordKind.Payment, key, payment.PaymentDate);
             findings.Add(new Finding(RecordKind.Payment, key, FindingType.CannotMap, "payment.no-method", null, "The legacy payment has no payment method.", null, null));
-            findings.Add(new Finding(RecordKind.Payment, key, FindingType.LegacyHolderUsed, "person.legacy-holder", $"{path}.receivedByUserId", "The receiver is the Legacy holder until people are matched.", null, null));
+            AddHolderUse(findings, RecordKind.Payment, key, $"{path}.receivedByUserId", "receiver", receiver);
             if (!string.IsNullOrWhiteSpace(payment.PaidBy))
             {
                 findings.Add(new Finding(RecordKind.Payment, key, FindingType.Info, "payment.payer-text-in-notes", null, "The payer text is kept in the payment notes.", null, null));
@@ -182,7 +184,7 @@ internal static class DraftMapping
         return payments;
     }
 
-    private static List<NewOrderExpense> MapExpenses(IReadOnlyList<LegacyExpenseRow> rows, List<Finding> findings)
+    private static List<NewOrderExpense> MapExpenses(IReadOnlyList<LegacyExpenseRow> rows, PeopleMatching people, List<Finding> findings)
     {
         var expenses = new List<NewOrderExpense>();
         foreach (var expense in rows.Where(static row => !row.IsCompanyExpenses))
@@ -195,18 +197,37 @@ internal static class DraftMapping
             }
 
             var path = $"expenses[{expenses.Count.ToString(CultureInfo.InvariantCulture)}]";
+            var payer = people.Resolve(expense.PaidBy);
             expenses.Add(new NewOrderExpense(
                 LegacyDates.ToManilaDate(expense.SpentDate.Value),
                 expense.Amount,
                 OrderListSeed.OrderExpenseOthersId,
                 string.IsNullOrWhiteSpace(expense.Description) ? null : expense.Description.Trim(),
-                LegacyHolder.Id));
+                payer.UserId));
             AddDateReading(findings, RecordKind.OrderExpense, key, expense.SpentDate.Value);
             findings.Add(new Finding(RecordKind.OrderExpense, key, FindingType.CannotMap, "order-expense.no-category", null, "The legacy order expense has no category; Others is used.", null, null));
-            findings.Add(new Finding(RecordKind.OrderExpense, key, FindingType.LegacyHolderUsed, "person.legacy-holder", $"{path}.paidByUserId", "The payer is the Legacy holder until people are matched.", null, null));
+            AddHolderUse(findings, RecordKind.OrderExpense, key, $"{path}.paidByUserId", "payer", payer);
         }
 
         return expenses;
+    }
+
+    // Every use of the Legacy holder is an unmatched-person finding with its reason and a holder-used finding for the count (D-06).
+    private static void AddHolderUse(List<Finding> findings, RecordKind kind, string key, string path, string role, PersonMatch match)
+    {
+        if (!match.IsHolder)
+        {
+            return;
+        }
+
+        var reason = match.RuleKey switch
+        {
+            "person.blank" => $"The {role} text is empty.",
+            "person.role-no-match" => $"The {role} is a legacy user whose role has no CSPS staff match.",
+            _ => $"The {role} matches no legacy user.",
+        };
+        findings.Add(new Finding(kind, key, FindingType.UnmatchedPerson, match.RuleKey!, path, reason, match.ListValue, null));
+        findings.Add(new Finding(kind, key, FindingType.LegacyHolderUsed, "person.legacy-holder", path, $"The {role} is the Legacy holder.", null, null));
     }
 
     private static string Key(string table, int id) => $"{table}:{id.ToString(CultureInfo.InvariantCulture)}";
