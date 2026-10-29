@@ -25,6 +25,7 @@ internal sealed class LegacyDbContext(DbContextOptions<LegacyDbContext> options)
     public static LegacyDbContext Open(string connectionString) =>
         new(new DbContextOptionsBuilder<LegacyDbContext>()
             .UseSqlServer(connectionString)
+            .AddInterceptors(new ReadOnlyCommandGuard())
             .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
             .Options);
 
