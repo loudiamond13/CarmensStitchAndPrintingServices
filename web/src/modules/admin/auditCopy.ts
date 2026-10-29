@@ -484,7 +484,7 @@ export const AUDIT_COPY = {
   badge: 'Manager only',
   subline:
     'Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
-  columns: { when: 'When', doneBy: 'Done by', action: 'Action', doneTo: 'Done to', actions: 'Actions' },
+  columns: { when: 'When', doneBy: 'Done by', action: 'Action', doneTo: 'Done to', order: 'Order', actions: 'Actions' },
   /** Done by for a failed sign-in with no matching account. */
   unknownAccount: 'Unknown account',
   toggle: {

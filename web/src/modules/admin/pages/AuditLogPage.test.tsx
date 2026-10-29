@@ -200,7 +200,7 @@ describe('A1 the header', () => {
     await openPage();
 
     const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
-    expect(headers).toEqual(['When', 'Done by', 'Action', 'Done to', 'Actions']);
+    expect(headers).toEqual(['When', 'Done by', 'Action', 'Done to', 'Order', 'Actions']);
     expect(tokens(screen.getByText('Actions').className)).toEqual(expect.arrayContaining(tokens(srOnlyClasses)));
   });
 });
@@ -997,13 +997,39 @@ const ORDER_ITEMS: AuditLogItem[] = [
 ];
 
 describe('A1 order entries (D-31)', () => {
-  it('names the order in Done to, and shows the empty-value icon when the order is not known', async () => {
+  it('shows the order number in Order and keeps Done to for people (D-79)', async () => {
     backend(ORDER_ITEMS);
     await openPage();
 
-    expect(cellOf(rowOf('Order payment receiver changed'), 'Done to')).toHaveTextContent('ORD-2026-0148');
-    expect(cellOf(rowOf('Order permanently deleted'), 'Done to')).toHaveTextContent('ORD-2026-0150');
-    expect(within(cellOf(rowOf('Order item added'), 'Done to')).getByText('Not set')).toBeInTheDocument();
+    const receiver = rowOf('Order payment receiver changed');
+    expect(cellOf(receiver, 'Order')).toHaveTextContent('ORD-2026-0148');
+    expect(cellOf(receiver, 'Done to')).not.toHaveTextContent('ORD-');
+    expect(within(cellOf(receiver, 'Done to')).getByText('Not set')).toBeInTheDocument();
+    expect(cellOf(receiver, 'Done to').querySelector('svg')).not.toBeNull();
+    expect(cellOf(rowOf('Order permanently deleted'), 'Order')).toHaveTextContent('ORD-2026-0150');
+    const unknown = cellOf(rowOf('Order item added'), 'Order');
+    expect(within(unknown).getByText('Not set')).toBeInTheDocument();
+    expect(unknown.querySelector('svg')).not.toBeNull();
+  });
+
+  it('keeps a person in Done to and shows the empty-value icon in Order for an entry that is not about an order', async () => {
+    backend();
+    await openPage();
+
+    const row = rowOf('Role changed');
+    expect(cellOf(row, 'Done to')).toHaveTextContent('Paolo Garcia');
+    expect(within(cellOf(row, 'Order')).getByText('Not set')).toBeInTheDocument();
+  });
+
+  it('gives every data row an Order cell that names itself on a phone card', async () => {
+    backend([...ORDER_ITEMS, ...ITEMS]);
+    await openPage();
+
+    const rows = screen.getAllByRole('row').filter((row) => row.querySelector('td[data-label="Action"]') !== null);
+    expect(rows.length).toBeGreaterThan(3);
+    for (const row of rows) {
+      expect(cellOf(row, 'Order')).toBeInTheDocument();
+    }
   });
 
   it('reads who received a payment before and after, and the snapshot of a deleted order, with no axe violations', async () => {
