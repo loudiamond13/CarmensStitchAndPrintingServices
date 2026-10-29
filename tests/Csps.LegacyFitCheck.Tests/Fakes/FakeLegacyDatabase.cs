@@ -91,6 +91,30 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
         }
     }
 
+    /// <summary>Adds a made-up order with the exact values the test sets.</summary>
+    public Task AddOrderRowAsync(LegacyOrderRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Adds a made-up order item.</summary>
+    public Task AddItemAsync(LegacyOrderItemRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Adds a made-up payment.</summary>
+    public Task AddPaymentAsync(LegacyPaymentRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Adds a made-up discount.</summary>
+    public Task AddDiscountAsync(LegacyDiscountRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Adds a made-up order or company expense.</summary>
+    public Task AddExpenseAsync(LegacyExpenseRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Adds a made-up legacy user.</summary>
+    public Task AddUserAsync(LegacyUserRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Adds a made-up legacy role.</summary>
+    public Task AddRoleAsync(LegacyRoleRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Links a made-up user to a made-up role.</summary>
+    public Task AddUserRoleAsync(LegacyUserRoleRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
     /// <summary>Reads the name of one order, for tests that prove a write did not land.</summary>
     public async Task<string?> OrderNameAsync(int orderId, CancellationToken cancellationToken)
     {
@@ -114,6 +138,17 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
     }
 
     public ValueTask DisposeAsync() => _database.DisposeAsync();
+
+    private async Task AddRowAsync<T>(T row, CancellationToken cancellationToken)
+        where T : class
+    {
+        var context = OpenWrite();
+        await using (context.ConfigureAwait(false))
+        {
+            context.Add(row);
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     private FakeLegacyWriteContext OpenWrite() => FakeLegacyWriteContext.Open(ConnectionString, _shadowColumns);
 }
