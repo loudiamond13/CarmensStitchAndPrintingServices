@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-17-PLAN.md
-last_updated: "2026-10-29T00:08:36.227Z"
+stopped_at: Completed 07-18-PLAN.md
+last_updated: "2026-10-29T01:05:12.784Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: c97987c5269c0154a1229135c531e5c98bcac931
+state_head: 3055b757d2babd3bbcb57608ef64bc505b3b0561
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 204
+  completed_plans: 205
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 18 of 20
+Plan: 19 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -262,6 +262,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P15 | 45 min | 3 tasks | 27 files |
 | Phase 07 P16 | 40 min | 3 tasks | 30 files |
 | Phase 07 P17 | 39 min | 3 tasks | 41 files |
+| Phase 07 P18 | 35 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -723,6 +724,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-16: the wire row of the order list is OrderListEntry because OrderListItem already names the product type list entry
 - [Phase 07]: 07-17: a new name for the order expense Others answers 422 order-expense-categories.protected as the plan says (Phase 6 answered 400 on name); awaiting owner confirmation.
 - [Phase 07]: 07-17: useCount is on the staff list items (Admin included) and the Manager entry detail, soft-deleted orders counted; an entry with 0 can be deleted.
+- [Phase 07]: Import (07-18): Strict import rules equal the create path; the Check* overloads take OrderImportRules, so each relaxation is one named test in the existing rule and words
+- [Phase 07]: Import (07-18): IgnoreAmountCaps also lifts the quantity range to 0 or more (the database checks quantity >= 0); a negative quantity or price is never stored
+- [Phase 07]: Import (07-18): the legacy number must be plain ASCII (varchar column, zero loss); imported refunds skip the refund eligibility and cap rules; contact number characters, email shape and due-before-order-date have no relaxation (open for Phase 7.1)
 
 ### Pending Todos
 
@@ -815,6 +819,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T00:08:23.892Z
-Stopped at: Completed 07-17-PLAN.md
+Last session: 2026-10-29T01:05:12.169Z
+Stopped at: Completed 07-18-PLAN.md
 Resume file: None

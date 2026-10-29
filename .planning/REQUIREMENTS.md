@@ -135,7 +135,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **ORD-11**: Orders show overdue / days-left indicators (cards, table, detail subline) computed from the business-time-zone "today"
 - [ ] **ORD-12**: An order shows "Fully Paid" when Total > 0 and Balance ≤ 0 (fixture ORD-2026-0151)
 - [x] **ORD-13**: Each order item has a product type chosen from the Manager-editable product type list (it starts with the six: Basketball Jersey, Volleyball Jersey, Moto Riding Jersey, Long Sleeves, Polo Shirt and Custom Design) and a free-text size/variant. Items are not linked to the price list ⚑ C-44 (owner, 2026-10-28, D-18)
-- [ ] **ORD-14**: New orders get a human-readable number `ORD-{YYYY}-{NNNN}`, sequential per year, unique and concurrency-safe. Legacy numbers are preserved ⚑ C-15, C-24
+- [x] **ORD-14**: New orders get a human-readable number `ORD-{YYYY}-{NNNN}`, sequential per year, unique and concurrency-safe. Legacy numbers are preserved ⚑ C-15, C-24
 - [ ] **ORD-15**: Leaving the create/edit form with unsaved changes asks "Discard changes?"
 - [ ] **ORD-16**: Each order keeps a status change history (from → to, who, when)
 - [x] **ORD-17**: Order status changes follow defined allowed transitions among seven statuses: Pending, Mockup, In Production, Ready, Delivered, Completed and Cancelled. Delivered means the order was handed to the customer, and a balance may still be owed. Staff can move an order forward or back freely among the five active statuses and can cancel from any of them. Completed needs a balance of exactly ₱0.00, so an order with money owed or with a customer credit cannot be Completed. Completed and Cancelled are locked end states that Admins and Managers can reopen; a reopen is recorded in the status history and audited like any other change. There is no direct move between Completed and Cancelled: reopen first, then cancel ⚑ OD-3, C-39 (owner, 2026-10-28, D-01 to D-05, D-38)
@@ -417,7 +417,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORD-11 | Phase 8 | Pending |
 | ORD-12 | Phase 8 | Pending |
 | ORD-13 | Phase 7 | Complete |
-| ORD-14 | Phase 7 | Pending |
+| ORD-14 | Phase 7 | Complete |
 | ORD-15 | Phase 8 | Pending |
 | ORD-16 | Phase 7 | Pending |
 | ORD-17 | Phase 7 | Complete |
