@@ -179,7 +179,10 @@ describe('AuditDetail', () => {
       within(valueOf(container, 'What changed'))
         .getAllByRole('listitem')
         .map((item) => item.textContent),
-    ).toEqual(['Received by: Ana Reyes to Bea Navarro (former staff)', 'Payment method: a deleted payment method to GCash']);
+    ).toEqual([
+      'Received by: Ana Reyes to Bea Navarro (former staff)',
+      'Payment method: a deleted payment method to GCash',
+    ]);
   });
 
   it('reads the snapshot of a deleted order after the order is gone (ORD-16)', () => {

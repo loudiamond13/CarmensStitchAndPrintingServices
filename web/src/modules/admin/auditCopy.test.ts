@@ -353,7 +353,9 @@ describe('describeAuditChange for order entries (D-31, ORD-16, ORD-22, ORD-23)',
   });
 
   it('reads a discount kind and value, a percent value without a peso sign', () => {
-    expect(describeAuditChange(change('kind', 'percentage', 'fixed'))).toBe('Discount type: Percentage to Fixed amount');
+    expect(describeAuditChange(change('kind', 'percentage', 'fixed'))).toBe(
+      'Discount type: Percentage to Fixed amount',
+    );
     expect(describeAuditChange(change('kind', null, 'percentage'), true)).toBe('Discount type: Percentage');
     expect(describeAuditChange(change('kind', 'huge', 'fixed'))).toBeNull();
     expect(describeAuditChange(change('value', '5.00%', '10.00%'))).toBe('Discount value: 5% to 10%');
