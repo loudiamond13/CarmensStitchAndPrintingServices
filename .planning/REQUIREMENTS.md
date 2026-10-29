@@ -134,7 +134,7 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **ORD-10**: The Orders grid ⇄ table view choice persists in `localStorage['csps-orders-view']`. With URL state (WEB-10, owner 2026-10-07), the view shown is the URL's `view` when it is valid (`grid` or `table`), otherwise the saved `localStorage['csps-orders-view']` when it is valid, otherwise Grid, the UI spec's default. Only the explicit toggle writes both the URL (`replace`) and localStorage, so a shared or bookmarked link with `?view=table` applies to that visit only and never overwrites the viewer's saved choice. The `view` parser has no `withDefault`, so a missing value falls through to localStorage, and no localStorage-derived default is ever handed to nuqs (that would break `clearOnDefault`). A component test covers the URL × localStorage matrix
 - [ ] **ORD-11**: Orders show overdue / days-left indicators (cards, table, detail subline) computed from the business-time-zone "today"
 - [ ] **ORD-12**: An order shows "Fully Paid" when Total > 0 and Balance ≤ 0 (fixture ORD-2026-0151)
-- [ ] **ORD-13**: Each order item has a product type chosen from the Manager-editable product type list (it starts with the six: Basketball Jersey, Volleyball Jersey, Moto Riding Jersey, Long Sleeves, Polo Shirt and Custom Design) and a free-text size/variant. Items are not linked to the price list ⚑ C-44 (owner, 2026-10-28, D-18)
+- [x] **ORD-13**: Each order item has a product type chosen from the Manager-editable product type list (it starts with the six: Basketball Jersey, Volleyball Jersey, Moto Riding Jersey, Long Sleeves, Polo Shirt and Custom Design) and a free-text size/variant. Items are not linked to the price list ⚑ C-44 (owner, 2026-10-28, D-18)
 - [ ] **ORD-14**: New orders get a human-readable number `ORD-{YYYY}-{NNNN}`, sequential per year, unique and concurrency-safe. Legacy numbers are preserved ⚑ C-15, C-24
 - [ ] **ORD-15**: Leaving the create/edit form with unsaved changes asks "Discard changes?"
 - [ ] **ORD-16**: Each order keeps a status change history (from → to, who, when)
@@ -416,7 +416,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORD-10 | Phase 8 | Pending |
 | ORD-11 | Phase 8 | Pending |
 | ORD-12 | Phase 8 | Pending |
-| ORD-13 | Phase 7 | Pending |
+| ORD-13 | Phase 7 | Complete |
 | ORD-14 | Phase 7 | Pending |
 | ORD-15 | Phase 8 | Pending |
 | ORD-16 | Phase 7 | Pending |

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Order Domain & API
 status: executing
-stopped_at: Completed 07-16-PLAN.md
-last_updated: "2026-10-28T23:22:47.189Z"
+stopped_at: Completed 07-17-PLAN.md
+last_updated: "2026-10-29T00:08:36.227Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: fbdc3aac71678dc62a1191b4cb7604c07698b5c0
+state_head: c97987c5269c0154a1229135c531e5c98bcac931
 progress:
   total_phases: 18
   completed_phases: 6
   total_plans: 207
-  completed_plans: 203
+  completed_plans: 204
   percent: 33
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-28T07:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-26)
 ## Current Position
 
 Phase: 07 (Order Domain & API) — EXECUTING
-Plan: 17 of 20
+Plan: 18 of 20
 Status: Ready to execute
 Last activity: 2026-10-28 — Phase 07 execution started
 
@@ -261,6 +261,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 07 P14 | 50 min | 3 tasks | 48 files |
 | Phase 07 P15 | 45 min | 3 tasks | 27 files |
 | Phase 07 P16 | 40 min | 3 tasks | 30 files |
+| Phase 07 P17 | 39 min | 3 tasks | 41 files |
 
 ## Accumulated Context
 
@@ -720,6 +721,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-16: the order list reads the clock from TimeProvider, not the business calendar, so it stays at exactly two SQL commands
 - [Phase 07]: 07-16: ORD-01 and ORD-02 stay unmarked in REQUIREMENTS.md (plan scope note keeps them with Phase 8); ORD-20 waits for 07-20
 - [Phase 07]: 07-16: the wire row of the order list is OrderListEntry because OrderListItem already names the product type list entry
+- [Phase 07]: 07-17: a new name for the order expense Others answers 422 order-expense-categories.protected as the plan says (Phase 6 answered 400 on name); awaiting owner confirmation.
+- [Phase 07]: 07-17: useCount is on the staff list items (Admin included) and the Manager entry detail, soft-deleted orders counted; an entry with 0 can be deleted.
 
 ### Pending Todos
 
@@ -812,6 +815,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T23:22:46.065Z
-Stopped at: Completed 07-16-PLAN.md
+Last session: 2026-10-29T00:08:23.892Z
+Stopped at: Completed 07-17-PLAN.md
 Resume file: None
