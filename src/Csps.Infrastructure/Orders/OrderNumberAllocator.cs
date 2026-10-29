@@ -43,10 +43,26 @@ internal sealed class OrderNumberAllocator : IOrderNumbers
         return OrderNumber.Format(year, counter.Next());
     }
 
-    public Task ReserveLegacyAsync(string number, DateTimeOffset now, CancellationToken cancellationToken)
+    public async Task ReserveLegacyAsync(string number, DateTimeOffset now, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(number);
-        return TakeLockAsync(now, cancellationToken);
+        await TakeLockAsync(now, cancellationToken).ConfigureAwait(false);
+
+        // A number that is not ORD-{YYYY}-{NNNN} cannot collide with a given-out number, so every counter stays as it is.
+        if (!OrderNumber.TryParse(number, out var year, out var sequence))
+        {
+            return;
+        }
+
+        var counter = await _context.OrderNumberCounters.SingleOrDefaultAsync(row => row.Year == year, cancellationToken).ConfigureAwait(false);
+        if (counter is null)
+        {
+            counter = OrderNumberCounter.Start(year);
+            _context.OrderNumberCounters.Add(counter);
+        }
+
+        // The counter row saves with the order, in the same SaveChanges.
+        counter.EnsureAtLeast(sequence);
     }
 
     private async Task TakeLockAsync(DateTimeOffset now, CancellationToken cancellationToken)

@@ -321,17 +321,72 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(order);
     }
 
-    /// <summary>Builds an order from legacy data (ORD-21).</summary>
+    /// <summary>
+    /// Builds an order from legacy data (ORD-21). The number is kept as given, the children keep their list order as their position,
+    /// and every money figure is worked out again by <see cref="OrderMath"/> from the children, so none can be brought in. With no
+    /// status history one row is written (no earlier status, no person, at <paramref name="now"/>). Nothing is saved and nothing is audited.
+    /// </summary>
     /// <param name="snapshot">The legacy order.</param>
-    /// <param name="rules">The relaxations to apply.</param>
-    /// <param name="now">The current instant.</param>
-    /// <param name="today">The business today.</param>
-    /// <returns>The new, unsaved order, or a validation error.</returns>
+    /// <param name="rules">The relaxations to apply; <see cref="OrderImportRules.Default"/> for the migration.</param>
+    /// <param name="now">The current instant, which makes the keys and the edit version.</param>
+    /// <param name="today">The business today, which dated children are judged against.</param>
+    /// <returns>The new, unsaved order, or a validation error naming the first broken field.</returns>
     public static Result<Order> Import(OrderImportSnapshot snapshot, OrderImportRules rules, DateTimeOffset now, DateOnly? today = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(rules);
-        return Result.Failure<Order>(Error.BusinessRule("orders.import-pending", $"The import is not built yet ({now}, {today})."));
+        _ = today;
+
+        var details = snapshot.Details;
+        IReadOnlyList<ImportedStatusChange> history = snapshot.StatusHistory.Count == 0
+            ? [new ImportedStatusChange(null, snapshot.Status, null, now)]
+            : snapshot.StatusHistory;
+        var order = new Order(
+            Guid.CreateVersion7(now),
+            details.CustomerName,
+            details.TeamName,
+            details.ContactNumber,
+            details.Email,
+            details.Address,
+            details.OrderDate,
+            details.DueDate,
+            details.Notes,
+            snapshot.Status,
+            history.Max(static row => row.ChangedAtUtc));
+        order.AssignNumber(snapshot.Number);
+        for (var position = 0; position < snapshot.Items.Count; position++)
+        {
+            order._items.Add(BuildItem(order, snapshot.Items[position], position, now));
+        }
+
+        for (var position = 0; position < snapshot.Discounts.Count; position++)
+        {
+            order._discounts.Add(BuildDiscount(order, snapshot.Discounts[position], position, now));
+        }
+
+        for (var position = 0; position < snapshot.Payments.Count; position++)
+        {
+            order._payments.Add(BuildPayment(order, snapshot.Payments[position], position, now));
+        }
+
+        for (var position = 0; position < snapshot.Refunds.Count; position++)
+        {
+            order._refunds.Add(BuildRefund(order, snapshot.Refunds[position], position, now));
+        }
+
+        for (var position = 0; position < snapshot.Expenses.Count; position++)
+        {
+            order._expenses.Add(BuildExpense(order, snapshot.Expenses[position], position, now));
+        }
+
+        foreach (var row in history)
+        {
+            order._statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), order.Id, row.FromStatus, row.ToStatus, row.ChangedById, row.ChangedAtUtc) { Order = order });
+        }
+
+        order.Recalculate();
+        order.Touch(now);
+        return Result.Success(order);
     }
 
     /// <summary>Sets the order number once, after the order passed its checks.</summary>
