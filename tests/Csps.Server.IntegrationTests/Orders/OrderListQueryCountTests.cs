@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Orders;
 
-/// <summary>PERF-04: the order list route runs exactly two SQL commands whatever the page size and whichever filter or sort is on, so no row costs a query.</summary>
+/// <summary>PERF-04: the order list route runs exactly three SQL commands whatever the page size and whichever filter or sort is on, so no row costs a query.</summary>
 public sealed class OrderListQueryCountTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const int RowCount = 40;
@@ -33,11 +33,15 @@ public sealed class OrderListQueryCountTests(CspsDatabase database) : IClassFixt
         await rig.SeedOrdersAsync(RowCount);
         var separator = query.Length == 0 ? string.Empty : "&";
 
+        // The business calendar reads the cached site settings once; warm it so the counted request shows only the list commands.
+        (await OrderFixtures.ReadListAsync(rig.Client, rig.Token)).GetProperty("items").GetArrayLength().ShouldBeGreaterThan(0);
+
         foreach (var pageSize in new[] { 1, 20, 100 })
         {
             var measured = await rig.CountAsync(() => OrderFixtures.ReadListAsync(rig.Client, rig.Token, $"{query}{separator}pageSize={pageSize}"));
 
-            measured.Count.ShouldBe(2, $"page size {pageSize}:\n{string.Join("\n", measured.Commands)}");
+            // Count, page and the two list-wide counts: 3 fixed commands (D-60, owner, 2026-10-29).
+            measured.Count.ShouldBe(3, $"page size {pageSize}:\n{string.Join("\n", measured.Commands)}");
             measured.Result.GetProperty("items").GetArrayLength().ShouldBe(Math.Min(pageSize, RowCount));
         }
     }

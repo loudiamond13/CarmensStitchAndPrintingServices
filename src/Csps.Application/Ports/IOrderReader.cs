@@ -104,6 +104,7 @@ public sealed record OrderListQuery(
 /// <param name="Balance">The balance.</param>
 /// <param name="CustomerCredit">What the shop owes the customer.</param>
 /// <param name="FullyPaid">True when the order is paid in full.</param>
+/// <param name="Pieces">How many pieces: the sum of the item quantities.</param>
 public sealed record OrderListRow(
     Guid Id,
     string Number,
@@ -120,12 +121,15 @@ public sealed record OrderListRow(
     decimal Refunded,
     decimal Balance,
     decimal CustomerCredit,
-    bool FullyPaid);
+    bool FullyPaid,
+    int Pieces);
 
 /// <summary>One page of the order list.</summary>
 /// <param name="Items">The rows of this page.</param>
 /// <param name="Total">How many orders match, across all pages.</param>
-public sealed record OrderListPage(IReadOnlyList<OrderListRow> Items, int Total);
+/// <param name="AllOrders">Every order that is not deleted, whatever the filters.</param>
+/// <param name="ActiveOrders">Orders that are not deleted and are Pending to Delivered, whatever the filters.</param>
+public sealed record OrderListPage(IReadOnlyList<OrderListRow> Items, int Total, int AllOrders, int ActiveOrders);
 
 /// <summary>One row of the deleted-order list as the read port returns it. It carries no contact details, address or notes.</summary>
 /// <param name="Id">The order id.</param>

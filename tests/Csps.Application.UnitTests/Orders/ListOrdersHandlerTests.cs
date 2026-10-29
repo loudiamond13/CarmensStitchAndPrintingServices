@@ -3,7 +3,7 @@ using Csps.Application.Common;
 using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Domain.Orders;
-using Microsoft.Extensions.Time.Testing;
+using Csps.Domain.Time;
 using NSubstitute;
 
 namespace Csps.Application.UnitTests.Orders;
@@ -13,6 +13,7 @@ public sealed class ListOrdersHandlerTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 28, 3, 0, 0, TimeSpan.Zero);
     private static readonly Guid PoloId = Guid.Parse("447ad32e-1433-4b70-8786-72e3dc3f9937");
+    private static readonly TimeZoneInfo Manila = TimeZoneInfo.CreateCustomTimeZone("Manila", TimeSpan.FromHours(8), "Manila", "Manila");
 
     [Fact]
     public async Task WithNoCallerTheSessionHasEndedAndTheReaderIsNeverCalled()
@@ -117,7 +118,7 @@ public sealed class ListOrdersHandlerTests
         var first = Row("ORD-2026-0148", OrderStatus.InProduction, new DateOnly(2026, 11, 11), 22450.00m, 1122.50m, 21327.50m, 12000.00m, 0.00m, 9327.50m, 0.00m, false);
         var second = Row("ORD-2026-0149", OrderStatus.Cancelled, null, 100.00m, 0.00m, 100.00m, 100.00m, 0.00m, 0.00m, 0.00m, true);
         harness.Reader.ListAsync(Arg.Any<OrderListQuery>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(new OrderListPage([first, second], 12)));
+            .Returns(Task.FromResult(new OrderListPage([first, second], 12, 40, 31)));
 
         var result = await harness.Handler.HandleAsync(new ListOrdersRequest(Page: 2, PageSize: 5), TestContext.Current.CancellationToken);
 
@@ -128,10 +129,27 @@ public sealed class ListOrdersHandlerTests
         page.Items.Count.ShouldBe(2);
         page.Items[0].ShouldBe(new OrderListEntry(
             first.Id, "ORD-2026-0148", "Juan Dela Cruz", "Ballers", new DateOnly(2026, 10, 28), new DateOnly(2026, 11, 11), "production", Now,
-            22450.00m, 1122.50m, 21327.50m, 12000.00m, 0.00m, 9327.50m, 0.00m, false));
+            22450.00m, 1122.50m, 21327.50m, 12000.00m, 0.00m, 9327.50m, 0.00m, false, 40));
         page.Items[1].Status.ShouldBe("cancelled");
         page.Items[1].DueDate.ShouldBeNull();
         page.Items[1].FullyPaid.ShouldBeTrue();
+        page.Items[1].Pieces.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task TheListCarriesTheListWideCountsAndTheBusinessTodayNotTheUtcDate()
+    {
+        var lateUtc = new DateTimeOffset(2026, 10, 27, 20, 0, 0, TimeSpan.Zero);
+        var harness = new Harness(clockAt: lateUtc);
+        harness.Reader.ListAsync(Arg.Any<OrderListQuery>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new OrderListPage([], 0, 40, 31)));
+
+        var result = await harness.Handler.HandleAsync(new ListOrdersRequest(Q: "nobody"), TestContext.Current.CancellationToken);
+
+        result.Value.AllOrders.ShouldBe(40);
+        result.Value.ActiveOrders.ShouldBe(31);
+        result.Value.Today.ShouldBe(new DateOnly(2026, 10, 28));
+        harness.AskedAt.ShouldBe(lateUtc);
     }
 
     [Fact]
@@ -168,11 +186,11 @@ public sealed class ListOrdersHandlerTests
         decimal balance,
         decimal credit,
         bool fullyPaid) =>
-        new(Guid.NewGuid(), number, "Juan Dela Cruz", "Ballers", new DateOnly(2026, 10, 28), due, status, Now, subtotal, discount, total, paid, refunded, balance, credit, fullyPaid);
+        new(Guid.NewGuid(), number, "Juan Dela Cruz", "Ballers", new DateOnly(2026, 10, 28), due, status, Now, subtotal, discount, total, paid, refunded, balance, credit, fullyPaid, fullyPaid ? 3 : 40);
 
     private sealed class Harness
     {
-        public Harness(bool noCaller = false)
+        public Harness(bool noCaller = false, DateTimeOffset? clockAt = null)
         {
             Reader = Substitute.For<IOrderReader>();
             Reader.ListAsync(Arg.Any<OrderListQuery>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
@@ -180,11 +198,11 @@ public sealed class ListOrdersHandlerTests
                 {
                     Asked = call.Arg<OrderListQuery>();
                     AskedAt = call.Arg<DateTimeOffset>();
-                    return Task.FromResult(new OrderListPage([], 0));
+                    return Task.FromResult(new OrderListPage([], 0, 0, 0));
                 });
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43"));
-            Handler = new ListOrdersHandler(Reader, request, new FakeTimeProvider(Now), new ListOrdersRequestValidator());
+            Handler = new ListOrdersHandler(Reader, request, new FixedCalendar(clockAt ?? Now), new ListOrdersRequestValidator());
         }
 
         public IOrderReader Reader { get; }
@@ -194,5 +212,11 @@ public sealed class ListOrdersHandlerTests
         public OrderListQuery? Asked { get; private set; }
 
         public DateTimeOffset AskedAt { get; private set; }
+    }
+
+    private sealed class FixedCalendar(DateTimeOffset now) : IBusinessCalendar
+    {
+        public ValueTask<BusinessClock> GetClockAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new BusinessClock(Manila, ZoneSource.Stored, now));
     }
 }

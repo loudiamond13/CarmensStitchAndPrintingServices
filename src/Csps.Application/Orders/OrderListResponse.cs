@@ -17,6 +17,7 @@ namespace Csps.Application.Orders;
 /// <param name="Balance">The balance in pesos.</param>
 /// <param name="CustomerCredit">What the shop owes the customer in pesos.</param>
 /// <param name="FullyPaid">True when the order is paid in full.</param>
+/// <param name="Pieces">How many pieces: the sum of the item quantities.</param>
 public sealed record OrderListEntry(
     Guid Id,
     string Number,
@@ -33,11 +34,15 @@ public sealed record OrderListEntry(
     decimal Refunded,
     decimal Balance,
     decimal CustomerCredit,
-    bool FullyPaid);
+    bool FullyPaid,
+    int Pieces);
 
 /// <summary>One page of the order list (ORD-01).</summary>
 /// <param name="Items">The rows of this page.</param>
 /// <param name="Total">How many orders match, across all pages.</param>
 /// <param name="Page">The page number asked for.</param>
 /// <param name="PageSize">The page size asked for.</param>
-public sealed record OrderListResponse(IReadOnlyList<OrderListEntry> Items, int Total, int Page, int PageSize);
+/// <param name="AllOrders">Every order that is not deleted, whatever the filters.</param>
+/// <param name="ActiveOrders">Orders that are not deleted and are Pending to Delivered, whatever the filters.</param>
+/// <param name="Today">The business today, so the browser never reads the device clock for it.</param>
+public sealed record OrderListResponse(IReadOnlyList<OrderListEntry> Items, int Total, int Page, int PageSize, int AllOrders, int ActiveOrders, DateOnly Today);

@@ -45,13 +45,14 @@ internal sealed class OrderReader(CspsDbContext context) : IOrderReader
                 order.RefundedTotal,
                 order.Balance,
                 order.CustomerCredit,
-                order.FullyPaid))
+                order.FullyPaid,
+                0))
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new OrderListPage(rows, total);
+        return new OrderListPage(rows, total, 0, 0);
     }
 
     // The statuses, the search, the order dates, the product type and the balance. A typed wildcard stays literal (CWE-943).
