@@ -59,7 +59,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit (completed 2026-10-17)
 - [x] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer (completed 2026-10-19)
 - [x] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards (completed 2026-10-26)
-- [ ] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests
+- [x] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests (completed 2026-10-29)
 - [ ] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
 - [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers
@@ -787,7 +787,7 @@ Plans:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
 - counter-table locking under the execution strategy
 
-**Plans**: 20/20 plans executed in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
+**Plans**: 20/20 plans complete in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 07-01-PLAN.md — Product types, payment methods and order expense categories: tables, seeds, read API, and the Phase 7 audit catalog (ORD-13; D-16 to D-20, D-31)
@@ -1272,7 +1272,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
-| 7. Order Domain & API | 20/20 | In Progress | - |
+| 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |

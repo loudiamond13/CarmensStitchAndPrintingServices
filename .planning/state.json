@@ -36,7 +36,7 @@
     {
       "number": "7",
       "name": "Order Domain & API",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "8",
@@ -91,8 +91,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 07 of 18 · 33% · ready to verify"
+    "label": "Advance to the next step (plan phase 07.1)",
+    "reason": "Phase 07.1 of 18 — needs a plan"
   },
-  "updated_at": "2026-10-29T02:10:24.538Z"
+  "updated_at": "2026-10-29T10:35:52.853Z"
 }
