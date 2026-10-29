@@ -402,7 +402,20 @@ public sealed class ListAuditLogHandlerTests
         var item = (await harness.Handler.HandleAsync(new ListAuditLogRequest(), TestContext.Current.CancellationToken)).Value.Items.Single();
 
         item.ShouldBe(new AuditLogItem(
-            entry.Id, entry.OccurredAt, new DoneBy(DoneByKinds.User, Ana), AuditActions.UserRoleChanged, Bea, "role=admin>manager", "198.51.100.0/24", "Chrome", entry.Reference, entry.Changes, null));
+            entry.Id, entry.OccurredAt, new DoneBy(DoneByKinds.User, Ana), AuditActions.UserRoleChanged, Bea, "role=admin>manager", "198.51.100.0/24", "Chrome", entry.Reference, entry.Changes, null, null, null));
+    }
+
+    [Fact]
+    public async Task TheOrderSnapshotAndTheOrderNumberOfAnOrderEntryPassThroughUnchanged()
+    {
+        var orderSnapshot = new AuditOrderSnapshot("ORD-2026-0148", "cancelled", 21327.50m, 12000.00m, 9327.50m);
+        var entry = Entry(AuditActions.OrderDeleted, actor: Bea, targetType: "Order") with { OrderSnapshot = orderSnapshot, OrderNumber = "ORD-2026-0148" };
+        var harness = new Harness(new AuditLogPage([entry], 1));
+
+        var item = (await harness.Handler.HandleAsync(new ListAuditLogRequest(), TestContext.Current.CancellationToken)).Value.Items.Single();
+
+        item.OrderSnapshot.ShouldBe(orderSnapshot);
+        item.OrderNumber.ShouldBe("ORD-2026-0148");
     }
 
     [Fact]

@@ -1801,11 +1801,20 @@ export interface components {
             /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
-        /** @description One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed. */
+        /** @description One "What changed" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed. */
         AuditChangeLine: {
-            /** @description One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`. */
+            /**
+             * @description One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,
+             *     `dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,
+             *     `payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,
+             *     `sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.
+             */
             field: string;
-            /** @description The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a category name, a tone); null when there is none. */
+            /**
+             * @description The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a status or kind key, a quantity, a list entry name, a tone; a
+             *     percentage discount value ends with `%`); null when there is none. A line that states a value as it was added or removed has no
+             *     old value.
+             */
             from: null | string;
             fromPerson: null | components["schemas"]["ActorRef"];
             /** @description The new value; null when there is none or the field is a text field. */
@@ -1832,7 +1841,7 @@ export interface components {
         AuditLogItem: {
             /** @description The action code, for example `user.deactivated`. */
             action: string;
-            /** @description The typed "What changed" lines of an expense or category entry; empty for every other entry (D-27). */
+            /** @description The typed "What changed" lines of an expense, order or list entry; empty for every other entry (D-27, D-31). */
             changes: components["schemas"]["AuditChangeLine"][];
             /** @description The stored detail; null when none. */
             detail: null | string;
@@ -1853,6 +1862,9 @@ export interface components {
              * @description When it happened, in UTC.
              */
             occurredAt: string;
+            /** @description The number of the order an order or order child entry is about; null for every other entry. */
+            orderNumber: null | string;
+            orderSnapshot: null | components["schemas"]["AuditOrderSnapshot"];
             /** @description The correlation id, to find the request's log lines. */
             reference: string;
             snapshot: null | components["schemas"]["AuditExpenseSnapshot"];
@@ -1874,6 +1886,28 @@ export interface components {
             /**
              * Format: int32
              * @description How many entries match, across all pages.
+             */
+            total: number | string;
+        };
+        /** @description The facts of an order as a deleted, restored or permanently deleted entry saw it. It stays readable after the order row is gone (ORD-16, D-29). */
+        AuditOrderSnapshot: {
+            /**
+             * Format: double
+             * @description What was still owed.
+             */
+            balance: number | string;
+            /** @description The order number, such as `ORD-2026-0148`. */
+            number: string;
+            /**
+             * Format: double
+             * @description The money paid in, before refunds.
+             */
+            paid: number | string;
+            /** @description The status key: `pending`, `mockup`, `production`, `ready`, `delivered`, `completed` or `cancelled`. */
+            status: string;
+            /**
+             * Format: double
+             * @description The order total.
              */
             total: number | string;
         };

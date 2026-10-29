@@ -338,14 +338,14 @@
         "type": "object"
       },
       "AuditChangeLine": {
-        "description": "One \"What changed\" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed.",
+        "description": "One \"What changed\" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed.",
         "properties": {
           "field": {
-            "description": "One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`.",
+            "description": "One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,\n`dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,\n`payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,\n`sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.",
             "type": "string"
           },
           "from": {
-            "description": "The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a category name, a tone); null when there is none.",
+            "description": "The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a status or kind key, a quantity, a list entry name, a tone; a\npercentage discount value ends with `%`); null when there is none. A line that states a value as it was added or removed has no\nold value.",
             "type": [
               "null",
               "string"
@@ -358,7 +358,7 @@
               },
               {
                 "$ref": "#/components/schemas/ActorRef",
-                "description": "For `payer`: the old payer."
+                "description": "For `payer`, `receiver` and `refunder`: the old person."
               }
             ]
           },
@@ -376,7 +376,7 @@
               },
               {
                 "$ref": "#/components/schemas/ActorRef",
-                "description": "For `payer`: the new payer."
+                "description": "For `payer`, `receiver` and `refunder`: the new person."
               }
             ]
           }
@@ -442,7 +442,7 @@
             "type": "string"
           },
           "changes": {
-            "description": "The typed \"What changed\" lines of an expense or category entry; empty for every other entry (D-27).",
+            "description": "The typed \"What changed\" lines of an expense, order or list entry; empty for every other entry (D-27, D-31).",
             "items": {
               "$ref": "#/components/schemas/AuditChangeLine"
             },
@@ -498,6 +498,24 @@
             "format": "date-time",
             "type": "string"
           },
+          "orderNumber": {
+            "description": "The number of the order an order or order child entry is about; null for every other entry.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderSnapshot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditOrderSnapshot",
+                "description": "The facts of a deleted, restored or permanently deleted order, readable after the order is gone; null otherwise (ORD-16)."
+              }
+            ]
+          },
           "reference": {
             "description": "The correlation id, to find the request's log lines.",
             "type": "string"
@@ -525,7 +543,9 @@
           "device",
           "reference",
           "changes",
-          "snapshot"
+          "snapshot",
+          "orderSnapshot",
+          "orderNumber"
         ],
         "type": "object"
       },
@@ -572,6 +592,54 @@
           "total",
           "page",
           "pageSize"
+        ],
+        "type": "object"
+      },
+      "AuditOrderSnapshot": {
+        "description": "The facts of an order as a deleted, restored or permanently deleted entry saw it. It stays readable after the order row is gone (ORD-16, D-29).",
+        "properties": {
+          "balance": {
+            "description": "What was still owed.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The order number, such as `ORD-2026-0148`.",
+            "type": "string"
+          },
+          "paid": {
+            "description": "The money paid in, before refunds.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "status": {
+            "description": "The status key: `pending`, `mockup`, `production`, `ready`, `delivered`, `completed` or `cancelled`.",
+            "type": "string"
+          },
+          "total": {
+            "description": "The order total.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "number",
+          "status",
+          "total",
+          "paid",
+          "balance"
         ],
         "type": "object"
       },
