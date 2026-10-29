@@ -1,6 +1,6 @@
 # Guide: running the legacy fit check
 
-*Created: 2026-10-29T10:30:00-05:00 · Updated: 2026-10-29T11:14:00-05:00*
+*Created: 2026-10-29T10:30:00-05:00 · Updated: 2026-10-29T11:40:00-05:00*
 
 The legacy fit check (Phase 7.1) answers one question before Phase 8 builds on the order rules: which legacy records break the CSPS order and expense rules? It lists them. It changes nothing. This page says what it reads, what it writes, how to run it, and what to do with its two output files.
 
@@ -68,7 +68,7 @@ How the split is kept:
 - The full list is written only inside the repository's `_local/legacy-fit-check` folder. A folder not named `_local`, a path that escapes it, a link (reparse point) on the folder or the file, and a file that already exists are all refused.
 - The summary is built only from counts and the type of each finding. A list word (an order type, status or role name read in the run, or a CSPS list name) is printed only when it is on the allow-list. Any other list word shows as "(a list value)".
 - Before the summary is written, a self-check searches it for every personal-looking text the run read: order names and notes, payer and receiver text, discount givers, user names and emails, descriptions and the derived order numbers. If one appears, the summary is not written, the run exits with 1 and prints "Failed: the summary held a personal value, so it was not written." The full list is still written, because it stays private. Do not copy anything from `_local/` in that case. Tell the developer.
-- The self-check is strict on purpose. A read value of three or more characters that is also a plain word in the summary will refuse it. A refusal never says which value matched.
+- The self-check is strict on purpose. A read value of three or more characters that stands as a whole word in the summary will refuse it. A value inside a longer word does not (D-21). A refusal never says which value matched.
 
 ## Clean-up after a killed run
 

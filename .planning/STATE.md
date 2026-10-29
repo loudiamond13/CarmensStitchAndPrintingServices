@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
-stopped_at: Completed 07.1-09-PLAN.md
-last_updated: "2026-10-29T15:35:10.080Z"
+stopped_at: Completed 07.1-10-PLAN.md
+last_updated: "2026-10-29T16:28:46.733Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07.1 execution started
-state_head: 256b2e0b14857fd987895451d583eb2d23d2aefa
+state_head: ec2fd6e73ef24960968b7a1bfe0e2315c2127210
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 219
-  completed_plans: 216
+  completed_plans: 217
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T18:30:00-05:00"
+updated: "2026-10-29T11:50:00-05:00"
 ---
 
 # Project State
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
-Plan: 10 of 12
-Status: Ready to execute
-Last activity: 2026-10-29 — Phase 07.1 execution started
+Plan: 11 of 12
+Status: Ready to execute (the real fit-check run is done; the owner rulings session, plan 07.1-11, is next)
+Last activity: 2026-10-29 — Plan 07.1-10: real fit-check run done under D-17 after D-21 (whole-word self-check); briefing ready in `_local`
 
 Progress: [████░░░░░░] 39%
 
@@ -275,6 +275,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P07 | 20 min | 2 tasks | 7 files |
 | Phase 07.1 P08 | 25 min | 2 tasks | 8 files |
 | Phase 07.1 P09 | 26 min | 3 tasks | 11 files |
+| Phase 07.1 P10 | 35 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -808,6 +809,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [ ] **Reminder after Phase 8 ships (owner, 2026-10-29, 07-UAT test 1 deferred):** remind the owner to read the DOM-WR-04 code: `LegacyEditFilter.cs`, the six `UpdateOrder*Handler.cs` files and the legacy edit checks in `Order.cs` (tests: `OrderLegacyEditTests`, `LegacyEditHandlerTests`). Also ask them to confirm that a legacy order with no due date still needs one on edit, unlike a missing contact number. Raise this at the start of the first session after Phase 8 is complete.
 - [x] **Ruled D-78 (owner, 2026-10-29): option 1, keep `auth.session-busy`.** **List writes busy code (APX-IN-04):** a list create, retire, reactivate or delete that loses a race twice answers the shared `auth.session-busy` code (Phase 6 does the same). Pick one. (1) Recommended: keep it. (2) Give order lists their own busy code.
 - [ ] **Confirmed for the Phase 8 UI review (owner, 2026-10-29, 07-UAT test 4).** **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
+- [ ] **Phase 7.1 rulings session (plan 07.1-11, owner, 2026-10-29):** the real fit-check run is done (07.1 D-17, D-21): the restore was proven unchanged and the trial database removed. A plain-words briefing with options for every finding group is in `_local/legacy-fit-check/briefing-20261029-162702.md` (private, never committed). Read it and rule on each group. Also delete the first, refused run's full list `_local/legacy-fit-check/findings-20261029-161931.md` by hand (it was never opened).
 - [ ] **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
 
 ### Blockers/Concerns
@@ -872,6 +874,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T15:35:08.616Z
-Stopped at: Completed 07.1-09-PLAN.md
+Last session: 2026-10-29T16:28:45.742Z
+Stopped at: Completed 07.1-10-PLAN.md
 Resume file: None
