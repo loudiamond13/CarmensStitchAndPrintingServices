@@ -45,7 +45,8 @@ internal static class FindingsWriter
         return WriteFileAsync(localRoot, "summary", summary, time, cancellationToken);
     }
 
-    private static async Task<string> WriteFileAsync(string localRoot, string prefix, string text, TimeProvider time, CancellationToken cancellationToken)
+    /// <summary>Works out the full path of an output file and refuses anything that is not inside the _local folder.</summary>
+    internal static string ResolveTarget(string localRoot, string subFolder, string fileName)
     {
         var root = Path.GetFullPath(localRoot);
         if (!string.Equals(Path.GetFileName(root), LocalFolderName, StringComparison.Ordinal))
@@ -53,14 +54,22 @@ internal static class FindingsWriter
             throw new InvalidOperationException("The findings folder must be the _local folder.");
         }
 
-        var folder = Path.GetFullPath(Path.Combine(root, SubFolder));
-        var stamp = time.GetUtcNow().ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var fileName = $"{prefix}-{stamp}.md";
-        var target = Path.GetFullPath(Path.Combine(folder, fileName));
+        var target = Path.GetFullPath(Path.Combine(root, subFolder, fileName));
         if (!target.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         {
             throw new InvalidOperationException("The findings file must sit inside the _local folder.");
         }
+
+        return target;
+    }
+
+    private static async Task<string> WriteFileAsync(string localRoot, string prefix, string text, TimeProvider time, CancellationToken cancellationToken)
+    {
+        var stamp = time.GetUtcNow().ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var fileName = $"{prefix}-{stamp}.md";
+        var target = ResolveTarget(localRoot, SubFolder, fileName);
+        var root = Path.GetFullPath(localRoot);
+        var folder = Path.GetFullPath(Path.Combine(root, SubFolder));
 
         Directory.CreateDirectory(folder);
         if (IsLink(root) || IsLink(folder))

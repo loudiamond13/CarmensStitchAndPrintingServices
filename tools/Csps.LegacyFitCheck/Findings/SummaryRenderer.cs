@@ -119,6 +119,9 @@ internal static class SummaryRenderer
         [RecordKind.ListValue] = ("list value", "list values"),
     };
 
+    /// <summary>Gets the rule keys that have a plain-English label.</summary>
+    internal static IReadOnlyCollection<string> LabelledKeys => Labels.Keys;
+
     /// <summary>Renders the summary.</summary>
     /// <param name="findings">Every finding of the run.</param>
     /// <param name="facts">The run facts.</param>
