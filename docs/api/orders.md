@@ -584,7 +584,7 @@ Cancelled is allowed). When the owner rules on a legacy oddity, one value change
 | `AllowRetiredListEntries` | A retired product type, payment method or expense category may be named | A retired entry is refused |
 | `AllowLegacyHolder` (D-32, D-37) | The hidden "Legacy / unassigned" holder may be named as receiver, refunder, payer or history person | The holder is refused: "This person can't be chosen because their account isn't active. Choose someone else." |
 | `AllowInactivePeople` | A person who was deactivated, locked or deleted may be named | Only an active Admin or Manager who finished set-up may be named |
-| `AllowAnyStatusHistory` | The history may hold moves the status rules refuse, such as Cancelled straight to Completed | Each move must be one the status rules allow |
+| `AllowAnyStatusHistory` | The history may hold moves the status rules refuse, such as Cancelled straight to Completed, rows that do not chain or run in time order, and a last row that is not the current status | Each move must be one the status rules allow and differ from the status it leaves; each row starts where the one before ended; times run oldest first; the last row ends in the order status. Phase 7.1 decides any relaxation of this for the default rules |
 | `IgnoreChildCaps` | The limits on how many items (100), discounts (20), payments (100), refunds (50) and expenses (100) an order holds are skipped | The limits apply |
 | `AllowNoItems` | An order may have no items | At least one item is required |
 

@@ -63,7 +63,11 @@ public sealed record OrderImportRules
     /// <summary>Gets a value indicating whether a person who can no longer be chosen (deactivated, locked or deleted) may be named. The handler reads this.</summary>
     public bool AllowInactivePeople { get; init; }
 
-    /// <summary>Gets a value indicating whether the status history may hold moves the normal status rules refuse.</summary>
+    /// <summary>
+    /// Gets a value indicating whether the status history may hold moves the normal status rules refuse, rows that do not chain or
+    /// run in time order, and a last row that is not the current status. The strict rules check all of it. Phase 7.1 decides any
+    /// relaxation of this for the default rules.
+    /// </summary>
     public bool AllowAnyStatusHistory { get; init; }
 
     /// <summary>Gets a value indicating whether the limits on how many items, discounts, payments, refunds and expenses an order holds are skipped.</summary>

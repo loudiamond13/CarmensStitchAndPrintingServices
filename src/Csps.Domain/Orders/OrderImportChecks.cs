@@ -31,6 +31,18 @@ internal static class OrderImportChecks
     /// <summary>The message for an order number that is not <c>ORD-{YYYY}-{NNNN}</c> when the rules do not keep legacy numbers.</summary>
     internal const string NumberFormat = "Use the form ORD-2026-0001 for the order number.";
 
+    /// <summary>The message for a history row that moves to the status the order was already in.</summary>
+    internal const string HistoryNoChange = "A status change must move to a different status.";
+
+    /// <summary>The message for a history row that does not start in the status the row before it ended in.</summary>
+    internal const string HistoryNotChained = "Start this change in the status the last change ended in.";
+
+    /// <summary>The message for a history row dated before the row above it.</summary>
+    internal const string HistoryOutOfOrder = "List the status changes oldest first.";
+
+    /// <summary>The message for a history whose last row is not the order's current status.</summary>
+    internal const string HistoryEndsElsewhere = "The last status change must end in the order's current status.";
+
     /// <summary>
     /// Checks and cleans a legacy order, returning the first broken rule. Text is trimmed and empty optional text becomes null, as on
     /// any other order. Rules that need the figures (the balance, the discount cap, Completed with a balance) are judged by the order
@@ -101,7 +113,7 @@ internal static class OrderImportChecks
             return Result.Failure<OrderImportSnapshot>(expenses.Error);
         }
 
-        var history = CheckHistory(snapshot.StatusHistory, rules);
+        var history = CheckHistory(snapshot.StatusHistory, snapshot.Status, rules);
         if (history.IsFailure)
         {
             return Result.Failure<OrderImportSnapshot>(history.Error);
@@ -187,9 +199,10 @@ internal static class OrderImportChecks
             error.FieldErrors!.ToDictionary(pair => $"{RefundsField}[{index}].{pair.Key}", static pair => pair.Value)));
     }
 
-    // Every status must be one of the seven. Unless the rules allow any history, each move must be one the status rules allow;
-    // the balance is not known per row, so the move is judged as if nothing were owed.
-    private static Result<bool> CheckHistory(IReadOnlyList<ImportedStatusChange> history, OrderImportRules rules)
+    // Every status must be one of the seven. Unless the rules allow any history, each move must be one the status rules allow
+    // (judged as if nothing were owed, since the balance is not known per row), and the rows must chain, run in time order and
+    // end in the order's status. Phase 7.1 decides whether the default rules relax any of this.
+    private static Result<bool> CheckHistory(IReadOnlyList<ImportedStatusChange> history, OrderStatus status, OrderImportRules rules)
     {
         for (var index = 0; index < history.Count; index++)
         {
@@ -212,9 +225,37 @@ internal static class OrderImportChecks
                 {
                     return OrderRules.Reject<bool>(path, move.Error.Message);
                 }
+
+                if (move.Value == OrderStatusMove.NoChange)
+                {
+                    return OrderRules.Reject<bool>(path, HistoryNoChange);
+                }
             }
         }
 
-        return Result.Success(true);
+        return rules.AllowAnyStatusHistory ? Result.Success(true) : CheckHistoryAgrees(history, status);
+    }
+
+    // The rows chain (each starts where the one before ended, so only the first may have no earlier status), run in time order
+    // and end in the order's current status.
+    private static Result<bool> CheckHistoryAgrees(IReadOnlyList<ImportedStatusChange> history, OrderStatus status)
+    {
+        for (var index = 1; index < history.Count; index++)
+        {
+            var path = $"{StatusHistoryField}[{index}]";
+            if (history[index].FromStatus != history[index - 1].ToStatus)
+            {
+                return OrderRules.Reject<bool>($"{path}.fromStatus", HistoryNotChained);
+            }
+
+            if (history[index].ChangedAtUtc < history[index - 1].ChangedAtUtc)
+            {
+                return OrderRules.Reject<bool>($"{path}.changedAtUtc", HistoryOutOfOrder);
+            }
+        }
+
+        return history.Count > 0 && history[^1].ToStatus != status
+            ? OrderRules.Reject<bool>($"{StatusHistoryField}[{history.Count - 1}].toStatus", HistoryEndsElsewhere)
+            : Result.Success(true);
     }
 }
