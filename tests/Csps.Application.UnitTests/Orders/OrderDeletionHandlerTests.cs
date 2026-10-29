@@ -154,6 +154,18 @@ public sealed class OrderDeletionHandlerTests
         harness.Unit.Commits.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task PermanentADeadlockThatEndedTheOuterTransactionIsNotRetried()
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new ConcurrencyConflictException(new InvalidOperationException("A deadlock victim."), outerTransactionEnded: true));
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(EditErrors.Stale);
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
     // Notes, for every entry, whether the remove and the save had already happened when it was recorded.
     private sealed class OrderAudit(IOrders orders, FakeUnitOfWork unit) : IAuditTrail
     {

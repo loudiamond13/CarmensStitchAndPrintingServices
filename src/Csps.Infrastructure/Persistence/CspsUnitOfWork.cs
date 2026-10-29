@@ -81,6 +81,12 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
         {
             result = await work(cancellationToken).ConfigureAwait(false);
         }
+        catch (ConcurrencyConflictException conflict) when (IsDeadlockVictim(conflict))
+        {
+            // The server rolled the whole transaction back, so no savepoint is left to go back to. The caller answers the lost race
+            // and the gate ends its lease.
+            throw new ConcurrencyConflictException(conflict.InnerException ?? conflict, outerTransactionEnded: true);
+        }
         catch
         {
             // A failed rollback replaces the original error, so no retry runs on a transaction in an unknown state.
