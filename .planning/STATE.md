@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
-stopped_at: Completed 07.1-08-PLAN.md
-last_updated: "2026-10-29T14:59:25.246Z"
+stopped_at: Completed 07.1-09-PLAN.md
+last_updated: "2026-10-29T15:35:10.080Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07.1 execution started
-state_head: 9c531c48ce40d285d8c3fccb422b1df5378b9125
+state_head: 256b2e0b14857fd987895451d583eb2d23d2aefa
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 219
-  completed_plans: 215
+  completed_plans: 216
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T18:00:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
-Plan: 9 of 12
+Plan: 10 of 12
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 07.1 execution started
 
@@ -274,6 +274,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P06 | 19 min | 3 tasks | 9 files |
 | Phase 07.1 P07 | 20 min | 2 tasks | 7 files |
 | Phase 07.1 P08 | 25 min | 2 tasks | 8 files |
+| Phase 07.1 P09 | 26 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -766,6 +767,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1]: 07.1-06: a discount above the subtotal also shows AllowOverpaid (negative balance); recorded as an open note for the D-10 session, not filtered
 - [Phase 07.1]: 07.1-07: trial import success key is trial.imported; year counters are one Info trial.counter-lifted per year with the value only in Detail; trial database removal is confirmed by name after the drop in finally
 - [Phase 07.1]: ExpenseRule findings use the rule key '{field}: {Phase 6 message}' with the field as the path; plan 09 groups company expense findings by it
+- [Phase 07.1]: Plan 07.1-09: the full findings file is written before the summary self-check and stays when the self-check refuses; a refusal exits 1 with fixed text and writes no summary
+- [Phase 07.1]: Plan 07.1-09: D-87 built as rule key expense.unplaced (CannotMap, RecordKind.UnplacedExpense), counts only; summary line 'Expenses with no order and not marked as company expenses (counted only, not judged)'
 
 ### Pending Todos
 
@@ -868,6 +871,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T14:59:24.329Z
-Stopped at: Completed 07.1-08-PLAN.md
+Last session: 2026-10-29T15:35:08.616Z
+Stopped at: Completed 07.1-09-PLAN.md
 Resume file: None
