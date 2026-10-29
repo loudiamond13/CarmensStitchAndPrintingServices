@@ -10,7 +10,16 @@ namespace Csps.LegacyFitCheck.Mapping;
 /// <param name="LegacyKey">The legacy table and id.</param>
 /// <param name="Snapshot">The order ready for the import handler, or null.</param>
 /// <param name="Findings">What the mapping found.</param>
-internal sealed record MappedOrder(string LegacyKey, OrderImportSnapshot? Snapshot, IReadOnlyList<Finding> Findings);
+/// <param name="StoredTotals">The totals the legacy order stores, or null when the order was not mapped.</param>
+internal sealed record MappedOrder(string LegacyKey, OrderImportSnapshot? Snapshot, IReadOnlyList<Finding> Findings, LegacyStoredTotals? StoredTotals = null);
+
+/// <summary>The money totals a legacy order stores, kept to compare with the CSPS math (D-08).</summary>
+/// <param name="TotalAmount">The stored total after discounts; null when the order stores none.</param>
+/// <param name="TotalDiscount">The stored discount total.</param>
+/// <param name="PaidAmount">The stored paid amount.</param>
+/// <param name="TotalBalance">The stored balance.</param>
+/// <param name="TotalExpenses">The stored expenses total.</param>
+internal sealed record LegacyStoredTotals(decimal? TotalAmount, decimal TotalDiscount, decimal PaidAmount, decimal TotalBalance, decimal TotalExpenses);
 
 /// <summary>The rows that hang off one legacy order.</summary>
 /// <param name="Items">The order items.</param>
@@ -105,7 +114,7 @@ internal static class DraftMapping
             Expenses = MapExpenses(parts.Expenses, people, findings),
         };
 
-        return new MappedOrder(key, snapshot, findings);
+        return new MappedOrder(key, snapshot, findings, new LegacyStoredTotals(order.TotalAmount, order.TotalDiscount, order.PaidAmount, order.TotalBalance, order.TotalExpenses));
     }
 
     private static List<NewOrderItem> MapItems(IReadOnlyList<LegacyOrderItemRow> rows, ProductTypeMatch productType, string? typeName, List<Finding> findings)

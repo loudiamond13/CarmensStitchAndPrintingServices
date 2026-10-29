@@ -52,6 +52,10 @@ internal static class FitCheckRunner
             foreach (var order in mapped.Where(static order => order.Snapshot is not null))
             {
                 findings.AddRange(OrderRuleProbe.Probe(order.LegacyKey, order.Snapshot!, clock.UtcNow, clock.Today));
+                if (order.StoredTotals is { } stored)
+                {
+                    findings.AddRange(TotalsComparer.Check(order.LegacyKey, order.Snapshot!, stored, clock.UtcNow, clock.Today));
+                }
             }
 
             findings.Add(EvidenceFinding(read.Before));
