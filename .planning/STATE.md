@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-10-29T22:33:26.908Z"
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-10-29T22:48:37.825Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: e61d2014c72e7e3923fc61939b88754968877af2
+state_head: ff12e431a94cd07489da4c0a5f866410ff5c038f
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 222
+  completed_plans: 223
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T14:28:12-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 4 of 24
+Plan: 5 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -282,6 +282,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P01 | 35 min | 2 tasks | 26 files |
 | Phase 08 P02 | 27 min | 3 tasks | 17 files |
 | Phase 08 P03 | 13 min | 3 tasks | 7 files |
+| Phase 08 P04 | 20 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -806,6 +807,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-02: the credit block is info-soft on the panel and neutral with a Credit badge on the card; the create-form preview turns an overpayment into a credit
 - [Phase 08]: 08-03: ConfirmDialog describeFailure keeps title-and-body and also accepts a sentence or null; no existing caller changed
 - [Phase 08]: 08-03: jsdom scrollIntoView no-op lives once in web/src/test/setup.ts
+- [Phase 08]: 08-04: ListEntrySelect reads its query hook from a list config map; ExpenseCategorySelect is a thin wrapper
 
 ### Pending Todos
 
@@ -910,6 +912,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T22:33:18.957Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-10-29T22:48:36.835Z
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None
