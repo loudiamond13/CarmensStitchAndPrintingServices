@@ -1,6 +1,6 @@
 # Guide: running the legacy fit check
 
-*Created: 2026-10-29T10:30:00-05:00 · Updated: 2026-10-29T12:45:00-05:00*
+*Created: 2026-10-29T10:30:00-05:00 · Updated: 2026-10-29T12:50:00-05:00*
 
 The legacy fit check (Phase 7.1) answers one question before Phase 8 builds on the order rules: which legacy records break the CSPS order and expense rules? It lists them. It changes nothing. This page says what it reads, what it writes, how to run it, and what to do with its two output files.
 
@@ -44,7 +44,7 @@ It takes no arguments. Any argument is refused with a usage message.
 | Exit code | Meaning |
 |---|---|
 | 0 | Done. Both files were written. |
-| 1 | Failed. The restore changed during the run, the trial database could not be removed, the summary held a personal value, or something threw. The message names the kind of failure only. |
+| 1 | Failed. The restore changed during the run, a mapped column is missing from the restore (the full list then holds only the column findings and no table is read), the trial database could not be removed, the summary held a personal value, or something threw. The message names the kind of failure only. |
 | 2 | Refused. The source or the trial server is not one the tool may use. Nothing was created. |
 | 64 | Usage error. Arguments were given. |
 

@@ -67,6 +67,16 @@ internal static class FitCheckRunner
                 return Program.Failed;
             }
 
+            var inventory = ColumnInventory.Check(read.Columns);
+            if (inventory.Missing > 0)
+            {
+                // Drift (D-05): no table was read, so the full list holds the column findings only.
+                var driftPath = await FindingsWriter.WriteAsync(localRoot, [.. inventory.Findings, EvidenceFinding(read.Before), InventoryFinding(inventory)], time, cancellationToken).ConfigureAwait(false);
+                await output.WriteLineAsync($"Full list (never commit): {driftPath}").ConfigureAwait(false);
+                await error.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Failed: mapped columns missing from the restore: {inventory.Missing}. No table was read.")).ConfigureAwait(false);
+                return Program.Failed;
+            }
+
             var mapped = read.Orders;
             var findings = mapped.SelectMany(static order => order.Findings).ToList();
             var clock = await new ToolCalendar(time).GetClockAsync(cancellationToken).ConfigureAwait(false);
@@ -82,7 +92,6 @@ internal static class FitCheckRunner
             findings.AddRange(read.CompanyExpenses.SelectMany(static expense => expense.Findings));
             findings.AddRange(read.CountedOnlyExpenses);
             findings.Add(EvidenceFinding(read.Before));
-            var inventory = ColumnInventory.Check(read.Columns);
             findings.AddRange(inventory.Findings);
             findings.Add(InventoryFinding(inventory));
 
@@ -198,6 +207,15 @@ internal static class FitCheckRunner
     private static async Task<ReadResult> ReadWindowAsync(LegacyDbContext source, FitCheckHooks? hooks, CancellationToken cancellationToken)
     {
         var before = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
+
+        // The column list comes first: a mapped column the restore lacks would make every table query below fail.
+        var columns = await source.Columns.Where(static column => column.TableSchema == "dbo").ToListAsync(cancellationToken).ConfigureAwait(false);
+        if (ColumnInventory.Check(columns).Missing > 0)
+        {
+            var unchanged = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
+            return new ReadResult([], [], [], [], columns, before, unchanged, [], [], new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        }
+
         var types = await source.OrderTypes.ToDictionaryAsync(static row => row.OrderTypeId, static row => row.OrderTypeName, cancellationToken).ConfigureAwait(false);
         var statuses = await source.Statuses.ToDictionaryAsync(static row => row.StatusId, static row => row.StatusName, cancellationToken).ConfigureAwait(false);
         var orders = await source.Orders.OrderBy(static row => row.OrderId).ToListAsync(cancellationToken).ConfigureAwait(false);
@@ -225,7 +243,6 @@ internal static class FitCheckRunner
             .Select(order => DraftMapping.MapOrder(order, new LegacyOrderParts([.. items[order.OrderId]], [.. discounts[order.OrderId]], [.. payments[order.OrderId]], [.. expenses[order.OrderId]]), types, statuses, lists, people))
             .ToList();
         var companyExpenses = companyRows.Select(row => DraftMapping.MapCompanyExpense(row, people)).ToList();
-        var columns = await source.Columns.Where(static column => column.TableSchema == "dbo").ToListAsync(cancellationToken).ConfigureAwait(false);
 
         if (hooks?.BetweenEvidence is { } between)
         {
