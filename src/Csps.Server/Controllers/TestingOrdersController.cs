@@ -91,6 +91,15 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
         request ??= new TestingOrderRequest();
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var broken = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        RejectNullMembers(broken, OrderRules.ItemsField, request.Items);
+        RejectNullMembers(broken, OrderRules.DiscountsField, request.Discounts);
+        RejectNullMembers(broken, OrderRules.PaymentsField, request.Payments);
+        RejectNullMembers(broken, OrderRules.ExpensesField, request.Expenses);
+        if (broken.Count > 0)
+        {
+            return Rejected(OrderRules.InvalidMessage, broken);
+        }
+
         var status = OrderStatus.Pending;
         if (request.Status is not null && !OrderStatusNames.TryParse(request.Status, out status))
         {
@@ -141,6 +150,16 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
 
         var result = await import.HandleAsync(ToSnapshot(request, status, orderDate, dueDate), OrderImportRules.Default, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static id => TypedResults.Json(new TestingOrderCreated(id), JsonOptions, statusCode: StatusCodes.Status201Created));
+    }
+
+    // A body such as {"payments":[null]} deserializes, so a null member is turned away here, on its list.
+    private static void RejectNullMembers<T>(Dictionary<string, string[]> broken, string field, IReadOnlyList<T>? members)
+        where T : class
+    {
+        if (members is not null && members.Any(static member => member is null))
+        {
+            broken[field] = [OrderRules.InvalidMessage];
+        }
     }
 
     private static OrderImportSnapshot ToSnapshot(TestingOrderRequest request, OrderStatus status, DateOnly orderDate, DateOnly? dueDate) => new(
