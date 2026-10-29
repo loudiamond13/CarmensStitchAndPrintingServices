@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-29T05:45:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-29T14:08:00-05:00*
 
 ## What This Is
 
@@ -188,7 +188,7 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-16 | Staff balance rules: may a transfer exceed the sender's balance; may paying an expense take the payer's balance below zero; what happens when a payment correction or order deletion pushes a balance below zero; do refunds paid from a staff member's cash count; how is money still held by a deactivated or deleted staff member handed over? | Not covered. Ruled 2026-10-07: expenses a staff member paid always count (MONEY-01). Defaults: refuse transfers above the balance; let an expense take the payer below zero, because refusing would leave a real expense unrecorded; refunds don't count; the sender is always the signed-in user | Phase 10 |
 | OD-17 | Can a money transfer be edited? | Not covered. Default: no edit; delete and re-create | Phase 10 |
 | OD-18 | Money-transfer delete: soft or hard | Not covered. Recommended: soft, so history stays and past balances stay explainable. A hard delete changes past balances, and its audit copy is purged after 8 months (D-32) | Phase 10 |
-| OD-20 | Payment field label: "Received by" or "Paid to" | The UI-spec payment modal has no such field (SPEC-GAP) | Phase 8 |
+| OD-20 | Payment field label: "Received by" or "Paid to" | The UI-spec payment modal has no such field (SPEC-GAP). **Ruled (owner, 2026-10-29; 08 D-09): "Received by".** C-13 labels ruled too (08 D-01: Subtotal, Discount, Total, Paid, Balance on screen), and C-18 for Phase 8 (08 D-06: profit on the order page only) | ✓ Owner decided (2026-10-29) |
 | OD-21 | Can an expense (company or order) be paid by the company, e.g. from the business bank or GCash account, instead of a staff member? | Not covered (owner addition, 2026-10-07). Default: no; Paid by must name an active Admin or Manager, matching the payment's Received by (ORD-22). A "yes" adds a company payer that holds no staff balance, and raises the same question for payments received into a company account. **Ruled (owner, 2026-10-25; 06 D-17): no.** Paid by is always an active Admin or Manager; Phase 7 applies the same rule to order expenses | ✓ Owner decided (2026-10-25) |
 
 ## PRD ↔ UI-Spec Conflicts (found at initialization; the owner rules at the relevant phase)

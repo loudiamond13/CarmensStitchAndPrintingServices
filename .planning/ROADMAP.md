@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-29T07:40:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-29T14:08:00-05:00*
 
 ## Overview
 
@@ -904,6 +904,8 @@ Plans:
      - The order header and every add/edit modal show a read-only "Recorded by" and, once changed, "Last changed by" (SEC-08). On a payment, Received by is who took the money and Recorded by is who entered it.
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
+
+*Notes (owner decisions, Phase 8 discuss 2026-10-29; the criteria text above is unchanged):* criterion 5 is superseded by 07 D-26 to D-28 and 08 D-21 to D-24: a normal delete is a soft delete with a Yes/Cancel confirm that shows the child counts; only a Manager's permanent delete, from the Deleted orders page, requires typing the order number and removes the rows in one transaction. Criterion 3's label for the payment receiver is "Received by" (OD-20, 08 D-09). See `phases/08-order-screens/08-CONTEXT.md`.
 
 **Owner decisions to close at discuss step:**
 - **C-13** on-screen labels for Total, Discount and Balance
