@@ -574,6 +574,20 @@ public sealed class OrderListEntryHandlerTests
     }
 
     [Fact]
+    public void ADescriptorOfAnUnknownListRefusesInsteadOfActingAsTheOrderExpenseCategories()
+    {
+        var unknown = new OrderListDescriptor((OrderListKind)9, "unknown", "Unknown", "thing");
+
+        Should.Throw<ArgumentOutOfRangeException>(() => unknown.AddedAction);
+        Should.Throw<ArgumentOutOfRangeException>(() => unknown.RenamedAction);
+        Should.Throw<ArgumentOutOfRangeException>(() => unknown.RecoloredAction);
+        Should.Throw<ArgumentOutOfRangeException>(() => unknown.RetiredAction);
+        Should.Throw<ArgumentOutOfRangeException>(() => unknown.ReactivatedAction);
+        Should.Throw<ArgumentOutOfRangeException>(() => unknown.DeletedAction);
+        Should.Throw<ArgumentOutOfRangeException>(() => unknown.CreateEntry("Sample", "info", Now));
+    }
+
+    [Fact]
     public async Task TheAuditActionsOfEachListFollowItsNameAndTargetType()
     {
         foreach (var (kind, prefix, target) in new[]
