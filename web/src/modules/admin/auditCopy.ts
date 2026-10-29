@@ -136,6 +136,13 @@ export const AUDIT_ACTION_CODES: readonly string[] = AUDIT_ACTIONS.map((action) 
 
 const LABELS: ReadonlyMap<string, string> = new Map(AUDIT_ACTIONS.map((action) => [action.code, action.label]));
 
+const GROUP_OF: ReadonlyMap<string, AuditGroup> = new Map(AUDIT_ACTIONS.map((action) => [action.code, action.group]));
+
+/** The group an action belongs to, or null for a code the viewer does not know. */
+export function auditActionGroup(code: string): AuditGroup | null {
+  return GROUP_OF.get(code) ?? null;
+}
+
 /** The plain-English label of an action, or the key itself when the viewer does not know it (a newer server). */
 export function auditActionLabel(code: string): string {
   return LABELS.get(code) ?? code;
@@ -514,6 +521,8 @@ export const AUDIT_COPY = {
     to: 'To',
     doneBy: 'Done by',
     anyone: 'Anyone',
+    group: 'Group',
+    allGroups: 'All groups',
     action: 'Action',
     allActions: 'All actions',
     doneTo: 'Done to',

@@ -1049,3 +1049,137 @@ describe('A1 order entries (D-31)', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+const GROUP_NAMES = [
+  'Sign-in and security',
+  'Staff accounts',
+  'Profile changes',
+  'Company expenses',
+  'Expense categories',
+  'Orders',
+  'Order lists',
+];
+
+function optionTexts(select: HTMLElement): (string | null)[] {
+  return [...within(select).getAllByRole('option')].map((option) => option.textContent);
+}
+
+describe('A1 the Group select (D-80)', () => {
+  it('sits before Action, lists All groups then the seven groups, and starts at All groups', async () => {
+    backend();
+    await openPage();
+
+    const group = screen.getByLabelText('Group');
+    expect(optionTexts(group)).toEqual(['All groups', ...GROUP_NAMES]);
+    expect(group).toHaveValue('');
+    expect(
+      group.compareDocumentPosition(screen.getByLabelText('Action')) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('shortens the Action list to the group, with no URL change and no group in the request', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('', onUrlUpdate);
+    const before = calls.length;
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'Company expenses');
+
+    const action = screen.getByLabelText('Action');
+    expect(optionTexts(action)).toEqual([
+      'All actions',
+      'Expense added',
+      'Expense changed',
+      'Expense payer changed',
+      'Expense deleted',
+      'Expense restored',
+      'Expense permanently deleted',
+    ]);
+    expect(
+      within(action)
+        .getAllByRole('group')
+        .map((item) => item.getAttribute('label')),
+    ).toEqual(['Company expenses']);
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(before);
+    expect(calls.every((call) => !call.searchParams.has('group'))).toBe(true);
+
+    await user.selectOptions(action, 'Expense added');
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ action: 'company-expense.added' });
+    });
+    expect(calls.every((call) => !call.searchParams.has('group'))).toBe(true);
+  });
+
+  it('keeps the chosen action when the picked group holds it', async () => {
+    backend();
+    const user = userEvent.setup();
+    await openPage('?action=user.deactivated');
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'Staff accounts');
+
+    expect(screen.getByLabelText('Action')).toHaveValue('user.deactivated');
+    expect(screen.getByText('Action: User deactivated')).toBeInTheDocument();
+  });
+
+  it('clears the chosen action when the picked group does not hold it', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('?action=user.deactivated', onUrlUpdate);
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'Orders');
+
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('');
+    });
+    expect(screen.queryByText('Action: User deactivated')).toBeNull();
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.has('action')).toBe(false);
+    });
+    const action = screen.getByLabelText('Action');
+    expect(action).toHaveValue('');
+    const texts = optionTexts(action);
+    expect(texts).toContain('Order created');
+    expect(texts).toContain('Order payment receiver changed');
+    expect(texts).not.toContain('User deactivated');
+  });
+
+  it('keeps the action and lists every group again when All groups is picked', async () => {
+    backend();
+    const user = userEvent.setup();
+    await openPage('?action=user.deactivated');
+    await user.selectOptions(screen.getByLabelText('Group'), 'Staff accounts');
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'All groups');
+
+    const action = screen.getByLabelText('Action');
+    expect(action).toHaveValue('user.deactivated');
+    expect(within(action).getAllByRole('group')).toHaveLength(GROUP_NAMES.length);
+  });
+
+  it('puts Group back to All groups with Clear Filters', async () => {
+    backend([]);
+    const user = userEvent.setup();
+    renderPage('?action=user.deleted');
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Group'), 'Staff accounts');
+
+    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Group')).toHaveValue('');
+    });
+  });
+
+  it('has no axe violations with a group picked and the shorter Action list', async () => {
+    vi.useRealTimers();
+    backend();
+    const user = userEvent.setup();
+    const { container } = await openPage();
+    await user.selectOptions(screen.getByLabelText('Group'), 'Orders');
+
+    await expectNoAxeViolations(container);
+  });
+});

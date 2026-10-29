@@ -4,6 +4,7 @@ import {
   AUDIT_ACTION_CODES,
   AUDIT_DETAIL_SENTENCES,
   AUDIT_GROUPS,
+  auditActionGroup,
   auditActionLabel,
   describeAuditChange,
   describeAuditDetail,
@@ -198,6 +199,13 @@ describe('the action labels (D-28)', () => {
 
   it('shows the key itself when the action is unknown', () => {
     expect(auditActionLabel('orders.archived')).toBe('orders.archived');
+  });
+
+  it('gives the group of an action code, and null for a code it does not know (D-80)', () => {
+    expect(auditActionGroup('order-item.added')).toBe('Orders');
+    expect(auditActionGroup('user.deactivated')).toBe('Staff accounts');
+    expect(auditActionGroup('product-type.retired')).toBe('Order lists');
+    expect(auditActionGroup('orders.archived')).toBeNull();
   });
 
   it('never repeats a label, so two actions cannot read the same', () => {
