@@ -6,7 +6,7 @@
 // `aria-controls` naming its panel (callers render the panel with getTabPanelProps(idBase, id), so the new `idBase`
 // prop is required), a roving tabIndex (only the selected tab is in the Tab order), Right/Left move and select with
 // wrap, and Home/End jump to the first and last tab (automatic activation). App. D.3 had role and aria-selected only.
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { tabClasses, tabCountClasses, tabListClasses } from './choice.recipe';
 import { rovingItem } from './roving';
 
@@ -52,6 +52,22 @@ export function Tabs<I extends string = string>({ items, value, onChange, idBase
   const current = value ?? inner;
   // The tab in the Tab order: the selected one, or the first when none is selected.
   const focusable = items.some((item) => item.id === current) ? current : items[0]?.id;
+  const selectedIndex = items.findIndex((item) => item.id === current);
+  const shownIndex = useRef(selectedIndex);
+
+  // D-34: a tab chosen after mount scrolls into view inside the sideways strip; the first render never scrolls.
+  useEffect(() => {
+    if (shownIndex.current === selectedIndex) {
+      return;
+    }
+    shownIndex.current = selectedIndex;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    tabs.current[selectedIndex]?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: reduce ? 'auto' : 'smooth',
+    });
+  }, [selectedIndex]);
 
   const select = (next: I): void => {
     setInner(next);
