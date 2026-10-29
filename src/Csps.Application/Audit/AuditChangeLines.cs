@@ -5,12 +5,18 @@ using Csps.Domain.Auditing;
 
 namespace Csps.Application.Audit;
 
-/// <summary>One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed.</summary>
-/// <param name="Field">One of <c>amount</c>, <c>date</c>, <c>category</c>, <c>payer</c>, <c>description</c>, <c>notes</c>, <c>name</c> or <c>tone</c>.</param>
-/// <param name="From">The old value (an amount as <c>0.00</c>, a date as <c>yyyy-MM-dd</c>, a category name, a tone); null when there is none.</param>
+/// <summary>One "What changed" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed.</summary>
+/// <param name="Field">
+/// One of <c>amount</c>, <c>date</c>, <c>category</c>, <c>name</c>, <c>tone</c>, <c>description</c>, <c>notes</c> or the order fields
+/// <c>method</c>, <c>receiver</c>, <c>payer</c> and <c>refunder</c>.
+/// </param>
+/// <param name="From">
+/// The old value (an amount as <c>0.00</c>, a date as <c>yyyy-MM-dd</c>, a list entry name, a tone); null when there is none. A line that
+/// states a value as it was added or removed has no old value.
+/// </param>
 /// <param name="To">The new value; null when there is none or the field is a text field.</param>
-/// <param name="FromPerson">For <c>payer</c>: the old payer.</param>
-/// <param name="ToPerson">For <c>payer</c>: the new payer.</param>
+/// <param name="FromPerson">For <c>payer</c>, <c>receiver</c> and <c>refunder</c>: the old person.</param>
+/// <param name="ToPerson">For <c>payer</c>, <c>receiver</c> and <c>refunder</c>: the new person.</param>
 public sealed record AuditChangeLine(string Field, string? From, string? To, ActorRef? FromPerson, ActorRef? ToPerson);
 
 /// <summary>The facts of an expense as an entry saw it: added, deleted, restored or permanently deleted.</summary>
@@ -46,15 +52,9 @@ public sealed record ParsedAuditChanges(IReadOnlyList<ParsedAuditChange> Lines, 
     /// <returns>The ids, possibly repeated.</returns>
     public IEnumerable<Guid> CategoryIds()
     {
-        foreach (var line in Lines.Where(line => line.Field == AuditChangeLines.CategoryField))
+        foreach (var id in IdsOf(AuditChangeLines.CategoryField))
         {
-            foreach (var value in new[] { line.From, line.To })
-            {
-                if (AuditChangeLines.TryReadId(value, out var id))
-                {
-                    yield return id;
-                }
-            }
+            yield return id;
         }
 
         if (Snapshot?.CategoryId is { } snapshotCategory)
@@ -63,19 +63,17 @@ public sealed record ParsedAuditChanges(IReadOnlyList<ParsedAuditChange> Lines, 
         }
     }
 
+    /// <summary>The payment method ids the lines name.</summary>
+    /// <returns>The ids, possibly repeated.</returns>
+    public IEnumerable<Guid> PaymentMethodIds() => IdsOf(AuditChangeLines.MethodField);
+
     /// <summary>The people ids the lines, the snapshot and Done to name.</summary>
     /// <returns>The ids, possibly repeated.</returns>
     public IEnumerable<Guid> PersonIds()
     {
-        foreach (var line in Lines.Where(line => line.Field == AuditChangeLines.PayerField))
+        foreach (var id in AuditChangeLines.PersonFields.SelectMany(IdsOf))
         {
-            foreach (var value in new[] { line.From, line.To })
-            {
-                if (AuditChangeLines.TryReadId(value, out var id))
-                {
-                    yield return id;
-                }
-            }
+            yield return id;
         }
 
         if (Snapshot?.PayerId is { } snapshotPayer)
@@ -86,6 +84,20 @@ public sealed record ParsedAuditChanges(IReadOnlyList<ParsedAuditChange> Lines, 
         if (PayerId is { } payer)
         {
             yield return payer;
+        }
+    }
+
+    private IEnumerable<Guid> IdsOf(string field)
+    {
+        foreach (var line in Lines.Where(line => line.Field == field))
+        {
+            foreach (var value in new[] { line.From, line.To })
+            {
+                if (AuditChangeLines.TryReadId(value, out var id))
+                {
+                    yield return id;
+                }
+            }
         }
     }
 }
@@ -99,6 +111,9 @@ public static class AuditChangeLines
 {
     internal const string CategoryField = "category";
     internal const string PayerField = "payer";
+    internal const string ReceiverField = "receiver";
+    internal const string RefunderField = "refunder";
+    internal const string MethodField = "method";
 
     private const string AmountField = "amount";
     private const string DateField = "date";
@@ -106,7 +121,11 @@ public static class AuditChangeLines
     private const string ToneField = "tone";
     private const string FieldsKey = "fields";
     private const string DateFormat = "yyyy-MM-dd";
-    private static readonly string[] TextFields = ["description", "notes"];
+    private static readonly string[] ExpenseTextFields = ["description", "notes"];
+    private static readonly string[] OrderTextFields = ["description", "notes", "reference"];
+
+    /// <summary>The line fields that name a person by id.</summary>
+    internal static readonly string[] PersonFields = [PayerField, ReceiverField, RefunderField];
 
     /// <summary>Parses the detail of an entry.</summary>
     /// <param name="action">The action code.</param>
@@ -135,6 +154,24 @@ public static class AuditChangeLines
                 or AuditActions.ExpenseCategoryRetired
                 or AuditActions.ExpenseCategoryReactivated
                 or AuditActions.ExpenseCategoryDeleted => ReadCategory(detail),
+            AuditActions.OrderItemAdded
+                or AuditActions.OrderItemRemoved
+                or AuditActions.OrderPaymentAdded
+                or AuditActions.OrderPaymentRemoved
+                or AuditActions.OrderRefundAdded
+                or AuditActions.OrderRefundRemoved
+                or AuditActions.OrderDiscountAdded
+                or AuditActions.OrderDiscountRemoved
+                or AuditActions.OrderExpenseAdded
+                or AuditActions.OrderExpenseRemoved => ReadOrder(detail, single: true),
+            AuditActions.OrderItemChanged
+                or AuditActions.OrderPaymentChanged
+                or AuditActions.OrderPaymentReceiverChanged
+                or AuditActions.OrderRefundChanged
+                or AuditActions.OrderRefundRefunderChanged
+                or AuditActions.OrderDiscountChanged
+                or AuditActions.OrderExpenseChanged
+                or AuditActions.OrderExpensePayerChanged => ReadOrder(detail, single: false),
             _ => ParsedAuditChanges.None,
         };
     }
@@ -143,16 +180,20 @@ public static class AuditChangeLines
     /// <param name="parsed">The parsed detail.</param>
     /// <param name="categories">Current category names by id; a missing id means the category is gone.</param>
     /// <param name="person">Looks a person up by id.</param>
+    /// <param name="methods">Current payment method names by id, retired ones included; null when there are none to look up.</param>
     /// <returns>The lines and the snapshot.</returns>
     public static (IReadOnlyList<AuditChangeLine> Lines, AuditExpenseSnapshot? Snapshot) Resolve(
-        ParsedAuditChanges parsed, IReadOnlyDictionary<Guid, string> categories, Func<Guid?, ActorRef?> person)
+        ParsedAuditChanges parsed,
+        IReadOnlyDictionary<Guid, string> categories,
+        Func<Guid?, ActorRef?> person,
+        IReadOnlyDictionary<Guid, string>? methods = null)
     {
         ArgumentNullException.ThrowIfNull(parsed);
         ArgumentNullException.ThrowIfNull(categories);
         ArgumentNullException.ThrowIfNull(person);
 
-        string? CategoryName(string? id) =>
-            TryReadId(id, out var key) && categories.TryGetValue(key, out var name) ? name : null;
+        string? NameOf(IReadOnlyDictionary<Guid, string>? names, string? id) =>
+            names is not null && TryReadId(id, out var key) && names.TryGetValue(key, out var name) ? name : null;
 
         Guid? IdOf(string? id) => TryReadId(id, out var key) ? key : null;
 
@@ -160,8 +201,10 @@ public static class AuditChangeLines
         [
             .. parsed.Lines.Select(line => line.Field switch
             {
-                CategoryField => new AuditChangeLine(line.Field, CategoryName(line.From), CategoryName(line.To), null, null),
-                PayerField => new AuditChangeLine(line.Field, null, null, person(IdOf(line.From)), person(IdOf(line.To))),
+                CategoryField => new AuditChangeLine(line.Field, NameOf(categories, line.From), NameOf(categories, line.To), null, null),
+                MethodField => new AuditChangeLine(line.Field, NameOf(methods, line.From), NameOf(methods, line.To), null, null),
+                PayerField or ReceiverField or RefunderField =>
+                    new AuditChangeLine(line.Field, null, null, person(IdOf(line.From)), person(IdOf(line.To))),
                 _ => new AuditChangeLine(line.Field, line.From, line.To, null, null),
             }),
         ];
@@ -230,7 +273,7 @@ public static class AuditChangeLines
                     lines.Add(new ParsedAuditChange(part.Key, from.ToString("D"), to.ToString("D")));
                     break;
                 case FieldsKey when part.From is null:
-                    foreach (var field in part.To.Split(',').Where(field => TextFields.Contains(field)).Distinct())
+                    foreach (var field in part.To.Split(',').Where(field => ExpenseTextFields.Contains(field)).Distinct())
                     {
                         lines.Add(new ParsedAuditChange(field, null, null));
                     }
@@ -267,6 +310,57 @@ public static class AuditChangeLines
         ];
         return Build(lines, null, null);
     }
+
+    // An order child entry. A single entry (added, removed) states each value as it is; an edit entry holds old>new only where a value
+    // changed, then fields=<names of the text fields that changed>. Singles inside an edit are the unchanged current values and are left out.
+    private static ParsedAuditChanges ReadOrder(string detail, bool single)
+    {
+        List<ParsedAuditChange> lines = [];
+        foreach (var part in AuditDetailFormat.Parse(detail))
+        {
+            if (part.Key == FieldsKey)
+            {
+                if (part.From is null)
+                {
+                    lines.AddRange(TextLines(part.To, OrderTextFields));
+                }
+
+                continue;
+            }
+
+            if ((part.From is null) != single || OrderFieldOf(part.Key) is not { } field)
+            {
+                continue;
+            }
+
+            var to = NormalizeOrderValue(part.Key, part.To);
+            var from = single ? null : NormalizeOrderValue(part.Key, part.From);
+            if (to is not null && (single || from is not null))
+            {
+                lines.Add(new ParsedAuditChange(field, from, to));
+            }
+        }
+
+        return Build(lines, null, null);
+    }
+
+    // The line field of a detail key, or null for a key the viewer does not show.
+    private static string? OrderFieldOf(string key) => key switch
+    {
+        DateField or AmountField or MethodField or ReceiverField or PayerField or RefunderField => key,
+        _ => null,
+    };
+
+    // The value in the form the writer gives it, or null when it has another shape.
+    private static string? NormalizeOrderValue(string key, string? text) => key switch
+    {
+        DateField => TryReadDate(text, out _) ? text : null,
+        AmountField => TryReadAmount(text, out _) ? text : null,
+        _ => TryReadId(text, out var id) ? id.ToString("D") : null,
+    };
+
+    private static IEnumerable<ParsedAuditChange> TextLines(string list, string[] allowed) =>
+        list.Split(',').Where(allowed.Contains).Distinct().Select(static field => new ParsedAuditChange(field, null, null));
 
     private static ParsedAuditChanges Build(List<ParsedAuditChange> lines, ParsedAuditSnapshot? snapshot, Guid? payerId) =>
         lines.Count == 0 && snapshot is null && payerId is null ? ParsedAuditChanges.None : new ParsedAuditChanges(lines, snapshot, payerId);

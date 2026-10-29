@@ -84,6 +84,16 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
                 .ToDictionaryAsync(category => category.Id, category => category.Name, cancellationToken)
                 .ConfigureAwait(false);
 
+        var methodIds = parsed.SelectMany(changes => changes.PaymentMethodIds()).Distinct().ToList();
+        IReadOnlyDictionary<Guid, string> methods = methodIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await context.PaymentMethods
+                .AsNoTracking()
+                .Where(method => methodIds.Contains(method.Id))
+                .Select(method => new { method.Id, method.Name })
+                .ToDictionaryAsync(method => method.Id, method => method.Name, cancellationToken)
+                .ConfigureAwait(false);
+
         var personIds = rows
             .SelectMany(row => new[] { row.ActorUserId, TargetUser(row.TargetType, row.TargetId) })
             .OfType<Guid>()
@@ -108,7 +118,7 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
         [
             .. rows.Select((row, index) =>
             {
-                var (changes, snapshot) = AuditChangeLines.Resolve(parsed[index], categories, PersonOf);
+                var (changes, snapshot) = AuditChangeLines.Resolve(parsed[index], categories, PersonOf, methods);
                 return new AuditLogEntryView(
                     row.Id,
                     row.OccurredAtUtc,
