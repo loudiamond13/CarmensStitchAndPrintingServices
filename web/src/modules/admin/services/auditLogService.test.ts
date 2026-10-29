@@ -22,6 +22,8 @@ const list: AuditLogResponse = {
       reference: 'c0ffee00',
       changes: [],
       snapshot: null,
+      orderSnapshot: null,
+      orderNumber: null,
     },
   ],
   total: 1,

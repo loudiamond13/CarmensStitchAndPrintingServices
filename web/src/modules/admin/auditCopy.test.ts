@@ -7,7 +7,9 @@ import {
   auditActionLabel,
   describeAuditChange,
   describeAuditDetail,
+  describeAuditOrderSnapshot,
   describeAuditSnapshot,
+  isStatedValueAction,
 } from './auditCopy';
 
 // The audit viewer's words (AUDIT-02, D-28, D-40): a label and a group for every action the API can send, and the
@@ -313,6 +315,173 @@ describe('describeAuditSnapshot (D-27)', () => {
         payer: { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Ana Reyes', formerStaff: false },
       }),
     ).toBe('Oct 5, 2026 · Utilities · ₱8,642.35 · Paid by Ana Reyes');
+  });
+});
+
+describe('describeAuditChange for order entries (D-31, ORD-16, ORD-22, ORD-23)', () => {
+  const change = (field: string, from: string | null, to: string | null) => ({ field, from, to, ...NO_PEOPLE });
+  const ana = { id: '11111111-1111-4111-8111-111111111111', name: 'Ana Reyes', formerStaff: false };
+  const bea = { id: '22222222-2222-4222-8222-222222222222', name: 'Bea Navarro', formerStaff: true };
+  const legacy = { id: '18ed889a-b94d-42f5-a5b0-ee2f47b437cd', name: 'Legacy / unassigned', formerStaff: false };
+
+  it('reads a status move with the seven labels', () => {
+    expect(describeAuditChange(change('status', 'ready', 'completed'))).toBe('Status: Ready to Completed');
+    expect(describeAuditChange(change('status', 'pending', 'production'))).toBe('Status: Pending to In Production');
+    expect(describeAuditChange(change('status', 'completed', 'cancelled'))).toBe('Status: Completed to Cancelled');
+    expect(describeAuditChange(change('status', 'mockup', 'delivered'))).toBe('Status: Mockup to Delivered');
+    expect(describeAuditChange(change('status', null, 'pending'), true)).toBe('Status: Pending');
+    expect(describeAuditChange(change('status', 'ready', 'bogus'))).toBeNull();
+  });
+
+  it('reads the order and due dates, with a due date that had no old value', () => {
+    expect(describeAuditChange(change('orderDate', '2026-10-28', '2026-10-29'))).toBe(
+      'Order date: Oct 28, 2026 to Oct 29, 2026',
+    );
+    expect(describeAuditChange(change('dueDate', '2026-11-11', '2026-11-18'))).toBe(
+      'Due date: Nov 11, 2026 to Nov 18, 2026',
+    );
+    expect(describeAuditChange(change('dueDate', null, '2026-11-18'), true)).toBe('Due date: Nov 18, 2026');
+    expect(describeAuditChange(change('orderDate', 'soon', 'later'))).toBeNull();
+  });
+
+  it('reads quantity and unit price', () => {
+    expect(describeAuditChange(change('quantity', '15', '20'))).toBe('Quantity: 15 to 20');
+    expect(describeAuditChange(change('quantity', null, '2'), true)).toBe('Quantity: 2');
+    expect(describeAuditChange(change('quantity', 'lots', '2'))).toBeNull();
+    expect(describeAuditChange(change('unitPrice', '650.00', '700.00'))).toBe('Unit price: ₱650.00 to ₱700.00');
+    expect(describeAuditChange(change('unitPrice', null, '550.00'), true)).toBe('Unit price: ₱550.00');
+  });
+
+  it('reads a discount kind and value, a percent value without a peso sign', () => {
+    expect(describeAuditChange(change('kind', 'percentage', 'fixed'))).toBe('Discount type: Percentage to Fixed amount');
+    expect(describeAuditChange(change('kind', null, 'percentage'), true)).toBe('Discount type: Percentage');
+    expect(describeAuditChange(change('kind', 'huge', 'fixed'))).toBeNull();
+    expect(describeAuditChange(change('value', '5.00%', '10.00%'))).toBe('Discount value: 5% to 10%');
+    expect(describeAuditChange(change('value', '5.00%', '500.00'))).toBe('Discount value: 5% to ₱500.00');
+    expect(describeAuditChange(change('value', null, '12.50%'), true)).toBe('Discount value: 12.5%');
+    expect(describeAuditChange(change('value', 'five', '10.00'))).toBeNull();
+  });
+
+  it('names payment methods, product types and order categories, or a deleted one', () => {
+    expect(describeAuditChange(change('method', 'Cash', 'GCash'))).toBe('Payment method: Cash to GCash');
+    expect(describeAuditChange(change('method', null, 'GCash'), true)).toBe('Payment method: GCash');
+    expect(describeAuditChange(change('method', null, null), true)).toBe('Payment method: a deleted payment method');
+    expect(describeAuditChange(change('productType', 'Polo Shirt', null))).toBe(
+      'Product type: Polo Shirt to a deleted product type',
+    );
+    expect(describeAuditChange(change('category', null, 'Fabric'), true)).toBe('Category: Fabric');
+  });
+
+  it('reads receiver, payer and refunder by name, former staff marked, the Legacy holder by its name', () => {
+    expect(describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: ana, toPerson: bea })).toBe(
+      'Received by: Ana Reyes to Bea Navarro (former staff)',
+    );
+    expect(
+      describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: null, toPerson: legacy }, true),
+    ).toBe('Received by: Legacy / unassigned');
+    expect(describeAuditChange({ field: 'payer', from: null, to: null, fromPerson: bea, toPerson: ana })).toBe(
+      'Paid by: Bea Navarro (former staff) to Ana Reyes',
+    );
+    expect(describeAuditChange({ field: 'refunder', from: null, to: null, fromPerson: ana, toPerson: bea })).toBe(
+      'Refunded by: Ana Reyes to Bea Navarro (former staff)',
+    );
+    expect(
+      describeAuditChange({ field: 'refunder', from: null, to: null, fromPerson: null, toPerson: ana }, true),
+    ).toBe('Refunded by: Ana Reyes');
+    expect(
+      describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: ana, toPerson: null }),
+    ).toBeNull();
+    expect(
+      describeAuditChange({ field: 'receiver', from: null, to: null, fromPerson: null, toPerson: null }, true),
+    ).toBeNull();
+  });
+
+  it('reads a single amount and date of an added line', () => {
+    expect(describeAuditChange(change('amount', null, '3000.00'), true)).toBe('Amount: ₱3,000.00');
+    expect(describeAuditChange(change('date', null, '2026-10-25'), true)).toBe('Date: Oct 25, 2026');
+    expect(describeAuditChange(change('amount', null, null), true)).toBeNull();
+    expect(describeAuditChange(change('date', null, 'soon'), true)).toBeNull();
+  });
+
+  it('says only that a text field changed, never its text', () => {
+    const fields: [string, string][] = [
+      ['customerName', 'Customer name changed'],
+      ['teamName', 'Team name changed'],
+      ['contactNumber', 'Contact number changed'],
+      ['email', 'Email changed'],
+      ['address', 'Address changed'],
+      ['notes', 'Notes changed'],
+      ['description', 'Description changed'],
+      ['sizeVariant', 'Size or variant changed'],
+      ['reference', 'Reference changed'],
+      ['reason', 'Reason changed'],
+    ];
+    for (const [field, sentence] of fields) {
+      expect(describeAuditChange(change(field, 'Private text', 'More private text')), field).toBe(sentence);
+    }
+  });
+});
+
+describe('isStatedValueAction', () => {
+  it('is true for the entries that state each value as it is', () => {
+    for (const action of [
+      'order.created',
+      'order-item.added',
+      'order-item.removed',
+      'order-payment.added',
+      'order-payment.removed',
+      'order-refund.added',
+      'order-refund.removed',
+      'order-discount.added',
+      'order-discount.removed',
+      'order-expense.added',
+      'order-expense.removed',
+    ]) {
+      expect(isStatedValueAction(action), action).toBe(true);
+    }
+  });
+
+  it('is false for edits, status moves, snapshots and every other entry', () => {
+    for (const action of [
+      'order.changed',
+      'order.status-changed',
+      'order.reopened',
+      'order.deleted',
+      'order-payment.changed',
+      'order-payment.receiver-changed',
+      'order-expense.payer-changed',
+      'company-expense.added',
+      'expense-category.added',
+      'product-type.added',
+    ]) {
+      expect(isStatedValueAction(action), action).toBe(false);
+    }
+  });
+});
+
+describe('describeAuditOrderSnapshot (ORD-16)', () => {
+  it('reads the facts of an order on one line with the peso formatter', () => {
+    expect(
+      describeAuditOrderSnapshot({
+        number: 'ORD-2026-0148',
+        status: 'cancelled',
+        total: 21327.5,
+        paid: 12000,
+        balance: 9327.5,
+      }),
+    ).toBe('ORD-2026-0148, Cancelled, total ₱21,327.50, paid ₱12,000.00, balance ₱9,327.50');
+  });
+
+  it('reads amounts sent as text and shows a status it does not know as it came', () => {
+    expect(
+      describeAuditOrderSnapshot({
+        number: 'ORD-2026-0001',
+        status: 'archived',
+        total: '100.00',
+        paid: '0.00',
+        balance: '100.00',
+      }),
+    ).toBe('ORD-2026-0001, archived, total ₱100.00, paid ₱0.00, balance ₱100.00');
   });
 });
 

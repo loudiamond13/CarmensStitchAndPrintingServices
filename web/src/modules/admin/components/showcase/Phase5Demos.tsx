@@ -211,6 +211,8 @@ const AUDIT_ROWS: readonly AuditSample[] = [
     reference: '00-4bf92f3577b34da6a3ce929d0e0e4736-01',
     changes: [],
     snapshot: null,
+    orderSnapshot: null,
+    orderNumber: null,
   },
   {
     id: 2,
@@ -224,6 +226,8 @@ const AUDIT_ROWS: readonly AuditSample[] = [
     reference: '00-9a1f0c2d3b4e5f60718293a4b5c6d7e8-01',
     changes: [],
     snapshot: null,
+    orderSnapshot: null,
+    orderNumber: null,
   },
 ];
 

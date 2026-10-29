@@ -35,6 +35,8 @@ function entry(id: number, overrides: Partial<AuditLogItem> = {}): AuditLogItem 
     reference: `ref-${String(id)}`,
     changes: [],
     snapshot: null,
+    orderSnapshot: null,
+    orderNumber: null,
     ...overrides,
   };
 }
@@ -972,6 +974,52 @@ describe('A1 accessibility', () => {
     const { container } = await openPage();
     await user.click(screen.getByRole('button', { name: /^Show details for Role changed/ }));
 
+    await expectNoAxeViolations(container);
+  });
+});
+
+const ORDER_ITEMS: AuditLogItem[] = [
+  entry(32, {
+    action: 'order-payment.receiver-changed',
+    doneTo: null,
+    detail: `payment=x;receiver=${CARMEN.id}>${PAOLO.id}`,
+    orderNumber: 'ORD-2026-0148',
+    changes: [{ field: 'receiver', from: null, to: null, fromPerson: CARMEN, toPerson: PAOLO }],
+  }),
+  entry(31, {
+    action: 'order.permanently-deleted',
+    doneTo: null,
+    detail: 'number=ORD-2026-0150;status=cancelled;total=100.00;paid=0.00;balance=100.00',
+    orderNumber: 'ORD-2026-0150',
+    orderSnapshot: { number: 'ORD-2026-0150', status: 'cancelled', total: 100, paid: 0, balance: 100 },
+  }),
+  entry(30, { action: 'order-item.added', doneTo: null, detail: null, orderNumber: null }),
+];
+
+describe('A1 order entries (D-31)', () => {
+  it('names the order in Done to, and shows the empty-value icon when the order is not known', async () => {
+    backend(ORDER_ITEMS);
+    await openPage();
+
+    expect(cellOf(rowOf('Payment receiver changed'), 'Done to')).toHaveTextContent('ORD-2026-0148');
+    expect(cellOf(rowOf('Order permanently deleted'), 'Done to')).toHaveTextContent('ORD-2026-0150');
+    expect(within(cellOf(rowOf('Item added'), 'Done to')).getByText('Not set')).toBeInTheDocument();
+  });
+
+  it('reads who received a payment before and after, and the snapshot of a deleted order, with no axe violations', async () => {
+    vi.useRealTimers();
+    backend(ORDER_ITEMS);
+    const user = userEvent.setup();
+    const { container } = await openPage();
+
+    await user.click(screen.getByRole('button', { name: /^Show details for Payment receiver changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Order permanently deleted/ }));
+
+    expect(screen.getByText('Received by: Carmen Reyes to Paolo Garcia')).toBeInTheDocument();
+    expect(
+      screen.getByText('ORD-2026-0150, Cancelled, total ₱100.00, paid ₱0.00, balance ₱100.00'),
+    ).toBeInTheDocument();
+    expect(container).not.toHaveTextContent('receiver=');
     await expectNoAxeViolations(container);
   });
 });
