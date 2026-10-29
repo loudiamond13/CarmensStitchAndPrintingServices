@@ -12,7 +12,8 @@ internal enum PrivacyVerdict
 
 /// <summary>
 /// The last guard before the counts-only summary is written (D-02): it looks for every personal-ish text the run read. A read value
-/// shorter than three characters is too short to search for, and a value that is an allowed list word may appear.
+/// shorter than three characters is too short to search for, a value that is an allowed list word may appear, and a value only
+/// counts when it stands as a whole word (D-21).
 /// </summary>
 internal static class PrivacySelfCheck
 {
@@ -22,7 +23,7 @@ internal static class PrivacySelfCheck
     /// <param name="renderedSummary">The summary text.</param>
     /// <param name="readValues">Every personal-ish value the run read.</param>
     /// <param name="allowedWords">The list words that may appear in the summary.</param>
-    /// <returns>Refused when any read value appears in the summary (ordinal, any letter case).</returns>
+    /// <returns>Refused when any read value appears in the summary as a whole word (any letter case).</returns>
     public static PrivacyVerdict Check(string renderedSummary, IEnumerable<string?> readValues, IEnumerable<string> allowedWords)
     {
         ArgumentNullException.ThrowIfNull(renderedSummary);
@@ -32,12 +33,39 @@ internal static class PrivacySelfCheck
         var allowed = new HashSet<string>(allowedWords.Select(static word => word.Trim()), StringComparer.OrdinalIgnoreCase);
         foreach (var value in readValues.Select(static value => value?.Trim()).Where(static value => value is { Length: >= MinimumLength }).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            if (!allowed.Contains(value!) && renderedSummary.Contains(value!, StringComparison.OrdinalIgnoreCase))
+            if (!allowed.Contains(value!) && ContainsAsWholeWord(renderedSummary, value!))
             {
                 return PrivacyVerdict.HeldPersonalValue;
             }
         }
 
         return PrivacyVerdict.Clean;
+    }
+
+    // A hit counts only when the characters just outside it are not letters or digits (D-21). A value that starts or ends with
+    // punctuation is already bounded on that side, so it needs no check there.
+    private static bool ContainsAsWholeWord(string text, string value)
+    {
+        var checkBefore = char.IsLetterOrDigit(value[0]);
+        var checkAfter = char.IsLetterOrDigit(value[^1]);
+        var from = 0;
+        while (from <= text.Length - value.Length)
+        {
+            var at = text.IndexOf(value, from, StringComparison.OrdinalIgnoreCase);
+            if (at < 0)
+            {
+                return false;
+            }
+
+            var end = at + value.Length;
+            if ((!checkBefore || at == 0 || !char.IsLetterOrDigit(text[at - 1])) && (!checkAfter || end == text.Length || !char.IsLetterOrDigit(text[end])))
+            {
+                return true;
+            }
+
+            from = at + 1;
+        }
+
+        return false;
     }
 }
