@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-10-29T22:19:52.813Z"
+stopped_at: Completed 08-03-PLAN.md
+last_updated: "2026-10-29T22:33:26.908Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: df99a48c19bfcd0b02d86ee294cf760990f36183
+state_head: e61d2014c72e7e3923fc61939b88754968877af2
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 221
+  completed_plans: 222
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T14:28:12-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 3 of 24
+Plan: 4 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -281,6 +281,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P12 | 5 min | 2 tasks | 3 files |
 | Phase 08 P01 | 35 min | 2 tasks | 26 files |
 | Phase 08 P02 | 27 min | 3 tasks | 17 files |
+| Phase 08 P03 | 13 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -803,6 +804,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: List-wide counts use one GroupBy-on-constant LINQ command with the five active statuses listed by name (D-41, D-60: list is 3 fixed commands)
 - [Phase 08]: 08-02: OrderTotals and OrderCard parity scenarios run implementation-only (parity false) because the frozen design cannot show the owner's new money rows, balance states and card actions
 - [Phase 08]: 08-02: the credit block is info-soft on the panel and neutral with a Credit badge on the card; the create-form preview turns an overpayment into a credit
+- [Phase 08]: 08-03: ConfirmDialog describeFailure keeps title-and-body and also accepts a sentence or null; no existing caller changed
+- [Phase 08]: 08-03: jsdom scrollIntoView no-op lives once in web/src/test/setup.ts
 
 ### Pending Todos
 
@@ -907,6 +910,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T22:19:51.828Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-10-29T22:33:18.957Z
+Stopped at: Completed 08-03-PLAN.md
 Resume file: None
