@@ -1,5 +1,5 @@
 # Phase 7 - UI Review
-*Created: 2026-10-29T10:00:00-05:00 · Updated: 2026-10-29T10:00:00-05:00*
+*Created: 2026-10-29T10:00:00-05:00 · Updated: 2026-10-29T06:25:00-05:00*
 
 **Audited:** 2026-10-29
 **Baseline:** docs/CSPS-UI-SPEC.md (Audit Log) plus abstract 6-pillar standards. No phase UI-SPEC exists.
@@ -66,3 +66,15 @@
 - web/src/modules/admin/components/showcase/Phase5Demos.tsx
 - web/src/modules/admin/services/auditLogService.test.ts
 - Not scored: web/src/types/api.generated.ts
+
+## Finding Outcomes
+
+| Finding | Outcome |
+|---|---|
+| Fix 1: order number in the "Done to" column | Fixed in quick 261029-87p (9840244f): own "Order" column (D-79). |
+| Fix 2: long Action select | Fixed in quick 261029-87p (0f4c00c5): browser-only "Group" select shortens the list (D-80). Type-ahead not built. |
+| Fix 3: unreadable change lines dropped; labels without "order" | Fixed in quick 261029-87p (8ff4514b): "<Field> changed" fallback (D-81) and "Order ..." labels (D-82). |
+| Dense one-line order snapshot | Deferred to Phase 8 (order screens), when the order detail layout is designed. |
+| Second "Not set" text source | Deferred: harmless, matches the EmptyValue hidden text; revisit with Phase 8 copy. |
+| `isStatedValueAction` regex needs a test for new actions | Deferred: covered by current tests; add a test when new actions are added. |
+| Visual check at 320, 390 and 1440 px | Open for the owner (no dev server run in this audit). |

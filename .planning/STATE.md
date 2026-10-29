@@ -4,10 +4,10 @@ current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: planning
 stopped_at: Phase 7 complete, ready to plan Phase 07.1
-last_updated: "2026-10-29T10:35:52.738Z"
+last_updated: "2026-10-29T11:19:09.154Z"
 last_activity: 2026-10-29
-last_activity_desc: Phase 7 complete, transitioned to Phase 07.1
-state_head: d9a485c13a923994d729fd5121cbc86f2151bc40
+last_activity_desc: Completed quick task 261029-87p (Phase 7 UI review fixes)
+state_head: 0f4c00c5cd35262e0968bf30f2c882df6700d28b
 progress:
   total_phases: 18
   completed_phases: 7
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 Phase: 07.1 — Legacy Fit Check (read-only)
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-29 — Phase 7 complete, transitioned to Phase 07.1
+Last activity: 2026-10-29 - Completed quick task 261029-87p: Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82)
 
 Progress: [████░░░░░░] 41%
 
@@ -734,6 +734,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07]: 07-19: order audit entries carry orderNumber and the Done to column shows it; the API doneTo stays null and the Done to filter still searches only company-expense entries
 - [Phase 07]: 07-20: the orders seed gives each order one status-history row at 09:00 Manila on its order date; receivers and payers are the active payers or the Legacy holder; the testing route POST /api/testing/orders is Debug and Testing only
 - [Phase 07 UAT]: D-78 (owner, 2026-10-29, APX-IN-04, option 1 of 2): a list create, retire, reactivate or delete that loses its race twice keeps answering the shared `auth.session-busy` code ("Something changed at the same time. Try again."), the same as Phase 6. No list-specific busy code.
+- [Phase 07 UI review]: D-79 (owner, 2026-10-29, UI-REVIEW fix 1): the Audit Log table gets its own "Order" column for the order number. "Done to" holds people only. Each column shows `EmptyValue` when it has no value.
+- [Phase 07 UI review]: D-80 (owner, 2026-10-29, UI-REVIEW fix 2): the Audit Log filters get a "Group" select (the AUDIT_GROUPS list) that only shortens the Action select, in the browser. No server change: the log still filters by one action code.
+- [Phase 07 UI review]: D-81 (owner, 2026-10-29, UI-REVIEW fix 3): a change line whose values cannot be read shows "<Field> changed" (for example "Amount changed") with no values, instead of being dropped.
+- [Phase 07 UI review]: D-82 (owner, 2026-10-29, UI-REVIEW fix 3): order sub-entry action labels name the order: "Order item added", "Order payment added", "Order refund added", "Order discount added", and the same for changed, removed and the receiver or refunder changes.
 
 ### Pending Todos
 
@@ -824,6 +828,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 | 30 | D-75: two-Manager demotion race test accepts the sign-out path, guard path still required | 2026-10-26 | 11edfd4e | — |
 | 261027-t3j | Restyle shared Select and DateInput, remove the written-out date (D-63) | 2026-10-27 | df81a9e6 | [261027-t3j-restyle-shared-select-and-dateinput-remo](./quick/261027-t3j-restyle-shared-select-and-dateinput-remo/) |
 | 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
+| 261029-87p | Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82) | 2026-10-29 | 0f4c00c5 | [261029-87p-fix-phase-7-ui-review-findings-in-the-au](./quick/261029-87p-fix-phase-7-ui-review-findings-in-the-au/) |
 
 ## Deferred Items
 
