@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-29T14:08:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-29T16:00:00-05:00*
 
 ## Overview
 
@@ -916,7 +916,48 @@ Plans:
 
 **Research flag:** Standard patterns, once Phase 7 is settled.
 
-**Plans**: TBD
+**Plans**: 0/24 plans complete in 8 waves (planned 2026-10-29; each plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [ ] 08-01-PLAN.md — Order list and detail contracts: pieces, list-wide counts in 3 fixed commands, server today, item attribution (ORD-01, ORD-07, ORD-11; D-40, D-41, D-44, D-59, D-60)
+- [ ] 08-02-PLAN.md — Order money panel, card and the Delivered status (ORD-01, ORD-12, ORD-19; D-01 to D-08, D-45)
+- [ ] 08-03-PLAN.md — Dialog words, tab keep-in-view and the people picker (ORD-07, ORD-15; D-09 to D-11, D-34, D-57, D-58)
+- [ ] 08-04-PLAN.md — The three order lists in pickers (ORD-02, ORD-07; D-32)
+- [ ] 08-05-PLAN.md — Due dates and overdue flags from the server today (ORD-11; D-36 to D-38, D-59)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 08-06-PLAN.md — The Orders list shows real orders; /admin lands on Orders (ORD-01, ORD-11, ORD-12, ORD-19; D-41, D-61)
+- [ ] 08-07-PLAN.md — A Manager can read a deleted order (ORD-06; D-24)
+- [ ] 08-08-PLAN.md — Settings tabs for the order lists (ORD-07; D-31, D-32)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 08-09-PLAN.md — Search, filter and sort orders; topbar search (ORD-02; D-42, D-43, D-53)
+- [ ] 08-10-PLAN.md — Open an order: header, totals with profit, items (ORD-07, ORD-11, ORD-19; D-06, D-08, D-51)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 08-11-PLAN.md — Orders as a table, and the view choice that sticks (ORD-01, ORD-10, ORD-12)
+- [ ] 08-12-PLAN.md — The rest of the order page: tabs, customer card, history, phone balance card (ORD-07; D-12, D-13, D-17, D-33, D-50)
+- [ ] 08-13-PLAN.md — Create an order, with the unsaved-changes guard (ORD-15, ORD-07; D-27, D-30, D-49)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 08-14-PLAN.md — Work the items of an order; the shared window frame (ORD-07; D-05, D-44, D-48, D-58)
+- [ ] 08-15-PLAN.md — Edit an order's details (ORD-15, ORD-07; D-28, D-38, D-46)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 08-16-PLAN.md — Record payments with Received by (ORD-07; D-09, D-11, D-29, D-48)
+- [ ] 08-17-PLAN.md — Give and change discounts (ORD-07)
+- [ ] 08-18-PLAN.md — Record what an order cost, with Paid by (ORD-07, ORD-19)
+- [ ] 08-19-PLAN.md — Move, complete, cancel and reopen an order (ORD-07; D-14 to D-16, D-18, D-20, D-47)
+- [ ] 08-20-PLAN.md — Deleted Orders: restore and delete for good (ORD-06; D-23, D-52)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 08-21-PLAN.md — Hand money back with refunds; testing seed refunds (ORD-07, ORD-12; D-10, D-19, D-62)
+- [ ] 08-22-PLAN.md — Delete an order safely (ORD-06; D-21, D-22, D-39)
+- [ ] 08-23-PLAN.md — Look inside a deleted order before restoring it (ORD-06, ORD-07; D-24)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 08-24-PLAN.md — Prove the whole phase and hand it to the owner (all nine requirements; D-25, D-26, D-56)
+
 **UI hint**: yes
 
 ### Phase 9: Order Images & Maintenance Jobs
