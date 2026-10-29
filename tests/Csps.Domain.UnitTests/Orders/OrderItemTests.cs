@@ -255,6 +255,28 @@ public sealed class OrderItemTests
         order.RemoveItem(Guid.NewGuid(), Later).Error.ShouldBe(OrderRules.ItemNotFound);
     }
 
+    [Fact]
+    public void AddingAnItemThatRoundsTheDiscountsAboveTheNewSubtotalIsRefusedLikeAnEdit()
+    {
+        var order = OrderOf(Jersey(1, 100.00m));
+        foreach (var percent in new[] { 33.33m, 33.33m, 33.34m })
+        {
+            order.AddDiscount(new NewOrderDiscount(DiscountKind.Percentage, percent, "League"), Later).IsSuccess.ShouldBeTrue();
+        }
+
+        order.DiscountTotal.ShouldBe(100.00m);
+        var before = (order.EditVersion, order.Items.Count, order.Total);
+
+        var added = order.AddItem(Jersey(1, 2.00m), Later.AddHours(1));
+        var edited = order.UpdateItem(order.Items[0].Id, Jersey(1, 102.00m), Later.AddHours(1));
+
+        added.IsFailure.ShouldBeTrue();
+        added.Error.ShouldBe(OrderRules.DiscountAboveSubtotal);
+        edited.Error.ShouldBe(OrderRules.DiscountAboveSubtotal);
+        (order.EditVersion, order.Items.Count, order.Total).ShouldBe(before);
+        order.Total.ShouldBe(0.00m);
+    }
+
     private static NewOrderItem Jersey(int quantity, decimal unitPrice) => new(JerseyType, "Jersey top", "S-XL", quantity, unitPrice);
 
     private static Order OrderOf(params NewOrderItem[] items)
