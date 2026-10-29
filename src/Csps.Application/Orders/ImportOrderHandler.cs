@@ -32,7 +32,8 @@ public sealed class ImportOrderHandler(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>
     /// The new order id, a 400 listing every field that failed, a 422 <c>orders.number-taken</c> when another order holds the number,
-    /// or a 409 when the number lock timed out or the save was a deadlock victim.
+    /// or a 409 when the number lock timed out or the save was a deadlock victim. A list entry deleted in the moment before the save
+    /// is a 400 on the list that named it.
     /// </returns>
     public async Task<Result<Guid>> HandleAsync(OrderImportSnapshot snapshot, OrderImportRules rules, CancellationToken cancellationToken)
     {
@@ -74,6 +75,11 @@ public sealed class ImportOrderHandler(
         {
             // Another import took the number between the read and the save; the unique index found it.
             return Result.Failure<Guid>(OrderErrors.NumberTaken);
+        }
+        catch (OrderListEntryDeletedException deleted)
+        {
+            // A list entry the check found was deleted in the moment before the save: the same 400 as any other refused choice.
+            return Result.Failure<Guid>(OrderReferenceChecks.DeletedListError(deleted.Kind));
         }
         catch (OrderNumberBusyException)
         {

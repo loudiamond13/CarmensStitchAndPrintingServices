@@ -375,6 +375,18 @@ public static class OrderReferenceChecks
             OrderErrors.ValidationMessage);
 
     /// <summary>
+    /// Gets the 400 for an imported order whose list entry was deleted in the moment between the check and the save, on the list that
+    /// named it: <c>items</c>, <c>payments</c> or <c>expenses</c>.
+    /// </summary>
+    /// <param name="kind">Which list the deleted entry belonged to.</param>
+    /// <returns>The validation error.</returns>
+    public static Error DeletedListError(OrderListKind kind) =>
+        ValidationResults.ToError(
+            new ValidationResult([new ValidationFailure(ListField(kind), DeletedMessage(kind))]),
+            OrderErrors.ValidationCode,
+            OrderErrors.ValidationMessage);
+
+    /// <summary>
     /// Gets the 400 for a new order whose list entry was deleted between the form check and the save. The lookups run again to find
     /// which rows named an entry that is gone, so each is marked on its own path such as <c>items[1].productTypeId</c>; when none
     /// is found the failure sits on the list itself.
@@ -426,6 +438,13 @@ public static class OrderReferenceChecks
     }
 
     private static string DeletedMessage(OrderListKind kind) => $"This {OrderListDescriptor.For(kind).Noun} was deleted.";
+
+    private static string ListField(OrderListKind kind) => kind switch
+    {
+        OrderListKind.ProductType => nameof(CreateOrderRequest.Items),
+        OrderListKind.PaymentMethod => nameof(CreateOrderRequest.Payments),
+        _ => nameof(CreateOrderRequest.Expenses),
+    };
 
     private static string ChildField(OrderListKind kind) => kind switch
     {
