@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
-stopped_at: Completed 07.1-07-PLAN.md
-last_updated: "2026-10-29T14:43:14.461Z"
+stopped_at: Completed 07.1-08-PLAN.md
+last_updated: "2026-10-29T14:59:25.246Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07.1 execution started
-state_head: 6f1477564017c436fee1fe8923b410cb1b515758
+state_head: 9c531c48ce40d285d8c3fccb422b1df5378b9125
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 219
-  completed_plans: 214
+  completed_plans: 215
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T15:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
-Plan: 8 of 12
+Plan: 9 of 12
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 07.1 execution started
 
@@ -273,6 +273,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P05 | 9 min | 2 tasks | 9 files |
 | Phase 07.1 P06 | 19 min | 3 tasks | 9 files |
 | Phase 07.1 P07 | 20 min | 2 tasks | 7 files |
+| Phase 07.1 P08 | 25 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -763,6 +764,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1]: 07.1-06: refunds are probed like other children (Rule 2); the 3 handler flags are not probed (AllowRetiredListEntries and AllowInactivePeople have no count yet: open gap for 07.1-09/10)
 - [Phase 07.1]: 07.1-06: a discount above the subtotal also shows AllowOverpaid (negative balance); recorded as an open note for the D-10 session, not filtered
 - [Phase 07.1]: 07.1-07: trial import success key is trial.imported; year counters are one Info trial.counter-lifted per year with the value only in Detail; trial database removal is confirmed by name after the drop in finally
+- [Phase 07.1]: ExpenseRule findings use the rule key '{field}: {Phase 6 message}' with the field as the path; plan 09 groups company expense findings by it
 
 ### Pending Todos
 
@@ -865,6 +867,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T14:43:13.573Z
-Stopped at: Completed 07.1-07-PLAN.md
+Last session: 2026-10-29T14:59:24.329Z
+Stopped at: Completed 07.1-08-PLAN.md
 Resume file: None

@@ -842,7 +842,7 @@ Plans:
 **Goal:** Before Phase 8 builds on the order rules, a read-only check runs the legacy orders in CSPS_Legacy_Restore through Order.Import's rules and the legacy company expenses through the Phase 6 expense rules, and lists every record that breaks them. It never derives the schema, never writes to the restore and never restores over CSPS_Dev (D-33). (owner, 2026-10-28, D-33, D-39; company expenses added by 07.1 D-16, owner, 2026-10-29)
 **Requirements**: None new (a read-only check; no requirement text depends on it)
 **Depends on:** Phase 7
-**Plans:** 7/12 plans executed
+**Plans:** 8/12 plans executed
 
 Plans:
 
@@ -868,7 +868,7 @@ Plans:
 - [x] 07.1-07-PLAN.md — The trial database is safe on every path; import outcomes and counters (D-07)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 07.1-08-PLAN.md — Legacy company expenses against the Phase 6 rules, report only (D-12, D-16)
+- [x] 07.1-08-PLAN.md — Legacy company expenses against the Phase 6 rules, report only (D-12, D-16)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 07.1-09-PLAN.md — Private full list in _local, counts-only summary with a privacy self-check, runbook (D-01, D-02)
