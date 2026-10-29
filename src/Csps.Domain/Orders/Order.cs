@@ -322,7 +322,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     }
 
     /// <summary>
-    /// Builds an order from legacy data (ORD-21). The number is kept as given, the children keep their list order as their position,
+    /// Builds an order from legacy data (ORD-21). The number is kept as given with spaces around it dropped, the children keep their list order as their position,
     /// and every money figure is worked out again by <see cref="OrderMath"/> from the children, so none can be brought in. With no
     /// status history one row is written (no earlier status, no person, at <paramref name="now"/>). Nothing is saved and nothing is audited.
     /// </summary>

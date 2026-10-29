@@ -131,14 +131,16 @@ internal static class OrderImportChecks
         });
     }
 
-    // The number goes into an ASCII column, so a character outside plain text would be changed on the way in.
-    private static Result<string> CheckNumber(string? number, OrderImportRules rules)
+    // The number goes into an ASCII column, so a character outside plain text would be changed on the way in. Spaces around it are
+    // dropped, so a lookup by the clean number finds the order.
+    private static Result<string> CheckNumber(string? given, OrderImportRules rules)
     {
-        if (string.IsNullOrWhiteSpace(number))
+        if (string.IsNullOrWhiteSpace(given))
         {
             return OrderRules.Reject<string>(NumberField, NumberRequired);
         }
 
+        var number = given.Trim();
         if (number.Length > OrderNumber.MaxLength)
         {
             return OrderRules.Reject<string>(NumberField, NumberTooLong);

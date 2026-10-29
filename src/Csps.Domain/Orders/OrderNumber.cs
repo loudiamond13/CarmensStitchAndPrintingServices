@@ -23,7 +23,7 @@ public static class OrderNumber
     /// <param name="text">The text to read.</param>
     /// <param name="year">The year when the text is a number.</param>
     /// <param name="sequence">The place in that year when the text is a number.</param>
-    /// <returns>True when the text is exactly four year digits and at least four sequence digits.</returns>
+    /// <returns>True when the text is exactly four year digits and at least four sequence digits, and neither the year nor the sequence is 0.</returns>
     public static bool TryParse(string? text, out int year, out int sequence)
     {
         year = 0;
@@ -39,7 +39,9 @@ public static class OrderNumber
             || parts[1].Length < MinimumDigits
             || !parts.All(static part => part.All(char.IsAsciiDigit))
             || !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var parsedYear)
-            || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parsedSequence))
+            || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parsedSequence)
+            || parsedYear < 1
+            || parsedSequence < 1)
         {
             return false;
         }

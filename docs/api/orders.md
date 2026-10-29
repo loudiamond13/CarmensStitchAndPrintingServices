@@ -573,7 +573,7 @@ Cancelled is allowed). When the owner rules on a legacy oddity, one value change
 
 | Relaxation | With it on (the default) | With it off |
 |------------|--------------------------|-------------|
-| `KeepLegacyNumber` | The number is kept exactly as given, any format, up to 32 characters | The number must read `ORD-{YYYY}-{NNNN}` |
+| `KeepLegacyNumber` | The number is kept as given, any format, up to 32 characters (spaces around it are dropped) | The number must read `ORD-{YYYY}-{NNNN}` |
 | `DueDateOptional` (D-22) | An order may have no due date | A due date is required |
 | `ContactNumberOptional` | An order may have no contact number | A contact number is required |
 | `AllowOverpaid` (D-14) | Payments may add up to more than the total; the excess is the customer credit | The payments may not pass the total |
