@@ -167,3 +167,166 @@ describe('ListEntrySelect product types, picker mode', () => {
     await expectNoAxeViolations(view.container);
   });
 });
+
+const RETIRED_METHOD_ID = '5d4c3b2a-1f0e-4d9c-8b8a-7a6b5c4d3e2f';
+const PAYMENT_METHODS: readonly Item[] = [
+  entry('11111111-aaaa-4bbb-8ccc-000000000001', 'Bank Transfer'),
+  entry('11111111-aaaa-4bbb-8ccc-000000000002', 'Cash'),
+  entry(RETIRED_METHOD_ID, 'Cheque', { status: 'retired' }),
+  entry('11111111-aaaa-4bbb-8ccc-000000000004', 'GCash'),
+];
+
+const RETIRED_CATEGORY_ID = '9e8d7c6b-5a49-4382-9170-6f5e4d3c2b1a';
+const ORDER_CATEGORIES: readonly Item[] = [
+  entry('22222222-aaaa-4bbb-8ccc-000000000001', 'Delivery'),
+  entry('22222222-aaaa-4bbb-8ccc-000000000002', 'Fabric'),
+  entry(RETIRED_CATEGORY_ID, 'Outsourcing', { status: 'retired' }),
+  entry('22222222-aaaa-4bbb-8ccc-000000000004', 'Others', { isOthers: true }),
+];
+
+describe.each([
+  {
+    list: 'payment-methods',
+    items: PAYMENT_METHODS,
+    retiredId: RETIRED_METHOD_ID,
+    label: /Method/,
+    placeholder: 'Choose a method',
+    loading: 'Loading methods…',
+    active: ['Bank Transfer', 'Cash', 'GCash'],
+    retiredLabel: 'Cheque (retired)',
+  },
+  {
+    list: 'order-expense-categories',
+    items: ORDER_CATEGORIES,
+    retiredId: RETIRED_CATEGORY_ID,
+    label: /Category/,
+    placeholder: 'Choose a category',
+    loading: 'Loading categories…',
+    active: ['Delivery', 'Fabric', 'Others'],
+    retiredLabel: 'Outsourcing (retired)',
+  },
+] as const)('ListEntrySelect $list, picker mode', (scenario) => {
+  function renderPicker(extra: { value?: string; savedEntry?: string | null } = {}) {
+    return renderSelect({
+      list: scenario.list,
+      mode: 'picker',
+      value: extra.value ?? '',
+      onChange: () => undefined,
+      savedEntry: extra.savedEntry ?? null,
+    });
+  }
+
+  it(`lists only active entries under "${scenario.placeholder}" with nothing chosen`, async () => {
+    listBackend(scenario.list, scenario.items);
+    renderPicker();
+
+    const select = screen.getByRole('combobox', { name: scenario.label });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)).toEqual([scenario.placeholder, ...scenario.active]);
+    expect(select).toHaveValue('');
+  });
+
+  it('keeps the saved retired entry as "{name} (retired)", selected', async () => {
+    listBackend(scenario.list, scenario.items);
+    renderPicker({ value: scenario.retiredId, savedEntry: scenario.retiredId });
+
+    const select = screen.getByRole('combobox', { name: scenario.label });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)).toContain(scenario.retiredLabel);
+    expect(select).toHaveValue(scenario.retiredId);
+  });
+
+  it(`is disabled and named "${scenario.loading}" while the list loads`, async () => {
+    listBackend(scenario.list, async () => {
+      await delay(120);
+      return scenario.items;
+    });
+    renderPicker();
+
+    const select = screen.getByRole('combobox', { name: scenario.label });
+    expect(select).toBeDisabled();
+    expect(optionTexts(select)).toEqual([scenario.loading]);
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+  });
+
+  it('has no axe violations once loaded', async () => {
+    listBackend(scenario.list, scenario.items);
+    const view = renderPicker();
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: scenario.label })).toBeEnabled();
+    });
+
+    await expectNoAxeViolations(view.container);
+  });
+});
+
+describe('ListEntrySelect product types, filter mode', () => {
+  function renderFilter(value: string | null = null, onChange: (id: string | null) => void = () => undefined) {
+    return renderSelect({ list: 'product-types', mode: 'filter', value, onChange });
+  }
+
+  it('lists All products first, then every entry in the server order, retired ones as "{name} (retired)"', async () => {
+    listBackend('product-types', PRODUCT_TYPES);
+    renderFilter();
+
+    const select = screen.getByRole('combobox', { name: 'Product type' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)).toEqual([
+      'All products',
+      'Basketball Jersey',
+      'Custom Design',
+      'Moto Riding Jersey (retired)',
+      'Polo Shirt',
+    ]);
+  });
+
+  it('is disabled and named "Loading product types…" while the list loads', async () => {
+    listBackend('product-types', async () => {
+      await delay(120);
+      return PRODUCT_TYPES;
+    });
+    renderFilter();
+
+    const select = screen.getByRole('combobox', { name: 'Product type' });
+    expect(select).toBeDisabled();
+    expect(optionTexts(select)).toEqual(['Loading product types…']);
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+  });
+
+  it('selects the entry in value and reports a choice as its id, and All products as null', async () => {
+    listBackend('product-types', PRODUCT_TYPES);
+    const onChange = vi.fn<(id: string | null) => void>();
+    renderFilter(BASKETBALL_ID, onChange);
+    const select = screen.getByRole('combobox', { name: 'Product type' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+
+    expect(select).toHaveValue(BASKETBALL_ID);
+    await userEvent.selectOptions(select, 'Polo Shirt');
+    expect(onChange).toHaveBeenLastCalledWith('a1b2c3d4-e5f6-4a07-8c19-2a3b4c5d6e7f');
+    await userEvent.selectOptions(select, 'All products');
+    expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('stays usable as All products when the list cannot be read', async () => {
+    listBackend('product-types', failing);
+    renderFilter();
+
+    const select = screen.getByRole('combobox', { name: 'Product type' });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(optionTexts(select)).toEqual(['All products']);
+  });
+});
