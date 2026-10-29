@@ -4,10 +4,10 @@ current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
 stopped_at: Phase 07.1 context gathered
-last_updated: "2026-10-29T12:42:05.796Z"
+last_updated: "2026-10-29T12:45:48.146Z"
 last_activity: 2026-10-29
-last_activity_desc: Completed quick task 261029-87p (Phase 7 UI review fixes)
-state_head: c2172bb12a8942d47cf468a399f9332709bc83fb
+last_activity_desc: Phase 07.1 execution started
+state_head: 6e93ae6064342271e94348bbd5ec8ce228f35782
 progress:
   total_phases: 18
   completed_phases: 7
@@ -15,7 +15,7 @@ progress:
   completed_plans: 207
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T05:17:37-05:00"
+updated: "2026-10-29T13:00:00-05:00"
 ---
 
 # Project State
@@ -25,14 +25,14 @@ updated: "2026-10-29T05:17:37-05:00"
 See: .planning/PROJECT.md (updated 2026-10-29)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 07.1: Legacy Fit Check (read-only)
+**Current focus:** Phase 07.1 — Legacy Fit Check (read-only)
 
 ## Current Position
 
-Phase: 07.1 (Legacy Fit Check (read-only)) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-10-29 - Completed quick task 261029-87p: Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82)
+Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
+Plan: 1 of 12
+Status: Executing Phase 07.1
+Last activity: 2026-10-29 — Phase 07.1 execution started
 
 Progress: [████░░░░░░] 39%
 
@@ -740,6 +740,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07 UI review]: D-82 (owner, 2026-10-29, UI-REVIEW fix 3): order sub-entry action labels name the order: "Order item added", "Order payment added", "Order refund added", "Order discount added", and the same for changed, removed and the receiver or refunder changes.
 - [Phase 07 UI review]: D-83 (owner, 2026-10-29, quick 261029-87p open items 1 and 2): keep the Audit Log copy as built: "Payer changed", "Receiver changed", "Refunder changed" for unreadable person lines, and "Group" and "All groups" for the Group select. A change line for a field the screen does not know about stays left out (no generic sentence), because the screen and the API ship together.
 - [Phase 07 UI review]: D-84 (owner, 2026-10-29, replaces the unknown-field part of D-83): a change line for a field the screen does not know about reads "Other detail changed", with no field name or values, and shows once per entry however many unknown fields there are. The rest of D-83 (the copy) stands.
+- [Phase 07.1 execute]: D-85 (owner, 2026-10-29): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 still ships on its own PR first; 7.1 follows it.
 
 ### Pending Todos
 
