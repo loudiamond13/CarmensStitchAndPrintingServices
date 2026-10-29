@@ -94,6 +94,12 @@ internal sealed class FakeLegacyDatabase : IAsyncDisposable
     /// <summary>Adds a made-up order with the exact values the test sets.</summary>
     public Task AddOrderRowAsync(LegacyOrderRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
 
+    /// <summary>Adds a made-up order type (a list word).</summary>
+    public Task AddOrderTypeAsync(LegacyOrderTypeRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
+    /// <summary>Adds a made-up status.</summary>
+    public Task AddStatusAsync(LegacyStatusRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
+
     /// <summary>Adds a made-up order item.</summary>
     public Task AddItemAsync(LegacyOrderItemRow row, CancellationToken cancellationToken) => AddRowAsync(row, cancellationToken);
 

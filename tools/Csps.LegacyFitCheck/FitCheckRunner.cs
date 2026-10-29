@@ -63,6 +63,10 @@ internal static class FitCheckRunner
 
                 var trialConnection = TrialDatabase.ConnectionStringFor(targets.TrialServerConnectionString, trialName);
                 findings.AddRange(await TrialImport.RunAsync(trialConnection, mapped, time, cancellationToken).ConfigureAwait(false));
+                if (hooks?.BeforeTrialDropped is { } beforeDrop)
+                {
+                    await beforeDrop(trialName, cancellationToken).ConfigureAwait(false);
+                }
             }
             finally
             {
