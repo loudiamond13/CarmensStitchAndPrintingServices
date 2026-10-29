@@ -72,7 +72,10 @@ internal static class DraftMapping
         var typeMissing = productType.Id is null && parts.Items.Count > 0;
         if (typeMissing)
         {
-            findings.Add(CannotMap(key, "list.product-type", "The order type cannot become a product type."));
+            var (rule, message) = productType.Problem == ProductTypeProblem.Blank
+                ? ("list.name-blank", "The order has no order type word, so its items have no product type.")
+                : ("list.name-too-long", "The order type word is longer than a CSPS list name allows.");
+            findings.Add(new Finding(RecordKind.Order, key, FindingType.CannotMap, rule, null, message, productType.Problem == ProductTypeProblem.TooLong ? typeName : null, null));
         }
 
         if (order.OrderDate is not { } stored || status is null || typeMissing)
@@ -96,7 +99,7 @@ internal static class DraftMapping
             string.IsNullOrWhiteSpace(order.Note) ? null : order.Note.Trim());
         var snapshot = new OrderImportSnapshot(number, details, status!.Value, MapItems(parts.Items, productType, typeName, findings))
         {
-            Discounts = [.. parts.Discounts.Select(static discount => new NewOrderDiscount(DiscountKind.Fixed, discount.Amount, discount.Description.Trim()))],
+            Discounts = MapDiscounts(parts.Discounts, findings),
             Payments = MapPayments(parts.Payments, findings),
             Expenses = MapExpenses(parts.Expenses, findings),
         };
@@ -110,6 +113,11 @@ internal static class DraftMapping
         foreach (var item in rows)
         {
             items.Add(new NewOrderItem(productType.Id!.Value, item.Description.Trim(), null, item.Quantity, item.Price));
+            if (item.IsDone == true)
+            {
+                findings.Add(new Finding(RecordKind.OrderItem, Key("OrderItems", item.OrderItemId), FindingType.CannotMap, "item.done-flag", null, "CSPS items have no done flag.", null, null));
+            }
+
             if (productType.TrialOnly)
             {
                 findings.Add(new Finding(
@@ -125,6 +133,21 @@ internal static class DraftMapping
         }
 
         return items;
+    }
+
+    private static List<NewOrderDiscount> MapDiscounts(IReadOnlyList<LegacyDiscountRow> rows, List<Finding> findings)
+    {
+        var discounts = new List<NewOrderDiscount>();
+        foreach (var discount in rows)
+        {
+            discounts.Add(new NewOrderDiscount(DiscountKind.Fixed, discount.Amount, discount.Description.Trim()));
+            if (!string.IsNullOrWhiteSpace(discount.DiscountedBy))
+            {
+                findings.Add(new Finding(RecordKind.Discount, Key("Discounts", discount.OrderDiscountId), FindingType.CannotMap, "discount.giver", null, "CSPS discounts do not record who gave them.", null, null));
+            }
+        }
+
+        return discounts;
     }
 
     private static List<NewOrderPayment> MapPayments(IReadOnlyList<LegacyPaymentRow> rows, List<Finding> findings)
@@ -150,6 +173,10 @@ internal static class DraftMapping
             AddDateReading(findings, RecordKind.Payment, key, payment.PaymentDate);
             findings.Add(new Finding(RecordKind.Payment, key, FindingType.CannotMap, "payment.no-method", null, "The legacy payment has no payment method.", null, null));
             findings.Add(new Finding(RecordKind.Payment, key, FindingType.LegacyHolderUsed, "person.legacy-holder", $"{path}.receivedByUserId", "The receiver is the Legacy holder until people are matched.", null, null));
+            if (!string.IsNullOrWhiteSpace(payment.PaidBy))
+            {
+                findings.Add(new Finding(RecordKind.Payment, key, FindingType.Info, "payment.payer-text-in-notes", null, "The payer text is kept in the payment notes.", null, null));
+            }
         }
 
         return payments;
@@ -158,12 +185,18 @@ internal static class DraftMapping
     private static List<NewOrderExpense> MapExpenses(IReadOnlyList<LegacyExpenseRow> rows, List<Finding> findings)
     {
         var expenses = new List<NewOrderExpense>();
-        foreach (var expense in rows.Where(static row => !row.IsCompanyExpenses && row.SpentDate is not null))
+        foreach (var expense in rows.Where(static row => !row.IsCompanyExpenses))
         {
             var key = Key("Expenses", expense.ExpenseId);
+            if (expense.SpentDate is null)
+            {
+                findings.Add(new Finding(RecordKind.OrderExpense, key, FindingType.CannotMap, "order-expense.no-date", null, "The order expense has no date and is left out.", null, null));
+                continue;
+            }
+
             var path = $"expenses[{expenses.Count.ToString(CultureInfo.InvariantCulture)}]";
             expenses.Add(new NewOrderExpense(
-                LegacyDates.ToManilaDate(expense.SpentDate!.Value),
+                LegacyDates.ToManilaDate(expense.SpentDate.Value),
                 expense.Amount,
                 OrderListSeed.OrderExpenseOthersId,
                 string.IsNullOrWhiteSpace(expense.Description) ? null : expense.Description.Trim(),
