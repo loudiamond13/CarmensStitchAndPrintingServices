@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Csps.LegacyFitCheck.Findings;
 
-/// <summary>Writes the full findings list under the local folder only (D-01). It holds personal data and must never be committed.</summary>
+/// <summary>Writes the full findings list and the counts-only summary under the local folder only (D-01). The full list holds personal data and must never be committed.</summary>
 internal static class FindingsWriter
 {
     private const string LocalFolderName = "_local";
@@ -19,27 +19,6 @@ internal static class FindingsWriter
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(time);
 
-        var root = Path.GetFullPath(localRoot);
-        if (!string.Equals(Path.GetFileName(root), LocalFolderName, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("The findings folder must be the _local folder.");
-        }
-
-        var folder = Path.GetFullPath(Path.Combine(root, SubFolder));
-        var stamp = time.GetUtcNow().ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var fileName = $"findings-{stamp}.md";
-        var target = Path.GetFullPath(Path.Combine(folder, fileName));
-        if (!target.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("The findings file must sit inside the _local folder.");
-        }
-
-        Directory.CreateDirectory(folder);
-        if (IsLink(root) || IsLink(folder))
-        {
-            throw new InvalidOperationException("The _local folder and its findings folder must not be links.");
-        }
-
         var created = time.GetLocalNow().ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
         var text = new StringBuilder()
             .Append("# Legacy fit check: full findings\n")
@@ -54,7 +33,42 @@ internal static class FindingsWriter
             text.Append(CultureInfo.InvariantCulture, $"| {finding.Kind} | {Cell(finding.LegacyKey)} | {finding.Type} | {Cell(finding.RuleKey)} | {Cell(finding.Path)} | {Cell(finding.Message)} | {Cell(finding.ListValue)} | {Cell(finding.Detail)} |\n");
         }
 
-        await File.WriteAllTextAsync(target, text.ToString(), cancellationToken).ConfigureAwait(false);
+        return await WriteFileAsync(localRoot, "findings", text.ToString(), time, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Writes the counts-only summary beside the full list and returns its repo-relative display path.</summary>
+    public static Task<string> WriteSummaryAsync(string localRoot, string summary, TimeProvider time, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+        ArgumentNullException.ThrowIfNull(time);
+
+        return WriteFileAsync(localRoot, "summary", summary, time, cancellationToken);
+    }
+
+    private static async Task<string> WriteFileAsync(string localRoot, string prefix, string text, TimeProvider time, CancellationToken cancellationToken)
+    {
+        var root = Path.GetFullPath(localRoot);
+        if (!string.Equals(Path.GetFileName(root), LocalFolderName, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The findings folder must be the _local folder.");
+        }
+
+        var folder = Path.GetFullPath(Path.Combine(root, SubFolder));
+        var stamp = time.GetUtcNow().ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var fileName = $"{prefix}-{stamp}.md";
+        var target = Path.GetFullPath(Path.Combine(folder, fileName));
+        if (!target.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The findings file must sit inside the _local folder.");
+        }
+
+        Directory.CreateDirectory(folder);
+        if (IsLink(root) || IsLink(folder))
+        {
+            throw new InvalidOperationException("The _local folder and its findings folder must not be links.");
+        }
+
+        await File.WriteAllTextAsync(target, text, cancellationToken).ConfigureAwait(false);
         return $"{LocalFolderName}/{SubFolder}/{fileName}";
     }
 

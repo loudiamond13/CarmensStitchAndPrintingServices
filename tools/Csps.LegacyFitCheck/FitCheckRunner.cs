@@ -1,5 +1,6 @@
 using System.Data;
 using System.Globalization;
+using Csps.Domain.OrderLists;
 using Csps.LegacyFitCheck.Checks;
 using Csps.LegacyFitCheck.Findings;
 using Csps.LegacyFitCheck.Mapping;
@@ -112,9 +113,20 @@ internal static class FitCheckRunner
             findings.Add(new Finding(RecordKind.Run, "Run", FindingType.Info, "trial.removed", null, "Trial database removed: yes", null, null));
             var path = await FindingsWriter.WriteAsync(localRoot, findings, time, cancellationToken).ConfigureAwait(false);
             var problems = findings.Count(static finding => finding.Type != FindingType.Info);
-            await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Orders checked: {mapped.Count}. Findings: {problems}.")).ConfigureAwait(false);
-            await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Company expenses checked: {read.CompanyExpenses.Count}.")).ConfigureAwait(false);
+            await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"Orders checked: {mapped.Count}. Company expenses checked: {read.CompanyExpenses.Count}. Findings: {problems}.")).ConfigureAwait(false);
             await output.WriteLineAsync($"Full list (never commit): {path}").ConfigureAwait(false);
+
+            var facts = new SummaryFacts(mapped.Count, read.CompanyExpenses.Count, read.Before.Tables, read.Before.Rows, read.Before.UserUpdates, inventory.ColumnsRead, inventory.Unknown, inventory.Missing, TrialRemoved: true);
+            var summary = SummaryRenderer.Render(findings, facts, read.AllowedWords, time.GetLocalNow());
+            var readValues = read.ReadValues.Concat(mapped.Where(static order => order.Snapshot is not null).Select(static order => order.Snapshot!.Number));
+            if (PrivacySelfCheck.Check(summary, readValues, read.AllowedWords) != PrivacyVerdict.Clean)
+            {
+                await error.WriteLineAsync("Failed: the summary held a personal value, so it was not written.").ConfigureAwait(false);
+                return Program.Failed;
+            }
+
+            var summaryPath = await FindingsWriter.WriteSummaryAsync(localRoot, summary, time, cancellationToken).ConfigureAwait(false);
+            await output.WriteLineAsync($"Summary (counts only): {summaryPath}").ConfigureAwait(false);
             return Program.Succeeded;
         }
         catch (Exception exception)
@@ -198,10 +210,9 @@ internal static class FitCheckRunner
 
         var companyRows = await source.Expenses.Where(static row => row.IsCompanyExpenses).OrderBy(static row => row.ExpenseId).ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var people = PeopleMatching.Build(
-            await source.Users.ToListAsync(cancellationToken).ConfigureAwait(false),
-            await source.Roles.ToListAsync(cancellationToken).ConfigureAwait(false),
-            await source.UserRoles.ToListAsync(cancellationToken).ConfigureAwait(false));
+        var users = await source.Users.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var roles = await source.Roles.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var people = PeopleMatching.Build(users, roles, await source.UserRoles.ToListAsync(cancellationToken).ConfigureAwait(false));
         var typeWords = orders.Select(order => order.OrderTypeId is { } id && types.TryGetValue(id, out var word) ? word : null);
         var lists = ListMatching.ForProductTypes(typeWords);
         var mapped = orders
@@ -216,7 +227,32 @@ internal static class FitCheckRunner
         }
 
         var after = await WriteEvidence.CaptureAsync(source, cancellationToken).ConfigureAwait(false);
-        return new ReadResult(mapped, companyExpenses, lists.TrialEntries, people.TrialStaff, columns, before, after);
+        // The personal-ish text this run read, for the privacy self-check of the summary (D-02).
+        IEnumerable<string?> readValues =
+        [
+            .. orders.SelectMany(static order => new[] { order.OrderName, order.Note }),
+            .. items.SelectMany(static group => group).Select(static row => row.Description),
+            .. discounts.SelectMany(static group => group).SelectMany(static row => new[] { row.Description, row.DiscountedBy }),
+            .. payments.SelectMany(static group => group).SelectMany(static row => new[] { row.PaidBy, row.PaidTo }),
+            .. expenses.SelectMany(static group => group).SelectMany(static row => new[] { row.Description, row.PaidBy }),
+            .. companyRows.SelectMany(static row => new[] { row.Description, row.PaidBy }),
+            .. users.SelectMany(static user => new[] { user.UserName, user.Email }),
+        ];
+
+        // The list words the summary may print: the legacy order type, status and role names read here, and the CSPS list names.
+        IEnumerable<string?> allowed =
+        [
+            .. types.Values,
+            .. statuses.Values,
+            .. roles.Select(static role => role.Name),
+            .. OrderListSeed.ProductTypes.Select(static row => row.Name),
+            .. OrderListSeed.PaymentMethods.Select(static row => row.Name),
+            .. OrderListSeed.OrderExpenseCategories.Select(static row => row.Name),
+            ListMatching.UnknownPaymentMethod.Name,
+        ];
+        var allowedWords = allowed.Where(static word => !string.IsNullOrWhiteSpace(word)).Select(static word => word!.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return new ReadResult(mapped, companyExpenses, lists.TrialEntries, people.TrialStaff, columns, before, after, [.. readValues.Where(static value => !string.IsNullOrWhiteSpace(value)).Select(static value => value!)], allowedWords);
     }
 
     private sealed record ReadResult(
@@ -226,5 +262,7 @@ internal static class FitCheckRunner
         IReadOnlyList<TrialStaff> TrialStaff,
         IReadOnlyList<LegacyColumn> Columns,
         WriteEvidenceSnapshot Before,
-        WriteEvidenceSnapshot After);
+        WriteEvidenceSnapshot After,
+        IReadOnlyList<string> ReadValues,
+        IReadOnlySet<string> AllowedWords);
 }
