@@ -23,6 +23,21 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
         context.Orders.Remove(order);
     }
 
+    public Task<bool> NumberTakenAsync(string number, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(number);
+        return context.Orders.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking().AnyAsync(order => order.Number == number, cancellationToken);
+    }
+
+    /// <summary>Turns a failed save into the typed exception the Application understands, or null when it is not the number index.</summary>
+    /// <param name="error">The failed save.</param>
+    /// <returns>The typed exception, or null.</returns>
+    internal static Exception? TranslateSaveFailure(DbUpdateException error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        return null;
+    }
+
     public async Task<Order?> FindAsync(Guid id, bool includeDeleted, CancellationToken cancellationToken)
     {
         var query = includeDeleted

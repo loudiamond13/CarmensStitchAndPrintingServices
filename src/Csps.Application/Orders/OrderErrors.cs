@@ -24,11 +24,23 @@ public static class OrderErrors
     /// <summary>The plain-English text for a busy order number lock.</summary>
     public const string BusyMessage = "Orders are being saved right now. Try again in a moment.";
 
+    /// <summary>The code of an import of an order number another order already holds.</summary>
+    public const string NumberTakenCode = "orders.number-taken";
+
+    /// <summary>The plain-English text for an order number another order already holds.</summary>
+    public const string NumberTakenMessage = "This order number is already used.";
+
+    /// <summary>The plain-English text for a status history row whose person is not a known account.</summary>
+    public const string HistoryPersonUnknownMessage = "Choose who changed the status.";
+
     /// <summary>Gets the answer for an order that does not exist or was deleted: a 404 with the same words for both.</summary>
     public static Error NotFound { get; } = Error.NotFound(NotFoundCode, NotFoundMessage);
 
     /// <summary>Gets the 409 for a lock wait that timed out.</summary>
     public static Error Busy { get; } = Error.Conflict(BusyCode, BusyMessage);
+
+    /// <summary>Gets the 422 for an import of an order number another order already holds, deleted orders included.</summary>
+    public static Error NumberTaken { get; } = Error.BusinessRule(NumberTakenCode, NumberTakenMessage);
 
     /// <summary>Gets the 404 for an item id that is not on the order in the route (CWE-639).</summary>
     public static Error ItemNotFound => OrderRules.ItemNotFound;

@@ -5,10 +5,12 @@ using Csps.Domain.Common;
 using Csps.Domain.Identity;
 using Csps.Domain.Orders;
 using Csps.Server.IntegrationTests.Auth;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
@@ -47,6 +49,93 @@ public sealed class ImportOrderEndToEndTests(CspsDatabase database) : IClassFixt
         var created = await OrderFixtures.CreateAsync(rig.Client, rig.Admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, rig.Today));
 
         created.GetProperty("number").GetString().ShouldBe("ORD-2026-0149");
+    }
+
+    [Fact]
+    public async Task ImportingTheSameNumberTwiceIsA422AndLeavesOneRow()
+    {
+        await using var rig = await Rig.StartAsync(database, Start);
+        (await rig.ImportAsync(Ord0148(rig.Today))).IsSuccess.ShouldBeTrue();
+
+        var second = await rig.ImportAsync(Ord0148(rig.Today));
+
+        second.IsFailure.ShouldBeTrue();
+        second.Error.Kind.ShouldBe(ErrorKind.BusinessRule);
+        second.Error.Code.ShouldBe("orders.number-taken");
+        second.Error.Message.ShouldBe("This order number is already used.");
+        await using var context = database.CreateContext();
+        (await context.Orders.IgnoreQueryFilters().CountAsync(order => order.Number == "ORD-2026-0148", TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ALegacyNumberThatIsNotOrdYearNumberChangesNoCounter()
+    {
+        await using var rig = await Rig.StartAsync(database, Start);
+        (await rig.ImportAsync(Ord0148(rig.Today))).IsSuccess.ShouldBeTrue();
+
+        var legacy = await rig.ImportAsync(Ord0148(rig.Today) with { Number = "LEG-0042" });
+
+        legacy.IsSuccess.ShouldBeTrue();
+        var read = await OrderFixtures.ReadDetailAsync(rig.Client, rig.Admin.AccessToken, legacy.Value);
+        read.GetProperty("number").GetString().ShouldBe("LEG-0042");
+        await using var context = database.CreateContext();
+        var counters = await context.OrderNumberCounters.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken);
+        counters.Select(counter => (counter.Year, counter.LastValue)).ToList().ShouldBe([(2026, 148)]);
+    }
+
+    [Fact]
+    public async Task AnOverpaidLegacyOrderKeepsEveryPaymentAndReadsTheMatchingCustomerCredit()
+    {
+        await using var rig = await Rig.StartAsync(database, Start);
+        var snapshot = Ord0148(rig.Today) with
+        {
+            Payments = [.. Ord0148(rig.Today).Payments, new NewOrderPayment(rig.Today, 10000.00m, OrderFixtures.CashId, null, null, LegacyHolder.Id)],
+        };
+
+        var imported = await rig.ImportAsync(snapshot);
+
+        imported.IsSuccess.ShouldBeTrue();
+        var read = await OrderFixtures.ReadDetailAsync(rig.Client, rig.Admin.AccessToken, imported.Value);
+        var totals = read.GetProperty("totals");
+        totals.GetProperty("paid").GetDecimal().ShouldBe(22000.00m);
+        totals.GetProperty("balance").GetDecimal().ShouldBe(-672.50m);
+        totals.GetProperty("customerCredit").GetDecimal().ShouldBe(672.50m);
+        read.GetProperty("payments").GetArrayLength().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task ACompletedLegacyOrderWithABalanceStaysCompletedAndLockedUntilItIsReopened()
+    {
+        await using var rig = await Rig.StartAsync(database, Start);
+        var imported = await rig.ImportAsync(Ord0148(rig.Today) with { Number = "ORD-2026-0160", Status = OrderStatus.Completed, StatusHistory = [] });
+        imported.IsSuccess.ShouldBeTrue();
+        var read = await OrderFixtures.ReadDetailAsync(rig.Client, rig.Admin.AccessToken, imported.Value);
+        read.GetProperty("status").GetString().ShouldBe("completed");
+        read.GetProperty("totals").GetProperty("balance").GetDecimal().ShouldBe(9327.50m);
+
+        using var locked = await OrderFixtures.AddItemAsync(rig.Client, rig.Admin.AccessToken, imported.Value, OrderFixtures.ItemBody(OrderFixtures.PoloId, read.GetProperty("version").GetString()));
+
+        locked.StatusCode.ShouldBe(System.Net.HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(locked, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("orders.locked");
+        var reopened = await OrderFixtures.ChangeStatusAndReadAsync(rig.Client, rig.Admin.AccessToken, imported.Value, "pending");
+        var added = await OrderFixtures.AddItemAndReadAsync(rig.Client, rig.Admin.AccessToken, reopened, OrderFixtures.PoloId);
+        added.GetProperty("items").GetArrayLength().ShouldBe(6);
+    }
+
+    [Fact]
+    public async Task AnImportWritesNoAuditEntry()
+    {
+        await using var rig = await Rig.StartAsync(database, Start);
+        await using var before = database.CreateContext();
+        var entriesBefore = await before.AuditLog.AsNoTracking().CountAsync(TestContext.Current.CancellationToken);
+
+        var imported = await rig.ImportAsync(Ord0148(rig.Today));
+
+        imported.IsSuccess.ShouldBeTrue();
+        await using var after = database.CreateContext();
+        (await after.AuditLog.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(entriesBefore);
+        (await after.AuditLog.AsNoTracking().CountAsync(entry => entry.TargetId == imported.Value.ToString("D"), TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     /// <summary>The legacy ORD-2026-0148 as import data: five lines, the 5% league discount, two payments and three expenses, all held by the Legacy holder.</summary>

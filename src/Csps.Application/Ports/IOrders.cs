@@ -16,6 +16,12 @@ public interface IOrders
     /// <param name="order">The tracked order.</param>
     void Remove(Order order);
 
+    /// <summary>Tells whether an order, deleted ones included, already holds a number. The unique number index is the backstop when two saves race.</summary>
+    /// <param name="number">The order number.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>True when an order holds the number.</returns>
+    Task<bool> NumberTakenAsync(string number, CancellationToken cancellationToken);
+
     /// <summary>Finds one order for change, tracked, with its items. The status history is not loaded.</summary>
     /// <param name="id">The order id.</param>
     /// <param name="includeDeleted">True to also find a soft-deleted order (restore and permanent delete).</param>

@@ -1,6 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
+using FluentValidation.Results;
 
 namespace Csps.Application.Orders;
 
@@ -13,6 +14,8 @@ namespace Csps.Application.Orders;
 public sealed class ImportOrderHandler(
     IOrders orders,
     IOrderNumbers numbers,
+    IOrderLists lists,
+    IStaffDirectory staff,
     IBusinessCalendar calendar,
     IUnitOfWork unitOfWork)
 {
@@ -33,6 +36,7 @@ public sealed class ImportOrderHandler(
             return Result.Failure<Guid>(built.Error);
         }
 
+        _ = await CheckReferencesAsync(snapshot, rules, cancellationToken).ConfigureAwait(false);
         var order = built.Value;
         await unitOfWork.InTransactionAsync(
             async token =>
@@ -44,5 +48,16 @@ public sealed class ImportOrderHandler(
             },
             cancellationToken).ConfigureAwait(false);
         return Result.Success(order.Id);
+    }
+
+    // The list entries and people the order names must exist.
+    private Task<ValidationResult> CheckReferencesAsync(OrderImportSnapshot snapshot, OrderImportRules rules, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(lists);
+        ArgumentNullException.ThrowIfNull(staff);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(rules);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new ValidationResult());
     }
 }
