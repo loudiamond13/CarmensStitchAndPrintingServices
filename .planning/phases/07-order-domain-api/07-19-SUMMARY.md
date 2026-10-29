@@ -4,7 +4,7 @@ plan: 19
 subsystem: api
 tags: [audit-log, orders, viewer, change-lines, snapshots, money-attribution, d-31]
 created: "2026-10-28T20:42:00-05:00"
-updated: "2026-10-28T20:42:00-05:00"
+updated: "2026-10-28T21:45:00-05:00"
 status: complete
 
 requires:
@@ -210,6 +210,8 @@ Plain words the plan did not spell out. Please confirm or reword.
 Total deviations: 3 (1 missing field, 1 blocking fixture update, 1 internal signature). Impact: none on scope; one extra nullable field on the audit item.
 
 ## Deferred Issues / Follow-ups (recorded, not done)
+
+**Owner ruling D-48 (2026-10-28):** the copy is approved, the Done to filter is extended to order receivers, payers and refunders, and the subline names orders. The two code changes are queued in `deferred-items.md`.
 
 - **Done to filter and order money.** The Done to filter matches only `company-expense.*` entries by the payer in the detail. It does not find order entries for a receiver, payer or refunder. The lines show the people, but a Manager cannot yet list "everything this person received" through the filter. Owner decision: extend the filter to the six order families? (Recommend yes, a small change of the same LIKE rule.)
 - **Subline wording.** `AUDIT_COPY.subline` still reads "Every sign-in, security, staff account and expense change". It does not mention orders. Left unchanged because it is owner-reviewed wording.
