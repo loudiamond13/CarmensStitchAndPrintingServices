@@ -182,7 +182,7 @@ describe('A1 the header', () => {
     expect(screen.getByText('Manager only')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
+        'Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /export|download/i })).toBeNull();

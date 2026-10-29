@@ -89,7 +89,7 @@ test('@audit a Manager finds a deactivation by Action and Done to, reads its det
   await expect(page.getByText('Manager only')).toBeVisible();
   await expect(
     page.getByText(
-      'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
+      'Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
     ),
   ).toBeVisible();
   await expect(page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]')).toContainText('Audit Log');
