@@ -46,7 +46,7 @@ public sealed class FitCheckRunnerTests
                 lines[1].ShouldStartWith("*Created: ");
                 var text = string.Join('\n', lines);
                 text.ShouldContain("Never commit");
-                text.ShouldContain("import.imported");
+                text.ShouldContain("trial.imported");
                 text.ShouldNotContain("TrialImport");
 
                 trialName.ShouldNotBeNull();
@@ -186,7 +186,7 @@ public sealed class FitCheckRunnerTests
                 Count(text, "| CannotMap | order.no-number |").ShouldBe(2);
                 Count(text, "| LegacyHolderUsed |").ShouldBe(2);
                 Count(text, "| TrialImport |").ShouldBe(0);
-                Count(text, "| Info | import.imported |").ShouldBe(2);
+                Count(text, "| Info | trial.imported |").ShouldBe(2);
             }
             finally
             {
@@ -241,7 +241,7 @@ public sealed class FitCheckRunnerTests
                 Count(text, "| UnmatchedPerson | person.unknown-name |").ShouldBe(1);
                 Count(text, "| LegacyHolderUsed |").ShouldBe(1);
                 Count(text, "| TrialImport |").ShouldBe(0);
-                Count(text, "| Info | import.imported |").ShouldBe(2);
+                Count(text, "| Info | trial.imported |").ShouldBe(2);
                 output.ToString().ShouldNotContain("SENTINEL");
                 error.ToString().ShouldNotContain("SENTINEL");
             }
