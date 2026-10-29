@@ -307,9 +307,7 @@ describe('OrderTotals (D-01 to D-07, D-45)', () => {
     expect(classTokens(balance?.lastElementChild)).toEqual(tokens(balanceValueClasses.card));
     expect(container.textContent).not.toMatch(/Estimated Profit|Order Expenses|Discount/);
 
-    const paid = render(
-      <OrderTotals variant="card" totals={{ ...SERVER_0148, balance: '0.00', fullyPaid: true }} />,
-    );
+    const paid = render(<OrderTotals variant="card" totals={{ ...SERVER_0148, balance: '0.00', fullyPaid: true }} />);
     expect(paid.container.querySelector('svg')?.getAttribute('width')).toBe('18');
   });
 
@@ -324,7 +322,9 @@ describe('OrderTotals (D-01 to D-07, D-45)', () => {
   });
 
   it('shows a customer credit in the info block with the D-02 line and never as a negative balance', () => {
-    const { container } = render(<OrderTotals totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '1000.00' }} />);
+    const { container } = render(
+      <OrderTotals totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '1000.00' }} />,
+    );
     const balance = container.firstElementChild?.children[1];
 
     expect(balance?.textContent).toContain('Customer credit');
@@ -379,9 +379,7 @@ describe('OrderTotals (D-01 to D-07, D-45)', () => {
   });
 
   it('shows Not collected for a Cancelled order with a balance, on the neutral ground (D-45)', () => {
-    const { container } = render(
-      <OrderTotals totals={{ ...SERVER_0148, balance: '500.00' }} status="cancelled" />,
-    );
+    const { container } = render(<OrderTotals totals={{ ...SERVER_0148, balance: '500.00' }} status="cancelled" />);
     const balance = container.firstElementChild?.children[1];
 
     expect(balance?.firstElementChild?.textContent).toBe('Not collected');

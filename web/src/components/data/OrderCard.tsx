@@ -112,7 +112,7 @@ export function OrderCard({ order, totals, onView, onEdit, onDelete }: OrderCard
             Due {formatCalendarDate(o.dueDate) ?? <EmptyValue />}
           </span>
         </div>
-        <OrderTotals order={o} totals={totals} variant="card" />
+        <OrderTotals order={o} totals={totals && { ...totals, refunded: 0, customerCredit: 0 }} variant="card" />
       </div>
       <div className={orderActionsClasses}>
         <Button

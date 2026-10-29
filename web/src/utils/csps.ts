@@ -98,6 +98,24 @@ export interface Totals {
   profit: number;
   fullyPaid: boolean;
 }
+/** A server money value: the API sends decimals as a number or as text, and screens pass it on untouched. */
+export type MoneyValue = number | string;
+/**
+ * The server's figures for one order (list row or detail), shown as they come: no browser arithmetic. `expenses` and
+ * `profit` exist on the order page only; the list never carries them (D-06).
+ */
+export interface OrderFigures {
+  subtotal: MoneyValue;
+  discount: MoneyValue;
+  total: MoneyValue;
+  paid: MoneyValue;
+  refunded: MoneyValue;
+  balance: MoneyValue;
+  customerCredit: MoneyValue;
+  fullyPaid: boolean;
+  expenses?: MoneyValue;
+  profit?: MoneyValue;
+}
 export interface CascadeCounts {
   items?: number;
   payments?: number;
@@ -280,6 +298,17 @@ export function orderTotals(order: Partial<Order> | null | undefined): Totals {
     fullyPaid: subtotal > 0n && balance <= 0n,
   };
 }
+
+/* Sign checks on server money go through whole centavos, so no float compare decides a balance state. */
+
+/** True when the value is at least one centavo above zero (half a centavo rounds up, as the server does). */
+export const isPositiveMoney = (value: MoneyValue | null | undefined): boolean => toCentavos(value) > 0n;
+
+/** True when the value is at least one centavo below zero. */
+export const isNegativeMoney = (value: MoneyValue | null | undefined): boolean => toCentavos(value) < 0n;
+
+/** The value with its sign flipped, as exact decimal text ("-1122.50"); zero stays "0.00". formatPeso reads it as it is. */
+export const negateMoney = (value: MoneyValue | null | undefined): string => centavosText(-toCentavos(value));
 
 // SPEC-DEVIATION: lint array-type (readonly T[] instead of ReadonlyArray<T>). Same type.
 export const CASCADE_LABELS: readonly (readonly [keyof CascadeCounts, string])[] = [
