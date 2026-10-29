@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "07.1"
 current_phase_name: Legacy Fit Check (read-only)
 status: executing
-stopped_at: Completed 07.1-05-PLAN.md
-last_updated: "2026-10-29T14:09:25.637Z"
+stopped_at: Completed 07.1-06-PLAN.md
+last_updated: "2026-10-29T14:30:05.684Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07.1 execution started
-state_head: bd0f211d0d357acae8860922e1333af4b421e749
+state_head: 11945b2a33cb5ed8bc555c757a872eb3c51bc234
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 219
-  completed_plans: 212
+  completed_plans: 213
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T15:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 07.1 (Legacy Fit Check (read-only)) — EXECUTING
-Plan: 6 of 12
+Plan: 7 of 12
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 07.1 execution started
 
@@ -271,6 +271,7 @@ Progress: [████░░░░░░] 39%
 | Phase 07.1 P03 | 20 min | 3 tasks | 13 files |
 | Phase 07.1 P04 | 22 min | 3 tasks | 12 files |
 | Phase 07.1 P05 | 9 min | 2 tasks | 9 files |
+| Phase 07.1 P06 | 19 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -757,6 +758,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1]: 07.1-04: payments and order expenses stay on the Legacy holder (LegacyHolderUsed person.legacy-holder) until plan 05 matches people
 - [Phase 07.1]: 07.1-05: only the legacy role Admin maps to pseudonymous trial staff; Company, Employee, Manager and no role use the Legacy holder (person.role-no-match). Open for the owner: whether legacy Manager should map to CSPS Manager once the real counts are known.
 - [Phase 07.1]: 07.1-05: every holder use is UnmatchedPerson plus LegacyHolderUsed person.legacy-holder per payment receiver and order expense payer; the trial staff placeholder password hash is AAAA so verification fails instead of throwing
+- [Phase 07.1]: 07.1-06: a RuleBreak finding's rule key is the field path without indexes plus the rule message; the real path (with the child's index) is in Path; all probe findings use RecordKind.Order and the order key, so counts are orders
+- [Phase 07.1]: 07.1-06: refunds are probed like other children (Rule 2); the 3 handler flags are not probed (AllowRetiredListEntries and AllowInactivePeople have no count yet: open gap for 07.1-09/10)
+- [Phase 07.1]: 07.1-06: a discount above the subtotal also shows AllowOverpaid (negative balance); recorded as an open note for the D-10 session, not filtered
 
 ### Pending Todos
 
@@ -859,6 +863,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T14:09:24.918Z
-Stopped at: Completed 07.1-05-PLAN.md
+Last session: 2026-10-29T14:30:04.771Z
+Stopped at: Completed 07.1-06-PLAN.md
 Resume file: None
