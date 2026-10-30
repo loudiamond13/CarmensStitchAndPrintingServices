@@ -17,9 +17,17 @@ export function useOrderAction<TTarget extends { readonly id: string }, TResult 
   return useSubmission(send, {
     identity: (target) => `${target.id}:${String(generation.current)}`,
     onSuccess: (result, target) => {
-      void Promise.resolve(onSuccess(result, target)).then(() => {
+      const advance = (): void => {
         generation.current += 1;
-      });
+      };
+      let done: unknown;
+      try {
+        done = onSuccess(result, target);
+      } catch (error) {
+        advance();
+        throw error;
+      }
+      void Promise.resolve(done).finally(advance);
     },
     onFailure: (_copy, error) => {
       onFailure?.(error);
