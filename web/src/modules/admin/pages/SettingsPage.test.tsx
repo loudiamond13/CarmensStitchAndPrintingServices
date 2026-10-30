@@ -2,11 +2,13 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expenseCategoriesKey } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuery';
@@ -32,9 +34,16 @@ import {
 } from '@/test/expenseFixtures';
 import type { CategoryListItemFixture } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
+import {
+  listBackend,
+  ORDER_EXPENSE_CATEGORIES,
+  PAYMENT_METHODS,
+  PRODUCT_TYPES,
+} from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
-// S1 Settings, /admin/settings (D-08..D-15, OQ-3; plan 06-17): the Manager's page for the expense category list.
+// S1 Settings, /admin/settings (D-08..D-15, OQ-3; plan 06-17): the Manager's page for the expense category list, now the Company
+// Expense Categories tab of four (D-31; plan 08-08).
 
 let queryClient: QueryClient;
 
@@ -65,14 +74,25 @@ const CATEGORIES: readonly CategoryListItemFixture[] = EXPENSE_CATEGORIES.map((c
   expenseCount: COUNTS[category.name] ?? 0,
 }));
 
-function renderPage() {
+/** The Phase 6 tests run on the Company Expense Categories tab, which the tab wrapper now needs chosen. */
+const COMPANY_TAB = '?tab=expense-categories';
+
+function renderPage(search: string = COMPANY_TAB, onUrlUpdate?: OnUrlUpdateFunction) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <ToastProvider>
-          <SettingsRoute />
-        </ToastProvider>
-      </MemoryRouter>
+      <NuqsTestingAdapter
+        searchParams={search}
+        {...(onUrlUpdate === undefined ? {} : { onUrlUpdate })}
+        defaultOptions={URL_STATE_DEFAULTS}
+        processUrlSearchParams={orderSearchParams}
+        hasMemory
+      >
+        <MemoryRouter>
+          <ToastProvider>
+            <SettingsRoute />
+          </ToastProvider>
+        </MemoryRouter>
+      </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
 }
@@ -116,7 +136,7 @@ describe('S1 the page', () => {
     expect(heading).toBeVisible();
     expect(within(heading.parentElement ?? document.body).getByText('Manager only')).toBeVisible();
     expect(screen.getByText('Lists and options the whole team uses.')).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'Expense Categories' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Company Expense Categories' })).toBeVisible();
     expect(screen.getByText('Staff pick one of these when they record a company expense.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Add Category' })).toBeVisible();
     expect(document.title).toBe('Settings · CSPS Admin');
@@ -690,7 +710,7 @@ describe('S1 retire, use again and delete (D-10, D-11, D-30, OQ-4, OQ-5; plan 06
       await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete Category' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 2, name: 'Expense Categories' })).toHaveFocus();
+        expect(screen.getByRole('heading', { level: 2, name: 'Company Expense Categories' })).toHaveFocus();
       });
     });
 
@@ -758,5 +778,93 @@ describe('S1 retire, use again and delete (D-10, D-11, D-30, OQ-4, OQ-5; plan 06
       await expectNoAxeViolations(view.container);
       await expectNoAxeViolations(screen.getByRole('dialog', { name: DELETE_TITLE }));
     });
+  });
+});
+
+describe('S1 the four tabs (D-31, WEB-10; plan 08-08)', () => {
+  const TAB_NAMES = ['Product Types', 'Payment Methods', 'Order Expense Categories', 'Company Expense Categories'];
+
+  async function openTabs(search = '') {
+    listBackend('product-types', PRODUCT_TYPES);
+    listBackend('payment-methods', PAYMENT_METHODS);
+    listBackend('order-expense-categories', ORDER_EXPENSE_CATEGORIES);
+    categoriesBackend(CATEGORIES);
+    const updates: { history: string; query: string }[] = [];
+    const view = renderPage(search, (event) => {
+      updates.push({ history: event.options.history, query: event.queryString });
+    });
+    return { view, updates };
+  }
+
+  it('shows the four tabs in order with Product Types selected', async () => {
+    await openTabs();
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(TAB_NAMES);
+    expect(screen.getByRole('tab', { name: 'Product Types' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('lists the product types with the Items count on the first tab', async () => {
+    await openTabs();
+
+    const table = await screen.findByRole('table', { name: 'Product types' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Product type', 'Status', 'Items', 'Actions']);
+    expect(within(cellOf(rowOf('Basketball Jersey'), 'Items')).getByText('12')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Product Types' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Add Product Type' })).toBeVisible();
+  });
+
+  it('choosing Payment Methods sets ?tab=payment-methods with a replace and shows that list with Payments', async () => {
+    const user = userEvent.setup();
+    const { updates } = await openTabs();
+    await screen.findByRole('table', { name: 'Product types' });
+
+    await user.click(screen.getByRole('tab', { name: 'Payment Methods' }));
+
+    const table = await screen.findByRole('table', { name: 'Payment methods' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Method', 'Status', 'Payments', 'Actions']);
+    expect(screen.getByRole('tab', { name: 'Payment Methods' })).toHaveAttribute('aria-selected', 'true');
+    expect(updates).toEqual([{ history: 'replace', query: '?tab=payment-methods' }]);
+  });
+
+  it('opens on the tab named in the URL', async () => {
+    await openTabs('?tab=order-expense-categories');
+
+    expect(await screen.findByRole('table', { name: 'Order expense categories' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Order Expense Categories' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('falls back to Product Types for an unknown tab', async () => {
+    await openTabs('?tab=unknown');
+
+    expect(await screen.findByRole('table', { name: 'Product types' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Product Types' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps only the chosen tab panel filled', async () => {
+    await openTabs();
+    await screen.findByRole('table', { name: 'Product types' });
+
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+  });
+
+  it.each([
+    ['', 'Product types'],
+    ['?tab=payment-methods', 'Payment methods'],
+    ['?tab=order-expense-categories', 'Order expense categories'],
+    ['?tab=expense-categories', 'Expense categories'],
+  ])('has no axe violations on the tab %s', async (search, tableName) => {
+    const { view } = await openTabs(search);
+    await screen.findByRole('table', { name: tableName });
+
+    await expectNoAxeViolations(view.container);
   });
 });
