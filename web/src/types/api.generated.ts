@@ -656,6 +656,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/deleted/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A Manager reads a deleted order, read-only, before restoring or deleting it for good. */
+        get: operations["GetDeletedOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}": {
         parameters: {
             query?: never;
@@ -2223,6 +2240,17 @@ export interface components {
              * @description How many deleted expenses match, across all pages.
              */
             total: number | string;
+        };
+        /** @description A deleted order with every child row, read-only, for a Manager (D-24). */
+        DeletedOrderDetailResponse: {
+            /**
+             * Format: date-time
+             * @description When it was deleted.
+             */
+            deletedAt: string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description The order with its items, discounts, payments, refunds, expenses, status history, totals and the business today. */
+            order: components["schemas"]["OrderDetailResponse"];
         };
         /** @description One deleted order in the deleted list (D-28). It carries no contact details, address or notes. */
         DeletedOrderListItem: {
@@ -5684,6 +5712,56 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetDeletedOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedOrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

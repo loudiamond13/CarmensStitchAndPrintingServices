@@ -174,35 +174,86 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         return new DeletedOrderPage(items, total);
     }
 
-    public Task<DeletedOrderDetailResponse?> GetDeletedDetailAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<DeletedOrderDetailResponse?>(null);
+    public async Task<DeletedOrderDetailResponse?> GetDeletedDetailAsync(Guid id, CancellationToken cancellationToken)
+    {
+        // The deleted read lifts the SoftDelete filter on the order and on each child query, and keeps only a deleted order, so a
+        // live order is never read here. The deleter keeps their name when their own account was deleted (D-08, D-11).
+        var view = await ReadSettledDetailAsync(id, deleted: true, cancellationToken).ConfigureAwait(false);
+        if (view is null)
+        {
+            return null;
+        }
+
+        var deletion = await (
+            from order in context.Orders.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking()
+            where order.Id == id && order.DeletedAtUtc != null
+            join deleterUser in context.Users.AsNoTracking() on order.DeletedById equals (Guid?)deleterUser.Id into deleters
+            from deleter in deleters.DefaultIfEmpty()
+            select new
+            {
+                DeletedAtUtc = order.DeletedAtUtc!.Value,
+                order.DeletedById,
+                DeleterFirst = (string?)deleter.FirstName,
+                DeleterLast = (string?)deleter.LastName,
+                DeleterFormer = deleter.DeletedAtUtc != null,
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (deletion is null)
+        {
+            // Restored by someone else since the read above.
+            return null;
+        }
+
+        var stamped = await StampTodayAsync(view, cancellationToken).ConfigureAwait(false);
+        return new DeletedOrderDetailResponse(
+            stamped,
+            deletion.DeletedAtUtc,
+            deletion.DeletedById is { } deletedBy && deletion.DeleterFirst is not null
+                ? new ActorRef(deletedBy, $"{deletion.DeleterFirst} {deletion.DeleterLast}", deletion.DeleterFormer)
+                : null);
+    }
 
     public async Task<OrderDetailResponse?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
     {
-        // The header and each list are separate statements, so a save can land between them. The row version is read again after
-        // the lists, as OrderStore.FindAsync does; when it moved, the order is read again so the totals, the lists and the version
-        // come from one save. After the last attempt the latest read is returned, as a save that keeps landing is not worth a failure.
+        var view = await ReadSettledDetailAsync(id, deleted: false, cancellationToken).ConfigureAwait(false);
+        return view is null ? null : await StampTodayAsync(view, cancellationToken).ConfigureAwait(false);
+    }
+
+    // The header and each list are separate statements, so a save can land between them. The row version is read again after
+    // the lists, as OrderStore.FindAsync does; when it moved, the order is read again so the totals, the lists and the version
+    // come from one save. After the last attempt the latest read is returned, as a save that keeps landing is not worth a failure.
+    private async Task<OrderDetailResponse?> ReadSettledDetailAsync(Guid id, bool deleted, CancellationToken cancellationToken)
+    {
         OrderDetailResponse? view = null;
         for (var attempt = 1; attempt <= DetailReadAttempts; attempt++)
         {
-            view = await ReadDetailOnceAsync(id, cancellationToken).ConfigureAwait(false);
+            view = await ReadDetailOnceAsync(id, deleted, cancellationToken).ConfigureAwait(false);
             if (view is null)
             {
                 return null;
             }
 
-            var current = await context.Orders.AsNoTracking()
+            var versions = deleted
+                ? context.Orders.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking().Where(row => row.DeletedAtUtc != null)
+                : context.Orders.AsNoTracking();
+            var current = await versions
                 .Where(row => row.Id == id)
                 .Select(row => row.RowVersion)
                 .SingleOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
-            if (current is null || RowVersions.ToText(current) == view.Version)
+            if (current is null)
             {
-                return current is null ? null : await StampTodayAsync(view, cancellationToken).ConfigureAwait(false);
+                return null;
+            }
+
+            if (RowVersions.ToText(current) == view.Version)
+            {
+                return view;
             }
         }
 
-        return view is null ? null : await StampTodayAsync(view, cancellationToken).ConfigureAwait(false);
+        return view;
     }
 
     // The business today comes from the calendar once per answer (D-59), after the reads, so a retried read never repeats it.
@@ -212,12 +263,22 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         return view with { Today = clock.Today };
     }
 
-    private async Task<OrderDetailResponse?> ReadDetailOnceAsync(Guid id, CancellationToken cancellationToken)
+    private async Task<OrderDetailResponse?> ReadDetailOnceAsync(Guid id, bool deleted, CancellationToken cancellationToken)
     {
-        // The named SoftDelete filter hides a deleted order. The recorder and the last changer come from their own user rows, so a
-        // rename shows at once and a deleted person keeps their name (D-08, D-11).
+        // The named SoftDelete filter hides a deleted order. A deleted read lifts it on this query and on each child query below,
+        // which each carry their own filter, and keeps only a deleted order. The recorder and the last changer come from their own
+        // user rows, so a rename shows at once and a deleted person keeps their name (D-08, D-11).
+        var orders = deleted
+            ? context.Orders.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking().Where(row => row.DeletedAtUtc != null)
+            : context.Orders.AsNoTracking();
+        var itemsSource = deleted ? context.Set<OrderItem>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderItem>().AsNoTracking();
+        var discountsSource = deleted ? context.Set<OrderDiscount>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderDiscount>().AsNoTracking();
+        var paymentsSource = deleted ? context.Set<OrderPayment>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderPayment>().AsNoTracking();
+        var refundsSource = deleted ? context.Set<OrderRefund>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderRefund>().AsNoTracking();
+        var expensesSource = deleted ? context.Set<OrderExpense>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderExpense>().AsNoTracking();
+        var changesSource = deleted ? context.Set<OrderStatusChange>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderStatusChange>().AsNoTracking();
         var header = await (
-            from row in context.Orders.AsNoTracking()
+            from row in orders
             where row.Id == id
             join recorderUser in context.Users on row.CreatedById equals (Guid?)recorderUser.Id into recorders
             from recorder in recorders.DefaultIfEmpty()
@@ -242,7 +303,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         }
 
         var itemRows = await (
-            from item in context.Set<OrderItem>().AsNoTracking()
+            from item in itemsSource
             where item.OrderId == id
             join productType in context.ProductTypes.AsNoTracking() on item.ProductTypeId equals productType.Id
             join recorderUser in context.Users on item.CreatedById equals (Guid?)recorderUser.Id into recorders
@@ -268,7 +329,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             .ConfigureAwait(false);
 
         var discountRows = await (
-            from discount in context.Set<OrderDiscount>().AsNoTracking()
+            from discount in discountsSource
             where discount.OrderId == id
             join recorderUser in context.Users on discount.CreatedById equals (Guid?)recorderUser.Id into recorders
             from recorder in recorders.DefaultIfEmpty()
@@ -292,7 +353,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         // The receiver rule (ORD-22, D-32, D-49) is the same set as StaffState.CanPay, evaluated in SQL: an active Admin or Manager
         // with a password and a confirmed sign-in who is neither locked nor deleted. Keep in step with StaffDirectory.
         var paymentRows = await (
-            from payment in context.Set<OrderPayment>().AsNoTracking()
+            from payment in paymentsSource
             where payment.OrderId == id
             join method in context.PaymentMethods.AsNoTracking() on payment.PaymentMethodId equals method.Id
             join receiver in context.Users on payment.ReceivedByUserId equals receiver.Id
@@ -330,7 +391,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
 
         // The refunder rule (D-07, D-32) is the same set as the receiver rule above: StaffState.CanPay, evaluated in SQL.
         var refundRows = await (
-            from refund in context.Set<OrderRefund>().AsNoTracking()
+            from refund in refundsSource
             where refund.OrderId == id
             join refunder in context.Users on refund.RefundedByUserId equals refunder.Id
             join recorderUser in context.Users on refund.CreatedById equals (Guid?)recorderUser.Id into recorders
@@ -364,7 +425,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
 
         // The payer rule (ORD-23, D-32) is the same set as the receiver rule above: StaffState.CanPay, evaluated in SQL.
         var expenseRows = await (
-            from expense in context.Set<OrderExpense>().AsNoTracking()
+            from expense in expensesSource
             where expense.OrderId == id
             join category in context.OrderExpenseCategories.AsNoTracking() on expense.OrderExpenseCategoryId equals category.Id
             join payer in context.Users on expense.PaidByUserId equals payer.Id
@@ -401,7 +462,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             .ConfigureAwait(false);
 
         var changes = await (
-            from change in context.Set<OrderStatusChange>().AsNoTracking()
+            from change in changesSource
             where change.OrderId == id
             join actorUser in context.Users on change.ChangedById equals (Guid?)actorUser.Id into actors
             from actor in actors.DefaultIfEmpty()
