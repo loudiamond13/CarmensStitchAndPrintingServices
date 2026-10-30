@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-29T16:30:00-05:00
+updated: 2026-10-29T20:30:00-05:00
 ---
 
 # The orders API
@@ -49,6 +49,7 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `POST /orders/{id}/status` | Staff | `{ "status": "mockup" }` with an `Idempotency-Key` and no version | `200` the whole order; `400` on `status`; `404 orders.not-found`; `409 edit.stale` (two lost races); `422 orders.complete-balance-owed`, `orders.complete-credit` or `orders.reopen-first` |
 | `DELETE /orders/{id}` | Staff | none | `204`; `404 orders.not-found` (also for an order that is already deleted); `409 edit.stale` (two lost races) |
 | `GET /orders/deleted?page=&pageSize=` | Manager | none | `200` the deleted list; `400` for a bad page or page size; `403` for an Admin |
+| `GET /orders/deleted/{id}` | Manager | none | `200` the deleted order, read-only; `401`; `403` for an Admin; `404 orders.not-found` (also for an order that is not deleted) |
 | `POST /orders/{id}/restore` | Manager | none, with an `Idempotency-Key` | `204`; `403` for an Admin; `404 orders.not-found` (also for an order that is not deleted); `409 edit.stale` |
 | `DELETE /orders/{id}/permanent?confirm=` | Manager | none | `204`; `400` on `confirm`; `403` for an Admin; `404 orders.not-found`; `409 edit.stale` |
 
@@ -442,6 +443,7 @@ Who may do what:
 |--------|-------|---------|
 | Delete an order (`DELETE /orders/{id}`) | yes | yes |
 | See the deleted orders (`GET /orders/deleted`) | `403` | yes |
+| Open one deleted order (`GET /orders/deleted/{id}`) | `403` | yes |
 | Restore a deleted order (`POST /orders/{id}/restore`) | `403` | yes |
 | Delete for good (`DELETE /orders/{id}/permanent?confirm=`) | `403` | yes |
 
@@ -455,6 +457,11 @@ Who may do what:
   (the wire key it had), `total`, `paid`, `balance`, `deletedAt` and `deletedBy`, with `items`, `total` (the count over every page),
   `page` and `pageSize` around them. `pageSize` is 1 to 100 (20 when not sent) and `page` is 1 to 100000. It never shows contact
   details, the address or notes. It reads in two SQL commands whatever the page size.
+- **Read one deleted order (D-24).** `GET /orders/deleted/{id}` is read-only and for Managers. The answer holds `order`, `deletedAt` and
+  `deletedBy` (null reads as System). `order` has the same fields as `GET /orders/{id}`: every item, discount, payment, refund,
+  expense and status history row, the stored `totals` and `today`. A live order, an unknown id and an order restored by someone else a
+  moment before the read are all `404 orders.not-found`, so the route is never a second way to read a live order. Like the other
+  order answers it is sent with `Cache-Control: no-store`.
 - **Restore (D-28).** The order and everything inside it come back, with the same figures. Restoring an order that is not deleted is
   `404 orders.not-found` and writes nothing, so a repeated click never has a second effect. A retry with the same `Idempotency-Key`
   answers with the stored `204`.

@@ -259,6 +259,36 @@ public sealed class OrderDeletionTests(CspsDatabase database) : IClassFixture<Cs
     }
 
     [Fact]
+    public async Task AnAdminAndAnAnonymousCallerCannotReadADeletedOrderAndGetNoOrderData()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await CancelledWithRefundAsync(client, admin, manager, today);
+        var id = order.GetProperty("id").GetGuid();
+        using (var deleted = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var asAdmin = await OrderFixtures.GetDeletedAsync(client, admin.AccessToken, id);
+        using var anonymous = await OrderFixtures.GetDeletedAsync(client, accessToken: null, id);
+
+        asAdmin.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        foreach (var response in new[] { asAdmin, anonymous })
+        {
+            var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            foreach (var secret in new[] { order.GetProperty("number").GetString()!, "Juan", "Dela Cruz", "Ballers", "0917", "juan.dc", "Brgy", "Private reason", "totals", "items" })
+            {
+                text.ShouldNotContain(secret, Case.Insensitive);
+            }
+        }
+    }
+
+    [Fact]
     public async Task EveryRouteForADeletedOrderAnswers404OrdersNotFound()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
