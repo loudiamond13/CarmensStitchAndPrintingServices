@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { delay } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -127,7 +128,7 @@ describe('the page, read-only (ORD-06, D-24)', () => {
       expect(screen.queryByRole('link', { name: /Edit/ })).toBeNull();
       expect(screen.queryByRole('button', { name: /^Delete Order$/ })).toBeNull();
       expect(screen.queryByRole('button', { name: /^Add / })).toBeNull();
-      expect(screen.queryByRole('button', { name: /^(Edit|Delete) / })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^(Edit|Delete) (?!Order Permanently$)/ })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Record Refund' })).toBeNull();
     };
     noWrites();
@@ -144,10 +145,11 @@ describe('the page, read-only (ORD-06, D-24)', () => {
     await loaded();
     const banner = screen.getByText(/This order was deleted on/).closest('div')?.parentElement;
     if (banner === null || banner === undefined) throw new Error('No banner');
-    expect(within(banner).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Restore Order',
-      'Delete Order Permanently',
-    ]);
+    expect(
+      within(banner)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Restore Order', 'Delete Order Permanently']);
   });
 
   it('has no axe violations', async () => {
@@ -208,7 +210,12 @@ describe('the back link and the tab', () => {
 
 describe('Restore Order (D-23, D-57)', () => {
   it('sends one POST with an Idempotency-Key, goes to the live order and toasts Order restored', async () => {
-    const calls = backend();
+    const calls = backend(deletedOrderDetail(), {
+      restore: async () => {
+        await delay(80);
+        return new Response(null, { status: 204 });
+      },
+    });
     const user = userEvent.setup();
     const { router } = renderPage();
 

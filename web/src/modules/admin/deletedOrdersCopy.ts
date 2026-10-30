@@ -55,6 +55,32 @@ export const DELETED_ORDERS_COPY = {
     /** SPEC-GAP: the counts could not be read, so the confirm stays off. */
     countsFailed: "Couldn't read what this order holds. Close this and try again.",
   },
+  /** The read-only deleted order, /admin/orders/deleted/:id (UI-SPEC X2, D-24, D-57; plan 08-23). */
+  detail: {
+    /** The document title before the order number is known. */
+    documentTitle: 'Deleted Order',
+    titleOf: (number: string): string => `${number} (deleted)`,
+    back: 'Deleted Orders',
+    /** The noun the loading announcements use: "Loading order…" and "Order loaded.". */
+    things: 'order',
+    banner: {
+      /** The bold line is built from these parts, so the name can be the ActorName view. */
+      deletedOn: (when: string | null): string =>
+        when === null ? 'This order was deleted' : `This order was deleted on ${when}`,
+      by: ' by ',
+      end: '.',
+      message: "It counts nowhere until it's restored.",
+      restore: 'Restore Order',
+      restoring: 'Restoring',
+      purge: 'Delete Order Permanently',
+    },
+    states: {
+      notFound: "This order isn't in Deleted Orders.",
+      notFoundBody: 'It may have been restored or deleted for good.',
+      backToList: 'Back to Deleted Orders',
+      loadFailed: "Couldn't load this order.",
+    },
+  },
   /** A permanent delete that meets an order someone else removed first (404): the dialog closes and the list is read again. */
   alreadyGone: {
     title: 'Already gone',

@@ -193,6 +193,11 @@ export const orderLockedTextClasses = tw(
 /** The action beside the text; full width under it on phones. */
 export const orderLockedActionClasses = tw('flex-none pg-phone:w-full pg-phone:[&>*]:w-full');
 
+/** Two or more actions beside the text (the deleted order banner): side by side, wrapping; each full width on phones. */
+export const orderNoticeActionsClasses = tw(
+  'flex flex-none flex-wrap items-center gap-2 pg-phone:w-full pg-phone:*:w-full',
+);
+
 /** The Change Status button and its popover share one anchor. */
 export const orderStatusMenuClasses = tw('relative inline-flex');
 
