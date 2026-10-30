@@ -1,0 +1,291 @@
+// O2 payment window: add (plan 08-16). Every rule is checked in the browser first with the server's own words (OR-3); a rule only the
+// server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a focus
+// refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers the
+// whole order and the page shows the server's figures. "Balance due" under Amount is a preview of the most that may be paid.
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRef, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { MoneyInput } from '@/components/entry';
+import { DateInput, Field } from '@/components/forms';
+import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
+import type { FieldErrors } from '@/lib/forms/useSubmission';
+import { ListEntrySelect } from '@/modules/admin/components/ListEntrySelect';
+import { OrderWindow } from '@/modules/admin/components/OrderWindow';
+import { PaidBySelect } from '@/modules/admin/components/PaidBySelect';
+import { orderWindowFullRowClasses, orderWindowGridClasses } from '@/modules/admin/components/orderWindow.recipe';
+import { useOrderChildSave } from '@/modules/admin/hooks/useOrderChildSave';
+import { useSession } from '@/modules/admin/hooks/useSession';
+import { ORDER_PAYMENT_COPY } from '@/modules/admin/orderPaymentCopy';
+import {
+  blankOrderPayment,
+  orderPaymentSchema,
+  paymentCap,
+  type OrderPaymentFormInput,
+  type OrderPaymentFormValues,
+} from '@/modules/admin/orderPaymentSchemas';
+import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
+import { orderPaymentsService, type AddOrderPaymentRequest } from '@/modules/admin/services/orderPaymentsService';
+import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
+
+const COPY = ORDER_PAYMENT_COPY;
+
+const FIELD_ORDER = ['paymentDate', 'amount', 'paymentMethodId', 'reference', 'receivedByUserId', 'notes'] as const;
+type FieldName = (typeof FIELD_ORDER)[number];
+
+interface OrderPaymentModalCommon {
+  /** The order as the page shows it: the window opens with its version, number, customer, balance and today. */
+  order: OrderDetailResponse;
+  /** False plays the close animation and then renders nothing; each new open starts clean. Default true. */
+  open?: boolean;
+  /** Closes the window: Cancel, Esc, the scrim and the close button (after the discard question), and after a save. */
+  onClose: () => void;
+  /** The payment was saved and the page already holds the answer. */
+  onSaved?: ((order: OrderDetailResponse) => void) | undefined;
+}
+
+export interface AddOrderPaymentModalProps extends OrderPaymentModalCommon {
+  mode: 'add';
+}
+
+export type OrderPaymentModalProps = AddOrderPaymentModalProps;
+
+/** What one submission carries: the checked values and the order version the window opened with. */
+interface PaymentSave {
+  values: OrderPaymentFormValues;
+  version: string;
+}
+
+/** The request body: the amount text is checked by the schema first, and only then becomes a number (T-06-39). */
+function toRequest({ values, version }: PaymentSave): AddOrderPaymentRequest {
+  return {
+    paymentDate: values.paymentDate,
+    amount: Number(values.amount),
+    paymentMethodId: values.paymentMethodId,
+    reference: values.reference,
+    notes: values.notes,
+    receivedByUserId: values.receivedByUserId,
+    version,
+  };
+}
+
+export function OrderPaymentModal({ open = true, ...props }: OrderPaymentModalProps) {
+  const [wasOpen, setWasOpen] = useState(open);
+  const [opens, setOpens] = useState(0);
+  // A new open mounts a fresh form: adjusted while rendering, no effect needed.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setOpens(opens + 1);
+    }
+  }
+  return <PaymentForm key={opens} open={open} order={props.order} onClose={props.onClose} onSaved={props.onSaved} />;
+}
+
+interface PaymentFormProps {
+  open: boolean;
+  order: OrderDetailResponse;
+  onClose: () => void;
+  onSaved: ((order: OrderDetailResponse) => void) | undefined;
+}
+
+function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const saveRef = useRef<HTMLButtonElement>(null);
+  const { user } = useSession();
+  // The order the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  const [opened, setOpened] = useState<OrderDetailResponse>(order);
+  const cap = paymentCap(opened);
+  const {
+    control,
+    handleSubmit,
+    setError,
+    formState: { isDirty },
+  } = useForm<OrderPaymentFormInput, unknown, OrderPaymentFormValues>({
+    resolver: zodResolver(orderPaymentSchema(opened.today, cap)),
+    mode: 'onBlur',
+    defaultValues: blankOrderPayment(opened.today, user?.id ?? ''),
+  });
+
+  const focusField = (name: FieldName): void => {
+    const element = formRef.current?.elements.namedItem(name);
+    if (element instanceof HTMLElement) {
+      element.focus();
+    }
+  };
+
+  const putOnFields = (errors: FieldErrors): boolean => {
+    let first: FieldName | null = null;
+    for (const name of FIELD_ORDER) {
+      const message = serverFieldMessage(errors, name);
+      if (message !== undefined) {
+        setError(name, { type: 'server', message });
+        first ??= name;
+      }
+    }
+    if (first === null) {
+      return false;
+    }
+    focusField(first);
+    return true;
+  };
+
+  // Load Latest on an add keeps what was typed and takes the new version and the new cap.
+  const takeLatest = (latest: OrderDetailResponse): boolean => {
+    setOpened(latest);
+    return true;
+  };
+
+  const save = useOrderChildSave<PaymentSave>({
+    orderId: opened.id,
+    thing: 'payment',
+    verb: 'added',
+    send: (key, data) => orderPaymentsService.add(opened.id, toRequest(data), key),
+    onSaved: (saved) => {
+      onSaved?.(saved);
+      onClose();
+    },
+    onFieldErrors: putOnFields,
+    onLatest: takeLatest,
+  });
+
+  const loadLatest = async (): Promise<void> => {
+    if (await save.loadLatest()) {
+      saveRef.current?.focus();
+    }
+  };
+
+  const onValid = (values: OrderPaymentFormValues): void => {
+    save.submit({ values, version: opened.version });
+  };
+
+  const onInvalid = (errors: Partial<Record<FieldName, unknown>>): void => {
+    const first = FIELD_ORDER.find((name) => errors[name] !== undefined);
+    if (first !== undefined) {
+      focusField(first);
+    }
+  };
+
+  const who = opened.teamName !== null && opened.teamName !== '' ? opened.teamName : opened.customerName;
+  const you = user === null ? null : { id: user.id, name: user.name };
+
+  return (
+    <OrderWindow
+      title={COPY.addTitle}
+      description={ORDER_WINDOWS_COPY.description(opened.number, who)}
+      open={open}
+      isDirty={isDirty}
+      pending={save.pending}
+      banner={save.banner}
+      loadingLatest={save.loadingLatest}
+      onLoadLatest={() => {
+        void loadLatest();
+      }}
+      status={save.status}
+      saveLabel={COPY.save}
+      saveBlocked={save.saveBlocked}
+      formRef={formRef}
+      saveRef={saveRef}
+      onSave={() => {
+        void handleSubmit(onValid, onInvalid)();
+      }}
+      onClose={onClose}
+    >
+      <div className={orderWindowGridClasses}>
+        <Controller
+          control={control}
+          name="paymentDate"
+          render={({ field, fieldState }) => (
+            <DateInput
+              label={COPY.date}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              required
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="amount"
+          render={({ field, fieldState }) => (
+            <MoneyInput
+              label={COPY.amount}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              hint={COPY.balanceDue(cap)}
+              required
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="paymentMethodId"
+          render={({ field, fieldState }) => (
+            <ListEntrySelect
+              mode="picker"
+              list="payment-methods"
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="reference"
+          render={({ field, fieldState }) => (
+            <Field
+              label={COPY.reference}
+              placeholder={COPY.referencePlaceholder}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              autoComplete="off"
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="receivedByUserId"
+          render={({ field, fieldState }) => (
+            <PaidBySelect
+              label={COPY.receivedBy}
+              name={field.name}
+              hint={COPY.receivedByHint}
+              value={field.value}
+              onChange={field.onChange}
+              currentUser={you}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+        <div className={orderWindowFullRowClasses}>
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field, fieldState }) => (
+              <Field
+                multiline
+                rows={3}
+                label={COPY.notes}
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message ?? ''}
+              />
+            )}
+          />
+        </div>
+      </div>
+    </OrderWindow>
+  );
+}

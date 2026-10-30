@@ -1,9 +1,12 @@
 // The Payments tab of the order page (ORD-07; UI-SPEC O1 Tab card; D-09, D-12; plan 08-12): a heading and a caption that names
 // the server's balance due, customer credit or "Nothing is owed", over a ResponsiveTable of the payments with both people on each
-// row and a Total paid footer. Every figure is the server's. Rows keep the server's order. The Add, Edit and Delete windows join
-// in plan 08-16 and render nothing while `readOnly` (the deleted view, D-24).
+// row and a Total paid footer. Every figure is the server's. Rows keep the server's order. On an active order the head has Add
+// Payment while money is owed (D-48); a locked order, and the deleted view (`readOnly`), show the table alone (D-15, D-24).
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
+import { Button } from '@/components/actions';
 import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/lists';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
+import { OrderPaymentModal } from '@/modules/admin/components/OrderPaymentModal';
 import { OrderDateCell, OrderPersonCell, OrderTabEmpty, OrderTabHead } from '@/modules/admin/components/OrderTabParts';
 import {
   orderCaptionFigureClasses,
@@ -11,12 +14,15 @@ import {
   orderTabularClasses,
 } from '@/modules/admin/components/orderPage.recipe';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { ORDER_PAYMENT_COPY } from '@/modules/admin/orderPaymentCopy';
+import { canAddPayment, canEditOrder } from '@/modules/admin/orderRules';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { formatPeso, isPositiveMoney } from '@/utils/csps';
 
 type OrderPayment = OrderDetailResponse['payments'][number];
 
 const COPY = ORDER_PAGE_COPY.payments;
+const PAYMENT = ORDER_PAYMENT_COPY;
 
 const COLUMNS: readonly ResponsiveTableColumn<OrderPayment>[] = [
   {
@@ -74,7 +80,18 @@ function balanceSentence(order: OrderDetailResponse) {
   return COPY.settled;
 }
 
-export function OrderPaymentsTab({ order }: OrderPaymentsTabProps) {
+interface PaymentsViewProps {
+  order: OrderDetailResponse;
+  columns: readonly ResponsiveTableColumn<OrderPayment>[];
+  /** The Add Payment button. */
+  action?: ReactNode;
+  headingRef?: Ref<HTMLHeadingElement> | undefined;
+  /** What follows the table: the windows. */
+  children?: ReactNode;
+}
+
+/** The head and the table. Windows render after it, never inside the table frame (a fixed layer cannot live there). */
+function PaymentsView({ order, columns, action, headingRef, children }: PaymentsViewProps) {
   return (
     <>
       <OrderTabHead
@@ -84,6 +101,8 @@ export function OrderPaymentsTab({ order }: OrderPaymentsTabProps) {
             {COPY.captionLead} {balanceSentence(order)}
           </>
         }
+        action={action}
+        headingRef={headingRef}
       />
       <div className={orderTabBodyClasses}>
         {order.payments.length === 0 ? (
@@ -91,18 +110,89 @@ export function OrderPaymentsTab({ order }: OrderPaymentsTabProps) {
         ) : (
           <ResponsiveTable
             caption={COPY.title}
-            columns={COLUMNS}
+            columns={columns}
             rows={order.payments}
             rowKey={(payment) => payment.id}
             things={COPY.things}
             footer={{ date: COPY.footerLabel, amount: formatPeso(order.totals.paid) }}
             footerLayout={{
-              date: { span: COLUMNS.length - 1 },
+              date: { span: columns.length - 1 },
               amount: { label: COPY.footerAmountLabel },
             }}
           />
         )}
+        {children}
       </div>
     </>
   );
+}
+
+/** An active order: Add Payment while money is owed. */
+function EditablePayments({ order }: { order: OrderDetailResponse }) {
+  // A window mounts on its first open and stays so its close can animate; each new open starts clean (OrderPaymentModal).
+  const [addUsed, setAddUsed] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const addRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Where focus goes once a window has closed. Safari does not focus a button on a click, so the window's own return to its
+  // trigger has nothing to go back to; the trigger is named here instead.
+  const returnFocus = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const go = returnFocus.current;
+    if (go !== null && !addOpen) {
+      returnFocus.current = null;
+      go();
+    }
+  });
+
+  return (
+    <PaymentsView
+      order={order}
+      columns={COLUMNS}
+      headingRef={headingRef}
+      action={
+        canAddPayment(order) ? (
+          <Button
+            variant="primary"
+            size="sm"
+            icon="plus"
+            ref={addRef}
+            onClick={() => {
+              setAddUsed(true);
+              setAddOpen(true);
+            }}
+          >
+            {PAYMENT.add}
+          </Button>
+        ) : undefined
+      }
+    >
+      {addUsed && (
+        <OrderPaymentModal
+          mode="add"
+          order={order}
+          open={addOpen}
+          onClose={() => {
+            // The answer may have settled the order, which takes the button away: the heading takes the cursor then.
+            returnFocus.current = () => {
+              if (addRef.current === null) {
+                headingRef.current?.focus();
+              } else {
+                addRef.current.focus();
+              }
+            };
+            setAddOpen(false);
+          }}
+        />
+      )}
+    </PaymentsView>
+  );
+}
+
+export function OrderPaymentsTab({ order, readOnly }: OrderPaymentsTabProps) {
+  if (readOnly === true || !canEditOrder(order)) {
+    return <PaymentsView order={order} columns={COLUMNS} />;
+  }
+  return <EditablePayments order={order} />;
 }
