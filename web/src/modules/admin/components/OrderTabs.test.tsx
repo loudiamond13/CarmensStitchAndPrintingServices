@@ -18,9 +18,7 @@ import {
 
 /** The data rows of a table (no header, no footer). */
 function bodyRows(table: HTMLElement): HTMLElement[] {
-  return within(table)
-    .getAllByRole('row')
-    .slice(1, -1);
+  return within(table).getAllByRole('row').slice(1, -1);
 }
 
 describe('the Payments tab (ORD-07, D-09, D-12)', () => {
@@ -28,15 +26,7 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
     render(<OrderPaymentsTab order={order0148} />);
 
     const table = screen.getByRole('table', { name: 'Payments' });
-    for (const name of [
-      'Date',
-      'Method',
-      'Reference no.',
-      'Notes',
-      'Received by',
-      'Recorded by',
-      'Amount',
-    ]) {
+    for (const name of ['Date', 'Method', 'Reference no.', 'Notes', 'Received by', 'Recorded by', 'Amount']) {
       expect(within(table).getByRole('columnheader', { name })).toBeInTheDocument();
     }
     const [first, second] = bodyRows(table);
@@ -55,7 +45,9 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
   it('ends with Total paid from the server figure', () => {
     render(<OrderPaymentsTab order={order0148} />);
 
-    const footer = within(screen.getByRole('table', { name: 'Payments' })).getByText('Total paid').closest('tr');
+    const footer = within(screen.getByRole('table', { name: 'Payments' }))
+      .getByText('Total paid')
+      .closest('tr');
     if (footer === null) throw new Error('No footer row');
     expect(footer).toHaveTextContent('₱12,000.00');
   });

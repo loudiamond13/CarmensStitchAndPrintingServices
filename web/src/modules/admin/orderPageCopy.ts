@@ -55,4 +55,28 @@ export const ORDER_PAGE_COPY = {
     footerLabel: 'Subtotal',
     subtotal: (pieces: number): string => `Items subtotal · ${formatCount(pieces)} pcs`,
   },
+  /** The Payments tab (D-09, D-12). */
+  payments: {
+    title: 'Payments',
+    things: 'payments',
+    /** The caption's lead-in; the balance sentence follows it. */
+    captionLead: 'Downpayments and settlements.',
+    balanceDue: 'Balance due:',
+    customerCredit: 'Customer credit:',
+    settled: 'Nothing is owed on this order.',
+    columns: {
+      date: 'Date',
+      method: 'Method',
+      reference: 'Reference no.',
+      notes: 'Notes',
+      receivedBy: 'Received by',
+      recordedBy: 'Recorded by',
+      amount: 'Amount',
+      actions: 'Actions',
+    },
+    footerLabel: 'Total paid',
+    /** The phone label of the footer's amount cell. */
+    footerAmountLabel: 'Total',
+    empty: 'No payments recorded yet.',
+  },
 } as const;

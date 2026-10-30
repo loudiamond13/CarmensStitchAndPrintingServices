@@ -79,8 +79,19 @@ export const orderTabCaptionClasses = tw('text-[13px] leading-5 text-ink-muted')
 /** The table inside a tab panel, kept clear of the card edge by the panel padding. */
 export const orderTabBodyClasses = tw('px-5 pb-5 pg-phone:px-4');
 
-/** The bold name cell of a table (the product type). */
+/** The bold name cell of a table (a date, a reason). */
 export const orderCellStrongClasses = tw('font-semibold');
+
+/** The amount inside a caption, bold. */
+export const orderCaptionFigureClasses = tw('font-bold text-ink');
+
+/** A tabular cell: reference numbers line up. */
+export const orderTabularClasses = tw('tabular-nums');
+
+/** `.s-inline-empty`: the empty line of a tab, centred. */
+export const orderInlineEmptyClasses = tw(
+  'flex flex-col items-center gap-3 px-4 py-12 text-center text-[14px] text-ink-muted',
+);
 
 /** The Back to Orders button under the not-found message. */
 export const orderStateActionClasses = tw('flex');

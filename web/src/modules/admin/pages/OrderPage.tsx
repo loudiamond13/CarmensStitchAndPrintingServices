@@ -18,6 +18,7 @@ import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, STATES_COPY } fr
 import { isHttpError } from '@/core/api/errors';
 import { OrderHeader } from '@/modules/admin/components/OrderHeader';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
+import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
 import {
   orderCardClasses,
   orderCardHeadClasses,
@@ -146,6 +147,7 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
             {SHOWN_TABS.map((shown) => (
               <div key={shown} {...getTabPanelProps(ID_BASE, shown)} hidden={active !== shown}>
                 {active === shown && shown === 'items' && <OrderItemsTab order={order} />}
+                {active === shown && shown === 'payments' && <OrderPaymentsTab order={order} />}
               </div>
             ))}
           </section>
