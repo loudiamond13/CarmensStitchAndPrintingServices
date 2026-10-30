@@ -21,6 +21,12 @@ export const ORDER_PAGE_COPY = {
     /** Joins the parts of the subline. */
     separator: ' · ',
   },
+  /** The locked-order banner of a Completed or Cancelled order (D-15). */
+  locked: {
+    title: (status: 'completed' | 'cancelled'): string => `This order is ${status}.`,
+    reopen: 'Reopen it to make changes.',
+    refunds: 'Refunds can still be recorded on the Refunds tab.',
+  },
   /** The Images card (D-27): Phase 9 replaces its body with the gallery. */
   images: {
     title: 'Images',

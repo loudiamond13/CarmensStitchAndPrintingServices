@@ -31,6 +31,7 @@ import {
   type OrderDetailsControl,
 } from '@/modules/admin/components/OrderDetailsCards';
 import { OrderEditAside } from '@/modules/admin/components/OrderEditAside';
+import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner';
 import { OrderFormSaveBar, saveBarCaption } from '@/modules/admin/components/OrderFormSaveBar';
 import { OrderItemsEditor } from '@/modules/admin/components/OrderItemsEditor';
 import { OrderSummaryAside } from '@/modules/admin/components/OrderSummaryAside';
@@ -67,6 +68,7 @@ import {
 } from '@/modules/admin/orderFormSchemas';
 import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { isLocked } from '@/modules/admin/orderRules';
 import { orderStateActionClasses } from '@/modules/admin/components/orderPage.recipe';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { ORDER_STATUSES, type OrderStatus } from '@/utils/csps';
@@ -80,6 +82,9 @@ const ORDERS_BUSY = 'orders.busy';
 
 /** The server's code for "someone saved this order since the form opened" (05 D-20). */
 const EDIT_STALE = 'edit.stale';
+
+/** The server's code for "the order is Completed or Cancelled" (D-15). */
+const ORDERS_LOCKED = 'orders.locked';
 
 const STATUS_OPTIONS = CREATE_STATUSES.map((status) => ({
   value: status,
@@ -450,6 +455,15 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
       setGone(true);
       return;
     }
+    // The order was completed or cancelled since the form opened: read it again, and the locked banner takes the form's place.
+    if (isHttpError(error) && error.status === 422 && error.code === ORDERS_LOCKED) {
+      void query.refetch().then((result) => {
+        if (result.data !== undefined) {
+          setOpened(result.data);
+        }
+      });
+      return;
+    }
     if (isHttpError(error) && error.status === 400) {
       let matched = false;
       for (const [key, messages] of Object.entries(error.fieldErrors)) {
@@ -525,20 +539,37 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
 
   const caption = saveBarCaption(pending, countErrors(errors), isDirty);
 
+  const head = (
+    <div className={pageHeadClasses}>
+      <div className={pageHeadTitleClasses}>
+        <div className={orderBackRowClasses}>
+          <UiLink to={orderPath} className={clsx(loginBackClasses, hitAreaClasses)}>
+            <Icon name="chevron-left" size={16} />
+            {opened.number}
+          </UiLink>
+        </div>
+        <h1 className={pageTitleClasses}>{COPY.edit.title}</h1>
+        <p className={pageSublineClasses}>{COPY.edit.subline}</p>
+      </div>
+    </div>
+  );
+
+  if (isLocked(opened)) {
+    return (
+      <div className={orderFormPageClasses}>
+        {head}
+        <OrderLockedBanner status={opened.status === 'cancelled' ? 'cancelled' : 'completed'}>
+          <ButtonLink variant="secondary" to={orderPath}>
+            {COPY.edit.backToOrder}
+          </ButtonLink>
+        </OrderLockedBanner>
+      </div>
+    );
+  }
+
   return (
     <div className={orderFormPageClasses} data-savebar="">
-      <div className={pageHeadClasses}>
-        <div className={pageHeadTitleClasses}>
-          <div className={orderBackRowClasses}>
-            <UiLink to={orderPath} className={clsx(loginBackClasses, hitAreaClasses)}>
-              <Icon name="chevron-left" size={16} />
-              {opened.number}
-            </UiLink>
-          </div>
-          <h1 className={pageTitleClasses}>{COPY.edit.title}</h1>
-          <p className={pageSublineClasses}>{COPY.edit.subline}</p>
-        </div>
-      </div>
+      {head}
       <form
         id={formId}
         ref={formRef}

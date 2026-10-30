@@ -173,3 +173,19 @@ export const orderStripPaidClasses = tw(
 
 /** A `div` that groups a term and its value inside the `dl` without taking part in the grid. */
 export const orderMetaRowClasses = tw('contents');
+
+/**
+ * The locked-order banner (`.s-banner` layout with the neutral `--surface-2` ground and a 1px `--line-strong` border; D-15): the
+ * icon, the text and an action slot in one row. On phones the action wraps onto its own full-width row (D-57).
+ */
+export const orderLockedBannerClasses = tw(
+  'flex items-center gap-3 rounded-sm border border-line-strong bg-surface-2 px-4 py-3 text-[14px] leading-5 text-ink pg-phone:flex-wrap',
+);
+
+/** The bold first line and the muted second (and third) line. */
+export const orderLockedTextClasses = tw(
+  'min-w-0 flex-1 wrap-anywhere [&_span]:block [&_span]:text-ink-muted [&_strong]:block',
+);
+
+/** The action beside the text; full width under it on phones. */
+export const orderLockedActionClasses = tw('flex-none pg-phone:w-full pg-phone:[&>*]:w-full');

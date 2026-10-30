@@ -111,6 +111,8 @@ export const ORDER_FORM_COPY = {
     /** The hint under Due date for an imported order that has none (D-38). */
     noDueDate: 'This order came in without a due date. Enter one to save.',
     saveBar: { save: 'Save Changes' },
+    /** The action in the locked banner: a locked order has no form. */
+    backToOrder: 'Back to Order',
     /** Read out after Load Latest has replaced the typed values. */
     latestLoaded: 'Latest version loaded. Make your changes again.',
     toast: { title: 'Order details saved' },
