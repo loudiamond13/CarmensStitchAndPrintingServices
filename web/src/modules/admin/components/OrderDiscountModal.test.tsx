@@ -12,7 +12,10 @@ import { expectNoAxeViolations } from '@/test/axe';
 import {
   buildOrderDetail,
   order0148,
+  ORDER_STAFF,
+  ORDER_STAFF_TWO,
   ORDER_VERSION,
+  orderDiscount,
   useOrderHandlers,
   type OrderBackend,
   type OrderDetailFixture,
@@ -401,5 +404,259 @@ describe('add mode saving (ORD-07 idempotency, D-05)', () => {
       expect(screen.getByText('Discount added')).toBeInTheDocument();
     });
     expect(backend.writes).toHaveLength(1);
+  });
+});
+
+// ---- Edit mode (ORD-07, D-15, D-44, D-58) ----
+
+const LEAGUE_ID = '00000000-0000-4000-9400-0000000000b1';
+const CLUB_ID = '00000000-0000-4000-9400-0000000000b2';
+/** A 5% discount (1,122.50 of 22,450.00) and a fixed 500.00 one; the club one was changed once. */
+const LEAGUE = orderDiscount('percentage', 5, 'Barangay league discount', { id: LEAGUE_ID });
+const CLUB = orderDiscount('fixed', 500, 'Club discount', {
+  id: CLUB_ID,
+  recordedBy: ORDER_STAFF,
+  lastChangedBy: ORDER_STAFF_TWO,
+  lastChangedAt: '2026-10-02T04:00:00Z',
+});
+const TWO_DISCOUNTS = buildOrderDetail({
+  discounts: [LEAGUE, CLUB],
+  totals: { ...order0148.totals, discount: 1622.5, total: 20827.5, balance: 8827.5 },
+});
+
+function renderEdit({
+  order = TWO_DISCOUNTS,
+  discountId = CLUB_ID,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+}: RenderOptions & { discountId?: string } = {}) {
+  queryClient.setQueryData(orderKey(order.id), order);
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <OrderDiscountModal mode="edit" order={order} discountId={discountId} onClose={onClose} onSaved={onSaved} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...view, onClose, onSaved };
+}
+
+function problemResponse(status: number, code: string, extra: Record<string, unknown> = {}): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status, code, ...extra }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  });
+}
+
+describe('edit mode opening', () => {
+  it('opens as "Edit Discount" with the saved values and the Recorded by block', () => {
+    renderEdit();
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit Discount' });
+    expect(within(dialog).getByText('ORD-2026-0148 · Brgy. San Roque Ballers')).toBeInTheDocument();
+    expect(reasonBox()).toHaveValue('Club discount');
+    expect(fixedRadio()).toBeChecked();
+    expect(valueBox()).toHaveValue('500.00');
+    expect(within(dialog).getByText('Recorded by')).toBeInTheDocument();
+    expect(within(dialog).getByText('Last changed by')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Save Discount' })).toBeInTheDocument();
+  });
+
+  it('opens a percent discount on Percent with its number as typed text', () => {
+    renderEdit({ discountId: LEAGUE_ID });
+
+    expect(percentRadio()).toBeChecked();
+    expect(valueBox()).toHaveValue('5');
+    expect(screen.getByText('Computed amount: ₱1,122.50')).toBeInTheDocument();
+  });
+
+  it('renders nothing for an edit that names no discount', () => {
+    queryClient.setQueryData(orderKey(TWO_DISCOUNTS.id), TWO_DISCOUNTS);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <OrderDiscountModal mode="edit" order={TWO_DISCOUNTS} discountId={null} onClose={vi.fn()} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('has no axe violations', async () => {
+    renderEdit();
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('edit mode cap leaves out the discount own saved amount', () => {
+  it('lets a fixed discount rise to the items total minus the other discounts, and no further', async () => {
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    renderEdit();
+
+    // 22,450.00 less the 1,122.50 of the other discount leaves 21,327.50 for this one.
+    await user.clear(valueBox());
+    await user.type(valueBox(), '21327.51');
+    await user.click(saveButton());
+    expect(await screen.findByText(CAP_WORDS)).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+
+    await user.clear(valueBox());
+    await user.type(valueBox(), '21327.50');
+    await user.click(saveButton());
+    await waitFor(() => {
+      expect(backend.writes).toHaveLength(1);
+    });
+  });
+
+  it('lets a percent discount rise until all the discounts pass the items total', async () => {
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    renderEdit({ discountId: LEAGUE_ID });
+
+    // The other discount is 500.00, so 97% (21,776.50) fits and 98% (22,001.00) does not.
+    await user.clear(valueBox());
+    await user.type(valueBox(), '98');
+    await user.click(saveButton());
+    expect(await screen.findByText(CAP_WORDS)).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+
+    await user.clear(valueBox());
+    await user.type(valueBox(), '97');
+    await user.click(saveButton());
+    await waitFor(() => {
+      expect(backend.writes).toHaveLength(1);
+    });
+  });
+});
+
+describe('edit mode saving', () => {
+  it('puts the changed discount with the opened version and no Idempotency-Key, then closes and toasts "Discount updated"', async () => {
+    const answer = answerWith();
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answer) });
+    const user = userEvent.setup();
+    const { onClose, onSaved } = renderEdit();
+
+    await user.clear(valueBox());
+    await user.type(valueBox(), '750');
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(answer);
+    expect(backend.writes).toHaveLength(1);
+    const [write] = backend.writes;
+    expect(write?.method).toBe('PUT');
+    expect(write?.path).toBe(`/orders/${TWO_DISCOUNTS.id}/discounts/${CLUB_ID}`);
+    expect(write?.key).toBeNull();
+    expect(write?.body).toEqual({ kind: 'fixed', value: 750, reason: 'Club discount', version: ORDER_VERSION });
+    expect(await screen.findByText('Discount updated')).toBeInTheDocument();
+  });
+
+  it('closes a clean window at once on Cancel', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks "Discard changes?" when Cancel is pressed after a change', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+
+    await user.type(reasonBox(), 'x');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('edit mode server refusals', () => {
+  it('shows the server text in the banner for a 422 orders.discount-above-subtotal and keeps the typed values', async () => {
+    useOrderHandlers({
+      reply: () => problemResponse(422, 'orders.discount-above-subtotal', { detail: CAP_WORDS }),
+    });
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+
+    await user.clear(valueBox());
+    await user.type(valueBox(), '900');
+    await user.click(saveButton());
+
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent(CAP_WORDS);
+    expect(valueBox()).toHaveValue('900.00');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows a 400 on value under Value and focuses it', async () => {
+    const message = 'Enter a discount from ₱0.01 to ₱1,000,000.00.';
+    useOrderHandlers({
+      reply: () => problemResponse(400, 'orders.invalid-request', { errors: { value: [message] } }),
+    });
+    const user = userEvent.setup();
+    renderEdit();
+
+    await user.type(reasonBox(), ' x');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(valueBox()).toHaveFocus();
+  });
+});
+
+describe('edit mode stale save (409) and a removed discount (404)', () => {
+  it('keeps the typed values behind the banner, and Load Latest takes the latest values, version and cap', async () => {
+    const latestClub = orderDiscount('percentage', 10, 'Club discount, renewed', { id: CLUB_ID });
+    const latest = buildOrderDetail({
+      discounts: [latestClub],
+      version: NEW_VERSION,
+      totals: { ...order0148.totals, discount: 2245, total: 20205, balance: 8205 },
+    });
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: latest,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? problemResponse(409, 'edit.stale') : HttpResponse.json(answerWith());
+      },
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await user.clear(valueBox());
+    await user.type(valueBox(), '750');
+
+    await user.click(saveButton());
+    const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
+    expect(valueBox()).toHaveValue('750.00');
+
+    await user.click(loadLatest);
+    await waitFor(() => {
+      expect(reasonBox()).toHaveValue('Club discount, renewed');
+    });
+    expect(percentRadio()).toBeChecked();
+    expect(valueBox()).toHaveValue('10');
+
+    await user.click(saveButton());
+    await screen.findByText('Discount updated');
+    expect((backend.writes[1]?.body as { version: string }).version).toBe(NEW_VERSION);
+  });
+
+  it('shows "This discount was removed." for a discount that is gone and blocks Save', async () => {
+    useOrderHandlers({ reply: () => problemResponse(404, 'orders.discount-not-found') });
+    const user = userEvent.setup();
+    renderEdit();
+
+    await user.type(reasonBox(), 'x');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This discount was removed.')).toBeInTheDocument();
+    expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
   });
 });
