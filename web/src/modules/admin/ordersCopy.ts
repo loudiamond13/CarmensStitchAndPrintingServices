@@ -38,6 +38,19 @@ export const ORDERS_COPY = {
     },
     /** "Only orders with a balance" (D-43) and its chip, which reads without a colon and clears as "balance". */
     balance: { label: 'Only orders with a balance', chip: 'Has a balance', clearName: 'balance' },
+    /**
+     * The words after "No orders with" in the No matches message (UIC-2): "status Delivered and a balance". The search has its
+     * own wording in the shared list copy.
+     */
+    noMatches: {
+      status: (label: string): string => `status ${label}`,
+      dates: (value: string): string => `dates ${value}`,
+      product: (name: string): string => `product ${name}`,
+      balance: 'a balance',
+      /** "a", "a and b", "a, b and c". */
+      join: (parts: readonly string[]): string =>
+        parts.length < 2 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1] ?? ''}`,
+    },
     /** While the product types load, the Product chip reads this. */
     productLoading: 'Loading…',
     sort: {

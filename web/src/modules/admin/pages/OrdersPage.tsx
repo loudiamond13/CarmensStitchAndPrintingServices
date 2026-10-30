@@ -8,7 +8,7 @@
 // business today (D-59) before the list is asked for.
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ButtonLink } from '@/components/actions';
+import { Button, ButtonLink } from '@/components/actions';
 import { OrderCard, type OrderCardOrder } from '@/components/data';
 import { EmptyState } from '@/components/feedback';
 import {
@@ -18,7 +18,7 @@ import {
   pageTitleClasses,
   srOnlyClasses,
 } from '@/components/layout/layout.recipe';
-import { FilterChip, Pagination, ResultBar } from '@/components/lists';
+import { FilterChip, LISTS_COPY, Pagination, ResultBar } from '@/components/lists';
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, useDelayedFlag } from '@/components/states';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
@@ -26,7 +26,11 @@ import { OrdersToolbar } from '@/modules/admin/components/OrdersToolbar';
 import { ordersGridClasses, ordersSublineSkeletonClasses } from '@/modules/admin/components/orders.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
-import { resolveOrderDateRange, useOrdersListParams } from '@/modules/admin/hooks/useOrdersListParams';
+import {
+  resolveOrderDateRange,
+  useOrdersListParams,
+  type OrderStatusFilter,
+} from '@/modules/admin/hooks/useOrdersListParams';
 import { useOrdersQuery } from '@/modules/admin/hooks/useOrdersQuery';
 import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
 import { ORDERS_COPY } from '@/modules/admin/ordersCopy';
@@ -52,6 +56,12 @@ function toNumber(value: number | string): number {
  * A list row as the card takes it. The server sends one of the seven status keys; a key the types do not know is shown as
  * plain text by the badge, so the row is never dropped.
  */
+/** The words for a status choice: the two special choices, or the shared status word. */
+function statusLabel(status: OrderStatusFilter): string {
+  if (status === 'active') return COPY.status.active;
+  return status === 'all' ? COPY.status.all : ORDER_STATUSES[status];
+}
+
 function toCardOrder(entry: OrderListEntry): OrderCardOrder {
   return { ...entry, status: entry.status as OrderStatus };
 }
@@ -142,6 +152,26 @@ export default function OrdersPage() {
           : chosenType.name;
   }
 
+  // A search or filter that finds nothing is No matches; the default view with nothing in it is the first-use state.
+  const statusWords = statusLabel(values.status);
+  const filtered =
+    values.q !== null ||
+    values.status !== 'active' ||
+    datesChip !== null ||
+    productChip !== null ||
+    values.hasBalance === 'true';
+  const filterSummary = COPY.noMatches.join([
+    COPY.noMatches.status(statusWords),
+    ...(datesChip === null ? [] : [COPY.noMatches.dates(datesChip)]),
+    ...(productChip === null ? [] : [COPY.noMatches.product(productChip)]),
+    ...(values.hasBalance === 'true' ? [COPY.noMatches.balance] : []),
+  ]);
+  // Clear Filters leaves the sort, the rows per page and the view alone.
+  const clearFilters = (): void => {
+    set.setSearch('', { immediate: true });
+    set.setFilters({ status: null, dates: null, from: null, to: null, productType: null, hasBalance: null });
+  };
+
   // The card links remember this list view for the order page's back link (D-51).
   const from = `${location.pathname}${location.search}`;
   const open = (path: string): void => {
@@ -184,7 +214,7 @@ export default function OrdersPage() {
         {values.status !== 'active' && (
           <FilterChip
             label={COPY.chips.status}
-            value={values.status === 'all' ? COPY.status.all : ORDER_STATUSES[values.status]}
+            value={statusWords}
             onClear={() => {
               set.setFilter('status', null);
             }}
@@ -242,7 +272,19 @@ export default function OrdersPage() {
             ))}
           </div>
         )}
-        {empty && (
+        {empty && filtered && (
+          <EmptyState
+            icon="search"
+            title={LISTS_COPY.noMatchesTitle}
+            message={LISTS_COPY.noMatchesBody(COPY.things, values.q, filterSummary)}
+            action={
+              <Button variant="secondary" onClick={clearFilters}>
+                {LISTS_COPY.clearFilters}
+              </Button>
+            }
+          />
+        )}
+        {empty && !filtered && (
           <EmptyState
             icon="clipboard-list"
             title={COPY.empty.title}

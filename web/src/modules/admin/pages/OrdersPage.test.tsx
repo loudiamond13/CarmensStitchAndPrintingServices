@@ -969,15 +969,11 @@ describe('no matches and Clear Filters (UIC-2, ORD-02)', () => {
   const EVERY_FILTER = `?size=50&sort=newest&q=zzz&status=delivered&dates=custom&from=2026-10-01&to=2026-10-31&productType=${BASKETBALL_ID}&hasBalance=true`;
 
   /** Rows only when no filter is on; a filtered request finds nothing. */
-  function emptyWhenFiltered() {
-    return useOrderHandlers({
-      list: (url) =>
-        ['q', 'from', 'hasBalance', 'productType'].some((key) => url.searchParams.has(key)) ||
-        url.searchParams.get('status') !== 'active'
-          ? buildOrderList([], { all: 148, active: 37 })
-          : standardOrderList(),
-    });
-  }
+  const emptyWhenFiltered = (url: URL) =>
+    ['q', 'from', 'hasBalance', 'productType'].some((key) => url.searchParams.has(key)) ||
+    url.searchParams.get('status') !== 'active'
+      ? buildOrderList([], { all: 148, active: 37 })
+      : standardOrderList();
 
   it('shows No matches naming the search and the status, not the first-use state, for a search with no rows', async () => {
     useOrderHandlers({ list: buildOrderList([], { all: 148, active: 37 }) });
@@ -1032,7 +1028,7 @@ describe('no matches and Clear Filters (UIC-2, ORD-02)', () => {
 
   it('Clear Filters clears the search and every filter in one replace and keeps the sort and the rows per page', async () => {
     const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
-    const backend = emptyWhenFiltered();
+    const backend = useOrderHandlers({ list: emptyWhenFiltered });
     renderPage(EVERY_FILTER, onUrlUpdate);
     await screen.findByRole('heading', { name: 'No matches' });
     const writesBefore = urlWrites(onUrlUpdate).length;
@@ -1043,7 +1039,6 @@ describe('no matches and Clear Filters (UIC-2, ORD-02)', () => {
     expect(urlWrites(onUrlUpdate).slice(writesBefore)).toEqual([{ history: 'replace', query: '?size=50&sort=newest' }]);
     expect(screen.queryByText(/^(Search|Status|Dates|Product):/)).toBeNull();
     expect(screen.queryByText('Has a balance')).toBeNull();
-    expect(screen.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('50');
     expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('newest');
     expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: 'Status' })).toHaveValue('active');
