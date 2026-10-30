@@ -161,6 +161,59 @@ function problemResponse(status: number, code: string, extra: Record<string, unk
   });
 }
 
+describe('the Amount column (D-94)', () => {
+  // 5% of 22,450.00 is 1,122.50, so a server amount of 1,000.00 can only come from the answer, never from the browser.
+  const SERVER_AMOUNT = 1000;
+  const odd = (overrides: Partial<OrderDetailFixture> = {}): OrderDetailFixture =>
+    buildOrderDetail({
+      discounts: [orderDiscount('percentage', 5, 'Barangay league discount', SERVER_AMOUNT, { id: LEAGUE_ID })],
+      totals: { ...order0148.totals, discount: SERVER_AMOUNT, total: 21450, balance: 9450 },
+      ...overrides,
+    });
+
+  async function leagueRow(): Promise<HTMLElement> {
+    const rows = within(await screen.findByRole('table', { name: 'Discounts' })).getAllByRole('row');
+    const row = rows.find((candidate) => within(candidate).queryByText('Barangay league discount') !== null);
+    if (row === undefined) throw new Error('No league row');
+    return row;
+  }
+
+  it('shows the server amount in the row, not an amount the browser works out', async () => {
+    const order = odd();
+    useOrderHandlers({ detail: order });
+    renderTab(order);
+
+    const row = await leagueRow();
+    expect(within(row).getByText('−₱1,000.00')).toBeVisible();
+    expect(within(row).queryByText('−₱1,122.50')).not.toBeInTheDocument();
+  });
+
+  it('shows the server amount in the read-only deleted view', async () => {
+    const order = odd();
+    useOrderHandlers({ detail: order });
+    renderTab(order, true);
+
+    expect(within(await leagueRow()).getByText('−₱1,000.00')).toBeVisible();
+  });
+
+  it('shows the server amount on a locked order', async () => {
+    const order = odd({ status: 'completed' });
+    useOrderHandlers({ detail: order });
+    renderTab(order);
+
+    expect(within(await leagueRow()).getByText('−₱1,000.00')).toBeVisible();
+  });
+
+  it('keeps the footer at the server total discount', async () => {
+    const order = odd({ totals: { ...order0148.totals, discount: 1000.5, total: 21449.5, balance: 9449.5 } });
+    useOrderHandlers({ detail: order });
+    renderTab(order);
+
+    await leagueRow();
+    expect(within(screen.getByRole('table', { name: 'Discounts' })).getAllByText('−₱1,000.50').length).toBeGreaterThan(0);
+  });
+});
+
 describe('row actions (D-54a)', () => {
   it('names each row action by its reason, with a matching title', async () => {
     useOrderHandlers({ detail: TWO });
