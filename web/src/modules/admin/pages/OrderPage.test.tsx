@@ -263,6 +263,19 @@ describe('the tab card (ORD-07, WEB-10)', () => {
   });
 });
 
+describe('the Payments tab on the page (ORD-07, D-09, D-12)', () => {
+  it('shows the payments table with both people and the server balance in the caption', async () => {
+    renderOrder({ search: '?tab=payments' });
+
+    const table = await screen.findByRole('table', { name: 'Payments' });
+    expect(within(table).getByText('Received by')).toBeVisible();
+    expect(within(table).getByText('Recorded by')).toBeVisible();
+    expect(within(table).getByText('9012 345 678901')).toBeVisible();
+    expect(screen.getByText(/^Downpayments and settlements\./)).toHaveTextContent('Balance due: ₱9,327.50');
+    expect(screen.queryByRole('table', { name: 'Order items' })).toBeNull();
+  });
+});
+
 describe('accessibility (A11Y-01)', () => {
   it('has no axe violations', async () => {
     const { container } = renderOrder();
