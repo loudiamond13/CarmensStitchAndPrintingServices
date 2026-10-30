@@ -4,6 +4,7 @@
 // an empty state, D-20) and the Component Showcase, the admin ones in both themes (D-13).
 import type { Page } from '@playwright/test';
 import { expect, pageAxe } from './fixtures.ts';
+import { BASKETBALL_JERSEY_ID } from './testing-api.ts';
 
 export type Theme = 'light' | 'dark';
 
@@ -18,8 +19,8 @@ export interface PageCase {
   readonly admin: boolean;
 }
 
-// /admin/expenses and /admin/orders are signed-in pages with no dev preview; the sweep of the first is expenses-sweep.spec.ts,
-// and the order pages join this list with their own sign-in step (plan 08-24).
+// /admin/expenses and the order pages are signed-in pages with no dev preview, so they are not in this list (the specs that use it
+// open pages without a session). The sweep of the first is expenses-sweep.spec.ts; the order pages are ORDER_PAGES below.
 const ADMIN_PAGES = [
   { path: '/admin', h1: 'Dashboard' },
   { path: '/dev/components', h1: 'Component Showcase' },
@@ -87,3 +88,85 @@ export async function axeFindings(page: Page): Promise<string[]> {
     })
     .sort((a, b) => a.localeCompare(b));
 }
+
+/** The ids and words of the seeded orders a signed-in order sweep opens. */
+export interface OrderSweepIds {
+  /** The order with the longest text and the largest amounts the rules allow. */
+  readonly rich: string;
+  readonly richNumber: string;
+  /** The same kind of order, soft deleted. */
+  readonly deleted: string;
+  readonly deletedNumber: string;
+  /** A word in both orders' team names, so the Orders list finds them. */
+  readonly word: string;
+}
+
+/** One signed-in order page of the responsive sweep (plan 08-24). */
+export interface OrderPageCase {
+  readonly name: string;
+  readonly path: (ids: OrderSweepIds) => string;
+  /** The page's one h1. */
+  readonly h1: (ids: OrderSweepIds) => string;
+  /** Text that must show before the page is measured, so rows and figures have arrived. */
+  readonly ready: (ids: OrderSweepIds) => string;
+}
+
+const ORDER_TABS = ['items', 'payments', 'discounts', 'expenses', 'refunds'] as const;
+const SETTINGS_TABS = ['product-types', 'payment-methods', 'order-expense-categories', 'expense-categories'] as const;
+
+/**
+ * Every Phase 8 screen the sweep measures at the eight widths in both themes: L1 in both views and with five chips, F1, F2, O1 on
+ * each tab, X1, X2 on two tabs, and S1 on each tab.
+ */
+export const ORDER_PAGES: readonly OrderPageCase[] = [
+  {
+    name: '/admin/orders (grid)',
+    path: (ids) => `/admin/orders?q=${ids.word}&view=grid`,
+    h1: () => 'Orders',
+    ready: (ids) => ids.richNumber,
+  },
+  {
+    name: '/admin/orders (table)',
+    path: (ids) => `/admin/orders?q=${ids.word}&view=table`,
+    h1: () => 'Orders',
+    ready: (ids) => ids.richNumber,
+  },
+  {
+    name: '/admin/orders with five chips',
+    path: (ids) =>
+      `/admin/orders?q=${ids.word}&status=production&dates=90d&productType=${BASKETBALL_JERSEY_ID}&hasBalance=true&view=grid`,
+    h1: () => 'Orders',
+    ready: (ids) => ids.richNumber,
+  },
+  { name: '/admin/orders/new', path: () => '/admin/orders/new', h1: () => 'New Order', ready: () => 'Save Order' },
+  {
+    name: '/admin/orders/{id}/edit',
+    path: (ids) => `/admin/orders/${ids.rich}/edit`,
+    h1: () => 'Edit Order',
+    ready: () => 'Save Changes',
+  },
+  ...ORDER_TABS.map((tab) => ({
+    name: `/admin/orders/{id} (${tab})`,
+    path: (ids: OrderSweepIds) => `/admin/orders/${ids.rich}?tab=${tab}`,
+    h1: (ids: OrderSweepIds) => ids.richNumber,
+    ready: () => 'Estimated Profit',
+  })),
+  {
+    name: '/admin/orders/deleted',
+    path: () => '/admin/orders/deleted',
+    h1: () => 'Deleted Orders',
+    ready: (ids) => ids.deletedNumber,
+  },
+  ...(['items', 'refunds'] as const).map((tab) => ({
+    name: `/admin/orders/deleted/{id} (${tab})`,
+    path: (ids: OrderSweepIds) => `/admin/orders/deleted/${ids.deleted}?tab=${tab}`,
+    h1: (ids: OrderSweepIds) => ids.deletedNumber,
+    ready: () => 'Estimated Profit',
+  })),
+  ...SETTINGS_TABS.map((tab) => ({
+    name: `/admin/settings (${tab})`,
+    path: () => `/admin/settings?tab=${tab}`,
+    h1: () => 'Settings',
+    ready: () => 'Add',
+  })),
+];
