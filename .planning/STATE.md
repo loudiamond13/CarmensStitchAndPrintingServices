@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-14-PLAN.md
-last_updated: "2026-10-30T07:16:48.946Z"
+stopped_at: Completed 08-15-PLAN.md
+last_updated: "2026-10-30T07:54:19.916Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: a38b91f26fb4f98c6bc6787da0a4796a914f7b28
+state_head: dea927a155d859675306e54810233bba85af69c1
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 233
+  completed_plans: 234
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T20:37:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 15 of 24
+Plan: 16 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -293,6 +293,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P12 | 25 min | 3 tasks | 18 files |
 | Phase 08 P13 | 52 min | 3 tasks | 19 files |
 | Phase 08 P14 | 50 min | 3 tasks | 17 files |
+| Phase 08 P15 | 41 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -838,6 +839,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-13: useUnsavedChangesGuard returns allowLeave and dialog; allowLeave is called before navigating after a save, and the sign-in page is never held — Plan 08-15 reuses it unchanged
 - [Phase 08]: 08-14: order windows share OrderWindow and useOrderChildSave; a window sends the version it opened with inside its submission data, so Load Latest starts a new submission
 - [Phase 08]: 08-14: focus after a window closes is set by name (Add Item, the row Edit or Delete, else the tab heading) because Safari does not focus a button on click
+- [Phase 08]: [08-15] The Edit Order form always rereads the order on open (refetchOnMount always) and keeps the order it opened with; a save sends that version, and a later focus refetch never changes it
+- [Phase 08]: [08-15] A locked order (Completed or Cancelled) shows OrderLockedBanner with Back to Order instead of the Edit Order form, also after a 422 orders.locked on save; the banner action is a slot for Reopen Order (08-19)
+- [Phase 08]: [08-15] updateOrderDetailsSchema is a constant (no today argument): no server rule depends on today and orderDetailsSchema already requires the due date
 
 ### Pending Todos
 
@@ -942,6 +946,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T07:16:47.686Z
-Stopped at: Completed 08-14-PLAN.md
+Last session: 2026-10-30T07:54:18.646Z
+Stopped at: Completed 08-15-PLAN.md
 Resume file: None
