@@ -244,6 +244,32 @@ describe('Manager-only routes (USER-08)', () => {
   });
 });
 
+describe('an unknown admin address (D-89)', () => {
+  it('shows the in-shell Page not found screen, not the public holding page', async () => {
+    answerRefresh(sessionResponse());
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/no-such-page'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/no-such-page');
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('heading', { level: 1, name: /New website/ })).toBeNull();
+    await waitFor(() => {
+      expect(document.title).toBe('Page not found · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('a visitor without a session goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/no-such-page'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/no-such-page')}`);
+  }, 15_000);
+});
+
 describe('Company Expenses for both roles (CEXP-01, D-25, T-06-18)', () => {
   it.each([
     ['Manager', () => sessionResponse()],
