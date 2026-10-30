@@ -10,3 +10,18 @@ export const useOrdersListParams = createListParams({
   size: pageSizeParser,
   q: searchParser,
 });
+
+// Red-step skeletons: the real lists and the range arithmetic replace them.
+export const ORDER_STATUS_FILTERS = ['active'] as const;
+export const ORDER_SORTS = ['due'] as const;
+export const ORDER_DATE_RANGES = ['30d'] as const;
+
+export function resolveOrderDateRange(
+  dates: string | null,
+  from: string | null,
+  to: string | null,
+  today: string | null,
+): { from: string; to: string } | null {
+  void [dates, from, to, today];
+  return null;
+}

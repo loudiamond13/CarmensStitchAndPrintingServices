@@ -1,7 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { delay } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,6 +12,7 @@ import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   buildOrderList,
+  ORDER_TODAY,
   creditOrder,
   listEntryOf,
   orderProblem,
@@ -21,6 +22,8 @@ import {
   standardOrderList,
   useOrderHandlers,
 } from '@/test/orderFixtures';
+import { server } from '@/test/msw';
+import { BASKETBALL_ID, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // L1 Orders, /admin/orders (ORD-01, ORD-11, ORD-12, ORD-19; plan 08-06): the server's rows as cards, with the server's
@@ -32,11 +35,14 @@ beforeEach(() => {
   clearSession();
   acceptSession(sessionResponse());
   queryClient = createQueryClient();
+  // The toolbar's Product type filter reads the product types list.
+  server.use(http.get('*/api/v1/product-types', () => HttpResponse.json(PRODUCT_TYPES)));
 });
 
 afterEach(() => {
   queryClient.clear();
   clearSession();
+  vi.useRealTimers();
 });
 
 /** Shows where the router went, and with what state, so a test can read a card link's target. */
@@ -116,7 +122,12 @@ describe('the page (ORD-01, D-41)', () => {
 
     await screen.findByText('148 orders · 37 active');
     expect(backend.lists).toHaveLength(1);
-    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '20' });
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({
+      page: '1',
+      pageSize: '20',
+      sort: 'due',
+      status: 'active',
+    });
   });
 });
 
@@ -368,7 +379,12 @@ describe('paging and rows per page (ORD-01, EDGE ORD-01 boundary)', () => {
     renderPage('?page=2');
 
     await screen.findByText('148 orders · 37 active');
-    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '2', pageSize: '20' });
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({
+      page: '2',
+      pageSize: '20',
+      sort: 'due',
+      status: 'active',
+    });
     expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 3');
   });
 
@@ -377,7 +393,12 @@ describe('paging and rows per page (ORD-01, EDGE ORD-01 boundary)', () => {
     renderPage('?size=50');
 
     await screen.findByText('148 orders · 37 active');
-    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '50' });
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({
+      page: '1',
+      pageSize: '50',
+      sort: 'due',
+      status: 'active',
+    });
   });
 
   it('offers 10, 20, 50 and 100 rows per page', async () => {
@@ -403,7 +424,12 @@ describe('paging and rows per page (ORD-01, EDGE ORD-01 boundary)', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50');
 
     await waitFor(() => {
-      expect(Object.fromEntries(backend.lists.at(-1)?.searchParams ?? [])).toEqual({ page: '1', pageSize: '50' });
+      expect(Object.fromEntries(backend.lists.at(-1)?.searchParams ?? [])).toEqual({
+        page: '1',
+        pageSize: '50',
+        sort: 'due',
+        status: 'active',
+      });
     });
   });
 
@@ -448,7 +474,12 @@ describe('paging and rows per page (ORD-01, EDGE ORD-01 boundary)', () => {
     await waitFor(() => {
       expect(updates).toEqual(['replace:']);
     });
-    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '20' });
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({
+      page: '1',
+      pageSize: '20',
+      sort: 'due',
+      status: 'active',
+    });
   });
 });
 
@@ -548,5 +579,384 @@ describe('search (ORD-02, D-55, WEB-10)', () => {
       (card) => within(card).getByText(/^ORD-2026-/).textContent,
     );
     expect(numbers).toEqual(['ORD-2026-0148', 'ORD-2026-0151', 'ORD-2026-0153', 'ORD-2026-0160']);
+  });
+});
+
+/** The query a list request carried, as plain text pairs. */
+function queryOf(url: URL | undefined): Record<string, string> {
+  return Object.fromEntries(url?.searchParams ?? []);
+}
+
+/** The list requests the page made for rows (the page size 1 requests are the business today probe). */
+function rowRequests(urls: readonly URL[]): URL[] {
+  return urls.filter((url) => url.searchParams.get('pageSize') !== '1');
+}
+
+describe('status, sort and balance reach the API (ORD-02, D-43)', () => {
+  it('sends Active + recent and due date order by default, with no chip for either', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+
+    await screen.findByText('148 orders · 37 active');
+    expect(queryOf(backend.lists[0])).toEqual({ page: '1', pageSize: '20', sort: 'due', status: 'active' });
+    expect(screen.queryByText(/^Status:/)).toBeNull();
+    expect(screen.queryByText(/^Sort/)).toBeNull();
+    expect(screen.queryByText('Has a balance')).toBeNull();
+  });
+
+  it('sends the status in the URL and shows its chip; the chip clears back to Active + recent', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?status=delivered', onUrlUpdate);
+
+    expect(await screen.findByText('Status: Delivered')).toBeInTheDocument();
+    expect(queryOf(backend.lists[0]).status).toBe('delivered');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear status filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Status: Delivered')).toBeNull();
+    });
+    expect(urlWrites(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    await waitFor(() => {
+      expect(queryOf(backend.lists.at(-1)).status).toBe('active');
+    });
+  });
+
+  it('names All statuses in its chip', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?status=all');
+
+    expect(await screen.findByText('Status: All statuses')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['newest', 'newest first'],
+    ['balance', 'balance'],
+    ['total', 'total'],
+  ])('sends sort=%s and the result bar says sorted by %s, with no chip for the sort', async (key, words) => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage(`?sort=${key}`);
+
+    await screen.findByText('148 orders · 37 active');
+    expect(queryOf(backend.lists[0]).sort).toBe(key);
+    expect(screen.getByText(/^Showing/)).toHaveTextContent(`Showing 4 orders · sorted by ${words}`);
+    expect(screen.queryAllByRole('button', { name: /^Clear .* filter$/ })).toHaveLength(0);
+  });
+
+  it('sends each sort the toolbar offers, in the order the server answers it', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+    await screen.findByText('148 orders · 37 active');
+    const sort = screen.getByRole('combobox', { name: 'Sort by' });
+
+    for (const [label, key] of [
+      ['Newest first', 'newest'],
+      ['Balance (highest)', 'balance'],
+      ['Total (highest)', 'total'],
+      ['Due date (soonest)', 'due'],
+    ] as const) {
+      await userEvent.selectOptions(sort, label);
+      await waitFor(() => {
+        expect(queryOf(backend.lists.at(-1)).sort).toBe(key);
+      });
+    }
+    const numbers = screen.getAllByRole('article').map((card) => within(card).getByText(/^ORD-2026-/).textContent);
+    expect(numbers).toEqual(['ORD-2026-0148', 'ORD-2026-0151', 'ORD-2026-0153', 'ORD-2026-0160']);
+  });
+
+  it('sends hasBalance=true for the balance box, shows Has a balance and clears it with Clear balance filter', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?hasBalance=true', onUrlUpdate);
+
+    expect(await screen.findByText('Has a balance')).toBeInTheDocument();
+    expect(queryOf(backend.lists[0]).hasBalance).toBe('true');
+    expect(screen.getByRole('checkbox', { name: 'Only orders with a balance' })).toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear balance filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Has a balance')).toBeNull();
+    });
+    expect(urlWrites(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.has('hasBalance')).toBe(false);
+    });
+  });
+});
+
+describe('product type (ORD-02, T-08-16)', () => {
+  it('sends the product type id and names it in the chip; Clear product filter removes it', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage(`?productType=${BASKETBALL_ID}`, onUrlUpdate);
+
+    expect(await screen.findByText('Product: Basketball Jersey')).toBeInTheDocument();
+    expect(queryOf(backend.lists[0]).productType).toBe(BASKETBALL_ID);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear product filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Product: Basketball Jersey')).toBeNull();
+    });
+    expect(urlWrites(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+  });
+
+  it('falls back to all products with one replace when the id is not in the list (a stale link)', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?productType=5d3a7c1e-0a41-4f6c-9d0b-2b1f6a8e0fff', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.has('productType')).toBe(false);
+    });
+    expect(screen.queryByText(/^Product:/)).toBeNull();
+  });
+});
+
+describe('order date presets use the server business today (D-59, ORD-02)', () => {
+  it.each([
+    ['30d', 'Last 30 days', '2026-09-09'],
+    ['90d', 'Last 90 days', '2026-07-11'],
+    ['month', 'This month', '2026-10-01'],
+  ])('dates=%s asks the server for today first, then sends from and to for %s', async (key, words, from) => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage(`?dates=${key}`);
+
+    expect(await screen.findByText(`Dates: ${words}`)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(rowRequests(backend.lists)).toHaveLength(1);
+    });
+    expect(backend.lists[0]?.searchParams.get('pageSize')).toBe('1');
+    expect(backend.lists[0]?.searchParams.has('from')).toBe(false);
+    expect(queryOf(rowRequests(backend.lists)[0])).toEqual({
+      page: '1',
+      pageSize: '20',
+      sort: 'due',
+      status: 'active',
+      from,
+      to: ORDER_TODAY,
+    });
+    expect(await screen.findAllByRole('article')).toHaveLength(4);
+  });
+
+  it('shows the loading cards while the business today is not known yet', async () => {
+    useOrderHandlers({
+      list: async (url) => {
+        if (url.searchParams.get('pageSize') === '1') {
+          await delay(150);
+        }
+        return standardOrderList();
+      },
+    });
+    renderPage('?dates=30d');
+
+    expect(await screen.findByText('Loading orders…')).toBeInTheDocument();
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(await screen.findAllByRole('article')).toHaveLength(4);
+  });
+
+  it('shows Try Again when the business today cannot be read, and Try Again asks again', async () => {
+    let probes = 0;
+    const backend = useOrderHandlers({
+      list: (url) => {
+        if (url.searchParams.get('pageSize') === '1') {
+          probes += 1;
+          return probes === 1 ? orderProblem(500) : standardOrderList();
+        }
+        return standardOrderList();
+      },
+    });
+    renderPage('?dates=30d');
+
+    expect(await screen.findByText("Couldn't load orders.")).toBeVisible();
+    expect(rowRequests(backend.lists)).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findAllByRole('article')).toHaveLength(4);
+    expect(probes).toBe(2);
+  });
+
+  it.each([
+    ['2026-10-08T23:30:00+08:00', 'late on the 8th'],
+    ['2026-10-09T00:30:00+08:00', 'early on the 9th'],
+  ])(
+    'sends the same from and to for Last 30 days and This month at %s (%s) in Manila (precision edge)',
+    async (instant) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(instant));
+      const backend = useOrderHandlers({ list: standardOrderList() });
+      const month = renderPage('?dates=month');
+      await screen.findAllByRole('article');
+      month.unmount();
+      renderPage('?dates=30d');
+      await screen.findAllByRole('article');
+
+      const ranges = rowRequests(backend.lists).map(
+        (url) => `${url.searchParams.get('from')} to ${url.searchParams.get('to')}`,
+      );
+      expect(ranges).toEqual(['2026-10-01 to 2026-10-08', '2026-09-09 to 2026-10-08']);
+    },
+  );
+});
+
+describe('a custom order date range (ORD-02, UIC-45)', () => {
+  it('sends the pair as it is with no business today call, and shows it in the chip', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?dates=custom&from=2026-10-01&to=2026-10-31');
+
+    expect(await screen.findByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+    await screen.findAllByRole('article');
+    expect(backend.lists).toHaveLength(1);
+    expect(queryOf(backend.lists[0])).toMatchObject({ from: '2026-10-01', to: '2026-10-31' });
+    expect(screen.getByLabelText('From')).toHaveValue('2026-10-01');
+    expect(screen.getByLabelText('To')).toHaveValue('2026-10-31');
+  });
+
+  it('applies From equal to To as a one-day range', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?dates=custom&from=2026-10-05&to=2026-10-05');
+
+    expect(await screen.findByText('Dates: Oct 5, 2026 to Oct 5, 2026')).toBeInTheDocument();
+    expect(queryOf(backend.lists[0])).toMatchObject({ from: '2026-10-05', to: '2026-10-05' });
+  });
+
+  it('Clear dates filter removes dates, from and to with one replace', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?dates=custom&from=2026-10-01&to=2026-10-31', onUrlUpdate);
+    await screen.findByText('Dates: Oct 1, 2026 to Oct 31, 2026');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear dates filter' }));
+
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.has('from')).toBe(false);
+    });
+    expect(screen.queryByText(/^Dates:/)).toBeNull();
+  });
+
+  it('drops a broken pair (From after To) with one replace and never sends it', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?dates=custom&from=2026-10-31&to=2026-10-01', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    await screen.findAllByRole('article');
+    expect(backend.lists.some((url) => url.searchParams.has('from') || url.searchParams.has('to'))).toBe(false);
+    expect(screen.queryByText(/^Dates:/)).toBeNull();
+  });
+
+  it('drops dates=custom with a missing date with one replace', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?dates=custom&from=2026-10-01', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+  });
+
+  it('keeps the last applied range while the typed range is not valid', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?dates=custom&from=2026-10-01&to=2026-10-31', onUrlUpdate);
+    await screen.findByText('Dates: Oct 1, 2026 to Oct 31, 2026');
+    const requests = backend.lists.length;
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-11-15' } });
+
+    expect(await screen.findByText("The end date can't be before the start date.")).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+    expect(backend.lists).toHaveLength(requests);
+    expect(screen.getByText('Dates: Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+  });
+});
+
+describe('a filter change keeps the rows and goes back to page 1 (ORD-02, UIC-13, EDGE adjacency)', () => {
+  const MANY = (url: URL) =>
+    buildOrderList([order0148, order0151, order0153].map(listEntryOf), {
+      all: 148,
+      active: 37,
+      total: 45,
+      page: Number(url.searchParams.get('page')),
+      pageSize: Number(url.searchParams.get('pageSize')),
+    });
+
+  it('Status Delivered on page 3 makes one replace that drops the page, then asks for page 1', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('?page=3&size=10', onUrlUpdate);
+    await screen.findByText('148 orders · 37 active');
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'Delivered');
+
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'replace', query: '?size=10&status=delivered' }]);
+    });
+    await waitFor(() => {
+      expect(queryOf(backend.lists.at(-1))).toMatchObject({ page: '1', pageSize: '10', status: 'delivered' });
+    });
+  });
+
+  it('a page change pushes, so Back returns to the page before', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    useOrderHandlers({ list: MANY });
+    renderPage('?status=delivered', onUrlUpdate);
+    await screen.findByText('148 orders · 37 active');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }));
+
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'push', query: '?page=2&status=delivered' }]);
+    });
+  });
+
+  it('keeps the rows and dims them after 200 ms while a filter loads', async () => {
+    useOrderHandlers({
+      list: async (url) => {
+        if (url.searchParams.get('status') === 'delivered') {
+          await delay(700);
+        }
+        return standardOrderList();
+      },
+    });
+    renderPage();
+    await screen.findByText('148 orders · 37 active');
+    const grid = screen.getAllByRole('article')[0]?.parentElement;
+    expect(grid).not.toHaveAttribute('data-refetching');
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'Delivered');
+
+    expect(screen.getAllByRole('article')).toHaveLength(4);
+    expect(grid).not.toHaveAttribute('data-refetching');
+    await waitFor(() => {
+      expect(grid).toHaveAttribute('data-refetching', 'true');
+    });
+    expect(screen.getAllByRole('article')).toHaveLength(4);
+    await waitFor(() => {
+      expect(grid).not.toHaveAttribute('data-refetching');
+    });
+  });
+
+  it('has no axe violations with every filter on', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    const view = renderPage(
+      `?q=ball&status=delivered&dates=custom&from=2026-10-01&to=2026-10-31&hasBalance=true&productType=${BASKETBALL_ID}&sort=total`,
+    );
+
+    await screen.findByText('Product: Basketball Jersey');
+    await screen.findAllByRole('article');
+    await expectNoAxeViolations(view.container);
   });
 });

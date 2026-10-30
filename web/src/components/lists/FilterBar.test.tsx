@@ -232,6 +232,15 @@ describe('ResultBar and FilterChip (App. E.7, zero-one-many)', () => {
     expect(screen.getByRole('button', { name: 'Clear team filter' })).toBeInTheDocument();
     expect(LISTS_COPY.clearFilter('Order date')).toBe('Clear order date filter');
   });
+
+  it('shows a flag-style chip with only its words and a clear button named by clearName (plan 08-09, D-54f)', () => {
+    const onClear = vi.fn();
+    render(<FilterChip label="Has a balance" clearName="balance" onClear={onClear} />);
+
+    expect(screen.getByText('Has a balance')).toBeInTheDocument();
+    expect(screen.queryByText(/:/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Clear balance filter' })).toBeInTheDocument();
+  });
 });
 
 describe('SearchBox (WEB-08, WEB-10, SEC-03)', () => {
