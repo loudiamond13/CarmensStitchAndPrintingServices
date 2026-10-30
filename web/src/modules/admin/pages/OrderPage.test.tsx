@@ -740,3 +740,72 @@ describe('a locked order and its banner (ORD-07, D-15, D-39, UIC-37)', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+describe('reopening from the banner (ORD-07, D-15, D-16, UIC-37, UIC-47)', () => {
+  const cancelledFromReady = buildOrderDetail({
+    ...cancelledOrderWithRefunds,
+    statusHistory: [
+      { from: null, to: 'pending', changedAt: '2026-09-08T02:00:00Z', changedBy: order0148.recordedBy },
+      { from: 'pending', to: 'ready', changedAt: '2026-09-12T02:00:00Z', changedBy: order0148.recordedBy },
+      { from: 'ready', to: 'cancelled', changedAt: '2026-09-20T02:00:00Z', changedBy: order0148.recordedBy },
+    ],
+  });
+
+  it('opens the Reopen window from the banner with the status before the end state chosen', async () => {
+    const user = userEvent.setup();
+    useOrderHandlers({ detail: cancelledFromReady });
+    renderOrder({ order: cancelledFromReady });
+
+    await user.click(await screen.findByRole('button', { name: 'Reopen Order' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Reopen ORD-2026-0139' });
+    expect(within(dialog).getByRole('radio', { name: 'Ready' })).toBeChecked();
+  });
+
+  it('reopens to the chosen status: the banner goes, the actions return and Change Status has focus', async () => {
+    const user = userEvent.setup();
+    const reopened = buildOrderDetail({
+      ...cancelledFromReady,
+      status: 'production',
+      statusHistory: [
+        ...cancelledFromReady.statusHistory,
+        { from: 'cancelled', to: 'production', changedAt: '2026-10-08T03:00:00Z', changedBy: order0148.recordedBy },
+      ],
+      version: 'AAAAAAAAB9F=',
+    });
+    const backend = useOrderHandlers({ detail: cancelledFromReady, reply: () => HttpResponse.json(reopened) });
+    renderOrder({ order: cancelledFromReady });
+
+    await user.click(await screen.findByRole('button', { name: 'Reopen Order' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Reopen ORD-2026-0139' });
+    await user.click(within(dialog).getByRole('radio', { name: 'In Production' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Reopen Order' }));
+
+    const change = await screen.findByRole('button', { name: 'Change Status' });
+    await waitFor(() => {
+      expect(change).toHaveFocus();
+    });
+    expect(screen.queryByText('This order is cancelled.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reopen Order' })).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Edit Details' }).length).toBeGreaterThan(0);
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.body).toEqual({ status: 'production' });
+  });
+
+  it('keeps the order locked and puts focus back on Reopen Order when the window is cancelled', async () => {
+    const user = userEvent.setup();
+    const backend = useOrderHandlers({ detail: cancelledFromReady });
+    renderOrder({ order: cancelledFromReady });
+
+    await user.click(await screen.findByRole('button', { name: 'Reopen Order' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Reopen ORD-2026-0139' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.getByRole('button', { name: 'Reopen Order' })).toHaveFocus();
+    expect(screen.getByText('This order is cancelled.')).toBeVisible();
+    expect(backend.writes).toHaveLength(0);
+  });
+});
