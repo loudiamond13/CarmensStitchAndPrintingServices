@@ -320,7 +320,11 @@ describe('the permanent-delete dialog keeps its own read (WR-04)', () => {
     });
     const pageErrors: unknown[] = [];
     const stop = queryClient.getQueryCache().subscribe((event) => {
-      if (event.type === 'updated' && event.action.type === 'error' && event.query.queryKey[0] === pageKey[0]) {
+      if (
+        event.type === 'updated' &&
+        event.action.type === 'error' &&
+        event.query.queryHash === JSON.stringify(pageKey)
+      ) {
         pageErrors.push(event.action.error);
       }
     });
