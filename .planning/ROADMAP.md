@@ -916,7 +916,7 @@ Plans:
 
 **Research flag:** Standard patterns, once Phase 7 is settled.
 
-**Plans**: 6/24 plans executed in 8 waves (planned 2026-10-29; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 7/24 plans executed in 8 waves (planned 2026-10-29; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 08-01-PLAN.md — Order list and detail contracts: pieces, list-wide counts in 3 fixed commands, server today, item attribution (ORD-01, ORD-07, ORD-11; D-40, D-41, D-44, D-59, D-60)
@@ -927,7 +927,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 08-06-PLAN.md — The Orders list shows real orders; /admin lands on Orders (ORD-01, ORD-11, ORD-12, ORD-19; D-41, D-61)
-- [ ] 08-07-PLAN.md — A Manager can read a deleted order (ORD-06; D-24)
+- [x] 08-07-PLAN.md — A Manager can read a deleted order (ORD-06; D-24)
 - [ ] 08-08-PLAN.md — Settings tabs for the order lists (ORD-07; D-31, D-32)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -1351,7 +1351,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
-| 8. Order Screens | 6/24 | In Progress | - |
+| 8. Order Screens | 7/24 | In Progress | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
