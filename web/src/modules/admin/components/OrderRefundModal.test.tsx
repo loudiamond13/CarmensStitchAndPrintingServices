@@ -12,9 +12,15 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { ME_ID, PAOLO_ID, staffBackend } from '@/test/expenseFixtures';
 import {
   buildOrderDetail,
+  cancelledOrderWithRefunds,
+  CASH,
   creditOrder,
+  ORDER_STAFF,
+  ORDER_STAFF_TWO,
   ORDER_TODAY,
   ORDER_VERSION,
+  orderPayment,
+  orderRefund,
   useOrderHandlers,
   type OrderBackend,
   type OrderDetailFixture,
@@ -272,5 +278,247 @@ describe('add mode saving (ORD-18 idempotency)', () => {
       expect(screen.getByText('Refund added')).toBeInTheDocument();
     });
     expect(backend.writes).toHaveLength(1);
+  });
+});
+
+// ---- Edit mode (ORD-18, D-10, D-58, 07 D-09, 07 D-35) ----
+
+const GONE_ID = '00000000-0000-4000-8000-0000000000d1';
+
+/** A Cancelled order with 12,000.00 paid and 500.00 handed back, so 11,500.00 can still be refunded. */
+const REFUND_ID = '00000000-0000-4000-9500-0000000000b1';
+const SAVED = orderRefund('2026-10-05', 500, 'Customer changed the order', {
+  id: REFUND_ID,
+  refundedBy: ORDER_STAFF_TWO,
+});
+const CANCELLED = buildOrderDetail({
+  ...cancelledOrderWithRefunds,
+  payments: [orderPayment('2026-09-08', CASH, 12000)],
+  refunds: [SAVED],
+  totals: { ...cancelledOrderWithRefunds.totals, paid: 12000, refunded: 500, balance: 0 },
+});
+
+function renderEdit({
+  order = CANCELLED,
+  refundId = REFUND_ID,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+}: RenderOptions & { refundId?: string } = {}) {
+  queryClient.setQueryData(orderKey(order.id), order);
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <OrderRefundModal mode="edit" order={order} refundId={refundId} onClose={onClose} onSaved={onSaved} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...view, onClose, onSaved };
+}
+
+function problemResponse(status: number, code: string, errors?: Record<string, string[]>): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status, code, ...(errors === undefined ? {} : { errors }) }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  });
+}
+
+/** Waits for the staff lookup so the saved refunder shows as chosen. */
+async function refunderIs(id: string): Promise<void> {
+  await waitFor(() => {
+    expect(refundedByBox()).toHaveValue(id);
+  });
+}
+
+describe('edit mode opening', () => {
+  it('opens as "Edit Refund" with the saved values and the Recorded by block', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit Refund' });
+    expect(within(dialog).getByText('ORD-2026-0139 · Kabataan Liga ng Pasig')).toBeInTheDocument();
+    expect(dateBox()).toHaveValue('2026-10-05');
+    expect(amountBox()).toHaveValue('500.00');
+    expect(reasonBox()).toHaveValue('Customer changed the order');
+    await refunderIs(PAOLO_ID);
+    expect(within(dialog).getByText('Recorded by')).toBeInTheDocument();
+    expect(within(dialog).getByText('Last changed by')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Save Refund' })).toBeInTheDocument();
+  });
+
+  it('adds the saved amount back to the cap in the helper and in the check', async () => {
+    const backend = useOrderHandlers();
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+
+    expect(screen.getByText('You can refund up to ₱12,000.00.')).toBeInTheDocument();
+    await user.clear(amountBox());
+    await user.type(amountBox(), '12000.01');
+    await user.click(saveButton());
+
+    expect(
+      await screen.findByText('This is more than was paid and not yet refunded. Enter ₱12,000.00 or less.'),
+    ).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+  });
+
+  it('keeps a refunder who was deactivated selected as "{name} (inactive)"', async () => {
+    useOrderHandlers();
+    const gone = { id: GONE_ID, name: 'Liza Santos', formerStaff: false };
+    const refund = orderRefund('2026-10-05', 500, 'Wrong size', {
+      id: REFUND_ID,
+      refundedBy: gone,
+      refundedByActive: false,
+    });
+    renderEdit({ order: buildOrderDetail({ ...CANCELLED, refunds: [refund] }) });
+    await ready();
+
+    await refunderIs(GONE_ID);
+    expect(within(refundedByBox()).getByRole('option', { name: 'Liza Santos (inactive)' })).toBeInTheDocument();
+  });
+
+  it('keeps a deleted refunder selected as "{name} (former staff)"', async () => {
+    useOrderHandlers();
+    const gone = { id: GONE_ID, name: 'Liza Santos', formerStaff: true };
+    const refund = orderRefund('2026-10-05', 500, 'Wrong size', {
+      id: REFUND_ID,
+      refundedBy: gone,
+      refundedByActive: false,
+    });
+    renderEdit({ order: buildOrderDetail({ ...CANCELLED, refunds: [refund] }) });
+    await ready();
+
+    await refunderIs(GONE_ID);
+    expect(within(refundedByBox()).getByRole('option', { name: 'Liza Santos (former staff)' })).toBeInTheDocument();
+  });
+
+  it('has no axe violations', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('edit mode saving', () => {
+  it('puts the changed refund with the opened version and no Idempotency-Key, then closes and toasts "Refund updated"', async () => {
+    const answer = buildOrderDetail({ ...CANCELLED, version: NEW_VERSION });
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answer) });
+    const user = userEvent.setup();
+    const { onClose, onSaved } = renderEdit();
+    await ready();
+    await refunderIs(PAOLO_ID);
+
+    await user.clear(amountBox());
+    await user.type(amountBox(), '700');
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(answer);
+    expect(backend.writes).toHaveLength(1);
+    const [write] = backend.writes;
+    expect(write?.method).toBe('PUT');
+    expect(write?.path).toBe(`/orders/${CANCELLED.id}/refunds/${REFUND_ID}`);
+    expect(write?.key).toBeNull();
+    expect(write?.body).toEqual({
+      refundDate: '2026-10-05',
+      amount: 700,
+      reason: 'Customer changed the order',
+      refundedByUserId: PAOLO_ID,
+      version: ORDER_VERSION,
+    });
+    expect(await screen.findByText('Refund updated')).toBeInTheDocument();
+  });
+
+  it('asks "Discard changes?" when Cancel is pressed after a change', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+
+    await user.type(reasonBox(), 'x');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('edit mode server refusals', () => {
+  it('shows a 400 on refundedByUserId under Refunded by and focuses it', async () => {
+    const message = "This person can't be chosen because their account isn't active. Choose someone else.";
+    useOrderHandlers({
+      reply: () => problemResponse(400, 'orders.invalid-request', { refundedByUserId: [message] }),
+    });
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+    await refunderIs(PAOLO_ID);
+
+    await user.selectOptions(refundedByBox(), 'Carmen Reyes (you)');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(refundedByBox()).toHaveFocus();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('edit mode stale save (409) and a removed refund (404)', () => {
+  it('keeps the typed values behind the banner, and Load Latest takes the latest values, version and cap', async () => {
+    const latestRefund = orderRefund('2026-10-06', 800, 'Order shrank', { id: REFUND_ID, refundedBy: ORDER_STAFF });
+    const latest = buildOrderDetail({
+      ...CANCELLED,
+      refunds: [latestRefund],
+      version: NEW_VERSION,
+      totals: { ...CANCELLED.totals, paid: 12500, refunded: 800 },
+    });
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: latest,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? problemResponse(409, 'edit.stale') : HttpResponse.json(latest);
+      },
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await refunderIs(PAOLO_ID);
+    await user.clear(amountBox());
+    await user.type(amountBox(), '700');
+
+    await user.click(saveButton());
+    const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
+    expect(amountBox()).toHaveValue('700.00');
+
+    await user.click(loadLatest);
+    await waitFor(() => {
+      expect(amountBox()).toHaveValue('800.00');
+    });
+    expect(reasonBox()).toHaveValue('Order shrank');
+    expect(refundedByBox()).toHaveValue(ME_ID);
+    expect(screen.getByText('You can refund up to ₱12,500.00.')).toBeInTheDocument();
+
+    await user.click(saveButton());
+    await screen.findByText('Refund updated');
+    expect((backend.writes[1]?.body as { version: string }).version).toBe(NEW_VERSION);
+  });
+
+  it('shows "This refund was removed." for a refund that is gone and blocks Save', async () => {
+    useOrderHandlers({ reply: () => problemResponse(404, 'orders.refund-not-found') });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+
+    await user.type(reasonBox(), 'x');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This refund was removed.')).toBeInTheDocument();
+    expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
   });
 });
