@@ -721,3 +721,130 @@ describe('saving the details (ORD-15, SEC-07)', () => {
     expect(contact).toHaveFocus();
   });
 });
+
+describe('stale saves, loading and missing orders (ORD-08, UIC-14, UIC-20)', () => {
+  /** The same order after someone else saved it: a new name and a new row version. */
+  const NEWER_VERSION = 'AAAAAAAAB9F=';
+  const newer = buildOrderDetail({
+    customerName: 'Juan D. Cruz',
+    contactNumber: '0917 555 0000',
+    version: NEWER_VERSION,
+    lastChangedBy: ORDER_STAFF_TWO,
+    lastChangedAt: '2026-10-08T03:00:00Z',
+  });
+
+  it('shows the conflict banner above the first card on a 409, keeps the typed values and focuses Load Latest', async () => {
+    let attempts = 0;
+    useOrderHandlers({
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? orderProblem(409, 'edit.stale') : undefined;
+      },
+    });
+    const { user } = await openEdit();
+    const contact = screen.getByLabelText(/^Contact number/);
+    await user.clear(contact);
+    await user.type(contact, '0917 000 1111');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    const banner = await screen.findByRole('alert');
+    expect(within(banner).getByText('This was changed by someone else.')).toBeVisible();
+    expect(within(banner).getByRole('button', { name: 'Load Latest' })).toHaveFocus();
+    const firstCard = screen.getByRole('heading', { level: 2, name: 'Customer details' });
+    expect(banner.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByLabelText(/^Contact number/)).toHaveValue('0917 000 1111');
+    expect(screen.queryByText('Order details saved')).toBeNull();
+  });
+
+  it('replaces the values and the version on Load Latest, focuses Customer name and says so', async () => {
+    let current = order0148;
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: () => current,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? orderProblem(409, 'edit.stale') : undefined;
+      },
+    });
+    const { user } = await openEdit();
+    const contact = screen.getByLabelText(/^Contact number/);
+    await user.clear(contact);
+    await user.type(contact, '0917 000 1111');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
+    current = newer;
+    await user.click(loadLatest);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Juan D. Cruz');
+    });
+    expect(screen.getByLabelText(/^Contact number/)).toHaveValue('0917 555 0000');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByLabelText(/^Customer name/)).toHaveFocus();
+    expect(screen.getByText('Latest version loaded. Make your changes again.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await screen.findByText('The order page');
+    expect(backend.writes).toHaveLength(2);
+    expect((backend.writes[1]?.body as { version: string }).version).toBe(NEWER_VERSION);
+  });
+
+  it('keeps the version it opened with when a focus refetch brings a newer one', async () => {
+    let current = order0148;
+    const backend = useOrderHandlers({ detail: () => current });
+    const { user } = await openEdit();
+    current = newer;
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['order', order0148.id] });
+    });
+    await waitFor(() => {
+      expect(queryClient.getQueryData<OrderDetailFixture>(['order', order0148.id])?.version).toBe(NEWER_VERSION);
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('The order page');
+    expect((backend.writes[0]?.body as { version: string }).version).toBe(ORDER_VERSION);
+  });
+
+  it('shows a skeleton in a Loading order region, then Order loaded. and focuses Customer name', async () => {
+    useOrderHandlers({
+      detail: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        return order0148;
+      },
+    });
+    const { container } = renderEdit();
+
+    expect(await screen.findByText('Loading order…')).toBeInTheDocument();
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
+
+    expect(await screen.findByText('Order loaded.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Customer name/)).toHaveFocus();
+    });
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
+  it('says the order was not found, with Back to Orders, when the order is missing or deleted', async () => {
+    useOrderHandlers({ detail: () => orderProblem(404, 'orders.not-found') });
+    renderEdit();
+
+    expect(await screen.findByText('This order was not found or was deleted.')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Back to Orders' })).toHaveAttribute('href', '/admin/orders');
+    expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
+  });
+
+  it('says the order was not found when a save finds it deleted', async () => {
+    useOrderHandlers({ reply: () => orderProblem(404, 'orders.not-found') });
+    const { user } = await openEdit();
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('This order was not found or was deleted.')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Back to Orders' })).toBeVisible();
+    expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
+  });
+});
