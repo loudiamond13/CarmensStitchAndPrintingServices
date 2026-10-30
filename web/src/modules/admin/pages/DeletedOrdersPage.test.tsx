@@ -372,3 +372,134 @@ describe('Restore (D-23)', () => {
     });
   });
 });
+
+describe('Delete permanently from the deleted list (07 D-28, D-57; plan 08-20)', () => {
+  const PURGE_FIRST = 'Delete order ORD-2026-0148 permanently';
+  const PURGE_THIRD = 'Delete order ORD-2026-0153 permanently';
+  const PURGE_TITLE = 'Delete ORD-2026-0148 permanently?';
+  const PURGE_THIRD_TITLE = 'Delete ORD-2026-0153 permanently?';
+
+  it('gives each row View, Restore, then Delete permanently with the eraser, named with the order number and a matching title', async () => {
+    deletedOrdersBackend({ list: deletedOrderList(ROWS) });
+    renderPage();
+    await screen.findByText('ORD-2026-0148');
+
+    const first = screen.getAllByRole('row').find((row) => within(row).queryByText('ORD-2026-0148') !== null);
+    if (first === undefined) throw new Error('No first row');
+    const names = within(first)
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label') ?? button.textContent);
+    expect(names).toEqual(['View deleted order ORD-2026-0148', RESTORE_FIRST, PURGE_FIRST]);
+    const purge = screen.getByRole('button', { name: PURGE_FIRST });
+    expect(purge).toHaveAttribute('title', PURGE_FIRST);
+    expect(purge.querySelector('svg')).toHaveClass('lucide-eraser');
+  });
+
+  it('opens the dialog, which reads the counts first, and sends nothing until the number is typed', async () => {
+    const user = userEvent.setup();
+    const backend = deletedOrdersBackend({ list: deletedOrderList(ROWS) });
+    renderPage();
+    await screen.findByText('ORD-2026-0148');
+
+    await user.click(screen.getByRole('button', { name: PURGE_FIRST }));
+
+    const dialog = await screen.findByRole('dialog', { name: PURGE_TITLE });
+    expect(
+      within(dialog).getByText(
+        'Brgy. San Roque Ballers · Juan Dela Cruz. The order and everything inside it are removed for good.',
+      ),
+    ).toBeVisible();
+    expect(await within(dialog).findByText(/^This will also delete 5 items/)).toBeVisible();
+    expect(backend.reads).toEqual([FIRST_ID]);
+    expect(within(dialog).getByRole('button', { name: 'Delete Order Permanently' })).toBeDisabled();
+    expect(backend.purges).toEqual([]);
+  });
+
+  it('confirming sends the DELETE with confirm=, drops the row, moves focus to the next row Restore, reads the lists again and toasts', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    const backend = deletedOrdersBackend({
+      list: listThatLoses(gone),
+      purge: (id) => {
+        gone.add(id);
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderPage();
+    await screen.findByText('ORD-2026-0148');
+    const reads = backend.lists.length;
+
+    await user.click(screen.getByRole('button', { name: PURGE_FIRST }));
+    const dialog = await screen.findByRole('dialog', { name: PURGE_TITLE });
+    await within(dialog).findByText(/^This will also delete/);
+    await user.type(within(dialog).getByRole('textbox'), 'ORD-2026-0148');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Order Permanently' }));
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('table')).queryByText('ORD-2026-0148')).toBeNull();
+    });
+    expect(backend.purges).toEqual([{ id: FIRST_ID, confirm: 'ORD-2026-0148', key: null }]);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: RESTORE_SECOND })).toHaveFocus();
+    });
+    expect(await screen.findByText('Order permanently deleted')).toBeVisible();
+    await waitFor(() => {
+      expect(backend.lists.length).toBeGreaterThan(reads);
+    });
+  });
+
+  it('moves focus to the previous Restore when the last row was deleted for good', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    deletedOrdersBackend({
+      list: listThatLoses(gone),
+      purge: (id) => {
+        gone.add(id);
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderPage();
+    await screen.findByText('ORD-2026-0153');
+
+    await user.click(screen.getByRole('button', { name: PURGE_THIRD }));
+    const dialog = await screen.findByRole('dialog', { name: PURGE_THIRD_TITLE });
+    await within(dialog).findByText(/^This will also delete/);
+    await user.type(within(dialog).getByRole('textbox'), 'ORD-2026-0153');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Order Permanently' }));
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('table')).queryByText('ORD-2026-0153')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: RESTORE_SECOND })).toHaveFocus();
+    });
+  });
+
+  it('closes with the already-gone note and reads the list again when the order was removed meanwhile (404)', async () => {
+    const user = userEvent.setup();
+    const gone = new Set<string>();
+    deletedOrdersBackend({
+      list: listThatLoses(gone),
+      purge: (id) => {
+        gone.add(id);
+        return deletedProblem(404);
+      },
+    });
+    renderPage();
+    await screen.findByText('ORD-2026-0148');
+
+    await user.click(screen.getByRole('button', { name: PURGE_FIRST }));
+    const dialog = await screen.findByRole('dialog', { name: PURGE_TITLE });
+    await within(dialog).findByText(/^This will also delete/);
+    await user.type(within(dialog).getByRole('textbox'), 'ORD-2026-0148');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Order Permanently' }));
+
+    expect(await screen.findByText('Already gone')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(within(screen.getByRole('table')).queryByText('ORD-2026-0148')).toBeNull();
+    });
+  });
+});

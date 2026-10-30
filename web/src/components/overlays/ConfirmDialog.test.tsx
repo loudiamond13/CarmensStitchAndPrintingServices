@@ -645,3 +645,43 @@ describe('ConfirmDialog open prop (D-39)', () => {
     });
   });
 });
+
+describe('ConfirmDialog while the counts load (plan 08-20, UIC-16)', () => {
+  const LOADING = 'Reading what this order holds';
+
+  it('shows a skeleton box instead of the tally and keeps the confirm disabled even with the number typed', async () => {
+    const user = userEvent.setup();
+    render(<DeleteOrder counts={undefined} countsLoading countsLoadingLabel={LOADING} />);
+
+    const box = within(screen.getByRole('dialog')).getByRole('status');
+    expect(within(box).getByText(LOADING)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText("This can't be undone.")).toBeNull();
+    await user.type(confirmField(), ORDER);
+    expect(deleteButton()).toBeDisabled();
+  });
+
+  it('shows the tally and enables the confirm once the counts arrive and the number is typed', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DeleteOrder counts={undefined} countsLoading countsLoadingLabel={LOADING} />);
+    await user.type(confirmField(), ORDER);
+
+    rerender(<DeleteOrder counts={COUNTS} countsLoading={false} countsLoadingLabel={LOADING} />);
+
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(within(screen.getByRole('alert')).getByText(SENTENCE)).toBeVisible();
+    expect(deleteButton()).toBeEnabled();
+  });
+
+  it('keeps the confirm disabled while confirmDisabled is set, whatever is typed', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(<DeleteOrder confirmDisabled onConfirm={onConfirm} />);
+
+    await user.type(confirmField(), ORDER);
+
+    expect(deleteButton()).toBeDisabled();
+    await user.click(deleteButton());
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+});

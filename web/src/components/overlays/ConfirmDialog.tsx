@@ -33,6 +33,12 @@ export interface ConfirmDialogProps {
   title?: string;
   message?: ReactNode;
   counts?: CascadeCounts | undefined;
+  /** The counts are still being read: the cascade box shows a skeleton and the confirm stays disabled. */
+  countsLoading?: boolean;
+  /** The words a screen reader gets for the skeleton box. */
+  countsLoadingLabel?: string;
+  /** Keeps the confirm disabled for a reason the dialog cannot see (the counts could not be read). */
+  confirmDisabled?: boolean;
   /** Type-to-confirm text (e.g. the order number). */
   confirmText?: string | undefined;
   confirmLabel?: string;
