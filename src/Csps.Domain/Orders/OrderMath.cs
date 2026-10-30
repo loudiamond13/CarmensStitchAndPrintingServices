@@ -99,14 +99,25 @@ public static class OrderMath
         };
     }
 
-    // An undefined kind (out of range, or the unset value 0) fails loudly: guessing "fixed" would turn a mis-mapped
-    // 10 percent into 10 pesos on the authoritative money path (NET-WR-01).
-    private static decimal DiscountAmount(OrderMathDiscount discount, decimal subtotal) => Round(discount.Kind switch
+    /// <summary>Works out the pesos one discount comes to, rounded to the centavo, half away from zero (D-09, D-94).</summary>
+    /// <param name="discount">The discount.</param>
+    /// <param name="subtotal">The rounded subtotal a percentage applies to.</param>
+    /// <returns>The value itself for a fixed discount, or the percent of the subtotal.</returns>
+    /// <exception cref="ArgumentNullException">The discount is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The discount has a kind that is not defined.</exception>
+    public static decimal DiscountAmount(OrderMathDiscount discount, decimal subtotal)
     {
-        DiscountKind.Fixed => discount.Value,
-        DiscountKind.Percentage => subtotal * discount.Value / 100m,
-        _ => throw new ArgumentOutOfRangeException(nameof(discount), discount.Kind, "Unknown discount kind."),
-    });
+        ArgumentNullException.ThrowIfNull(discount);
+
+        // An undefined kind (out of range, or the unset value 0) fails loudly: guessing "fixed" would turn a mis-mapped
+        // 10 percent into 10 pesos on the authoritative money path (NET-WR-01).
+        return Round(discount.Kind switch
+        {
+            DiscountKind.Fixed => discount.Value,
+            DiscountKind.Percentage => subtotal * discount.Value / 100m,
+            _ => throw new ArgumentOutOfRangeException(nameof(discount), discount.Kind, "Unknown discount kind."),
+        });
+    }
 
     private static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 }

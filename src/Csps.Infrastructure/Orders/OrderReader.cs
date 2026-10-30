@@ -517,6 +517,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                     row.Discount.Id,
                     DiscountKindNames.ToKey(row.Discount.Kind),
                     row.Discount.Value,
+                    OrderMath.DiscountAmount(new OrderMathDiscount(row.Discount.Kind, row.Discount.Value), order.Subtotal),
                     row.Discount.Reason,
                     row.Discount.CreatedById is { } recordedBy && row.RecorderFirst is not null
                         ? new ActorRef(recordedBy, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer)

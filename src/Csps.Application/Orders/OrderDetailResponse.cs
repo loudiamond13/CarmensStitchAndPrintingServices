@@ -38,6 +38,7 @@ public sealed record OrderItemResponse(
 /// <param name="Id">The discount id.</param>
 /// <param name="Kind">The kind key: fixed or percentage.</param>
 /// <param name="Value">The peso amount (fixed) or the percent (percentage).</param>
+/// <param name="Amount">The pesos the discount comes to, worked out by the server over the stored subtotal (D-94).</param>
 /// <param name="Reason">Why the discount was given.</param>
 /// <param name="RecordedBy">Who added it; null reads as System.</param>
 /// <param name="RecordedAt">When it was added.</param>
@@ -47,6 +48,7 @@ public sealed record OrderDiscountResponse(
     Guid Id,
     string Kind,
     decimal Value,
+    decimal Amount,
     string Reason,
     ActorRef? RecordedBy,
     DateTimeOffset RecordedAt,
