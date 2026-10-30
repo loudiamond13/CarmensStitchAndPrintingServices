@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-30T13:30:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-30T21:00:00-05:00*
 
 ## Overview
 
@@ -957,6 +957,11 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [x] 08-24-PLAN.md — Prove the whole phase and hand it to the owner (all nine requirements; D-25, D-26, D-56)
+- [ ] 08-25-PLAN.md — Gap G-08-5: the server sends each discount's amount (ORD-07; D-94)
+- [ ] 08-26-PLAN.md — Gap G-08-5: payment window checks caps against current figures (ORD-07; D-95)
+- [ ] 08-27-PLAN.md — Gap G-08-5: the status menu reads the order again when it opens (ORD-07; D-96)
+- [ ] 08-28-PLAN.md — Gap G-08-5: refund and discount windows check caps against current figures (ORD-07; D-95)
+- [ ] 08-29-PLAN.md — Gap G-08-5: two-staff e2e and final gates (ORD-07; D-94 to D-97)
 
 **UI hint**: yes
 
