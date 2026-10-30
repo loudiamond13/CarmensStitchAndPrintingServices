@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { HttpResponse } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -590,5 +591,40 @@ describe('the document title (ORD-07)', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
     expect(document.title).toBe('ORD-2026-0148 · CSPS Admin');
+  });
+});
+
+describe('the Change Status menu on the page (ORD-07, D-14, D-20)', () => {
+  it('sits beside the status badge, outside the h1, on an active order', async () => {
+    renderOrder();
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    const button = screen.getByRole('button', { name: 'Change Status' });
+    expect(heading).not.toContainElement(button);
+    expect(heading.parentElement).toContainElement(button);
+    expect(heading.parentElement).toContainElement(screen.getByText('In Production'));
+  });
+
+  it('moves the order to Ready from the page: the badge changes and the history gains a row', async () => {
+    const user = userEvent.setup();
+    const moved = buildOrderDetail({
+      status: 'ready',
+      statusHistory: [
+        ...order0148.statusHistory,
+        { from: 'production', to: 'ready', changedAt: '2026-10-08T03:00:00Z', changedBy: order0148.recordedBy },
+      ],
+      version: 'AAAAAAAAB9F=',
+    });
+    const backend = useOrderHandlers({ detail: order0148, reply: () => HttpResponse.json(moved) });
+    renderOrder();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Ready' }));
+
+    expect(await screen.findByText('In Production to Ready')).toBeVisible();
+    const heading = screen.getByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    expect(heading.parentElement).toHaveTextContent('Ready');
+    expect(backend.writes).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Change Status' })).toHaveFocus();
   });
 });
