@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-30T01:30:00-05:00
+updated: 2026-10-30T02:20:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -84,3 +84,16 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 10. **Flake, passes alone: `OrderItemsEditor.test.tsx` "makes Add Item aria-disabled at 100 rows" failed once in a full 233-file run.** Re-run alone it passed 3 of 3. The setup waits for the product types to reach 99 rows of selects; under a loaded run that wait outran the default 1 second. The wait now allows 15 seconds. Not seen again.
 11. **The look is not seen in a browser in Blush and Espresso.** The behavior is proved by tests and by the `@orders-create` e2e in all five projects (create and land on the order, the Discard changes dialog from the sidebar, a focused field clear of the save bar on a 390px phone, 44px boxes on a phone, axe clean, no sideways scroll). The owner's screenshot review should check the save bar over the tab bar on phones, the item row layouts at about 600px and 1000px card widths, and the Images card.
 12. **Imported orders edit later.** The Edit Order form (plan 08-15) reuses `orderDetailsSchema`, `orderFormCopy.ts`, the recipe cards and `useUnsavedChangesGuard`; nothing here is create-only except `createOrderSchema` and the item grid.
+
+## From plan 08-14
+
+1. **SPEC-GAP, owner review: a 404 on the order itself says "This order was removed."** The UI-SPEC gives one banner for a missing record, "This {thing} was removed." / "Close this and check the order." A save or Load Latest that finds the whole order gone (`orders.not-found`) would read "This item was removed." under that rule, which is wrong. Windows say "This order was removed." with the same second line. The words are in `orderWindowsCopy.ts`, `orderRemoved`.
+2. **SPEC-GAP, owner review: Load Latest on an Add window says "Latest version loaded. What you typed is kept."** The spec's line "Latest version loaded. Make your changes again." fits an edit window, which replaces the typed values. An add window keeps them, so it gets its own line, and focus goes to Save Item. Words: `orderWindowsCopy.ts`, `latestLoadedKept`.
+3. **A Delete on an item that is already gone shows "This item was removed." in the dialog.** A 404 on delete keeps the dialog open with that line (the UI-SPEC P2 rule: the dialog stays and shows a line), and the order is read again so the row leaves the table. A 422 shows the server sentence (`orders.last-item`).
+4. **Focus return is named, not left to the dialog.** Safari does not focus a button on a mouse click, so a dialog that returns focus "to its trigger" has nothing to return to there (the first `@orders-items` run failed on WebKit and iPhone for this reason). The Items tab now focuses Add Item, the row's Edit or the row's Delete itself once a window has closed. The payment, discount, expense and refund tabs (08-16 to 08-18) should do the same.
+5. **The Product type box takes the cursor when its list arrives.** It is disabled while the product types load, so the window cannot focus it at open. The window focuses it as soon as the list is here, as long as nothing was typed.
+6. **The "Line total: ₱X" line is the hint of Unit price, so an error on Unit price replaces it.** The shared `Field` shows an error instead of its hint. The preview comes back as soon as the price is valid.
+7. **Add Item stays enabled at 100 items.** The plan did not ask for a cap in the Items tab (the New Order grid has one). The server refuses the 101st item with `orders.too-many-items`, and the window shows that sentence (UIC-23).
+8. **A row's number in "Edit item {n}" is its place in the server's list**, so it changes when an earlier item is deleted.
+9. **The look is not seen in a browser in Blush and Espresso.** The behavior is proved by tests and the `@orders-items` e2e in all five projects (add, edit, discard question, delete, last item, row actions 44 px top right on a phone, axe clean). The owner's screenshot review should check the Add Item and Edit Item windows (spacing, the Recorded by block), the row action icons, and the last item note under the table.
+10. **TDD record.** `orderWindowsCopy.ts` and `orderItemsService.ts` were written before their tests (the service test passed on its first run); every other piece went red first. The RED runs for the window, hook and modal were module-not-found load failures because the files did not exist; the edit and delete RED runs were assertion failures.
