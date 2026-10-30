@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-29T22:55:00-05:00
+updated: 2026-10-29T23:25:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -34,3 +34,16 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 5. **`status` and `sort` are always sent to the API**, even at their defaults, so every request says what it asks for. Earlier tests expected only `page` and `pageSize`; those expectations were updated.
 6. **A product type id the list does not hold still sends one request before the replace.** It mirrors the Expenses category fallback. The server answers an unknown id with no rows, then the replace removes it.
 7. **Flake found and fixed in the new e2e:** on the iphone project the URL is written a moment after the screen changes (the browser limits how fast the address may change), so a URL read straight after a chip appeared saw the old URL once. The spec now polls the URL for those reads.
+
+## From plan 08-10
+
+1. **Stub until 08-12: the Payments, Discounts and Expenses tab panels are empty.** The tabs show their counts and can be chosen (`?tab=payments` works), but the panel under them draws nothing yet. Plan 08-12 fills them. Recorded in `.planning/WINDOWS.md`.
+2. **The Refunds tab and the customer card, status history and phone balance card are not drawn yet** (plan 08-12). Until then `?tab=refunds` reads as Items without a `replace`; 08-12 adds the replace (UIC-46) and `showRefundsTab` is ready for it.
+3. **Header Delete Order (D-57) and the Change Status menu are not drawn yet** (plans 08-19 and 08-22). The header shows Edit Details only, and only while `canEditOrder` allows it.
+4. **`ordersDeletedKey` (`['orders-deleted']`) lives in `useRefreshOrders.ts`.** Plan 08-20 should key the deleted list under it so every order write refreshes that list.
+5. **SPEC-GAP, owner review: the back link accepts any literal `/admin/orders` path**, such as `/admin/orders/deleted?page=2`, not only the list. Anything else (a foreign host, `//host`, another admin page, a backslash, `..`, a value that is not text) goes to `/admin/orders`. The `.s-back` look is the shared `loginBackClasses` (its name is from the sign-in screens).
+6. **SPEC-GAP, owner review: the 404 view is an alert banner with the words "This order was not found or was deleted." and a secondary Back to Orders button below it.** The UI-SPEC says ErrorState plus a ButtonLink; `ErrorState` has no action slot, so the button sits under the banner.
+7. **The look is not seen in a browser at 390, 820 and 1440 px in Blush and Espresso.** The detail grid cascade (one column up to 1023px, a 320px side up to 1279px, the side first and static on tablets and phones) is proved by `orderPage.recipe.node.test.ts`; the Items table is the shared ResponsiveTable (stacked row cards on phones). The owner's screenshot review should check the card spacing, the panel padding and the tab strip inset.
+8. **The `@orders-page` e2e seeds no order expense**, because no order expense category id is known to the e2e helpers. It shows Order Expenses and Estimated Profit rows (₱0.00 expenses); the unit tests cover ₱6,065.00 and ₱15,262.50 for an Admin and a Manager.
+9. **`canComplete` looks at the figures only, not the status** (07 D-04). The Change Status menu is not rendered on a locked order (D-15), so a Completed order never asks it.
+
