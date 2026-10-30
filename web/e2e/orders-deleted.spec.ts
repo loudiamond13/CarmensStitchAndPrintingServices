@@ -75,3 +75,82 @@ test('@orders-deleted a Manager finds a deleted order in Deleted Orders and rest
   await page.goto(`/admin/orders?q=${number}`);
   await expect(page.getByText(number).first()).toBeVisible();
 });
+
+test('@orders-deleted a Manager deletes an order for good only after the counts show and the exact number is typed', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const number = uniqueNumber(2095);
+  const id = await createOrder(request, {
+    number,
+    status: 'pending',
+    customerName: 'E2E Purge Customer',
+    teamName: 'E2E Purge Team',
+    orderDate: manilaDate(-3),
+    dueDate: manilaDate(5),
+    items: [
+      { productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E purge jersey', quantity: 12, unitPrice: 780 },
+      { productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E purge shorts', quantity: 12, unitPrice: 300 },
+    ],
+  });
+  await signInAs(page, request, manager);
+  await deleteOrderThroughApi(page, id);
+
+  await page.goto('/admin/orders/deleted');
+  const row = page.getByRole('table', { name: 'Deleted orders' }).getByRole('row').filter({ hasText: number });
+  await expect(row).toBeVisible();
+
+  // The dialog reads the order first and shows what goes with it; the button stays off until the exact number is typed.
+  await row.getByRole('button', { name: `Delete order ${number} permanently` }).click();
+  const dialog = page.getByRole('dialog', { name: `Delete ${number} permanently?` });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('E2E Purge Team');
+  await expect(dialog).toContainText('This will also delete 2 items.');
+  await expect(dialog).toContainText("This can't be undone.");
+  const confirm = dialog.getByRole('button', { name: 'Delete Order Permanently' });
+  await expect(confirm).toBeDisabled();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+
+  const field = dialog.getByRole('textbox', { name: `Type ${number} to confirm` });
+  await field.fill(number.slice(0, -1));
+  await expect(confirm).toBeDisabled();
+  await field.fill(number.toLowerCase());
+  await expect(confirm).toBeDisabled();
+  await field.fill(` ${number} `);
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+
+  await expect(page.getByText('Order permanently deleted')).toBeVisible();
+  await expect(dialog).toBeHidden();
+  await expect(row).toHaveCount(0);
+
+  // Nothing is left: the deleted read now answers 404, so a second look finds no row.
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Deleted Orders' })).toBeVisible();
+  await expect(page.getByText(number)).toHaveCount(0);
+});
+
+test('@orders-deleted an Admin opening Deleted Orders is sent back to Orders and sees no link to it', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const admin = await createStaff(request, 'Admin');
+  await signInAs(page, request, admin);
+
+  await page.goto('/admin/orders');
+  await expect(page.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Deleted Orders' })).toHaveCount(0);
+
+  await page.goto('/admin/orders/deleted');
+  await expect(page).toHaveURL(/\/admin\/orders$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Deleted Orders' })).toHaveCount(0);
+});

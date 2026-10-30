@@ -13,6 +13,7 @@ import { ordersDeletedKey } from '@/modules/admin/hooks/useRefreshOrders';
 import DeletedOrdersPage from '@/modules/admin/pages/DeletedOrdersPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { deletedOrderItem, deletedOrderList, deletedOrdersBackend, deletedProblem } from '@/test/deletedOrderFixtures';
+import { expectNoAxeViolations } from '@/test/axe';
 import { orderId } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -502,5 +503,120 @@ describe('Delete permanently from the deleted list (07 D-28, D-57; plan 08-20)',
     await waitFor(() => {
       expect(within(screen.getByRole('table')).queryByText('ORD-2026-0148')).toBeNull();
     });
+  });
+});
+
+describe('the list states (UIC-3, UIC-7, UIC-16, UIC-18; plan 08-20)', () => {
+  it('announces Loading deleted orders… on the first load, then shows the rows', async () => {
+    deletedOrdersBackend({
+      list: async () => {
+        await delay(150);
+        return deletedOrderList(ROWS);
+      },
+    });
+    renderPage();
+
+    expect(await screen.findByText('Loading deleted orders…')).toBeInTheDocument();
+    await screen.findByText('ORD-2026-0148');
+    expect(screen.queryByText('Loading deleted orders…')).toBeNull();
+  });
+
+  it("shows Couldn't load deleted orders. with Try Again, and Try Again reads the list again", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    deletedOrdersBackend({
+      list: () => {
+        calls += 1;
+        return calls === 1 ? deletedProblem(500) : deletedOrderList(ROWS);
+      },
+    });
+    const view = renderPage();
+
+    expect(await screen.findByText("Couldn't load deleted orders.")).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+    await expectNoAxeViolations(view.container);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await screen.findByText('ORD-2026-0148');
+    expect(calls).toBe(2);
+  });
+
+  it('shows No deleted orders with its message, the archive icon and no action when nothing was ever deleted', async () => {
+    deletedOrdersBackend({ list: deletedOrderList([]) });
+    const view = renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'No deleted orders' })).toBeVisible();
+    expect(
+      screen.getByText(
+        'When someone deletes an order, it shows here until a Manager restores it or deletes it permanently.',
+      ),
+    ).toBeVisible();
+    expect(view.container.querySelector('.lucide-archive')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Clear Filters' })).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+    await expectNoAxeViolations(view.container);
+  });
+
+  it('shows the empty value, not ₱0.00, in the Paid cell of an order with nothing paid', async () => {
+    deletedOrdersBackend({
+      list: deletedOrderList([deletedOrderItem(FIRST_ID, { paid: 0, balance: 21327.5 })]),
+    });
+    renderPage();
+
+    await screen.findByText('ORD-2026-0148');
+    const paid = document.querySelector('td[data-label="Paid"]');
+    expect(paid?.textContent).not.toContain('₱');
+    expect(paid?.querySelector('.lucide-minus')).not.toBeNull();
+    expect(paid?.textContent).toBe('Not set');
+    expect(document.querySelector('td[data-label="Total"]')?.textContent).toBe('₱21,327.50');
+  });
+
+  it('shows the access banner instead of the table when the API answers 403', async () => {
+    deletedOrdersBackend({ list: () => deletedProblem(403) });
+    renderPage();
+
+    expect(await screen.findByText("You don't have access to this")).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('wraps a 100-character customer and team name inside the table', async () => {
+    const long = 'Santos '.repeat(15).trim();
+    deletedOrdersBackend({
+      list: deletedOrderList([deletedOrderItem(FIRST_ID, { customerName: long, teamName: long })]),
+    });
+    renderPage();
+
+    await screen.findByText('ORD-2026-0148');
+    expect(screen.getAllByText(long)).toHaveLength(2);
+  });
+});
+
+describe('accessibility', () => {
+  it('has no axe violations with rows, and while loading', async () => {
+    deletedOrdersBackend({
+      list: async () => {
+        await delay(100);
+        return deletedOrderList(ROWS);
+      },
+    });
+    const view = renderPage();
+
+    await screen.findByText('Loading deleted orders…');
+    await expectNoAxeViolations(view.container);
+    await screen.findByText('ORD-2026-0148');
+    await expectNoAxeViolations(view.container);
+  });
+
+  it('has no axe violations with the permanent confirmation open', async () => {
+    const user = userEvent.setup();
+    deletedOrdersBackend({ list: deletedOrderList(ROWS) });
+    renderPage();
+    await screen.findByText('ORD-2026-0148');
+
+    await user.click(screen.getByRole('button', { name: 'Delete order ORD-2026-0148 permanently' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete ORD-2026-0148 permanently?' });
+    await within(dialog).findByText(/^This will also delete/);
+    await expectNoAxeViolations(document.body);
   });
 });
