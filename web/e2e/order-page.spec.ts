@@ -54,6 +54,7 @@ test('@orders-page a Manager opens an order from the list and sees its header, t
 
   // The header: number, status, the subline and who recorded it.
   await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible();
+  await expect(page).toHaveTitle(`${number} · CSPS Admin`);
   await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/E2E Page Team · E2E Page Customer · Ordered /)).toBeVisible();
   await expect(page.getByText('5 days left')).toBeVisible();
@@ -84,4 +85,9 @@ test('@orders-page a Manager opens an order from the list and sees its header, t
 
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
   await expectNoAxeViolations(page);
+
+  // Back returns to the list as the user left it, with the search (D-51).
+  await page.locator('main').getByRole('link', { name: 'Orders', exact: true }).click();
+  await expect(page).toHaveURL(`/admin/orders?q=${number}`);
+  await expect(page.getByRole('article').filter({ hasText: number })).toHaveCount(1);
 });

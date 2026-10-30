@@ -3,6 +3,16 @@
 import { formatCount } from '@/utils/format';
 
 export const ORDER_PAGE_COPY = {
+  /** The document title before the order number is known. */
+  documentTitle: 'Order',
+  /** The page states (UI-SPEC O1 Loading and error). */
+  states: {
+    /** The noun the loading announcements use: "Loading order…" and "Order loaded.". */
+    things: 'order',
+    loadFailed: "Couldn't load this order.",
+    notFound: 'This order was not found or was deleted.',
+    backToOrders: 'Back to Orders',
+  },
   /** The header (`.s-ph`). */
   header: {
     back: 'Orders',

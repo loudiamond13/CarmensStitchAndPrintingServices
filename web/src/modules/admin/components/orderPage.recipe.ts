@@ -81,3 +81,6 @@ export const orderTabBodyClasses = tw('px-5 pb-5 pg-phone:px-4');
 
 /** The bold name cell of a table (the product type). */
 export const orderCellStrongClasses = tw('font-semibold');
+
+/** The Back to Orders button under the not-found message. */
+export const orderStateActionClasses = tw('flex');
