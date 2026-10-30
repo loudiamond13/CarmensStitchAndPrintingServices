@@ -1,10 +1,13 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { delay } from 'msw';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { categoriesBackend, categoryItem, OTHERS_ID, problemResponse } from '@/test/expenseFixtures';
+import type { ListKey } from '@/modules/admin/components/ListEntrySelect';
 import { LIST_SETTINGS } from '@/modules/admin/listSettingsConfigs';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -164,7 +167,7 @@ const CASES: readonly ListCase[] = [
   },
 ];
 
-function renderSection(list: OrderListRoute) {
+function renderSection(list: ListKey) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
@@ -383,5 +386,96 @@ describe.each(CASES)('S1 list card: $list', (c) => {
     const { view } = await open();
 
     await expectNoAxeViolations(view.container);
+  });
+});
+
+// Others, the empty list and the list states on every tab (UIC-18, UIC-41, UIC-72, UIC-73; plan 08-08).
+const STATES: readonly {
+  list: ListKey;
+  route: OrderListRoute | null;
+  heading: string;
+  tableName: string;
+  things: string;
+}[] = [
+  { list: 'product-types', route: 'product-types', heading: 'Product Types', tableName: 'Product types', things: 'product types' },
+  {
+    list: 'payment-methods',
+    route: 'payment-methods',
+    heading: 'Payment Methods',
+    tableName: 'Payment methods',
+    things: 'payment methods',
+  },
+  {
+    list: 'order-expense-categories',
+    route: 'order-expense-categories',
+    heading: 'Order Expense Categories',
+    tableName: 'Order expense categories',
+    things: 'order expense categories',
+  },
+  { list: 'expense-categories', route: null, heading: 'Company Expense Categories', tableName: 'Expense categories', things: 'categories' },
+];
+
+/** Answers the list of any tab, the company categories included. */
+function serve(list: ListKey, answer: (() => unknown[] | Response | Promise<unknown[] | Response>)): void {
+  if (list === 'expense-categories') {
+    categoriesBackend(async () => (await answer()) as never);
+  } else {
+    listBackend(list, async () => (await answer()) as never);
+  }
+}
+
+describe.each(STATES)('S1 list states: $list', ({ list, heading, tableName, things }) => {
+  it('announces the first load with the list loading name, then shows the rows', async () => {
+    serve(list, async () => {
+      await delay(150);
+      return [listItem('44444444-0000-4000-8000-000000000001', 'Sample entry', 'info')];
+    });
+    renderSection(list);
+
+    expect(await screen.findByText(`Loading ${things}…`)).toBeInTheDocument();
+    await screen.findByText('Sample entry');
+    expect(screen.queryByText(`Loading ${things}…`)).toBeNull();
+  });
+
+  it("shows Couldn't load {things} with Try Again, and Try Again reads the list again", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    serve(list, () => {
+      calls += 1;
+      return calls === 1 ? problemResponse(500) : [listItem('44444444-0000-4000-8000-000000000001', 'Sample entry', 'info')];
+    });
+    const view = renderSection(list);
+
+    expect(await screen.findByText(`Couldn't load ${things}.`)).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+    await expectNoAxeViolations(view.container);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await screen.findByText('Sample entry');
+    expect(calls).toBe(2);
+  });
+
+  it('shows the empty list pattern with its words when the list holds nothing', async () => {
+    serve(list, () => []);
+    const view = renderSection(list);
+
+    expect(await screen.findByText(`No ${things} yet`)).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: heading })).toBeVisible();
+    await expectNoAxeViolations(view.container);
+  });
+
+  it('shows a list that holds only an entry named Others as one row with the Edit action alone', async () => {
+    serve(list, () =>
+      list === 'expense-categories'
+        ? [categoryItem(OTHERS_ID, 'Others', 'neutral', { isOthers: true })]
+        : [listItem('44444444-0000-4000-8000-000000000009', 'Others', 'neutral', { isOthers: true })],
+    );
+    renderSection(list);
+    await screen.findByRole('table', { name: tableName });
+
+    const row = rowOf('Others');
+    expect(within(row).getByText('Always listed last')).toBeVisible();
+    expect(titlesIn(row)).toEqual(['Edit Others']);
   });
 });
