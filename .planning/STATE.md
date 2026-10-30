@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
-status: executing
-stopped_at: Completed 08-23-PLAN.md
-last_updated: "2026-10-30T12:46:17.757Z"
+status: verifying
+stopped_at: Completed 08-24-PLAN.md
+last_updated: "2026-10-30T18:18:42.450Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: 8ee947641daab70a5cd37f87892ce281a26e0414
+state_head: f654ce0d1d25179d6b57ed39b5ec3db14dbdf45b
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 242
+  completed_plans: 243
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T20:37:00-05:00"
+updated: "2026-10-30T13:30:00-05:00"
 ---
 
 # Project State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 
 Phase: 08 (Order Screens) — EXECUTING
 Plan: 24 of 24
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-29 — Phase 08 execution started
 
 Progress: [████░░░░░░] 39%
@@ -302,6 +302,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P21 | 44 min | 3 tasks | 21 files |
 | Phase 08 P22 | 25 min | 2 tasks | 7 files |
 | Phase 08 P23 | 22 min | 2 tasks | 9 files |
+| Phase 08 P24 | 5h 35m | 3 tasks | 35 files |
 
 ## Accumulated Context
 
@@ -862,6 +863,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-21: Record Refund focus returns by id: saved goes to the Totals heading, dismissed goes back to the Record Refund button (OrderTotals recordRefundId)
 - [Phase 08]: 08-22: the Delete Order dialog finds its way back with backTarget(location.state), so OrderPage.tsx stays untouched — Same function as the back link (D-51); the page file belongs to another plan in the wave
 - [Phase 08]: 08-23: the deleted order view builds its own header and renders every part readOnly; a 404 on Restore shows the not-in-Deleted-Orders page with no toast (owner review in deferred-items.md)
+- [Phase 08]: 08-24: a fix for a sweep finding lives in the shared recipe that owns the look, with a red recipe or component test first (header subline, balance figure, order card text, card footer buttons)
+- [Phase 08]: 08-24: web branch coverage is held over 90 percent with one StrictMode render test per large screen (src/test/strictMode.ts), because the React Compiler's cached branch only runs on a second render
+- [Phase 08]: 08-24: the full npm run e2e still fails 14 tests that fail the same way at 5118c182 (dialog-fit 1274x585, dialog-scrollbars, long-text four-chip, shell 1440x900) plus orders-filters on pixel with the same chip-button cause; recorded for the owner, not fixed here
 
 ### Pending Todos
 
@@ -916,6 +920,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
+- Owner decision: chip Clear buttons (22 px) fail axe target-size near the fixed phone tab bar, and the Delete Order dialog is 559 px high where @dialog-fit allows 553. Both fail before plan 08-24 (deferred-items 08-24 items 7 and 8).
 
 ### Quick Tasks Completed
 
@@ -966,6 +971,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T12:46:16.497Z
-Stopped at: Completed 08-23-PLAN.md
+Last session: 2026-10-30T18:18:41.187Z
+Stopped at: Completed 08-24-PLAN.md
 Resume file: None
