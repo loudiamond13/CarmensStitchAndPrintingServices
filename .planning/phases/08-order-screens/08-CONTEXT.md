@@ -1,6 +1,6 @@
 # Phase 8: Order Screens - Context
 
-*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-29T20:37:00-05:00*
+*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-30T19:45:00-05:00*
 
 **Gathered:** 2026-10-29
 **Status:** Ready for planning
@@ -108,6 +108,14 @@ Out of scope: image upload, gallery and cover (ORD-04, Phase 9); money on hand a
 - **D-61 (OQ 3):** `/admin` lands on `/admin/orders` in this phase, until the dashboard ships. (owner, 2026-10-29)
 - **D-62 (OQ 4):** E2E specs seed refunds through the testing seed endpoint (`POST /api/testing/orders`, Debug Testing builds only, never shipped). (owner, 2026-10-29)
 - **D-89 (08-06 deferred item 2):** Route `AdminNotFoundPage` as a splat under the admin layout, so an unknown `/admin/...` address shows the in-shell "Page not found" screen instead of the public holding page. Do not delete the file. (owner, 2026-10-29)
+- **D-90 (UAT test 4):** The Delivered status badge keeps the accent (orange) tone. (owner, 2026-10-30)
+- **D-91 (UAT test 4, RESEARCH A4):** The Grid and Table switch keeps the current page; a filter change still goes back to page 1. (owner, 2026-10-30)
+- **D-92 (UAT test 4):** The display figure sizes 17, 18, 24 and 28 px stay as built and are added to the UI spec as allowed money figure sizes. (owner, 2026-10-30)
+- **D-93 (UAT test 4):** The filter chip Clear buttons stay 22 px. The owner accepts that they are under the 44 px touch target rule and that axe `target-size` fails on them in `@orders-filters` on the pixel project and `@long-text four-chip toolbars`. (owner, 2026-10-30)
+- **D-94 (UAT test 5, WR-01):** The server sends each discount's peso amount in the order answer (a new `Amount` field, API types regenerated, no database change). The Discounts tab shows it and does no money math. (owner, 2026-10-30)
+- **D-95 (UAT test 5, WR-02):** Payment, refund and discount windows keep the instant cap check, but refresh their order figures when the window regains focus and when a cap check fails, then check again with the current figures. (owner, 2026-10-30)
+- **D-96 (UAT test 5, WR-05):** The order is refetched when the status menu opens, so Mark Completed is enabled or disabled from current figures. (owner, 2026-10-30)
+- **D-97 (UAT test 5, IN-08 and WR-03):** Leave both as built: the Orders count uses the live page size, and the Orders list business day is not bounded to 5 minutes. (owner, 2026-10-30)
 - Note (OQ 5, not an owner ruling): golden vectors v3 stay deferred as before, because no Phase 8 preview computes refunds. Raise it with the owner if a plan needs them.
 
 ### Carried forward (not re-asked)
