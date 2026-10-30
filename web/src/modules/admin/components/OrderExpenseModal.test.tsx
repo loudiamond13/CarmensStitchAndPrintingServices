@@ -13,17 +13,21 @@ import { ME_ID, PAOLO_ID, staffBackend } from '@/test/expenseFixtures';
 import {
   buildOrderDetail,
   order0148,
+  orderExpense,
+  ORDER_STAFF,
+  ORDER_STAFF_TWO,
   ORDER_TODAY,
   ORDER_VERSION,
   useOrderHandlers,
   type OrderBackend,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
-import { FABRIC_ID, listBackend, ORDER_EXPENSE_CATEGORIES } from '@/test/orderListFixtures';
+import { FABRIC_ID, LABOR_ID, listBackend, listItem, ORDER_EXPENSE_CATEGORIES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
-// O2 order expense window, add mode (ORD-07, ORD-19, ORD-23, D-11, D-12, D-30; plan 08-18): the fields in UI-SPEC order, the required
-// Paid by that starts on the signed-in person, the date limit in the server's words, and one save with one key and the opened version.
+// O2 order expense window, add and edit modes (ORD-07, ORD-19, ORD-23, D-11, D-12, D-30; plan 08-18): the fields in UI-SPEC order, the required
+// Paid by that starts on the signed-in person, the date limit in the server's words, and one save with one key and the opened version. Edit mode follows
+// the add tests below.
 
 let queryClient: QueryClient;
 
@@ -310,5 +314,280 @@ describe('add mode saving (ORD-07 idempotency, ORD-08, ORD-23)', () => {
       expect(screen.getByText('Expense added')).toBeInTheDocument();
     });
     expect(backend.writes).toHaveLength(1);
+  });
+});
+
+// ---- Edit mode (ORD-07, ORD-23, D-12, D-44, D-58, UIC-29, UIC-44) ----
+
+const FABRIC_REF = { id: FABRIC_ID, name: 'Fabric', tone: 'warning', retired: false };
+const RETIRED_ID = '9c4e1d20-5b66-4c2e-a8b1-6d1e3f7a0008';
+const RETIRED_REF = { id: RETIRED_ID, name: 'Sewing thread', tone: 'neutral', retired: true };
+const GONE_ID = '00000000-0000-4000-8000-0000000000d1';
+
+/** The expense the edit tests open: 3,825 of fabric paid by Paolo, recorded by Carmen, never changed. */
+const SAVED = orderExpense('2026-10-03', FABRIC_REF, 3825, 'Dri-fit mesh, 45 yds', {
+  id: '00000000-0000-4000-9300-0000000000b1',
+  paidBy: ORDER_STAFF_TWO,
+});
+const OTHER = orderExpense('2026-10-01', FABRIC_REF, 640, 'Zipper', { id: '00000000-0000-4000-9300-0000000000b2' });
+const TWO_EXPENSES = buildOrderDetail({ expenses: [OTHER, SAVED] });
+
+function renderEdit({
+  order = TWO_EXPENSES,
+  expenseId = SAVED.id,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+}: RenderOptions & { expenseId?: string } = {}) {
+  queryClient.setQueryData(orderKey(order.id), order);
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <OrderExpenseModal mode="edit" order={order} expenseId={expenseId} onClose={onClose} onSaved={onSaved} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...view, onClose, onSaved };
+}
+
+function problemResponse(status: number, code: string, errors?: Record<string, string[]>): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status, code, ...(errors === undefined ? {} : { errors }) }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  });
+}
+
+/** Waits for the staff lookup so the saved payer shows as chosen. */
+async function payerIs(id: string): Promise<void> {
+  await waitFor(() => {
+    expect(paidByBox()).toHaveValue(id);
+  });
+}
+
+describe('edit mode opening', () => {
+  it('opens as "Edit Expense" with the saved values and the Recorded by block', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit Expense' });
+    expect(within(dialog).getByText('ORD-2026-0148 · Brgy. San Roque Ballers')).toBeInTheDocument();
+    expect(dateBox()).toHaveValue('2026-10-03');
+    expect(categoryBox()).toHaveValue(FABRIC_ID);
+    expect(descriptionBox()).toHaveValue('Dri-fit mesh, 45 yds');
+    expect(amountBox()).toHaveValue('3825.00');
+    await payerIs(PAOLO_ID);
+    expect(within(dialog).getByText('Recorded by')).toBeInTheDocument();
+    expect(within(dialog).getByText('Last changed by')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Save Expense' })).toBeInTheDocument();
+  });
+
+  it('shows an empty description as an empty box', async () => {
+    useOrderHandlers();
+    const bare = orderExpense('2026-10-03', FABRIC_REF, 100, null, { id: SAVED.id });
+    renderEdit({ order: buildOrderDetail({ expenses: [OTHER, bare] }) });
+    await ready();
+
+    expect(descriptionBox()).toHaveValue('');
+  });
+
+  it('keeps a payer who was deactivated selected as "{name} (inactive)"', async () => {
+    useOrderHandlers();
+    const gone = { id: GONE_ID, name: 'Liza Santos', formerStaff: false };
+    const expense = orderExpense('2026-10-03', FABRIC_REF, 3825, 'Mesh', {
+      id: SAVED.id,
+      paidBy: gone,
+      paidByActive: false,
+    });
+    renderEdit({ order: buildOrderDetail({ expenses: [OTHER, expense] }) });
+    await ready();
+
+    await payerIs(GONE_ID);
+    expect(within(paidByBox()).getByRole('option', { name: 'Liza Santos (inactive)' })).toBeInTheDocument();
+  });
+
+  it('keeps a deleted payer selected as "{name} (former staff)"', async () => {
+    useOrderHandlers();
+    const gone = { id: GONE_ID, name: 'Liza Santos', formerStaff: true };
+    const expense = orderExpense('2026-10-03', FABRIC_REF, 3825, 'Mesh', {
+      id: SAVED.id,
+      paidBy: gone,
+      paidByActive: false,
+    });
+    renderEdit({ order: buildOrderDetail({ expenses: [OTHER, expense] }) });
+    await ready();
+
+    await payerIs(GONE_ID);
+    expect(within(paidByBox()).getByRole('option', { name: 'Liza Santos (former staff)' })).toBeInTheDocument();
+  });
+
+  it('keeps a retired category selected as "{name} (retired)"', async () => {
+    listBackend('order-expense-categories', [
+      ...ORDER_EXPENSE_CATEGORIES,
+      listItem(RETIRED_ID, 'Sewing thread', 'neutral', { status: 'retired' }),
+    ]);
+    useOrderHandlers();
+    const expense = orderExpense('2026-10-03', RETIRED_REF, 3825, 'Thread', { id: SAVED.id });
+    renderEdit({ order: buildOrderDetail({ expenses: [OTHER, expense] }) });
+    await ready();
+
+    expect(within(categoryBox()).getByRole('option', { name: 'Sewing thread (retired)' })).toBeInTheDocument();
+    expect(categoryBox()).toHaveValue(RETIRED_ID);
+  });
+
+  it('has no axe violations', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('edit mode saving', () => {
+  it('puts the changed expense with the opened version and no Idempotency-Key, then closes and toasts "Expense updated"', async () => {
+    const answer = answerWith();
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answer) });
+    const user = userEvent.setup();
+    const { onClose, onSaved } = renderEdit();
+    await ready();
+    await payerIs(PAOLO_ID);
+
+    await user.clear(amountBox());
+    await user.type(amountBox(), '4000');
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(answer);
+    expect(backend.writes).toHaveLength(1);
+    const [write] = backend.writes;
+    expect(write?.method).toBe('PUT');
+    expect(write?.path).toBe(`/orders/${TWO_EXPENSES.id}/expenses/${SAVED.id}`);
+    expect(write?.key).toBeNull();
+    expect(write?.body).toEqual({
+      expenseDate: '2026-10-03',
+      orderExpenseCategoryId: FABRIC_ID,
+      description: 'Dri-fit mesh, 45 yds',
+      amount: 4000,
+      paidByUserId: PAOLO_ID,
+      version: ORDER_VERSION,
+    });
+    expect(await screen.findByText('Expense updated')).toBeInTheDocument();
+    expect(screen.getByText('Order expenses now ₱7,565.00.')).toBeInTheDocument();
+  });
+
+  it('closes a clean window at once on Cancel', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks "Discard changes?" when Cancel is pressed after a change', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+
+    await user.type(descriptionBox(), 'x');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('edit mode server refusals (UIC-29)', () => {
+  it('shows a 400 on paidByUserId under Paid by and focuses it', async () => {
+    const message = "This person can't be chosen because their account isn't active. Choose someone else.";
+    useOrderHandlers({
+      reply: () => problemResponse(400, 'orders.invalid-request', { paidByUserId: [message] }),
+    });
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+    await payerIs(PAOLO_ID);
+
+    await user.selectOptions(paidByBox(), 'Liza Mercado');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(paidByBox()).toHaveFocus();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows a 400 on orderExpenseCategoryId under Category and focuses it', async () => {
+    const message = 'This category was retired. Choose another one.';
+    useOrderHandlers({
+      reply: () => problemResponse(400, 'orders.invalid-request', { orderExpenseCategoryId: [message] }),
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+
+    await user.selectOptions(categoryBox(), 'Labor');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(categoryBox()).toHaveFocus();
+  });
+});
+
+describe('edit mode stale save (409) and a removed expense (404)', () => {
+  it('keeps the typed values behind the banner, and Load Latest takes the latest values and version', async () => {
+    const latestExpense = orderExpense('2026-10-04', FABRIC_REF, 4200, 'Dri-fit mesh, 50 yds', {
+      id: SAVED.id,
+      paidBy: ORDER_STAFF,
+      lastChangedBy: ORDER_STAFF_TWO,
+      lastChangedAt: '2026-10-05T04:00:00Z',
+    });
+    const latest = buildOrderDetail({ expenses: [OTHER, latestExpense], version: 'AAAAAAAAB9F=' });
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: latest,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? problemResponse(409, 'edit.stale') : HttpResponse.json(answerWith());
+      },
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await payerIs(PAOLO_ID);
+    await user.clear(amountBox());
+    await user.type(amountBox(), '4000');
+
+    await user.click(saveButton());
+    const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
+    expect(amountBox()).toHaveValue('4000.00');
+
+    await user.click(loadLatest);
+    await waitFor(() => {
+      expect(amountBox()).toHaveValue('4200.00');
+    });
+    expect(descriptionBox()).toHaveValue('Dri-fit mesh, 50 yds');
+    expect(paidByBox()).toHaveValue(ME_ID);
+
+    await user.click(saveButton());
+    await screen.findByText('Expense updated');
+    expect((backend.writes[1]?.body as { version: string }).version).toBe('AAAAAAAAB9F=');
+  });
+
+  it('shows "This expense was removed." for an expense that is gone and blocks Save', async () => {
+    useOrderHandlers({ reply: () => problemResponse(404, 'orders.expense-not-found') });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+
+    await user.type(descriptionBox(), 'x');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This expense was removed.')).toBeInTheDocument();
+    expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
   });
 });
