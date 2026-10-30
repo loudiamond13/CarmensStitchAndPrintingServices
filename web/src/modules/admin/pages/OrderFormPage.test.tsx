@@ -1,15 +1,16 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { HttpResponse } from 'msw';
+import { delay, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
   buildOrderDetail,
+  buildOrderList,
   cancelledOrderWithRefunds,
   completedOrder,
   noDueDateOrder,
@@ -40,6 +41,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   queryClient.clear();
   clearSession();
 });
@@ -117,6 +119,33 @@ describe('the opening form (D-30, D-49, D-59, D-27)', () => {
 
     expect(screen.getByLabelText(/^Order date/)).toHaveValue('2026-10-08');
     expect(screen.getByLabelText(/^Due date/)).toHaveValue('');
+  });
+
+  it('keeps the form and what was typed while an old day is read again (WR-03)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    let reads = 0;
+    useOrderHandlers({
+      list: async () => {
+        reads += 1;
+        if (reads > 1) await delay(150);
+        return buildOrderList([], { today: '2026-10-08' });
+      },
+    });
+    const { user } = await openForm();
+    await user.type(screen.getByLabelText(/^Customer name/), 'Test Customer');
+
+    vi.setSystemTime(Date.now() + 10 * 60_000);
+    act(() => {
+      void queryClient.invalidateQueries({ queryKey: ['business-today'] });
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(reads).toBe(2);
+    expect(screen.getByRole('heading', { level: 1, name: 'New Order' })).toBeVisible();
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Test Customer');
+    expect(screen.getByLabelText(/^Order date/)).toHaveValue('2026-10-08');
   });
 
   it('lists the five active statuses with Pending chosen', async () => {

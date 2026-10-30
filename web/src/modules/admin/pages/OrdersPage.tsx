@@ -85,9 +85,10 @@ export default function OrdersPage() {
   const { view, setView } = useOrdersView(values, set);
 
   // A date preset is worked out from the server's business today, never the device clock (D-59). Until it is known the list
-  // is held back, so the first request already carries the range.
+  // is held back, so the first request already carries the range. The list's own answers keep the day fresh, so any held one
+  // counts.
   const presetChosen = values.dates !== null && values.dates !== 'custom';
-  const businessToday = useBusinessTodayState(presetChosen);
+  const businessToday = useBusinessTodayState(presetChosen, null);
   const range = resolveOrderDateRange(settled.dates, settled.from, settled.to, businessToday.today);
   const waitingForToday = settled.dates !== null && settled.dates !== 'custom' && range === null;
   const query = useOrdersQuery(

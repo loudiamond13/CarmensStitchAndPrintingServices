@@ -675,11 +675,16 @@ function EditOrderPage({ id }: { id: string }) {
 /** The New Order route: waits for the server's business date, then opens the form on it. */
 function NewOrderPage() {
   const state = useBusinessTodayState();
+  // The day the form opened on; set once, so the form is never replaced while it is being filled in.
+  const [opened, setOpened] = useState<string | null>(null);
+  if (opened === null && state.today !== null) {
+    setOpened(state.today);
+  }
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
   }, []);
-  if (state.today !== null) {
-    return <CreateOrderForm today={state.today} />;
+  if (opened !== null) {
+    return <CreateOrderForm today={opened} />;
   }
   return (
     <div className={orderFormPageClasses}>

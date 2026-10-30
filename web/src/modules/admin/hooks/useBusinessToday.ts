@@ -1,6 +1,7 @@
 // The server's business today (D-59), for the order date presets and the order form's date defaults. The device clock is never
 // read: the date comes from any order answer already held (a list page or an order page carries `today`), and only when none is
-// held does one small list call ask for it. Held answers are read from the query cache, so the value follows the newest one.
+// held does one small list call ask for it. Held answers are read from the query cache, so the value follows the newest one. A held
+// answer older than `maxAgeMs` (or invalidated) is not trusted, so a day that has rolled over is asked for, not handed out.
 import { notifyManager, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 import { isCalendarDate } from '@/lib/url-state/parsers';
@@ -12,16 +13,20 @@ const businessTodayKey = ['business-today'] as const;
 /** The query roots whose answers carry the business `today`: order list pages and order pages. */
 const ANSWER_ROOTS = [['orders'], ['order']] as const;
 
+/** How old a held answer may be before a form that starts from the day asks the server instead (5 minutes). */
+export const HELD_TODAY_MAX_AGE_MS = 5 * 60_000;
+
 function todayOf(data: unknown): string | null {
   if (typeof data !== 'object' || data === null || !('today' in data)) return null;
   return typeof data.today === 'string' && isCalendarDate(data.today) ? data.today : null;
 }
 
-/** The `today` of the most recently fetched order answer in the cache, or null when there is none. */
-function newestHeldToday(client: QueryClient): string | null {
+/** The `today` of the most recently fetched order answer in the cache that is young enough, or null when there is none. */
+function newestHeldToday(client: QueryClient, maxAgeMs: number | null): string | null {
   let newest: { today: string; at: number } | null = null;
   for (const queryKey of ANSWER_ROOTS) {
     for (const query of client.getQueryCache().findAll({ queryKey })) {
+      if (maxAgeMs !== null && query.isStaleByTime(maxAgeMs)) continue;
       const today = todayOf(query.state.data);
       if (today !== null && (newest === null || query.state.dataUpdatedAt >= newest.at)) {
         newest = { today, at: query.state.dataUpdatedAt };
@@ -43,23 +48,29 @@ export interface BusinessTodayState {
 
 /**
  * The business today with its loading state. `enabled` false sends no request (a screen that needs the date only for some
- * views), but still returns a date that is already held.
+ * views), but still returns a date that is already held. `maxAgeMs` is how old a held answer may be; null trusts any held answer
+ * (a list page whose own answer is kept fresh by its refetches).
  */
-export function useBusinessTodayState(enabled = true): BusinessTodayState {
+export function useBusinessTodayState(
+  enabled = true,
+  maxAgeMs: number | null = HELD_TODAY_MAX_AGE_MS,
+): BusinessTodayState {
   const client = useQueryClient();
   // The cache announces new queries while React renders, so the announcement is deferred, as TanStack's own hooks do.
   const held = useSyncExternalStore(
     (notify) => client.getQueryCache().subscribe(notifyManager.batchCalls(notify)),
-    () => newestHeldToday(client),
+    () => newestHeldToday(client, maxAgeMs),
   );
   const probe = useQuery({
     queryKey: businessTodayKey,
     queryFn: async ({ signal }) => (await ordersService.list({ page: 1, pageSize: 1 }, signal)).today,
     enabled: enabled && held === null,
+    ...(maxAgeMs === null ? {} : { staleTime: maxAgeMs }),
   });
+  const probed = maxAgeMs === null || !probe.isStale ? (probe.data ?? null) : null;
   return {
-    today: held ?? probe.data ?? null,
-    isError: held === null && probe.isError,
+    today: held ?? probed,
+    isError: held === null && probed === null && probe.isError,
     error: probe.error,
     refetch: () => {
       void probe.refetch();
