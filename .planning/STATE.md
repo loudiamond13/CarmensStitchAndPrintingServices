@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-11-PLAN.md
-last_updated: "2026-10-30T05:03:37.722Z"
+stopped_at: Completed 08-12-PLAN.md
+last_updated: "2026-10-30T05:33:42.179Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: d8b68549c39a71d2afb68e773186d5189fd05ed4
+state_head: a00a75a80ba341a42488726e723b350f6ee53f14
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 230
+  completed_plans: 231
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T20:37:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 12 of 24
+Plan: 13 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -290,6 +290,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P09 | 47 min | 3 tasks | 21 files |
 | Phase 08 P10 | 23 min | 3 tasks | 18 files |
 | Phase 08 P11 | 38 min | 3 tasks | 13 files |
+| Phase 08 P12 | 25 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -829,6 +830,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-10: the order page back link accepts only a literal /admin/orders path from navigation state (safeReturnUrl plus prefix check), else /admin/orders (T-08-18)
 - [Phase 08]: 08-11: The Grid and Table switch keeps the current page; only a filter change goes back to page 1 (RESEARCH A4, logged for owner review).
 - [Phase 08]: 08-11: useOrdersView takes the list values and setters so the page runs useOrdersListParams once; only the toggle writes the URL and localStorage, and pressing the shown view writes nothing.
+- [Phase 08]: 08-12: The order page tab panels are titled Payments, Discounts, Expenses and Refunds (UI-SPEC names no h3 titles); a discount row amount is the csps.ts preview and the footer is the server total
+- [Phase 08]: 08-12: The phone balance card also says Not collected for a Cancelled order with money unpaid (D-45), SPEC-GAP for owner review; the side column follows the tab card on phones and sits above it on tablets
 
 ### Pending Todos
 
@@ -933,6 +936,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T05:03:26.218Z
-Stopped at: Completed 08-11-PLAN.md
+Last session: 2026-10-30T05:33:31.048Z
+Stopped at: Completed 08-12-PLAN.md
 Resume file: None
