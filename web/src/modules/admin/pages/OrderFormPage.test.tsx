@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -8,7 +8,13 @@ import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
-import { buildOrderDetail, orderId, useOrderHandlers, type OrderBackend } from '@/test/orderFixtures';
+import {
+  buildOrderDetail,
+  orderId,
+  orderProblem,
+  useOrderHandlers,
+  type OrderBackend,
+} from '@/test/orderFixtures';
 import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -44,6 +50,7 @@ function renderForm({ state }: RenderOptions = {}) {
       { path: '/admin/orders', element: <p>The orders list</p> },
       { path: '/admin/orders/new', element: <OrderFormPage /> },
       { path: '/admin/orders/:id', element: <p>The order page</p> },
+      { path: '/admin/login', element: <p>Sign-in page</p> },
     ],
     { initialEntries: [{ pathname: '/admin/orders/new', state }] },
   );
@@ -349,5 +356,221 @@ describe('the summary aside and the item grid on the page (UIC-51)', () => {
 
     const picker = screen.getByLabelText(/^Product type/);
     expect(within(picker).queryByRole('option', { name: /Old Style Jersey/ })).toBeNull();
+  });
+});
+
+describe('Discard changes before leaving (ORD-15, UIC-42)', () => {
+  it('asks before the back link leaves a form with typed values, and Keep Editing returns focus to the link', async () => {
+    useOrderHandlers();
+    const { user, router } = await openForm();
+    await user.type(screen.getByLabelText(/^Customer name/), 'Half filled');
+    const back = screen.getByRole('link', { name: 'Orders' });
+
+    await user.click(back);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    expect(
+      within(dialog).getByText("Your changes to this order haven't been saved. If you leave now, they're lost."),
+    ).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Editing' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(router.state.location.pathname).toBe('/admin/orders/new');
+    expect(back).toHaveFocus();
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Half filled');
+  });
+
+  it('asks on Cancel when dirty, asks again after Keep Editing, and leaves on Discard Changes', async () => {
+    useOrderHandlers();
+    const { user, router } = await openForm();
+    await user.type(screen.getByLabelText(/^Customer name/), 'Half filled');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(await screen.findByRole('button', { name: 'Keep Editing' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(await screen.findByRole('button', { name: 'Discard Changes' }));
+
+    expect(await screen.findByText('The orders list')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders');
+  });
+
+  it('counts an item row as a change', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+
+    await user.click(screen.getByRole('link', { name: 'Orders' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
+  });
+
+  it('leaves a clean form at once, on Cancel', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByText('The orders list')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('does not ask once typed values are put back (not dirty)', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+    const name = screen.getByLabelText(/^Customer name/);
+    await user.type(name, 'abc');
+    await user.clear(name);
+
+    await user.click(screen.getByRole('link', { name: 'Orders' }));
+
+    expect(await screen.findByText('The orders list')).toBeVisible();
+  });
+
+  it('never asks after a save', async () => {
+    useOrderHandlers({ detail: created });
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    expect(await screen.findByText('The order page')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('lets a sign-out through a dirty form', async () => {
+    useOrderHandlers();
+    const { user, router } = await openForm();
+    await user.type(screen.getByLabelText(/^Customer name/), 'Half filled');
+
+    await act(async () => {
+      await router.navigate('/admin/login');
+    });
+
+    expect(await screen.findByText('Sign-in page')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('asks the browser for its own prompt on reload or close only while the form is dirty', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+    const clean = new Event('beforeunload', { cancelable: true });
+    act(() => {
+      window.dispatchEvent(clean);
+    });
+    expect(clean.defaultPrevented).toBe(false);
+
+    await user.type(screen.getByLabelText(/^Customer name/), 'Half filled');
+    const dirty = new Event('beforeunload', { cancelable: true });
+    act(() => {
+      window.dispatchEvent(dirty);
+    });
+
+    expect(dirty.defaultPrevented).toBe(true);
+  });
+
+  it('cannot be left through the dialog while a save is pending, and lands on the order when the save ends', async () => {
+    const backend = useOrderHandlers({
+      detail: created,
+      reply: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return HttpResponse.json(created, { status: 201 });
+      },
+    });
+    const { user, router } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    await user.click(screen.getByRole('link', { name: 'Orders' }));
+    const discard = await screen.findByRole('button', { name: 'Discard Changes' });
+    await user.click(discard);
+
+    expect(router.state.location.pathname).toBe('/admin/orders/new');
+    await screen.findByText('The order page');
+    expect(router.state.location.pathname).toBe(`/admin/orders/${created.id}`);
+    expect(backend.writes).toHaveLength(1);
+  });
+});
+
+describe('busy orders and the save bar (UIC-21)', () => {
+  it('shows the busy banner above the first card, keeps the values, and retries with the same key', async () => {
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: created,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? orderProblem(409, 'orders.busy') : undefined;
+      },
+    });
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    const banner = await screen.findByText('Orders are being saved right now.');
+    expect(banner).toBeVisible();
+    expect(screen.getByText('Try again in a moment.')).toBeVisible();
+    const firstCard = screen.getByRole('heading', { level: 2, name: 'Customer details' });
+    expect(banner.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Test Customer');
+    expect(screen.getByLabelText(/^Description/)).toHaveValue('Test jersey');
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes).toHaveLength(2);
+    expect(backend.writes[1]?.key).toBe(backend.writes[0]?.key);
+  });
+
+  it('shows a danger toast for a failure no field shows', async () => {
+    useOrderHandlers({ reply: () => orderProblem(500) });
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    expect(await screen.findByText('Something went wrong')).toBeVisible();
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Test Customer');
+  });
+
+  it('reads Unsaved changes once something is typed, and nothing on a clean form', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+    expect(screen.queryByText('Unsaved changes')).toBeNull();
+
+    await user.type(screen.getByLabelText(/^Customer name/), 'x');
+
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
+  });
+
+  it('counts the fields that need attention', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+    await fillValidOrder(user);
+    await user.clear(screen.getByLabelText(/^Contact number/));
+    await user.type(screen.getByLabelText(/^Contact number/), 'abc');
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    expect(await screen.findByText('1 field needs attention · unsaved changes')).toBeVisible();
+
+    await user.clear(screen.getByLabelText(/^Customer name/));
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    expect(await screen.findByText('2 fields need attention · unsaved changes')).toBeVisible();
+  });
+
+  it('reads Saving while the request runs', async () => {
+    useOrderHandlers({
+      detail: created,
+      reply: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        return HttpResponse.json(created, { status: 201 });
+      },
+    });
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    expect(await screen.findAllByText('Saving')).toHaveLength(2);
+    await screen.findByText('The order page');
   });
 });
