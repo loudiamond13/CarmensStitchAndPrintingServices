@@ -50,6 +50,8 @@ export const DELETED_ORDERS_COPY = {
     toast: { title: 'Order permanently deleted', message: (number: string): string => number },
     /** The server's 400 on `confirm`, in plain words. */
     wrongNumber: 'Type the order number exactly to delete it for good.',
+    /** SPEC-GAP: what a screen reader hears while the counts load. */
+    countsLoading: 'Reading what this order holds',
     /** SPEC-GAP: the counts could not be read, so the confirm stays off. */
     countsFailed: "Couldn't read what this order holds. Close this and try again.",
   },

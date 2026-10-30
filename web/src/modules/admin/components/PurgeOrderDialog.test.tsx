@@ -71,10 +71,14 @@ const numberField = () => screen.getByRole('textbox', { name: `Type ${NUMBER} to
 describe('reading the counts first (D-24, UIC-16)', () => {
   it('reads the deleted order, shows a skeleton box while it loads, and keeps the confirm disabled', async () => {
     const user = userEvent.setup();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const backend = deletedOrdersBackend({
       list: deletedOrderList([]),
       detail: async () => {
-        await delay(120);
+        await gate;
         return deletedOrderDetail();
       },
     });
@@ -85,8 +89,11 @@ describe('reading the counts first (D-24, UIC-16)', () => {
     expect(within(dialog).queryByText("This can't be undone.")).toBeNull();
     await user.type(numberField(), NUMBER);
     expect(confirmButton()).toBeDisabled();
-    expect(backend.reads).toEqual([ID]);
+    await waitFor(() => {
+      expect(backend.reads).toEqual([ID]);
+    });
 
+    release();
     expect(await within(dialog).findByText(SENTENCE)).toBeVisible();
     expect(within(dialog).queryByRole('status')).toBeNull();
     expect(confirmButton()).toBeEnabled();
@@ -202,7 +209,6 @@ describe('deleting for good', () => {
     expect(backend.purges).toEqual([{ id: ID, confirm: NUMBER, key: null }]);
     expect(handlers.onClose).toHaveBeenCalled();
     expect(await screen.findByText('Order permanently deleted')).toBeVisible();
-    expect(screen.getByText(NUMBER)).toBeVisible();
     expect(invalidated).toEqual(expect.arrayContaining([ordersKey, ordersDeletedKey]));
   });
 

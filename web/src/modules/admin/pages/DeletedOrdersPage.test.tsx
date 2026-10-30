@@ -443,6 +443,7 @@ describe('Delete permanently from the deleted list (07 D-28, D-57; plan 08-20)',
       expect(screen.getByRole('button', { name: RESTORE_SECOND })).toHaveFocus();
     });
     expect(await screen.findByText('Order permanently deleted')).toBeVisible();
+    expect(screen.getByText('ORD-2026-0148')).toBeVisible();
     await waitFor(() => {
       expect(backend.lists.length).toBeGreaterThan(reads);
     });

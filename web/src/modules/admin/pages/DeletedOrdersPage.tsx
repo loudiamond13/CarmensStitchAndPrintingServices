@@ -7,8 +7,10 @@
 //   - Restore acts at once with no confirmation (D-23): the row leaves, focus moves to the next row's Restore (else the previous,
 //     else the h1), and the order lists and this list read again. A failure is a danger toast that stays until closed. The POST keeps
 //     its Idempotency-Key through a retry and gets a new one for the next action (useOrderAction).
+//   - Delete permanently opens PurgeOrderDialog (the counts, then the typed order number, 07 D-28); once the order is gone focus moves
+//     the same way.
 import clsx from 'clsx';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
@@ -33,6 +35,7 @@ import { Money } from '@/components/money';
 import { ErrorState } from '@/components/states';
 import { Badge, StatusBadge, isOrderStatus } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
+import { PurgeOrderDialog } from '@/modules/admin/components/PurgeOrderDialog';
 import { ExpenseActorCell } from '@/modules/admin/components/ExpenseActorCell';
 import { expensesBackRowClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
 import { ordersNumberLinkClasses } from '@/modules/admin/components/orders.recipe';
@@ -60,6 +63,8 @@ function toNumber(value: number | string): number {
 interface RowWiring {
   view: (order: DeletedOrderListItem) => void;
   restore: (order: DeletedOrderListItem) => void;
+  /** Opens the permanent-delete dialog (07 D-28). */
+  purge: (order: DeletedOrderListItem) => void;
   /** Remembers each row's Restore button, so focus can move to a neighbour. */
   register: (id: string, button: HTMLButtonElement | null) => void;
 }
@@ -114,6 +119,7 @@ function columnsFor(wiring: RowWiring): readonly ResponsiveTableColumn<DeletedOr
       cell: (item) => {
         const view = COPY.view(item.number);
         const restore = COPY.restore.label(item.number);
+        const purge = COPY.purge.rowLabel(item.number);
         return (
           <RowActions>
             <RowAction
@@ -135,6 +141,15 @@ function columnsFor(wiring: RowWiring): readonly ResponsiveTableColumn<DeletedOr
                 wiring.register(item.id, button);
               }}
             />
+            <RowAction
+              icon="eraser"
+              label={purge}
+              title={purge}
+              danger
+              onClick={() => {
+                wiring.purge(item);
+              }}
+            />
           </RowActions>
         );
       },
@@ -150,6 +165,8 @@ export default function DeletedOrdersPage() {
   const rowFocus = useRowFocus();
   // Where focus goes once the restored row has left the list.
   const afterRemoval = useRef<{ removedId: string; focusId: string | null } | null>(null);
+  // The order the Delete permanently dialog is open for, or was last open for (kept while it animates out).
+  const [purging, setPurging] = useState<{ order: DeletedOrderListItem; open: boolean } | null>(null);
   const [values, set] = useDeletedOrdersListParams();
   const query = useDeletedOrdersQuery({ page: values.page, pageSize: values.size });
 
@@ -223,6 +240,9 @@ export default function DeletedOrdersPage() {
     restore: (order) => {
       void restore(order);
     },
+    purge: (order) => {
+      setPurging({ order, open: true });
+    },
     register: rowFocus.register,
   };
 
@@ -281,6 +301,21 @@ export default function DeletedOrdersPage() {
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />
+      )}
+      {purging !== null && (
+        <PurgeOrderDialog
+          orderId={purging.order.id}
+          number={purging.order.number}
+          team={purging.order.teamName}
+          customer={purging.order.customerName}
+          open={purging.open}
+          onClose={() => {
+            setPurging((current) => (current === null ? null : { ...current, open: false }));
+          }}
+          onDone={() => {
+            afterRemoval.current = { removedId: purging.order.id, focusId: chooseFocusAfter(purging.order) };
+          }}
+        />
       )}
     </>
   );

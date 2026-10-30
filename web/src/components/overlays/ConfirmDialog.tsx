@@ -13,6 +13,8 @@ import { formatCount } from '@/utils/format';
 import { Button } from '@/components/actions';
 import { Icon, type IconName } from '@/components/brand';
 import { Field, messageClasses } from '@/components/forms';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { SkeletonText } from '@/components/states';
 import { Modal } from './Modal';
 import {
   cascadeClasses,
@@ -85,6 +87,9 @@ export function ConfirmDialog({
   title = 'Delete this?',
   message,
   counts,
+  countsLoading = false,
+  countsLoadingLabel = 'Loading',
+  confirmDisabled = false,
   confirmText,
   confirmLabel = 'Delete',
   cancelLabel = 'Cancel',
@@ -115,7 +120,7 @@ export function ConfirmDialog({
   }
 
   const hasConfirmText = confirmText !== undefined && confirmText !== '';
-  const ok = !hasConfirmText || typed.trim() === confirmText;
+  const ok = (!hasConfirmText || typed.trim() === confirmText) && !countsLoading && !confirmDisabled;
   const busy = loading || pending;
   const cascade = counts === undefined ? '' : cascadeSentence(counts);
 
@@ -195,7 +200,13 @@ export function ConfirmDialog({
         </span>
         <div className={confirmColumnClasses}>
           {Boolean(message) && <p className={confirmMessageClasses}>{message}</p>}
-          {cascade !== '' && counts !== undefined && (
+          {countsLoading && (
+            <div className={cascadeClasses} role="status">
+              <SkeletonText lines={2} />
+              <span className={srOnlyClasses}>{countsLoadingLabel}</span>
+            </div>
+          )}
+          {!countsLoading && cascade !== '' && counts !== undefined && (
             <div className={cascadeClasses} role="alert">
               <p className={cascadeLeadClasses}>{cascade}</p>
               <ul className={cascadeListClasses}>
