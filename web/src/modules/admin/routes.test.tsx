@@ -522,6 +522,28 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
   }, 30_000);
 
+  it('the production /admin/orders/new is the guarded New Order form, and the static segment wins over :id (ORD-03)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/new'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'New Order' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('This order was not found or was deleted.')).toBeNull();
+  }, 30_000);
+
+  it('opening /admin/orders/new without a session lands on sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/new'] });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/orders/new')}`);
+  });
+
   it('with the dev routes added, /admin/orders/:id is still the guarded real order page (Pitfall 1)', async () => {
     answerRefresh(sessionResponse());
     useOrderHandlers();
