@@ -22,12 +22,77 @@ const name = (path: string): string => basename(path);
 const isTest = (path: string): boolean => /\.test\.[a-z]+$/.test(path);
 const where = (path: string): string => relative(srcDir, path).replaceAll('\\', '/');
 
-/** The source without block and line comments, so a comment that names a rule does not trip the rule. */
-function code(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+/**
+ * The source without block and line comments, so a comment that names a rule does not trip the rule. Strings and template
+ * literals (with their `${}` expressions) are kept whole, so a `//` inside a string never hides the rest of its line.
+ */
+function scan(source: string): { text: string; open: boolean } {
+  let out = '';
+  // 'tpl' is inside a template literal; 'expr' is inside one of its `${ }` expressions, with the open braces seen there.
+  const modes: ('tpl' | 'expr')[] = [];
+  const depths: number[] = [];
+  let i = 0;
+  while (i < source.length) {
+    const ch = source.charAt(i);
+    const next = source.charAt(i + 1);
+    const mode = modes.at(-1);
+    if (mode === 'tpl') {
+      if (ch === '\\') {
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+      if (ch === '$' && next === '{') {
+        modes.push('expr');
+        depths.push(0);
+        out += '${';
+        i += 2;
+        continue;
+      }
+      if (ch === '`') modes.pop();
+      out += ch;
+      i += 1;
+      continue;
+    }
+    if (ch === '/' && next === '/') {
+      const end = source.indexOf('\n', i);
+      i = end === -1 ? source.length : end;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      const end = source.indexOf('*/', i + 2);
+      i = end === -1 ? source.length : end + 2;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      // A string ends at its closing quote or at the end of its line, so one stray quote cannot swallow the file.
+      let j = i + 1;
+      while (j < source.length && source.charAt(j) !== ch && source.charAt(j) !== '\n') {
+        j += source.charAt(j) === '\\' ? 2 : 1;
+      }
+      out += source.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    if (ch === '`') {
+      modes.push('tpl');
+    } else if (mode === 'expr' && ch === '{') {
+      depths[depths.length - 1] = (depths.at(-1) ?? 0) + 1;
+    } else if (mode === 'expr' && ch === '}') {
+      if (depths.at(-1) === 0) {
+        modes.pop();
+        depths.pop();
+      } else {
+        depths[depths.length - 1] = (depths.at(-1) ?? 1) - 1;
+      }
+    }
+    out += ch;
+    i += 1;
+  }
+  return { text: out, open: modes.length > 0 };
 }
 
-const scan = (source: string): { text: string; open: boolean } => ({ text: code(source), open: false });
+const code = (source: string): string => scan(source).text;
 
 /** ORD-19: the words of the staff-only figures. */
 const INTERNAL_FIGURES = /Estimated Profit|Order Expenses/;
