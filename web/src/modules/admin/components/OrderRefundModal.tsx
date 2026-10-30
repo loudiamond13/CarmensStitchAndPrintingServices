@@ -1,11 +1,12 @@
-// O2 refund window: add (plan 08-21). Every rule is checked in the browser first with the server's own words (OR-3); a rule only the
-// server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a focus
+// O2 refund window: add and edit (plan 08-21). Every rule is checked in the browser first with the server's own words (OR-3); a rule only
+// the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a focus
 // refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers the
-// whole order and the page shows the server's figures. "You can refund up to" under Amount is a preview of the most that may be
-// handed back, from the server's figures (`refundCap`).
+// whole order and the page shows the server's figures. "You can refund up to" under Amount is a preview of the most that may be handed
+// back, from the server's figures (`refundCap`): on an edit it adds back the refund's own saved amount.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { RecordMeta } from '@/components/data';
 import { MoneyInput } from '@/components/entry';
 import { DateInput, Field } from '@/components/forms';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
@@ -27,18 +28,18 @@ import { refundCap } from '@/modules/admin/orderRules';
 import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
 import { orderRefundsService, type AddOrderRefundRequest } from '@/modules/admin/services/orderRefundsService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
+import { centavosToMoneyText } from '@/utils/format';
 
 const COPY = ORDER_REFUND_COPY;
 
 const FIELD_ORDER = ['refundDate', 'amount', 'reason', 'refundedByUserId'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
 
-export interface OrderRefundModalProps {
-  mode: 'add';
+type OrderRefund = OrderDetailResponse['refunds'][number];
+
+interface OrderRefundModalCommon {
   /** The order as the page shows it: the window opens with its version, number, customer, figures and today. */
   order: OrderDetailResponse;
-  /** The amount the window starts with, as money text: Record Refund passes the customer credit (D-19). */
-  prefillAmount?: string | undefined;
   /** False plays the close animation and then renders nothing; each new open starts clean. Default true. */
   open?: boolean;
   /** Closes the window: Cancel, Esc, the scrim and the close button (after the discard question), and after a save. */
@@ -46,6 +47,20 @@ export interface OrderRefundModalProps {
   /** The refund was saved and the page already holds the answer. */
   onSaved?: ((order: OrderDetailResponse) => void) | undefined;
 }
+
+export interface AddOrderRefundModalProps extends OrderRefundModalCommon {
+  mode: 'add';
+  /** The amount the window starts with, as money text: Record Refund passes the customer credit (D-19). */
+  prefillAmount?: string | undefined;
+}
+
+export interface EditOrderRefundModalProps extends OrderRefundModalCommon {
+  mode: 'edit';
+  /** Which refund to edit. Null renders nothing (the window was never opened). */
+  refundId: string | null;
+}
+
+export type OrderRefundModalProps = AddOrderRefundModalProps | EditOrderRefundModalProps;
 
 /** What one submission carries: the checked values and the order version the window opened with. */
 interface RefundSave {
@@ -64,6 +79,16 @@ function toRequest({ values, version }: RefundSave): AddOrderRefundRequest {
   };
 }
 
+/** What the edit form shows for a saved refund: every control is text. */
+function valuesOf(refund: OrderRefund): OrderRefundFormInput {
+  return {
+    refundDate: refund.refundDate,
+    amount: centavosToMoneyText(Math.round(Number(refund.amount) * 100)),
+    reason: refund.reason,
+    refundedByUserId: refund.refundedBy.id,
+  };
+}
+
 export function OrderRefundModal({ open = true, ...props }: OrderRefundModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
   const [opens, setOpens] = useState(0);
@@ -74,12 +99,17 @@ export function OrderRefundModal({ open = true, ...props }: OrderRefundModalProp
       setOpens(opens + 1);
     }
   }
+  const refundId = props.mode === 'edit' ? props.refundId : null;
+  if (props.mode === 'edit' && refundId === null) {
+    return null;
+  }
   return (
     <RefundForm
       key={opens}
       open={open}
       order={props.order}
-      prefillAmount={props.prefillAmount}
+      refundId={refundId}
+      prefillAmount={props.mode === 'add' ? props.prefillAmount : undefined}
       onClose={props.onClose}
       onSaved={props.onSaved}
     />
@@ -89,27 +119,41 @@ export function OrderRefundModal({ open = true, ...props }: OrderRefundModalProp
 interface RefundFormProps {
   open: boolean;
   order: OrderDetailResponse;
+  /** The refund being edited; null in add mode. */
+  refundId: string | null;
   prefillAmount: string | undefined;
   onClose: () => void;
   onSaved: ((order: OrderDetailResponse) => void) | undefined;
 }
 
-function RefundForm({ open, order, prefillAmount, onClose, onSaved }: RefundFormProps) {
+interface Opened {
+  order: OrderDetailResponse;
+  refund: OrderRefund | null;
+}
+
+function RefundForm({ open, order, refundId: editedId, prefillAmount, onClose, onSaved }: RefundFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
   const { user } = useSession();
-  // The order the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
-  const [opened, setOpened] = useState<OrderDetailResponse>(order);
-  const cap = refundCap(opened);
+  // The order and refund the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  const [opened, setOpened] = useState<Opened>(() => ({
+    order,
+    refund: editedId === null ? null : (order.refunds.find((candidate) => candidate.id === editedId) ?? null),
+  }));
+  const cap = refundCap(opened.order, opened.refund?.amount);
   const {
     control,
     handleSubmit,
     setError,
+    reset,
     formState: { isDirty },
   } = useForm<OrderRefundFormInput, unknown, OrderRefundFormValues>({
-    resolver: zodResolver(orderRefundSchema(opened.today, cap, refundCapKind(opened))),
+    resolver: zodResolver(orderRefundSchema(opened.order.today, cap, refundCapKind(opened.order))),
     mode: 'onBlur',
-    defaultValues: blankOrderRefund(opened.today, user?.id ?? '', prefillAmount),
+    defaultValues:
+      opened.refund === null
+        ? blankOrderRefund(opened.order.today, user?.id ?? '', prefillAmount)
+        : valuesOf(opened.refund),
   });
 
   const focusField = (name: FieldName): void => {
@@ -135,17 +179,29 @@ function RefundForm({ open, order, prefillAmount, onClose, onSaved }: RefundForm
     return true;
   };
 
-  // Load Latest: an add keeps what was typed and takes the latest order, its version and its cap.
+  // Load Latest: an edit takes the latest refund's values and version; an add keeps what was typed and takes the version.
   const takeLatest = (latest: OrderDetailResponse): boolean => {
-    setOpened(latest);
+    if (editedId === null) {
+      setOpened({ order: latest, refund: null });
+      return true;
+    }
+    const latestRefund = latest.refunds.find((candidate) => candidate.id === editedId);
+    if (latestRefund === undefined) {
+      return false;
+    }
+    setOpened({ order: latest, refund: latestRefund });
+    reset(valuesOf(latestRefund));
     return true;
   };
 
   const save = useOrderChildSave<RefundSave>({
-    orderId: opened.id,
+    orderId: opened.order.id,
     thing: 'refund',
-    verb: 'added',
-    send: (key, data) => orderRefundsService.add(opened.id, toRequest(data), key),
+    verb: editedId === null ? 'added' : 'updated',
+    send: (key, data) =>
+      editedId === null
+        ? orderRefundsService.add(opened.order.id, toRequest(data), key)
+        : orderRefundsService.update(opened.order.id, editedId, toRequest(data)),
     onSaved: (saved) => {
       onSaved?.(saved);
       onClose();
@@ -156,12 +212,16 @@ function RefundForm({ open, order, prefillAmount, onClose, onSaved }: RefundForm
 
   const loadLatest = async (): Promise<void> => {
     if (await save.loadLatest()) {
-      saveRef.current?.focus();
+      if (editedId === null) {
+        saveRef.current?.focus();
+      } else {
+        focusField('refundDate');
+      }
     }
   };
 
   const onValid = (values: OrderRefundFormValues): void => {
-    save.submit({ values, version: opened.version });
+    save.submit({ values, version: opened.order.version });
   };
 
   const onInvalid = (errors: Partial<Record<FieldName, unknown>>): void => {
@@ -171,13 +231,15 @@ function RefundForm({ open, order, prefillAmount, onClose, onSaved }: RefundForm
     }
   };
 
-  const who = opened.teamName !== null && opened.teamName !== '' ? opened.teamName : opened.customerName;
+  const who =
+    opened.order.teamName !== null && opened.order.teamName !== '' ? opened.order.teamName : opened.order.customerName;
   const you = user === null ? null : { id: user.id, name: user.name };
+  const savedRefund = opened.refund;
 
   return (
     <OrderWindow
-      title={COPY.addTitle}
-      description={ORDER_WINDOWS_COPY.description(opened.number, who)}
+      title={editedId === null ? COPY.addTitle : COPY.editTitle}
+      description={ORDER_WINDOWS_COPY.description(opened.order.number, who)}
       open={open}
       isDirty={isDirty}
       pending={save.pending}
@@ -187,6 +249,16 @@ function RefundForm({ open, order, prefillAmount, onClose, onSaved }: RefundForm
         void loadLatest();
       }}
       status={save.status}
+      recordMeta={
+        savedRefund === null ? undefined : (
+          <RecordMeta
+            recordedBy={savedRefund.recordedBy}
+            recordedAt={savedRefund.recordedAt}
+            lastChangedBy={savedRefund.lastChangedBy}
+            lastChangedAt={savedRefund.lastChangedAt}
+          />
+        )
+      }
       saveLabel={COPY.save}
       saveBlocked={save.saveBlocked}
       formRef={formRef}
@@ -257,6 +329,7 @@ function RefundForm({ open, order, prefillAmount, onClose, onSaved }: RefundForm
               value={field.value}
               onChange={field.onChange}
               currentUser={you}
+              savedPayer={savedRefund?.refundedBy}
               error={fieldState.error?.message}
             />
           )}

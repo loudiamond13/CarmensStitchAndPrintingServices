@@ -260,7 +260,7 @@ describe('the Expenses tab (ORD-07, D-12)', () => {
 
 describe('the Refunds tab (ORD-07, D-10, D-12)', () => {
   it('lists each refund with its date, reason, both people and amount', () => {
-    render(<OrderRefundsTab order={cancelledOrderWithRefunds} />);
+    render(<OrderRefundsTab order={cancelledOrderWithRefunds} readOnly />);
 
     const table = screen.getByRole('table', { name: 'Refunds' });
     for (const name of ['Date', 'Reason', 'Refunded by', 'Recorded by', 'Amount']) {
@@ -289,7 +289,7 @@ describe('the Refunds tab (ORD-07, D-10, D-12)', () => {
     const refund = orderRefund('2026-10-05', 300, 'Wrong size', {
       refundedBy: { ...ORDER_STAFF_TWO, formerStaff: true },
     });
-    render(<OrderRefundsTab order={buildOrderDetail({ refunds: [refund] })} />);
+    render(<OrderRefundsTab order={buildOrderDetail({ refunds: [refund] })} readOnly />);
 
     const [row] = bodyRows(screen.getByRole('table', { name: 'Refunds' }));
     if (row === undefined) throw new Error('Expected one refund row');
@@ -297,7 +297,7 @@ describe('the Refunds tab (ORD-07, D-10, D-12)', () => {
   });
 
   it('shows an inline empty line when there are no refunds (UIC-4)', () => {
-    render(<OrderRefundsTab order={creditOrder} />);
+    render(<OrderRefundsTab order={creditOrder} readOnly />);
 
     expect(screen.getByText('No refunds recorded yet.')).toBeVisible();
     expect(screen.queryByRole('table')).toBeNull();
@@ -310,7 +310,7 @@ describe('the Refunds tab (ORD-07, D-10, D-12)', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = render(<OrderRefundsTab order={cancelledOrderWithRefunds} />);
+    const { container } = render(<OrderRefundsTab order={cancelledOrderWithRefunds} readOnly />);
 
     await expectNoAxeViolations(container);
   });
