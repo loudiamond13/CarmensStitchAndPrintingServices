@@ -13,13 +13,16 @@ import { ME_ID, PAOLO_ID, staffBackend } from '@/test/expenseFixtures';
 import {
   buildOrderDetail,
   order0148,
+  ORDER_STAFF,
+  ORDER_STAFF_TWO,
   ORDER_TODAY,
   ORDER_VERSION,
+  orderPayment,
   useOrderHandlers,
   type OrderBackend,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
-import { GCASH_ID, listBackend, PAYMENT_METHODS } from '@/test/orderListFixtures';
+import { CASH_ID, GCASH_ID, listBackend, listItem, PAYMENT_METHODS } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // O2 payment window, add mode (ORD-07, ORD-22, D-09, D-11, D-29, D-48; plan 08-16): the fields in UI-SPEC order, the required Received by
@@ -315,5 +318,295 @@ describe('add mode saving (ORD-07 idempotency, ORD-08, ORD-22)', () => {
       expect(screen.getByText('Payment added')).toBeInTheDocument();
     });
     expect(backend.writes).toHaveLength(1);
+  });
+});
+
+// ---- Edit mode (ORD-08, ORD-22, D-44, D-58, UIC-29, UIC-44) ----
+
+const CASH_REF = { id: CASH_ID, name: 'Cash', tone: 'success', retired: false };
+const RETIRED_ID = '7a2b9e10-3c55-4a1d-8e7f-4c0d2e5a0009';
+const RETIRED_REF = { id: RETIRED_ID, name: 'Maya', tone: 'neutral', retired: true };
+const GONE_ID = '00000000-0000-4000-8000-0000000000d1';
+
+/** The payment the edit tests open: 2,000 in cash, received by Paolo, recorded by Carmen, never changed. */
+const SAVED = orderPayment('2026-10-03', CASH_REF, 2000, {
+  id: '00000000-0000-4000-9200-0000000000b1',
+  reference: 'REF-1',
+  notes: 'For 2 added coach polos',
+  receivedBy: ORDER_STAFF_TWO,
+});
+const FIRST = orderPayment('2026-09-28', CASH_REF, 10000, { id: '00000000-0000-4000-9200-0000000000b2' });
+const TWO_PAYMENTS = buildOrderDetail({ payments: [FIRST, SAVED] });
+
+function renderEdit({
+  order = TWO_PAYMENTS,
+  paymentId = SAVED.id,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+}: RenderOptions & { paymentId?: string } = {}) {
+  queryClient.setQueryData(orderKey(order.id), order);
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <OrderPaymentModal mode="edit" order={order} paymentId={paymentId} onClose={onClose} onSaved={onSaved} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...view, onClose, onSaved };
+}
+
+function problemResponse(status: number, code: string, errors?: Record<string, string[]>): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status, code, ...(errors === undefined ? {} : { errors }) }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  });
+}
+
+/** Waits for the staff lookup so the saved receiver shows as chosen. */
+async function receiverIs(id: string): Promise<void> {
+  await waitFor(() => {
+    expect(receivedByBox()).toHaveValue(id);
+  });
+}
+
+describe('edit mode opening', () => {
+  it('opens as "Edit Payment" with the saved values and the Recorded by block', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit Payment' });
+    expect(within(dialog).getByText('ORD-2026-0148 · Brgy. San Roque Ballers')).toBeInTheDocument();
+    expect(dateBox()).toHaveValue('2026-10-03');
+    expect(amountBox()).toHaveValue('2000.00');
+    expect(methodBox()).toHaveValue(CASH_ID);
+    expect(referenceBox()).toHaveValue('REF-1');
+    expect(notesBox()).toHaveValue('For 2 added coach polos');
+    await receiverIs(PAOLO_ID);
+    expect(within(dialog).getByText('Recorded by')).toBeInTheDocument();
+    expect(within(dialog).getByText('Last changed by')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Save Payment' })).toBeInTheDocument();
+  });
+
+  it('shows the server balance plus the saved amount under Amount, and the cap follows it', async () => {
+    const backend = useOrderHandlers();
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+
+    expect(screen.getByText('Balance due: ₱11,327.50')).toBeInTheDocument();
+    await user.clear(amountBox());
+    await user.type(amountBox(), '11327.51');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This is more than the balance. Enter ₱11,327.50 or less.')).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+  });
+
+  it('keeps a receiver who was deactivated selected as "{name} (inactive)"', async () => {
+    useOrderHandlers();
+    const gone = { id: GONE_ID, name: 'Liza Santos', formerStaff: false };
+    const payment = orderPayment('2026-10-03', CASH_REF, 2000, {
+      id: SAVED.id,
+      receivedBy: gone,
+      receivedByActive: false,
+    });
+    renderEdit({ order: buildOrderDetail({ payments: [FIRST, payment] }) });
+    await ready();
+
+    await receiverIs(GONE_ID);
+    expect(within(receivedByBox()).getByRole('option', { name: 'Liza Santos (inactive)' })).toBeInTheDocument();
+  });
+
+  it('keeps a deleted receiver selected as "{name} (former staff)"', async () => {
+    useOrderHandlers();
+    const gone = { id: GONE_ID, name: 'Liza Santos', formerStaff: true };
+    const payment = orderPayment('2026-10-03', CASH_REF, 2000, {
+      id: SAVED.id,
+      receivedBy: gone,
+      receivedByActive: false,
+    });
+    renderEdit({ order: buildOrderDetail({ payments: [FIRST, payment] }) });
+    await ready();
+
+    await receiverIs(GONE_ID);
+    expect(within(receivedByBox()).getByRole('option', { name: 'Liza Santos (former staff)' })).toBeInTheDocument();
+  });
+
+  it('keeps a retired method selected as "{name} (retired)"', async () => {
+    listBackend('payment-methods', [
+      ...PAYMENT_METHODS,
+      listItem(RETIRED_ID, 'Maya', 'neutral', { status: 'retired' }),
+    ]);
+    useOrderHandlers();
+    const payment = orderPayment('2026-10-03', RETIRED_REF, 2000, { id: SAVED.id });
+    renderEdit({ order: buildOrderDetail({ payments: [FIRST, payment] }) });
+    await ready();
+
+    expect(within(methodBox()).getByRole('option', { name: 'Maya (retired)' })).toBeInTheDocument();
+    expect(methodBox()).toHaveValue(RETIRED_ID);
+  });
+
+  it('has no axe violations', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('edit mode saving', () => {
+  it('puts the changed payment with the opened version and no Idempotency-Key, then closes and toasts "Payment updated"', async () => {
+    const answer = answerWith();
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answer) });
+    const user = userEvent.setup();
+    const { onClose, onSaved } = renderEdit();
+    await ready();
+    await receiverIs(PAOLO_ID);
+
+    await user.clear(amountBox());
+    await user.type(amountBox(), '2500');
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(answer);
+    expect(backend.writes).toHaveLength(1);
+    const [write] = backend.writes;
+    expect(write?.method).toBe('PUT');
+    expect(write?.path).toBe(`/orders/${TWO_PAYMENTS.id}/payments/${SAVED.id}`);
+    expect(write?.key).toBeNull();
+    expect(write?.body).toEqual({
+      paymentDate: '2026-10-03',
+      amount: 2500,
+      paymentMethodId: CASH_ID,
+      reference: 'REF-1',
+      notes: 'For 2 added coach polos',
+      receivedByUserId: PAOLO_ID,
+      version: ORDER_VERSION,
+    });
+    expect(await screen.findByText('Payment updated')).toBeInTheDocument();
+  });
+
+  it('closes a clean window at once on Cancel', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks "Discard changes?" when Cancel is pressed after a change', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+
+    await user.type(referenceBox(), 'x');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('edit mode server refusals (UIC-29)', () => {
+  it('shows a 400 on receivedByUserId under Received by and focuses it', async () => {
+    const message = "This person can't be chosen because their account isn't active. Choose someone else.";
+    useOrderHandlers({
+      reply: () => problemResponse(400, 'orders.invalid-request', { receivedByUserId: [message] }),
+    });
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+    await receiverIs(PAOLO_ID);
+
+    await user.selectOptions(receivedByBox(), 'Liza Mercado');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(receivedByBox()).toHaveFocus();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows a 400 on paymentMethodId under Method and focuses it', async () => {
+    const message = 'This payment method was retired. Choose another one.';
+    useOrderHandlers({
+      reply: () => problemResponse(400, 'orders.invalid-request', { paymentMethodId: [message] }),
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+
+    await user.selectOptions(methodBox(), 'GCash');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(methodBox()).toHaveFocus();
+  });
+});
+
+describe('edit mode stale save (409) and a removed payment (404)', () => {
+  it('keeps the typed values behind the banner, and Load Latest takes the latest values, version and cap', async () => {
+    const latestPayment = orderPayment('2026-10-04', CASH_REF, 3000, {
+      id: SAVED.id,
+      reference: 'REF-2',
+      receivedBy: ORDER_STAFF,
+      lastChangedBy: ORDER_STAFF_TWO,
+      lastChangedAt: '2026-10-05T04:00:00Z',
+    });
+    const latest = buildOrderDetail({
+      payments: [FIRST, latestPayment],
+      version: 'AAAAAAAAB9F=',
+      totals: { ...order0148.totals, paid: 13000, balance: 8327.5 },
+    });
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: latest,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? problemResponse(409, 'edit.stale') : HttpResponse.json(answerWith());
+      },
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await receiverIs(PAOLO_ID);
+    await user.clear(amountBox());
+    await user.type(amountBox(), '2500');
+
+    await user.click(saveButton());
+    const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
+    expect(amountBox()).toHaveValue('2500');
+
+    await user.click(loadLatest);
+    await waitFor(() => {
+      expect(amountBox()).toHaveValue('3000.00');
+    });
+    expect(referenceBox()).toHaveValue('REF-2');
+    expect(receivedByBox()).toHaveValue(ME_ID);
+    expect(screen.getByText('Balance due: ₱11,327.50')).toBeInTheDocument();
+
+    await user.click(saveButton());
+    await screen.findByText('Payment updated');
+    expect((backend.writes[1]?.body as { version: string }).version).toBe('AAAAAAAAB9F=');
+  });
+
+  it('shows "This payment was removed." for a payment that is gone and blocks Save', async () => {
+    useOrderHandlers({ reply: () => problemResponse(404, 'orders.payment-not-found') });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+
+    await user.type(referenceBox(), 'x');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This payment was removed.')).toBeInTheDocument();
+    expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
   });
 });
