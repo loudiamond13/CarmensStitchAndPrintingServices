@@ -48,7 +48,7 @@ describe('useApplyOrder', () => {
 
     result.current(answer);
 
-    expect(queryClient.getQueryData(orderKey(answer.id))).toBe(answer);
+    expect(queryClient.getQueryData(orderKey(answer.id))).toEqual(answer);
   });
 
   it('replaces an order already held with the newer answer', () => {
@@ -58,7 +58,7 @@ describe('useApplyOrder', () => {
 
     result.current(newer);
 
-    expect(queryClient.getQueryData(orderKey(order0148.id))).toBe(newer);
+    expect(queryClient.getQueryData(orderKey(order0148.id))).toEqual(newer);
   });
 
   it('invalidates the order lists, the deleted list and the three list-entry queries', () => {

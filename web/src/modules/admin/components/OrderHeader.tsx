@@ -20,6 +20,7 @@ import {
   orderTitleRowClasses,
 } from '@/modules/admin/components/orderPage.recipe';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { canEditOrder } from '@/modules/admin/orderRules';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import type { OrderStatus } from '@/utils/csps';
 import { formatCalendarDate } from '@/utils/format';
@@ -34,7 +35,6 @@ export interface OrderHeaderProps {
 }
 
 export function OrderHeader({ order, backTo }: OrderHeaderProps) {
-  const editable = order.status !== 'completed' && order.status !== 'cancelled';
   const ordered = formatCalendarDate(order.orderDate) ?? order.orderDate;
   const hasTeam = order.teamName !== null && order.teamName !== '';
   return (
@@ -69,7 +69,7 @@ export function OrderHeader({ order, backTo }: OrderHeaderProps) {
           lastChangedAt={order.lastChangedAt}
         />
       </div>
-      {editable && (
+      {canEditOrder(order) && (
         <div className={orderActionsClasses}>
           <ButtonLink variant="secondary" icon="pencil" to={`/admin/orders/${order.id}/edit`}>
             {COPY.editDetails}

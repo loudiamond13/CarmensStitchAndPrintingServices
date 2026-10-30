@@ -1,8 +1,15 @@
-// Plan 08-10.
+// A write answers the whole order (RESEARCH Pattern 4, T-08-20). The order page takes that answer as it is, with the server's
+// figures and the new row version, and every list that shows the order is read again. The browser works out no total.
+import { useQueryClient } from '@tanstack/react-query';
+import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
+import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 
 export function useApplyOrder(): (order: OrderDetailResponse) => void {
+  const queryClient = useQueryClient();
+  const refresh = useRefreshOrders();
   return (order) => {
-    void order;
+    queryClient.setQueryData(orderKey(order.id), order);
+    void refresh();
   };
 }
