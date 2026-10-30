@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  blankOrderExpense,
-  orderExpenseSchema,
-  type OrderExpenseFormInput,
-} from './orderExpenseSchemas';
+import { blankOrderExpense, orderExpenseSchema, type OrderExpenseFormInput } from './orderExpenseSchemas';
 
 // The order expense window rules (OR-3; OrderExpenseFieldsValidator.cs; plan 08-18): the browser says what the server would, in the
 // server's words, before a request is sent.
