@@ -174,6 +174,9 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         return new DeletedOrderPage(items, total);
     }
 
+    public Task<DeletedOrderDetailResponse?> GetDeletedDetailAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<DeletedOrderDetailResponse?>(null);
+
     public async Task<OrderDetailResponse?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
     {
         // The header and each list are separate statements, so a save can land between them. The row version is read again after

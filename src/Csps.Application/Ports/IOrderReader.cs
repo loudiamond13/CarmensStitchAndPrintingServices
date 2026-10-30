@@ -13,6 +13,12 @@ public interface IOrderReader
     /// <returns>The order, or null when none exists or it was deleted.</returns>
     Task<OrderDetailResponse?> GetDetailAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Reads one soft-deleted order with every child row and who deleted it (D-24).</summary>
+    /// <param name="id">The order id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The deleted order, or null when none exists or it is not deleted (a live order is never read here).</returns>
+    Task<DeletedOrderDetailResponse?> GetDeletedDetailAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>
     /// Reads one page of soft-deleted orders, most recently deleted first and then by id, and the count over every page, in two SQL
     /// commands whatever the page size (D-28, PERF-04). Live orders are never listed.

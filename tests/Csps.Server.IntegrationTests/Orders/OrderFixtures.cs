@@ -825,6 +825,18 @@ internal static class OrderFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Reads one deleted order (D-24).</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The order id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetDeletedAsync(HttpClient client, string? accessToken, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get($"{Route}/deleted/{id:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Lists the deleted orders, expects a 200 and returns the page.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token.</param>

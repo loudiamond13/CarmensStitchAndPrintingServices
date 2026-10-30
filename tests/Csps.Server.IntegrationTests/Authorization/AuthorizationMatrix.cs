@@ -242,6 +242,8 @@ public static class AuthorizationMatrix
         new("DELETE", "/api/v1/orders/{id:guid}", "/api/v1/orders/1f6b3d84-9a27-4c50-8e1d-7a4c0b5e2f93", Anonymous: 401, Admin: 404, Manager: 404),
         // The deleted list (ORD-06, D-28): Managers only, so an Admin meets 403.
         new("GET", "/api/v1/orders/deleted", "/api/v1/orders/deleted", Anonymous: 401, Admin: 403, Manager: 200),
+        // Reading one deleted order (ORD-06, D-24): Managers only. A fresh random id is no deleted order, so a Manager meets 404 orders.not-found.
+        new("GET", "/api/v1/orders/deleted/{id:guid}", "/api/v1/orders/deleted/3e8b5a17-9c24-4d60-b1f3-7a0d6c2e8b95", Anonymous: 401, Admin: 403, Manager: 404),
         // Restoring (ORD-06, D-28): Managers only. The matrix sends an Idempotency-Key, so a fresh random id is no order and a Manager meets 404 orders.not-found.
         new("POST", "/api/v1/orders/{id:guid}/restore", "/api/v1/orders/6d2a8c15-3b94-4e07-a1f6-0c9e5b7d4a38/restore", Anonymous: 401, Admin: 403, Manager: 404),
         // Deleting for good (ORD-06, D-28): Managers only. A fresh random id is no order, so a Manager meets 404 orders.not-found before the confirm is checked.
