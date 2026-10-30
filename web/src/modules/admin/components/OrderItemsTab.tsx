@@ -34,6 +34,8 @@ const COLUMNS: readonly ResponsiveTableColumn<OrderItem>[] = [
 
 export interface OrderItemsTabProps {
   order: OrderDetailResponse;
+  /** The deleted view: no Add, Edit or Delete control (D-24). The windows of plan 08-14 hide their controls on it. */
+  readOnly?: boolean | undefined;
 }
 
 export function OrderItemsTab({ order }: OrderItemsTabProps) {

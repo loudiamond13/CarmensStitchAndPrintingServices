@@ -64,7 +64,7 @@ function renderOrder({ order = order0148, search = '', state, onUrlUpdate }: Ren
     <QueryClientProvider client={queryClient}>
       <NuqsTestingAdapter
         searchParams={search}
-        onUrlUpdate={onUrlUpdate}
+        {...(onUrlUpdate === undefined ? {} : { onUrlUpdate })}
         defaultOptions={URL_STATE_DEFAULTS}
         processUrlSearchParams={orderSearchParams}
         hasMemory

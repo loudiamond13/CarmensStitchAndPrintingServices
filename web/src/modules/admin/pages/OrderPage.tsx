@@ -17,8 +17,11 @@ import { OrderTotals } from '@/components/money';
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { OrderHeader } from '@/modules/admin/components/OrderHeader';
+import { OrderDiscountsTab } from '@/modules/admin/components/OrderDiscountsTab';
+import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
+import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
 import {
   orderCardClasses,
   orderCardHeadClasses,
@@ -38,6 +41,7 @@ import { safeReturnUrl } from '@/modules/admin/guard';
 import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { useOrderTab, type OrderTab } from '@/modules/admin/hooks/useOrderTab';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { showRefundsTab } from '@/modules/admin/orderRules';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import type { OrderStatus } from '@/utils/csps';
 
@@ -46,8 +50,8 @@ const ID_BASE = 'order';
 const ORDERS_PATH = '/admin/orders';
 /** The id of the Totals heading: the phone balance card scrolls to it and focuses it (D-33). */
 const TOTALS_ID = 'order-totals';
-/** The tabs this plan draws; Refunds joins them with plan 08-12. */
-const SHOWN_TABS = ['items', 'payments', 'discounts', 'expenses'] as const satisfies readonly OrderTab[];
+/** The tabs every order draws; Refunds joins them when `showRefundsTab` says so (D-13). */
+const BASE_TABS = ['items', 'payments', 'discounts', 'expenses'] as const satisfies readonly OrderTab[];
 
 /** The Items table's shape while it loads. */
 const SKELETON_COLUMNS = [
@@ -73,13 +77,30 @@ function backTarget(state: unknown): string {
   return path === ORDERS_PATH || path.startsWith(`${ORDERS_PATH}/`) ? from : ORDERS_PATH;
 }
 
-function tabItems(order: OrderDetailResponse): readonly TabItem<OrderTab>[] {
+function tabItems(order: OrderDetailResponse, refundsShown: boolean): readonly TabItem<OrderTab>[] {
   return [
     { id: 'items', label: COPY.tabs.items, count: order.items.length },
     { id: 'payments', label: COPY.tabs.payments, count: order.payments.length },
     { id: 'discounts', label: COPY.tabs.discounts, count: order.discounts.length },
     { id: 'expenses', label: COPY.tabs.expenses, count: order.expenses.length },
+    ...(refundsShown ? [{ id: 'refunds', label: COPY.tabs.refunds, count: order.refunds.length } as const] : []),
   ];
+}
+
+/** The body of one tab panel. */
+function TabBody({ tab, order }: { tab: OrderTab; order: OrderDetailResponse }) {
+  switch (tab) {
+    case 'items':
+      return <OrderItemsTab order={order} />;
+    case 'payments':
+      return <OrderPaymentsTab order={order} />;
+    case 'discounts':
+      return <OrderDiscountsTab order={order} />;
+    case 'expenses':
+      return <OrderExpensesTab order={order} />;
+    case 'refunds':
+      return <OrderRefundsTab order={order} />;
+  }
 }
 
 function ImagesCard() {
@@ -132,8 +153,16 @@ interface OrderBodyProps {
 /** The loaded page: the header, then the Images card and the tab card beside the totals panel. */
 function OrderBody({ order, backTo }: OrderBodyProps) {
   const { tab, setTab } = useOrderTab();
-  // A tab this page does not draw (Refunds, until plan 08-12) reads as Items.
-  const active: OrderTab = SHOWN_TABS.some((shown) => shown === tab) ? tab : 'items';
+  const refundsShown = showRefundsTab(order);
+  const shownTabs: readonly OrderTab[] = refundsShown ? [...BASE_TABS, 'refunds'] : BASE_TABS;
+  // A tab the page does not draw (Refunds on an order that has none) becomes Items with one replace (UIC-46).
+  const hiddenTab = tab === 'refunds' && !refundsShown;
+  useEffect(() => {
+    if (hiddenTab) {
+      setTab('items');
+    }
+  }, [hiddenTab, setTab]);
+  const active: OrderTab = hiddenTab ? 'items' : tab;
   return (
     <>
       <OrderHeader order={order} backTo={backTo} />
@@ -142,12 +171,11 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
           <ImagesCard />
           <section className={orderCardClasses}>
             <div className={orderTabsRowClasses}>
-              <Tabs idBase={ID_BASE} items={tabItems(order)} value={active} onChange={setTab} />
+              <Tabs idBase={ID_BASE} items={tabItems(order, refundsShown)} value={active} onChange={setTab} />
             </div>
-            {SHOWN_TABS.map((shown) => (
+            {shownTabs.map((shown) => (
               <div key={shown} {...getTabPanelProps(ID_BASE, shown)} hidden={active !== shown}>
-                {active === shown && shown === 'items' && <OrderItemsTab order={order} />}
-                {active === shown && shown === 'payments' && <OrderPaymentsTab order={order} />}
+                {active === shown && <TabBody tab={shown} order={order} />}
               </div>
             ))}
           </section>

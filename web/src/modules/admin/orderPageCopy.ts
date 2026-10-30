@@ -79,4 +79,51 @@ export const ORDER_PAGE_COPY = {
     footerAmountLabel: 'Total',
     empty: 'No payments recorded yet.',
   },
+  /** The Discounts tab. */
+  discounts: {
+    title: 'Discounts',
+    things: 'discounts',
+    caption: 'Percentages apply to the items total.',
+    columns: { reason: 'Reason', type: 'Type', value: 'Value', amount: 'Amount', actions: 'Actions' },
+    percentage: 'Percentage',
+    fixed: 'Fixed amount',
+    footerLabel: 'Total discount',
+    footerAmountLabel: 'Total',
+    empty: 'No discounts yet.',
+  },
+  /** The Expenses tab (internal costs, D-12). */
+  expenses: {
+    title: 'Expenses',
+    things: 'expenses',
+    caption: 'Internal costs for this order. Not shown to the customer.',
+    columns: {
+      date: 'Date',
+      category: 'Category',
+      description: 'Description',
+      paidBy: 'Paid by',
+      recordedBy: 'Recorded by',
+      amount: 'Amount',
+      actions: 'Actions',
+    },
+    footerLabel: 'Order expenses',
+    footerAmountLabel: 'Total',
+    empty: 'No expenses recorded yet.',
+  },
+  /** The Refunds tab (D-10, D-12). */
+  refunds: {
+    title: 'Refunds',
+    things: 'refunds',
+    caption: 'Money handed back to the customer.',
+    columns: {
+      date: 'Date',
+      reason: 'Reason',
+      refundedBy: 'Refunded by',
+      recordedBy: 'Recorded by',
+      amount: 'Amount',
+      actions: 'Actions',
+    },
+    footerLabel: 'Total refunded',
+    footerAmountLabel: 'Total',
+    empty: 'No refunds recorded yet.',
+  },
 } as const;
