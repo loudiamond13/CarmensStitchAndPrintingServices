@@ -47,6 +47,7 @@ import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
 import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { deletedOrdersService, type DeletedOrderListItem } from '@/modules/admin/services/deletedOrdersService';
+import { isPositiveMoney } from '@/utils/csps';
 import { describeHttpError, errorLine } from '@/utils/describeHttpError';
 import { formatBusinessDateTime } from '@/utils/format';
 
@@ -100,7 +101,13 @@ function columnsFor(wiring: RowWiring): readonly ResponsiveTableColumn<DeletedOr
       cell: (item) => (isOrderStatus(item.status) ? <StatusBadge status={item.status} /> : item.status),
     },
     { key: 'total', header: COPY.columns.total, money: true, cell: (item) => <Money amount={toNumber(item.total)} /> },
-    { key: 'paid', header: COPY.columns.paid, money: true, cell: (item) => <Money amount={toNumber(item.paid)} /> },
+    {
+      key: 'paid',
+      header: COPY.columns.paid,
+      money: true,
+      // Nothing paid is the empty value, never a zero (UIC-7).
+      cell: (item) => (isPositiveMoney(item.paid) ? <Money amount={toNumber(item.paid)} /> : null),
+    },
     {
       key: 'balance',
       header: COPY.columns.balance,
