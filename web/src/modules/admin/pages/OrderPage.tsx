@@ -24,6 +24,7 @@ import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
 import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
+import { OrderRefundModal } from '@/modules/admin/components/OrderRefundModal';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
 import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistory';
 import { ReopenOrderModal } from '@/modules/admin/components/ReopenOrderModal';
@@ -46,15 +47,23 @@ import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { useOrderTab, type OrderTab } from '@/modules/admin/hooks/useOrderTab';
 import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
-import { isLocked, showRefundsTab } from '@/modules/admin/orderRules';
-import { CHANGE_STATUS_ID, REOPEN_ORDER_ID } from '@/modules/admin/orderStatus';
+import { canAddRefund, isLocked, showRefundsTab } from '@/modules/admin/orderRules';
+import { CHANGE_STATUS_ID, RECORD_REFUND_ID, REOPEN_ORDER_ID } from '@/modules/admin/orderStatus';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
-import type { OrderStatus } from '@/utils/csps';
+import { isPositiveMoney, type OrderStatus } from '@/utils/csps';
+import { centavosToMoneyText } from '@/utils/format';
 
 const COPY = ORDER_PAGE_COPY;
 const ID_BASE = 'order';
 /** The id of the Totals heading: the phone balance card scrolls to it and focuses it (D-33). */
 const TOTALS_ID = 'order-totals';
+/** The amount Record Refund fills in: the customer credit as money text, else nothing (D-19). */
+function creditPrefill(order: OrderDetailResponse): string | undefined {
+  return isPositiveMoney(order.totals.customerCredit)
+    ? centavosToMoneyText(Math.round(Number(order.totals.customerCredit) * 100))
+    : undefined;
+}
+
 /** The tabs every order draws; Refunds joins them when `showRefundsTab` says so (D-13). */
 const BASE_TABS = ['items', 'payments', 'discounts', 'expenses'] as const satisfies readonly OrderTab[];
 
@@ -159,11 +168,23 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
   // The button is not on the page until the answer has rendered, so the wish is kept and carried out after that render.
   const focusWish = useRef<'reopen' | 'status' | null>(null);
   const [reopenOpen, setReopenOpen] = useState(false);
+  // Record Refund opens the refund window with the credit filled in (D-19). The window mounts on its first open and stays so its
+  // close can animate; each new open starts clean. After it closes, focus goes to the Totals heading when the refund was saved
+  // (the button may be gone), else back to Record Refund.
+  const [refundUsed, setRefundUsed] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const refundFocus = useRef<'record' | 'totals' | null>(null);
   useEffect(() => {
     const wish = focusWish.current;
     if ((wish === 'reopen' && locked) || (wish === 'status' && !locked)) {
       focusWish.current = null;
       document.getElementById(wish === 'reopen' ? REOPEN_ORDER_ID : CHANGE_STATUS_ID)?.focus();
+    }
+    const refundWish = refundFocus.current;
+    if (refundWish !== null && !refundOpen) {
+      refundFocus.current = null;
+      const target = refundWish === 'record' ? document.getElementById(RECORD_REFUND_ID) : null;
+      (target ?? document.getElementById(TOTALS_ID))?.focus();
     }
   });
   return (
@@ -204,6 +225,21 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
           focusWish.current ??= 'reopen';
         }}
       />
+      {refundUsed && (
+        <OrderRefundModal
+          mode="add"
+          order={order}
+          prefillAmount={creditPrefill(order)}
+          open={refundOpen}
+          onSaved={() => {
+            refundFocus.current = 'totals';
+          }}
+          onClose={() => {
+            setRefundOpen(false);
+            refundFocus.current ??= 'record';
+          }}
+        />
+      )}
       <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>
@@ -224,7 +260,20 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
             <h2 id={TOTALS_ID} tabIndex={-1} className={srOnlyClasses}>
               {COPY.totals}
             </h2>
-            <OrderTotals variant="panel" totals={order.totals} status={order.status as OrderStatus} />
+            <OrderTotals
+              variant="panel"
+              totals={order.totals}
+              status={order.status as OrderStatus}
+              recordRefundId={RECORD_REFUND_ID}
+              onRecordRefund={
+                canAddRefund(order)
+                  ? () => {
+                      setRefundUsed(true);
+                      setRefundOpen(true);
+                    }
+                  : undefined
+              }
+            />
           </section>
           <OrderCustomerCard order={order} />
           <OrderStatusHistory history={order.statusHistory} />

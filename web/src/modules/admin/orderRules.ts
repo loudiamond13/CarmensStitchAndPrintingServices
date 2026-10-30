@@ -42,6 +42,19 @@ export function refundCap(order: Pick<RuledOrder, 'status' | 'totals'>, savedAmo
   return centavosToMoneyText(Math.max(0, base + centavosOf(savedAmount)));
 }
 
+/**
+ * A refund can be added while the cap is above 0.00 and the order is not Completed: on a Cancelled order that is what was paid
+ * and not yet handed back, on any other the customer credit (D-13, D-19, 07 D-35). A Completed order is locked.
+ */
+export function canAddRefund(order: Pick<RuledOrder, 'status' | 'totals'>): boolean {
+  return order.status !== 'completed' && isPositiveMoney(refundCap(order));
+}
+
+/** A refund can be edited or deleted on a Cancelled or open order; a Completed order is locked (07 D-35). */
+export function canChangeRefund(order: Pick<RuledOrder, 'status'>): boolean {
+  return order.status !== 'completed';
+}
+
 /** A payment can be added to an open order while money is owed (D-48). */
 export function canAddPayment(order: Pick<RuledOrder, 'status' | 'totals'>): boolean {
   return !isLocked(order) && isPositiveMoney(order.totals.balance);

@@ -275,7 +275,7 @@ describe('the Refunds tab (ORD-07, D-10, D-12)', () => {
   });
 
   it('ends with Total refunded from the server figure, and names the caption', () => {
-    render(<OrderRefundsTab order={cancelledOrderWithRefunds} />);
+    render(<OrderRefundsTab order={cancelledOrderWithRefunds} readOnly />);
 
     const footer = within(screen.getByRole('table', { name: 'Refunds' }))
       .getByText('Total refunded')

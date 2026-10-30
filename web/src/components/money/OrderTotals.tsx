@@ -66,6 +66,8 @@ export interface OrderTotalsProps {
   status?: OrderStatus | undefined;
   /** Shows Record Refund in the panel's credit block (D-19); the screen decides who may refund. */
   onRecordRefund?: (() => void) | undefined;
+  /** The id of the Record Refund button, so the screen can put focus back on it. */
+  recordRefundId?: string | undefined;
   /** "card" = the compact block inside OrderCard; "panel" = Order Detail (adds expenses and profit). */
   variant?: TotalsVariant | undefined;
 }
@@ -116,7 +118,14 @@ function balanceKind(t: OrderFigures, status: OrderStatus | undefined): BalanceK
   return 'due';
 }
 
-export function OrderTotals({ order, totals, status, onRecordRefund, variant = 'panel' }: OrderTotalsProps) {
+export function OrderTotals({
+  order,
+  totals,
+  status,
+  onRecordRefund,
+  recordRefundId,
+  variant = 'panel',
+}: OrderTotalsProps) {
   const t = totals ?? previewFigures(order);
   const kind = balanceKind(t, status);
   const panelCredit = kind === 'credit' && variant === 'panel';
@@ -152,7 +161,13 @@ export function OrderTotals({ order, totals, status, onRecordRefund, variant = '
             <span className={balanceValueClasses.panel}>{formatPeso(t.customerCredit)}</span>
             <p className={balanceLineClasses}>{COPY.creditLine}</p>
             {onRecordRefund !== undefined && (
-              <Button size="sm" variant="secondary" icon="plus" onClick={onRecordRefund}>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon="plus"
+                {...(recordRefundId === undefined ? {} : { id: recordRefundId })}
+                onClick={onRecordRefund}
+              >
                 {COPY.recordRefund}
               </Button>
             )}

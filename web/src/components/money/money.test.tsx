@@ -361,6 +361,18 @@ describe('OrderTotals (D-01 to D-07, D-45)', () => {
     expect(screen.queryByRole('button', { name: 'Record Refund' })).toBeNull();
   });
 
+  it('gives the Record Refund button the id the caller names, so focus can return to it', () => {
+    render(
+      <OrderTotals
+        totals={{ ...SERVER_0148, balance: '0.00', customerCredit: '1000.00' }}
+        onRecordRefund={vi.fn()}
+        recordRefundId="record-refund"
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Record Refund' })).toHaveProperty('id', 'record-refund');
+  });
+
   it('shows a credit on the card as a "Credit ₱X" info badge on the neutral ground, with no refund button (D-04)', () => {
     const { container } = render(
       <OrderTotals

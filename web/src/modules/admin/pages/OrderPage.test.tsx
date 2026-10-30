@@ -5,6 +5,7 @@ import { HttpResponse } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import OrderPage from '@/modules/admin/pages/OrderPage';
@@ -73,7 +74,9 @@ function renderOrder({ order = order0148, search = '', state, onUrlUpdate }: Ren
         processUrlSearchParams={orderSearchParams}
         hasMemory
       >
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );

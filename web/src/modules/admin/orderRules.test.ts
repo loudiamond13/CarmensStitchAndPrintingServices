@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   canAddPayment,
+  canAddRefund,
+  canChangeRefund,
   canComplete,
   canDeleteItem,
   canEditOrder,
@@ -147,5 +149,32 @@ describe('canDeleteItem (D-48)', () => {
   it('is false for the last item', () => {
     const single = buildOrderDetail({ items: [orderItem(BASKETBALL_JERSEY, 'Only line', 1, 100)] });
     expect(canDeleteItem(single)).toBe(false);
+  });
+});
+
+describe('canAddRefund (ORD-18, D-13, D-19, UIC-48)', () => {
+  it('is true for a credit order that is not completed', () => {
+    expect(canAddRefund(creditOrder)).toBe(true);
+  });
+
+  it('is true for a Cancelled order with money paid and not yet handed back', () => {
+    expect(canAddRefund(cancelledOrderWithRefunds)).toBe(true);
+  });
+
+  it('is false when the cap is 0.00: a Cancelled order that has refunded everything, and an open order with no credit', () => {
+    expect(canAddRefund(withTotals(cancelledOrderWithRefunds, { refunded: 3000 }))).toBe(false);
+    expect(canAddRefund(order0148)).toBe(false);
+  });
+
+  it('is false on a Completed order, even with a credit', () => {
+    expect(canAddRefund(buildOrderDetail({ ...creditOrder, status: 'completed' }))).toBe(false);
+  });
+});
+
+describe('canChangeRefund (ORD-18, D-13, 07 D-35)', () => {
+  it('is true on a Cancelled order and an open order, false on a Completed one', () => {
+    expect(canChangeRefund(cancelledOrderWithRefunds)).toBe(true);
+    expect(canChangeRefund(creditOrder)).toBe(true);
+    expect(canChangeRefund(completedOrder)).toBe(false);
   });
 });

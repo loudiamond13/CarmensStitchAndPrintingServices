@@ -12,6 +12,7 @@ export function otherActiveStatuses(current: string): readonly OrderStatus[] {
   return ACTIVE_STATUSES.filter((status) => status !== current);
 }
 
-/** The element ids the order page uses to put focus on the Change Status and Reopen Order buttons after a change. */
+/** The element ids the order page uses to put focus on the Change Status, Reopen Order and Record Refund buttons after a change. */
 export const CHANGE_STATUS_ID = 'order-change-status';
 export const REOPEN_ORDER_ID = 'order-reopen';
+export const RECORD_REFUND_ID = 'order-record-refund';
