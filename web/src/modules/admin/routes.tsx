@@ -91,6 +91,10 @@ const ordersPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/OrdersPage')).default,
 }));
 
+const orderPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/OrderPage')).default,
+}));
+
 const deletedExpensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/DeletedExpensesPage')).DeletedExpensesRoute,
 }));
@@ -152,6 +156,8 @@ export const adminRoutes: RouteObject[] = [
           },
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: ordersPage },
+          // ORD-07: one order. The static segments added later (orders/new, orders/deleted) win over this dynamic one.
+          { path: 'orders/:id', lazy: orderPage },
           { path: 'expenses', lazy: expensesPage },
           // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },

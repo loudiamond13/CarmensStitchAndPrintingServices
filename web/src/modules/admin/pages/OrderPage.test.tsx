@@ -29,6 +29,7 @@ beforeEach(() => {
   clearSession();
   acceptSession(sessionResponse());
   queryClient = createQueryClient();
+  useOrderHandlers();
 });
 
 afterEach(() => {
@@ -41,9 +42,11 @@ interface RenderOptions {
   search?: string;
 }
 
-/** Opens the order page in a data router, with the Orders list and the edit page as stand-ins to land on. */
+/**
+ * Opens the order page in a data router, with the Orders list and the edit page as stand-ins to land on. The fake API answers
+ * ORD-2026-0148 unless the test called useOrderHandlers({ detail }) first.
+ */
 function renderOrder({ order = order0148, search = '' }: RenderOptions = {}) {
-  useOrderHandlers({ detail: order });
   const router = createMemoryRouter(
     [
       { path: '/admin/orders', element: <p>The orders list</p> },
@@ -90,7 +93,9 @@ describe('the header (ORD-07, D-46, D-36)', () => {
   });
 
   it('names the customer first and says Walk-in customer when there is no team', async () => {
-    renderOrder({ order: buildOrderDetail({ teamName: null }) });
+    const walkIn = buildOrderDetail({ teamName: null });
+    useOrderHandlers({ detail: walkIn });
+    renderOrder({ order: walkIn });
 
     const subline = await screen.findByText(/Ordered Sep 28, 2026/);
     expect(subline).toHaveTextContent('Juan Dela Cruz · Walk-in customer · Ordered Sep 28, 2026');
@@ -118,6 +123,7 @@ describe('the header (ORD-07, D-46, D-36)', () => {
     ['Completed', completedOrder],
     ['Cancelled', cancelledOrderWithRefunds],
   ])('hides Edit Details on a %s order (D-15, D-39)', async (_status, order) => {
+    useOrderHandlers({ detail: order });
     renderOrder({ order });
 
     await screen.findByRole('heading', { level: 1, name: order.number });
@@ -164,6 +170,7 @@ describe('the totals panel (ORD-07, ORD-19, D-06, D-08)', () => {
   });
 
   it('shows the customer credit block for an overpaid order', async () => {
+    useOrderHandlers({ detail: creditOrder });
     renderOrder({ order: creditOrder });
 
     await screen.findByRole('heading', { level: 1, name: creditOrder.number });
