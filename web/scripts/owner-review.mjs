@@ -102,7 +102,7 @@ const BLUSH_ONLY = Object.freeze(/** @type {Theme[]} */ (['light']));
 /**
  * Every page the e2e bundle serves (web/e2e/sweep.ts lists the Phase 2 ones): the public shell in Blush only (D-14), the
  * two dev-only admin preview pages (D-20), the Component Showcase, and the real guarded pages (Company Expenses, Users, My
- * Profile, the Audit Log, and, since plan 06-19, Deleted Expenses and Settings), photographed signed in as a Manager. The
+ * Profile, the Audit Log, and, since plan 06-19, Deleted Expenses and Settings, and, since plan 08-24, Orders), photographed signed in as a Manager. The
  * admin pages and the showcase are shown in Blush and Espresso (D-13).
  * @type {readonly ReviewTarget[]}
  */
@@ -115,7 +115,7 @@ export const REVIEW_TARGETS = Object.freeze([
     themes: BLUSH_ONLY,
   },
   { path: '/admin', slug: 'admin-dashboard', title: 'Admin: Dashboard', h1: 'Dashboard', themes: BOTH },
-  { path: '/admin/orders', slug: 'admin-orders', title: 'Admin: Orders', h1: 'Orders', themes: BOTH },
+  { path: '/admin/orders', slug: 'admin-orders', title: 'Admin: Orders', h1: 'Orders', themes: BOTH, signedIn: true },
   {
     path: '/admin/expenses',
     slug: 'admin-expenses',
