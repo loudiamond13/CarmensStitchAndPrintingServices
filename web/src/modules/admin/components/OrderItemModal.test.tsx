@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { OrderItemModal } from '@/modules/admin/components/OrderItemModal';
-import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
+import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
@@ -385,6 +385,12 @@ const SHORTS = orderItem(BASKETBALL_REF, 'Shorts, matching colorway', 15, 300, {
 const OTHER = orderItem(BASKETBALL_REF, 'Jersey top', 15, 650, { id: '00000000-0000-4000-9100-0000000000b2' });
 const TWO_ITEMS = buildOrderDetail({ items: [OTHER, SHORTS] });
 
+/** Watches the order the way the order page does, so a refusal that reads it again is seen. */
+function OrderProbe({ id }: { id: string }) {
+  useOrderQuery(id);
+  return null;
+}
+
 function renderEdit({
   order = TWO_ITEMS,
   itemId = SHORTS.id,
@@ -395,12 +401,20 @@ function renderEdit({
   const tree = (current: OrderDetailFixture) => (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
+        <OrderProbe id={current.id} />
         <OrderItemModal mode="edit" order={current} itemId={itemId} onClose={onClose} onSaved={onSaved} />
       </ToastProvider>
     </QueryClientProvider>
   );
   const view = render(tree(order));
-  return { ...view, onClose, onSaved, rerenderWith: (current: OrderDetailFixture) => view.rerender(tree(current)) };
+  return {
+    ...view,
+    onClose,
+    onSaved,
+    rerenderWith: (current: OrderDetailFixture) => {
+      view.rerender(tree(current));
+    },
+  };
 }
 
 function problemResponse(status: number, code: string, detail?: string): Response {

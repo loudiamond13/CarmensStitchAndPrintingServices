@@ -1,14 +1,15 @@
-// O2 item window: add (plan 08-14). Every rule is checked in the browser first with the server's own words (OR-3); a rule only the
-// server can check comes back under its field. The window keeps the order version it opened with and sends that one, so a focus
-// refetch never changes it (RESEARCH Pitfall 10). A save answers the whole order and the page shows the server's figures. The
-// "Line total" under Unit price is a preview of what is typed; the server works out the saved figure.
+// O2 item window: add and edit (plan 08-14). Every rule is checked in the browser first with the server's own words (OR-3); a rule only
+// the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a
+// focus refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers
+// the whole order and the page shows the server's figures. The "Line total" under Unit price is a preview of what is typed.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
+import { RecordMeta } from '@/components/data';
 import { MoneyInput } from '@/components/entry';
 import { Field } from '@/components/forms';
-import type { FieldErrors } from '@/lib/forms/useSubmission';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
+import type { FieldErrors } from '@/lib/forms/useSubmission';
 import { ListEntrySelect } from '@/modules/admin/components/ListEntrySelect';
 import { OrderWindow } from '@/modules/admin/components/OrderWindow';
 import { orderWindowFullRowClasses, orderWindowGridClasses } from '@/modules/admin/components/orderWindow.recipe';
@@ -25,28 +26,38 @@ import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
 import { orderItemsService, type AddOrderItemRequest } from '@/modules/admin/services/orderItemsService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { formatPeso } from '@/utils/csps';
+import { centavosToMoneyText } from '@/utils/format';
 
 const COPY = ORDER_WINDOWS_COPY;
 const ITEM = COPY.item;
-const FORM_COPY = {
-  sizeVariantPlaceholder: ITEM.sizeVariantPlaceholder,
-  descriptionPlaceholder: ITEM.descriptionPlaceholder,
-};
 
 const FIELD_ORDER = ['productTypeId', 'sizeVariant', 'description', 'quantity', 'unitPrice'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
 
-export interface OrderItemModalProps {
-  mode: 'add';
-  /** The order as the page shows it: the window opens with its version and its number. */
+type OrderItem = OrderDetailResponse['items'][number];
+
+interface OrderItemModalCommon {
+  /** The order as the page shows it: the window opens with its version, number and customer. */
   order: OrderDetailResponse;
   /** False plays the close animation and then renders nothing; each new open starts clean. Default true. */
   open?: boolean;
   /** Closes the window: Cancel, Esc, the scrim and the close button (after the discard question), and after a save. */
   onClose: () => void;
   /** The item was saved and the page already holds the answer. */
-  onSaved?: (order: OrderDetailResponse) => void;
+  onSaved?: ((order: OrderDetailResponse) => void) | undefined;
 }
+
+export interface AddOrderItemModalProps extends OrderItemModalCommon {
+  mode: 'add';
+}
+
+export interface EditOrderItemModalProps extends OrderItemModalCommon {
+  mode: 'edit';
+  /** Which item to edit. Null renders nothing (the window was never opened). */
+  itemId: string | null;
+}
+
+export type OrderItemModalProps = AddOrderItemModalProps | EditOrderItemModalProps;
 
 /** What one submission carries: the checked values and the order version the window opened with. */
 interface ItemSave {
@@ -66,6 +77,17 @@ function toRequest({ values, version }: ItemSave): AddOrderItemRequest {
   };
 }
 
+/** What the edit form shows for a saved item: every control is text. */
+function valuesOf(item: OrderItem): OrderItemFormInput {
+  return {
+    productTypeId: item.productType.id,
+    description: item.description,
+    sizeVariant: item.sizeVariant ?? '',
+    quantity: String(Number(item.quantity)),
+    unitPrice: centavosToMoneyText(Math.round(Number(item.unitPrice) * 100)),
+  };
+}
+
 export function OrderItemModal({ open = true, ...props }: OrderItemModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
   const [opens, setOpens] = useState(0);
@@ -76,22 +98,54 @@ export function OrderItemModal({ open = true, ...props }: OrderItemModalProps) {
       setOpens(opens + 1);
     }
   }
-  return <ItemForm key={opens} open={open} {...props} />;
+  const itemId = props.mode === 'edit' ? props.itemId : null;
+  if (props.mode === 'edit' && itemId === null) {
+    return null;
+  }
+  return (
+    <ItemForm
+      key={opens}
+      open={open}
+      order={props.order}
+      itemId={itemId}
+      onClose={props.onClose}
+      onSaved={props.onSaved}
+    />
+  );
 }
 
-function ItemForm({ open, order, onClose, onSaved }: OrderItemModalProps & { open: boolean }) {
+interface ItemFormProps {
+  open: boolean;
+  order: OrderDetailResponse;
+  /** The item being edited; null in add mode. */
+  itemId: string | null;
+  onClose: () => void;
+  onSaved: ((order: OrderDetailResponse) => void) | undefined;
+}
+
+interface Opened {
+  order: OrderDetailResponse;
+  item: OrderItem | null;
+}
+
+function ItemForm({ open, order, itemId: editedId, onClose, onSaved }: ItemFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  // The order the window was opened with; the version a save sends is this one's, whatever a later refetch brings.
-  const [opened] = useState(order);
+  const saveRef = useRef<HTMLButtonElement>(null);
+  // The order and item the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  const [opened, setOpened] = useState<Opened>(() => ({
+    order,
+    item: editedId === null ? null : (order.items.find((candidate) => candidate.id === editedId) ?? null),
+  }));
   const {
     control,
     handleSubmit,
     setError,
+    reset,
     formState: { isDirty },
   } = useForm<OrderItemFormInput, unknown, OrderItemFormValues>({
     resolver: zodResolver(orderItemSchema),
     mode: 'onBlur',
-    defaultValues: blankOrderItem(),
+    defaultValues: opened.item === null ? blankOrderItem() : valuesOf(opened.item),
   });
   const typed = useWatch({ control });
   const productTypesLoaded = useProductTypesQuery().isSuccess;
@@ -129,20 +183,49 @@ function ItemForm({ open, order, onClose, onSaved }: OrderItemModalProps & { ope
     return true;
   };
 
+  // Load Latest: an edit takes the latest item's values and version; an add keeps what was typed and takes the version.
+  const takeLatest = (latest: OrderDetailResponse): boolean => {
+    if (editedId === null) {
+      setOpened({ order: latest, item: null });
+      return true;
+    }
+    const latestItem = latest.items.find((candidate) => candidate.id === editedId);
+    if (latestItem === undefined) {
+      return false;
+    }
+    setOpened({ order: latest, item: latestItem });
+    reset(valuesOf(latestItem));
+    return true;
+  };
+
   const save = useOrderChildSave<ItemSave>({
-    orderId: opened.id,
+    orderId: opened.order.id,
     thing: 'item',
-    verb: 'added',
-    send: (key, data) => orderItemsService.add(opened.id, toRequest(data), key),
+    verb: editedId === null ? 'added' : 'updated',
+    send: (key, data) =>
+      editedId === null
+        ? orderItemsService.add(opened.order.id, toRequest(data), key)
+        : orderItemsService.update(opened.order.id, editedId, toRequest(data)),
     onSaved: (saved) => {
       onSaved?.(saved);
       onClose();
     },
     onFieldErrors: putOnFields,
+    onLatest: takeLatest,
   });
 
+  const loadLatest = async (): Promise<void> => {
+    if (await save.loadLatest()) {
+      if (editedId === null) {
+        saveRef.current?.focus();
+      } else {
+        focusField('productTypeId');
+      }
+    }
+  };
+
   const onValid = (values: OrderItemFormValues): void => {
-    save.submit({ values, version: opened.version });
+    save.submit({ values, version: opened.order.version });
   };
 
   const onInvalid = (errors: Partial<Record<FieldName, unknown>>): void => {
@@ -152,19 +235,37 @@ function ItemForm({ open, order, onClose, onSaved }: OrderItemModalProps & { ope
     }
   };
 
-  const who = opened.teamName !== null && opened.teamName !== '' ? opened.teamName : opened.customerName;
+  const who =
+    opened.order.teamName !== null && opened.order.teamName !== '' ? opened.order.teamName : opened.order.customerName;
+  const savedItem = opened.item;
 
   return (
     <OrderWindow
-      title={ITEM.addTitle}
-      description={COPY.description(opened.number, who)}
+      title={editedId === null ? ITEM.addTitle : ITEM.editTitle}
+      description={COPY.description(opened.order.number, who)}
       open={open}
       isDirty={isDirty}
       pending={save.pending}
       banner={save.banner}
+      loadingLatest={save.loadingLatest}
+      onLoadLatest={() => {
+        void loadLatest();
+      }}
+      status={save.status}
+      recordMeta={
+        savedItem === null ? undefined : (
+          <RecordMeta
+            recordedBy={savedItem.recordedBy}
+            recordedAt={savedItem.recordedAt}
+            lastChangedBy={savedItem.lastChangedBy}
+            lastChangedAt={savedItem.lastChangedAt}
+          />
+        )
+      }
       saveLabel={ITEM.save}
       saveBlocked={save.saveBlocked}
       formRef={formRef}
+      saveRef={saveRef}
       onSave={() => {
         void handleSubmit(onValid, onInvalid)();
       }}
@@ -182,6 +283,7 @@ function ItemForm({ open, order, onClose, onSaved }: OrderItemModalProps & { ope
               name={field.name}
               value={field.value}
               onChange={field.onChange}
+              savedEntry={savedItem?.productType.id}
               error={fieldState.error?.message}
             />
           )}
@@ -192,7 +294,7 @@ function ItemForm({ open, order, onClose, onSaved }: OrderItemModalProps & { ope
           render={({ field, fieldState }) => (
             <Field
               label={ITEM.sizeVariant}
-              placeholder={FORM_COPY.sizeVariantPlaceholder}
+              placeholder={ITEM.sizeVariantPlaceholder}
               name={field.name}
               value={field.value}
               onChange={field.onChange}
@@ -209,7 +311,7 @@ function ItemForm({ open, order, onClose, onSaved }: OrderItemModalProps & { ope
             render={({ field, fieldState }) => (
               <Field
                 label={ITEM.description}
-                placeholder={FORM_COPY.descriptionPlaceholder}
+                placeholder={ITEM.descriptionPlaceholder}
                 name={field.name}
                 value={field.value}
                 onChange={field.onChange}

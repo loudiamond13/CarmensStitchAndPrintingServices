@@ -32,6 +32,8 @@ export const ORDER_WINDOWS_COPY = {
   },
   /** The polite line after Load Latest on an edit window. */
   latestLoaded: 'Latest version loaded. Make your changes again.',
+  /** The same after Load Latest on an add window, which keeps what was typed (SPEC-GAP). */
+  latestLoadedKept: 'Latest version loaded. What you typed is kept.',
   /** The banner of a window whose record is gone (404). */
   removed: (thing: OrderThing): { title: string; body: string } => ({
     title: `This ${thing} was removed.`,

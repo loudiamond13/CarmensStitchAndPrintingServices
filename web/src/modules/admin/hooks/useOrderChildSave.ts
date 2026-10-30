@@ -8,11 +8,16 @@ import { isHttpError } from '@/core/api/errors';
 import { useSubmission, type FieldErrors } from '@/lib/forms/useSubmission';
 import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { ORDER_WINDOWS_COPY, type OrderThing, type OrderVerb } from '@/modules/admin/orderWindowsCopy';
-import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
+import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { formatPeso, isPositiveMoney } from '@/utils/csps';
-import { errorLine, type ErrorCopy } from '@/utils/describeHttpError';
+import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
 
-const TOAST = ORDER_WINDOWS_COPY.toast;
+const COPY = ORDER_WINDOWS_COPY;
+const TOAST = COPY.toast;
+
+const EDIT_STALE = 'edit.stale';
+const ORDER_NOT_FOUND = 'orders.not-found';
+const ORDER_LOCKED = 'orders.locked';
 
 /** What the window shows above its fields. */
 export type OrderWindowBanner =
@@ -46,7 +51,7 @@ export function orderSavedMessage(
 export interface OrderChildSaveOptions<TData> {
   orderId: string;
   thing: OrderThing;
-  /** Adding or changing: the toast title says which. */
+  /** Adding or changing: the toast title says which, and Load Latest says whether the typed values are kept. */
   verb: Exclude<OrderVerb, 'deleted'>;
   /** The request. Add passes the key to the POST; an edit ignores it. */
   send: (key: string, data: TData) => Promise<OrderDetailResponse>;
@@ -54,6 +59,8 @@ export interface OrderChildSaveOptions<TData> {
   onSaved: (order: OrderDetailResponse) => void;
   /** Puts the server's field messages under their fields; true when at least one landed on a rendered field. */
   onFieldErrors?: ((errors: FieldErrors) => boolean) | undefined;
+  /** Load Latest brought the latest order and the page has it. Return false when this window's own record is not in it. */
+  onLatest?: ((order: OrderDetailResponse) => boolean) | undefined;
 }
 
 export interface OrderChildSave<TData> {
@@ -64,6 +71,11 @@ export interface OrderChildSave<TData> {
   fieldErrors: FieldErrors;
   /** Save stays aria-disabled: the order is locked or the record is gone. */
   saveBlocked: boolean;
+  /** Reads the order again after a stale save; true when it arrived and the window can go on. */
+  loadLatest: () => Promise<boolean>;
+  loadingLatest: boolean;
+  /** The polite line read out after Load Latest. */
+  status: string;
 }
 
 /** The server's own sentence for a refusal (CspsProblemDetails puts it in `detail`). */
@@ -78,20 +90,43 @@ export function useOrderChildSave<TData>({
   send,
   onSaved,
   onFieldErrors,
+  onLatest,
 }: OrderChildSaveOptions<TData>): OrderChildSave<TData> {
   const toast = useToast();
   const applyOrder = useApplyOrder();
   const refetchOrder = useRefetchOrder();
   const [banner, setBanner] = useState<OrderWindowBanner | null>(null);
   const [state, setState] = useState<OrderChildState>('idle');
+  // How many stale saves the server has refused since the window was last current; a new count re-announces the banner.
+  const [conflicts, setConflicts] = useState(0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [status, setStatus] = useState('');
 
   const showLine = (text: string): void => {
     setBanner({ kind: 'message', text });
     setState('refused');
   };
 
+  const showRemoved = (words: { title: string; body: string }): void => {
+    setBanner({ kind: 'removed', ...words });
+    setState('removed');
+  };
+
   const showFailure = (copy: ErrorCopy, error: unknown): void => {
     if (isHttpError(error) && error.kind === 'http') {
+      // 05 D-20: a stale save keeps every typed value; the banner offers Load Latest.
+      if (error.status === 409 && error.code === EDIT_STALE) {
+        const count = conflicts + 1;
+        setConflicts(count);
+        setBanner({ kind: 'conflict', count });
+        setState('conflict');
+        return;
+      }
+      if (error.status === 404) {
+        void refetchOrder(orderId);
+        showRemoved(error.code === ORDER_NOT_FOUND ? COPY.orderRemoved : COPY.removed(thing));
+        return;
+      }
       if (error.status === 400) {
         if (onFieldErrors?.(error.fieldErrors) === true) {
           setBanner(null);
@@ -104,7 +139,7 @@ export function useOrderChildSave<TData>({
         // The page is out of date as well as refused: read the order again.
         void refetchOrder(orderId);
         showLine(serverSentence(error, errorLine(copy)));
-        setState(error.code === 'orders.locked' ? 'locked' : 'refused');
+        setState(error.code === ORDER_LOCKED ? 'locked' : 'refused');
         return;
       }
     }
@@ -123,7 +158,38 @@ export function useOrderChildSave<TData>({
   const submit = (data: TData): void => {
     setBanner(null);
     setState('idle');
+    setStatus('');
     void submission.submit(data);
+  };
+
+  const loadLatest = async (): Promise<boolean> => {
+    setLoadingLatest(true);
+    try {
+      const latest = await ordersService.get(orderId);
+      applyOrder(latest);
+      if (onLatest?.(latest) === false) {
+        showRemoved(COPY.removed(thing));
+        return false;
+      }
+      submission.reset();
+      setConflicts(0);
+      setBanner(null);
+      setState('idle');
+      setStatus(verb === 'added' ? COPY.latestLoadedKept : COPY.latestLoaded);
+      return true;
+    } catch (error: unknown) {
+      if (isHttpError(error) && error.status === 404) {
+        showRemoved(COPY.orderRemoved);
+        return false;
+      }
+      const copy = describeHttpError(error);
+      if (copy !== null) {
+        showLine(errorLine(copy));
+      }
+      return false;
+    } finally {
+      setLoadingLatest(false);
+    }
   };
 
   return {
@@ -133,5 +199,8 @@ export function useOrderChildSave<TData>({
     banner,
     fieldErrors: submission.fieldErrors,
     saveBlocked: state === 'locked' || state === 'removed',
+    loadLatest,
+    loadingLatest,
+    status,
   };
 }

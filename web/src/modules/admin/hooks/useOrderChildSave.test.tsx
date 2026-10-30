@@ -91,9 +91,7 @@ interface SaveOptions {
 }
 
 function renderSave({ rejection, onFieldErrors, onLatest, verb = 'updated' }: SaveOptions = {}) {
-  const send = vi.fn((_key: string, _data: { version: string }) =>
-    rejection === undefined ? Promise.resolve(order0148) : Promise.reject(rejection as Error),
-  );
+  const send = vi.fn(() => (rejection === undefined ? Promise.resolve(order0148) : Promise.reject(rejection as Error)));
   const onSaved = vi.fn();
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
