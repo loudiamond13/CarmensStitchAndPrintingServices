@@ -964,3 +964,98 @@ describe('a filter change keeps the rows and goes back to page 1 (ORD-02, UIC-13
     await expectNoAxeViolations(view.container);
   });
 });
+
+describe('no matches and Clear Filters (UIC-2, ORD-02)', () => {
+  const EVERY_FILTER = `?size=50&sort=newest&q=zzz&status=delivered&dates=custom&from=2026-10-01&to=2026-10-31&productType=${BASKETBALL_ID}&hasBalance=true`;
+
+  /** Rows only when no filter is on; a filtered request finds nothing. */
+  function emptyWhenFiltered() {
+    return useOrderHandlers({
+      list: (url) =>
+        ['q', 'from', 'hasBalance', 'productType'].some((key) => url.searchParams.has(key)) ||
+        url.searchParams.get('status') !== 'active'
+          ? buildOrderList([], { all: 148, active: 37 })
+          : standardOrderList(),
+    });
+  }
+
+  it('shows No matches naming the search and the status, not the first-use state, for a search with no rows', async () => {
+    useOrderHandlers({ list: buildOrderList([], { all: 148, active: 37 }) });
+    renderPage('?q=zzz');
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeVisible();
+    expect(
+      screen.getByText('No orders match “zzz” with status Active + recent. Try another search or clear the filters.'),
+    ).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'No active orders' })).toBeNull();
+    expect(screen.getByText('Search: zzz')).toBeInTheDocument();
+  });
+
+  it('shows No matches with the filters message when there is no search text', async () => {
+    useOrderHandlers({ list: buildOrderList([], { all: 148, active: 37 }) });
+    renderPage('?status=delivered&hasBalance=true');
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeVisible();
+    expect(
+      screen.getByText('No orders with status Delivered and a balance. Try another search or clear the filters.'),
+    ).toBeVisible();
+  });
+
+  it('names the dates and the product type in the message', async () => {
+    useOrderHandlers({ list: buildOrderList([], { all: 148, active: 37 }) });
+    renderPage(`?dates=custom&from=2026-10-01&to=2026-10-31&productType=${BASKETBALL_ID}`);
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeVisible();
+    expect(
+      screen.getByText(
+        'No orders with status Active + recent, dates Oct 1, 2026 to Oct 31, 2026 and product Basketball Jersey. Try another search or clear the filters.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('still shows the first-use state when only the sort is changed and there are no rows', async () => {
+    useOrderHandlers({ list: buildOrderList([], { all: 0, active: 0 }) });
+    renderPage('?sort=newest');
+
+    expect(await screen.findByRole('heading', { name: 'No active orders' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'No matches' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Clear Filters' })).toBeNull();
+  });
+
+  it('shows no Clear Filters button while there are rows', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?q=ORD');
+
+    await screen.findAllByRole('article');
+    expect(screen.queryByRole('button', { name: 'Clear Filters' })).toBeNull();
+  });
+
+  it('Clear Filters clears the search and every filter in one replace and keeps the sort and the rows per page', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = emptyWhenFiltered();
+    renderPage(EVERY_FILTER, onUrlUpdate);
+    await screen.findByRole('heading', { name: 'No matches' });
+    const writesBefore = urlWrites(onUrlUpdate).length;
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    expect(await screen.findAllByRole('article')).toHaveLength(4);
+    expect(urlWrites(onUrlUpdate).slice(writesBefore)).toEqual([{ history: 'replace', query: '?size=50&sort=newest' }]);
+    expect(screen.queryByText(/^(Search|Status|Dates|Product):/)).toBeNull();
+    expect(screen.queryByText('Has a balance')).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('50');
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('newest');
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Status' })).toHaveValue('active');
+    expect(screen.getByRole('checkbox', { name: 'Only orders with a balance' })).not.toBeChecked();
+    expect(queryOf(backend.lists.at(-1))).toEqual({ page: '1', pageSize: '50', sort: 'newest', status: 'active' });
+  });
+
+  it('has no axe violations in the No matches state', async () => {
+    useOrderHandlers({ list: buildOrderList([], { all: 148, active: 37 }) });
+    const view = renderPage('?q=zzz&status=delivered');
+
+    await screen.findByRole('heading', { name: 'No matches' });
+    await expectNoAxeViolations(view.container);
+  });
+});
