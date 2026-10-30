@@ -288,3 +288,102 @@ describe('Delete Order Permanently (07 D-28, D-57)', () => {
     expect(calls.purges).toEqual([{ id: order0148.id, confirm: 'ORD-2026-0148', key: null }]);
   });
 });
+
+describe('the document title', () => {
+  it('sets the document title to the number with (deleted)', async () => {
+    backend();
+    renderPage();
+
+    await loaded();
+    await waitFor(() => {
+      expect(document.title).toBe('ORD-2026-0148 (deleted) · CSPS Admin');
+    });
+  });
+});
+
+describe('loading, failure and not found (UIC-14, UIC-18, UIC-19)', () => {
+  it('shows skeletons in a region named Loading order… on the first load', async () => {
+    let release: (detail: DeletedOrderDetailFixture) => void = () => undefined;
+    deletedOrdersBackend({
+      list: deletedOrderList([]),
+      detail: () =>
+        new Promise<DeletedOrderDetailFixture>((resolve) => {
+          release = resolve;
+        }),
+    });
+    const { container } = renderPage();
+
+    expect(await screen.findByText('Loading order…')).toBeInTheDocument();
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+
+    release(deletedOrderDetail());
+    await loaded();
+    expect(screen.getByText('Order loaded.')).toBeInTheDocument();
+  });
+
+  it("shows This order isn't in Deleted Orders. with Back to Deleted Orders for a 404", async () => {
+    deletedOrdersBackend({ list: deletedOrderList([]), detail: () => deletedProblem(404) });
+    const { container } = renderPage();
+
+    expect(await screen.findByText("This order isn't in Deleted Orders.")).toBeVisible();
+    expect(screen.getByText('It may have been restored or deleted for good.')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Back to Deleted Orders' })).toHaveAttribute(
+      'href',
+      '/admin/orders/deleted',
+    );
+    expect(screen.queryByRole('button', { name: 'Try Again' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
+  it("shows Couldn't load this order. with Try Again for a 500, and Try Again reads the order again", async () => {
+    let calls = 0;
+    deletedOrdersBackend({
+      list: deletedOrderList([]),
+      detail: () => {
+        calls += 1;
+        return calls === 1 ? deletedProblem(500) : deletedOrderDetail();
+      },
+    });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+
+    expect(await screen.findByText("Couldn't load this order.")).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await loaded();
+    expect(calls).toBe(2);
+  });
+
+  it('shows the access banner when the role was lost meanwhile (403)', async () => {
+    deletedOrdersBackend({ list: deletedOrderList([]), detail: () => deletedProblem(403) });
+    renderPage();
+
+    expect(await screen.findByText("You don't have access to this")).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+
+  it('shows the not-in-Deleted-Orders page when Restore finds the order already restored (404)', async () => {
+    let reads = 0;
+    deletedOrdersBackend({
+      list: deletedOrderList([]),
+      detail: () => {
+        reads += 1;
+        return reads === 1 ? deletedOrderDetail() : deletedProblem(404);
+      },
+      restore: () => deletedProblem(404),
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Restore Order' }));
+
+    expect(await screen.findByText("This order isn't in Deleted Orders.")).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Back to Deleted Orders' })).toBeVisible();
+  });
+});
