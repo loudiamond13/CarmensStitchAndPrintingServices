@@ -105,9 +105,9 @@ export const orderItemPriceCellClasses = tw('min-w-0 pg-tablet:col-span-2 pg-pho
 /** The line total preview: bold, tabular, right-aligned, level with the 40px (44px on phones) controls. */
 export const orderItemTotalCellClasses = tw('flex min-w-0 flex-col items-end pg-tablet:col-span-1 pg-phone:col-span-2');
 
-/** The line total's own label, shown below 1024px only (it is not a form control). */
+/** The line total's own label: read aloud always, drawn below 1024px only (it is not a form control). */
 export const orderItemTotalLabelClasses = tw(
-  'hidden text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase pg-lt-lg:block',
+  'sr-only pg-lt-lg:not-sr-only text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase',
 );
 
 /** The figure, level with the controls beside it. */
@@ -117,6 +117,9 @@ export const orderItemTotalFigureClasses = tw('flex h-10 items-center text-right
 export const orderItemRemoveCellClasses = tw(
   'flex h-10 items-center justify-self-end pg-tablet:col-start-6 pg-tablet:row-start-1 pg-phone:col-start-4 pg-phone:row-start-1 pg-phone:h-11',
 );
+
+/** A right-aligned column header (Qty, Unit price, Line total). */
+export const orderItemHeadRightClasses = tw('text-right');
 
 /** `.s-items-foot`: the dashed rule, the piece count on the left and the subtotal preview on the right. */
 export const orderItemsFootClasses = tw(

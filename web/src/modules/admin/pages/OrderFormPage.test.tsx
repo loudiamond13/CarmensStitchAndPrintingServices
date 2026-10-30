@@ -278,3 +278,76 @@ describe('saving (ORD-03, SEC-06)', () => {
     expect(backend.writes[1]?.key).toBe(backend.writes[0]?.key);
   });
 });
+
+describe('the summary aside and the item grid on the page (UIC-51)', () => {
+  it('shows the live summary: status, due date, line items, pieces and the total preview', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    const aside = screen.getByRole('complementary', { name: 'Summary' });
+    expect(within(aside).getByText('Updates as you edit items')).toBeVisible();
+    expect(within(aside).getByText('Pending')).toBeVisible();
+    expect(within(aside).getByText('Oct 20, 2026')).toBeVisible();
+    expect(within(aside).getByText('Line items').nextElementSibling).toHaveTextContent('1');
+    expect(within(aside).getByText('Pieces').nextElementSibling).toHaveTextContent('12');
+    expect(within(aside).getByTestId('aside-total')).toHaveTextContent('₱9,360.00');
+    expect(
+      within(aside).getByText('Balance = Total \u2212 Payments. Record the downpayment after saving.'),
+    ).toBeVisible();
+    // The aside is a preview, not a live region.
+    expect(aside.querySelector('[aria-live], [role="status"]')).toBeNull();
+    expect(aside).not.toHaveAttribute('aria-live');
+  });
+
+  it('follows a change of status and of the items', async () => {
+    useOrderHandlers();
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.selectOptions(screen.getByLabelText(/^Status/), 'Ready');
+    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    await user.type(screen.getAllByLabelText(/^Qty/)[1] as HTMLElement, '3');
+    await user.type(screen.getAllByLabelText(/^Unit price/)[1] as HTMLElement, '100');
+
+    const aside = screen.getByRole('complementary', { name: 'Summary' });
+    expect(within(aside).getByText('Ready')).toBeVisible();
+    expect(within(aside).getByText('Line items').nextElementSibling).toHaveTextContent('2');
+    expect(within(aside).getByText('Pieces').nextElementSibling).toHaveTextContent('15');
+    expect(within(aside).getByTestId('aside-total')).toHaveTextContent('₱9,660.00');
+    expect(screen.getByText('15 pcs across 2 line items')).toBeVisible();
+  });
+
+  it('puts a server 400 on items[1].quantity under the Qty of row 2 and focuses it', async () => {
+    const backend = useOrderHandlers({
+      reply: () =>
+        HttpResponse.json(
+          { title: 'x', status: 400, errors: { 'items[1].quantity': ['Enter a quantity from 1 to 10,000.'] } },
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+    });
+    const { user } = await openForm();
+    await fillValidOrder(user);
+    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    const row2 = screen.getByRole('group', { name: 'Item 2' });
+    await user.selectOptions(within(row2).getByLabelText(/^Product type/), 'Basketball Jersey');
+    await user.type(within(row2).getByLabelText(/^Description/), 'Shorts');
+    await user.type(within(row2).getByLabelText(/^Qty/), '2');
+    await user.type(within(row2).getByLabelText(/^Unit price/), '300');
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    expect(await within(row2).findByText('Enter a quantity from 1 to 10,000.')).toBeVisible();
+    expect(within(row2).getByLabelText(/^Qty/)).toHaveFocus();
+    expect(backend.writes).toHaveLength(1);
+    expect(screen.getByText(/1 field needs attention/)).toBeVisible();
+  });
+
+  it('keeps a retired product type out of the picker', async () => {
+    useOrderHandlers();
+    await openForm();
+
+    const picker = screen.getByLabelText(/^Product type/);
+    expect(within(picker).queryByRole('option', { name: /Old Style Jersey/ })).toBeNull();
+  });
+});
