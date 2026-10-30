@@ -73,3 +73,81 @@ test('@orders-expenses a Manager records a cost paid by a coworker and sees both
   await expect(page.getByRole('button', { name: 'Add Expense' })).toBeFocused();
   await expectNoAxeViolations(page);
 });
+
+/** The seeded Fabric and Labor order expense categories (the ids are the fixed migration seed literals). */
+const FABRIC_ID = '01a17fce-780b-75d1-89e0-5b3b9b185a2c';
+const LABOR_ID = '01a17fce-780e-700c-90b2-d45ecdc6df9d';
+
+test('@orders-expenses a Manager edits and deletes order expenses and the profit follows the server', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const number = `ORD-2087-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`;
+  // 12 x 780 = 9,360.00 with 3,825.00 and 1,640.00 spent: 5,465.00 in expenses and 3,895.00 profit.
+  const id = await createOrder(request, {
+    number,
+    customerName: 'E2E Expenses Customer',
+    teamName: 'E2E Expenses Team',
+    orderDate: manilaDate(-4),
+    dueDate: manilaDate(5),
+    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E expense jersey', quantity: 12, unitPrice: 780 }],
+    expenses: [
+      {
+        expenseDate: manilaDate(-3),
+        amount: 3825,
+        orderExpenseCategoryId: FABRIC_ID,
+        paidByUserId: manager.userId,
+        description: 'E2E mesh',
+      },
+      {
+        expenseDate: manilaDate(-2),
+        amount: 1640,
+        orderExpenseCategoryId: LABOR_ID,
+        paidByUserId: manager.userId,
+        description: 'E2E sewing',
+      },
+    ],
+  });
+  await signInAs(page, request, manager);
+  await page.goto(`/admin/orders/${id}?tab=expenses`);
+  await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible();
+  const totals = page.getByRole('region', { name: 'Totals' });
+  await expect(totals).toContainText('₱5,465.00');
+  await expect(totals).toContainText('₱3,895.00');
+
+  // Edit: the window opens with the saved values and the Recorded by block, and the server's figures follow the save.
+  await page.getByRole('button', { name: /^Edit expense of ₱3,825\.00, / }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit Expense' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel(/^Amount/)).toHaveValue('3825.00');
+  await expect(dialog.getByLabel(/^Description/)).toHaveValue('E2E mesh');
+  await expect(dialog.getByText('Recorded by')).toBeVisible();
+  await expectNoAxeViolations(page);
+  await dialog.getByLabel(/^Amount/).fill('1000000.01');
+  await dialog.getByRole('button', { name: 'Save Expense' }).click();
+  await expect(dialog.getByText('Enter an amount of ₱1,000,000.00 or less.')).toBeVisible();
+  await dialog.getByLabel(/^Amount/).fill('4000');
+  await dialog.getByRole('button', { name: 'Save Expense' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Expense updated')).toBeVisible();
+  await expect(page.getByText('Order expenses now ₱5,640.00.')).toBeVisible();
+  await expect(totals).toContainText('₱3,720.00');
+  await expect(page.getByRole('button', { name: /^Edit expense of ₱4,000\.00, / })).toBeFocused();
+
+  // Delete: the dialog names the amount and the order; the server's figures follow.
+  await page.getByRole('button', { name: /^Delete expense of ₱1,640\.00, / }).click();
+  const confirm = page.getByRole('dialog', { name: 'Delete expense of ₱1,640.00?' });
+  await expect(confirm).toContainText(`This removes it from ${number} and updates the totals right away.`);
+  await confirm.getByRole('button', { name: 'Delete Expense' }).click();
+  await expect(confirm).toBeHidden();
+  await expect(page.getByText('Expense deleted')).toBeVisible();
+  await expect(page.getByText('Order expenses now ₱4,000.00.')).toBeVisible();
+  await expect(totals).toContainText('₱5,360.00');
+  await expect(page.getByRole('button', { name: /^Edit expense of ₱4,000\.00, / })).toBeFocused();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});

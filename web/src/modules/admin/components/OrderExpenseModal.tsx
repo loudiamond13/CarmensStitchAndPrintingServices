@@ -1,11 +1,13 @@
-// O2 order expense window: add (plan 08-18). Every rule is checked in the browser first with the server's own words (OR-3); a rule only
-// the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a
+// O2 order expense window: add and edit (plan 08-18). Every rule is checked in the browser first with the server's own words (OR-3); a rule
+// only the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a
 // focus refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers
 // the whole order and the page shows the server's Order Expenses and Estimated Profit. Paid by is a required choice that starts on the
-// signed-in person (ORD-23, D-11); Recorded by comes from the token on the server.
+// signed-in person (ORD-23, D-11); Recorded by comes from the token on the server. An edit keeps a payer who left, and a category that
+// was retired, selected so the form can be saved without changing them.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { RecordMeta } from '@/components/data';
 import { MoneyInput } from '@/components/entry';
 import { DateInput, Field } from '@/components/forms';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
@@ -26,11 +28,14 @@ import {
 import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
 import { orderExpensesService, type AddOrderExpenseRequest } from '@/modules/admin/services/orderExpensesService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
+import { centavosToMoneyText } from '@/utils/format';
 
 const COPY = ORDER_EXPENSE_COPY;
 
 const FIELD_ORDER = ['expenseDate', 'orderExpenseCategoryId', 'description', 'amount', 'paidByUserId'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
+
+type OrderExpense = OrderDetailResponse['expenses'][number];
 
 interface OrderExpenseModalCommon {
   /** The order as the page shows it: the window opens with its version, number, customer and today. */
@@ -47,7 +52,13 @@ export interface AddOrderExpenseModalProps extends OrderExpenseModalCommon {
   mode: 'add';
 }
 
-export type OrderExpenseModalProps = AddOrderExpenseModalProps;
+export interface EditOrderExpenseModalProps extends OrderExpenseModalCommon {
+  mode: 'edit';
+  /** Which expense to edit. Null renders nothing (the window was never opened). */
+  expenseId: string | null;
+}
+
+export type OrderExpenseModalProps = AddOrderExpenseModalProps | EditOrderExpenseModalProps;
 
 /** What one submission carries: the checked values and the order version the window opened with. */
 interface ExpenseSave {
@@ -67,6 +78,17 @@ function toRequest({ values, version }: ExpenseSave): AddOrderExpenseRequest {
   };
 }
 
+/** What the edit form shows for a saved expense: every control is text. */
+function valuesOf(expense: OrderExpense): OrderExpenseFormInput {
+  return {
+    expenseDate: expense.expenseDate,
+    orderExpenseCategoryId: expense.category.id,
+    description: expense.description ?? '',
+    amount: centavosToMoneyText(Math.round(Number(expense.amount) * 100)),
+    paidByUserId: expense.paidBy.id,
+  };
+}
+
 export function OrderExpenseModal({ open = true, ...props }: OrderExpenseModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
   const [opens, setOpens] = useState(0);
@@ -77,31 +99,56 @@ export function OrderExpenseModal({ open = true, ...props }: OrderExpenseModalPr
       setOpens(opens + 1);
     }
   }
-  return <ExpenseForm key={opens} open={open} order={props.order} onClose={props.onClose} onSaved={props.onSaved} />;
+  const expenseId = props.mode === 'edit' ? props.expenseId : null;
+  if (props.mode === 'edit' && expenseId === null) {
+    return null;
+  }
+  return (
+    <ExpenseForm
+      key={opens}
+      open={open}
+      order={props.order}
+      expenseId={expenseId}
+      onClose={props.onClose}
+      onSaved={props.onSaved}
+    />
+  );
 }
 
 interface ExpenseFormProps {
   open: boolean;
   order: OrderDetailResponse;
+  /** The expense being edited; null in add mode. */
+  expenseId: string | null;
   onClose: () => void;
   onSaved: ((order: OrderDetailResponse) => void) | undefined;
 }
 
-function ExpenseForm({ open, order, onClose, onSaved }: ExpenseFormProps) {
+interface Opened {
+  order: OrderDetailResponse;
+  expense: OrderExpense | null;
+}
+
+function ExpenseForm({ open, order, expenseId: editedId, onClose, onSaved }: ExpenseFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
   const { user } = useSession();
-  // The order the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
-  const [opened, setOpened] = useState<OrderDetailResponse>(order);
+  // The order and expense the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  const [opened, setOpened] = useState<Opened>(() => ({
+    order,
+    expense: editedId === null ? null : (order.expenses.find((candidate) => candidate.id === editedId) ?? null),
+  }));
   const {
     control,
     handleSubmit,
     setError,
+    reset,
     formState: { isDirty },
   } = useForm<OrderExpenseFormInput, unknown, OrderExpenseFormValues>({
-    resolver: zodResolver(orderExpenseSchema(opened.today)),
+    resolver: zodResolver(orderExpenseSchema(opened.order.today)),
     mode: 'onBlur',
-    defaultValues: blankOrderExpense(opened.today, user?.id ?? ''),
+    defaultValues:
+      opened.expense === null ? blankOrderExpense(opened.order.today, user?.id ?? '') : valuesOf(opened.expense),
   });
 
   const focusField = (name: FieldName): void => {
@@ -127,31 +174,49 @@ function ExpenseForm({ open, order, onClose, onSaved }: ExpenseFormProps) {
     return true;
   };
 
+  // Load Latest: an edit takes the latest expense's values and version; an add keeps what was typed and takes the version.
+  const takeLatest = (latest: OrderDetailResponse): boolean => {
+    if (editedId === null) {
+      setOpened({ order: latest, expense: null });
+      return true;
+    }
+    const latestExpense = latest.expenses.find((candidate) => candidate.id === editedId);
+    if (latestExpense === undefined) {
+      return false;
+    }
+    setOpened({ order: latest, expense: latestExpense });
+    reset(valuesOf(latestExpense));
+    return true;
+  };
+
   const save = useOrderChildSave<ExpenseSave>({
-    orderId: opened.id,
+    orderId: opened.order.id,
     thing: 'expense',
-    verb: 'added',
-    send: (key, data) => orderExpensesService.add(opened.id, toRequest(data), key),
+    verb: editedId === null ? 'added' : 'updated',
+    send: (key, data) =>
+      editedId === null
+        ? orderExpensesService.add(opened.order.id, toRequest(data), key)
+        : orderExpensesService.update(opened.order.id, editedId, toRequest(data)),
     onSaved: (saved) => {
       onSaved?.(saved);
       onClose();
     },
     onFieldErrors: putOnFields,
-    // An add keeps what was typed and takes the latest version.
-    onLatest: (latest) => {
-      setOpened(latest);
-      return true;
-    },
+    onLatest: takeLatest,
   });
 
   const loadLatest = async (): Promise<void> => {
     if (await save.loadLatest()) {
-      saveRef.current?.focus();
+      if (editedId === null) {
+        saveRef.current?.focus();
+      } else {
+        focusField('expenseDate');
+      }
     }
   };
 
   const onValid = (values: OrderExpenseFormValues): void => {
-    save.submit({ values, version: opened.version });
+    save.submit({ values, version: opened.order.version });
   };
 
   const onInvalid = (errors: Partial<Record<FieldName, unknown>>): void => {
@@ -161,13 +226,15 @@ function ExpenseForm({ open, order, onClose, onSaved }: ExpenseFormProps) {
     }
   };
 
-  const who = opened.teamName !== null && opened.teamName !== '' ? opened.teamName : opened.customerName;
+  const who =
+    opened.order.teamName !== null && opened.order.teamName !== '' ? opened.order.teamName : opened.order.customerName;
   const you = user === null ? null : { id: user.id, name: user.name };
+  const savedExpense = opened.expense;
 
   return (
     <OrderWindow
-      title={COPY.addTitle}
-      description={ORDER_WINDOWS_COPY.description(opened.number, who)}
+      title={editedId === null ? COPY.addTitle : COPY.editTitle}
+      description={ORDER_WINDOWS_COPY.description(opened.order.number, who)}
       open={open}
       isDirty={isDirty}
       pending={save.pending}
@@ -177,6 +244,16 @@ function ExpenseForm({ open, order, onClose, onSaved }: ExpenseFormProps) {
         void loadLatest();
       }}
       status={save.status}
+      recordMeta={
+        savedExpense === null ? undefined : (
+          <RecordMeta
+            recordedBy={savedExpense.recordedBy}
+            recordedAt={savedExpense.recordedAt}
+            lastChangedBy={savedExpense.lastChangedBy}
+            lastChangedAt={savedExpense.lastChangedAt}
+          />
+        )
+      }
       saveLabel={COPY.save}
       saveBlocked={save.saveBlocked}
       formRef={formRef}
@@ -213,6 +290,7 @@ function ExpenseForm({ open, order, onClose, onSaved }: ExpenseFormProps) {
               name={field.name}
               value={field.value}
               onChange={field.onChange}
+              savedEntry={savedExpense?.category.id}
               error={fieldState.error?.message}
             />
           )}
@@ -259,6 +337,7 @@ function ExpenseForm({ open, order, onClose, onSaved }: ExpenseFormProps) {
               value={field.value}
               onChange={field.onChange}
               currentUser={you}
+              savedPayer={savedExpense?.paidBy}
               error={fieldState.error?.message}
             />
           )}

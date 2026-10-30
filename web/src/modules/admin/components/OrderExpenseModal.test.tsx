@@ -22,7 +22,7 @@ import {
   type OrderBackend,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
-import { FABRIC_ID, LABOR_ID, listBackend, listItem, ORDER_EXPENSE_CATEGORIES } from '@/test/orderListFixtures';
+import { FABRIC_ID, listBackend, listItem, ORDER_EXPENSE_CATEGORIES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // O2 order expense window, add and edit modes (ORD-07, ORD-19, ORD-23, D-11, D-12, D-30; plan 08-18): the fields in UI-SPEC order, the required

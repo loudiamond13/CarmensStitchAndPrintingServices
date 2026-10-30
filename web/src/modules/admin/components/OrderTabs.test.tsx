@@ -193,7 +193,7 @@ describe('the Discounts tab (ORD-07)', () => {
 
 describe('the Expenses tab (ORD-07, D-12)', () => {
   it('lists each expense with its date, category, description, both people and amount', () => {
-    render(<OrderExpensesTab order={order0148} />);
+    render(<OrderExpensesTab order={order0148} readOnly />);
 
     const table = screen.getByRole('table', { name: 'Expenses' });
     for (const name of ['Date', 'Category', 'Description', 'Paid by', 'Recorded by', 'Amount']) {
@@ -209,7 +209,7 @@ describe('the Expenses tab (ORD-07, D-12)', () => {
   });
 
   it('shows the empty value for an expense with no description', () => {
-    render(<OrderExpensesTab order={order0151} />);
+    render(<OrderExpensesTab order={order0151} readOnly />);
 
     const [first] = bodyRows(screen.getByRole('table', { name: 'Expenses' }));
     if (first === undefined) throw new Error('Expected expense rows');
@@ -217,7 +217,7 @@ describe('the Expenses tab (ORD-07, D-12)', () => {
   });
 
   it('ends with Order expenses from the server figure, and says the costs are internal', () => {
-    render(<OrderExpensesTab order={order0148} />);
+    render(<OrderExpensesTab order={order0148} readOnly />);
 
     const footer = within(screen.getByRole('table', { name: 'Expenses' }))
       .getByText('Order expenses')
@@ -231,7 +231,7 @@ describe('the Expenses tab (ORD-07, D-12)', () => {
     const expense = orderExpense('2026-10-01', FABRIC, 100, 'Thread', {
       paidBy: { ...ORDER_STAFF_TWO, formerStaff: true },
     });
-    render(<OrderExpensesTab order={buildOrderDetail({ expenses: [expense] })} />);
+    render(<OrderExpensesTab order={buildOrderDetail({ expenses: [expense] })} readOnly />);
 
     const [row] = bodyRows(screen.getByRole('table', { name: 'Expenses' }));
     if (row === undefined) throw new Error('Expected one expense row');
@@ -239,7 +239,7 @@ describe('the Expenses tab (ORD-07, D-12)', () => {
   });
 
   it('shows an inline empty line when there are no expenses (UIC-4)', () => {
-    render(<OrderExpensesTab order={buildOrderDetail({ expenses: [] })} />);
+    render(<OrderExpensesTab order={buildOrderDetail({ expenses: [] })} readOnly />);
 
     expect(screen.getByText('No expenses recorded yet.')).toBeVisible();
     expect(screen.queryByRole('table')).toBeNull();
@@ -252,7 +252,7 @@ describe('the Expenses tab (ORD-07, D-12)', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = render(<OrderExpensesTab order={order0148} />);
+    const { container } = render(<OrderExpensesTab order={order0148} readOnly />);
 
     await expectNoAxeViolations(container);
   });
