@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-10-PLAN.md
-last_updated: "2026-10-30T04:25:53.216Z"
+stopped_at: Completed 08-11-PLAN.md
+last_updated: "2026-10-30T05:03:37.722Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: 411b488742be543fbb9ddb32684d3e21c71fc661
+state_head: d8b68549c39a71d2afb68e773186d5189fd05ed4
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 229
+  completed_plans: 230
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T20:37:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 11 of 24
+Plan: 12 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -289,6 +289,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P08 | 72 min | 3 tasks | 22 files |
 | Phase 08 P09 | 47 min | 3 tasks | 21 files |
 | Phase 08 P10 | 23 min | 3 tasks | 18 files |
+| Phase 08 P11 | 38 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -826,6 +827,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-10: the order query key is ['order', id] with the default cache time, so useBusinessToday reads the order's today from the cache
 - [Phase 08]: 08-10: canComplete judges the figures only (balance exactly 0.00 and no customer credit); an overpaid order with fullyPaid true cannot complete
 - [Phase 08]: 08-10: the order page back link accepts only a literal /admin/orders path from navigation state (safeReturnUrl plus prefix check), else /admin/orders (T-08-18)
+- [Phase 08]: 08-11: The Grid and Table switch keeps the current page; only a filter change goes back to page 1 (RESEARCH A4, logged for owner review).
+- [Phase 08]: 08-11: useOrdersView takes the list values and setters so the page runs useOrdersListParams once; only the toggle writes the URL and localStorage, and pressing the shown view writes nothing.
 
 ### Pending Todos
 
@@ -930,6 +933,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T04:25:51.975Z
-Stopped at: Completed 08-10-PLAN.md
+Last session: 2026-10-30T05:03:26.218Z
+Stopped at: Completed 08-11-PLAN.md
 Resume file: None
