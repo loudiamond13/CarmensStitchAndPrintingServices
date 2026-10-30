@@ -1160,3 +1160,131 @@ describe('the view switch (ORD-10, UIC-30; plan 08-11)', () => {
     expect(queryOf(backend.lists[0])).toEqual({ page: '1', pageSize: '20', sort: 'due', status: 'active' });
   });
 });
+
+describe('the table view states and links (ORD-01, D-51, UIC-1, UIC-2; plan 08-11)', () => {
+  it('announces Loading orders… on the first load with a skeleton table of 4 rows, then shows the rows', async () => {
+    useOrderHandlers({
+      list: async () => {
+        await delay(150);
+        return standardOrderList();
+      },
+    });
+    renderPage('?view=table');
+
+    expect(await screen.findByText('Loading orders…')).toBeInTheDocument();
+    expect(document.querySelectorAll('tbody tr')).toHaveLength(4);
+    expect(screen.queryByRole('link', { name: /^ORD-/ })).toBeNull();
+
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
+    expect(screen.queryByText('Loading orders…')).toBeNull();
+    expect(screen.getAllByRole('row')).toHaveLength(5);
+  });
+
+  it('shows the same rows, in the order the server sent them', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=table');
+
+    await screen.findByRole('table', { name: 'Orders' });
+    const numbers = screen.getAllByRole('link', { name: /^ORD-2026-/ }).map((link) => link.textContent);
+    expect(numbers).toEqual(['ORD-2026-0148', 'ORD-2026-0151', 'ORD-2026-0153', 'ORD-2026-0160']);
+  });
+
+  it('opens an order from its number with the current list address in the navigation state (D-51)', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=table&size=50');
+
+    await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-0148' }));
+
+    expect(locationNow()).toEqual({
+      path: `/admin/orders/${order0148.id}`,
+      state: { from: '/admin/orders?size=50&view=table' },
+    });
+  });
+
+  it('opens View and Edit Details from the row actions with the same back state', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=table');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'View order ORD-2026-0151' }));
+    expect(locationNow()).toEqual({
+      path: `/admin/orders/${order0151.id}`,
+      state: { from: '/admin/orders?view=table' },
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit details of order ORD-2026-0153' }));
+    expect(locationNow()).toEqual({
+      path: `/admin/orders/${order0153.id}/edit`,
+      state: { from: '/admin/orders?view=table' },
+    });
+  });
+
+  it("shows Couldn't load orders. with Try Again, and Try Again reads the list again", async () => {
+    let calls = 0;
+    useOrderHandlers({
+      list: () => {
+        calls += 1;
+        return calls === 1 ? orderProblem(500) : standardOrderList();
+      },
+    });
+    renderPage('?view=table');
+
+    expect(await screen.findByText("Couldn't load orders.")).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
+    expect(calls).toBe(2);
+  });
+
+  it('shows No active orders with New Order when the default view has no rows', async () => {
+    useOrderHandlers({ list: buildOrderList([], { all: 0, active: 0 }) });
+    renderPage('?view=table');
+
+    expect(await screen.findByRole('heading', { name: 'No active orders' })).toBeVisible();
+    expect(screen.getAllByRole('link', { name: 'New Order' }).length).toBeGreaterThan(0);
+  });
+
+  it('shows No matches for a search with no rows, and Clear Filters keeps the table view', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    useOrderHandlers({
+      list: (url) => (url.searchParams.has('q') ? buildOrderList([], { all: 148, active: 37 }) : standardOrderList()),
+    });
+    renderPage('?view=table&q=zzz', onUrlUpdate);
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
+    expect(urlWrites(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '?view=table' });
+    expect(screen.getByRole('radio', { name: 'Table view' })).toBeChecked();
+  });
+
+  it('keeps the rows and goes back to page 1 when a filter changes in the table view', async () => {
+    const backend = useOrderHandlers({
+      list: (url) =>
+        buildOrderList([order0148, order0151].map(listEntryOf), {
+          all: 148,
+          active: 37,
+          total: 45,
+          page: Number(url.searchParams.get('page')),
+          pageSize: Number(url.searchParams.get('pageSize')),
+        }),
+    });
+    renderPage('?view=table&page=3');
+    await screen.findByRole('table', { name: 'Orders' });
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'Delivered');
+
+    await waitFor(() => {
+      expect(queryOf(backend.lists.at(-1))).toMatchObject({ page: '1', status: 'delivered' });
+    });
+    expect(screen.getByRole('radio', { name: 'Table view' })).toBeChecked();
+  });
+
+  it('has no axe violations in the table view', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    const view = renderPage('?view=table');
+
+    await screen.findByRole('table', { name: 'Orders' });
+    await expectNoAxeViolations(view.container);
+  });
+});
