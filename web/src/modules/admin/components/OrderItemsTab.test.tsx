@@ -138,3 +138,92 @@ describe('a locked or deleted view (D-15, D-24)', () => {
     expect(screen.queryByRole('button', { name: /add|edit|delete/i })).toBeNull();
   });
 });
+
+// ---- Edit and Delete (plan 08-14 tasks 2 and 3) ----
+
+const BASKETBALL_REF = { id: BASKETBALL_ID, name: 'Basketball Jersey', tone: 'accent', retired: false };
+const TOP = orderItem(BASKETBALL_REF, 'Jersey top', 15, 650, { id: '00000000-0000-4000-9100-0000000000c1' });
+const SHORTS = orderItem(BASKETBALL_REF, 'Shorts, matching colorway', 15, 300, {
+  id: '00000000-0000-4000-9100-0000000000c2',
+});
+const POLO = orderItem(BASKETBALL_REF, 'Coach polo', 2, 550, { id: '00000000-0000-4000-9100-0000000000c3' });
+
+/** Three items, 15,350.00 in all. */
+const THREE = buildOrderDetail({
+  items: [TOP, SHORTS, POLO],
+  discounts: [],
+  totals: { ...order0148.totals, subtotal: 15350, discount: 0, total: 15350, paid: 12000, balance: 3350 },
+});
+
+/** The order the server answers a change with. */
+function answer(items: OrderDetailFixture['items'], balance: number): OrderDetailFixture {
+  return buildOrderDetail({
+    items,
+    discounts: [],
+    version: 'AAAAAAAAB9F=',
+    totals: { ...order0148.totals, subtotal: 15350, discount: 0, total: 15350, paid: 12000, balance },
+  });
+}
+
+describe('row actions (D-54a, UIC-54)', () => {
+  it('names each row action by its row, with a matching title', async () => {
+    useOrderHandlers({ detail: THREE });
+    renderTab(THREE);
+
+    const edit = await screen.findByRole('button', { name: 'Edit item 2, Shorts, matching colorway' });
+    const remove = screen.getByRole('button', { name: 'Delete item 2, Shorts, matching colorway' });
+    expect(edit).toHaveAttribute('title', 'Edit item 2, Shorts, matching colorway');
+    expect(remove).toHaveAttribute('title', 'Delete item 2, Shorts, matching colorway');
+    expect(screen.getAllByRole('button', { name: /^Edit item / })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /^Delete item / })).toHaveLength(3);
+  });
+});
+
+describe('Edit Item', () => {
+  it("opens the window with the row's values, saves, shows the server's figures and puts focus back on the row's Edit", async () => {
+    const user = userEvent.setup();
+    const changed = orderItem(BASKETBALL_REF, 'Shorts, matching colorway', 20, 300, { id: SHORTS.id });
+    const backend = useOrderHandlers({
+      detail: THREE,
+      reply: () => HttpResponse.json(answer([TOP, changed, POLO], 6350)),
+    });
+    renderTab(THREE);
+    const edit = await screen.findByRole('button', { name: 'Edit item 2, Shorts, matching colorway' });
+
+    await user.click(edit);
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit Item' });
+    await within(dialog).findByRole('option', { name: 'Basketball Jersey' });
+    expect(within(dialog).getByRole('textbox', { name: /^Description/ })).toHaveValue('Shorts, matching colorway');
+    await user.clear(within(dialog).getByRole('textbox', { name: /^Quantity/ }));
+    await user.type(within(dialog).getByRole('textbox', { name: /^Quantity/ }), '20');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Item' }));
+
+    const table = await screen.findByRole('table', { name: 'Order items' });
+    await waitFor(() => {
+      expect(within(table).getByText('Items subtotal · 37 pcs')).toBeVisible();
+    });
+    expect(backend.writes[0]?.method).toBe('PUT');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Item' })).toBeNull();
+    });
+    expect(screen.getByRole('button', { name: 'Edit item 2, Shorts, matching colorway' })).toHaveFocus();
+  });
+
+  it('puts focus back on the row Edit after Discard Changes too', async () => {
+    const user = userEvent.setup();
+    useOrderHandlers({ detail: THREE });
+    renderTab(THREE);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit item 3, Coach polo' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit Item' });
+    await user.type(within(dialog).getByRole('textbox', { name: /^Description/ }), ' x');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await user.click(await screen.findByRole('button', { name: 'Discard Changes' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.getByRole('button', { name: 'Edit item 3, Coach polo' })).toHaveFocus();
+  });
+});

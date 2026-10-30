@@ -12,12 +12,15 @@ import { expectNoAxeViolations } from '@/test/axe';
 import {
   buildOrderDetail,
   order0148,
+  ORDER_STAFF_TWO,
   ORDER_VERSION,
+  orderItem,
   orderProblem,
   useOrderHandlers,
   type OrderBackend,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
+import { BASKETBALL_ID, OLD_TYPE_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // O2 item window, add mode (ORD-05, D-28; plan 08-14): the fields in UI-SPEC order, one save with one key and the opened version,
@@ -366,5 +369,354 @@ describe('add mode refusals', () => {
     await user.click(saveButton());
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong');
+  });
+});
+
+// ---- Edit mode (ORD-08, D-44, D-58, UIC-9, UIC-20, UIC-22, UIC-23, UIC-25) ----
+
+const BASKETBALL_REF = { id: BASKETBALL_ID, name: 'Basketball Jersey', tone: 'accent', retired: false };
+const RETIRED_REF = { id: OLD_TYPE_ID, name: 'Old Style Jersey', tone: 'neutral', retired: true };
+
+/** The item the edit tests open: recorded by Carmen, never changed. */
+const SHORTS = orderItem(BASKETBALL_REF, 'Shorts, matching colorway', 15, 300, {
+  id: '00000000-0000-4000-9100-0000000000b1',
+  sizeVariant: 'S-XL',
+});
+const OTHER = orderItem(BASKETBALL_REF, 'Jersey top', 15, 650, { id: '00000000-0000-4000-9100-0000000000b2' });
+const TWO_ITEMS = buildOrderDetail({ items: [OTHER, SHORTS] });
+
+function renderEdit({
+  order = TWO_ITEMS,
+  itemId = SHORTS.id,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+}: RenderOptions & { itemId?: string } = {}) {
+  queryClient.setQueryData(orderKey(order.id), order);
+  const tree = (current: OrderDetailFixture) => (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <OrderItemModal mode="edit" order={current} itemId={itemId} onClose={onClose} onSaved={onSaved} />
+      </ToastProvider>
+    </QueryClientProvider>
+  );
+  const view = render(tree(order));
+  return { ...view, onClose, onSaved, rerenderWith: (current: OrderDetailFixture) => view.rerender(tree(current)) };
+}
+
+function problemResponse(status: number, code: string, detail?: string): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status, code, ...(detail === undefined ? {} : { detail }) }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  });
+}
+
+describe('edit mode opening', () => {
+  it('opens as "Edit Item" with the item values, the customer description and the Recorded by block', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit Item' });
+    expect(within(dialog).getByText('ORD-2026-0148 · Brgy. San Roque Ballers')).toBeInTheDocument();
+    expect(productType()).toHaveValue(BASKETBALL_ID);
+    expect(sizeVariant()).toHaveValue('S-XL');
+    expect(description()).toHaveValue('Shorts, matching colorway');
+    expect(quantity()).toHaveValue('15');
+    expect(unitPrice()).toHaveValue('300.00');
+    expect(within(dialog).getByText('Line total: ₱4,500.00')).toBeInTheDocument();
+    expect(within(dialog).getByText('Recorded by')).toBeInTheDocument();
+    expect(within(dialog).getByText('Carmen Reyes', { exact: false })).toBeInTheDocument();
+  });
+
+  it('shows no Last changed by value for an item that was never changed (UIC-9)', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    const term = screen.getByText('Last changed by');
+    const row = term.closest('div');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText('Not set')).toBeInTheDocument();
+    expect(within(row as HTMLElement).queryByText('Carmen Reyes')).toBeNull();
+  });
+
+  it('shows Last changed by with the person once the item was changed (D-44)', async () => {
+    useOrderHandlers();
+    const changed = orderItem(BASKETBALL_REF, 'Shorts, matching colorway', 15, 300, {
+      id: SHORTS.id,
+      lastChangedBy: ORDER_STAFF_TWO,
+      lastChangedAt: '2026-10-02T04:00:00Z',
+    });
+    renderEdit({ order: buildOrderDetail({ items: [OTHER, changed] }) });
+    await ready();
+
+    const row = screen.getByText('Last changed by').closest('div');
+    expect(within(row as HTMLElement).getByText('Paolo Garcia', { exact: false })).toBeInTheDocument();
+  });
+
+  it('keeps a retired own type listed as "{name} (retired)" and selected', async () => {
+    useOrderHandlers();
+    const retired = orderItem(RETIRED_REF, 'Old shirt', 3, 400, { id: SHORTS.id });
+    renderEdit({ order: buildOrderDetail({ items: [OTHER, retired] }) });
+    await ready();
+
+    expect(screen.getByRole('option', { name: 'Old Style Jersey (retired)' })).toBeInTheDocument();
+    expect(productType()).toHaveValue(OLD_TYPE_ID);
+  });
+
+  it('has no axe violations', async () => {
+    useOrderHandlers();
+    renderEdit();
+    await ready();
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('edit mode saving', () => {
+  it('puts the changed item with the opened version and no Idempotency-Key, then closes and toasts "Item updated"', async () => {
+    const answer = answerWith();
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answer) });
+    const user = userEvent.setup();
+    const { onClose, onSaved } = renderEdit();
+    await ready();
+
+    await user.clear(quantity());
+    await user.type(quantity(), '20');
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(onSaved).toHaveBeenCalledWith(answer);
+    expect(backend.writes).toHaveLength(1);
+    const [write] = backend.writes;
+    expect(write?.method).toBe('PUT');
+    expect(write?.path).toBe(`/orders/${TWO_ITEMS.id}/items/${SHORTS.id}`);
+    expect(write?.key).toBeNull();
+    expect(write?.body).toEqual({
+      productTypeId: BASKETBALL_ID,
+      description: 'Shorts, matching colorway',
+      sizeVariant: 'S-XL',
+      quantity: 20,
+      unitPrice: 300,
+      version: ORDER_VERSION,
+    });
+    expect(await screen.findByText('Item updated')).toBeInTheDocument();
+  });
+
+  it('keeps the version it opened with when a focus refetch brings a newer order (ORD-07 concurrency)', async () => {
+    const backend = useOrderHandlers({ reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { rerenderWith } = renderEdit();
+    await ready();
+
+    rerenderWith(buildOrderDetail({ items: [OTHER, SHORTS], version: 'AAAAAAAAB9G=' }));
+    await user.clear(quantity());
+    await user.type(quantity(), '20');
+    await user.click(saveButton());
+
+    await screen.findByText('Item updated');
+    expect((backend.writes[0]?.body as { version: string }).version).toBe(ORDER_VERSION);
+  });
+});
+
+describe('edit mode stale save (409, UIC-20)', () => {
+  it('shows the conflict banner, keeps the typed values, and Load Latest replaces the values and the version', async () => {
+    const latestItem = orderItem(BASKETBALL_REF, 'Shorts, new colorway', 18, 310, {
+      id: SHORTS.id,
+      sizeVariant: 'M',
+      lastChangedBy: ORDER_STAFF_TWO,
+      lastChangedAt: '2026-10-02T04:00:00Z',
+    });
+    const latest = buildOrderDetail({ items: [OTHER, latestItem], version: 'AAAAAAAAB9F=' });
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: latest,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? problemResponse(409, 'edit.stale') : HttpResponse.json(answerWith());
+      },
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await user.clear(quantity());
+    await user.type(quantity(), '20');
+
+    await user.click(saveButton());
+
+    const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
+    expect(screen.getByText('This was changed by someone else.')).toBeInTheDocument();
+    expect(loadLatest).toHaveFocus();
+    expect(quantity()).toHaveValue('20');
+
+    await user.click(loadLatest);
+
+    await waitFor(() => {
+      expect(quantity()).toHaveValue('18');
+    });
+    expect(description()).toHaveValue('Shorts, new colorway');
+    expect(unitPrice()).toHaveValue('310.00');
+    expect(sizeVariant()).toHaveValue('M');
+    expect(screen.queryByRole('button', { name: 'Load Latest' })).toBeNull();
+    expect(screen.getByText('Latest version loaded. Make your changes again.')).toBeInTheDocument();
+    expect(productType()).toHaveFocus();
+    expect(screen.getByText('Paolo Garcia', { exact: false })).toBeInTheDocument();
+
+    await user.click(saveButton());
+    await screen.findByText('Item updated');
+    expect((backend.writes[1]?.body as { version: string }).version).toBe('AAAAAAAAB9F=');
+  });
+
+  it('says the item was removed when the latest order no longer has it, and blocks Save', async () => {
+    const latest = buildOrderDetail({ items: [OTHER], version: 'AAAAAAAAB9F=' });
+    useOrderHandlers({ detail: latest, reply: () => problemResponse(409, 'edit.stale') });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await user.clear(quantity());
+    await user.type(quantity(), '20');
+    await user.click(saveButton());
+
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+
+    expect(await screen.findByText('This item was removed.')).toBeInTheDocument();
+    expect(screen.getByText('Close this and check the order.')).toBeInTheDocument();
+    expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('edit mode refusals', () => {
+  it('on 422 orders.locked shows the server text, makes Save aria-disabled and reads the order again (UIC-22)', async () => {
+    const backend = useOrderHandlers({
+      reply: () => problemResponse(422, 'orders.locked', 'This order is completed. Reopen it to make changes.'),
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await user.clear(quantity());
+    await user.type(quantity(), '20');
+    const reads = backend.reads.length;
+
+    await user.click(saveButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('This order is completed. Reopen it to make changes.');
+    expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
+    await waitFor(() => {
+      expect(backend.reads.length).toBeGreaterThan(reads);
+    });
+  });
+
+  it('on 422 discount-above-subtotal shows the server text and leaves Save usable (UIC-23)', async () => {
+    useOrderHandlers({
+      reply: () =>
+        problemResponse(
+          422,
+          'orders.discount-above-subtotal',
+          'The discounts would be more than the items total. Lower or remove a discount first.',
+        ),
+    });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await user.clear(quantity());
+    await user.type(quantity(), '2');
+
+    await user.click(saveButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The discounts would be more than the items total. Lower or remove a discount first.',
+    );
+    expect(saveButton()).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('on 404 says the item was removed and makes Save aria-disabled (UIC-25)', async () => {
+    useOrderHandlers({ reply: () => problemResponse(404, 'orders.item-not-found') });
+    const user = userEvent.setup();
+    renderEdit();
+    await ready();
+    await user.clear(quantity());
+    await user.type(quantity(), '20');
+
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This item was removed.')).toBeInTheDocument();
+    expect(screen.getByText('Close this and check the order.')).toBeInTheDocument();
+    expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('add mode stale save (UIC-20)', () => {
+  it('Load Latest refreshes the order and keeps what was typed, and the next save sends the new version', async () => {
+    const latest = buildOrderDetail({ version: 'AAAAAAAAB9F=' });
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: latest,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? problemResponse(409, 'edit.stale') : HttpResponse.json(answerWith());
+      },
+    });
+    const user = userEvent.setup();
+    renderModal();
+    await fillValid(user);
+    await user.click(saveButton());
+
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Load Latest' })).toBeNull();
+    });
+    expect(description()).toHaveValue('Warm-up jacket');
+    expect(quantity()).toHaveValue('12');
+    expect(queryClient.getQueryData(orderKey(order0148.id))).toEqual(latest);
+
+    await user.click(saveButton());
+    await screen.findByText('Item added');
+    expect((backend.writes[1]?.body as { version: string }).version).toBe('AAAAAAAAB9F=');
+    expect(backend.writes[1]?.key).not.toBe(backend.writes[0]?.key);
+  });
+});
+
+describe('closing with typed values (D-58, UIC-43)', () => {
+  it('closes at once when nothing was changed', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: 'Discard changes?' })).toBeNull();
+  });
+
+  it('asks "Discard changes?" after a change, and Keep Editing keeps the typed value', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderEdit();
+    await ready();
+    await user.type(description(), ' v2');
+
+    await user.keyboard('{Escape}');
+
+    const question = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    await user.click(within(question).getByRole('button', { name: 'Keep Editing' }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(description()).toHaveValue('Shorts, matching colorway v2');
+  });
+
+  it('asks on a half filled add window and closes on Discard Changes', async () => {
+    useOrderHandlers();
+    const user = userEvent.setup();
+    const { onClose } = renderModal();
+    await ready();
+    await user.type(description(), 'Half');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(await screen.findByRole('button', { name: 'Discard Changes' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
