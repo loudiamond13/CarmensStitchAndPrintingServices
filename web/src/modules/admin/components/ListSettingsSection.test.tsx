@@ -397,7 +397,13 @@ const STATES: readonly {
   tableName: string;
   things: string;
 }[] = [
-  { list: 'product-types', route: 'product-types', heading: 'Product Types', tableName: 'Product types', things: 'product types' },
+  {
+    list: 'product-types',
+    route: 'product-types',
+    heading: 'Product Types',
+    tableName: 'Product types',
+    things: 'product types',
+  },
   {
     list: 'payment-methods',
     route: 'payment-methods',
@@ -412,11 +418,17 @@ const STATES: readonly {
     tableName: 'Order expense categories',
     things: 'order expense categories',
   },
-  { list: 'expense-categories', route: null, heading: 'Company Expense Categories', tableName: 'Expense categories', things: 'categories' },
+  {
+    list: 'expense-categories',
+    route: null,
+    heading: 'Company Expense Categories',
+    tableName: 'Expense categories',
+    things: 'categories',
+  },
 ];
 
 /** Answers the list of any tab, the company categories included. */
-function serve(list: ListKey, answer: (() => unknown[] | Response | Promise<unknown[] | Response>)): void {
+function serve(list: ListKey, answer: () => unknown[] | Response | Promise<unknown[] | Response>): void {
   if (list === 'expense-categories') {
     categoriesBackend(async () => (await answer()) as never);
   } else {
@@ -442,7 +454,9 @@ describe.each(STATES)('S1 list states: $list', ({ list, heading, tableName, thin
     let calls = 0;
     serve(list, () => {
       calls += 1;
-      return calls === 1 ? problemResponse(500) : [listItem('44444444-0000-4000-8000-000000000001', 'Sample entry', 'info')];
+      return calls === 1
+        ? problemResponse(500)
+        : [listItem('44444444-0000-4000-8000-000000000001', 'Sample entry', 'info')];
     });
     const view = renderSection(list);
 

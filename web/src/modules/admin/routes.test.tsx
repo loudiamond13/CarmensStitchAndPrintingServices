@@ -1,6 +1,7 @@
 // The guarded admin routes (AUTH-05, D-07, D-20 reversal; plan 04-25), over the app's real route objects with MSW
 // answering the API.
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -21,6 +22,7 @@ import {
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { useOrderHandlers } from '@/test/orderFixtures';
+import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -334,10 +336,13 @@ describe('Settings for Managers (D-14, OQ-3; plan 06-17)', () => {
   it('a Manager who opens /admin/settings stays and sees the page, with Settings the one current item and no tab current', async () => {
     answerRefresh(sessionResponse());
     categoriesBackend();
+    listBackend('product-types', PRODUCT_TYPES);
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/settings'] });
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Settings' }, { timeout: 10_000 })).toBeVisible();
+    // Settings opens on Product Types; the Phase 6 card is the Company Expense Categories tab (D-31, plan 08-08).
+    await userEvent.click(await screen.findByRole('tab', { name: 'Company Expense Categories' }));
     expect(await screen.findByRole('table', { name: 'Expense categories' })).toBeVisible();
     expect(router.state.location.pathname).toBe('/admin/settings');
     const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
