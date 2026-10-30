@@ -127,7 +127,7 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
 
 describe('the Discounts tab (ORD-07)', () => {
   it('lists a percentage discount with its reason, type, value and negative amount', () => {
-    render(<OrderDiscountsTab order={order0148} />);
+    render(<OrderDiscountsTab order={order0148} readOnly />);
 
     const table = screen.getByRole('table', { name: 'Discounts' });
     for (const name of ['Reason', 'Type', 'Value', 'Amount']) {
@@ -142,7 +142,7 @@ describe('the Discounts tab (ORD-07)', () => {
   });
 
   it('lists a fixed discount with its peso value', () => {
-    render(<OrderDiscountsTab order={order0151} />);
+    render(<OrderDiscountsTab order={order0151} readOnly />);
 
     const [row] = bodyRows(screen.getByRole('table', { name: 'Discounts' }));
     if (row === undefined) throw new Error('Expected one discount row');
@@ -155,13 +155,13 @@ describe('the Discounts tab (ORD-07)', () => {
     const order = buildOrderDetail({
       discounts: [orderDiscount('fixed', 100, 'First'), orderDiscount('fixed', 50, 'Second')],
     });
-    render(<OrderDiscountsTab order={order} />);
+    render(<OrderDiscountsTab order={order} readOnly />);
 
     expect(bodyRows(screen.getByRole('table', { name: 'Discounts' }))).toHaveLength(2);
   });
 
   it('ends with Total discount from the server figure, and names the caption', () => {
-    render(<OrderDiscountsTab order={order0148} />);
+    render(<OrderDiscountsTab order={order0148} readOnly />);
 
     const footer = within(screen.getByRole('table', { name: 'Discounts' }))
       .getByText('Total discount')
@@ -172,7 +172,7 @@ describe('the Discounts tab (ORD-07)', () => {
   });
 
   it('shows an inline empty line when there are no discounts (UIC-4)', () => {
-    render(<OrderDiscountsTab order={buildOrderDetail({ discounts: [] })} />);
+    render(<OrderDiscountsTab order={buildOrderDetail({ discounts: [] })} readOnly />);
 
     expect(screen.getByText('No discounts yet.')).toBeVisible();
     expect(screen.queryByRole('table')).toBeNull();
@@ -185,7 +185,7 @@ describe('the Discounts tab (ORD-07)', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = render(<OrderDiscountsTab order={order0148} />);
+    const { container } = render(<OrderDiscountsTab order={order0148} readOnly />);
 
     await expectNoAxeViolations(container);
   });
