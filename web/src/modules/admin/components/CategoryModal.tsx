@@ -34,6 +34,7 @@ import {
   type CategoryFormInput,
   type CategoryFormValues,
 } from '@/modules/admin/categorySchemas';
+import type { ListSettingsConfig } from '@/modules/admin/listSettingsConfigs';
 import { useExpenseCategoryQuery } from '@/modules/admin/hooks/useExpenseCategoryQuery';
 import {
   expenseCategoriesService,
@@ -66,6 +67,8 @@ interface CategoryModalCommon {
   onClose: () => void;
   /** The category was saved. */
   onSaved: (category: SavedCategory) => void;
+  /** Which list the modal serves; skeleton, read in the green step. */
+  config?: ListSettingsConfig;
 }
 
 export interface AddCategoryModalProps extends CategoryModalCommon {
