@@ -114,11 +114,71 @@ public sealed class TestingOrdersTests(CspsDatabase database) : IClassFixture<Cs
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task ACancelledOrderCanBeSeededWithARefundAndTheReadShowsItAsRefunded()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var body = Body("ORD-2026-0717", "cancelled", today, admin.UserId);
+        body["payments"] = new[] { OrderFixtures.PaymentItem(today.AddDays(-3), 12000.00m, OrderFixtures.GCashId, admin.UserId) };
+        body["refunds"] = new[] { RefundItem(today.AddDays(-1), 500.00m, "Customer changed the order", admin.UserId) };
+
+        var id = await CreateAsync(client, body);
+
+        var read = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        read.GetProperty("status").GetString().ShouldBe("cancelled");
+        read.GetProperty("totals").GetProperty("paid").GetDecimal().ShouldBe(12000.00m);
+        read.GetProperty("totals").GetProperty("refunded").GetDecimal().ShouldBe(500.00m);
+        var refund = read.GetProperty("refunds").EnumerateArray().ShouldHaveSingleItem();
+        refund.GetProperty("amount").GetDecimal().ShouldBe(500.00m);
+        refund.GetProperty("reason").GetString().ShouldBe("Customer changed the order");
+        refund.GetProperty("refundedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+    }
+
+    [Fact]
+    public async Task ARefundWithABadDateIs400OnItsDateField()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var body = Body("ORD-2026-0718", "cancelled", today, admin.UserId);
+        var refund = RefundItem(today.AddDays(-1), 500.00m, "Customer changed the order", admin.UserId);
+        refund["refundDate"] = "not a date";
+        body["refunds"] = new[] { refund };
+
+        using var response = await client.PostAsJsonAsync(new Uri(Route, UriKind.Relative), body, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        ExpenseFixtures.ErrorFields(problem).ShouldBe(["refunds[0].refundDate"]);
+    }
+
+    [Fact]
+    public async Task AnUnknownRefunderIs400OnTheRefundField()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var body = Body("ORD-2026-0719", "cancelled", today, admin.UserId);
+        body["refunds"] = new[] { RefundItem(today.AddDays(-1), 500.00m, "Customer changed the order", Guid.NewGuid()) };
+
+        using var response = await client.PostAsJsonAsync(new Uri(Route, UriKind.Relative), body, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        ExpenseFixtures.ErrorFields(problem).ShouldBe(["refunds[0].refundedByUserId"]);
+    }
+
     [Theory]
     [InlineData("""{"items":[null]}""", "items")]
     [InlineData("""{"discounts":[null]}""", "discounts")]
     [InlineData("""{"payments":[null]}""", "payments")]
     [InlineData("""{"expenses":[null]}""", "expenses")]
+    [InlineData("""{"refunds":[null]}""", "refunds")]
     public async Task ANullListMemberIs400OnItsListNotA500(string json, string field)
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -183,6 +243,14 @@ public sealed class TestingOrdersTests(CspsDatabase database) : IClassFixture<Cs
         ["dueDate"] = OrderFixtures.Date(today.AddDays(4)),
         ["items"] = new[] { OrderFixtures.Item(OrderFixtures.BasketballId) },
         ["payments"] = new[] { OrderFixtures.PaymentItem(today.AddDays(-3), 5000.00m, OrderFixtures.GCashId, receiver) },
+    };
+
+    private static Dictionary<string, object?> RefundItem(DateOnly refundDate, decimal amount, string reason, Guid refundedByUserId) => new()
+    {
+        ["refundDate"] = OrderFixtures.Date(refundDate),
+        ["amount"] = amount,
+        ["reason"] = reason,
+        ["refundedByUserId"] = refundedByUserId,
     };
 
     private static async Task<Guid> CreateAsync(HttpClient client, Dictionary<string, object?> body)
