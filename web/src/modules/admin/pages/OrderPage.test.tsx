@@ -15,6 +15,7 @@ import {
   completedOrder,
   creditOrder,
   order0148,
+  orderProblem,
   useOrderHandlers,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
@@ -40,20 +41,22 @@ afterEach(() => {
 interface RenderOptions {
   order?: OrderDetailFixture;
   search?: string;
+  /** The navigation state the page was opened with (the list card links send `{ from }`). */
+  state?: unknown;
 }
 
 /**
  * Opens the order page in a data router, with the Orders list and the edit page as stand-ins to land on. The fake API answers
  * ORD-2026-0148 unless the test called useOrderHandlers({ detail }) first.
  */
-function renderOrder({ order = order0148, search = '' }: RenderOptions = {}) {
+function renderOrder({ order = order0148, search = '', state }: RenderOptions = {}) {
   const router = createMemoryRouter(
     [
       { path: '/admin/orders', element: <p>The orders list</p> },
       { path: '/admin/orders/:id', element: <OrderPage /> },
       { path: '/admin/orders/:id/edit', element: <p>The edit page</p> },
     ],
-    { initialEntries: [`/admin/orders/${order.id}${search}`] },
+    { initialEntries: [{ pathname: `/admin/orders/${order.id}`, search, state }] },
   );
   const view = render(
     <QueryClientProvider client={queryClient}>
@@ -266,5 +269,108 @@ describe('accessibility (A11Y-01)', () => {
 
     await screen.findByRole('table', { name: 'Order items' });
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('loading, failure and not found (UIC-14, UIC-18, UIC-19)', () => {
+  it('shows skeletons in a region named Loading order… on the first load', async () => {
+    let release: (order: OrderDetailFixture) => void = () => undefined;
+    useOrderHandlers({
+      detail: () =>
+        new Promise<OrderDetailFixture>((resolve) => {
+          release = resolve;
+        }),
+    });
+    const { container } = renderOrder();
+
+    expect(await screen.findByText('Loading order…')).toBeInTheDocument();
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(container.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(3);
+
+    release(order0148);
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' })).toBeVisible();
+    expect(screen.getByText('Order loaded.')).toBeInTheDocument();
+  });
+
+  it("shows Couldn't load this order. with Try Again for a 500, and Try Again reads the order again", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    useOrderHandlers({
+      detail: () => {
+        calls += 1;
+        return calls === 1 ? orderProblem(500) : order0148;
+      },
+    });
+    const { container } = renderOrder();
+
+    expect(await screen.findByText("Couldn't load this order.")).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' })).toBeVisible();
+    expect(screen.queryByText("Couldn't load this order.")).toBeNull();
+    expect(calls).toBe(2);
+  });
+
+  it('shows This order was not found or was deleted. with Back to Orders for a 404', async () => {
+    useOrderHandlers({ detail: () => orderProblem(404, 'orders.not-found') });
+    const { container } = renderOrder();
+
+    expect(await screen.findByText('This order was not found or was deleted.')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Back to Orders' })).toHaveAttribute('href', '/admin/orders');
+    expect(screen.queryByRole('button', { name: 'Try Again' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the back link (D-51, T-08-18)', () => {
+  it('goes to the Orders list when the page was opened with no navigation state', async () => {
+    renderOrder();
+
+    expect(await screen.findByRole('link', { name: 'Orders' })).toHaveAttribute('href', '/admin/orders');
+  });
+
+  it('goes back to the list as the user left it, with its filters, page and view', async () => {
+    const from = '/admin/orders?status=delivered&page=2&view=table';
+    const { router } = renderOrder({ state: { from } });
+
+    const link = await screen.findByRole('link', { name: 'Orders' });
+    expect(link).toHaveAttribute('href', from);
+    await userEvent.setup().click(link);
+    await screen.findByText('The orders list');
+    expect(`${router.state.location.pathname}${router.state.location.search}`).toBe(from);
+  });
+
+  it.each([
+    ['a protocol-relative evil address', '//evil.example'],
+    ['an address outside the admin area', '/admin/users'],
+    ['a foreign address', 'https://evil.example/admin/orders'],
+    ['an address that only starts like Orders', '/admin/ordersx'],
+    ['an address outside the orders area, encoded', '/admin/%2e%2e/users'],
+    ['a backslash address', '/admin/orders\\evil'],
+    ['a value that is not text', 42],
+  ])('sends %s to the Orders list (evil, outside)', async (_name, from) => {
+    renderOrder({ state: { from } });
+
+    expect(await screen.findByRole('link', { name: 'Orders' })).toHaveAttribute('href', '/admin/orders');
+  });
+
+  it('keeps an order path under Orders, such as the deleted list', async () => {
+    renderOrder({ state: { from: '/admin/orders/deleted?page=2' } });
+
+    expect(await screen.findByRole('link', { name: 'Orders' })).toHaveAttribute('href', '/admin/orders/deleted?page=2');
+  });
+});
+
+describe('the document title (ORD-07)', () => {
+  it('reads the order number once the order has loaded', async () => {
+    renderOrder();
+
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    expect(document.title).toBe('ORD-2026-0148 · CSPS Admin');
   });
 });
