@@ -294,11 +294,22 @@ describe('reopening (D-16, 05 D-21)', () => {
   });
 
   it('sends one request for a double press', async () => {
-    const backend = useOrderHandlers({ detail: cancelledFromReady, reply: () => HttpResponse.json(reopened('ready')) });
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const backend = useOrderHandlers({
+      detail: cancelledFromReady,
+      reply: async () => {
+        await gate;
+        return HttpResponse.json(reopened('ready'));
+      },
+    });
     const { user } = renderModal();
     const button = within(dialog()).getByRole('button', { name: 'Reopen Order' });
 
     await user.dblClick(button);
+    release();
 
     await screen.findByText('Order reopened');
     expect(backend.writes).toHaveLength(1);

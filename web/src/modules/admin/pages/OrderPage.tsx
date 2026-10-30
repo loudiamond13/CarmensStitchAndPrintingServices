@@ -5,7 +5,7 @@
 // `tab` parameter. The first load shows skeletons, a failed load an ErrorState with Try Again, and a missing or deleted order a
 // message with Back to Orders. The back link returns to the list view the user left, when the navigation state holds a same-app
 // Orders address (D-51).
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { Button, ButtonLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
@@ -26,6 +26,7 @@ import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner'
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
 import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistory';
+import { ReopenOrderModal } from '@/modules/admin/components/ReopenOrderModal';
 import {
   orderCardClasses,
   orderCardHeadClasses,
@@ -157,6 +158,7 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
   // Where focus goes once the order has changed state: Reopen Order after a complete or cancel, Change Status after a reopen.
   // The button is not on the page until the answer has rendered, so the wish is kept and carried out after that render.
   const focusWish = useRef<'reopen' | 'status' | null>(null);
+  const [reopenOpen, setReopenOpen] = useState(false);
   useEffect(() => {
     const wish = focusWish.current;
     if ((wish === 'reopen' && locked) || (wish === 'status' && !locked)) {
@@ -177,11 +179,31 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
       />
       {locked && (
         <OrderLockedBanner status={order.status === 'completed' ? 'completed' : 'cancelled'}>
-          <Button variant="secondary" size="sm" icon="lock-open" id={REOPEN_ORDER_ID}>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="lock-open"
+            id={REOPEN_ORDER_ID}
+            onClick={() => {
+              setReopenOpen(true);
+            }}
+          >
             {COPY.locked.reopenOrder}
           </Button>
         </OrderLockedBanner>
       )}
+      <ReopenOrderModal
+        order={order}
+        open={reopenOpen}
+        onReopened={() => {
+          focusWish.current = 'status';
+        }}
+        onClose={() => {
+          setReopenOpen(false);
+          // A dismissed window leaves the order locked: focus goes back to the button that opened it (a reopen set its own wish).
+          focusWish.current ??= 'reopen';
+        }}
+      />
       <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>

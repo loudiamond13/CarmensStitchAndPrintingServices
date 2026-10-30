@@ -66,6 +66,19 @@ export const ORDER_PAGE_COPY = {
     failed: "Couldn't change the status",
     notFound: 'This order was not found or was deleted.',
   },
+  /** The Reopen Order window (D-16, D-57) and its toast. */
+  reopen: {
+    title: (number: string): string => `Reopen ${number}`,
+    description: 'Choose the status to go back to.',
+    legend: 'Reopen as',
+    cancel: 'Cancel',
+    confirm: 'Reopen Order',
+    pending: 'Reopening',
+    toast: {
+      title: 'Order reopened',
+      message: (number: string, label: string): string => `${number} is now ${label}.`,
+    },
+  },
   /** The Images card (D-27): Phase 9 replaces its body with the gallery. */
   images: {
     title: 'Images',

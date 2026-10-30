@@ -235,3 +235,9 @@ export const orderStatusDotToneClasses = {
 
 /** The empty slot that keeps a dot item and an icon item aligned. */
 export const orderStatusIconSlotClasses = tw('grid size-[18px] flex-none place-items-center');
+
+/** A status label in the Reopen window: the dot, then the words. */
+export const orderStatusRadioLabelClasses = tw('inline-flex items-center gap-2');
+
+/** The refusal line under the Reopen choices. */
+export const orderReopenMessageClasses = tw('mt-3');
