@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-30T14:25:00-05:00
+updated: 2026-10-30T14:40:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -247,3 +247,14 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 1. **Font sizes outside the spec (owner call).** `text-[17px]` (6), `text-[18px]` (2), `text-[24px]` (2, `orderItemsSubtotalFigureClasses`) and `text-[28px]` (2, `orderAsideTotalFigureClasses`) in the `orderForm`, `orderPage` and `orders` recipes. The UI spec names only the 17 px table balance cell. Options: add the display figure sizes to the spec, or move them onto the declared scale. Not changed while away.
 2. **Check the view switch label.** `OrdersPage.tsx` has no `aria-label` of its own; the Grid/Table switch should get its accessible name from the shared `SegmentedControl`. Confirm in the screenshot review (axe passes in the e2e runs).
 3. **Static audit only.** No screenshots were taken. The UIC-71 screenshot review (08-24 item 1) covers Visuals, Color and Spacing.
+
+## From the end-of-phase code review (08-REVIEW.md: 0 critical, 5 warnings, 8 info)
+
+These need the owner. Each would change behavior, the API, or an owner rule.
+
+1. **WR-01: discount row amounts are worked out in the browser.** The Discounts tab shows each discount's peso amount from browser math (the server sends only kind and value); the footer total is the server's. The Core Value says the client never computes totals. Options: (a) recommended: the server sends each discount's amount (adds an `Amount` field to the order answer, regenerates the API types; no database change); (b) keep the browser figure as it is, since the golden tests prove it matches today.
+2. **WR-02: client money caps block a save from an old snapshot.** Payment, refund and discount caps and the "would leave payments below refunds" check run in the browser and stop the request. If another staff member changes the order while a window is open, a valid amount is refused and Load Latest never appears. This pulls against OR-3 (check every rule in the browser first). Options: (a) recommended: keep the instant check, but refresh the window's figures when it regains focus or when the cap check fails, so the check uses current figures; (b) make the caps a warning only and let the server decide; (c) keep as is.
+3. **WR-05: Mark Completed is disabled from the page's last answer.** Same stale-figure issue. Options: (a) recommended: refetch the order when the status menu opens; (b) let the click through and let the server's refusal explain; (c) keep as is.
+4. **Deferred refactors (no behavior change, later cleanup):** IN-02 (the balance-state rule written in three files), IN-03 (about 100 lines shared by the order page and the deleted order page; also 08-23's note), IN-04 (`OrderFormPage.tsx` at 706 lines with a double cast). Suggested as a follow-up quick task.
+5. **IN-08 skipped by the fixer (owner call, low).** The reviewer said the Orders page count should use the settled page size. The fixer showed the live size is correct (the pager and clamp all use live values; using the settled size would clamp a valid page while a search settles) and found no failing case. The other option, holding the page clamp until the size settles, is a behavior call with no known failure. Recommended: leave as is.
+6. **WR-03 follow-up question.** The business-day fix bounds held days to 5 minutes for New Order and the windows; the Orders list is not bounded, because its own answers keep the day fresh and a bound would blank the list every 5 minutes. Recommended: leave the list unbounded.
