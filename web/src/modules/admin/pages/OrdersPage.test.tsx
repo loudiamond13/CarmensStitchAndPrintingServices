@@ -1,10 +1,10 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
-import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter, useLocation } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import OrdersPage from '@/modules/admin/pages/OrdersPage';
@@ -449,5 +449,104 @@ describe('paging and rows per page (ORD-01, EDGE ORD-01 boundary)', () => {
       expect(updates).toEqual(['replace:']);
     });
     expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '20' });
+  });
+});
+
+/** The URL writes nuqs made, as history mode and query string. */
+function urlWrites(spy: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): { history: string; query: string }[] {
+  return spy.mock.calls.map(([event]: [UrlUpdateEvent]) => ({
+    history: event.options.history,
+    query: event.queryString,
+  }));
+}
+
+describe('search (ORD-02, D-55, WEB-10)', () => {
+  it('puts the search toolbar under the header, with the result bar and the hidden Results heading', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+
+    await screen.findByText('148 orders · 37 active');
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    expect(screen.getByRole('search')).toContainElement(search);
+    expect(search).toHaveAttribute('placeholder', 'Order no., customer, team or phone');
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 4 orders · sorted by due date');
+    expect(screen.getByRole('heading', { level: 2, name: 'Results' })).toBeInTheDocument();
+  });
+
+  it('writes a typed search after 300 ms, asks the server once for the settled text and shows its chip', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('', onUrlUpdate);
+    await screen.findByText('148 orders · 37 active');
+
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    for (const text of ['0', '01', '014', '0148']) {
+      fireEvent.change(search, { target: { value: text } });
+    }
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=0148' }]);
+    });
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('0148');
+    });
+    expect(backend.lists.filter((url) => url.searchParams.has('q'))).toHaveLength(1);
+    expect(await screen.findByText('Search: 0148')).toBeInTheDocument();
+  });
+
+  it('clearing the Search chip removes q from the URL and from the next request', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?q=0148', onUrlUpdate);
+    await screen.findByText('Search: 0148');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear search filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Search: 0148')).toBeNull();
+    });
+    expect(urlWrites(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.has('q')).toBe(false);
+    });
+  });
+
+  it('shows no chip and sends no q when nothing is searched (an empty search sends no q)', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+
+    await screen.findByText('148 orders · 37 active');
+    expect(screen.queryByText(/^Search:/)).toBeNull();
+    expect(backend.lists.every((url) => !url.searchParams.has('q'))).toBe(true);
+  });
+
+  it('sends a q of Pena Dela Cruz (with the tilde n) to the API as the same text (encoding edge)', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?q=Pe%C3%B1a%20Dela%20Cruz');
+
+    expect(await screen.findByText('Search: Peña Dela Cruz')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('Peña Dela Cruz');
+    });
+  });
+
+  it('cuts a q of 101 characters to 100 before it reaches the API (boundary edge)', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage(`?q=${'a'.repeat(101)}`);
+
+    await screen.findByText('148 orders · 37 active');
+    expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('a'.repeat(100));
+  });
+
+  it('keeps the list order the server sent when a search is on', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?q=ORD');
+
+    await screen.findByText('Search: ORD');
+    const numbers = (await screen.findAllByRole('article')).map(
+      (card) => within(card).getByText(/^ORD-2026-/).textContent,
+    );
+    expect(numbers).toEqual(['ORD-2026-0148', 'ORD-2026-0151', 'ORD-2026-0153', 'ORD-2026-0160']);
   });
 });

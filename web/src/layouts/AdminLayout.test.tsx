@@ -1080,3 +1080,48 @@ describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
     clearSession();
   });
 });
+
+describe('AdminLayout topbar search (ORD-02, D-53)', () => {
+  it('Enter opens Orders with the text as q, encoded, and nothing else in the URL', async () => {
+    const { router } = await renderAt('/admin');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), 'Peña{Enter}');
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/orders');
+    });
+    expect(router.state.location.search).toBe('?q=Pe%C3%B1a');
+  });
+
+  it('trims the text before it goes to the URL', async () => {
+    const { router } = await renderAt('/admin');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), '  ballers  {Enter}');
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?q=ballers');
+    });
+  });
+
+  it('opens Orders with the other filters at their defaults when it starts on a filtered list', async () => {
+    const { router } = await renderAt('/admin/orders?status=delivered&page=3');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), '0148{Enter}');
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?q=0148');
+    });
+    expect(router.state.location.pathname).toBe('/admin/orders');
+  });
+
+  it('does nothing for an empty search or one of only spaces', async () => {
+    const { router } = await renderAt('/admin');
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+
+    await userEvent.type(search, '{Enter}');
+    await userEvent.type(search, '   {Enter}');
+
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(router.state.location.search).toBe('');
+  });
+});
