@@ -10,6 +10,9 @@ import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
   buildOrderDetail,
+  cancelledOrderWithRefunds,
+  completedOrder,
+  noDueDateOrder,
   ORDER_STAFF_TWO,
   ORDER_VERSION,
   order0148,
@@ -845,6 +848,83 @@ describe('stale saves, loading and missing orders (ORD-08, UIC-14, UIC-20)', () 
 
     expect(await screen.findByText('This order was not found or was deleted.')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Back to Orders' })).toBeVisible();
+    expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
+  });
+});
+
+describe('imported orders without a due date and locked orders (D-15, D-38, UIC-8)', () => {
+  it('opens an imported order with Due date empty and the hint, and asks for a date without sending anything', async () => {
+    const backend = useOrderHandlers({ detail: noDueDateOrder });
+    const { user } = await openEdit({ detail: noDueDateOrder });
+
+    expect(screen.getByLabelText(/^Due date/)).toHaveValue('');
+    expect(screen.getByText('This order came in without a due date. Enter one to save.')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('Enter the due date.')).toBeVisible();
+    expect(backend.writes).toHaveLength(0);
+    expect(screen.getByLabelText(/^Due date/)).toHaveFocus();
+  });
+
+  it('saves the due date once one is entered, and swaps the hint for the days away', async () => {
+    const backend = useOrderHandlers({ detail: noDueDateOrder });
+    const { user } = await openEdit({ detail: noDueDateOrder });
+
+    setDate('Due date', '2026-08-20');
+
+    expect(await screen.findByText('8 days from order date')).toBeVisible();
+    expect(screen.queryByText('This order came in without a due date. Enter one to save.')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await screen.findByText('The order page');
+    expect((backend.writes[0]?.body as { dueDate: string }).dueDate).toBe('2026-08-20');
+  });
+
+  it('shows no hint for an order that already has a due date', async () => {
+    useOrderHandlers();
+    await openEdit();
+
+    expect(screen.queryByText('This order came in without a due date. Enter one to save.')).toBeNull();
+  });
+
+  it('shows the locked banner and Back to Order instead of the form for a completed order', async () => {
+    useOrderHandlers({ detail: completedOrder });
+    renderEdit({ detail: completedOrder });
+
+    expect(await screen.findByText('This order is completed.')).toBeVisible();
+    expect(screen.getByText('Reopen it to make changes.')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Back to Order' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${completedOrder.id}`,
+    );
+    expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save Changes' })).toBeNull();
+    expect(screen.queryByText('Refunds can still be recorded on the Refunds tab.')).toBeNull();
+  });
+
+  it('adds the refunds line for a cancelled order', async () => {
+    useOrderHandlers({ detail: cancelledOrderWithRefunds });
+    renderEdit({ detail: cancelledOrderWithRefunds });
+
+    expect(await screen.findByText('This order is cancelled.')).toBeVisible();
+    expect(screen.getByText('Refunds can still be recorded on the Refunds tab.')).toBeVisible();
+    expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
+  });
+
+  it('shows the locked banner when a save finds the order locked meanwhile (422 orders.locked)', async () => {
+    let current: OrderDetailFixture = order0148;
+    useOrderHandlers({
+      detail: () => current,
+      reply: () => {
+        current = completedOrder;
+        return orderProblem(422, 'orders.locked');
+      },
+    });
+    const { user } = await openEdit();
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('This order is completed.')).toBeVisible();
     expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
   });
 });
