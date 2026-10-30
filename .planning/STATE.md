@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-12-PLAN.md
-last_updated: "2026-10-30T05:33:42.179Z"
+stopped_at: Completed 08-13-PLAN.md
+last_updated: "2026-10-30T06:28:40.124Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: a00a75a80ba341a42488726e723b350f6ee53f14
+state_head: b2c90e5955e612d17798f4ed0861f7c558806420
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 231
+  completed_plans: 232
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T20:37:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 13 of 24
+Plan: 14 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -291,6 +291,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P10 | 23 min | 3 tasks | 18 files |
 | Phase 08 P11 | 38 min | 3 tasks | 13 files |
 | Phase 08 P12 | 25 min | 3 tasks | 18 files |
+| Phase 08 P13 | 52 min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -832,6 +833,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-11: useOrdersView takes the list values and setters so the page runs useOrdersListParams once; only the toggle writes the URL and localStorage, and pressing the shown view writes nothing.
 - [Phase 08]: 08-12: The order page tab panels are titled Payments, Discounts, Expenses and Refunds (UI-SPEC names no h3 titles); a discount row amount is the csps.ts preview and the footer is the server total
 - [Phase 08]: 08-12: The phone balance card also says Not collected for a Cancelled order with money unpaid (D-45), SPEC-GAP for owner review; the side column follows the tab card on phones and sits above it on tablets
+- [Phase 08]: 08-13: the item grid follows the Items card width (container variants it-md, it-lg, it-lt-lg), not the page width, because the card sits beside the aside and is too narrow for seven columns at the spec page widths — Owner review in deferred-items.md (From plan 08-13)
+- [Phase 08]: 08-13: useUnsavedChangesGuard returns allowLeave and dialog; allowLeave is called before navigating after a save, and the sign-in page is never held — Plan 08-15 reuses it unchanged
 
 ### Pending Todos
 
@@ -936,6 +939,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T05:33:31.048Z
-Stopped at: Completed 08-12-PLAN.md
+Last session: 2026-10-30T06:28:26.732Z
+Stopped at: Completed 08-13-PLAN.md
 Resume file: None
