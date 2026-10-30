@@ -164,6 +164,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'orders/new', lazy: orderFormPage },
           // ORD-07: one order. The static segments (orders/new, orders/deleted) win over this dynamic one.
           { path: 'orders/:id', lazy: orderPage },
+          // ORD-15: Edit Order, the customer details, dates and notes of one order (D-28, D-46). The same lazy page as orders/new.
+          { path: 'orders/:id/edit', lazy: orderFormPage },
           { path: 'expenses', lazy: expensesPage },
           // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },

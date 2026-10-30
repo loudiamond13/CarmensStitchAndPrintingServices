@@ -585,7 +585,6 @@ describe('busy orders and the save bar (UIC-21)', () => {
 
 /** Opens the edit form in a data router, with the order page and the Orders list as stand-ins to land on. */
 function renderEdit({ detail = order0148 }: { detail?: OrderDetailFixture } = {}) {
-  const backend = useOrderHandlers({ detail });
   const router = createMemoryRouter(
     [
       { path: '/admin/orders', element: <p>The orders list</p> },
@@ -602,7 +601,7 @@ function renderEdit({ detail = order0148 }: { detail?: OrderDetailFixture } = {}
       </ToastProvider>
     </QueryClientProvider>,
   );
-  return { ...view, router, backend };
+  return { ...view, router };
 }
 
 /** Waits for the order to fill the form, and returns the user. */
@@ -615,6 +614,7 @@ async function openEdit(options: { detail?: OrderDetailFixture } = {}) {
 
 describe('the edit form (D-28, D-46, SEC-08)', () => {
   it('shows the details cards without Status, Images or Items, under a title with the order number', async () => {
+    useOrderHandlers();
     await openEdit();
 
     expect(document.title).toBe('Edit ORD-2026-0148 · CSPS Admin');
@@ -635,6 +635,7 @@ describe('the edit form (D-28, D-46, SEC-08)', () => {
   });
 
   it("fills every box with the order's own values and links back to the order by its number", async () => {
+    useOrderHandlers();
     await openEdit();
 
     expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Juan Dela Cruz');
@@ -644,13 +645,16 @@ describe('the edit form (D-28, D-46, SEC-08)', () => {
     expect(screen.getByLabelText(/^Address/)).toHaveValue('Brgy. San Roque, Marikina City');
     expect(screen.getByLabelText(/^Order date/)).toHaveValue('2026-09-28');
     expect(screen.getByLabelText(/^Due date/)).toHaveValue('2026-10-14');
-    expect(screen.getByRole('link', { name: 'ORD-2026-0148' })).toHaveAttribute('href', `/admin/orders/${order0148.id}`);
+    expect(screen.getByRole('link', { name: 'ORD-2026-0148' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${order0148.id}`,
+    );
   });
 
   it('shows the order number, its status and who recorded and last changed it in the Summary', async () => {
-    await openEdit({
-      detail: buildOrderDetail({ lastChangedBy: ORDER_STAFF_TWO, lastChangedAt: '2026-10-03T06:15:00Z' }),
-    });
+    const detail = buildOrderDetail({ lastChangedBy: ORDER_STAFF_TWO, lastChangedAt: '2026-10-03T06:15:00Z' });
+    useOrderHandlers({ detail });
+    await openEdit({ detail });
 
     const aside = screen.getByRole('complementary', { name: 'Summary' });
     expect(within(aside).getByText('ORD-2026-0148')).toBeVisible();
@@ -658,10 +662,11 @@ describe('the edit form (D-28, D-46, SEC-08)', () => {
     expect(within(aside).getByText('Recorded by')).toBeVisible();
     expect(within(aside).getByText('Last changed by')).toBeVisible();
     expect(within(aside).getByText(/Carmen Reyes/)).toBeVisible();
-    expect(within(aside).getByText(ORDER_STAFF_TWO.name)).toBeVisible();
+    expect(within(aside).getByText(new RegExp(ORDER_STAFF_TWO.name))).toBeVisible();
   });
 
   it('has Cancel and Save Changes in the save bar', async () => {
+    useOrderHandlers();
     await openEdit();
 
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
@@ -672,7 +677,8 @@ describe('the edit form (D-28, D-46, SEC-08)', () => {
 
 describe('saving the details (ORD-15, SEC-07)', () => {
   it('PUTs the details with the version the form opened with, lands on the order and toasts', async () => {
-    const { user, router, backend } = await openEdit();
+    const backend = useOrderHandlers();
+    const { user, router } = await openEdit();
     const contact = screen.getByLabelText(/^Contact number/);
     await user.clear(contact);
     await user.type(contact, '0917 999 8888');
@@ -702,7 +708,8 @@ describe('saving the details (ORD-15, SEC-07)', () => {
   });
 
   it("shows the server's words and sends nothing for a contact number with letters", async () => {
-    const { user, backend } = await openEdit();
+    const backend = useOrderHandlers();
+    const { user } = await openEdit();
     const contact = screen.getByLabelText(/^Contact number/);
     await user.clear(contact);
     await user.type(contact, 'abc');

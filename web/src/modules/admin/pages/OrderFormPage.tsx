@@ -6,10 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldPath } from 'react-hook-form';
-import { useLocation, useNavigate } from 'react-router';
-import { Button, UiLink, hitAreaClasses } from '@/components/actions';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import { UiLink, hitAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
-import { DateInput, Field, Select } from '@/components/forms';
+import { Select } from '@/components/forms';
 import { useToast } from '@/components/feedback';
 import {
   loginBackClasses,
@@ -23,6 +23,13 @@ import { ErrorState, LoadingRegion, SkeletonCard } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
 import { useSubmission } from '@/lib/forms/useSubmission';
+import {
+  OrderFormCustomerCard,
+  OrderFormDetailsCard,
+  type OrderDetailsControl,
+} from '@/modules/admin/components/OrderDetailsCards';
+import { OrderEditAside } from '@/modules/admin/components/OrderEditAside';
+import { OrderFormSaveBar, saveBarCaption } from '@/modules/admin/components/OrderFormSaveBar';
 import { OrderItemsEditor } from '@/modules/admin/components/OrderItemsEditor';
 import { OrderSummaryAside } from '@/modules/admin/components/OrderSummaryAside';
 import {
@@ -32,19 +39,14 @@ import {
   orderFormCardHintClasses,
   orderFormCardTitleClasses,
   orderFormColClasses,
-  orderFormFullClasses,
-  orderFormGridClasses,
   orderFormLayoutClasses,
   orderFormPageClasses,
-  orderFormSpacerClasses,
-  orderSaveBarButtonClasses,
-  orderSaveBarCaptionClasses,
-  orderSaveBarClasses,
 } from '@/modules/admin/components/orderForm.recipe';
 import { orderBackRowClasses } from '@/modules/admin/components/orderPage.recipe';
 import { orderImagesBodyClasses, orderImageTileClasses } from '@/modules/admin/components/orderPage.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import { ORDER_FORM_COPY } from '@/modules/admin/orderFormCopy';
@@ -55,9 +57,13 @@ import {
   createOrderSchema,
   toCreateOrderRequest,
   type CreateOrderFormInput,
+  toUpdateOrderDetailsRequest,
+  updateOrderDetailsSchema,
   type CreateOrderFormValues,
+  type UpdateOrderDetailsFormInput,
+  type UpdateOrderDetailsFormValues,
 } from '@/modules/admin/orderFormSchemas';
-import { backTarget } from '@/modules/admin/orderNavigation';
+import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { ORDER_STATUSES, type OrderStatus } from '@/utils/csps';
@@ -93,7 +99,8 @@ function countErrors(errors: unknown): number {
   return Object.entries(errors).reduce((sum, [key, value]) => (key === 'ref' ? sum : sum + countErrors(value)), 0);
 }
 
-const TOP_FIELDS: Readonly<Record<string, FieldPath<CreateOrderFormInput>>> = {
+/** The detail fields both forms hold, by the lower-cased key the server uses. */
+const DETAIL_FIELDS: Readonly<Record<string, FieldPath<UpdateOrderDetailsFormInput>>> = {
   customername: 'customerName',
   teamname: 'teamName',
   contactnumber: 'contactNumber',
@@ -101,8 +108,12 @@ const TOP_FIELDS: Readonly<Record<string, FieldPath<CreateOrderFormInput>>> = {
   address: 'address',
   orderdate: 'orderDate',
   duedate: 'dueDate',
-  status: 'status',
   notes: 'notes',
+};
+
+const TOP_FIELDS: Readonly<Record<string, FieldPath<CreateOrderFormInput>>> = {
+  ...DETAIL_FIELDS,
+  status: 'status',
   items: 'items.root' as FieldPath<CreateOrderFormInput>,
 };
 
@@ -171,6 +182,9 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     },
   });
 
+  // The shared cards read only the detail fields, which this form holds with the same names and types. Control is invariant in its
+  // field values, so the wider control is narrowed here, once.
+  const detailsControl = control as unknown as OrderDetailsControl;
   const guard = useUnsavedChangesGuard({ isDirty });
   const [orderDate, dueDate, status] = useWatch({ control, name: ['orderDate', 'dueDate', 'status'] });
   const preview = useItemsPreview(control);
@@ -240,14 +254,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
 
   const itemsError = errors.items?.root?.message ?? errors.items?.message;
   const flagged = countErrors(errors);
-  let caption = '';
-  if (pending) {
-    caption = COPY.saveBar.saving;
-  } else if (flagged > 0) {
-    caption = COPY.saveBar.attention(flagged);
-  } else if (isDirty) {
-    caption = COPY.saveBar.unsaved;
-  }
+  const caption = saveBarCaption(pending, flagged, isDirty);
 
   return (
     <div className={orderFormPageClasses} data-savebar="">
@@ -278,143 +285,12 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
               <ErrorState title={banner.title} message={banner.message} align="start" />
             </div>
           )}
-          <section className={orderFormCardClasses} aria-labelledby={`${formId}-customer`}>
-            <div className={orderFormCardHeadClasses}>
-              <div>
-                <h2 id={`${formId}-customer`} className={orderFormCardTitleClasses}>
-                  {COPY.customer.title}
-                </h2>
-                <p className={orderFormCardHintClasses}>{COPY.customer.hint}</p>
-              </div>
-            </div>
-            <div className={orderFormGridClasses}>
-              <Controller
-                control={control}
-                name="customerName"
-                render={({ field, fieldState }) => (
-                  <Field
-                    label={COPY.customer.customerName}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    autoComplete="off"
-                    required
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="teamName"
-                render={({ field, fieldState }) => (
-                  <Field
-                    label={COPY.customer.teamName}
-                    hint={COPY.customer.teamNameHint}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    autoComplete="off"
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="contactNumber"
-                render={({ field, fieldState }) => (
-                  <Field
-                    label={COPY.customer.contactNumber}
-                    type="tel"
-                    inputMode="tel"
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    autoComplete="off"
-                    required
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="email"
-                render={({ field, fieldState }) => (
-                  <Field
-                    label={COPY.customer.email}
-                    type="email"
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    autoComplete="off"
-                  />
-                )}
-              />
-              <div className={orderFormFullClasses}>
-                <Controller
-                  control={control}
-                  name="address"
-                  render={({ field, fieldState }) => (
-                    <Field
-                      label={COPY.customer.address}
-                      placeholder={COPY.customer.addressPlaceholder}
-                      name={field.name}
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      error={fieldState.error?.message ?? ''}
-                      autoComplete="off"
-                    />
-                  )}
-                />
-              </div>
-            </div>
-          </section>
-          <section className={orderFormCardClasses} aria-labelledby={`${formId}-details`}>
-            <div className={orderFormCardHeadClasses}>
-              <div>
-                <h2 id={`${formId}-details`} className={orderFormCardTitleClasses}>
-                  {COPY.details.title}
-                </h2>
-                <p className={orderFormCardHintClasses}>{COPY.details.hint}</p>
-              </div>
-            </div>
-            <div className={orderFormGridClasses}>
-              <Controller
-                control={control}
-                name="orderDate"
-                render={({ field, fieldState }) => (
-                  <DateInput
-                    label={COPY.details.orderDate}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    required
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="dueDate"
-                render={({ field, fieldState }) => (
-                  <DateInput
-                    label={COPY.details.dueDate}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    hint={days === null ? undefined : COPY.details.dueHint(days)}
-                    required
-                  />
-                )}
-              />
+          <OrderFormCustomerCard control={detailsControl} headingId={`${formId}-customer`} />
+          <OrderFormDetailsCard
+            control={detailsControl}
+            headingId={`${formId}-details`}
+            dueHint={days === null ? undefined : COPY.details.dueHint(days)}
+            statusField={
               <Controller
                 control={control}
                 name="status"
@@ -434,27 +310,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
                   />
                 )}
               />
-              <span className={orderFormSpacerClasses} aria-hidden="true" />
-              <div className={orderFormFullClasses}>
-                <Controller
-                  control={control}
-                  name="notes"
-                  render={({ field, fieldState }) => (
-                    <Field
-                      multiline
-                      rows={4}
-                      label={COPY.details.notes}
-                      name={field.name}
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      error={fieldState.error?.message ?? ''}
-                    />
-                  )}
-                />
-              </div>
-            </div>
-          </section>
+            }
+          />
           <section className={orderFormCardClasses} aria-labelledby={`${formId}-images`}>
             <div className={orderFormCardHeadClasses}>
               <div>
@@ -472,21 +329,12 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
             </div>
           </section>
           <OrderItemsEditor control={control} rootError={itemsError} />
-          <div className={orderSaveBarClasses}>
-            <p className={orderSaveBarCaptionClasses}>{caption}</p>
-            <Button variant="secondary" className={orderSaveBarButtonClasses} onClick={() => void navigate(backTo)}>
-              {COPY.saveBar.cancel}
-            </Button>
-            <Button
-              variant="primary"
-              type="submit"
-              icon="check"
-              className={orderSaveBarButtonClasses}
-              pending={pending}
-            >
-              {pending ? COPY.saveBar.saving : COPY.saveBar.save}
-            </Button>
-          </div>
+          <OrderFormSaveBar
+            caption={caption}
+            saveLabel={COPY.saveBar.save}
+            pending={pending}
+            onCancel={() => void navigate(backTo)}
+          />
         </div>
         <OrderSummaryAside
           status={status}
@@ -510,8 +358,185 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   );
 }
 
+/** What the edit form shows for a saved order: every control is text, and an empty value is an empty box. */
+function valuesOf(order: OrderDetailResponse): UpdateOrderDetailsFormInput {
+  return {
+    customerName: order.customerName,
+    teamName: order.teamName ?? '',
+    contactNumber: order.contactNumber ?? '',
+    email: order.email ?? '',
+    address: order.address ?? '',
+    orderDate: order.orderDate,
+    dueDate: order.dueDate ?? '',
+    notes: order.notes ?? '',
+  };
+}
+
+interface EditOrderFormProps {
+  /** The order as it was read when the form opened: the version a save sends is this one's, whatever a later refetch brings. */
+  initial: OrderDetailResponse;
+}
+
+function EditOrderForm({ initial }: EditOrderFormProps) {
+  const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const navigate = useNavigate();
+  const toast = useToast();
+  const applyOrder = useApplyOrder();
+  const [opened] = useState(initial);
+  const orderPath = `${ORDERS_PATH}/${opened.id}`;
+  const [focusTick, setFocusTick] = useState(0);
+
+  const {
+    control,
+    handleSubmit,
+    setError,
+    formState: { errors, isDirty },
+  } = useForm<UpdateOrderDetailsFormInput, unknown, UpdateOrderDetailsFormValues>({
+    resolver: zodResolver(updateOrderDetailsSchema),
+    mode: 'onBlur',
+    defaultValues: valuesOf(opened),
+  });
+
+  const guard = useUnsavedChangesGuard({ isDirty });
+  const [orderDate, dueDate] = useWatch({ control, name: ['orderDate', 'dueDate'] });
+  const days = daysBetween(orderDate, dueDate);
+  // An imported order with no due date says why the box is empty until a date is typed (D-38).
+  const noDueDate = opened.dueDate === null && dueDate.trim() === '';
+  const dueHint = noDueDate ? COPY.edit.noDueDate : days === null ? undefined : COPY.details.dueHint(days);
+
+  // Focus goes to the first flagged field once the messages are on screen.
+  useEffect(() => {
+    if (focusTick > 0 && formRef.current !== null) {
+      focusFirstInvalid(formRef.current);
+    }
+  }, [focusTick]);
+
+  const showFailure = (error: unknown, copy: { title: string; body: string }): void => {
+    if (isHttpError(error) && error.status === 400) {
+      let matched = false;
+      for (const [key, messages] of Object.entries(error.fieldErrors)) {
+        const path = DETAIL_FIELDS[key.toLowerCase()];
+        const message = messages[0];
+        if (path !== undefined && message !== undefined) {
+          setError(path, { type: 'server', message });
+          matched = true;
+        }
+      }
+      if (matched) {
+        setFocusTick((tick) => tick + 1);
+        return;
+      }
+    }
+    toast.show({ tone: 'danger', title: copy.title, message: copy.body });
+  };
+
+  const submission = useSubmission<UpdateOrderDetailsFormValues, OrderDetailResponse>(
+    (_key, values) => ordersService.updateDetails(opened.id, toUpdateOrderDetailsRequest(values, opened.version)),
+    {
+      onSuccess: (order) => {
+        applyOrder(order);
+        // The saved form must not hold its own way back to the order.
+        guard.allowLeave();
+        void navigate(orderPath);
+        toast.show({ title: COPY.edit.toast.title, message: order.number });
+      },
+      onFailure: (copy, error) => {
+        showFailure(error, copy);
+      },
+    },
+  );
+  const { pending } = submission;
+
+  const onValid = async (values: UpdateOrderDetailsFormValues): Promise<void> => {
+    await submission.submit(values);
+  };
+
+  const onInvalid = (): void => {
+    setFocusTick((tick) => tick + 1);
+  };
+
+  const caption = saveBarCaption(pending, countErrors(errors), isDirty);
+
+  return (
+    <div className={orderFormPageClasses} data-savebar="">
+      <div className={pageHeadClasses}>
+        <div className={pageHeadTitleClasses}>
+          <div className={orderBackRowClasses}>
+            <UiLink to={orderPath} className={clsx(loginBackClasses, hitAreaClasses)}>
+              <Icon name="chevron-left" size={16} />
+              {opened.number}
+            </UiLink>
+          </div>
+          <h1 className={pageTitleClasses}>{COPY.edit.title}</h1>
+          <p className={pageSublineClasses}>{COPY.edit.subline}</p>
+        </div>
+      </div>
+      <form
+        id={formId}
+        ref={formRef}
+        noValidate
+        className={orderFormLayoutClasses}
+        onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
+          void handleSubmit(onValid, onInvalid)(event);
+        }}
+      >
+        <div className={orderFormColClasses}>
+          <OrderFormCustomerCard control={control} headingId={`${formId}-customer`} />
+          <OrderFormDetailsCard control={control} headingId={`${formId}-details`} dueHint={dueHint} />
+          <OrderFormSaveBar
+            caption={caption}
+            saveLabel={COPY.edit.saveBar.save}
+            pending={pending}
+            onCancel={() => void navigate(orderPath)}
+          />
+        </div>
+        <OrderEditAside order={opened} />
+      </form>
+      <ConfirmDialog
+        open={guard.dialog.open}
+        title={COPY.discard.title}
+        message={COPY.discard.message}
+        cancelLabel={COPY.discard.keep}
+        confirmLabel={COPY.discard.discard}
+        onConfirm={guard.dialog.onDiscard}
+        onCancel={guard.dialog.onKeepEditing}
+        loading={pending}
+      />
+    </div>
+  );
+}
+
+/** The Edit Order route: reads the order afresh, then opens the form on it. */
+function EditOrderPage({ id }: { id: string }) {
+  const query = useOrderQuery(id, { alwaysRefetch: true });
+  // The order the form was filled from; set once, so a later refetch never changes the version a save sends.
+  const [initial, setInitial] = useState<OrderDetailResponse | null>(null);
+  if (initial === null && query.isSuccess && query.isFetchedAfterMount) {
+    setInitial(query.data);
+  }
+  const number = initial?.number;
+  useEffect(() => {
+    const title = number === undefined ? COPY.edit.title : COPY.edit.documentTitle(number);
+    document.title = `${title}${ADMIN_COPY.titleSuffix}`;
+  }, [number]);
+
+  if (initial !== null) {
+    return <EditOrderForm initial={initial} />;
+  }
+  const failed = query.isError;
+  return (
+    <div className={orderFormPageClasses}>
+      {failed && <ErrorState title={COPY.edit.loadFailed} error={query.error} onRetry={() => void query.refetch()} />}
+      <LoadingRegion loading={!failed} failed={failed} things={COPY.edit.things}>
+        {!failed && <SkeletonCard />}
+      </LoadingRegion>
+    </div>
+  );
+}
+
 /** The New Order route: waits for the server's business date, then opens the form on it. */
-export default function OrderFormPage() {
+function NewOrderPage() {
   const state = useBusinessTodayState();
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
@@ -535,4 +560,10 @@ export default function OrderFormPage() {
       </LoadingRegion>
     </div>
   );
+}
+
+/** F1 at orders/new and F2 at orders/:id/edit: the id in the address picks the edit form. */
+export default function OrderFormPage() {
+  const { id } = useParams();
+  return id === undefined ? <NewOrderPage /> : <EditOrderPage id={id} />;
 }

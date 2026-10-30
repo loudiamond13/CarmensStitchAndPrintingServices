@@ -98,6 +98,22 @@ export const ORDER_FORM_COPY = {
     title: 'Order saved',
     message: (number: string, who: string): string => `${number} · ${who}`,
   },
+  /** The Edit Order form (UI-SPEC F2; plan 08-15). */
+  edit: {
+    title: 'Edit Order',
+    subline:
+      'Customer details, dates and notes. Items, payments, discounts and expenses are changed on the order page.',
+    /** The document title is "Edit {number} · CSPS Admin". */
+    documentTitle: (number: string): string => `Edit ${number}`,
+    /** The noun the loading words use while the order is read: "Loading order…". */
+    things: 'order',
+    loadFailed: "Couldn't load this order.",
+    /** The hint under Due date for an imported order that has none (D-38). */
+    noDueDate: 'This order came in without a due date. Enter one to save.',
+    saveBar: { save: 'Save Changes' },
+    toast: { title: 'Order details saved' },
+    aside: { hint: 'Who recorded and last changed this order', order: 'Order' },
+  },
   /** The messages under the fields: the server's own words (OrderRules.cs). */
   errors: {
     customerNameRequired: "Enter the customer's name.",

@@ -186,10 +186,23 @@ export const updateOrderDetailsSchema = orderDetailsSchema;
 export type UpdateOrderDetailsFormInput = z.input<typeof updateOrderDetailsSchema>;
 export type UpdateOrderDetailsFormValues = z.output<typeof updateOrderDetailsSchema>;
 
-// RED stub: replaced by the real request builder in the GREEN commit.
+/**
+ * The request body for a checked edit, with the row version the form was opened with (SEC-07). It carries no status, number or
+ * attribution field: who changed the order comes from the token (SEC-08).
+ */
 export function toUpdateOrderDetailsRequest(
   values: UpdateOrderDetailsFormValues,
-  _version: string,
+  version: string,
 ): UpdateOrderDetailsRequest {
-  return { ...values, version: null };
+  return {
+    customerName: values.customerName,
+    teamName: values.teamName,
+    contactNumber: values.contactNumber,
+    email: values.email,
+    address: values.address,
+    orderDate: values.orderDate.trim(),
+    dueDate: values.dueDate.trim(),
+    notes: values.notes,
+    version,
+  };
 }

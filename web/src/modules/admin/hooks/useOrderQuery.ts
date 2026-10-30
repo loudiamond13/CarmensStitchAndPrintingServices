@@ -7,9 +7,15 @@ import { ordersService } from '@/modules/admin/services/ordersService';
 
 export const orderKey = (id: string) => ['order', id] as const;
 
-export function useOrderQuery(id: string) {
+export interface OrderQueryOptions {
+  /** Reads the order again when the screen opens even if the cache is fresh, so a form opens on the stored version (Edit Order). */
+  readonly alwaysRefetch?: boolean;
+}
+
+export function useOrderQuery(id: string, { alwaysRefetch = false }: OrderQueryOptions = {}) {
   return useQuery({
     queryKey: orderKey(id),
     queryFn: ({ signal }) => ordersService.get(id, signal),
+    ...(alwaysRefetch ? { refetchOnMount: 'always' as const } : {}),
   });
 }
