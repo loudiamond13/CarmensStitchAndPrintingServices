@@ -1,10 +1,12 @@
-// O2 payment window: add (plan 08-16). Every rule is checked in the browser first with the server's own words (OR-3); a rule only the
-// server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a focus
-// refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers the
-// whole order and the page shows the server's figures. "Balance due" under Amount is a preview of the most that may be paid.
+// O2 payment window: add and edit (plan 08-16). Every rule is checked in the browser first with the server's own words (OR-3); a rule
+// only the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a
+// focus refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers
+// the whole order and the page shows the server's figures. "Balance due" under Amount is a preview of the most that may be paid: the
+// server balance on an add, and on an edit the balance plus the payment's saved amount.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { RecordMeta } from '@/components/data';
 import { MoneyInput } from '@/components/entry';
 import { DateInput, Field } from '@/components/forms';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
@@ -26,11 +28,14 @@ import {
 import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
 import { orderPaymentsService, type AddOrderPaymentRequest } from '@/modules/admin/services/orderPaymentsService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
+import { centavosToMoneyText } from '@/utils/format';
 
 const COPY = ORDER_PAYMENT_COPY;
 
 const FIELD_ORDER = ['paymentDate', 'amount', 'paymentMethodId', 'reference', 'receivedByUserId', 'notes'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
+
+type OrderPayment = OrderDetailResponse['payments'][number];
 
 interface OrderPaymentModalCommon {
   /** The order as the page shows it: the window opens with its version, number, customer, balance and today. */
@@ -47,7 +52,13 @@ export interface AddOrderPaymentModalProps extends OrderPaymentModalCommon {
   mode: 'add';
 }
 
-export type OrderPaymentModalProps = AddOrderPaymentModalProps;
+export interface EditOrderPaymentModalProps extends OrderPaymentModalCommon {
+  mode: 'edit';
+  /** Which payment to edit. Null renders nothing (the window was never opened). */
+  paymentId: string | null;
+}
+
+export type OrderPaymentModalProps = AddOrderPaymentModalProps | EditOrderPaymentModalProps;
 
 /** What one submission carries: the checked values and the order version the window opened with. */
 interface PaymentSave {
@@ -68,6 +79,18 @@ function toRequest({ values, version }: PaymentSave): AddOrderPaymentRequest {
   };
 }
 
+/** What the edit form shows for a saved payment: every control is text. */
+function valuesOf(payment: OrderPayment): OrderPaymentFormInput {
+  return {
+    paymentDate: payment.paymentDate,
+    amount: centavosToMoneyText(Math.round(Number(payment.amount) * 100)),
+    paymentMethodId: payment.method.id,
+    reference: payment.reference ?? '',
+    notes: payment.notes ?? '',
+    receivedByUserId: payment.receivedBy.id,
+  };
+}
+
 export function OrderPaymentModal({ open = true, ...props }: OrderPaymentModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
   const [opens, setOpens] = useState(0);
@@ -78,32 +101,57 @@ export function OrderPaymentModal({ open = true, ...props }: OrderPaymentModalPr
       setOpens(opens + 1);
     }
   }
-  return <PaymentForm key={opens} open={open} order={props.order} onClose={props.onClose} onSaved={props.onSaved} />;
+  const paymentId = props.mode === 'edit' ? props.paymentId : null;
+  if (props.mode === 'edit' && paymentId === null) {
+    return null;
+  }
+  return (
+    <PaymentForm
+      key={opens}
+      open={open}
+      order={props.order}
+      paymentId={paymentId}
+      onClose={props.onClose}
+      onSaved={props.onSaved}
+    />
+  );
 }
 
 interface PaymentFormProps {
   open: boolean;
   order: OrderDetailResponse;
+  /** The payment being edited; null in add mode. */
+  paymentId: string | null;
   onClose: () => void;
   onSaved: ((order: OrderDetailResponse) => void) | undefined;
 }
 
-function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
+interface Opened {
+  order: OrderDetailResponse;
+  payment: OrderPayment | null;
+}
+
+function PaymentForm({ open, order, paymentId: editedId, onClose, onSaved }: PaymentFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
   const { user } = useSession();
-  // The order the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
-  const [opened, setOpened] = useState<OrderDetailResponse>(order);
-  const cap = paymentCap(opened);
+  // The order and payment the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  const [opened, setOpened] = useState<Opened>(() => ({
+    order,
+    payment: editedId === null ? null : (order.payments.find((candidate) => candidate.id === editedId) ?? null),
+  }));
+  const cap = paymentCap(opened.order, opened.payment?.amount);
   const {
     control,
     handleSubmit,
     setError,
+    reset,
     formState: { isDirty },
   } = useForm<OrderPaymentFormInput, unknown, OrderPaymentFormValues>({
-    resolver: zodResolver(orderPaymentSchema(opened.today, cap)),
+    resolver: zodResolver(orderPaymentSchema(opened.order.today, cap)),
     mode: 'onBlur',
-    defaultValues: blankOrderPayment(opened.today, user?.id ?? ''),
+    defaultValues:
+      opened.payment === null ? blankOrderPayment(opened.order.today, user?.id ?? '') : valuesOf(opened.payment),
   });
 
   const focusField = (name: FieldName): void => {
@@ -129,17 +177,29 @@ function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
     return true;
   };
 
-  // Load Latest on an add keeps what was typed and takes the new version and the new cap.
+  // Load Latest: an edit takes the latest payment's values and version; an add keeps what was typed and takes the version.
   const takeLatest = (latest: OrderDetailResponse): boolean => {
-    setOpened(latest);
+    if (editedId === null) {
+      setOpened({ order: latest, payment: null });
+      return true;
+    }
+    const latestPayment = latest.payments.find((candidate) => candidate.id === editedId);
+    if (latestPayment === undefined) {
+      return false;
+    }
+    setOpened({ order: latest, payment: latestPayment });
+    reset(valuesOf(latestPayment));
     return true;
   };
 
   const save = useOrderChildSave<PaymentSave>({
-    orderId: opened.id,
+    orderId: opened.order.id,
     thing: 'payment',
-    verb: 'added',
-    send: (key, data) => orderPaymentsService.add(opened.id, toRequest(data), key),
+    verb: editedId === null ? 'added' : 'updated',
+    send: (key, data) =>
+      editedId === null
+        ? orderPaymentsService.add(opened.order.id, toRequest(data), key)
+        : orderPaymentsService.update(opened.order.id, editedId, toRequest(data)),
     onSaved: (saved) => {
       onSaved?.(saved);
       onClose();
@@ -150,12 +210,16 @@ function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
 
   const loadLatest = async (): Promise<void> => {
     if (await save.loadLatest()) {
-      saveRef.current?.focus();
+      if (editedId === null) {
+        saveRef.current?.focus();
+      } else {
+        focusField('paymentDate');
+      }
     }
   };
 
   const onValid = (values: OrderPaymentFormValues): void => {
-    save.submit({ values, version: opened.version });
+    save.submit({ values, version: opened.order.version });
   };
 
   const onInvalid = (errors: Partial<Record<FieldName, unknown>>): void => {
@@ -165,13 +229,15 @@ function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
     }
   };
 
-  const who = opened.teamName !== null && opened.teamName !== '' ? opened.teamName : opened.customerName;
+  const who =
+    opened.order.teamName !== null && opened.order.teamName !== '' ? opened.order.teamName : opened.order.customerName;
   const you = user === null ? null : { id: user.id, name: user.name };
+  const savedPayment = opened.payment;
 
   return (
     <OrderWindow
-      title={COPY.addTitle}
-      description={ORDER_WINDOWS_COPY.description(opened.number, who)}
+      title={editedId === null ? COPY.addTitle : COPY.editTitle}
+      description={ORDER_WINDOWS_COPY.description(opened.order.number, who)}
       open={open}
       isDirty={isDirty}
       pending={save.pending}
@@ -181,6 +247,16 @@ function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
         void loadLatest();
       }}
       status={save.status}
+      recordMeta={
+        savedPayment === null ? undefined : (
+          <RecordMeta
+            recordedBy={savedPayment.recordedBy}
+            recordedAt={savedPayment.recordedAt}
+            lastChangedBy={savedPayment.lastChangedBy}
+            lastChangedAt={savedPayment.lastChangedAt}
+          />
+        )
+      }
       saveLabel={COPY.save}
       saveBlocked={save.saveBlocked}
       formRef={formRef}
@@ -232,6 +308,7 @@ function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
               name={field.name}
               value={field.value}
               onChange={field.onChange}
+              savedEntry={savedPayment?.method.id}
               error={fieldState.error?.message}
             />
           )}
@@ -263,6 +340,7 @@ function PaymentForm({ open, order, onClose, onSaved }: PaymentFormProps) {
               value={field.value}
               onChange={field.onChange}
               currentUser={you}
+              savedPayer={savedPayment?.receivedBy}
               error={fieldState.error?.message}
             />
           )}

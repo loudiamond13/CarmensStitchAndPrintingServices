@@ -563,7 +563,7 @@ describe('edit mode stale save (409) and a removed payment (404)', () => {
     const latest = buildOrderDetail({
       payments: [FIRST, latestPayment],
       version: 'AAAAAAAAB9F=',
-      totals: { ...order0148.totals, paid: 13000, balance: 8327.5 },
+      totals: { ...order0148.totals, paid: 13000, balance: 8000 },
     });
     let attempts = 0;
     const backend = useOrderHandlers({
@@ -582,7 +582,7 @@ describe('edit mode stale save (409) and a removed payment (404)', () => {
 
     await user.click(saveButton());
     const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
-    expect(amountBox()).toHaveValue('2500');
+    expect(amountBox()).toHaveValue('2500.00');
 
     await user.click(loadLatest);
     await waitFor(() => {
@@ -590,7 +590,7 @@ describe('edit mode stale save (409) and a removed payment (404)', () => {
     });
     expect(referenceBox()).toHaveValue('REF-2');
     expect(receivedByBox()).toHaveValue(ME_ID);
-    expect(screen.getByText('Balance due: ₱11,327.50')).toBeInTheDocument();
+    expect(screen.getByText('Balance due: ₱11,000.00')).toBeInTheDocument();
 
     await user.click(saveButton());
     await screen.findByText('Payment updated');
