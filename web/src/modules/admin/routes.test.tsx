@@ -21,7 +21,7 @@ import {
 } from '@/test/expenseFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
-import { useOrderHandlers } from '@/test/orderFixtures';
+import { order0148, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -510,6 +510,39 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
     expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
   }, 30_000);
+
+  it('the production /admin/orders/:id is the guarded real order page inside the shell (ORD-07)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/orders/${order0148.id}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
+
+  it('with the dev routes added, /admin/orders/:id is still the guarded real order page (Pitfall 1)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(devTree(), { initialEntries: [`/admin/orders/${order0148.id}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
+
+  it('opening /admin/orders/:id without a session lands on sign-in with the return path (T-08-10)', async () => {
+    answerRefresh();
+    const path = `/admin/orders/${order0148.id}`;
+    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
+  });
 
   it('with the dev routes added, /admin/expenses is still the guarded real page: no preview shadows it (T-06-18)', async () => {
     answerRefresh(sessionResponse());
