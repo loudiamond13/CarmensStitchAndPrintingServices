@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-29T22:08:00-05:00
+updated: 2026-10-29T22:55:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -24,3 +24,13 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 
 1. **Owner review: the admin not-found screen still uses placeholder words.** It reads "Nothing here yet / This screen is not available yet. Use the menu to go to another page." That fits a screen still to be built better than an unknown address. Rewording is the owner's call.
 2. **The unknown admin address is proved only in `routes.test.tsx`.** No e2e spec signs in and opens `/admin/no-such-page`. 08-24 (the signed-in sweep) is the natural place to add it.
+
+## From plan 08-09
+
+1. **Owner review: new SPEC-GAP wording on the Orders list.** (a) The No matches line names the filters in use, for example "No orders with status Active + recent, dates Oct 1, 2026 to Oct 31, 2026 and product Basketball Jersey." The status is always named, even when it is the default. (b) The Product chip reads "Product: Loading…" while the product types load. (c) The No matches line uses the shared curly quotes around the search ("zzz"), where the plan text showed straight quotes. The words are in `ordersCopy.ts` (`noMatches`, `productLoading`).
+2. **The toolbar look is not seen in a browser at 390, 820 and 1440 px in Blush and Espresso.** The controls, the custom range row (a full-width row under the toolbar) and the balance box wrapper (`ordersBalanceFilterClasses`, 40px tall, bottom-aligned) are proved by tests and the e2e (the e2e does not check the toolbar for sideways scroll on a 320 px phone). The owner's screenshot review should check the balance box's 44px tap area and the row break.
+3. **`useBusinessToday` also reads order pages.** It looks in the query cache under `['orders']` (list pages) and `['order']` (order pages, which carry `today`). Plan 08-10 should key the order page query as `['order', id]` so the date defaults in the forms can use it without a request.
+4. **A stray `from` or `to` with no custom range is dropped.** The UI-SPEC only says what happens to a broken custom pair. A `from` or `to` beside no range, or beside a preset, has no meaning, so the list drops it with one replace (a preset stays). Say if the owner wants it kept as an API pass-through instead.
+5. **`status` and `sort` are always sent to the API**, even at their defaults, so every request says what it asks for. Earlier tests expected only `page` and `pageSize`; those expectations were updated.
+6. **A product type id the list does not hold still sends one request before the replace.** It mirrors the Expenses category fallback. The server answers an unknown id with no rows, then the replace removes it.
+7. **Flake found and fixed in the new e2e:** on the iphone project the URL is written a moment after the screen changes (the browser limits how fast the address may change), so a URL read straight after a chip appeared saw the old URL once. The spec now polls the URL for those reads.
