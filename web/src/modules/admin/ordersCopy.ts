@@ -13,8 +13,15 @@ export const ORDERS_COPY = {
     newOrder: 'New Order',
     /** The visually hidden heading above the results (D-54e). */
     results: 'Results',
-    /** The plural noun of the list, for the loading words and the load error. */
+    /** The singular and plural noun of the list, for the loading words, the load error and the result bar. */
+    thing: 'order',
     things: 'orders',
+    /** The toolbar (D-55). */
+    search: { label: 'Search', placeholder: 'Order no., customer, team or phone' },
+    /** The result bar's " · sorted by {word}" for each sort. */
+    sortedBy: { due: 'due date', newest: 'newest first', balance: 'balance', total: 'total' },
+    /** The chip names; each clear button reads "Clear {name} filter" (D-54f). */
+    chips: { search: 'Search' },
     /** The first-use state: the default view has no rows (D-55). */
     empty: {
       title: 'No active orders',

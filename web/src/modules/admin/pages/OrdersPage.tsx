@@ -16,10 +16,11 @@ import {
   pageTitleClasses,
   srOnlyClasses,
 } from '@/components/layout/layout.recipe';
-import { Pagination } from '@/components/lists';
+import { FilterChip, Pagination, ResultBar } from '@/components/lists';
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, useDelayedFlag } from '@/components/states';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
+import { OrdersToolbar } from '@/modules/admin/components/OrdersToolbar';
 import { ordersGridClasses, ordersSublineSkeletonClasses } from '@/modules/admin/components/orders.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useOrdersListParams } from '@/modules/admin/hooks/useOrdersListParams';
@@ -54,7 +55,7 @@ export default function OrdersPage() {
   const location = useLocation();
   const [values, set] = useOrdersListParams();
   const settled = useSettledListParams(values, 300);
-  const query = useOrdersQuery({ page: settled.page, pageSize: settled.size });
+  const query = useOrdersQuery({ page: settled.page, pageSize: settled.size, q: settled.q });
 
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
@@ -62,7 +63,8 @@ export default function OrdersPage() {
 
   const data = query.data;
   const hasRows = data !== undefined && data.items.length > 0;
-  const pageCount = Math.ceil(toNumber(data?.total ?? 0) / values.size);
+  const total = toNumber(data?.total ?? 0);
+  const pageCount = Math.ceil(total / values.size);
 
   // A page past the last one (a stale link, or rows deleted meanwhile) becomes the last page, once fresh data says so.
   const { clampPage } = set;
@@ -105,6 +107,18 @@ export default function OrdersPage() {
           </ButtonLink>
         </div>
       </div>
+      <OrdersToolbar values={values} set={set} />
+      <ResultBar count={total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortedBy.due}>
+        {values.q !== null && (
+          <FilterChip
+            label={COPY.chips.search}
+            value={values.q}
+            onClear={() => {
+              set.setSearch('', { immediate: true });
+            }}
+          />
+        )}
+      </ResultBar>
       <h2 id={HEADING_ID} tabIndex={-1} className={srOnlyClasses}>
         {COPY.results}
       </h2>

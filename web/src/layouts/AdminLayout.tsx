@@ -71,6 +71,8 @@ export interface AdminFrameProps {
   devicesPath?: string | undefined;
   /** "Sign Out Other Devices" in the Topbar's user menu. */
   onSignOutOthers?: (() => void) | undefined;
+  /** Enter in the Topbar search (D-53). */
+  onSearch?: ((text: string) => void) | undefined;
   /** A route chunk is loading: `main` is busy. */
   loading?: boolean | undefined;
   /** Adds the Audit Log item to the sidebar and the drawer (OQ-2); the real shell sets it, the dev scenarios do not. */
@@ -90,6 +92,7 @@ export function AdminFrame({
   onLogout,
   devicesPath,
   onSignOutOthers,
+  onSearch,
   loading = false,
   withAuditLog = false,
   children,
@@ -117,6 +120,7 @@ export function AdminFrame({
             onLogout={onLogout}
             devicesPath={devicesPath}
             onSignOutOthers={onSignOutOthers}
+            onSearch={onSearch}
             onMenu={() => {
               setNavOpen(true);
             }}
@@ -215,6 +219,13 @@ function AdminShell({ themeContext }: { themeContext: AdminThemeContext }) {
         devicesPath={SESSIONS_PATH}
         onSignOutOthers={() => {
           setSignOutOthersOpen(true);
+        }}
+        onSearch={(text) => {
+          // D-53: Orders opens with only this search; an empty search stays where it is.
+          const q = text.trim();
+          if (q !== '') {
+            void navigate(`/admin/orders?q=${encodeURIComponent(q)}`);
+          }
         }}
         loading={loading}
         withAuditLog
