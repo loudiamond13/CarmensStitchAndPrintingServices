@@ -8,13 +8,7 @@ import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
-import {
-  buildOrderDetail,
-  orderId,
-  orderProblem,
-  useOrderHandlers,
-  type OrderBackend,
-} from '@/test/orderFixtures';
+import { buildOrderDetail, orderId, orderProblem, useOrderHandlers, type OrderBackend } from '@/test/orderFixtures';
 import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -117,13 +111,11 @@ describe('the opening form (D-30, D-49, D-59, D-27)', () => {
     await openForm();
 
     const status = screen.getByLabelText(/^Status/);
-    expect(within(status).getAllByRole('option').map((option) => option.textContent)).toEqual([
-      'Pending',
-      'Mockup',
-      'In Production',
-      'Ready',
-      'Delivered',
-    ]);
+    expect(
+      within(status)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Pending', 'Mockup', 'In Production', 'Ready', 'Delivered']);
     expect(status).toHaveValue('pending');
     expect(screen.getByText('Completed and Cancelled are set on the order page.')).toBeVisible();
   });
@@ -139,7 +131,10 @@ describe('the opening form (D-30, D-49, D-59, D-27)', () => {
   it('offers a back link to the list the person came from, else to Orders (D-51)', async () => {
     useOrderHandlers();
     const { unmount } = await openForm({ state: { from: '/admin/orders?status=ready&view=table' } });
-    expect(screen.getByRole('link', { name: 'Orders' })).toHaveAttribute('href', '/admin/orders?status=ready&view=table');
+    expect(screen.getByRole('link', { name: 'Orders' })).toHaveAttribute(
+      'href',
+      '/admin/orders?status=ready&view=table',
+    );
     unmount();
 
     await openForm({ state: { from: 'https://elsewhere.example/phish' } });

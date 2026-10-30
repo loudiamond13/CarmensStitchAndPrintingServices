@@ -77,9 +77,7 @@ const ITEM_COLUMNS = tw(
 /** `.s-item-head`: the column headers, shown from 900px of card width only. */
 export const orderItemHeadClasses = clsx(
   ITEM_COLUMNS,
-  tw(
-    'hidden gap-3 px-5 pb-2 text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase it-lg:grid',
-  ),
+  tw('hidden gap-3 px-5 pb-2 text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase it-lg:grid'),
 );
 
 /**
@@ -90,39 +88,31 @@ export const orderItemHeadClasses = clsx(
 export const orderItemRowClasses = clsx(
   ITEM_COLUMNS,
   tw(
-    'grid items-start gap-3 border-t border-line px-5 py-3 it-lt-lg:gap-y-2 pg-phone:p-4 [&_label]:sr-only it-lt-lg:[&_label]:not-sr-only it-lt-lg:[&_label]:text-[11px] it-lt-lg:[&_label]:leading-4 it-lt-lg:[&_label]:font-bold it-lt-lg:[&_label]:tracking-[.1em] it-lt-lg:[&_label]:text-ink-muted it-lt-lg:[&_label]:uppercase pg-phone:[&_input]:h-11 pg-phone:[&_select]:h-11',
+    'grid items-start gap-3 border-t border-line px-5 py-3 pg-phone:p-4 it-lt-lg:gap-y-2 pg-phone:[&_input]:h-11 [&_label]:sr-only it-lt-lg:[&_label]:not-sr-only it-lt-lg:[&_label]:text-[11px] it-lt-lg:[&_label]:leading-4 it-lt-lg:[&_label]:font-bold it-lt-lg:[&_label]:tracking-[.1em] it-lt-lg:[&_label]:text-ink-muted it-lt-lg:[&_label]:uppercase pg-phone:[&_select]:h-11',
   ),
 );
 
 /** Product type: three of four columns on a phone, five of six next to the remove button, one column in the 7-column row. */
-export const orderItemTypeCellClasses = tw(
-  'col-span-3 min-w-0 it-md:col-span-5 it-lg:col-span-1',
-);
+export const orderItemTypeCellClasses = tw('col-span-3 min-w-0 it-md:col-span-5 it-lg:col-span-1');
 
 /** Description: the full row below 900px. */
-export const orderItemDescriptionCellClasses = tw(
-  'col-span-4 min-w-0 it-md:col-span-6 it-lg:col-span-1',
-);
+export const orderItemDescriptionCellClasses = tw('col-span-4 min-w-0 it-md:col-span-6 it-lg:col-span-1');
 
 /** Size / variant: two columns below 900px. */
 export const orderItemSizeCellClasses = tw('col-span-2 min-w-0 it-lg:col-span-1');
 
 /** Qty: two columns on a phone, one from 560px; the number sits at the right. */
-export const orderItemQuantityCellClasses = tw(
-  'col-span-2 min-w-0 it-md:col-span-1 [&_input]:text-right',
-);
+export const orderItemQuantityCellClasses = tw('col-span-2 min-w-0 it-md:col-span-1 [&_input]:text-right');
 
 /** Unit price: two columns below 900px. */
 export const orderItemPriceCellClasses = tw('col-span-2 min-w-0 it-lg:col-span-1');
 
 /** The line total preview: bold, tabular, right-aligned, level with the 40px (44px on phones) controls. */
-export const orderItemTotalCellClasses = tw(
-  'col-span-2 flex min-w-0 flex-col items-end it-md:col-span-1',
-);
+export const orderItemTotalCellClasses = tw('col-span-2 flex min-w-0 flex-col items-end it-md:col-span-1');
 
 /** The line total's own label: read aloud always, drawn below 900px only (it is not a form control). */
 export const orderItemTotalLabelClasses = tw(
-  'sr-only it-lt-lg:not-sr-only text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase',
+  'sr-only text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase it-lt-lg:not-sr-only',
 );
 
 /** The figure, level with the controls beside it. */
@@ -162,7 +152,9 @@ export const orderItemsLimitClasses = tw('px-5 pb-4');
 export const orderAsideTotalClasses = tw('flex flex-col gap-1 rounded-sm bg-warning-soft p-4');
 
 /** The total block's overline, in the warning colour. */
-export const orderAsideTotalOverlineClasses = tw('text-[11px] leading-4 font-bold tracking-[.12em] text-warning uppercase');
+export const orderAsideTotalOverlineClasses = tw(
+  'text-[11px] leading-4 font-bold tracking-[.12em] text-warning uppercase',
+);
 
 /** The total figure: display 28. */
 export const orderAsideTotalFigureClasses = tw('font-display text-[28px] leading-[1] font-bold tabular-nums');
@@ -181,7 +173,9 @@ export const orderSaveBarClasses = tw(
 );
 
 /** `.s-cap`: the caption pushes the buttons to the right; full width on a phone. */
-export const orderSaveBarCaptionClasses = tw('mr-auto text-[14px] leading-5 text-ink-muted pg-phone:mr-0 pg-phone:w-full');
+export const orderSaveBarCaptionClasses = tw(
+  'mr-auto text-[14px] leading-5 text-ink-muted pg-phone:mr-0 pg-phone:w-full',
+);
 
 /** The save bar's buttons share the phone row. */
 export const orderSaveBarButtonClasses = tw('pg-phone:flex-1');

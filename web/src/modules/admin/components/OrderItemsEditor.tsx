@@ -224,7 +224,9 @@ export function OrderItemsEditor({ control, rootError }: OrderItemsEditorProps) 
       {fields.length === 0 ? (
         <div className={orderInlineEmptyClasses}>
           <p>{COPY.empty}</p>
-          {rootError !== undefined && rootError !== '' && <p className={messageClasses({ error: true })}>{rootError}</p>}
+          {rootError !== undefined && rootError !== '' && (
+            <p className={messageClasses({ error: true })}>{rootError}</p>
+          )}
           <Button variant="ghost" icon="plus" onClick={add} ref={emptyAddRef}>
             {COPY.addItem}
           </Button>

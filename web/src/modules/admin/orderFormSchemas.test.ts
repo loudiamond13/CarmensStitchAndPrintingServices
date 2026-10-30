@@ -121,9 +121,9 @@ describe('dates and status', () => {
 
   it('accepts the same day, and still says so when another field is wrong too', () => {
     expect(messageAt(order({ dueDate: '2026-10-08' }), 'dueDate')).toBeUndefined();
-    expect(
-      messageAt(order({ customerName: '', orderDate: '2026-10-08', dueDate: '2026-10-07' }), 'dueDate'),
-    ).toBe("The due date can't be before the order date.");
+    expect(messageAt(order({ customerName: '', orderDate: '2026-10-08', dueDate: '2026-10-07' }), 'dueDate')).toBe(
+      "The due date can't be before the order date.",
+    );
   });
 
   it('does not compare the dates when the order date is not real', () => {
@@ -217,7 +217,13 @@ describe('toCreateOrderRequest', () => {
       status: 'pending',
       notes: null,
       items: [
-        { productTypeId: PRODUCT_TYPE, description: 'Basketball jersey', sizeVariant: null, quantity: 12, unitPrice: 780 },
+        {
+          productTypeId: PRODUCT_TYPE,
+          description: 'Basketball jersey',
+          sizeVariant: null,
+          quantity: 12,
+          unitPrice: 780,
+        },
       ],
     });
     expect(Object.keys(body)).not.toContain('createdById');

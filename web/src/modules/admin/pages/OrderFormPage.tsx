@@ -42,10 +42,7 @@ import {
   orderSaveBarClasses,
 } from '@/modules/admin/components/orderForm.recipe';
 import { orderBackRowClasses } from '@/modules/admin/components/orderPage.recipe';
-import {
-  orderImagesBodyClasses,
-  orderImageTileClasses,
-} from '@/modules/admin/components/orderPage.recipe';
+import { orderImagesBodyClasses, orderImageTileClasses } from '@/modules/admin/components/orderPage.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
@@ -72,7 +69,10 @@ const IMAGES = ORDER_PAGE_COPY.images;
 /** The server's code for "saving is busy, nothing was saved". */
 const ORDERS_BUSY = 'orders.busy';
 
-const STATUS_OPTIONS = CREATE_STATUSES.map((status) => ({ value: status, label: ORDER_STATUSES[status as OrderStatus] }));
+const STATUS_OPTIONS = CREATE_STATUSES.map((status) => ({
+  value: status,
+  label: ORDER_STATUSES[status as OrderStatus],
+}));
 
 const MS_PER_DAY = 86_400_000;
 
@@ -122,7 +122,9 @@ function serverFieldPath(key: string, rows: number): FieldPath<CreateOrderFormIn
   const match = /^items\[(\d+)\]\.(\w+)$/.exec(lower);
   const field = match?.[2] === undefined ? undefined : ITEM_FIELDS[match[2]];
   const row = Number(match?.[1]);
-  return field !== undefined && row < rows ? (`items.${String(row)}.${field}` as FieldPath<CreateOrderFormInput>) : null;
+  return field !== undefined && row < rows
+    ? (`items.${String(row)}.${field}` as FieldPath<CreateOrderFormInput>)
+    : null;
 }
 
 interface Banner {

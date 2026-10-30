@@ -63,7 +63,9 @@ function dateField(required: string) {
 /** The message under Qty for `text`, or null when it is a whole number from 1 to 10,000. */
 function quantityError(text: string): string | null {
   const value = text.trim();
-  return /^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= QUANTITY_MAX ? null : COPY.quantityOutOfRange;
+  return /^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= QUANTITY_MAX
+    ? null
+    : COPY.quantityOutOfRange;
 }
 
 /** The message under Unit price for `text`, or null when it is from 0.00 to 1,000,000.00 with at most 2 decimals. */
@@ -80,11 +82,7 @@ function unitPriceError(text: string): string | null {
 /** One order item (OrderItemFieldsValidator): the rule the New Order grid and the item windows share. */
 export const orderItemSchema = z.object({
   productTypeId: z.string().min(1, COPY.productTypeRequired),
-  description: z
-    .string()
-    .trim()
-    .min(1, COPY.descriptionRequired)
-    .max(DESCRIPTION_MAX, COPY.descriptionTooLong),
+  description: z.string().trim().min(1, COPY.descriptionRequired).max(DESCRIPTION_MAX, COPY.descriptionTooLong),
   sizeVariant: optionalText(SIZE_VARIANT_MAX, COPY.sizeVariantTooLong),
   quantity: z.string().superRefine((text, context) => {
     const message = quantityError(text);
@@ -110,11 +108,7 @@ export function blankOrderItem(): OrderItemFormInput {
 
 /** The customer and date fields (OrderDetailsFieldsValidator), without the date order check. */
 const detailsShape = {
-  customerName: z
-    .string()
-    .trim()
-    .min(1, COPY.customerNameRequired)
-    .max(CUSTOMER_NAME_MAX, COPY.customerNameTooLong),
+  customerName: z.string().trim().min(1, COPY.customerNameRequired).max(CUSTOMER_NAME_MAX, COPY.customerNameTooLong),
   teamName: optionalText(TEAM_NAME_MAX, COPY.teamNameTooLong),
   contactNumber: z
     .string()
@@ -135,10 +129,7 @@ const detailsShape = {
 };
 
 /** The due date may not be before the order date; compared only when both are real dates. */
-function checkDateOrder(
-  values: { orderDate: string; dueDate: string },
-  context: z.RefinementCtx,
-): void {
+function checkDateOrder(values: { orderDate: string; dueDate: string }, context: z.RefinementCtx): void {
   const order = values.orderDate.trim();
   const due = values.dueDate.trim();
   if (isCalendarDate(order) && isCalendarDate(due) && due < order) {

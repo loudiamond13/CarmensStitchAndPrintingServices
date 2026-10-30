@@ -18,7 +18,8 @@ function unitPriceOf(text: string): number {
 
 /** One row's line total preview (quantity times unit price, to the centavo). */
 export function lineTotalPreview(item: Pick<OrderItemFormInput, 'quantity' | 'unitPrice'>): number {
-  return orderTotals({ items: [{ quantity: quantityOf(item.quantity), unitPrice: unitPriceOf(item.unitPrice) }] }).subtotal;
+  return orderTotals({ items: [{ quantity: quantityOf(item.quantity), unitPrice: unitPriceOf(item.unitPrice) }] })
+    .subtotal;
 }
 
 export interface ItemsPreview {

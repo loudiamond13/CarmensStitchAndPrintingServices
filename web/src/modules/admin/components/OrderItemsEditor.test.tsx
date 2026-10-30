@@ -120,7 +120,11 @@ describe('Add Item and Remove (focus rules)', () => {
   });
 
   it('removes a row and focuses the next row Product type', async () => {
-    const { user } = await renderEditor([row({ description: 'one' }), row({ description: 'two' }), row({ description: 'three' })]);
+    const { user } = await renderEditor([
+      row({ description: 'one' }),
+      row({ description: 'two' }),
+      row({ description: 'three' }),
+    ]);
 
     await user.click(screen.getByRole('button', { name: 'Remove item 1' }));
 

@@ -121,6 +121,9 @@ test('@orders-create on a phone a focused item field is never hidden under the s
     }
   }
   // Each item control is 44px tall on a phone (D-54b).
-  const box = await rows.first().getByLabel(/^Description/).boundingBox();
+  const box = await rows
+    .first()
+    .getByLabel(/^Description/)
+    .boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(44);
 });

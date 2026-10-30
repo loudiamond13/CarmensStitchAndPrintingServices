@@ -7,7 +7,8 @@ export const ORDER_FORM_COPY = {
   /** The document title is "New Order · CSPS Admin". */
   documentTitle: 'New Order',
   title: 'New Order',
-  subline: 'Customer, dates, images and items. Payments, discounts and expenses are added on the order page after saving.',
+  subline:
+    'Customer, dates, images and items. Payments, discounts and expenses are added on the order page after saving.',
   /** The back link: the list the person came from. */
   back: 'Orders',
   /** The noun the loading words use while the business date is read: "Loading order form…". */

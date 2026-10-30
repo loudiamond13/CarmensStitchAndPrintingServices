@@ -64,13 +64,17 @@ describe('order form recipe (F1 layout)', () => {
 
   it('shows the item labels below 900px of card width only', () => {
     expect(recipeSource).toContain('[&_label]:sr-only');
-    expect(ruleOf('it-lt-lg:[&_label]:not-sr-only', '@container items').block).toBe('@container items (width < 900px) ');
+    expect(ruleOf('it-lt-lg:[&_label]:not-sr-only', '@container items').block).toBe(
+      '@container items (width < 900px) ',
+    );
   });
 
   it('pads the scroll for the save bar on this page only, with more room on phones for the tab bar (D-54d)', () => {
     // The selector names the page's data attribute, so it outranks the admin frame's own phone padding.
     const desktop = css.indexOf('scroll-padding-bottom: calc(76px + var(--space-6));');
-    const phone = css.indexOf('scroll-padding-bottom: calc(71px + 112px + var(--space-6) + env(safe-area-inset-bottom));');
+    const phone = css.indexOf(
+      'scroll-padding-bottom: calc(71px + 112px + var(--space-6) + env(safe-area-inset-bottom));',
+    );
     expect(desktop).toBeGreaterThanOrEqual(0);
     // The phone rule sits in a viewport media query and comes after the desktop rule, so it wins on a phone.
     expect(phone).toBeGreaterThan(desktop);
