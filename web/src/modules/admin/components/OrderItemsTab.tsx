@@ -1,20 +1,30 @@
 // The Items tab of the order page (ORD-07; UI-SPEC O1 Tab card; plans 08-10, 08-14): a heading and caption over a ResponsiveTable of
 // the order's items with a footer of the items subtotal. Every figure is the server's: the line totals as stored, the subtotal from
-// the order's totals. Only the piece count is added up here, and it is a count, not money. On an active order the head has Add Item;
-// a locked order, and the deleted view (`readOnly`), show the table alone (D-15, D-24).
+// the order's totals. Only the piece count is added up here, and it is a count, not money. On an active order the head has Add Item
+// and each row has Edit and Delete (never Delete on the last item, D-48); a locked order, and the deleted view (`readOnly`), show
+// the table alone (D-15, D-24).
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/actions';
+import { useToast } from '@/components/feedback';
 import { ResponsiveTable, RowAction, RowActions, type ResponsiveTableColumn } from '@/components/lists';
+import { ConfirmDialog } from '@/components/overlays';
+import { Note } from '@/components/states';
+import { isHttpError } from '@/core/api/errors';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { OrderItemModal } from '@/modules/admin/components/OrderItemModal';
 import { OrderTabHead } from '@/modules/admin/components/OrderTabParts';
+import { orderTabBodyClasses, orderTabNoteClasses } from '@/modules/admin/components/orderPage.recipe';
+import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
+import { orderSavedMessage } from '@/modules/admin/hooks/useOrderChildSave';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
-import { orderTabBodyClasses } from '@/modules/admin/components/orderPage.recipe';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
-import { canEditOrder } from '@/modules/admin/orderRules';
+import { canDeleteItem, canEditOrder } from '@/modules/admin/orderRules';
 import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
+import { orderItemsService } from '@/modules/admin/services/orderItemsService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { formatPeso } from '@/utils/csps';
+import type { ErrorCopy } from '@/utils/describeHttpError';
 import { formatCount } from '@/utils/format';
 
 type OrderItem = OrderDetailResponse['items'][number];
@@ -35,6 +45,9 @@ const COLUMNS: readonly ResponsiveTableColumn<OrderItem>[] = [
   { key: 'unitPrice', header: COPY.columns.unitPrice, money: true, cell: (item) => formatPeso(item.unitPrice) },
   { key: 'lineTotal', header: COPY.columns.lineTotal, money: true, cell: (item) => formatPeso(item.lineTotal) },
 ];
+
+/** The focus registry key of a row's Delete button (the Edit button is registered under the plain id). */
+const deleteKey = (id: string): string => `delete:${id}`;
 
 export interface OrderItemsTabProps {
   order: OrderDetailResponse;
@@ -74,26 +87,75 @@ function ItemsView({ order, columns, action, headingRef, children }: ItemsViewPr
   );
 }
 
-/** An active order: Add Item and each row's Edit open the window. */
+/** The dialog's own failure line: the server's sentence for a refusal, and "removed" for an item that is already gone. */
+function describeDeleteFailure(error: unknown): ErrorCopy | string | undefined {
+  if (!isHttpError(error) || error.kind !== 'http') {
+    return undefined;
+  }
+  if (error.status === 422) {
+    return error.problem?.detail;
+  }
+  return error.status === 404 ? WINDOWS.deleteGone : undefined;
+}
+
+/** An active order: Add Item, and each row's Edit and Delete. */
 function EditableItems({ order }: { order: OrderDetailResponse }) {
   // A window mounts on its first open and stays so its close can animate; each new open starts clean (OrderItemModal).
   const [addUsed, setAddUsed] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<{ itemId: string; open: boolean } | null>(null);
+  // The item the Delete dialog is open for, or was last open for (kept while it animates out).
+  const [deleting, setDeleting] = useState<{ item: OrderItem; n: number; open: boolean } | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const rowFocus = useRowFocus();
+  const toast = useToast();
+  const applyOrder = useApplyOrder();
+  const refetchOrder = useRefetchOrder();
   // Where focus goes once a window has closed. Safari does not focus a button on a click, so the window's own return to its
   // trigger has nothing to go back to; the trigger is named here instead.
   const returnFocus = useRef<(() => void) | null>(null);
+  // Once the answer no longer holds the deleted row, focus goes to the next row's Edit, else the previous one, else the heading.
+  const afterRemoval = useRef<{ removedId: string; focusId: string | null } | null>(null);
 
   useEffect(() => {
     const go = returnFocus.current;
-    if (go !== null && !addOpen && editing?.open !== true) {
+    if (go !== null && !addOpen && editing?.open !== true && deleting?.open !== true) {
       returnFocus.current = null;
       go();
     }
+    const wanted = afterRemoval.current;
+    if (wanted !== null && !order.items.some((item) => item.id === wanted.removedId)) {
+      afterRemoval.current = null;
+      if (wanted.focusId === null || !rowFocus.focusRow(wanted.focusId)) {
+        headingRef.current?.focus();
+      }
+    }
   });
+
+  const closeDelete = (): void => {
+    setDeleting((current) => (current === null ? null : { ...current, open: false }));
+  };
+
+  const removal = useOrderAction<OrderItem>(
+    (_key, item) => orderItemsService.remove(order.id, item.id),
+    (answer, item) => {
+      const index = order.items.findIndex((candidate) => candidate.id === item.id);
+      afterRemoval.current = {
+        removedId: item.id,
+        focusId: order.items[index + 1]?.id ?? order.items[index - 1]?.id ?? null,
+      };
+      closeDelete();
+      toast.show({ tone: 'success', ...orderSavedMessage(answer, 'item', 'deleted') });
+      applyOrder(answer);
+    },
+    (error) => {
+      // The page is out of date as well as refused (the item is gone, or it became the last): read the order again.
+      if (isHttpError(error) && (error.status === 404 || error.status === 422)) {
+        void refetchOrder(order.id);
+      }
+    },
+  );
 
   const columns: readonly ResponsiveTableColumn<OrderItem>[] = [
     ...COLUMNS,
@@ -104,6 +166,7 @@ function EditableItems({ order }: { order: OrderDetailResponse }) {
       cell: (item) => {
         const n = order.items.findIndex((candidate) => candidate.id === item.id) + 1;
         const editName = WINDOWS.editAction(n, item.description);
+        const deleteName = WINDOWS.deleteAction(n, item.description);
         return (
           <RowActions>
             <RowAction
@@ -117,6 +180,20 @@ function EditableItems({ order }: { order: OrderDetailResponse }) {
                 setEditing({ itemId: item.id, open: true });
               }}
             />
+            {canDeleteItem(order) && (
+              <RowAction
+                icon="trash-2"
+                label={deleteName}
+                title={deleteName}
+                danger
+                ref={(button) => {
+                  rowFocus.register(deleteKey(item.id), button);
+                }}
+                onClick={() => {
+                  setDeleting({ item, n, open: true });
+                }}
+              />
+            )}
           </RowActions>
         );
       },
@@ -143,6 +220,11 @@ function EditableItems({ order }: { order: OrderDetailResponse }) {
         </Button>
       }
     >
+      {!canDeleteItem(order) && (
+        <div className={orderTabNoteClasses}>
+          <Note icon="info">{WINDOWS.lastItemNote}</Note>
+        </div>
+      )}
       {addUsed && (
         <OrderItemModal
           mode="add"
@@ -168,6 +250,27 @@ function EditableItems({ order }: { order: OrderDetailResponse }) {
               }
             };
             setEditing({ itemId, open: false });
+          }}
+        />
+      )}
+      {deleting !== null && (
+        <ConfirmDialog
+          open={deleting.open}
+          title={WINDOWS.deleteTitle(deleting.item.description)}
+          message={ORDER_WINDOWS_COPY.remove.message(order.number)}
+          confirmLabel={WINDOWS.deleteConfirm}
+          pendingLabel={ORDER_WINDOWS_COPY.remove.pending}
+          cancelLabel={ORDER_WINDOWS_COPY.remove.cancel}
+          describeFailure={describeDeleteFailure}
+          onConfirm={() => removal.submit(deleting.item)}
+          onCancel={() => {
+            const itemId = deleting.item.id;
+            returnFocus.current = () => {
+              if (!rowFocus.focusRow(deleteKey(itemId))) {
+                headingRef.current?.focus();
+              }
+            };
+            closeDelete();
           }}
         />
       )}

@@ -83,6 +83,9 @@ export const orderTabCaptionClasses = tw('text-[13px] leading-5 text-ink-muted')
 /** The table inside a tab panel, kept clear of the card edge by the panel padding. */
 export const orderTabBodyClasses = tw('px-5 pb-5 pg-phone:px-4');
 
+/** The note under a tab table (the last item cannot be deleted, D-48), 16px clear of it. */
+export const orderTabNoteClasses = tw('mt-4');
+
 /** The bold name cell of a table (a date, a reason). */
 export const orderCellStrongClasses = tw('font-semibold');
 
