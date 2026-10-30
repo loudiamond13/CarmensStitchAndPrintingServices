@@ -10,6 +10,7 @@ import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOp
 import OrderPage from '@/modules/admin/pages/OrderPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+import { staffBackend } from '@/test/expenseFixtures';
 import {
   buildOrderDetail,
   cancelledOrderWithRefunds,
@@ -18,6 +19,7 @@ import {
   order0148,
   order0151,
   orderProblem,
+  orderRefund,
   useOrderHandlers,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
@@ -807,5 +809,96 @@ describe('reopening from the banner (ORD-07, D-15, D-16, UIC-37, UIC-47)', () =>
     expect(screen.getByRole('button', { name: 'Reopen Order' })).toHaveFocus();
     expect(screen.getByText('This order is cancelled.')).toBeVisible();
     expect(backend.writes).toHaveLength(0);
+  });
+});
+
+describe('Record Refund from the credit block (ORD-18, D-19, UIC-34; plan 08-21)', () => {
+  beforeEach(() => {
+    staffBackend();
+  });
+
+  /** The order the server answers a refund of the whole credit with. */
+  function creditCleared(): OrderDetailFixture {
+    return buildOrderDetail({
+      ...creditOrder,
+      version: 'AAAAAAAAB9F=',
+      refunds: [orderRefund('2026-10-08', 1000, 'Overpaid')],
+      totals: { ...creditOrder.totals, refunded: 1000, customerCredit: 0, fullyPaid: true },
+    });
+  }
+
+  it('shows Record Refund in the credit block and opens the window with the credit filled in', async () => {
+    const user = userEvent.setup();
+    useOrderHandlers({ detail: creditOrder });
+    renderOrder({ order: creditOrder });
+
+    await user.click(
+      await within(await screen.findByRole('region', { name: 'Totals' })).findByRole('button', {
+        name: 'Record Refund',
+      }),
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Refund' });
+    expect(within(dialog).getByRole('textbox', { name: /^Amount/ })).toHaveValue('1000.00');
+    expect(within(dialog).getByLabelText(/^Date/)).toHaveValue('2026-10-08');
+    expect(await within(dialog).findByRole('option', { name: 'Carmen Reyes (you)' })).toBeInTheDocument();
+    expect(within(dialog).getByText('You can refund up to ₱1,000.00.')).toBeVisible();
+  });
+
+  it("clears the credit: the panel shows the server's Refunded row and Fully Paid, the toast follows D-05, focus goes to Totals", async () => {
+    const user = userEvent.setup();
+    const backend = useOrderHandlers({ detail: creditOrder, reply: () => HttpResponse.json(creditCleared()) });
+    renderOrder({ order: creditOrder });
+
+    await user.click(await screen.findByRole('button', { name: 'Record Refund' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add Refund' });
+    await within(dialog).findByRole('option', { name: 'Carmen Reyes (you)' });
+    await user.type(within(dialog).getByRole('textbox', { name: /^Reason/ }), 'Overpaid');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Refund' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Add Refund' })).toBeNull();
+    });
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.path).toBe(`/orders/${creditOrder.id}/refunds`);
+    expect(backend.writes[0]?.body).toMatchObject({ amount: 1000, reason: 'Overpaid' });
+    expect(within(totalsPanel()).getByText('+₱1,000.00')).toBeVisible();
+    expect(within(totalsPanel()).getByText('Fully Paid')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Record Refund' })).toBeNull();
+    expect(screen.getByText('Refund added')).toBeVisible();
+    expect(screen.getByText('Order is now fully paid.')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'Totals' })).toHaveFocus();
+    });
+  });
+
+  it('puts focus back on Record Refund when the window is cancelled', async () => {
+    const user = userEvent.setup();
+    useOrderHandlers({ detail: creditOrder });
+    renderOrder({ order: creditOrder });
+
+    await user.click(await screen.findByRole('button', { name: 'Record Refund' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add Refund' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Record Refund' })).toHaveFocus();
+    });
+  });
+
+  it('hides Record Refund on a Completed order (D-19)', async () => {
+    const completedWithCredit = buildOrderDetail({
+      ...creditOrder,
+      status: 'completed',
+    });
+    useOrderHandlers({ detail: completedWithCredit });
+    renderOrder({ order: completedWithCredit });
+
+    await screen.findByRole('heading', { level: 1, name: creditOrder.number });
+    expect(within(totalsPanel()).getByText('Customer credit')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Record Refund' })).toBeNull();
   });
 });
