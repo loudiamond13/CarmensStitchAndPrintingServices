@@ -61,16 +61,16 @@ function toNumber(value: number | string): number {
   return Number(value);
 }
 
-/**
- * A list row as the card takes it. The server sends one of the seven status keys; a key the types do not know is shown as
- * plain text by the badge, so the row is never dropped.
- */
 /** The words for a status choice: the two special choices, or the shared status word. */
 function statusLabel(status: OrderStatusFilter): string {
   if (status === 'active') return COPY.status.active;
   return status === 'all' ? COPY.status.all : ORDER_STATUSES[status];
 }
 
+/**
+ * A list row as the card takes it. The server sends one of the seven status keys; a key the types do not know is shown as
+ * plain text by the badge, so the row is never dropped.
+ */
 function toCardOrder(entry: OrderListEntry): OrderCardOrder {
   return { ...entry, status: entry.status as OrderStatus };
 }
