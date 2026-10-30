@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-08-PLAN.md
-last_updated: "2026-10-30T02:53:01.362Z"
+stopped_at: Completed 08-09-PLAN.md
+last_updated: "2026-10-30T03:56:12.150Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: b7404d0266af297efb1fbf4bbd61007dcceb5b13
+state_head: 0f79a23cb6fce50de93134b6dfa91cb08609731d
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 227
+  completed_plans: 228
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T20:37:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 9 of 24
+Plan: 10 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -287,6 +287,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P06 | 76 min | 3 tasks | 23 files |
 | Phase 08 P07 | 60 min | 2 tasks | 14 files |
 | Phase 08 P08 | 72 min | 3 tasks | 22 files |
+| Phase 08 P09 | 47 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -819,6 +820,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-07: deleted read is the live detail read in a deleted mode (SoftDelete lifted on the order and each child query); a restore between reads answers 404
 - [Phase 08 execute]: D-89 (owner, 2026-10-29, 08-06 deferred item 2): route `AdminNotFoundPage` as a splat under the admin layout so an unknown `/admin/...` address shows the in-shell "Page not found" screen; keep the file. Built as a follow-up task after wave 2.
 - [Phase 08]: 08-08: Settings list tabs run on one config-driven ListSettingsSection; CategoryModal takes an optional list config — One card serves all four lists; the Phase 6 words and tests stay the default config
+- [Phase 08]: Orders list search and filters (q, status, dates, from, to, productType, hasBalance, sort) live in the URL; status and sort are always sent to the API
+- [Phase 08]: Order date presets 30d, 90d and month come from the server business today and the list request waits for it; a stray from or to beside no custom range is dropped with one replace
 
 ### Pending Todos
 
@@ -923,6 +926,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T02:53:00.120Z
-Stopped at: Completed 08-08-PLAN.md
+Last session: 2026-10-30T03:56:10.920Z
+Stopped at: Completed 08-09-PLAN.md
 Resume file: None
