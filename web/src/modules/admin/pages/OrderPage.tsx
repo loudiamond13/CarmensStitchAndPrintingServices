@@ -1,10 +1,10 @@
-// O1 Order page, /admin/orders/:id (ORD-07, ORD-12, ORD-19; plan 08-10). The header, the Images card (coming soon, D-27), the tab card
-// with the Items tab, and the side with the totals panel. Every figure is the server's answer: Subtotal to Balance, and the
-// internal Order Expenses and Estimated Profit, which only this staff page and the deleted view show (ORD-19, D-06, D-08). The tab
-// is the URL `tab` parameter. The first load shows skeletons, a failed load an ErrorState with Try Again, and a missing or deleted
-// order a message with Back to Orders. The back link returns to the list view the user left, when the navigation state holds a
-// same-app Orders address (D-51). The payment, discount and expense panels, the customer card and the status history are added
-// by plan 08-12.
+// O1 Order page, /admin/orders/:id (ORD-07, ORD-12, ORD-19; plans 08-10, 08-12). The header, the phone balance card, the Images card
+// (coming soon, D-27), the tab card (Items, Payments, Discounts, Expenses, and Refunds when it applies) and the side with the totals
+// panel, the customer card and the status history. Every figure is the server's answer: Subtotal to Balance, and the internal Order
+// Expenses and Estimated Profit, which only this staff page and the deleted view show (ORD-19, D-06, D-08). The tab is the URL
+// `tab` parameter. The first load shows skeletons, a failed load an ErrorState with Try Again, and a missing or deleted order a
+// message with Back to Orders. The back link returns to the list view the user left, when the navigation state holds a same-app
+// Orders address (D-51).
 import { useEffect } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { ButtonLink } from '@/components/actions';
@@ -17,11 +17,14 @@ import { OrderTotals } from '@/components/money';
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { OrderHeader } from '@/modules/admin/components/OrderHeader';
+import { OrderBalanceStrip } from '@/modules/admin/components/OrderBalanceStrip';
+import { OrderCustomerCard } from '@/modules/admin/components/OrderCustomerCard';
 import { OrderDiscountsTab } from '@/modules/admin/components/OrderDiscountsTab';
 import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
+import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistory';
 import {
   orderCardClasses,
   orderCardHeadClasses,
@@ -166,6 +169,7 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
   return (
     <>
       <OrderHeader order={order} backTo={backTo} />
+      <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>
           <ImagesCard />
@@ -187,6 +191,8 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
             </h2>
             <OrderTotals variant="panel" totals={order.totals} status={order.status as OrderStatus} />
           </section>
+          <OrderCustomerCard order={order} />
+          <OrderStatusHistory history={order.statusHistory} />
         </div>
       </div>
     </>

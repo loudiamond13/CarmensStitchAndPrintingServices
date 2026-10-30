@@ -2,7 +2,7 @@
 // plan 08-10) as complete Tailwind tokens (D-33). Every string here is a class list. No new token: spacing, radius, colour and type
 // come from the theme.
 import clsx from 'clsx';
-import { cardClasses } from '@/components/money';
+import { cardClasses, overlineClasses } from '@/components/money';
 import { tw } from '@/ui/tw';
 
 /** The page column: header, then the detail grid, 24px apart (20px on phones). */
@@ -37,9 +37,13 @@ export const orderDetailClasses = tw(
 /** `.s-detail-main`: the Images card and the tab card, 24px apart. */
 export const orderMainClasses = tw('flex min-w-0 flex-col gap-6');
 
-/** `.s-detail-side`: sticky at the top bar plus 24px on desktop; static and first on tablets and phones. */
+/**
+ * `.s-detail-side`: sticky at the top bar plus 24px on desktop. On a tablet it moves above the main column as a two-column grid
+ * (the totals left, the customer card right; the history card spans both, see orderHistoryCardClasses). On a phone it is static and
+ * follows the main column, so the phone order is header, balance card, images, tabs, totals, customer, history.
+ */
 export const orderSideClasses = tw(
-  'sticky top-[calc(var(--topbar-height)+24px)] flex min-w-0 flex-col gap-4 pg-lt-lg:static pg-lt-lg:order-first',
+  'sticky top-[calc(var(--topbar-height)+24px)] flex min-w-0 flex-col gap-4 pg-tablet:order-first pg-tablet:grid pg-tablet:grid-cols-2 pg-tablet:items-start pg-lt-lg:static',
 );
 
 /** `.s-card`: the card look; `min-width: 0` lets a long value shrink instead of widening the grid. */
@@ -95,3 +99,74 @@ export const orderInlineEmptyClasses = tw(
 
 /** The Back to Orders button under the not-found message. */
 export const orderStateActionClasses = tw('flex');
+
+/** The status history card spans both columns of the tablet side grid. */
+export const orderHistoryCardClasses = clsx(orderCardClasses, tw('pg-tablet:col-span-2'));
+
+/** The title of a side card with an icon or a link beside it. */
+export const orderCardTitleRowClasses = tw('flex items-center gap-2');
+
+/** `.s-meta`: label and value on one grid, the value end-aligned and free to wrap anywhere. */
+export const orderMetaClasses = tw('m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[14px] leading-5');
+
+/** `.s-meta dt`: the icon and the label, muted. */
+export const orderMetaTermClasses = tw('flex items-center gap-1.5 text-ink-muted');
+
+/** `.s-meta dd`: the value, 600, end-aligned. */
+export const orderMetaValueClasses = tw('m-0 min-w-0 text-right font-semibold wrap-anywhere');
+
+/** The notes keep the line breaks the person typed. */
+export const orderNotesClasses = tw('whitespace-pre-line');
+
+/** A side card body: padded, its parts 16px apart. */
+export const orderCardBodyClasses = tw('flex flex-col gap-4 p-5');
+
+/** The status history list: no bullets, rows 12px apart. */
+export const orderHistoryListClasses = tw('m-0 flex list-none flex-col gap-3 p-0');
+
+/** A history row title: 14px, 600. */
+export const orderHistoryTitleClasses = tw('block text-[14px] leading-5 font-semibold text-ink');
+
+/** A history row line: 12px muted. */
+export const orderHistorySubClasses = tw('block text-[12px] leading-4 text-ink-muted');
+
+/** The Show All button sits at the start of the card foot. */
+export const orderHistoryMoreClasses = tw('flex');
+
+/**
+ * The slim balance card (D-33): a full-width button under the header, shown on phones only. `hidden` removes it from view and from
+ * the accessibility tree above 767px; the page container turns it into a flex row at 767px and below.
+ */
+export const orderBalanceStripClasses = tw(
+  'hidden min-h-14 w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3 text-left [box-shadow:var(--shadow-1)] pg-phone:flex',
+);
+
+/** One side of the strip: an overline over a figure. */
+export const orderStripColumnClasses = tw('flex min-w-0 flex-col gap-0.5');
+
+/** The right side: the balance column and the chevron. */
+export const orderStripEndClasses = tw('flex items-center gap-2 text-ink-muted');
+
+/** The balance column is end-aligned. */
+export const orderStripBalanceClasses = tw('flex min-w-0 flex-col items-end gap-0.5');
+
+/** The strip's overline per state (the label type in the state's colour). */
+export const orderStripOverlineClasses = {
+  neutral: overlineClasses,
+  due: tw('text-[11px] leading-4 font-bold tracking-[.12em] text-warning uppercase'),
+  paid: tw('text-[11px] leading-4 font-bold tracking-[.12em] text-success uppercase'),
+  credit: tw('text-[11px] leading-4 font-bold tracking-[.12em] text-info uppercase'),
+} as const;
+
+/** A strip figure: the display face, tabular, one line. */
+export const orderStripFigureClasses = tw(
+  'font-display text-[20px] leading-none font-bold whitespace-nowrap text-ink tabular-nums',
+);
+
+/** The green Fully Paid label with its check. */
+export const orderStripPaidClasses = tw(
+  'inline-flex items-center gap-1.5 font-display text-[18px] leading-none font-bold tracking-[.02em] text-success uppercase',
+);
+
+/** A `div` that groups a term and its value inside the `dl` without taking part in the grid. */
+export const orderMetaRowClasses = tw('contents');

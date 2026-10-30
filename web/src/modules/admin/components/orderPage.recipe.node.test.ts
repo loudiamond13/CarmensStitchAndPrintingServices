@@ -57,7 +57,9 @@ describe('order page recipe (O1 layout)', () => {
   });
 
   it('hides the slim balance card above 767px and shows it as a flex row on a phone', () => {
-    expect(recipeSource).toContain(`hidden ${STRIP_SHOWN}`);
+    const classes = /orderBalanceStripClasses = tw\(\s*'([^']*)'/.exec(recipeSource)?.[1]?.split(' ') ?? [];
+    expect(classes).toContain('hidden');
+    expect(classes).toContain(STRIP_SHOWN);
   });
 
   it('makes the one-column rule important, so the 320px side rule cannot win over it on a tablet', () => {

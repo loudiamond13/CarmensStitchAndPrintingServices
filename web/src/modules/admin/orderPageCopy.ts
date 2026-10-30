@@ -109,6 +109,41 @@ export const ORDER_PAGE_COPY = {
     footerAmountLabel: 'Total',
     empty: 'No expenses recorded yet.',
   },
+  /** The customer card (UI-SPEC O1 Side 2). */
+  customer: {
+    title: 'Customer',
+    editDetails: 'Edit Details',
+    name: 'Name',
+    team: 'Team',
+    contact: 'Contact',
+    email: 'Email',
+    address: 'Address',
+  },
+  /** The status history card (D-17, D-50). */
+  history: {
+    title: 'Status history',
+    /** The row for the first status of an order. */
+    createdAs: (status: string): string => `Created as ${status}`,
+    move: (from: string, to: string): string => `${from} to ${to}`,
+    /** Joins the name and the date. */
+    separator: ' · ',
+    showAll: (count: number): string => `Show All ${formatCount(count)}`,
+    showFewer: 'Show Fewer',
+  },
+  /** The slim balance card of phones (D-33). */
+  strip: {
+    total: 'Total',
+    balanceDue: 'Balance due',
+    notCollected: 'Not collected',
+    fullyPaid: 'Fully Paid',
+    credit: (amount: string): string => `Credit ${amount}`,
+    /** The button's name: the total, then the balance state, then what the button does. */
+    nameDue: (total: string, due: string): string => `Total ${total}, balance due ${due}. Show totals.`,
+    nameNotCollected: (total: string, unpaid: string): string =>
+      `Total ${total}, not collected ${unpaid}. Show totals.`,
+    namePaid: (total: string): string => `Total ${total}, fully paid. Show totals.`,
+    nameCredit: (total: string, credit: string): string => `Total ${total}, customer credit ${credit}. Show totals.`,
+  },
   /** The Refunds tab (D-10, D-12). */
   refunds: {
     title: 'Refunds',

@@ -4,6 +4,7 @@
 // CSP, failed responses). The shared CSPS_E2E database keeps what earlier runs made, so each check finds its own order by a
 // unique number.
 import { randomUUID } from 'node:crypto';
+import type { Locator } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
@@ -58,7 +59,7 @@ test('@orders-page a Manager opens an order from the list and sees its header, t
   await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/E2E Page Team · E2E Page Customer · Ordered /)).toBeVisible();
   await expect(page.getByText('5 days left')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Edit Details' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Edit Details' }).first()).toBeVisible();
 
   // The totals are the server's, with the internal figures (ORD-19: this page only).
   const totals = page.getByRole('region', { name: 'Totals' });
@@ -90,4 +91,113 @@ test('@orders-page a Manager opens an order from the list and sees its header, t
   await page.locator('main').getByRole('link', { name: 'Orders', exact: true }).click();
   await expect(page).toHaveURL(`/admin/orders?q=${number}`);
   await expect(page.getByRole('article').filter({ hasText: number })).toHaveCount(1);
+});
+
+/** The box of an element that must be on screen. */
+async function boxOf(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error('The element has no box on screen.');
+  }
+  return box;
+}
+
+test('@orders-page the order page lays out by screen width, with the customer card, the status history and the phone balance card', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const number = `ORD-2094-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`;
+  // 12 x 780 = 9,360.00; a fixed 360.00 discount gives 9,000.00; 4,000.00 paid leaves 5,000.00 due.
+  const id = await createOrder(request, {
+    number,
+    customerName: 'E2E Layout Customer',
+    teamName: 'E2E Layout Team',
+    contactNumber: '0917 000 0000',
+    email: 'layout.customer@example.test',
+    address: 'E2E Layout Street',
+    notes: 'E2E layout note',
+    orderDate: manilaDate(-3),
+    dueDate: manilaDate(5),
+    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E layout jersey', quantity: 12, unitPrice: 780 }],
+    discounts: [{ kind: 'fixed', value: 360, reason: 'E2E layout discount' }],
+    payments: [
+      { paymentDate: manilaDate(-2), amount: 4000, paymentMethodId: CASH_ID, receivedByUserId: manager.userId },
+    ],
+  });
+  await signInAs(page, request, manager);
+
+  const strip = page.getByRole('button', { name: 'Total ₱9,000.00, balance due ₱5,000.00. Show totals.' });
+  const title = page.getByRole('heading', { level: 1, name: number });
+  const images = page.getByRole('heading', { level: 2, name: 'Images' });
+  const tabs = page.getByRole('tablist');
+  const totals = page.getByRole('region', { name: 'Totals' });
+  const customer = page.getByRole('region', { name: 'Customer' });
+  const history = page.getByRole('region', { name: 'Status history' });
+
+  // Phone: the balance card sits under the header; the side follows the tab card; nothing scrolls sideways.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/admin/orders/${id}`);
+  await expect(title).toBeVisible();
+  await expect(strip).toBeVisible();
+  expect((await boxOf(strip)).y).toBeGreaterThan((await boxOf(title)).y);
+  expect((await boxOf(images)).y).toBeGreaterThan((await boxOf(strip)).y);
+  expect((await boxOf(totals)).y).toBeGreaterThan((await boxOf(tabs)).y);
+  expect((await boxOf(customer)).y).toBeGreaterThan((await boxOf(totals)).y);
+  expect((await boxOf(history)).y).toBeGreaterThan((await boxOf(customer)).y);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+  await strip.click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Totals' })).toBeFocused();
+
+  // The customer card and the history read from the order.
+  await expect(customer).toContainText('E2E Layout Customer');
+  await expect(customer).toContainText('E2E Layout Team');
+  await expect(customer).toContainText('layout.customer@example.test');
+  await expect(customer).toContainText('E2E layout note');
+  await expect(history).toContainText('Created as Pending');
+
+  // The Payments tab shows who received and who recorded the payment.
+  await page.getByRole('tab', { name: /^Payments/ }).click();
+  const payments = page.getByRole('table', { name: 'Payments' });
+  await expect(payments).toContainText('Cash');
+  await expect(payments).toContainText('₱4,000.00');
+  await expect(payments).toContainText('Total paid');
+  await expect(page.getByText('Downpayments and settlements.')).toContainText('Balance due: ₱5,000.00');
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+
+  // A small phone: the tab strip scrolls inside itself and keeps the chosen tab in view; the page does not scroll sideways.
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.getByRole('tab', { name: /^Expenses/ }).click();
+  const expenses = page.getByRole('tab', { name: /^Expenses/ });
+  await expect
+    .poll(async () => {
+      const box = await boxOf(expenses);
+      return box.x >= 0 && box.x + box.width <= 320;
+    })
+    .toBe(true);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await page.getByRole('tab', { name: /^Items/ }).click();
+
+  // Tablet: the balance card is gone; the totals and the customer card sit side by side above the images and the tabs.
+  await page.setViewportSize({ width: 820, height: 900 });
+  await expect(strip).toBeHidden();
+  const tabletTotals = await boxOf(totals);
+  const tabletCustomer = await boxOf(customer);
+  expect(tabletTotals.y + tabletTotals.height).toBeLessThanOrEqual((await boxOf(images)).y);
+  expect(tabletCustomer.y + tabletCustomer.height).toBeLessThanOrEqual((await boxOf(images)).y);
+  expect(tabletCustomer.x).toBeGreaterThan(tabletTotals.x);
+  expect((await boxOf(history)).y).toBeGreaterThanOrEqual(tabletCustomer.y + tabletCustomer.height);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+
+  // Desktop: the side sits beside the tab card.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(strip).toBeHidden();
+  expect((await boxOf(totals)).x).toBeGreaterThan((await boxOf(tabs)).x + (await boxOf(tabs)).width - 1);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
 });
