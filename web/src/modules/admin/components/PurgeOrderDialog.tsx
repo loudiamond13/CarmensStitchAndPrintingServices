@@ -13,7 +13,7 @@ import { useToast } from '@/components/feedback';
 import { ConfirmDialog } from '@/components/overlays';
 import { isHttpError } from '@/core/api/errors';
 import { DELETED_ORDERS_COPY } from '@/modules/admin/deletedOrdersCopy';
-import { useDeletedOrderQuery } from '@/modules/admin/hooks/useDeletedOrderQuery';
+import { useDeletedOrderCountsQuery } from '@/modules/admin/hooks/useDeletedOrderQuery';
 import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
 import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import { deletedOrdersService } from '@/modules/admin/services/deletedOrdersService';
@@ -58,7 +58,7 @@ function describeFailure(error: unknown): string | undefined {
 export function PurgeOrderDialog({ orderId, number, team, customer, open, onClose, onDone }: PurgeOrderDialogProps) {
   const toast = useToast();
   const refreshAll = useRefreshOrders();
-  const counts = useDeletedOrderQuery(orderId, open);
+  const counts = useDeletedOrderCountsQuery(orderId, open);
   const goneHandled = useRef(false);
 
   const showGone = () => {
