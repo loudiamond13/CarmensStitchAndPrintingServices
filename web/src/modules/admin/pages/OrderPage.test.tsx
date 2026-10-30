@@ -16,6 +16,7 @@ import {
   completedOrder,
   creditOrder,
   order0148,
+  order0151,
   orderProblem,
   useOrderHandlers,
   type OrderDetailFixture,
@@ -626,5 +627,116 @@ describe('the Change Status menu on the page (ORD-07, D-14, D-20)', () => {
     expect(heading.parentElement).toHaveTextContent('Ready');
     expect(backend.writes).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Change Status' })).toHaveFocus();
+  });
+});
+
+describe('a locked order and its banner (ORD-07, D-15, D-39, UIC-37)', () => {
+  it.each([
+    ['completed', completedOrder],
+    ['cancelled', cancelledOrderWithRefunds],
+  ] as const)('shows the %s banner with Reopen Order and no Change Status', async (status, order) => {
+    useOrderHandlers({ detail: order });
+    renderOrder({ order });
+
+    await screen.findByRole('heading', { level: 1, name: order.number });
+    expect(screen.getByText(`This order is ${status}.`)).toBeVisible();
+    expect(screen.getByText('Reopen it to make changes.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reopen Order' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Change Status' })).toBeNull();
+  });
+
+  it('adds the refunds line to the cancelled banner and keeps the Refunds tab', async () => {
+    useOrderHandlers({ detail: cancelledOrderWithRefunds });
+    renderOrder({ order: cancelledOrderWithRefunds });
+
+    await screen.findByRole('heading', { level: 1, name: cancelledOrderWithRefunds.number });
+    expect(screen.getByText('Refunds can still be recorded on the Refunds tab.')).toBeVisible();
+    expect(screen.getByRole('tab', { name: /^Refunds/ })).toBeVisible();
+  });
+
+  it('shows the completed banner without the refunds line', async () => {
+    useOrderHandlers({ detail: completedOrder });
+    renderOrder({ order: completedOrder });
+
+    await screen.findByRole('heading', { level: 1, name: completedOrder.number });
+    expect(screen.queryByText('Refunds can still be recorded on the Refunds tab.')).toBeNull();
+  });
+
+  it('shows no banner on an active order', async () => {
+    renderOrder();
+
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    expect(screen.queryByRole('button', { name: 'Reopen Order' })).toBeNull();
+    expect(screen.queryByText(/^This order is (completed|cancelled)\.$/)).toBeNull();
+  });
+
+  it.each([
+    ['Completed', completedOrder],
+    ['Cancelled', cancelledOrderWithRefunds],
+  ])('hides Edit Details, Add buttons and row actions on a locked %s order', async (_status, order) => {
+    useOrderHandlers({ detail: order });
+    renderOrder({ order });
+
+    await screen.findByRole('heading', { level: 1, name: order.number });
+    expect(screen.queryByRole('link', { name: 'Edit Details' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add Item' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Edit item/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Delete item/ })).toBeNull();
+  });
+
+  it('completes a settled order from the menu: the banner shows, the actions go, and Reopen Order has focus', async () => {
+    const user = userEvent.setup();
+    const completed = buildOrderDetail({
+      ...order0151,
+      status: 'completed',
+      statusHistory: [
+        ...order0151.statusHistory,
+        { from: 'ready', to: 'completed', changedAt: '2026-10-08T03:00:00Z', changedBy: order0151.recordedBy },
+      ],
+      version: 'AAAAAAAAB9F=',
+    });
+    useOrderHandlers({ detail: order0151, reply: () => HttpResponse.json(completed) });
+    renderOrder({ order: order0151 });
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark Completed' }));
+
+    expect(await screen.findByText('This order is completed.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reopen Order' })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Change Status' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Edit Details' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add Item' })).toBeNull();
+  });
+
+  it('cancels an order from the menu: the banner and the Refunds tab show, and Reopen Order has focus', async () => {
+    const user = userEvent.setup();
+    const cancelled = buildOrderDetail({
+      status: 'cancelled',
+      statusHistory: [
+        ...order0148.statusHistory,
+        { from: 'production', to: 'cancelled', changedAt: '2026-10-08T03:00:00Z', changedBy: order0148.recordedBy },
+      ],
+      version: 'AAAAAAAAB9F=',
+    });
+    const backend = useOrderHandlers({ detail: order0148, reply: () => HttpResponse.json(cancelled) });
+    renderOrder();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Cancel Order' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel Order' }));
+
+    expect(await screen.findByText('This order is cancelled.')).toBeVisible();
+    expect(screen.getByText('Refunds can still be recorded on the Refunds tab.')).toBeVisible();
+    expect(screen.getByRole('tab', { name: /^Refunds/ })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reopen Order' })).toHaveFocus();
+    expect(backend.writes).toHaveLength(1);
+  });
+
+  it('has no axe violations on the locked banner', async () => {
+    useOrderHandlers({ detail: cancelledOrderWithRefunds });
+    const { container } = renderOrder({ order: cancelledOrderWithRefunds });
+
+    await screen.findByText('This order is cancelled.');
+    await expectNoAxeViolations(container);
   });
 });

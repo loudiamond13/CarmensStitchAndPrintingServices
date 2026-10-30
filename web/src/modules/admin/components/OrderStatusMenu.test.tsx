@@ -9,10 +9,18 @@ import { StatusBadge } from '@/components/status';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { OrderStatusMenu } from '@/modules/admin/components/OrderStatusMenu';
 import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
+import { canEditOrder } from '@/modules/admin/orderRules';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { expectNoAxeViolations } from '@/test/axe';
-import { buildOrderDetail, creditOrder, order0148, order0151, useOrderHandlers } from '@/test/orderFixtures';
+import {
+  buildOrderDetail,
+  creditOrder,
+  order0148,
+  order0151,
+  useOrderHandlers,
+  type OrderDetailFixture,
+} from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import type { OrderStatus } from '@/utils/csps';
 
@@ -47,7 +55,7 @@ function Page({ id, onMoved }: PageProps) {
   return (
     <>
       <StatusBadge status={order.status as OrderStatus} />
-      <OrderStatusMenu order={order} onMoved={onMoved} />
+      {canEditOrder(order) && <OrderStatusMenu order={order} onMoved={onMoved} />}
       <button type="button">Elsewhere</button>
     </>
   );
@@ -439,5 +447,183 @@ describe('moving the order (D-14, D-20, 05 D-21)', () => {
 
     expect(backend.writes).toHaveLength(0);
     expect(screen.getByRole('menu')).toBeVisible();
+  });
+});
+
+const completedAfterMove: OrderDetailFixture = buildOrderDetail({
+  ...order0151,
+  status: 'completed',
+  statusHistory: [
+    ...order0151.statusHistory,
+    { from: 'ready', to: 'completed', changedAt: '2026-10-08T03:00:00Z', changedBy: order0151.recordedBy },
+  ],
+  version: 'AAAAAAAAB9F=',
+});
+
+const cancelledAfterMove: OrderDetailFixture = buildOrderDetail({
+  status: 'cancelled',
+  statusHistory: [
+    ...order0148.statusHistory,
+    { from: 'production', to: 'cancelled', changedAt: '2026-10-08T03:00:00Z', changedBy: order0148.recordedBy },
+  ],
+  version: 'AAAAAAAAB9F=',
+});
+
+describe('Mark Completed (D-14, D-47, UIC-38)', () => {
+  it('completes a fully settled order at once, with no confirm, and toasts that it is locked', async () => {
+    const backend = useOrderHandlers({ detail: order0151, reply: () => HttpResponse.json(completedAfterMove) });
+    const onMoved = vi.fn();
+    const { user } = renderMenu(order0151, onMoved);
+    await user.click(await trigger());
+
+    await user.click(screen.getByRole('menuitem', { name: 'Mark Completed' }));
+
+    expect(await screen.findByText('Order completed')).toBeVisible();
+    expect(screen.getByText('ORD-2026-0151 is locked. Reopen it to make changes.')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.path).toBe(`/orders/${order0151.id}/status`);
+    expect(backend.writes[0]?.body).toEqual({ status: 'completed' });
+    expect(backend.writes[0]?.key).toMatch(/\S/);
+    expect(onMoved).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }));
+  });
+
+  it('does nothing when Mark Completed is pressed on an order holding customer credit', async () => {
+    const backend = useOrderHandlers({ detail: creditOrder });
+    const { user } = renderMenu(creditOrder);
+    await user.click(await trigger());
+
+    await user.click(screen.getByRole('menuitem', { name: /^Mark Completed/ }));
+
+    expect(backend.writes).toHaveLength(0);
+    expect(screen.getByRole('menu')).toBeVisible();
+  });
+
+  it('shows the server text when the server refuses a completion the menu allowed', async () => {
+    const detail = 'This order still has ₱500.00 to pay. Record the payment first.';
+    useOrderHandlers({
+      detail: order0151,
+      reply: () => refusal(422, 'orders.complete-balance-owed', detail),
+    });
+    const { user } = renderMenu(order0151);
+    await user.click(await trigger());
+
+    await user.click(screen.getByRole('menuitem', { name: 'Mark Completed' }));
+
+    expect(await screen.findByText(detail)).toBeVisible();
+    expect(screen.queryByText('Order completed')).toBeNull();
+  });
+});
+
+describe('Cancel Order (D-18, D-54c, D-57, ORD-07)', () => {
+  async function openCancel(order: OrderDetailFixture = order0148, onMoved?: PageProps['onMoved']) {
+    const view = renderMenu(order, onMoved);
+    await view.user.click(await trigger());
+    await view.user.click(screen.getByRole('menuitem', { name: 'Cancel Order' }));
+    return view;
+  }
+
+  it('opens a confirm that explains the money and reopening, with Keep Order focused first', async () => {
+    useOrderHandlers({ detail: order0148 });
+    await openCancel();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Cancel ORD-2026-0148?' });
+    expect(dialog).toHaveTextContent(
+      'Payments of ₱12,000.00 stay as collected cash. Record a refund on the Refunds tab if you give money back.',
+    );
+    expect(dialog).toHaveTextContent('You can reopen it later.');
+    expect(within(dialog).getByRole('button', { name: 'Keep Order' })).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Cancel Order' })).toBeVisible();
+  });
+
+  it('draws the Cancel Order button with the x icon', async () => {
+    useOrderHandlers({ detail: order0148 });
+    await openCancel();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Cancel ORD-2026-0148?' });
+    expect(within(dialog).getByRole('button', { name: 'Cancel Order' }).querySelector('svg.lucide-x')).not.toBeNull();
+  });
+
+  it('says nothing was paid when nothing was', async () => {
+    const unpaid = buildOrderDetail({
+      payments: [],
+      totals: { ...order0148.totals, paid: 0, balance: 21327.5 },
+    });
+    useOrderHandlers({ detail: unpaid });
+    await openCancel(unpaid);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Cancel ORD-2026-0148?' });
+    expect(dialog).toHaveTextContent('Nothing was paid on this order.');
+    expect(dialog).toHaveTextContent('You can reopen it later.');
+    expect(dialog).not.toHaveTextContent('Payments of');
+  });
+
+  it('keeps the order when Keep Order is pressed, and puts focus back on Change Status', async () => {
+    const backend = useOrderHandlers({ detail: order0148 });
+    const { user } = await openCancel();
+
+    await user.click(await screen.findByRole('button', { name: 'Keep Order' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(backend.writes).toHaveLength(0);
+    expect(await trigger()).toHaveFocus();
+  });
+
+  it('cancels with the status cancelled, an Idempotency-Key and no version, toasts, and records no refund', async () => {
+    const backend = useOrderHandlers({ detail: order0148, reply: () => HttpResponse.json(cancelledAfterMove) });
+    const onMoved = vi.fn();
+    const { user } = await openCancel(order0148, onMoved);
+
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel Order' }));
+
+    expect(await screen.findByText('Order cancelled')).toBeVisible();
+    expect(screen.getByText('ORD-2026-0148 is locked. Payments stay as collected cash.')).toBeVisible();
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.path).toBe(`/orders/${order0148.id}/status`);
+    expect(backend.writes[0]?.body).toEqual({ status: 'cancelled' });
+    expect(backend.writes[0]?.key).toMatch(/\S/);
+    expect(backend.writes.some((write) => write.path.includes('refund'))).toBe(false);
+    expect(onMoved).toHaveBeenCalledWith(expect.objectContaining({ status: 'cancelled' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('shows Cancelling on the button and keeps the dialog open while the request runs', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    useOrderHandlers({
+      detail: order0148,
+      reply: async () => {
+        await gate;
+        return HttpResponse.json(cancelledAfterMove);
+      },
+    });
+    const { user } = await openCancel();
+
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel Order' }));
+
+    const pending = await screen.findByRole('button', { name: 'Cancelling' });
+    expect(pending).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('dialog')).toBeVisible();
+    release();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('shows the server text inside the dialog when the server refuses, and keeps it open', async () => {
+    const detail = 'This order is completed. Reopen it to make changes.';
+    useOrderHandlers({ detail: order0148, reply: () => refusal(422, 'orders.reopen-first', detail) });
+    const { user } = await openCancel();
+
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel Order' }));
+
+    expect(await within(screen.getByRole('dialog')).findByText(detail, { exact: false })).toBeVisible();
+    expect(screen.getByRole('dialog')).toBeVisible();
   });
 });
