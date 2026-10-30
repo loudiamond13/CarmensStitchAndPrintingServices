@@ -45,7 +45,7 @@ export const orderCountClasses = tw(
 );
 
 /** `.csp-order-body`: the text column, 16px padded (12px at the bottom), 4px between lines, taking the spare height. */
-export const orderBodyClasses = tw('flex flex-1 flex-col gap-1 px-4 pt-4 pb-3');
+export const orderBodyClasses = tw('flex min-w-0 flex-1 flex-col gap-1 px-4 pt-4 pb-3');
 
 /** `.csp-order-head`: the order number and the piece count, spread apart on one baseline. */
 export const orderHeadClasses = tw('flex items-baseline justify-between');
@@ -57,10 +57,10 @@ export const orderNumberClasses = tw('font-display text-[15px] font-bold trackin
 export const orderQtyClasses = tw('text-[12px] font-semibold text-ink-muted');
 
 /** `.csp-order-team`: the team (or customer) name, display 700 22px, line height 1.1. */
-export const orderTeamClasses = tw('font-display text-[22px] leading-[1.1] font-bold');
+export const orderTeamClasses = tw('font-display text-[22px] leading-[1.1] font-bold wrap-anywhere');
 
 /** `.csp-order-cust`: the customer line, 14px/20px `--ink-muted`, at least one line high even when empty. */
-export const orderCustomerClasses = tw('min-h-5 text-[14px] leading-5 text-ink-muted');
+export const orderCustomerClasses = tw('min-h-5 text-[14px] leading-5 wrap-anywhere text-ink-muted');
 
 /** `.csp-order-dates`: the order and due dates, 12px/16px `--ink-muted`, 4px above and 12px below. */
 export const orderDatesClasses = tw('mt-1 mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] leading-4 text-ink-muted');
@@ -69,7 +69,7 @@ export const orderDatesClasses = tw('mt-1 mb-3 flex flex-wrap gap-x-4 gap-y-1 te
 export const orderDateClasses = tw('inline-flex items-center gap-1');
 
 /** `.csp-order-actions`: the footer buttons, 2px apart, 8px by 12px padded, below a 1px `--line` rule. */
-export const orderActionsClasses = tw('flex gap-0.5 border-t border-line px-3 py-2');
+export const orderActionsClasses = tw('flex flex-wrap gap-0.5 border-t border-line px-3 py-2');
 
 /* ───────────── DataTable ───────────── */
 

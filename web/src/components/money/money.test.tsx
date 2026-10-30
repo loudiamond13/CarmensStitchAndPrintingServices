@@ -15,7 +15,6 @@ import {
   balancePaidClasses,
   balanceToneClasses,
   balanceValueClasses,
-  balanceWrapClasses,
   deltaClasses,
   deltaToneClasses,
   kpiClasses,
@@ -231,6 +230,13 @@ describe('OrderTotals (D-01 to D-07, D-45)', () => {
     expect(screen.queryByText('Fully Paid')).toBeNull();
   });
 
+  it('lets a huge balance figure wrap instead of widening its block or the page (UIC-65)', () => {
+    for (const variant of ['card', 'panel'] as const) {
+      expect(tokens(balanceValueClasses[variant])).toEqual(expect.arrayContaining(['min-w-0', 'wrap-anywhere']));
+      expect(tokens(balanceClasses[variant])).toContain('flex-wrap');
+    }
+  });
+
   it('renders the panel markup: rows list, balance, then the dashed internal list with the Staff only note', () => {
     const { container } = renderCase('order-totals-0148');
     const root = container.firstElementChild;
@@ -330,9 +336,7 @@ describe('OrderTotals (D-01 to D-07, D-45)', () => {
     expect(balance?.textContent).toContain('Customer credit');
     expect(balance?.textContent).toContain('₱1,000.00');
     expect(balance?.textContent).toContain('Paid over the total. Record a refund to clear it.');
-    expect(classTokens(balance)).toEqual(
-      tokens(`${balanceClasses.panel} ${balanceToneClasses.credit} ${balanceWrapClasses}`),
-    );
+    expect(classTokens(balance)).toEqual(tokens(`${balanceClasses.panel} ${balanceToneClasses.credit}`));
     expect(classTokens(balance?.firstElementChild)).toEqual(tokens(balanceOverlineClasses.credit));
     expect(balance?.textContent).not.toContain(MINUS);
     expect(container.textContent).not.toContain('Balance due');

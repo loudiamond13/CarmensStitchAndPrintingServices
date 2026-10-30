@@ -335,6 +335,16 @@ describe('OrderCard (list contract, D-04, D-22, D-27, D-40, D-46, D-57)', () => 
     expect(classTokens(actions)).toEqual(tokens(orderActionsClasses));
   });
 
+  it('lets a 100-character team or customer name with no break wrap inside the card (UIC-66)', () => {
+    expect(tokens(orderBodyClasses)).toContain('min-w-0');
+    expect(tokens(orderTeamClasses)).toContain('wrap-anywhere');
+    expect(tokens(orderCustomerClasses)).toContain('wrap-anywhere');
+  });
+
+  it('lets the View Order and Edit Details buttons wrap on a card narrower than both (UIC-65)', () => {
+    expect(tokens(orderActionsClasses)).toContain('flex-wrap');
+  });
+
   it('shows the empty-value icon where the due date is missing, and keeps a valid order date (OR-4)', async () => {
     const { container } = render(<OrderCard order={{ ...row0148, dueDate: null }} />);
     const due = screen.getByText(/^Due/);

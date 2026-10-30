@@ -126,10 +126,13 @@ export const totalsFigureClasses = tw('m-0 font-semibold tabular-nums');
 /** `.csp-totals-row .is-neg`: a negative profit in `--danger`. */
 export const totalsNegativeClasses = tw('text-danger');
 
-/** `.csp-balance` padding: 12px by 16px, and 16px all round inside the panel. */
+/**
+ * `.csp-balance` padding: 12px by 16px, and 16px all round inside the panel. It wraps: the credit block holds a line and a button under
+ * the overline and figure (D-02, D-19), and a huge figure drops under the overline instead of widening the page (UIC-65).
+ */
 export const balanceClasses = {
-  card: tw('flex items-center justify-between gap-3 rounded-sm px-4 py-3'),
-  panel: tw('flex items-center justify-between gap-3 rounded-sm p-4'),
+  card: tw('flex flex-wrap items-center justify-between gap-3 rounded-sm px-4 py-3'),
+  panel: tw('flex flex-wrap items-center justify-between gap-3 rounded-sm p-4'),
 } as const satisfies Record<TotalsVariant, string>;
 
 /**
@@ -152,16 +155,13 @@ export const balanceOverlineClasses = {
   neutral: clsx(overlineType, tw('text-ink-muted')),
 } as const satisfies Record<BalanceState, string>;
 
-/** The customer credit block holds a line and a button under the overline and figure, so it wraps (D-02, D-19). */
-export const balanceWrapClasses = tw('flex-wrap');
-
 /** The credit block's line "Paid over the total. Record a refund to clear it.": 12px/16px, on its own row. */
 export const balanceLineClasses = tw('m-0 basis-full text-[12px] leading-4 text-ink');
 
 /** `.csp-balance-value`: the big balance figure in `--ink`, 28px (`.csp-totals-panel` 40px), line height 1. */
 export const balanceValueClasses = {
-  card: tw('font-display text-[28px] leading-[1] font-bold text-ink tabular-nums'),
-  panel: tw('font-display text-[40px] leading-[1] font-bold text-ink tabular-nums'),
+  card: tw('min-w-0 font-display text-[28px] leading-[1] font-bold wrap-anywhere text-ink tabular-nums'),
+  panel: tw('min-w-0 font-display text-[40px] leading-[1] font-bold wrap-anywhere text-ink tabular-nums'),
 } as const satisfies Record<TotalsVariant, string>;
 
 /** `.csp-balance-paid`: the green "Fully Paid" with its check icon, display 22px, upper case, .02em tracking. */

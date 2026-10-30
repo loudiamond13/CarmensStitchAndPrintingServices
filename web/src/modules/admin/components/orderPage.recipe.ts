@@ -2,6 +2,7 @@
 // plan 08-10) as complete Tailwind tokens (D-33). Every string here is a class list. No new token: spacing, radius, colour and type
 // come from the theme.
 import clsx from 'clsx';
+import { pageSublineClasses } from '@/components/layout/layout.recipe';
 import { cardClasses, overlineClasses } from '@/components/money';
 import { tw } from '@/ui/tw';
 
@@ -15,6 +16,9 @@ export const orderTitleRowClasses = tw('flex flex-wrap items-center gap-3');
 export const orderNumberClasses = tw(
   'font-display text-[34px] leading-[1.05] font-bold tracking-[.02em] wrap-anywhere text-accent-ink focus:[outline:none] pg-phone:text-[30px] pg-tablet:text-[30px]',
 );
+
+/** The subline under the title; a 100-character name with no break wraps instead of widening the page. */
+export const orderSublineClasses = clsx(pageSublineClasses, tw('wrap-anywhere'));
 
 /** The team name in the subline: ink, where the rest of the line is muted. */
 export const orderSublineStrongClasses = tw('font-semibold text-ink');

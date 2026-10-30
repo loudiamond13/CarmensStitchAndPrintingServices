@@ -67,3 +67,11 @@ describe('order page recipe (O1 layout)', () => {
     expect(ruleOf(NARROW_SIDE).body).not.toContain('!important');
   });
 });
+
+describe('order page recipe (long names)', () => {
+  it('lets a 100-character name with no break wrap in the subline instead of widening the page (UIC-66)', () => {
+    const classes = /orderSublineClasses = clsx\(([^;]*)\);/.exec(recipeSource)?.[1] ?? '';
+    expect(classes).toContain('pageSublineClasses');
+    expect(classes).toContain('wrap-anywhere');
+  });
+});

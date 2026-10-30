@@ -21,7 +21,6 @@ import {
   loginBackClasses,
   pageHeadClasses,
   pageHeadTitleClasses,
-  pageSublineClasses,
   srOnlyClasses,
 } from '@/components/layout/layout.recipe';
 import { SkeletonTable } from '@/components/lists';
@@ -54,6 +53,7 @@ import {
   orderPageClasses,
   orderSideClasses,
   orderStateActionClasses,
+  orderSublineClasses,
   orderSublineStrongClasses,
   orderTabsRowClasses,
   orderTitleRowClasses,
@@ -181,7 +181,7 @@ function DeletedOrderHeader({ order }: { order: OrderDetailResponse }) {
           </h1>
           <StatusBadge status={order.status as OrderStatus} />
         </div>
-        <p className={pageSublineClasses}>
+        <p className={orderSublineClasses}>
           <strong className={orderSublineStrongClasses}>{hasTeam ? order.teamName : order.customerName}</strong>
           {PAGE.header.separator}
           {hasTeam ? order.customerName : WALK_IN_CUSTOMER}

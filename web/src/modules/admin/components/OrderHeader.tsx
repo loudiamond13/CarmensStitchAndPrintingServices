@@ -6,12 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, ButtonLink, UiLink, hitAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { RecordMeta, WALK_IN_CUSTOMER } from '@/components/data';
-import {
-  loginBackClasses,
-  pageHeadClasses,
-  pageHeadTitleClasses,
-  pageSublineClasses,
-} from '@/components/layout/layout.recipe';
+import { loginBackClasses, pageHeadClasses, pageHeadTitleClasses } from '@/components/layout/layout.recipe';
 import { StatusBadge } from '@/components/status';
 import { DeleteOrderDialog } from '@/modules/admin/components/DeleteOrderDialog';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
@@ -21,6 +16,7 @@ import {
   orderBackRowClasses,
   orderDeleteButtonClasses,
   orderNumberClasses,
+  orderSublineClasses,
   orderSublineStrongClasses,
   orderTitleRowClasses,
 } from '@/modules/admin/components/orderPage.recipe';
@@ -72,7 +68,7 @@ export function OrderHeader({ order, backTo, onStatusMoved }: OrderHeaderProps) 
           <StatusBadge status={order.status as OrderStatus} />
           {canEditOrder(order) && <OrderStatusMenu order={order} onMoved={onStatusMoved} />}
         </div>
-        <p className={pageSublineClasses}>
+        <p className={orderSublineClasses}>
           <strong className={orderSublineStrongClasses}>{hasTeam ? order.teamName : order.customerName}</strong>
           {COPY.separator}
           {hasTeam ? order.customerName : WALK_IN_CUSTOMER}

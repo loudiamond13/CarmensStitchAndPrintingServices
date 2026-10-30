@@ -37,7 +37,6 @@ import {
   balancePaidClasses,
   balanceToneClasses,
   balanceValueClasses,
-  balanceWrapClasses,
   totalsClasses,
   totalsFigureClasses,
   totalsInternalClasses,
@@ -128,7 +127,6 @@ export function OrderTotals({
 }: OrderTotalsProps) {
   const t = totals ?? previewFigures(order);
   const kind = balanceKind(t, status);
-  const panelCredit = kind === 'credit' && variant === 'panel';
   const state: BalanceState = BALANCE_STATE[kind === 'credit' && variant === 'panel' ? 'panelCredit' : kind];
   const rows: readonly Row[] =
     variant === 'card'
@@ -152,7 +150,7 @@ export function OrderTotals({
           </div>
         ))}
       </dl>
-      <div className={clsx(balanceClasses[variant], balanceToneClasses[state], panelCredit && balanceWrapClasses)}>
+      <div className={clsx(balanceClasses[variant], balanceToneClasses[state])}>
         <span className={balanceOverlineClasses[state]}>{overline(kind, variant)}</span>
         {kind === 'credit' && variant === 'card' ? (
           <Badge tone="info">{`Credit ${formatPeso(t.customerCredit)}`}</Badge>
