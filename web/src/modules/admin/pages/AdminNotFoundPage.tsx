@@ -1,5 +1,5 @@
-// The screen for an admin section whose page is built in a later phase (Orders, Expenses, Users, My Profile): the page
-// head with the h1, then an empty state, inside the admin shell. The document title is "Page not found · CSPS Admin".
+// The screen for an unknown admin address (the splat route, D-89): the page head with the h1, then an empty state,
+// inside the admin shell. The document title is "Page not found · CSPS Admin".
 import { useEffect } from 'react';
 import { EmptyState } from '@/components/feedback';
 import { pageHeadClasses, pageHeadTitleClasses, pageTitleClasses } from '@/components/layout/layout.recipe';

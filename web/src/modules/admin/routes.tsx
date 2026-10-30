@@ -9,6 +9,7 @@
 //   - Until the dashboard exists (Phase 10) the index goes to Orders (D-61).
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
+//   - An unknown `/admin/...` address is the splat route inside the shell (D-89), not the public holding page.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
 //   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the same
 //     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11), and
@@ -106,6 +107,10 @@ const showcasePage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ComponentShowcasePage')).ComponentShowcaseRoute,
 }));
 
+const notFoundPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/AdminNotFoundPage')).AdminNotFoundPage,
+}));
+
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/lib/url-state/UrlStateLayout')).default,
 }));
@@ -157,6 +162,8 @@ export const adminRoutes: RouteObject[] = [
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
           { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },
+          // D-89: any other /admin/... address shows the in-shell Page not found screen, behind the same sign-in guard.
+          { path: '*', lazy: notFoundPage },
         ],
       },
     ],
