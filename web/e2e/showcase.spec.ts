@@ -27,6 +27,7 @@ const SECTIONS = [
   'Sign-in and devices',
   'Staff and audit',
   'Expenses and settings',
+  'Orders',
 ];
 
 /**

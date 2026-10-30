@@ -67,3 +67,24 @@ export const dateClasses = tw('flex flex-col gap-1');
 
 /** The Staff and audit demos, one case under another (each case keeps its own label and frame). */
 export const staffStackClasses = tw('flex w-full min-w-0 flex-col gap-6');
+
+/** The Phase 8 order cards side by side, wrapping on a narrow page. */
+export const orderCardsGridClasses = tw('grid w-full min-w-0 grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5');
+
+/** The Phase 8 totals panels side by side, wrapping on a narrow page. */
+export const orderTotalsGridClasses = tw('grid w-full min-w-0 grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5');
+
+/** The room under the open status menu demo, so the popover does not cover the case below. */
+export const statusMenuRoomClasses = tw('flex min-h-72 w-full items-start');
+
+/** One due flag case: the status in words, then the flag as the order screens draw it. */
+export const dueCaseClasses = tw('flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[14px]');
+
+/** The due flag cases, one under another. */
+export const dueListClasses = tw('m-0 flex list-none flex-col gap-2 p-0');
+
+/** The status badges in one wrapping row. */
+export const badgesRowClasses = tw('flex flex-wrap items-center gap-3');
+
+/** The banners, one under another. */
+export const bannersStackClasses = tw('flex w-full min-w-0 flex-col gap-4');

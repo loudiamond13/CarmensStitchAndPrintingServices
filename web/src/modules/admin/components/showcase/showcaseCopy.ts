@@ -73,6 +73,12 @@ export const SHOWCASE_COPY = {
     openAddCategory: 'Open Add Category',
     openEditCategory: 'Open Edit Category',
   },
+  /** SPEC-GAP dev wording: the Orders demos (plan 08-24). Made-up people and values only. */
+  orders: {
+    openSoftDelete: 'Open Delete Order',
+    openPurge: 'Open Delete Order Permanently',
+    changeStatus: 'Change Status',
+  },
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },
   /** The loaded LazyImage shows the brand mark (web/public/mark.svg). */

@@ -29,6 +29,7 @@ const SECTION_TITLES = [
   'Sign-in and devices',
   'Staff and audit',
   'Expenses and settings',
+  'Orders',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -174,6 +175,8 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Staff and audit')).toContainElement(caseFrame('staff-roster-rows'));
     expect(section('Expenses and settings')).toContainElement(caseFrame('expenses-table'));
     expect(section('Expenses and settings')).toContainElement(caseFrame('settings-category-rows'));
+    expect(section('Orders')).toContainElement(caseFrame('orders-totals-states'));
+    expect(section('Orders')).toContainElement(caseFrame('orders-status-menu'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
