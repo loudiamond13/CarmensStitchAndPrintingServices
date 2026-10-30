@@ -3,6 +3,7 @@
 // Names are made up. Every figure is written out (the same numbers the server would store), never worked out in a test.
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw';
+import { PRODUCT_TYPES } from '@/test/orderListFixtures';
 import type { components } from '@/types/api.generated';
 
 type Schemas = components['schemas'];
@@ -583,6 +584,8 @@ export function useOrderHandlers(options: OrderHandlerOptions = {}): OrderBacken
   const noContent = (): Response => new HttpResponse(null, { status: 204 });
 
   server.use(
+    // The Orders toolbar's Product type filter reads the product types (plan 08-09).
+    http.get('*/api/v1/product-types', () => HttpResponse.json(PRODUCT_TYPES)),
     http.get('*/api/v1/orders/deleted', async ({ request }) => {
       const url = new URL(request.url);
       backend.deletedLists.push(url);

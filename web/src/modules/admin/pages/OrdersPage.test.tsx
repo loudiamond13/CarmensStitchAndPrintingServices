@@ -1,7 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { delay, http, HttpResponse } from 'msw';
+import { delay } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,8 +22,7 @@ import {
   standardOrderList,
   useOrderHandlers,
 } from '@/test/orderFixtures';
-import { server } from '@/test/msw';
-import { BASKETBALL_ID, PRODUCT_TYPES } from '@/test/orderListFixtures';
+import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // L1 Orders, /admin/orders (ORD-01, ORD-11, ORD-12, ORD-19; plan 08-06): the server's rows as cards, with the server's
@@ -35,8 +34,6 @@ beforeEach(() => {
   clearSession();
   acceptSession(sessionResponse());
   queryClient = createQueryClient();
-  // The toolbar's Product type filter reads the product types list.
-  server.use(http.get('*/api/v1/product-types', () => HttpResponse.json(PRODUCT_TYPES)));
 });
 
 afterEach(() => {
@@ -600,7 +597,7 @@ describe('status, sort and balance reach the API (ORD-02, D-43)', () => {
     await screen.findByText('148 orders · 37 active');
     expect(queryOf(backend.lists[0])).toEqual({ page: '1', pageSize: '20', sort: 'due', status: 'active' });
     expect(screen.queryByText(/^Status:/)).toBeNull();
-    expect(screen.queryByText(/^Sort/)).toBeNull();
+    expect(screen.queryByText(/^Sort:/)).toBeNull();
     expect(screen.queryByText('Has a balance')).toBeNull();
   });
 
@@ -645,22 +642,29 @@ describe('status, sort and balance reach the API (ORD-02, D-43)', () => {
   });
 
   it('sends each sort the toolbar offers, in the order the server answers it', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
     const backend = useOrderHandlers({ list: standardOrderList() });
-    renderPage();
+    renderPage('', onUrlUpdate);
     await screen.findByText('148 orders · 37 active');
+    expect(queryOf(backend.lists[0]).sort).toBe('due');
     const sort = screen.getByRole('combobox', { name: 'Sort by' });
 
     for (const [label, key] of [
       ['Newest first', 'newest'],
       ['Balance (highest)', 'balance'],
       ['Total (highest)', 'total'],
-      ['Due date (soonest)', 'due'],
     ] as const) {
       await userEvent.selectOptions(sort, label);
       await waitFor(() => {
         expect(queryOf(backend.lists.at(-1)).sort).toBe(key);
       });
     }
+    // Back to the default: its answer is the first one, still held, so the page shows it again and the URL loses the key.
+    await userEvent.selectOptions(sort, 'Due date (soonest)');
+    await waitFor(() => {
+      expect(urlWrites(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    });
+    expect(sort).toHaveValue('due');
     const numbers = screen.getAllByRole('article').map((card) => within(card).getByText(/^ORD-2026-/).textContent);
     expect(numbers).toEqual(['ORD-2026-0148', 'ORD-2026-0151', 'ORD-2026-0153', 'ORD-2026-0160']);
   });
@@ -798,7 +802,7 @@ describe('order date presets use the server business today (D-59, ORD-02)', () =
       await screen.findAllByRole('article');
 
       const ranges = rowRequests(backend.lists).map(
-        (url) => `${url.searchParams.get('from')} to ${url.searchParams.get('to')}`,
+        (url) => `${url.searchParams.get('from') ?? 'none'} to ${url.searchParams.get('to') ?? 'none'}`,
       );
       expect(ranges).toEqual(['2026-10-01 to 2026-10-08', '2026-09-09 to 2026-10-08']);
     },

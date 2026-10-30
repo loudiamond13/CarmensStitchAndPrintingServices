@@ -92,7 +92,9 @@ describe('useBusinessToday', () => {
       held.setQueryData(listKey('orders', { page: 1, pageSize: 20 }), buildOrderList([], { today: '2026-11-02' }));
     });
 
-    expect(result.current).toBe('2026-11-02');
+    await waitFor(() => {
+      expect(result.current).toBe('2026-11-02');
+    });
     expect(backend.lists).toHaveLength(0);
   });
 });

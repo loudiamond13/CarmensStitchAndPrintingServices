@@ -3,7 +3,9 @@
 // response's own business today (D-59), never the device clock. A card link carries the current list search in the navigation
 // state, so the order page can offer a way back to this view (D-51). Page and rows per page live in the URL. The first load shows
 // four skeleton cards, a failed load an ErrorState with Try Again, a refetch keeps the cards and dims them after 200 ms, and a
-// shop with no active orders sees the first-use EmptyState.
+// shop with no active orders sees the first-use EmptyState. The toolbar holds the search and the filters (ORD-02, plan 08-09): each
+// one is in the URL, sent to the API, and shown as a chip when it is not at its default. A date preset waits for the server's
+// business today (D-59) before the list is asked for.
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ButtonLink } from '@/components/actions';
@@ -23,11 +25,15 @@ import { DueFlag } from '@/modules/admin/components/DueFlag';
 import { OrdersToolbar } from '@/modules/admin/components/OrdersToolbar';
 import { ordersGridClasses, ordersSublineSkeletonClasses } from '@/modules/admin/components/orders.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { useOrdersListParams } from '@/modules/admin/hooks/useOrdersListParams';
+import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
+import { resolveOrderDateRange, useOrdersListParams } from '@/modules/admin/hooks/useOrdersListParams';
 import { useOrdersQuery } from '@/modules/admin/hooks/useOrdersQuery';
+import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
 import { ORDERS_COPY } from '@/modules/admin/ordersCopy';
+import { ORDER_LISTS_COPY } from '@/modules/admin/orderListsCopy';
 import type { OrderListEntry } from '@/modules/admin/services/ordersService';
-import type { OrderStatus } from '@/utils/csps';
+import { ORDER_STATUSES, type OrderStatus } from '@/utils/csps';
+import { formatCalendarDate } from '@/utils/format';
 
 const COPY = ORDERS_COPY.list;
 /** The results heading Pagination moves focus to (it needs tabIndex -1). */
@@ -55,7 +61,27 @@ export default function OrdersPage() {
   const location = useLocation();
   const [values, set] = useOrdersListParams();
   const settled = useSettledListParams(values, 300);
-  const query = useOrdersQuery({ page: settled.page, pageSize: settled.size, q: settled.q });
+
+  // A date preset is worked out from the server's business today, never the device clock (D-59). Until it is known the list
+  // is held back, so the first request already carries the range.
+  const presetChosen = values.dates !== null && values.dates !== 'custom';
+  const businessToday = useBusinessTodayState(presetChosen);
+  const range = resolveOrderDateRange(settled.dates, settled.from, settled.to, businessToday.today);
+  const waitingForToday = settled.dates !== null && settled.dates !== 'custom' && range === null;
+  const query = useOrdersQuery(
+    {
+      page: settled.page,
+      pageSize: settled.size,
+      q: settled.q,
+      status: settled.status,
+      from: range?.from ?? null,
+      to: range?.to ?? null,
+      productType: settled.productType,
+      hasBalance: settled.hasBalance === 'true' ? true : null,
+      sort: settled.sort,
+    },
+    { enabled: !waitingForToday },
+  );
 
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
@@ -75,9 +101,46 @@ export default function OrdersPage() {
     }
   }, [fresh, pageCount, clampPage]);
 
-  const firstLoad = query.isPending && !hasRows;
+  // A product type id the list does not hold (a stale or shared link) becomes All products, once the list has loaded.
+  const { setFilter } = set;
+  const productTypes = useProductTypesQuery();
+  const knownTypes = productTypes.data;
+  const chosenType =
+    values.productType === null ? undefined : knownTypes?.find((type) => type.id.toLowerCase() === values.productType);
+  const unknownType = knownTypes !== undefined && values.productType !== null && chosenType === undefined;
+  useEffect(() => {
+    if (unknownType) {
+      setFilter('productType', null);
+    }
+  }, [unknownType, setFilter]);
+
+  const todayFailed = waitingForToday && businessToday.isError;
+  const failed = query.isError || todayFailed;
+  const firstLoad = query.isPending && !hasRows && !todayFailed;
   const refetching = useDelayedFlag(query.isPlaceholderData && query.isFetching && hasRows, REFETCH_MARK_DELAY_MS);
   const empty = query.isSuccess && !hasRows;
+
+  // The chips: a preset by its name, a custom range by its two dates; a product by its name (a retired one says so).
+  let datesChip: string | null = null;
+  if (values.dates === 'custom') {
+    if (values.from !== null && values.to !== null) {
+      datesChip = COPY.dates.range(
+        formatCalendarDate(values.from) ?? values.from,
+        formatCalendarDate(values.to) ?? values.to,
+      );
+    }
+  } else if (values.dates !== null) {
+    datesChip = COPY.dates.presets[values.dates];
+  }
+  let productChip: string | null = null;
+  if (values.productType !== null && !unknownType) {
+    productChip =
+      chosenType === undefined
+        ? COPY.productLoading
+        : chosenType.status === 'retired'
+          ? ORDER_LISTS_COPY.retired(chosenType.name)
+          : chosenType.name;
+  }
 
   // The card links remember this list view for the order page's back link (D-51).
   const from = `${location.pathname}${location.search}`;
@@ -108,7 +171,7 @@ export default function OrdersPage() {
         </div>
       </div>
       <OrdersToolbar values={values} set={set} />
-      <ResultBar count={total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortedBy.due}>
+      <ResultBar count={total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortedBy[values.sort]}>
         {values.q !== null && (
           <FilterChip
             label={COPY.chips.search}
@@ -118,20 +181,60 @@ export default function OrdersPage() {
             }}
           />
         )}
+        {values.status !== 'active' && (
+          <FilterChip
+            label={COPY.chips.status}
+            value={values.status === 'all' ? COPY.status.all : ORDER_STATUSES[values.status]}
+            onClear={() => {
+              set.setFilter('status', null);
+            }}
+          />
+        )}
+        {datesChip !== null && (
+          <FilterChip
+            label={COPY.chips.dates}
+            value={datesChip}
+            onClear={() => {
+              set.setFilters({ dates: null, from: null, to: null });
+            }}
+          />
+        )}
+        {productChip !== null && (
+          <FilterChip
+            label={COPY.chips.product}
+            value={productChip}
+            onClear={() => {
+              set.setFilter('productType', null);
+            }}
+          />
+        )}
+        {values.hasBalance === 'true' && (
+          <FilterChip
+            label={COPY.balance.chip}
+            clearName={COPY.balance.clearName}
+            onClear={() => {
+              set.setFilter('hasBalance', null);
+            }}
+          />
+        )}
       </ResultBar>
       <h2 id={HEADING_ID} tabIndex={-1} className={srOnlyClasses}>
         {COPY.results}
       </h2>
-      {query.isError && (
+      {failed && (
         <ErrorState
           things={COPY.things}
-          error={query.error}
+          error={todayFailed ? businessToday.error : query.error}
           onRetry={() => {
-            void query.refetch();
+            if (todayFailed) {
+              businessToday.refetch();
+            } else {
+              void query.refetch();
+            }
           }}
         />
       )}
-      <LoadingRegion loading={firstLoad || refetching} things={COPY.things} failed={query.isError}>
+      <LoadingRegion loading={firstLoad || refetching} things={COPY.things} failed={failed}>
         {firstLoad && (
           <div className={ordersGridClasses}>
             {SKELETON_CARDS.map((key) => (

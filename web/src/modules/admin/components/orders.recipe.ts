@@ -32,3 +32,9 @@ export const ordersGridClasses = tw(
 
 /** The one-line subline skeleton while the counts load: a fixed width, so the header does not jump. */
 export const ordersSublineSkeletonClasses = tw('w-[220px] max-w-full');
+
+/** The custom order date range (From and To) on its own row of the toolbar (UI-SPEC L1 toolbar). */
+export const ordersCustomRangeClasses = tw('flex basis-full flex-wrap items-end gap-3');
+
+/** The balance box, as tall as the 40px controls beside it and bottom-aligned with them. */
+export const ordersBalanceFilterClasses = tw('flex min-h-10 items-center');
