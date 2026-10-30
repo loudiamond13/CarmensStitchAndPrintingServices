@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-29T22:07:33-05:00
+updated: 2026-10-29T22:08:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -19,3 +19,8 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 1. **Flake, passes alone: the Phase 6 Settings delete test can lose its focus target when other projects run it at the same time.** In the first full `@settings` run, `@settings a Manager opens Settings ... deletes a never-used one` failed once on chromium at its last focus check (the focus sat on the card heading, not on a row's Edit button). The row after the deleted one is usually another project's `E2E cat <token>` row, and that row can be deleted at the same moment; the page then falls back to the card heading, which is the designed fallback. Re-run alone on one worker, 4 of 4 passed; a second full `@settings` run passed 25 of 25. The Phase 6 logic is unchanged by 08-08. A fix would be a test that picks a stable neighbour (for example a name that sorts just before Others); not done here.
 2. **The phone Settings tabs are only proved at 320 px on the Product Types tab.** The `@settings` phone test checks no sideways scroll and the Add button in view on Product Types and on Company Expense Categories. The two tabs between them share the same card, so they were not given their own phone checks.
 3. **The Settings first-column headings and the "order expense categories" plural are SPEC-GAP wording.** The UI-SPEC names the column words only for the count column ("Items", "Payments", "Expenses"). The first column reads "Product type", "Payment method" and "Category", and the order expense list says "Loading order expense categories…" so it differs from the company tab's "Loading categories…". The owner reviews these in `orderListsCopy.ts`.
+
+## From the D-89 follow-up
+
+1. **Owner review: the admin not-found screen still uses placeholder words.** It reads "Nothing here yet / This screen is not available yet. Use the menu to go to another page." That fits a screen still to be built better than an unknown address. Rewording is the owner's call.
+2. **The unknown admin address is proved only in `routes.test.tsx`.** No e2e spec signs in and opens `/admin/no-such-page`. 08-24 (the signed-in sweep) is the natural place to add it.
