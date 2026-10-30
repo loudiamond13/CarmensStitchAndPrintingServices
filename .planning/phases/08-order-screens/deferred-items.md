@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-30T13:20:00-05:00
+updated: 2026-10-30T14:25:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -241,3 +241,9 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 9. **Flakes seen and what was done.** `@orders-sweep UIC-63` failed once on firefox by 0.4 px while the tab strip was still scrolling; the check now polls. `TemporaryPasswordTests.AnInvitedPersonWhoGetsATemporaryPasswordCanSignInWithItAndTheOldInvitationDies` failed once in the first full `dotnet test` ("The newest email is not a sign-in code email"); alone it passed, and a second full run passed 6224 of 6226 (2 skipped). iPhone runs of the heavy `/dev/components` page time out at 5 seconds for the h1 when 4 workers share the machine; the showcase grew by an Orders section, so that flake is a little more likely until the page is split.
 10. **TDD record.** The journeys and the sweep are the tests; they were written against the finished screens, so they were green at once except where the sweep found the four overflows in item 2 (each fix has a red recipe or component test first: `orderPage.recipe.node.test.ts`, `money.test.tsx`, `data.test.tsx`). The `orders-boundaries` guards were proved by a planted violation inside the test. The `owner-review` and `design-side-by-side` tests were changed first and went red, then the scripts changed. The coverage tests are render-only.
 11. **Not done on purpose.** No package, schema, trigger or SQL change. `web/playwright.config.ts` is unchanged: the sweep runs in all five projects (about 11 to 15 minutes in the slowest, iphone), so a full `npm run e2e` takes about 1.6 hours with 4 workers.
+
+## From the end-of-phase UI review (08-UI-REVIEW.md, 17/24)
+
+1. **Font sizes outside the spec (owner call).** `text-[17px]` (6), `text-[18px]` (2), `text-[24px]` (2, `orderItemsSubtotalFigureClasses`) and `text-[28px]` (2, `orderAsideTotalFigureClasses`) in the `orderForm`, `orderPage` and `orders` recipes. The UI spec names only the 17 px table balance cell. Options: add the display figure sizes to the spec, or move them onto the declared scale. Not changed while away.
+2. **Check the view switch label.** `OrdersPage.tsx` has no `aria-label` of its own; the Grid/Table switch should get its accessible name from the shared `SegmentedControl`. Confirm in the screenshot review (axe passes in the e2e runs).
+3. **Static audit only.** No screenshots were taken. The UIC-71 screenshot review (08-24 item 1) covers Visuals, Color and Spacing.
