@@ -19,9 +19,9 @@ export const ORDER_PAYMENT_COPY = {
   /** SPEC-GAP: the line under Received by (D-09, D-11). */
   receivedByHint: 'The staff member who took the money.',
   /** The row action names and the delete question (D-54a). */
-  editAction: (amount: string, date: string): string => `Edit payment of ${formatPeso(amount)}, ${date}`,
-  deleteAction: (amount: string, date: string): string => `Delete payment of ${formatPeso(amount)}, ${date}`,
-  deleteTitle: (amount: string): string => `Delete payment of ${formatPeso(amount)}?`,
+  editAction: (amount: number | string, date: string): string => `Edit payment of ${formatPeso(amount)}, ${date}`,
+  deleteAction: (amount: number | string, date: string): string => `Delete payment of ${formatPeso(amount)}, ${date}`,
+  deleteTitle: (amount: number | string): string => `Delete payment of ${formatPeso(amount)}?`,
   deleteConfirm: 'Delete Payment',
   /** The words the delete dialog shows when the payment is already gone. */
   deleteGone: 'This payment was removed.',

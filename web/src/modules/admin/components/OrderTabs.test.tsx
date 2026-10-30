@@ -34,7 +34,7 @@ function bodyRows(table: HTMLElement): HTMLElement[] {
 
 describe('the Payments tab (ORD-07, D-09, D-12)', () => {
   it('lists each payment with its date, method, reference, notes, both people and amount', () => {
-    render(<OrderPaymentsTab order={order0148} />);
+    render(<OrderPaymentsTab order={order0148} readOnly />);
 
     const table = screen.getByRole('table', { name: 'Payments' });
     for (const name of ['Date', 'Method', 'Reference no.', 'Notes', 'Received by', 'Recorded by', 'Amount']) {
@@ -54,7 +54,7 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
   });
 
   it('ends with Total paid from the server figure', () => {
-    render(<OrderPaymentsTab order={order0148} />);
+    render(<OrderPaymentsTab order={order0148} readOnly />);
 
     const footer = within(screen.getByRole('table', { name: 'Payments' }))
       .getByText('Total paid')
@@ -66,7 +66,7 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
   it('keeps the order the server sent', () => {
     const later = orderPayment('2026-10-09', CASH, 100, { notes: 'later one' });
     const earlier = orderPayment('2026-10-01', CASH, 200, { notes: 'earlier one' });
-    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [later, earlier] })} />);
+    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [later, earlier] })} readOnly />);
 
     const rows = bodyRows(screen.getByRole('table', { name: 'Payments' }));
     expect(rows[0]).toHaveTextContent('later one');
@@ -78,7 +78,7 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
       receivedBy: { ...ORDER_STAFF_TWO, formerStaff: true },
       recordedBy: { ...ORDER_STAFF, formerStaff: true },
     });
-    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [payment] })} />);
+    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [payment] })} readOnly />);
 
     const [row] = bodyRows(screen.getByRole('table', { name: 'Payments' }));
     if (row === undefined) throw new Error('Expected one payment row');
@@ -88,7 +88,7 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
 
   it('reads System for a payment with no recorder', () => {
     const payment = orderPayment('2026-10-01', CASH, 500, { recordedBy: null });
-    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [payment] })} />);
+    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [payment] })} readOnly />);
 
     const [row] = bodyRows(screen.getByRole('table', { name: 'Payments' }));
     if (row === undefined) throw new Error('Expected one payment row');
@@ -100,13 +100,13 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
     ['names the customer credit', creditOrder, 'Downpayments and settlements. Customer credit: ₱1,000.00'],
     ['says nothing is owed', order0151, 'Downpayments and settlements. Nothing is owed on this order.'],
   ])('caption %s', (_name, order, caption) => {
-    render(<OrderPaymentsTab order={order} />);
+    render(<OrderPaymentsTab order={order} readOnly />);
 
     expect(screen.getByText(/^Downpayments and settlements\./)).toHaveTextContent(caption);
   });
 
   it('shows an inline empty line and no table when there are no payments (UIC-4)', () => {
-    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [] })} />);
+    render(<OrderPaymentsTab order={buildOrderDetail({ payments: [] })} readOnly />);
 
     expect(screen.getByText('No payments recorded yet.')).toBeVisible();
     expect(screen.queryByRole('table')).toBeNull();
@@ -119,7 +119,7 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = render(<OrderPaymentsTab order={order0148} />);
+    const { container } = render(<OrderPaymentsTab order={order0148} readOnly />);
 
     await expectNoAxeViolations(container);
   });

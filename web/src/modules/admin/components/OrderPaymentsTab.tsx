@@ -1,10 +1,14 @@
-// The Payments tab of the order page (ORD-07; UI-SPEC O1 Tab card; D-09, D-12; plan 08-12): a heading and a caption that names
-// the server's balance due, customer credit or "Nothing is owed", over a ResponsiveTable of the payments with both people on each
-// row and a Total paid footer. Every figure is the server's. Rows keep the server's order. On an active order the head has Add
-// Payment while money is owed (D-48); a locked order, and the deleted view (`readOnly`), show the table alone (D-15, D-24).
+// The Payments tab of the order page (ORD-07; UI-SPEC O1 Tab card; D-09, D-12, D-48, D-54a; plans 08-12, 08-16): a heading and a caption
+// that names the server's balance due, customer credit or "Nothing is owed", over a ResponsiveTable of the payments with both people
+// on each row and a Total paid footer. Every figure is the server's. Rows keep the server's order. On an active order the head has
+// Add Payment while money is owed (D-48) and each row has Edit and Delete; a locked order, and the deleted view (`readOnly`), show the
+// table alone (D-15, D-24).
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/actions';
-import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/lists';
+import { useToast } from '@/components/feedback';
+import { ResponsiveTable, RowAction, RowActions, type ResponsiveTableColumn } from '@/components/lists';
+import { ConfirmDialog } from '@/components/overlays';
+import { isHttpError } from '@/core/api/errors';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { OrderPaymentModal } from '@/modules/admin/components/OrderPaymentModal';
 import { OrderDateCell, OrderPersonCell, OrderTabEmpty, OrderTabHead } from '@/modules/admin/components/OrderTabParts';
@@ -13,11 +17,20 @@ import {
   orderTabBodyClasses,
   orderTabularClasses,
 } from '@/modules/admin/components/orderPage.recipe';
+import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
+import { orderSavedMessage } from '@/modules/admin/hooks/useOrderChildSave';
+import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
 import { ORDER_PAYMENT_COPY } from '@/modules/admin/orderPaymentCopy';
+import { wouldLeavePaymentsBelowRefunds } from '@/modules/admin/orderPaymentSchemas';
 import { canAddPayment, canEditOrder } from '@/modules/admin/orderRules';
+import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
+import { orderPaymentsService } from '@/modules/admin/services/orderPaymentsService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { formatPeso, isPositiveMoney } from '@/utils/csps';
+import type { ErrorCopy } from '@/utils/describeHttpError';
+import { formatCalendarDate } from '@/utils/format';
 
 type OrderPayment = OrderDetailResponse['payments'][number];
 
@@ -53,6 +66,15 @@ const COLUMNS: readonly ResponsiveTableColumn<OrderPayment>[] = [
   },
   { key: 'amount', header: COPY.columns.amount, money: true, cell: (payment) => formatPeso(payment.amount) },
 ];
+
+/** The focus registry key of a row's Delete button (the Edit button is registered under the plain id). */
+const deleteKey = (id: string): string => `delete:${id}`;
+
+/** The row's date as the row action names print it ("Oct 3, 2026"). */
+const dateOf = (payment: OrderPayment): string => formatCalendarDate(payment.paymentDate) ?? payment.paymentDate;
+
+/** Raised before any request when taking the payment away would leave the payments below the refunds. */
+class PaymentBelowRefundsError extends Error {}
 
 export interface OrderPaymentsTabProps {
   order: OrderDetailResponse;
@@ -116,7 +138,7 @@ function PaymentsView({ order, columns, action, headingRef, children }: Payments
             things={COPY.things}
             footer={{ date: COPY.footerLabel, amount: formatPeso(order.totals.paid) }}
             footerLayout={{
-              date: { span: columns.length - 1 },
+              date: { span: COLUMNS.length - 1 },
               amount: { label: COPY.footerAmountLabel },
             }}
           />
@@ -127,29 +149,133 @@ function PaymentsView({ order, columns, action, headingRef, children }: Payments
   );
 }
 
-/** An active order: Add Payment while money is owed. */
+/** The dialog's own failure line: the server's sentence for a refusal, and "removed" for a payment that is already gone. */
+function describeDeleteFailure(error: unknown): ErrorCopy | string | undefined {
+  if (error instanceof PaymentBelowRefundsError) {
+    return PAYMENT.errors.belowRefunds;
+  }
+  if (!isHttpError(error) || error.kind !== 'http') {
+    return undefined;
+  }
+  if (error.status === 422) {
+    return error.problem?.detail;
+  }
+  return error.status === 404 ? PAYMENT.deleteGone : undefined;
+}
+
+/** An active order: Add Payment while money is owed, and each row's Edit and Delete. */
 function EditablePayments({ order }: { order: OrderDetailResponse }) {
   // A window mounts on its first open and stays so its close can animate; each new open starts clean (OrderPaymentModal).
   const [addUsed, setAddUsed] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<{ paymentId: string; open: boolean } | null>(null);
+  // The payment the Delete dialog is open for, or was last open for (kept while it animates out).
+  const [deleting, setDeleting] = useState<{ payment: OrderPayment; open: boolean } | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const rowFocus = useRowFocus();
+  const toast = useToast();
+  const applyOrder = useApplyOrder();
+  const refetchOrder = useRefetchOrder();
   // Where focus goes once a window has closed. Safari does not focus a button on a click, so the window's own return to its
   // trigger has nothing to go back to; the trigger is named here instead.
   const returnFocus = useRef<(() => void) | null>(null);
+  // The saved answer left nothing owed, so the Add button is going away and the heading takes the cursor instead.
+  const settledByAdd = useRef(false);
+  // Once the answer no longer holds the deleted row, focus goes to the next row's Edit, else the previous one, else the heading.
+  const afterRemoval = useRef<{ removedId: string; focusId: string | null } | null>(null);
 
   useEffect(() => {
     const go = returnFocus.current;
-    if (go !== null && !addOpen) {
+    if (go !== null && !addOpen && editing?.open !== true && deleting?.open !== true) {
       returnFocus.current = null;
       go();
     }
+    const wanted = afterRemoval.current;
+    if (wanted !== null && !order.payments.some((payment) => payment.id === wanted.removedId)) {
+      afterRemoval.current = null;
+      if (wanted.focusId === null || !rowFocus.focusRow(wanted.focusId)) {
+        headingRef.current?.focus();
+      }
+    }
   });
+
+  const closeDelete = (): void => {
+    setDeleting((current) => (current === null ? null : { ...current, open: false }));
+  };
+
+  const removal = useOrderAction<OrderPayment>(
+    (_key, payment) => orderPaymentsService.remove(order.id, payment.id),
+    (answer, payment) => {
+      const index = order.payments.findIndex((candidate) => candidate.id === payment.id);
+      afterRemoval.current = {
+        removedId: payment.id,
+        focusId: order.payments[index + 1]?.id ?? order.payments[index - 1]?.id ?? null,
+      };
+      closeDelete();
+      toast.show({ tone: 'success', ...orderSavedMessage(answer, 'payment', 'deleted') });
+      applyOrder(answer);
+    },
+    (error) => {
+      // The page is out of date as well as refused (the payment is gone, or the refunds now need it): read the order again.
+      if (isHttpError(error) && (error.status === 404 || error.status === 422)) {
+        void refetchOrder(order.id);
+      }
+    },
+  );
+
+  // The browser says it first and sends nothing; the server still checks (a preview from its own paid and refunded figures).
+  const confirmDelete = (payment: OrderPayment): unknown => {
+    if (wouldLeavePaymentsBelowRefunds(order, payment)) {
+      throw new PaymentBelowRefundsError(PAYMENT.errors.belowRefunds);
+    }
+    return removal.submit(payment);
+  };
+
+  const columns: readonly ResponsiveTableColumn<OrderPayment>[] = [
+    ...COLUMNS,
+    {
+      key: 'actions',
+      header: COPY.columns.actions,
+      actions: true,
+      cell: (payment) => {
+        const editName = PAYMENT.editAction(payment.amount, dateOf(payment));
+        const deleteName = PAYMENT.deleteAction(payment.amount, dateOf(payment));
+        return (
+          <RowActions>
+            <RowAction
+              icon="pencil"
+              label={editName}
+              title={editName}
+              ref={(button) => {
+                rowFocus.register(payment.id, button);
+              }}
+              onClick={() => {
+                setEditing({ paymentId: payment.id, open: true });
+              }}
+            />
+            <RowAction
+              icon="trash-2"
+              label={deleteName}
+              title={deleteName}
+              danger
+              ref={(button) => {
+                rowFocus.register(deleteKey(payment.id), button);
+              }}
+              onClick={() => {
+                setDeleting({ payment, open: true });
+              }}
+            />
+          </RowActions>
+        );
+      },
+    },
+  ];
 
   return (
     <PaymentsView
       order={order}
-      columns={COLUMNS}
+      columns={columns}
       headingRef={headingRef}
       action={
         canAddPayment(order) ? (
@@ -173,16 +299,58 @@ function EditablePayments({ order }: { order: OrderDetailResponse }) {
           mode="add"
           order={order}
           open={addOpen}
+          onSaved={(saved) => {
+            settledByAdd.current = !canAddPayment(saved);
+          }}
           onClose={() => {
-            // The answer may have settled the order, which takes the button away: the heading takes the cursor then.
             returnFocus.current = () => {
-              if (addRef.current === null) {
+              const settled = settledByAdd.current;
+              settledByAdd.current = false;
+              if (settled || addRef.current === null) {
                 headingRef.current?.focus();
               } else {
                 addRef.current.focus();
               }
             };
             setAddOpen(false);
+          }}
+        />
+      )}
+      {editing !== null && (
+        <OrderPaymentModal
+          mode="edit"
+          order={order}
+          paymentId={editing.paymentId}
+          open={editing.open}
+          onClose={() => {
+            const paymentId = editing.paymentId;
+            returnFocus.current = () => {
+              if (!rowFocus.focusRow(paymentId)) {
+                headingRef.current?.focus();
+              }
+            };
+            setEditing({ paymentId, open: false });
+          }}
+        />
+      )}
+      {deleting !== null && (
+        <ConfirmDialog
+          open={deleting.open}
+          title={PAYMENT.deleteTitle(deleting.payment.amount)}
+          message={ORDER_WINDOWS_COPY.remove.message(order.number)}
+          confirmLabel={PAYMENT.deleteConfirm}
+          pendingLabel={ORDER_WINDOWS_COPY.remove.pending}
+          cancelLabel={ORDER_WINDOWS_COPY.remove.cancel}
+          describeFailure={describeDeleteFailure}
+          onConfirm={() => confirmDelete(deleting.payment)}
+          onCancel={() => {
+            const paymentId = deleting.payment.id;
+            returnFocus.current = () => {
+              if (!rowFocus.focusRow(deleteKey(paymentId))) {
+                headingRef.current?.focus();
+              }
+            };
+            closeDelete();
           }}
         />
       )}
