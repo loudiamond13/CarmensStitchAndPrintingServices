@@ -1,7 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { listKey } from '@/lib/query/keys';
 import { useBusinessToday, useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
@@ -13,6 +13,7 @@ import { buildOrderList, orderProblem, standardOrderList, useOrderHandlers } fro
 let client: QueryClient | undefined;
 
 afterEach(() => {
+  vi.useRealTimers();
   client?.clear();
   client = undefined;
 });
@@ -64,11 +65,12 @@ describe('useBusinessToday', () => {
   it('takes the newest answer when several are cached', () => {
     useOrderHandlers({ list: standardOrderList() });
     client = createQueryClient();
+    const now = Date.now();
     client.setQueryData(listKey('orders', { page: 1, pageSize: 20 }), buildOrderList([], { today: '2026-10-28' }), {
-      updatedAt: 1_000,
+      updatedAt: now - 2_000,
     });
     client.setQueryData(listKey('orders', { page: 2, pageSize: 20 }), buildOrderList([], { today: '2026-10-29' }), {
-      updatedAt: 2_000,
+      updatedAt: now - 1_000,
     });
     const held = client;
     const { result } = renderHook(() => useBusinessToday(), {
@@ -95,6 +97,79 @@ describe('useBusinessToday', () => {
     await waitFor(() => {
       expect(result.current).toBe('2026-11-02');
     });
+    expect(backend.lists).toHaveLength(0);
+  });
+});
+
+describe('a held day that has gone stale (WR-03)', () => {
+  const wrap = (held: QueryClient) =>
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={held}>{children}</QueryClientProvider>;
+    };
+
+  it('does not hand out yesterday after midnight in Manila: an old held list makes the hook ask the server', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T15:00:00Z'));
+    const backend = useOrderHandlers({ list: buildOrderList([], { today: '2026-10-30' }) });
+    client = createQueryClient();
+    client.setQueryData(listKey('orders', { page: 1, pageSize: 20 }), buildOrderList([], { today: '2026-10-29' }));
+    vi.setSystemTime(new Date('2026-10-29T16:10:00Z'));
+    const { result } = renderHook(() => useBusinessToday(), { wrapper: wrap(client) });
+
+    expect(result.current).toBeNull();
+    await waitFor(() => {
+      expect(result.current).toBe('2026-10-30');
+    });
+    expect(backend.lists).toHaveLength(1);
+  });
+
+  it('still uses a held list that was read a few minutes ago, without a request', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T15:00:00Z'));
+    const backend = useOrderHandlers({ list: buildOrderList([], { today: '2026-10-30' }) });
+    client = createQueryClient();
+    client.setQueryData(listKey('orders', { page: 1, pageSize: 20 }), buildOrderList([], { today: '2026-10-29' }));
+    vi.setSystemTime(new Date('2026-10-29T15:03:00Z'));
+    const { result } = renderHook(() => useBusinessToday(), { wrapper: wrap(client) });
+
+    expect(result.current).toBe('2026-10-29');
+    await settle();
+    expect(backend.lists).toHaveLength(0);
+  });
+
+  it('asks again instead of reusing the answer to its own earlier question', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T15:00:00Z'));
+    const days = ['2026-10-29', '2026-10-30'];
+    const backend = useOrderHandlers({ list: () => buildOrderList([], { today: days.shift() ?? '2026-10-30' }) });
+    client = createQueryClient();
+    const first = renderHook(() => useBusinessToday(), { wrapper: wrap(client) });
+    await waitFor(() => {
+      expect(first.result.current).toBe('2026-10-29');
+    });
+    first.unmount();
+
+    vi.setSystemTime(new Date('2026-10-29T16:10:00Z'));
+    const second = renderHook(() => useBusinessToday(), { wrapper: wrap(client) });
+
+    expect(second.result.current).toBeNull();
+    await waitFor(() => {
+      expect(second.result.current).toBe('2026-10-30');
+    });
+    expect(backend.lists).toHaveLength(2);
+  });
+
+  it('keeps an unbounded hook on the held day however old it is', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T15:00:00Z'));
+    const backend = useOrderHandlers({ list: buildOrderList([], { today: '2026-10-30' }) });
+    client = createQueryClient();
+    client.setQueryData(listKey('orders', { page: 1, pageSize: 20 }), buildOrderList([], { today: '2026-10-29' }));
+    vi.setSystemTime(new Date('2026-10-29T16:10:00Z'));
+    const { result } = renderHook(() => useBusinessTodayState(true, null), { wrapper: wrap(client) });
+
+    expect(result.current.today).toBe('2026-10-29');
+    await settle();
     expect(backend.lists).toHaveLength(0);
   });
 });
