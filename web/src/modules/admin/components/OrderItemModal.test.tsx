@@ -92,10 +92,13 @@ describe('add mode opening', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Add Item' });
     expect(within(dialog).getByText('ORD-2026-0148 · Brgy. San Roque Ballers')).toBeInTheDocument();
-    expect(productType()).toHaveFocus();
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Save Item' })).toBeInTheDocument();
+    // The Product type box is disabled while its list loads, so it takes the cursor when the list arrives.
     await ready();
+    await waitFor(() => {
+      expect(productType()).toHaveFocus();
+    });
   });
 
   it('names the customer when the order has no team', async () => {
@@ -114,7 +117,7 @@ describe('add mode opening', () => {
     const dialog = screen.getByRole('dialog', { name: 'Add Item' });
     const labels = within(dialog)
       .getAllByText(/^(Product type|Size \/ variant|Description|Quantity|Unit price)/)
-      .map((node) => node.textContent);
+      .map((node) => node.textContent.replace(/ \*$/, ''));
     expect(labels).toEqual(['Product type', 'Size / variant', 'Description', 'Quantity', 'Unit price']);
     expect(sizeVariant()).toHaveAttribute('placeholder', 'e.g. S-XL');
     expect(description()).toHaveAttribute('placeholder', 'e.g. Jersey top, sublimated');

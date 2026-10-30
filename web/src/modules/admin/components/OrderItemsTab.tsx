@@ -1,18 +1,20 @@
-// The Items tab of the order page (ORD-07; UI-SPEC O1 Tab card; plan 08-10): a heading and caption over a ResponsiveTable of the
-// order's items with a footer of the items subtotal. Every figure is the server's: the line totals as stored, the subtotal from the
-// order's totals. Only the piece count is added up here, and it is a count, not money. Row actions join in plan 08-14.
+// The Items tab of the order page (ORD-07; UI-SPEC O1 Tab card; plans 08-10, 08-14): a heading and caption over a ResponsiveTable of
+// the order's items with a footer of the items subtotal. Every figure is the server's: the line totals as stored, the subtotal from
+// the order's totals. Only the piece count is added up here, and it is a count, not money. On an active order the head has Add Item;
+// a locked order, and the deleted view (`readOnly`), show the table alone (D-15, D-24).
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
+import { Button } from '@/components/actions';
 import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/lists';
+import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
+import { OrderItemModal } from '@/modules/admin/components/OrderItemModal';
+import { OrderTabHead } from '@/modules/admin/components/OrderTabParts';
+import { orderTabBodyClasses } from '@/modules/admin/components/orderPage.recipe';
+import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { canEditOrder } from '@/modules/admin/orderRules';
+import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
+import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { formatPeso } from '@/utils/csps';
 import { formatCount } from '@/utils/format';
-import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
-import {
-  orderTabBodyClasses,
-  orderTabCaptionClasses,
-  orderTabHeadClasses,
-  orderTabTitleClasses,
-} from '@/modules/admin/components/orderPage.recipe';
-import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
-import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 
 type OrderItem = OrderDetailResponse['items'][number];
 
@@ -34,31 +36,96 @@ const COLUMNS: readonly ResponsiveTableColumn<OrderItem>[] = [
 
 export interface OrderItemsTabProps {
   order: OrderDetailResponse;
-  /** The deleted view: no Add, Edit or Delete control (D-24). The windows of plan 08-14 hide their controls on it. */
+  /** The deleted view: no Add, Edit or Delete control (D-24). */
   readOnly?: boolean | undefined;
 }
 
-export function OrderItemsTab({ order }: OrderItemsTabProps) {
+interface ItemsViewProps {
+  order: OrderDetailResponse;
+  columns: readonly ResponsiveTableColumn<OrderItem>[];
+  /** The Add Item button. */
+  action?: ReactNode;
+  headingRef?: Ref<HTMLHeadingElement> | undefined;
+  /** What follows the table: a note, then the windows. */
+  children?: ReactNode;
+}
+
+/** The head and the table. Windows render after it, never inside the table frame (a fixed layer cannot live there). */
+function ItemsView({ order, columns, action, headingRef, children }: ItemsViewProps) {
   const pieces = order.items.reduce((sum, item) => sum + Number(item.quantity), 0);
   return (
     <>
-      <div className={orderTabHeadClasses}>
-        <div>
-          <h3 className={orderTabTitleClasses}>{COPY.title}</h3>
-          <p className={orderTabCaptionClasses}>{COPY.caption}</p>
-        </div>
-      </div>
+      <OrderTabHead title={COPY.title} caption={COPY.caption} action={action} headingRef={headingRef} />
       <div className={orderTabBodyClasses}>
         <ResponsiveTable
           caption={COPY.title}
-          columns={COLUMNS}
+          columns={columns}
           rows={order.items}
           rowKey={(item) => item.id}
           things={COPY.things}
           footer={{ product: COPY.subtotal(pieces), lineTotal: formatPeso(order.totals.subtotal) }}
           footerLayout={{ product: { span: 5, label: COPY.footerLabel } }}
         />
+        {children}
       </div>
     </>
   );
+}
+
+/** An active order: Add Item opens the window. */
+function EditableItems({ order }: { order: OrderDetailResponse }) {
+  // The window mounts on its first open and stays so its close can animate; each new open starts clean (OrderItemModal).
+  const [addUsed, setAddUsed] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const addRef = useRef<HTMLButtonElement>(null);
+  // Where focus goes once a window has closed: Safari does not focus a button on a click, so the window's own return has nothing to go back to.
+  const returnFocus = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const go = returnFocus.current;
+    if (go !== null && !addOpen) {
+      returnFocus.current = null;
+      go();
+    }
+  });
+
+  return (
+    <ItemsView
+      order={order}
+      columns={COLUMNS}
+      action={
+        <Button
+          variant="primary"
+          size="sm"
+          icon="plus"
+          ref={addRef}
+          onClick={() => {
+            setAddUsed(true);
+            setAddOpen(true);
+          }}
+        >
+          {ORDER_WINDOWS_COPY.item.add}
+        </Button>
+      }
+    >
+      {addUsed && (
+        <OrderItemModal
+          mode="add"
+          order={order}
+          open={addOpen}
+          onClose={() => {
+            returnFocus.current = () => addRef.current?.focus();
+            setAddOpen(false);
+          }}
+        />
+      )}
+    </ItemsView>
+  );
+}
+
+export function OrderItemsTab({ order, readOnly }: OrderItemsTabProps) {
+  if (readOnly === true || !canEditOrder(order)) {
+    return <ItemsView order={order} columns={COLUMNS} />;
+  }
+  return <EditableItems order={order} />;
 }

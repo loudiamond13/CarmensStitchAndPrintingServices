@@ -13,3 +13,9 @@ export function useApplyOrder(): (order: OrderDetailResponse) => void {
     void refresh();
   };
 }
+
+/** Reads one order again, for a refusal that shows the page is out of date (a lock, a removed row). */
+export function useRefetchOrder(): (orderId: string) => Promise<void> {
+  const queryClient = useQueryClient();
+  return (orderId) => queryClient.invalidateQueries({ queryKey: orderKey(orderId) });
+}
