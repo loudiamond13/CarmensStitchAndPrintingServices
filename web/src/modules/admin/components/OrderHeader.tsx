@@ -1,5 +1,6 @@
 // The order page header (`.s-ph`; UI-SPEC O1 Header; plan 08-10): the back link, the order number with its status, the subline of
-// team, customer, order date and due flag, who recorded and last changed the order, and Edit Details while the order is open.
+// team, customer, order date and due flag, who recorded and last changed the order, and Edit Details and the Change Status menu
+// while the order is open.
 // The due flag counts from the response's own business today, never the device clock (D-59).
 import { ButtonLink, UiLink, hitAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
@@ -12,6 +13,7 @@ import {
 } from '@/components/layout/layout.recipe';
 import { StatusBadge } from '@/components/status';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
+import { OrderStatusMenu } from '@/modules/admin/components/OrderStatusMenu';
 import {
   orderActionsClasses,
   orderBackRowClasses,
@@ -32,9 +34,11 @@ export interface OrderHeaderProps {
   order: OrderDetailResponse;
   /** Where the back link goes: the list as the user left it, or the Orders list (D-51). */
   backTo: string;
+  /** A status move succeeded and the page has the answer (the page moves focus when the order ended). */
+  onStatusMoved?: ((answer: OrderDetailResponse) => void) | undefined;
 }
 
-export function OrderHeader({ order, backTo }: OrderHeaderProps) {
+export function OrderHeader({ order, backTo, onStatusMoved }: OrderHeaderProps) {
   const ordered = formatCalendarDate(order.orderDate) ?? order.orderDate;
   const hasTeam = order.teamName !== null && order.teamName !== '';
   return (
@@ -52,6 +56,7 @@ export function OrderHeader({ order, backTo }: OrderHeaderProps) {
           </h1>
           {/* The server sends one of the seven keys; the badge shows any other key as plain text. */}
           <StatusBadge status={order.status as OrderStatus} />
+          {canEditOrder(order) && <OrderStatusMenu order={order} onMoved={onStatusMoved} />}
         </div>
         <p className={pageSublineClasses}>
           <strong className={orderSublineStrongClasses}>{hasTeam ? order.teamName : order.customerName}</strong>

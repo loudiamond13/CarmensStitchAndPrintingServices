@@ -426,7 +426,7 @@ describe('moving the order (D-14, D-20, 05 D-21)', () => {
 
     await user.click(screen.getByRole('menuitem', { name: 'Move to Ready' }));
 
-    expect(await screen.findByText("You don't have access to this")).toBeVisible();
+    expect(await screen.findByText(/You don't have access to this/)).toBeVisible();
     expect(screen.queryByText('secret server text')).toBeNull();
   });
 

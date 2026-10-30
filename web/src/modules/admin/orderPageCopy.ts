@@ -27,6 +27,24 @@ export const ORDER_PAGE_COPY = {
     reopen: 'Reopen it to make changes.',
     refunds: 'Refunds can still be recorded on the Refunds tab.',
   },
+  /** The Change Status menu (D-14, D-47) and the toasts of a move. */
+  status: {
+    menu: 'Change Status',
+    /** The trigger's words while a move runs. */
+    saving: 'Saving',
+    moveTo: (label: string): string => `Move to ${label}`,
+    markCompleted: 'Mark Completed',
+    /** Shown inside the disabled Mark Completed item while the balance is owed or the customer holds credit. */
+    completeReason: 'Balance must be ₱0.00 to complete.',
+    cancelOrder: 'Cancel Order',
+    moved: {
+      title: 'Status changed',
+      message: (number: string, label: string): string => `${number} is now ${label}.`,
+    },
+    /** The danger toast of a refused move; the message is the server's sentence. */
+    failed: "Couldn't change the status",
+    notFound: 'This order was not found or was deleted.',
+  },
   /** The Images card (D-27): Phase 9 replaces its body with the gallery. */
   images: {
     title: 'Images',

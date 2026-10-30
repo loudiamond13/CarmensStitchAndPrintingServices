@@ -189,3 +189,49 @@ export const orderLockedTextClasses = tw(
 
 /** The action beside the text; full width under it on phones. */
 export const orderLockedActionClasses = tw('flex-none pg-phone:w-full pg-phone:[&>*]:w-full');
+
+/** The Change Status button and its popover share one anchor. */
+export const orderStatusMenuClasses = tw('relative inline-flex');
+
+/**
+ * The Change Status popover (`--surface-3`, like the user menu): under the button at its left edge; on phones it hangs from the
+ * button's right edge and never grows past the viewport, so the page does not scroll sideways.
+ */
+export const orderStatusMenuPopoverClasses = tw(
+  'absolute top-full left-0 z-(--z-header) mt-1 flex min-w-[240px] origin-top-left animate-csp-pop-in flex-col gap-0.5 rounded-md bg-surface-3 p-2 shadow-level-2 data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-pop-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none pg-phone:right-0 pg-phone:left-auto pg-phone:max-w-[calc(100vw-32px)] pg-phone:origin-top-right',
+);
+
+/** One menu item: at least 44px tall, a status dot or an icon, the label, and room for a reason line under it. */
+export const orderStatusItemClasses = tw(
+  'flex min-h-11 w-full cursor-pointer appearance-none items-center gap-3 rounded-sm border-0 bg-transparent px-3 py-1.5 text-start text-[14px] leading-5 font-semibold text-ink hover:bg-surface-2 focus-visible:bg-surface-2 aria-disabled:cursor-not-allowed aria-disabled:text-ink-muted',
+);
+
+/** The danger item (Cancel Order). */
+export const orderStatusDangerItemClasses = tw('text-danger');
+
+/** The label and an optional reason line, stacked. */
+export const orderStatusItemTextClasses = tw('flex min-w-0 flex-col');
+
+/** The reason under a disabled item: Small, muted, regular weight. */
+export const orderStatusReasonClasses = tw('text-[14px] leading-5 font-normal text-ink-muted');
+
+/** The hairline between the moves and the end states. */
+export const orderStatusDividerClasses = tw('my-1 h-px bg-line');
+
+/** The 7px status dot of a menu item, in the ink of that status's badge. */
+export const orderStatusDotClasses = tw('size-[7px] flex-none rounded-pill bg-current');
+
+/** The ink of each badge tone, for the dot. */
+export const orderStatusDotToneClasses = {
+  neutral: tw('text-ink-muted'),
+  accent: tw('text-accent-ink'),
+  success: tw('text-success'),
+  warning: tw('text-warning'),
+  info: tw('text-info'),
+  mockup: tw('text-mockup'),
+  danger: tw('text-danger'),
+  solid: tw('text-accent'),
+} as const;
+
+/** The empty slot that keeps a dot item and an icon item aligned. */
+export const orderStatusIconSlotClasses = tw('grid size-[18px] flex-none place-items-center');
