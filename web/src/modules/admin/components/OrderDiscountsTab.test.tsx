@@ -210,7 +210,9 @@ describe('the Amount column (D-94)', () => {
     renderTab(order);
 
     await leagueRow();
-    expect(within(screen.getByRole('table', { name: 'Discounts' })).getAllByText('−₱1,000.50').length).toBeGreaterThan(0);
+    expect(within(screen.getByRole('table', { name: 'Discounts' })).getAllByText('−₱1,000.50').length).toBeGreaterThan(
+      0,
+    );
   });
 });
 

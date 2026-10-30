@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-29T20:30:00-05:00
+updated: 2026-10-30T18:50:00-05:00
 ---
 
 # The orders API
@@ -231,6 +231,8 @@ new `version`.
   centavo, half away from zero. The discounts are added up and rounded, and `total` is `subtotal` minus that. Only `OrderMath`
   does this sum (ORD-20). The five items of ORD-2026-0148 (`22450.00`) with a 5% "Barangay league discount" give a discount of
   `1122.50`, a total of `21327.50` and a balance of `21327.50`.
+- **Each discount carries its `amount` (D-94).** Every discount in an answer has `amount`, the pesos it comes to. `OrderMath` works
+  it out over the stored subtotal with the same rounding, so the amounts add up to `discount`. The browser shows it and works out no money.
 - **The discounts never pass the items total (ORD-05).** After every discount add or edit, and after every item edit or removal,
   the discounts added up may not be more than the subtotal, so the total never goes below zero. A discount form that would break
   this is `400` on `value`: "The discounts would be more than the items total. Lower or remove a discount first." In the create
@@ -484,7 +486,7 @@ Who may do what:
   orderDate, dueDate, status, statusChangedAt, notes,
   items: [ { id, productType: { id, name, tone, retired }, description, sizeVariant, quantity, unitPrice, lineTotal,
              recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
-  discounts: [ { id, kind, value, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
+  discounts: [ { id, kind, value, amount, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   payments: [ { id, paymentDate, amount, method: { id, name, tone, retired }, reference, notes,
                 receivedBy, receivedByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   refunds: [ { id, refundDate, amount, reason, refundedBy, refundedByActive,

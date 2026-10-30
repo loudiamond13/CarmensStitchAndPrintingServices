@@ -1,8 +1,8 @@
 // The Discounts tab of the order page (ORD-07; UI-SPEC O1 Tab card; D-15, D-54a; plans 08-12, 08-17): a heading and caption over a
 // ResponsiveTable of the discounts (reason, type badge, value, negative amount) with a Total discount footer from the server's figure.
-// A row's amount is csps.ts `discountAmount` over the server's subtotal, the same preview the windows use, so the rows add up to the
-// footer. On an active order the head has Add Discount and each row has Edit and Delete; a locked order, and the deleted view
-// (`readOnly`), show the table alone (D-15, D-24).
+// A row's amount is the server's own `amount` (D-94); the tab works out no money, so the rows add up to the footer. On an active
+// order the head has Add Discount and each row has Edit and Delete; a locked order, and the deleted view (`readOnly`), show the table
+// alone (D-15, D-24).
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/actions';
 import { useToast } from '@/components/feedback';
@@ -23,7 +23,7 @@ import { canEditOrder } from '@/modules/admin/orderRules';
 import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
 import { orderDiscountsService } from '@/modules/admin/services/orderDiscountsService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
-import { discountAmount, formatPeso, negateMoney } from '@/utils/csps';
+import { formatPeso, negateMoney } from '@/utils/csps';
 import type { ErrorCopy } from '@/utils/describeHttpError';
 
 type OrderDiscount = OrderDetailResponse['discounts'][number];
@@ -48,7 +48,7 @@ export interface OrderDiscountsTabProps {
 }
 
 /** The columns every view shows; an editable view adds the actions column after them. */
-function dataColumns(subtotal: number): readonly ResponsiveTableColumn<OrderDiscount>[] {
+function dataColumns(): readonly ResponsiveTableColumn<OrderDiscount>[] {
   return [
     {
       key: 'reason',
@@ -66,15 +66,7 @@ function dataColumns(subtotal: number): readonly ResponsiveTableColumn<OrderDisc
       key: 'amount',
       header: COPY.columns.amount,
       money: true,
-      cell: (discount) =>
-        formatPeso(
-          negateMoney(
-            discountAmount(
-              { type: isPercentage(discount) ? 'percentage' : 'fixed', value: Number(discount.value) },
-              subtotal,
-            ),
-          ),
-        ),
+      cell: (discount) => formatPeso(negateMoney(discount.amount)),
     },
   ];
 }
@@ -188,7 +180,7 @@ function EditableDiscounts({ order }: { order: OrderDetailResponse }) {
   );
 
   const columns: readonly ResponsiveTableColumn<OrderDiscount>[] = [
-    ...dataColumns(Number(order.totals.subtotal)),
+    ...dataColumns(),
     {
       key: 'actions',
       header: COPY.columns.actions,
@@ -304,7 +296,7 @@ function EditableDiscounts({ order }: { order: OrderDetailResponse }) {
 
 export function OrderDiscountsTab({ order, readOnly }: OrderDiscountsTabProps) {
   if (readOnly === true || !canEditOrder(order)) {
-    return <DiscountsView order={order} columns={dataColumns(Number(order.totals.subtotal))} />;
+    return <DiscountsView order={order} columns={dataColumns()} />;
   }
   return <EditableDiscounts order={order} />;
 }
