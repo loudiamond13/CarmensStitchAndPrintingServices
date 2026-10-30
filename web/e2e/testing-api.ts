@@ -157,6 +157,15 @@ export interface OrderSeedExpense {
   readonly description?: string;
 }
 
+/** One refund of a seeded order. The refunder is a staff user id. */
+export interface OrderSeedRefund {
+  /** The refund date as yyyy-MM-dd. */
+  readonly refundDate: string;
+  readonly amount: number;
+  readonly reason: string;
+  readonly refundedByUserId: string;
+}
+
 /** One discount of a seeded order. */
 export interface OrderSeedDiscount {
   readonly kind: 'percentage' | 'fixed';
@@ -187,6 +196,7 @@ export interface OrderSeedInput {
   readonly discounts?: readonly OrderSeedDiscount[];
   readonly payments?: readonly OrderSeedPayment[];
   readonly expenses?: readonly OrderSeedExpense[];
+  readonly refunds?: readonly OrderSeedRefund[];
 }
 
 /** Seeds one order through the legacy import path with a chosen number, status and lines, and returns its id. */

@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Csps.Server.Controllers;
 
 /// <summary>
-/// Lets E2E specs seed an order with a chosen number, status, items, payments and expenses (ORD-21, D-37). It exists in the Testing
+/// Lets E2E specs seed an order with a chosen number, status, items, payments, refunds and expenses (ORD-21, D-37, D-62). It exists in the Testing
 /// environment of a Debug build only. The order goes in through the legacy import handler with the default rules, so the number is
 /// kept as given, any of the seven statuses is allowed, and every figure is worked out by the server. The body uses the member names
 /// of the create call plus <c>number</c>.
@@ -29,6 +29,9 @@ namespace Csps.Server.Controllers;
 public sealed class TestingOrdersController(ImportOrderHandler import, IBusinessCalendar calendar) : ControllerBase
 {
     private const string DefaultCustomerName = "Test Customer";
+
+    // The list name of the refunds in the import errors (the import handler writes refunds[index].field).
+    private const string RefundsField = "refunds";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -47,6 +50,7 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
     /// <param name="Discounts">The discounts.</param>
     /// <param name="Payments">The payments, each with its receiver.</param>
     /// <param name="Expenses">The order expenses, each with its payer.</param>
+    /// <param name="Refunds">The refunds, each with who handed the money back.</param>
     public sealed record TestingOrderRequest(
         string? Number = null,
         string? Status = null,
@@ -61,7 +65,15 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
         IReadOnlyList<OrderItemRequest>? Items = null,
         IReadOnlyList<OrderDiscountRequest>? Discounts = null,
         IReadOnlyList<OrderPaymentRequest>? Payments = null,
-        IReadOnlyList<OrderExpenseRequest>? Expenses = null);
+        IReadOnlyList<OrderExpenseRequest>? Expenses = null,
+        IReadOnlyList<TestingOrderRefundRequest>? Refunds = null);
+
+    /// <summary>One refund of a seeded order. The members are the refund fields of the Add Refund call, without the order version.</summary>
+    /// <param name="RefundDate">The day the money was handed back, <c>yyyy-MM-dd</c>.</param>
+    /// <param name="Amount">The amount in pesos.</param>
+    /// <param name="Reason">Why the money was handed back.</param>
+    /// <param name="RefundedByUserId">The staff member who handed the money back.</param>
+    public sealed record TestingOrderRefundRequest(string? RefundDate = null, decimal? Amount = null, string? Reason = null, Guid? RefundedByUserId = null);
 
     /// <summary>The new order.</summary>
     /// <param name="Id">The order id.</param>
@@ -95,6 +107,7 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
         RejectNullMembers(broken, OrderRules.DiscountsField, request.Discounts);
         RejectNullMembers(broken, OrderRules.PaymentsField, request.Payments);
         RejectNullMembers(broken, OrderRules.ExpensesField, request.Expenses);
+        RejectNullMembers(broken, RefundsField, request.Refunds);
         if (broken.Count > 0)
         {
             return Rejected(OrderRules.InvalidMessage, broken);
@@ -143,6 +156,15 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
             }
         }
 
+        var refunds = request.Refunds ?? [];
+        for (var index = 0; index < refunds.Count; index++)
+        {
+            if (!OrderDetailsFieldsValidator.TryParseDate(refunds[index].RefundDate, out _))
+            {
+                broken[$"refunds[{index}].refundDate"] = [OrderRules.DateInvalid];
+            }
+        }
+
         if (broken.Count > 0)
         {
             return Rejected(OrderRules.InvalidMessage, broken);
@@ -170,6 +192,7 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
     {
         Discounts = [.. (request.Discounts ?? []).Select(ToDiscount)],
         Payments = [.. (request.Payments ?? []).Select(ToPayment)],
+        Refunds = [.. (request.Refunds ?? []).Select(ToRefund)],
         Expenses = [.. (request.Expenses ?? []).Select(ToExpense)],
     };
 
@@ -183,6 +206,12 @@ public sealed class TestingOrdersController(ImportOrderHandler import, IBusiness
         payment.Reference,
         payment.Notes,
         payment.ReceivedByUserId ?? Guid.Empty);
+
+    private static NewOrderRefund ToRefund(TestingOrderRefundRequest refund) => new(
+        OrderDetailsFieldsValidator.TryParseDate(refund.RefundDate, out var date) ? date : default,
+        refund.Amount ?? 0m,
+        refund.Reason ?? string.Empty,
+        refund.RefundedByUserId ?? Guid.Empty);
 
     private static NewOrderExpense ToExpense(OrderExpenseRequest expense) => new(
         OrderDetailsFieldsValidator.TryParseDate(expense.ExpenseDate, out var date) ? date : default,

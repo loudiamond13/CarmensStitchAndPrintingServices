@@ -85,3 +85,90 @@ test('@orders-refunds a Manager clears a customer credit with Record Refund and 
   await expect(row).toContainText('Mira Rec');
   await expectNoAxeViolations(page);
 });
+
+test('@orders-refunds a Manager works the refunds of a cancelled order without reopening it, up to what was paid', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const number = `ORD-2096-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`;
+  // 12 x 780 = 9,360.00 paid in full, cancelled, with 500.00 already handed back: 8,860.00 can still be refunded.
+  const id = await createOrder(request, {
+    number,
+    status: 'cancelled',
+    customerName: 'E2E Refunds Customer',
+    teamName: 'E2E Refunds Team',
+    orderDate: manilaDate(-6),
+    dueDate: manilaDate(5),
+    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E refund jersey', quantity: 12, unitPrice: 780 }],
+    payments: [
+      { paymentDate: manilaDate(-5), amount: 9360, paymentMethodId: CASH_ID, receivedByUserId: manager.userId },
+    ],
+    refunds: [
+      { refundDate: manilaDate(-2), amount: 500, reason: 'E2E first refund', refundedByUserId: manager.userId },
+    ],
+  });
+  await signInAs(page, request, manager);
+
+  await page.goto(`/admin/orders/${id}?tab=refunds`);
+  await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible();
+  const refunds = page.getByRole('table', { name: 'Refunds' });
+  await expect(refunds).toContainText('E2E first refund');
+  await expect(refunds).toContainText('Total refunded');
+  await expect(page.getByText('You can refund up to ₱8,860.00.')).toBeVisible();
+
+  // Edit: the cap adds back the refund's own amount; the new amount shows in the table and in the Totals panel.
+  await page.getByRole('button', { name: /^Edit refund of ₱500\.00, / }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit Refund' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel(/^Amount/)).toHaveValue('500.00');
+  await expect(dialog.getByText('You can refund up to ₱9,360.00.')).toBeVisible();
+  await expect(dialog.getByText('Recorded by')).toBeVisible();
+  await expectNoAxeViolations(page);
+  await dialog.getByLabel(/^Amount/).fill('9360.01');
+  await dialog.getByRole('button', { name: 'Save Refund' }).click();
+  await expect(
+    dialog.getByText('This is more than was paid and not yet refunded. Enter ₱9,360.00 or less.'),
+  ).toBeVisible();
+  await dialog.getByLabel(/^Amount/).fill('700');
+  await dialog.getByRole('button', { name: 'Save Refund' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Refund updated')).toBeVisible();
+  await expect(refunds).toContainText('₱700.00');
+  await expect(page.getByRole('button', { name: /^Edit refund of ₱700\.00, / })).toBeFocused();
+
+  // Add: handing back the rest takes Add Refund away and the caption loses its cap sentence.
+  await page.getByRole('button', { name: 'Add Refund' }).click();
+  const addDialog = page.getByRole('dialog', { name: 'Add Refund' });
+  await expect(addDialog.getByLabel(/^Amount/)).toHaveValue('');
+  await addDialog.getByLabel(/^Amount/).fill('8660.01');
+  await addDialog.getByLabel(/^Reason/).fill('E2E rest');
+  await addDialog.getByRole('button', { name: 'Save Refund' }).click();
+  await expect(
+    addDialog.getByText('This is more than was paid and not yet refunded. Enter ₱8,660.00 or less.'),
+  ).toBeVisible();
+  await addDialog.getByLabel(/^Amount/).fill('8660');
+  await addDialog.getByRole('button', { name: 'Save Refund' }).click();
+  await expect(addDialog).toBeHidden();
+  await expect(page.getByText('Refund added')).toBeVisible();
+  await expect(refunds).toContainText('₱9,360.00');
+  await expect(page.getByRole('button', { name: 'Add Refund' })).toHaveCount(0);
+  await expect(page.getByText(/You can refund up to/)).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 3, name: 'Refunds' })).toBeFocused();
+
+  // Delete: the dialog names the amount; the cap returns with Add Refund.
+  await page.getByRole('button', { name: /^Delete refund of ₱8,660\.00, / }).click();
+  const confirm = page.getByRole('dialog', { name: 'Delete refund of ₱8,660.00?' });
+  await expect(confirm).toContainText(`This removes it from ${number} and updates the totals right away.`);
+  await confirm.getByRole('button', { name: 'Delete Refund' }).click();
+  await expect(confirm).toBeHidden();
+  await expect(page.getByText('Refund deleted')).toBeVisible();
+  await expect(refunds).not.toContainText('E2E rest');
+  await expect(page.getByText('You can refund up to ₱8,660.00.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add Refund' })).toBeVisible();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});
