@@ -25,6 +25,7 @@ const DEFAULTS = {
   productType: null,
   hasBalance: null,
   sort: 'due',
+  view: null,
 };
 const PRODUCT_ID = '5d3a7c1e-0a41-4f6c-9d0b-2b1f6a8e0001';
 
@@ -126,6 +127,7 @@ describe('useOrdersListParams reading', () => {
       'sort',
       'status',
       'to',
+      'view',
     ]);
   });
 
@@ -434,6 +436,77 @@ describe('useOrdersListParams filter writes (ORD-02)', () => {
     });
     await settle();
     expect(updates(onUrlUpdate)).toEqual([{ history: 'push', query: '?page=2&status=delivered' }]);
+  });
+});
+
+describe('the view key (ORD-10, plan 08-11)', () => {
+  it.each(['grid', 'table'])('reads view=%s and keeps it in the URL even though grid is the fallback', async (view) => {
+    const { result, onUrlUpdate } = renderParams(`?view=${view}`);
+
+    expect(result.current[0].view).toBe(view);
+    await settle();
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+
+  it('has no default: a missing view is null', () => {
+    const { result } = renderParams('');
+
+    expect(result.current[0].view).toBeNull();
+  });
+
+  it('reads a view that is not offered as null and removes it with one replace', async () => {
+    const { result, onUrlUpdate } = renderParams('?view=cards&page=2');
+
+    expect(result.current[0].view).toBeNull();
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?page=2' }]);
+  });
+
+  it('setView writes the view with a replace and keeps the page', async () => {
+    const { result, onUrlUpdate } = renderParams('?page=3&size=50');
+
+    act(() => {
+      result.current[1].setView('table');
+    });
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?page=3&size=50&view=table' }]);
+    expect(result.current[0].page).toBe(3);
+    expect(result.current[0].view).toBe('table');
+  });
+
+  it('setView leaves the filters of the URL alone', async () => {
+    const { result, onUrlUpdate } = renderParams('?status=delivered&sort=newest');
+
+    act(() => {
+      result.current[1].setView('grid');
+    });
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?sort=newest&status=delivered&view=grid' }]);
+  });
+
+  it('a filter change keeps the view and resets the page', async () => {
+    const { result, onUrlUpdate } = renderParams('?page=3&view=table');
+
+    act(() => {
+      result.current[1].setFilter('status', 'delivered');
+    });
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?status=delivered&view=table' }]);
   });
 });
 

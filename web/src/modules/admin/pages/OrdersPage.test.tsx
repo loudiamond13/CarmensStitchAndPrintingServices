@@ -34,11 +34,13 @@ beforeEach(() => {
   clearSession();
   acceptSession(sessionResponse());
   queryClient = createQueryClient();
+  window.localStorage.clear();
 });
 
 afterEach(() => {
   queryClient.clear();
   clearSession();
+  window.localStorage.clear();
   vi.useRealTimers();
 });
 
@@ -1052,5 +1054,109 @@ describe('no matches and Clear Filters (UIC-2, ORD-02)', () => {
 
     await screen.findByRole('heading', { name: 'No matches' });
     await expectNoAxeViolations(view.container);
+  });
+});
+
+describe('the view switch (ORD-10, UIC-30; plan 08-11)', () => {
+  const MANY = (url: URL) =>
+    buildOrderList([order0148, order0151, order0153].map(listEntryOf), {
+      all: 148,
+      active: 37,
+      total: 45,
+      page: Number(url.searchParams.get('page')),
+      pageSize: Number(url.searchParams.get('pageSize')),
+    });
+
+  it('offers an icon-only View switch named Grid view and Table view, with the grid selected by default', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+
+    await screen.findAllByRole('article');
+    const group = screen.getByRole('radiogroup', { name: 'View' });
+    const grid = within(group).getByRole('radio', { name: 'Grid view' });
+    const table = within(group).getByRole('radio', { name: 'Table view' });
+    expect(grid).toBeChecked();
+    expect(table).not.toBeChecked();
+    expect(grid).toHaveAttribute('title', 'Grid view');
+    expect(table).toHaveAttribute('title', 'Table view');
+    expect(grid).toHaveTextContent('');
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('shows the table, not the cards, for ?view=table', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=table');
+
+    expect(await screen.findByRole('table', { name: 'Orders' })).toBeVisible();
+    expect(screen.queryAllByRole('article')).toHaveLength(0);
+    expect(screen.getByRole('radio', { name: 'Table view' })).toBeChecked();
+    expect(screen.getByRole('columnheader', { name: 'Order' })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Customer' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'ORD-2026-0148' })).toHaveAttribute(
+      'href',
+      '/admin/orders/00000000-0000-4000-8000-000000000148',
+    );
+  });
+
+  it('shows the table for a stored table choice when the URL has no view', async () => {
+    window.localStorage.setItem('csps-orders-view', 'table');
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+
+    expect(await screen.findByRole('table', { name: 'Orders' })).toBeVisible();
+    expect(screen.getByRole('radio', { name: 'Table view' })).toBeChecked();
+  });
+
+  it('shows the grid for ?view=grid whatever is stored', async () => {
+    window.localStorage.setItem('csps-orders-view', 'table');
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=grid');
+
+    expect(await screen.findAllByRole('article')).toHaveLength(4);
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('Table view switches with one replace, keeps page 2 and remembers the choice', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('?page=2', onUrlUpdate);
+    await screen.findAllByRole('article');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Table view' }));
+
+    expect(await screen.findByRole('table', { name: 'Orders' })).toBeVisible();
+    expect(urlWrites(onUrlUpdate)).toEqual([{ history: 'replace', query: '?page=2&view=table' }]);
+    expect(window.localStorage.getItem('csps-orders-view')).toBe('table');
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 3');
+    expect(rowRequests(backend.lists).every((url) => url.searchParams.get('page') === '2')).toBe(true);
+  });
+
+  it('a visit with ?view=table writes nothing to the storage', async () => {
+    window.localStorage.setItem('csps-orders-view', 'grid');
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=table');
+
+    await screen.findByRole('table', { name: 'Orders' });
+    expect(window.localStorage.getItem('csps-orders-view')).toBe('grid');
+  });
+
+  it('pressing the view already shown writes nothing new', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('', onUrlUpdate);
+    await screen.findAllByRole('article');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Grid view' }));
+
+    expect(urlWrites(onUrlUpdate)).toEqual([]);
+    expect(window.localStorage.getItem('csps-orders-view')).toBeNull();
+  });
+
+  it('does not send the view to the API and keeps the same rows request', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=table');
+
+    await screen.findByRole('table', { name: 'Orders' });
+    expect(queryOf(backend.lists[0])).toEqual({ page: '1', pageSize: '20', sort: 'due', status: 'active' });
   });
 });
