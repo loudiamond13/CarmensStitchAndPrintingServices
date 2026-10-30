@@ -16,6 +16,7 @@ import { rovingItem } from '@/components/choice/roving';
 import { useToast } from '@/components/feedback';
 import { isHttpError } from '@/core/api/errors';
 import { usePresence } from '@/hooks/usePresence';
+import { CancelOrderDialog } from '@/modules/admin/components/CancelOrderDialog';
 import { OrderStatusDot } from '@/modules/admin/components/OrderStatusDot';
 import {
   orderStatusDangerItemClasses,
@@ -68,6 +69,7 @@ function menuItems(menu: HTMLElement): HTMLElement[] {
 
 export function OrderStatusMenu({ order, onMoved }: OrderStatusMenuProps) {
   const [menuState, setMenuState] = useState<MenuState>({ open: false, at: 'first' });
+  const [cancelOpen, setCancelOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   const toast = useToast();
@@ -101,11 +103,15 @@ export function OrderStatusMenu({ order, onMoved }: OrderStatusMenuProps) {
     (key, target) => ordersService.changeStatus(order.id, target.status, key),
     (answer) => {
       applyOrder(answer);
-      toast.show({
-        tone: 'success',
-        title: COPY.moved.title,
-        message: COPY.moved.message(answer.number, orderStatusLabel(answer.status)),
-      });
+      if (answer.status === 'completed') {
+        toast.show({ tone: 'success', title: COPY.completed.title, message: COPY.completed.message(answer.number) });
+      } else {
+        toast.show({
+          tone: 'success',
+          title: COPY.moved.title,
+          message: COPY.moved.message(answer.number, orderStatusLabel(answer.status)),
+        });
+      }
       onMoved?.(answer);
     },
     showFailure,
@@ -125,6 +131,12 @@ export function OrderStatusMenu({ order, onMoved }: OrderStatusMenuProps) {
   const moveTo = (status: string): void => {
     close(true);
     void move.submit({ id: `${order.id}:${status}`, status });
+  };
+
+  // The button has focus before the confirm opens, so Keep Order returns to it.
+  const askToCancel = (): void => {
+    close(true);
+    setCancelOpen(true);
   };
 
   // ArrowDown and ArrowUp on the button open the menu on its first or last item. A busy button ignores them.
@@ -180,8 +192,17 @@ export function OrderStatusMenu({ order, onMoved }: OrderStatusMenuProps) {
           order={order}
           onClose={close}
           onMove={moveTo}
+          onCancelOrder={askToCancel}
         />
       )}
+      <CancelOrderDialog
+        order={order}
+        open={cancelOpen}
+        onClose={() => {
+          setCancelOpen(false);
+        }}
+        onCancelled={onMoved}
+      />
     </div>
   );
 }
@@ -196,10 +217,22 @@ interface MenuPopoverProps {
   order: OrderDetailResponse;
   /** Closes the menu; `true` puts focus back on the button. */
   onClose: (focusButton: boolean) => void;
+  /** Moves to a status; Completed is a move too (D-47: no confirm). */
   onMove: (status: string) => void;
+  onCancelOrder: () => void;
 }
 
-function MenuPopover({ id, open, openAt, presenceRef, buttonRef, order, onClose, onMove }: MenuPopoverProps) {
+function MenuPopover({
+  id,
+  open,
+  openAt,
+  presenceRef,
+  buttonRef,
+  order,
+  onClose,
+  onMove,
+  onCancelOrder,
+}: MenuPopoverProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const requestClose = useEffectEvent(onClose);
   const completable = canComplete(order);
@@ -290,6 +323,12 @@ function MenuPopover({ id, open, openAt, presenceRef, buttonRef, order, onClose,
         tabIndex={-1}
         aria-disabled={completable ? undefined : true}
         className={orderStatusItemClasses}
+        onClick={() => {
+          // A disabled item stays focusable and does nothing; the reason is on screen.
+          if (open && completable) {
+            onMove('completed');
+          }
+        }}
       >
         <span className={orderStatusIconSlotClasses}>
           <Icon name="circle-check" size={18} />
@@ -304,6 +343,11 @@ function MenuPopover({ id, open, openAt, presenceRef, buttonRef, order, onClose,
         role="menuitem"
         tabIndex={-1}
         className={clsx(orderStatusItemClasses, orderStatusDangerItemClasses)}
+        onClick={() => {
+          if (open) {
+            onCancelOrder();
+          }
+        }}
       >
         <span className={orderStatusIconSlotClasses}>
           <Icon name="x" size={18} />

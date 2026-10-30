@@ -5,9 +5,9 @@
 // `tab` parameter. The first load shows skeletons, a failed load an ErrorState with Try Again, and a missing or deleted order a
 // message with Back to Orders. The back link returns to the list view the user left, when the navigation state holds a same-app
 // Orders address (D-51).
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, useParams } from 'react-router';
-import { ButtonLink } from '@/components/actions';
+import { Button, ButtonLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { getTabPanelProps, Tabs, type TabItem } from '@/components/choice';
 import { Skeleton } from '@/components/feedback';
@@ -22,6 +22,7 @@ import { OrderCustomerCard } from '@/modules/admin/components/OrderCustomerCard'
 import { OrderDiscountsTab } from '@/modules/admin/components/OrderDiscountsTab';
 import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
+import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
 import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistory';
@@ -44,7 +45,8 @@ import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { useOrderTab, type OrderTab } from '@/modules/admin/hooks/useOrderTab';
 import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
-import { showRefundsTab } from '@/modules/admin/orderRules';
+import { isLocked, showRefundsTab } from '@/modules/admin/orderRules';
+import { CHANGE_STATUS_ID, REOPEN_ORDER_ID } from '@/modules/admin/orderStatus';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import type { OrderStatus } from '@/utils/csps';
 
@@ -151,9 +153,35 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
     }
   }, [hiddenTab, setTab]);
   const active: OrderTab = hiddenTab ? 'items' : tab;
+  const locked = isLocked(order);
+  // Where focus goes once the order has changed state: Reopen Order after a complete or cancel, Change Status after a reopen.
+  // The button is not on the page until the answer has rendered, so the wish is kept and carried out after that render.
+  const focusWish = useRef<'reopen' | 'status' | null>(null);
+  useEffect(() => {
+    const wish = focusWish.current;
+    if ((wish === 'reopen' && locked) || (wish === 'status' && !locked)) {
+      focusWish.current = null;
+      document.getElementById(wish === 'reopen' ? REOPEN_ORDER_ID : CHANGE_STATUS_ID)?.focus();
+    }
+  });
   return (
     <>
-      <OrderHeader order={order} backTo={backTo} />
+      <OrderHeader
+        order={order}
+        backTo={backTo}
+        onStatusMoved={(answer) => {
+          if (isLocked(answer)) {
+            focusWish.current = 'reopen';
+          }
+        }}
+      />
+      {locked && (
+        <OrderLockedBanner status={order.status === 'completed' ? 'completed' : 'cancelled'}>
+          <Button variant="secondary" size="sm" icon="lock-open" id={REOPEN_ORDER_ID}>
+            {COPY.locked.reopenOrder}
+          </Button>
+        </OrderLockedBanner>
+      )}
       <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>

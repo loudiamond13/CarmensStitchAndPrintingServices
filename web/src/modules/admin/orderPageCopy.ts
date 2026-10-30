@@ -26,6 +26,8 @@ export const ORDER_PAGE_COPY = {
     title: (status: 'completed' | 'cancelled'): string => `This order is ${status}.`,
     reopen: 'Reopen it to make changes.',
     refunds: 'Refunds can still be recorded on the Refunds tab.',
+    /** The banner's action: it names its thing (D-57). */
+    reopenOrder: 'Reopen Order',
   },
   /** The Change Status menu (D-14, D-47) and the toasts of a move. */
   status: {
@@ -40,6 +42,25 @@ export const ORDER_PAGE_COPY = {
     moved: {
       title: 'Status changed',
       message: (number: string, label: string): string => `${number} is now ${label}.`,
+    },
+    completed: {
+      title: 'Order completed',
+      message: (number: string): string => `${number} is locked. Reopen it to make changes.`,
+    },
+    cancelled: {
+      title: 'Order cancelled',
+      message: (number: string): string => `${number} is locked. Payments stay as collected cash.`,
+    },
+    /** The Cancel Order confirm (D-18, D-54c, D-57): it explains what happens to the money. */
+    cancel: {
+      title: (number: string): string => `Cancel ${number}?`,
+      paid: (amount: string): string =>
+        `Payments of ${amount} stay as collected cash. Record a refund on the Refunds tab if you give money back.`,
+      unpaid: 'Nothing was paid on this order.',
+      reopenLater: 'You can reopen it later.',
+      keep: 'Keep Order',
+      confirm: 'Cancel Order',
+      pending: 'Cancelling',
     },
     /** The danger toast of a refused move; the message is the server's sentence. */
     failed: "Couldn't change the status",
