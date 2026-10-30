@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-29T23:25:00-05:00
+updated: 2026-10-30T00:00:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -47,3 +47,12 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 8. **The `@orders-page` e2e seeds no order expense**, because no order expense category id is known to the e2e helpers. It shows Order Expenses and Estimated Profit rows (₱0.00 expenses); the unit tests cover ₱6,065.00 and ₱15,262.50 for an Admin and a Manager.
 9. **`canComplete` looks at the figures only, not the status** (07 D-04). The Change Status menu is not rendered on a locked order (D-15), so a Completed order never asks it.
 
+
+## From plan 08-11
+
+1. **Owner review (RESEARCH A4): the Grid and Table switch keeps the current page.** Pressing Table on page 3 stays on page 3 of the same filter. A filter change still goes back to page 1. Say if the owner wants the switch to go back to page 1 instead (a one-line change in `useOrdersListParams.ts`, `setView`).
+2. **`useOrdersView` takes the list values and setters** (`useOrdersView(values, set)`) instead of no arguments. Calling `useOrdersListParams` a second time would run its URL clean-up effects twice, so the page passes the one it already has.
+3. **The order number in the table is a link, but a plain click goes through `onOpen`** so the back link state (D-51) travels with it. A Ctrl, Cmd, Shift or middle click keeps the link's own behaviour (opens a new tab), and that tab has no back state, so its Back to Orders goes to the plain list. `UiLink` has no `state` prop; adding one would touch a shared component.
+4. **The table look is not seen in a browser in Blush and Espresso at 390, 820 and 1440 px.** Axe (including colour contrast) and the layout checks pass in all five browser projects at 820 and 390 px. The owner's screenshot review should check the Order cell (44 px placeholder beside the number), the Balance cell states (Fully Paid in success green on the surface, the Credit badge, the muted figure over Not collected) and the Due cell stack.
+5. **The Paid cell shows a figure only when money was paid; otherwise it shows the empty value icon.** A refunded order shows the Paid figure as sent (the Refunded figure is not a column), as in the UI-SPEC column table.
+6. **Phone width: the table frame has no header row and each order is a card** (the shared ResponsiveTable). The Order cell is the card title; the cell labels come from the column headers.
