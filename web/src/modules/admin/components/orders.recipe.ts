@@ -52,3 +52,18 @@ export const ordersNumberLinkClasses = clsx(
   tw('font-display text-[15px] font-bold tracking-[.06em] text-accent-ink underline-offset-2 hover:underline'),
   hitAreaClasses,
 );
+
+/** The Balance cell: a due figure in display 17, or the same figure muted over "Not collected" (D-45). */
+export const ordersBalanceFigureClasses = {
+  due: tw('font-display text-[17px] leading-5 font-bold tabular-nums'),
+  muted: tw('font-display text-[17px] leading-5 font-bold text-ink-muted tabular-nums'),
+} as const;
+
+/** The muted figure over its "Not collected" words, end-aligned. */
+export const ordersBalanceStackClasses = tw('inline-flex flex-col items-end');
+
+/** "Not collected": Small 14/400 muted. */
+export const ordersNotCollectedClasses = tw('text-[14px] leading-5 font-normal text-ink-muted');
+
+/** "Fully Paid" with its check, in the success colour. */
+export const ordersFullyPaidClasses = tw('inline-flex items-center gap-1.5 font-semibold text-success');

@@ -283,8 +283,12 @@ export default function OrdersPage() {
               {COPY.newOrder}
             </ButtonLink>
           }
+          today={data?.today ?? ''}
           onOpen={(entry) => {
             open(`/admin/orders/${entry.id}`);
+          }}
+          onEdit={(entry) => {
+            open(`/admin/orders/${entry.id}/edit`);
           }}
         />
       ) : (

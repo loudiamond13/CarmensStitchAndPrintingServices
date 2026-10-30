@@ -1191,7 +1191,7 @@ describe('the table view states and links (ORD-01, D-51, UIC-1, UIC-2; plan 08-1
 
   it('opens an order from its number with the current list address in the navigation state (D-51)', async () => {
     useOrderHandlers({ list: standardOrderList() });
-    renderPage('?view=table&size=50');
+    renderPage('?size=50&view=table');
 
     await userEvent.click(await screen.findByRole('link', { name: 'ORD-2026-0148' }));
 
@@ -1201,17 +1201,24 @@ describe('the table view states and links (ORD-01, D-51, UIC-1, UIC-2; plan 08-1
     });
   });
 
-  it('opens View and Edit Details from the row actions with the same back state', async () => {
+  it('opens the order from the View row action with the same back state', async () => {
     useOrderHandlers({ list: standardOrderList() });
     renderPage('?view=table');
 
     await userEvent.click(await screen.findByRole('button', { name: 'View order ORD-2026-0151' }));
+
     expect(locationNow()).toEqual({
       path: `/admin/orders/${order0151.id}`,
       state: { from: '/admin/orders?view=table' },
     });
+  });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Edit details of order ORD-2026-0153' }));
+  it('opens Edit Details from the Edit row action with the same back state', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?view=table');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit details of order ORD-2026-0153' }));
+
     expect(locationNow()).toEqual({
       path: `/admin/orders/${order0153.id}/edit`,
       state: { from: '/admin/orders?view=table' },

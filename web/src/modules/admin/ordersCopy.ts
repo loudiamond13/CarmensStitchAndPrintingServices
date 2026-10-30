@@ -65,7 +65,24 @@ export const ORDERS_COPY = {
     /** The table view (UI-SPEC "Table view"): the caption and the column headers. */
     table: {
       caption: 'Orders',
-      columns: { order: 'Order', customer: 'Customer' },
+      columns: {
+        order: 'Order',
+        customer: 'Customer',
+        status: 'Status',
+        ordered: 'Ordered',
+        due: 'Due',
+        total: 'Total',
+        paid: 'Paid',
+        balance: 'Balance',
+        actions: 'Actions',
+      },
+      /** The Balance cell's states (ORD-12, D-04, D-45). */
+      fullyPaid: 'Fully Paid',
+      credit: (amount: string): string => `Credit ${amount}`,
+      notCollected: 'Not collected',
+      /** The row actions are named by their order (WCAG 2.5.3). */
+      view: (number: string): string => `View order ${number}`,
+      edit: (number: string): string => `Edit details of order ${number}`,
     },
     /** The first-use state: the default view has no rows (D-55). */
     empty: {
