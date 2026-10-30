@@ -31,7 +31,11 @@ function ruleOf(token: string): { block: string; body: string } {
 const ONE_COLUMN = 'pg-lt-lg:grid-cols-[minmax(0,1fr)]!';
 const NARROW_SIDE = 'pg-lt-xl:grid-cols-[minmax(0,1fr)_320px]';
 const SIDE_STATIC = 'pg-lt-lg:static';
-const SIDE_FIRST = 'pg-lt-lg:order-first';
+const SIDE_FIRST = 'pg-tablet:order-first';
+const SIDE_GRID = 'pg-tablet:grid-cols-2';
+const STRIP_SHOWN = 'pg-phone:flex';
+const TABLET_BLOCK = '@container pg (min-width: 768px) and (max-width: 1023px) ';
+const PHONE_BLOCK = '@container pg (max-width: 767px) ';
 
 describe('order page recipe (O1 layout)', () => {
   it('passes the class gate: every recipe token compiles under the CSPS theme, with no finding', async () => {
@@ -43,7 +47,17 @@ describe('order page recipe (O1 layout)', () => {
     expect(ruleOf(ONE_COLUMN).block).toBe('@container pg (max-width: 1023px) ');
     expect(ruleOf(NARROW_SIDE).block).toBe('@container pg (max-width: 1279px) ');
     expect(ruleOf(SIDE_STATIC).block).toBe('@container pg (max-width: 1023px) ');
-    expect(ruleOf(SIDE_FIRST).block).toBe('@container pg (max-width: 1023px) ');
+    expect(ruleOf(SIDE_FIRST).block).toBe(TABLET_BLOCK);
+    expect(ruleOf(SIDE_GRID).block).toBe(TABLET_BLOCK);
+    expect(ruleOf(STRIP_SHOWN).block).toBe(PHONE_BLOCK);
+  });
+
+  it('moves the side above the main column on a tablet only, so it follows the main column on a phone', () => {
+    expect(ruleOf(SIDE_FIRST).body).toContain('order: -9999');
+  });
+
+  it('hides the slim balance card above 767px and shows it as a flex row on a phone', () => {
+    expect(recipeSource).toContain(`hidden ${STRIP_SHOWN}`);
   });
 
   it('makes the one-column rule important, so the 320px side rule cannot win over it on a tablet', () => {

@@ -1,5 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import { OrderCustomerCard } from '@/modules/admin/components/OrderCustomerCard';
 import { OrderDiscountsTab } from '@/modules/admin/components/OrderDiscountsTab';
 import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
@@ -311,6 +313,26 @@ describe('the Refunds tab (ORD-07, D-10, D-12)', () => {
     const { container } = render(<OrderRefundsTab order={cancelledOrderWithRefunds} />);
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('the customer card read only (D-24)', () => {
+  it('shows the Edit Details link on an active order and hides it when read only', () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <OrderCustomerCard order={order0148} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('link', { name: 'Edit Details' })).toBeVisible();
+    unmount();
+
+    render(
+      <MemoryRouter>
+        <OrderCustomerCard order={order0148} readOnly />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText('Juan Dela Cruz')).toBeVisible();
   });
 });
 

@@ -118,7 +118,9 @@ describe('the header (ORD-07, D-46, D-36)', () => {
   it('offers Edit Details to the edit page on an active order', async () => {
     const { router } = renderOrder();
 
-    const link = await screen.findByRole('link', { name: 'Edit Details' });
+    // The header link comes first; the customer card has one too.
+    const [link] = await screen.findAllByRole('link', { name: 'Edit Details' });
+    if (link === undefined) throw new Error('No Edit Details link');
     expect(link).toHaveAttribute('href', `/admin/orders/${order0148.id}/edit`);
     await userEvent.setup().click(link);
     await screen.findByText('The edit page');
@@ -375,6 +377,107 @@ describe('the tab strip on a narrow screen (D-34)', () => {
     for (let node = strip.parentElement; node !== null && node !== container; node = node.parentElement) {
       expect(node.className).not.toContain('overflow-x-auto');
     }
+  });
+});
+
+describe('the customer card (ORD-07, UIC-6)', () => {
+  function customerCard(): HTMLElement {
+    return screen.getByRole('region', { name: 'Customer' });
+  }
+
+  it('shows name, team, contact, email and address, and the order notes', async () => {
+    renderOrder();
+
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    const card = customerCard();
+    expect(within(card).getByText('Juan Dela Cruz')).toBeVisible();
+    expect(within(card).getByText('Brgy. San Roque Ballers')).toBeVisible();
+    expect(within(card).getByText('0917 123 4567')).toBeVisible();
+    expect(within(card).getByText('juan.dc@example.ph')).toBeVisible();
+    expect(within(card).getByText('Brgy. San Roque, Marikina City')).toBeVisible();
+    expect(
+      within(card).getByText('V-neck, black and volt. Captain wants names in caps. Coach polos need embroidered logo.'),
+    ).toBeVisible();
+  });
+
+  it('shows the empty value for a missing team, email and address, and hides the notes block', async () => {
+    const sparse = buildOrderDetail({ teamName: null, email: null, address: null, notes: null });
+    useOrderHandlers({ detail: sparse });
+    renderOrder({ order: sparse });
+
+    await screen.findByRole('heading', { level: 1, name: sparse.number });
+    const card = customerCard();
+    expect(within(card).getAllByText('Not set')).toHaveLength(3);
+    expect(within(card).queryByText(/Captain wants/)).toBeNull();
+  });
+
+  it('links Edit Details to the edit page on an active order', async () => {
+    renderOrder();
+
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    expect(within(customerCard()).getByRole('link', { name: 'Edit Details' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${order0148.id}/edit`,
+    );
+  });
+
+  it.each([
+    ['Completed', completedOrder],
+    ['Cancelled', cancelledOrderWithRefunds],
+  ])('hides the Edit Details link on a %s order', async (_status, order) => {
+    useOrderHandlers({ detail: order });
+    renderOrder({ order });
+
+    await screen.findByRole('heading', { level: 1, name: order.number });
+    expect(within(customerCard()).queryByRole('link')).toBeNull();
+  });
+});
+
+describe('the status history on the page (D-17)', () => {
+  it('lists the newest change first', async () => {
+    renderOrder();
+
+    const card = await screen.findByRole('region', { name: 'Status history' });
+    const [newest, oldest] = within(card).getAllByRole('listitem');
+    expect(newest).toHaveTextContent('Pending to In Production');
+    expect(oldest).toHaveTextContent('Created as Pending');
+  });
+});
+
+describe('the phone balance card (D-33)', () => {
+  it('sits between the header and the Images card, named by the server figures', async () => {
+    renderOrder();
+
+    const strip = await screen.findByRole('button', {
+      name: 'Total ₱21,327.50, balance due ₱9,327.50. Show totals.',
+    });
+    const heading = screen.getByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    const images = screen.getByRole('heading', { level: 2, name: 'Images' });
+    expect(heading.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(strip.compareDocumentPosition(images) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('takes the person to the Totals heading', async () => {
+    const user = userEvent.setup();
+    renderOrder();
+
+    await user.click(await screen.findByRole('button', { name: /Show totals\.$/ }));
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Totals' })).toHaveFocus();
+  });
+});
+
+describe('the side column order (UI-SPEC block order)', () => {
+  it('puts the totals, then the customer card, then the status history after the main column', async () => {
+    renderOrder();
+
+    const totals = await screen.findByRole('region', { name: 'Totals' });
+    const customer = screen.getByRole('region', { name: 'Customer' });
+    const history = screen.getByRole('region', { name: 'Status history' });
+    const images = screen.getByRole('heading', { level: 2, name: 'Images' });
+    expect(images.compareDocumentPosition(totals) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(totals.compareDocumentPosition(customer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(customer.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
