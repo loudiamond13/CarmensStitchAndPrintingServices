@@ -74,8 +74,10 @@ export const orderCardsGridClasses = tw('grid w-full min-w-0 grid-cols-[repeat(a
 /** The Phase 8 totals panels side by side, wrapping on a narrow page. */
 export const orderTotalsGridClasses = tw('grid w-full min-w-0 grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5');
 
-/** The room under the open status menu demo, so the popover does not cover the case below. */
-export const statusMenuRoomClasses = tw('flex min-h-72 w-full items-start');
+/** The Change Status menu drawn open in place (no pop-in, so the page-wide opacity rule sees it settled): the real popover's look without its position. */
+export const statusMenuStaticClasses = tw(
+  'flex max-w-full min-w-[240px] flex-col gap-0.5 rounded-md bg-surface-3 p-2 shadow-level-2',
+);
 
 /** One due flag case: the status in words, then the flag as the order screens draw it. */
 export const dueCaseClasses = tw('flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[14px]');
@@ -88,3 +90,6 @@ export const badgesRowClasses = tw('flex flex-wrap items-center gap-3');
 
 /** The banners, one under another. */
 export const bannersStackClasses = tw('flex w-full min-w-0 flex-col gap-4');
+
+/** The status menu demo: the button, then the open menu under it. */
+export const statusMenuColumnClasses = tw('flex min-w-0 flex-col items-start gap-1');

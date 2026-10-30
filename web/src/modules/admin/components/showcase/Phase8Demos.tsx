@@ -27,8 +27,6 @@ import {
   orderStatusIconSlotClasses,
   orderStatusItemClasses,
   orderStatusItemTextClasses,
-  orderStatusMenuClasses,
-  orderStatusMenuPopoverClasses,
   orderStatusReasonClasses,
   orderStatusDangerItemClasses,
 } from '@/modules/admin/components/orderPage.recipe';
@@ -41,7 +39,8 @@ import {
   orderCardsGridClasses,
   orderTotalsGridClasses,
   staffStackClasses,
-  statusMenuRoomClasses,
+  statusMenuColumnClasses,
+  statusMenuStaticClasses,
 } from '@/modules/admin/components/showcase/showcase.recipe';
 import { SHOWCASE_COPY } from '@/modules/admin/components/showcase/showcaseCopy';
 import { DELETED_ORDERS_COPY } from '@/modules/admin/deletedOrdersCopy';
@@ -275,42 +274,40 @@ function BadgesDemo() {
 function StatusMenuDemo() {
   const buttonId = useId();
   return (
-    <div className={statusMenuRoomClasses}>
-      <div className={orderStatusMenuClasses}>
-        <Button id={buttonId} variant="secondary" size="sm" icon="chevron-down" aria-haspopup="menu" aria-expanded>
-          {DEMO.changeStatus}
-        </Button>
-        <div role="menu" aria-labelledby={buttonId} data-state="open" className={orderStatusMenuPopoverClasses}>
-          {otherActiveStatuses('production').map((status) => (
-            <button key={status} type="button" role="menuitem" tabIndex={-1} className={orderStatusItemClasses}>
-              <span className={orderStatusIconSlotClasses}>
-                <OrderStatusDot status={status} />
-              </span>
-              <span>{STATUS.moveTo(orderStatusLabel(status))}</span>
-            </button>
-          ))}
-          <div role="separator" className={orderStatusDividerClasses} />
-          <button type="button" role="menuitem" tabIndex={-1} aria-disabled className={orderStatusItemClasses}>
+    <div className={statusMenuColumnClasses}>
+      <Button id={buttonId} variant="secondary" size="sm" icon="chevron-down" aria-haspopup="menu" aria-expanded>
+        {DEMO.changeStatus}
+      </Button>
+      <div role="menu" aria-labelledby={buttonId} data-state="open" className={statusMenuStaticClasses}>
+        {otherActiveStatuses('production').map((status) => (
+          <button key={status} type="button" role="menuitem" tabIndex={-1} className={orderStatusItemClasses}>
             <span className={orderStatusIconSlotClasses}>
-              <Icon name="circle-check" size={18} />
+              <OrderStatusDot status={status} />
             </span>
-            <span className={orderStatusItemTextClasses}>
-              <span>{STATUS.markCompleted}</span>
-              <span className={orderStatusReasonClasses}>{STATUS.completeReason}</span>
-            </span>
+            <span>{STATUS.moveTo(orderStatusLabel(status))}</span>
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            className={clsx(orderStatusItemClasses, orderStatusDangerItemClasses)}
-          >
-            <span className={orderStatusIconSlotClasses}>
-              <Icon name="x" size={18} />
-            </span>
-            <span>{STATUS.cancelOrder}</span>
-          </button>
-        </div>
+        ))}
+        <div role="separator" className={orderStatusDividerClasses} />
+        <button type="button" role="menuitem" tabIndex={-1} aria-disabled className={orderStatusItemClasses}>
+          <span className={orderStatusIconSlotClasses}>
+            <Icon name="circle-check" size={18} />
+          </span>
+          <span className={orderStatusItemTextClasses}>
+            <span>{STATUS.markCompleted}</span>
+            <span className={orderStatusReasonClasses}>{STATUS.completeReason}</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          tabIndex={-1}
+          className={clsx(orderStatusItemClasses, orderStatusDangerItemClasses)}
+        >
+          <span className={orderStatusIconSlotClasses}>
+            <Icon name="x" size={18} />
+          </span>
+          <span>{STATUS.cancelOrder}</span>
+        </button>
       </div>
     </div>
   );

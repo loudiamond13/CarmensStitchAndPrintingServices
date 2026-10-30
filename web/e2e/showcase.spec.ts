@@ -1,6 +1,6 @@
 // Component Showcase E2E (D-22, WEB-06, A11Y-01; plan 02-34): /dev/components on the real host (the e2e bundle has the
 // dev-only routes) in all five projects, in Blush and in Espresso (switched with the shell's own toggle, D-13). Each
-// run checks one h1, the twelve sections, no "Missing component" alert, a page-level axe pass over every case, and the
+// run checks one h1, the thirteen sections, no "Missing component" alert, a page-level axe pass over every case, and the
 // guard (no console, page, CSP or failed-response findings). Then: nothing in the showcase widens the page at 320px
 // (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, a picked image previews under
 // the strict CSP (UI-CR-01: a `data:` URL, never a blocked `blob:` one), and an open Delete Order dialog is axe-clean
@@ -240,7 +240,7 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   await expect(page.locator('main > div').first().getByText('Demo data', { exact: true })).toBeVisible();
   await expect(page.locator('main > div').nth(1)).toHaveText(DEMO_BANNER);
   await expect(page.locator('main > section').first()).toBeVisible();
-  await expect(page.locator('main > section > div > h2')).toHaveCount(12);
+  await expect(page.locator('main > section > div > h2')).toHaveCount(13);
   await expect(page.getByText(/^Missing component/)).toHaveCount(0);
   // No sidebar item claims the page, and the sidebar has no link to it.
   await expect(page.locator('[data-ui="s-admin-side"] [aria-current="page"]')).toHaveCount(0);

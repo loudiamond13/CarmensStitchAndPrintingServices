@@ -555,11 +555,11 @@ test('@orders-journeys SC5 delete safely: a soft delete shows its counts, a Mana
   await confirm.getByRole('button', { name: 'Delete Order' }).click();
   await expect(page).toHaveURL(`/admin/orders?q=${number}`);
   await expect(page.getByText(`Order ${number} deleted`)).toBeVisible();
-  await page.waitForLoadState('networkidle');
   await expect(page.getByRole('article').filter({ hasText: number })).toHaveCount(0);
 
   // A Manager finds it in Deleted Orders, reads it, and restores it.
-  await page.goto('/admin/orders/deleted');
+  await page.getByRole('link', { name: 'Deleted Orders' }).click();
+  await expect(page).toHaveURL(/\/admin\/orders\/deleted$/);
   const row = page.getByRole('table', { name: 'Deleted orders' }).getByRole('row').filter({ hasText: number });
   await row.getByRole('link', { name: number }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/orders/deleted/${id}$`));
@@ -574,9 +574,9 @@ test('@orders-journeys SC5 delete safely: a soft delete shows its counts, a Mana
   // Delete it again, then delete it for good: the button stays off until the exact number is typed.
   await page.getByRole('button', { name: 'Delete Order' }).click();
   await confirm.getByRole('button', { name: 'Delete Order' }).click();
-  await expect(page.getByText(`Order ${number} deleted`)).toBeVisible();
-  await page.waitForLoadState('networkidle');
-  await page.goto('/admin/orders/deleted');
+  await expect(page.getByText(`Order ${number} deleted`).last()).toBeVisible();
+  await page.getByRole('link', { name: 'Deleted Orders' }).click();
+  await expect(page).toHaveURL(/\/admin\/orders\/deleted$/);
   await row.getByRole('link', { name: number }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/orders/deleted/${id}$`));
   await page.getByRole('button', { name: 'Delete Order Permanently' }).click();
