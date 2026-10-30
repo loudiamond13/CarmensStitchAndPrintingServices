@@ -49,6 +49,8 @@ export const ORDER_FORM_COPY = {
     quantity: 'Qty',
     unitPrice: 'Unit price',
     lineTotal: 'Line total',
+    /** The name of one row's group, so a screen reader hears which item its fields belong to. */
+    group: (n: number): string => `Item ${formatCount(n)}`,
     remove: (n: number): string => `Remove item ${formatCount(n)}`,
     empty: 'No items yet. Add at least one to save the order.',
     limit: 'An order can have at most 100 items.',

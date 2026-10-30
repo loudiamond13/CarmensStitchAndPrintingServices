@@ -1,10 +1,10 @@
 // The live figures of the New Order form: line totals, pieces, line items and the items subtotal. They are PREVIEWS from what is
 // typed (D-09): the server works out the saved figures, and the order page shows its answer after the save. The browser's order
 // math (csps.ts orderTotals) does the sums, in exact centavos.
-import { useWatch, type Control } from 'react-hook-form';
+import { useWatch } from 'react-hook-form';
 import { isMoneyText } from '@/utils/format';
 import { orderTotals } from '@/utils/csps';
-import type { CreateOrderFormInput, OrderItemFormInput } from '@/modules/admin/orderFormSchemas';
+import type { CreateOrderControl, OrderItemFormInput } from '@/modules/admin/orderFormSchemas';
 
 /** The typed quantity as a whole number; 0 until it is one. */
 function quantityOf(text: string): number {
@@ -41,7 +41,7 @@ export function itemsPreview(items: readonly Pick<OrderItemFormInput, 'quantity'
 }
 
 /** The preview of the rows being typed. */
-export function useItemsPreview(control: Control<CreateOrderFormInput>): ItemsPreview {
+export function useItemsPreview(control: CreateOrderControl): ItemsPreview {
   const items = useWatch({ control, name: 'items' });
   return itemsPreview(items);
 }

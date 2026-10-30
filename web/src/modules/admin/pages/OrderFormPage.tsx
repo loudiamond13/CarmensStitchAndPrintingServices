@@ -18,12 +18,12 @@ import {
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
-import { MoneyInput } from '@/components/entry';
 import { ErrorState, LoadingRegion, SkeletonCard } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
 import { useSubmission } from '@/lib/forms/useSubmission';
-import { ListEntrySelect } from '@/modules/admin/components/ListEntrySelect';
+import { OrderItemsEditor } from '@/modules/admin/components/OrderItemsEditor';
+import { OrderSummaryAside } from '@/modules/admin/components/OrderSummaryAside';
 import {
   orderFormBannerClasses,
   orderFormCardClasses,
@@ -49,6 +49,7 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
 import { ORDER_FORM_COPY } from '@/modules/admin/orderFormCopy';
+import { useItemsPreview } from '@/modules/admin/orderFormPreview';
 import {
   blankOrderItem,
   CREATE_STATUSES,
@@ -166,7 +167,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     },
   });
 
-  const [orderDate, dueDate] = useWatch({ control, name: ['orderDate', 'dueDate'] });
+  const [orderDate, dueDate, status] = useWatch({ control, name: ['orderDate', 'dueDate', 'status'] });
+  const preview = useItemsPreview(control);
   const days = daysBetween(orderDate, dueDate);
 
   // Focus goes to the first flagged field once the messages are on screen.
@@ -229,6 +231,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     setFocusTick((tick) => tick + 1);
   };
 
+  const itemsError = errors.items?.root?.message ?? errors.items?.message;
   const flagged = countErrors(errors);
   let caption = '';
   if (pending) {
@@ -459,98 +462,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
               <p>{IMAGES.soon}</p>
             </div>
           </section>
-          <section className={orderFormCardClasses} aria-labelledby={`${formId}-items`}>
-            <div className={orderFormCardHeadClasses}>
-              <div>
-                <h2 id={`${formId}-items`} className={orderFormCardTitleClasses}>
-                  {COPY.items.title}
-                </h2>
-                <p className={orderFormCardHintClasses}>{COPY.items.hint}</p>
-              </div>
-            </div>
-            <div className={orderFormGridClasses}>
-              <Controller
-                control={control}
-                name="items.0.productTypeId"
-                render={({ field, fieldState }) => (
-                  <ListEntrySelect
-                    mode="picker"
-                    list="product-types"
-                    label={COPY.items.productType}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="items.0.description"
-                render={({ field, fieldState }) => (
-                  <Field
-                    label={COPY.items.description}
-                    placeholder={COPY.items.descriptionPlaceholder}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    autoComplete="off"
-                    required
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="items.0.sizeVariant"
-                render={({ field, fieldState }) => (
-                  <Field
-                    label={COPY.items.sizeVariant}
-                    placeholder={COPY.items.sizeVariantPlaceholder}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    autoComplete="off"
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="items.0.quantity"
-                render={({ field, fieldState }) => (
-                  <Field
-                    label={COPY.items.quantity}
-                    inputMode="numeric"
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    autoComplete="off"
-                    required
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="items.0.unitPrice"
-                render={({ field, fieldState }) => (
-                  <MoneyInput
-                    label={COPY.items.unitPrice}
-                    name={field.name}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message ?? ''}
-                    required
-                  />
-                )}
-              />
-            </div>
-          </section>
+          <OrderItemsEditor control={control} rootError={itemsError} />
           <div className={orderSaveBarClasses}>
             <p className={orderSaveBarCaptionClasses}>{caption}</p>
             <Button variant="secondary" className={orderSaveBarButtonClasses} onClick={() => void navigate(backTo)}>
@@ -567,6 +479,13 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
             </Button>
           </div>
         </div>
+        <OrderSummaryAside
+          status={status}
+          dueDate={dueDate}
+          lineItems={preview.lines}
+          pieces={preview.pieces}
+          total={preview.subtotal}
+        />
       </form>
     </div>
   );

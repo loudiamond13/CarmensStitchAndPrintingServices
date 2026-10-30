@@ -2,6 +2,7 @@
 // request is sent, with the server's own words. Every control is text; the quantity and the unit price stay text until the check
 // has passed and only then become numbers for the request (T-06-39). `orderDetailsSchema` holds the customer and date rules the
 // edit form reuses; `orderItemSchema` is the item rule the item windows reuse.
+import type { Control } from 'react-hook-form';
 import { z } from 'zod';
 import { moneyInputError } from '@/components/entry';
 import { isCalendarDate } from '@/lib/url-state/parsers';
@@ -162,6 +163,9 @@ export const createOrderSchema = z
 
 export type CreateOrderFormInput = z.input<typeof createOrderSchema>;
 export type CreateOrderFormValues = z.output<typeof createOrderSchema>;
+
+/** The form control of the New Order form, for the parts that read or write its rows. */
+export type CreateOrderControl = Control<CreateOrderFormInput, unknown, CreateOrderFormValues>;
 
 /** The request body for a checked form. It carries no attribution field: who recorded the order comes from the token (SEC-08). */
 export function toCreateOrderRequest(values: CreateOrderFormValues): CreateOrderRequest {

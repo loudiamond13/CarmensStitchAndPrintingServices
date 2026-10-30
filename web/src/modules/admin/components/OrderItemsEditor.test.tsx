@@ -69,7 +69,7 @@ async function renderEditor(items: OrderItemFormInput[] = [row()]) {
       <Harness items={items} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('option', { name: 'Basketball Jersey' });
+  await screen.findAllByRole('option', { name: 'Basketball Jersey' });
   return { ...view, user: userEvent.setup() };
 }
 
@@ -147,7 +147,9 @@ describe('Add Item and Remove (focus rules)', () => {
     const adds = screen.getAllByRole('button', { name: 'Add Item' });
     expect(adds).toHaveLength(2);
     expect(adds.some((button) => button === document.activeElement)).toBe(true);
-    await user.click(adds[0] as HTMLElement);
+    const [firstAdd] = adds;
+    if (firstAdd === undefined) throw new Error('No Add Item button');
+    await user.click(firstAdd);
     expect(screen.getAllByRole('group', { name: /^Item \d+$/ })).toHaveLength(1);
   });
 
@@ -203,14 +205,14 @@ describe('previews', () => {
 
     expect(screen.getByText('3 pcs across 1 line item')).toBeVisible();
     expect(screen.getByText('Items subtotal')).toBeVisible();
-    expect(screen.getByTestId('items-subtotal')).toHaveTextContent('₱300.00');
+    expect(screen.getByText('Items subtotal').nextElementSibling).toHaveTextContent('₱300.00');
   });
 
   it('says line items when there are several', async () => {
     await renderEditor([row({ quantity: '2', unitPrice: '10' }), row({ quantity: '5', unitPrice: '20.50' })]);
 
     expect(screen.getByText('7 pcs across 2 line items')).toBeVisible();
-    expect(screen.getByTestId('items-subtotal')).toHaveTextContent('₱122.50');
+    expect(screen.getByText('Items subtotal').nextElementSibling).toHaveTextContent('₱122.50');
   });
 });
 

@@ -291,7 +291,7 @@ describe('the summary aside and the item grid on the page (UIC-51)', () => {
     expect(within(aside).getByText('Oct 20, 2026')).toBeVisible();
     expect(within(aside).getByText('Line items').nextElementSibling).toHaveTextContent('1');
     expect(within(aside).getByText('Pieces').nextElementSibling).toHaveTextContent('12');
-    expect(within(aside).getByTestId('aside-total')).toHaveTextContent('₱9,360.00');
+    expect(within(aside).getByText('Total').nextElementSibling).toHaveTextContent('₱9,360.00');
     expect(
       within(aside).getByText('Balance = Total \u2212 Payments. Record the downpayment after saving.'),
     ).toBeVisible();
@@ -307,14 +307,14 @@ describe('the summary aside and the item grid on the page (UIC-51)', () => {
 
     await user.selectOptions(screen.getByLabelText(/^Status/), 'Ready');
     await user.click(screen.getByRole('button', { name: 'Add Item' }));
-    await user.type(screen.getAllByLabelText(/^Qty/)[1] as HTMLElement, '3');
-    await user.type(screen.getAllByLabelText(/^Unit price/)[1] as HTMLElement, '100');
+    await user.type(within(screen.getByRole('group', { name: 'Item 2' })).getByLabelText(/^Qty/), '3');
+    await user.type(within(screen.getByRole('group', { name: 'Item 2' })).getByLabelText(/^Unit price/), '100');
 
     const aside = screen.getByRole('complementary', { name: 'Summary' });
     expect(within(aside).getByText('Ready')).toBeVisible();
     expect(within(aside).getByText('Line items').nextElementSibling).toHaveTextContent('2');
     expect(within(aside).getByText('Pieces').nextElementSibling).toHaveTextContent('15');
-    expect(within(aside).getByTestId('aside-total')).toHaveTextContent('₱9,660.00');
+    expect(within(aside).getByText('Total').nextElementSibling).toHaveTextContent('₱9,660.00');
     expect(screen.getByText('15 pcs across 2 line items')).toBeVisible();
   });
 
