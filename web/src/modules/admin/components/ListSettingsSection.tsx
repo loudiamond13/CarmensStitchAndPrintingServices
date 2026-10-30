@@ -369,6 +369,7 @@ export function ListSettingsSection({ config }: ListSettingsSectionProps) {
         </div>
       </section>
       <CategoryModal
+        config={config}
         mode="add"
         open={adding}
         onClose={() => {
@@ -377,6 +378,7 @@ export function ListSettingsSection({ config }: ListSettingsSectionProps) {
         onSaved={added}
       />
       <CategoryModal
+        config={config}
         mode="edit"
         open={editing}
         categoryId={editingId}

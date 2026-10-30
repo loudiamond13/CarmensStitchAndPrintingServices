@@ -1,6 +1,8 @@
 // The four Settings lists as configs (D-31; plan 08-08): what ListSettingsSection and CategoryModal need to run one list, so the Phase 6
 // category card serves product types, payment methods, order expense categories and company expense categories alike.
 import type { UseQueryResult } from '@tanstack/react-query';
+import type { z } from 'zod';
+import { categoryFormSchema, type CategoryFormInput, type CategoryFormValues } from '@/modules/admin/categorySchemas';
 import type { ListKey } from '@/modules/admin/components/ListEntrySelect';
 import { expenseCategoriesKey, useExpenseCategoriesQuery } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import {
@@ -10,6 +12,7 @@ import {
 import { paymentMethodsKey, usePaymentMethodsQuery } from '@/modules/admin/hooks/usePaymentMethodsQuery';
 import { productTypesKey, useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
 import { ORDER_LISTS_COPY } from '@/modules/admin/orderListsCopy';
+import { orderListEntrySchema } from '@/modules/admin/orderListSchemas';
 import { expenseCategoriesService } from '@/modules/admin/services/expenseCategoriesService';
 import { orderExpenseCategoriesService } from '@/modules/admin/services/orderExpenseCategoriesService';
 import { paymentMethodsService } from '@/modules/admin/services/paymentMethodsService';
@@ -45,9 +48,13 @@ export interface ListSettingsService {
   remove(id: string): Promise<void>;
 }
 
+/** What the add and edit form checks before a request is sent (OR-3): a trimmed name and one of the six tones. */
+export type ListEntrySchema = z.ZodType<CategoryFormValues, CategoryFormInput>;
+
 export interface ListSettingsConfig {
   readonly list: ListKey;
   readonly words: ListSettingsWords;
+  readonly schema: ListEntrySchema;
   readonly service: ListSettingsService;
   /** Reads the list (a hook: the section calls it once). */
   readonly useEntries: () => UseQueryResult<SettingsListRow[]>;
@@ -69,6 +76,7 @@ export const LIST_SETTINGS: Readonly<Record<ListKey, ListSettingsConfig>> = {
   'product-types': {
     list: 'product-types',
     words: ORDER_LISTS_COPY['product-types'].settings,
+    schema: orderListEntrySchema(ORDER_LISTS_COPY['product-types'].settings.errors.nameRequired),
     service: productTypesService,
     useEntries: useProductTypesQuery,
     entriesKey: productTypesKey,
@@ -78,6 +86,7 @@ export const LIST_SETTINGS: Readonly<Record<ListKey, ListSettingsConfig>> = {
   'payment-methods': {
     list: 'payment-methods',
     words: ORDER_LISTS_COPY['payment-methods'].settings,
+    schema: orderListEntrySchema(ORDER_LISTS_COPY['payment-methods'].settings.errors.nameRequired),
     service: paymentMethodsService,
     useEntries: usePaymentMethodsQuery,
     entriesKey: paymentMethodsKey,
@@ -87,6 +96,7 @@ export const LIST_SETTINGS: Readonly<Record<ListKey, ListSettingsConfig>> = {
   'order-expense-categories': {
     list: 'order-expense-categories',
     words: ORDER_LISTS_COPY['order-expense-categories'].settings,
+    schema: orderListEntrySchema(ORDER_LISTS_COPY['order-expense-categories'].settings.errors.nameRequired),
     service: orderExpenseCategoriesService,
     useEntries: useOrderExpenseCategoriesQuery,
     entriesKey: orderExpenseCategoriesKey,
@@ -96,6 +106,7 @@ export const LIST_SETTINGS: Readonly<Record<ListKey, ListSettingsConfig>> = {
   'expense-categories': {
     list: 'expense-categories',
     words: ORDER_LISTS_COPY['expense-categories'].settings,
+    schema: categoryFormSchema,
     service: expenseCategoriesService,
     useEntries: useExpenseCategoriesQuery,
     entriesKey: expenseCategoriesKey,
