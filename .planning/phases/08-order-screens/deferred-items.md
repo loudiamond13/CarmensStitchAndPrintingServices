@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-30T00:00:00-05:00
+updated: 2026-10-30T00:32:00-05:00
 ---
 
 # Phase 08 deferred items
@@ -56,3 +56,16 @@ Out-of-scope findings logged while executing the Phase 8 plans. Nothing here blo
 4. **The table look is not seen in a browser in Blush and Espresso at 390, 820 and 1440 px.** Axe (including colour contrast) and the layout checks pass in all five browser projects at 820 and 390 px. The owner's screenshot review should check the Order cell (44 px placeholder beside the number), the Balance cell states (Fully Paid in success green on the surface, the Credit badge, the muted figure over Not collected) and the Due cell stack.
 5. **The Paid cell shows a figure only when money was paid; otherwise it shows the empty value icon.** A refunded order shows the Paid figure as sent (the Refunded figure is not a column), as in the UI-SPEC column table.
 6. **Phone width: the table frame has no header row and each order is a card** (the shared ResponsiveTable). The Order cell is the card title; the cell labels come from the column headers.
+
+## From plan 08-12
+
+1. **SPEC-GAP, owner review: the slim balance card also has a "Not collected" state.** The UI-SPEC names three states for the phone card (Balance due, Fully Paid, Credit). A Cancelled order with money unpaid would read "Balance due" there while the totals panel says "Not collected" (D-45). The card follows the panel: it shows "Not collected" and is named "Total {X}, not collected {Y}. Show totals." Say if the owner wants the plain "Balance due" instead (the words are in `orderPageCopy.ts`, `strip`; the rule is `stripState` in `OrderBalanceStrip.tsx`).
+2. **SPEC-GAP, owner review: the tab panel titles.** The UI-SPEC gives each tab's caption, columns and footer but no `h3` title. The panels read "Payments", "Discounts", "Expenses" and "Refunds" (Items keeps "Order items" from 08-10). The same words name each table for assistive technology. Words are in `orderPageCopy.ts`.
+3. **A discount row's Amount is a preview, the footer is the server's.** The server sends each discount as a kind and a value, not an amount. The row amount is `discountAmount` from `utils/csps.ts` over the server's subtotal (the same rounding as the server, and the same preview the discount window uses). The footer "Total discount" shows the server's `totals.discount`, shown negative like the totals panel. If the rows and the footer ever differ by a centavo, the footer is right.
+4. **Phone footer labels.** On a phone the money footers show the first cell as "Total paid", "Total discount", "Order expenses" or "Total refunded" and the amount cell under the label "Total". The spec fixes the footer words only; the "Total" label follows the Expenses list (`COPY.footer.totalLabel`).
+5. **The Refunds caption is the short one for now.** "Money handed back to the customer." The sentence " You can refund up to **₱X**." belongs with the Add button, which comes in plan 08-18 (`refundCap` is ready).
+6. **Two "Edit Details" links on an open order.** The header button and the customer card link have the same name, as in the UI-SPEC. Tests and the e2e find the header one first. Say if the owner wants the card link named differently (for example "Edit customer details").
+7. **Side column order changed from 08-10.** On a phone the totals, customer card and history now follow the tab card (UI-SPEC block order); on a tablet they sit above it as a two-column grid with the history across both. Plan 08-10 had put the side first up to 1023px, phones included. The cascade test (`orderPage.recipe.node.test.ts`) now pins `order-first` to the tablet range only.
+8. **The page look is not seen in a browser in Blush and Espresso.** The layout is proved by box positions at 390, 320, 820 and 1440 px in all five browser projects (balance card under the header, side after the tab card on phones, totals and customer side by side above the images on tablets, side beside the tabs on desktop, no sideways scroll, axe clean). The colours, spacing and the strip's look are for the owner's screenshot review.
+9. **The customer card's Name row shows the customer name, and the Team row the team.** When an order has no team the Team row shows the empty value (the header subline says "Walk-in customer" for that case).
+10. **`OrderBody` has no `readOnly` yet.** Each tab component and the customer card take `readOnly`; the deleted view (08-20/08-21) will pass it when it builds its own page body from these parts. The status history and the balance card have nothing to hide.
