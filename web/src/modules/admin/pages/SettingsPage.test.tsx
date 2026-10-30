@@ -34,12 +34,7 @@ import {
 } from '@/test/expenseFixtures';
 import type { CategoryListItemFixture } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
-import {
-  listBackend,
-  ORDER_EXPENSE_CATEGORIES,
-  PAYMENT_METHODS,
-  PRODUCT_TYPES,
-} from '@/test/orderListFixtures';
+import { listBackend, ORDER_EXPENSE_CATEGORIES, PAYMENT_METHODS, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // S1 Settings, /admin/settings (D-08..D-15, OQ-3; plan 06-17): the Manager's page for the expense category list, now the Company
@@ -784,7 +779,7 @@ describe('S1 retire, use again and delete (D-10, D-11, D-30, OQ-4, OQ-5; plan 06
 describe('S1 the four tabs (D-31, WEB-10; plan 08-08)', () => {
   const TAB_NAMES = ['Product Types', 'Payment Methods', 'Order Expense Categories', 'Company Expense Categories'];
 
-  async function openTabs(search = '') {
+  function openTabs(search = '') {
     listBackend('product-types', PRODUCT_TYPES);
     listBackend('payment-methods', PAYMENT_METHODS);
     listBackend('order-expense-categories', ORDER_EXPENSE_CATEGORIES);
@@ -796,8 +791,8 @@ describe('S1 the four tabs (D-31, WEB-10; plan 08-08)', () => {
     return { view, updates };
   }
 
-  it('shows the four tabs in order with Product Types selected', async () => {
-    await openTabs();
+  it('shows the four tabs in order with Product Types selected', () => {
+    openTabs();
 
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map((tab) => tab.textContent)).toEqual(TAB_NAMES);
@@ -805,7 +800,7 @@ describe('S1 the four tabs (D-31, WEB-10; plan 08-08)', () => {
   });
 
   it('lists the product types with the Items count on the first tab', async () => {
-    await openTabs();
+    openTabs();
 
     const table = await screen.findByRole('table', { name: 'Product types' });
     expect(
@@ -820,7 +815,7 @@ describe('S1 the four tabs (D-31, WEB-10; plan 08-08)', () => {
 
   it('choosing Payment Methods sets ?tab=payment-methods with a replace and shows that list with Payments', async () => {
     const user = userEvent.setup();
-    const { updates } = await openTabs();
+    const { updates } = openTabs();
     await screen.findByRole('table', { name: 'Product types' });
 
     await user.click(screen.getByRole('tab', { name: 'Payment Methods' }));
@@ -830,27 +825,27 @@ describe('S1 the four tabs (D-31, WEB-10; plan 08-08)', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((header) => header.textContent),
-    ).toEqual(['Method', 'Status', 'Payments', 'Actions']);
+    ).toEqual(['Payment method', 'Status', 'Payments', 'Actions']);
     expect(screen.getByRole('tab', { name: 'Payment Methods' })).toHaveAttribute('aria-selected', 'true');
     expect(updates).toEqual([{ history: 'replace', query: '?tab=payment-methods' }]);
   });
 
   it('opens on the tab named in the URL', async () => {
-    await openTabs('?tab=order-expense-categories');
+    openTabs('?tab=order-expense-categories');
 
     expect(await screen.findByRole('table', { name: 'Order expense categories' })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Order Expense Categories' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('falls back to Product Types for an unknown tab', async () => {
-    await openTabs('?tab=unknown');
+    openTabs('?tab=unknown');
 
     expect(await screen.findByRole('table', { name: 'Product types' })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Product Types' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('keeps only the chosen tab panel filled', async () => {
-    await openTabs();
+    openTabs();
     await screen.findByRole('table', { name: 'Product types' });
 
     expect(screen.getAllByRole('table')).toHaveLength(1);
@@ -862,7 +857,7 @@ describe('S1 the four tabs (D-31, WEB-10; plan 08-08)', () => {
     ['?tab=order-expense-categories', 'Order expense categories'],
     ['?tab=expense-categories', 'Expense categories'],
   ])('has no axe violations on the tab %s', async (search, tableName) => {
-    const { view } = await openTabs(search);
+    const { view } = openTabs(search);
     await screen.findByRole('table', { name: tableName });
 
     await expectNoAxeViolations(view.container);

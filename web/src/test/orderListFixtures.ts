@@ -77,7 +77,9 @@ export function codedProblem(status: number, code: string): Response {
 const noContent = (): Response => new HttpResponse(null, { status: 204 });
 
 /** What the fake API answers for a list: the rows, or a ready-made response. */
-export type ListResponder = (url: URL) => readonly OrderListItemFixture[] | Response | Promise<readonly OrderListItemFixture[] | Response>;
+export type ListResponder = (
+  url: URL,
+) => readonly OrderListItemFixture[] | Response | Promise<readonly OrderListItemFixture[] | Response>;
 
 /** Answers GET /api/v1/{route} and records every request URL. A later call overrides an earlier one. */
 export function listBackend(

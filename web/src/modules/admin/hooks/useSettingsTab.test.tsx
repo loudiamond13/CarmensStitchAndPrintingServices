@@ -38,7 +38,12 @@ function updates(onUrlUpdate: UrlUpdateSpy): { history: string; query: string }[
 
 describe('useSettingsTab', () => {
   it('lists the tabs in order, the order lists first', () => {
-    expect(SETTINGS_TABS).toEqual(['product-types', 'payment-methods', 'order-expense-categories', 'expense-categories']);
+    expect(SETTINGS_TABS).toEqual([
+      'product-types',
+      'payment-methods',
+      'order-expense-categories',
+      'expense-categories',
+    ]);
   });
 
   it('reads product-types and writes nothing to the URL when there is no tab parameter', async () => {
