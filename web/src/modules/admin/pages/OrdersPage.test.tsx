@@ -24,6 +24,7 @@ import {
 } from '@/test/orderFixtures';
 import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { inStrictMode } from '@/test/strictMode';
 
 // L1 Orders, /admin/orders (ORD-01, ORD-11, ORD-12, ORD-19; plan 08-06): the server's rows as cards, with the server's
 // figures, the list-wide counts in the subline and the due flag worked out from the response's own today.
@@ -1326,5 +1327,16 @@ describe('the table view states and links (ORD-01, D-51, UIC-1, UIC-2; plan 08-1
 
     await screen.findByRole('table', { name: 'Orders' });
     await expectNoAxeViolations(view.container);
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws the page and its cards, whether the render is cached or fresh', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    await inStrictMode(async () => {
+      renderPage();
+
+      expect(await screen.findByText('148 orders · 37 active')).toBeVisible();
+    });
   });
 });

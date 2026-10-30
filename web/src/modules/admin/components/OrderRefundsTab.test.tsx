@@ -23,6 +23,7 @@ import {
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { inStrictMode } from '@/test/strictMode';
 
 // The Refunds tab actions (ORD-18, D-13, D-24, D-54a, 07 D-09, 07 D-35; plan 08-21): Add, Edit and Delete on a Cancelled order or an
 // order with a customer credit, each answering the whole order, with the cap from the server's figures.
@@ -319,5 +320,15 @@ describe('Delete Refund', () => {
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Refund' }));
 
     expect(await screen.findByText('This refund was removed.')).toBeVisible();
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws the tab with the same rows, whether the render is cached or fresh', async () => {
+    useOrderHandlers({ detail: CANCELLED });
+    await inStrictMode(async () => {
+      renderTab(CANCELLED);
+      expect(await screen.findByRole('table', { name: 'Refunds' })).toBeVisible();
+    });
   });
 });

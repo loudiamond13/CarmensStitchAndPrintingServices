@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersTable } from '@/modules/admin/components/OrdersTable';
 import { expectNoAxeViolations } from '@/test/axe';
+import { inStrictMode } from '@/test/strictMode';
 import {
   cancelledOrderWithRefunds,
   completedOrder,
@@ -266,5 +267,14 @@ describe('accessibility', () => {
     const { container } = renderTable();
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws every row, whether the render is cached or fresh', async () => {
+    await inStrictMode(() => {
+      renderTable();
+      expect(rowOf('ORD-2026-0148')).toBeVisible();
+    });
   });
 });

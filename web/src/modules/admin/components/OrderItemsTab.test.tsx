@@ -20,6 +20,7 @@ import {
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { inStrictMode } from '@/test/strictMode';
 
 // The Items tab actions (ORD-07, D-28, D-48; plan 08-14): Add, Edit and Delete on an active order, each answering the whole order,
 // with the page showing the server's figures and the lists refreshed.
@@ -380,5 +381,15 @@ describe('the last item (D-48, UIC-49)', () => {
 
     await screen.findByRole('table', { name: 'Order items' });
     expect(screen.queryByText(/the last one can't be deleted/)).toBeNull();
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws the tab with the same rows, whether the render is cached or fresh', async () => {
+    useOrderHandlers({ detail: order0148 });
+    await inStrictMode(async () => {
+      renderTab();
+      expect(await screen.findByRole('table', { name: 'Order items' })).toBeVisible();
+    });
   });
 });

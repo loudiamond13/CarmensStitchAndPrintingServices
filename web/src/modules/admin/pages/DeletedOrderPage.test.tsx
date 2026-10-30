@@ -21,6 +21,7 @@ import {
 import { expectNoAxeViolations } from '@/test/axe';
 import { buildOrderDetail, creditOrder, order0148, orderRefund } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { inStrictMode } from '@/test/strictMode';
 
 // X2 Deleted order, /admin/orders/deleted/:id (ORD-06, ORD-07, D-24, D-57; plan 08-23): the order page with every write removed, a
 // banner saying who deleted it and when, and only Restore Order and Delete Order Permanently.
@@ -385,5 +386,17 @@ describe('loading, failure and not found (UIC-14, UIC-18, UIC-19)', () => {
 
     expect(await screen.findByText("This order isn't in Deleted Orders.")).toBeVisible();
     expect(screen.getByRole('link', { name: 'Back to Deleted Orders' })).toBeVisible();
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws the deleted order and its tabs, whether the render is cached or fresh', async () => {
+    backend();
+    await inStrictMode(async () => {
+      renderPage();
+
+      await loaded();
+      expect(await screen.findByRole('table', { name: 'Order items' })).toBeVisible();
+    });
   });
 });

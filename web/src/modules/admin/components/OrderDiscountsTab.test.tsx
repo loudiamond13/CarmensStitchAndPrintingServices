@@ -19,6 +19,7 @@ import {
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { inStrictMode } from '@/test/strictMode';
 
 // The Discounts tab actions (ORD-07, D-15, D-24, D-54a, 07 D-12; plan 08-17): Add, Edit and Delete on an active order, each answering the
 // whole order, with the page showing the server's figures.
@@ -372,6 +373,16 @@ describe('a discount that turns a paid order into a credit (07 D-12, D-05)', () 
 
     await waitFor(() => {
       expect(backend.writes).toHaveLength(1);
+    });
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws the tab with the same rows, whether the render is cached or fresh', async () => {
+    useOrderHandlers({ detail: order0148 });
+    await inStrictMode(async () => {
+      renderTab();
+      expect(await screen.findByRole('table', { name: 'Discounts' })).toBeVisible();
     });
   });
 });

@@ -25,6 +25,7 @@ import {
 } from '@/test/orderFixtures';
 import { listBackend, ORDER_EXPENSE_CATEGORIES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { inStrictMode } from '@/test/strictMode';
 
 // The Expenses tab actions (ORD-07, ORD-19, D-12, D-15, D-24, D-54a; plan 08-18): Add, Edit and Delete on an active order, each answering
 // the whole order, with the page showing the server's figures.
@@ -327,6 +328,16 @@ describe('Delete expense of', () => {
     expect(backend.writes).toEqual([]);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Delete expense of ₱3,825.00, Oct 1, 2026' })).toHaveFocus();
+    });
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws the tab with the same rows, whether the render is cached or fresh', async () => {
+    useOrderHandlers({ detail: order0148 });
+    await inStrictMode(async () => {
+      renderTab();
+      expect(await screen.findByRole('table', { name: 'Expenses' })).toBeVisible();
     });
   });
 });

@@ -2,6 +2,7 @@
 // their balance states, the order cards, the due flag, the Delivered badge, the Change Status menu, the banners and the two delete
 // dialogs, all on made-up data and local state. No test here may cause a request.
 import { render, screen, waitFor, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
@@ -196,6 +197,33 @@ describe('Phase8Demos: the delete dialogs', () => {
 
     expect(requests).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('Phase8Demos: strict mode', () => {
+  it('renders every case twice over in StrictMode (the cached render and the fresh one) with the same content', () => {
+    const { container } = render(
+      <StrictMode>
+        <MemoryRouter>
+          <ToastProvider>
+            <Phase8Demos />
+          </ToastProvider>
+        </MemoryRouter>
+      </StrictMode>,
+    );
+
+    for (const id of [
+      'orders-totals-states',
+      'orders-card-states',
+      'orders-due-flags',
+      'orders-status-badges',
+      'orders-status-menu',
+      'orders-banners',
+      'orders-delete-dialogs',
+    ]) {
+      expect(caseFrame(id)).toBeInTheDocument();
+    }
+    expect(container.querySelectorAll('[data-case]')).toHaveLength(7);
   });
 });
 

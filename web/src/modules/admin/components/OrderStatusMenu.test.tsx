@@ -13,6 +13,7 @@ import { canEditOrder } from '@/modules/admin/orderRules';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { expectNoAxeViolations } from '@/test/axe';
+import { inStrictMode } from '@/test/strictMode';
 import {
   buildOrderDetail,
   creditOrder,
@@ -625,5 +626,16 @@ describe('Cancel Order (D-18, D-54c, D-57, ORD-07)', () => {
 
     expect(await within(screen.getByRole('dialog')).findByText(detail, { exact: false })).toBeVisible();
     expect(screen.getByRole('dialog')).toBeVisible();
+  });
+});
+
+describe('under StrictMode', () => {
+  it('draws the Change Status button and opens its menu, whether the render is cached or fresh', async () => {
+    useOrderHandlers({ detail: order0148 });
+    await inStrictMode(async () => {
+      const { user } = renderMenu();
+      await user.click(await trigger());
+      expect(await screen.findByRole('menu')).toBeVisible();
+    });
   });
 });
