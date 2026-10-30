@@ -15,7 +15,7 @@ progress:
   completed_plans: 226
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T14:28:12-05:00"
+updated: "2026-10-29T21:45:00-05:00"
 ---
 
 # Project State
@@ -816,6 +816,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-06: the orders grid uses pg-lt-xl for 3 columns and important pg-tablet and pg-phone rules for 2 and 1, because Tailwind emits the wider rule last; a node test reads the generated CSS
 - [Phase 08]: 08-06: /admin/orders left ADMIN_PAGES in sweep.ts (sweeps open pages unsigned); plan 08-24 adds the order pages with a sign-in step
 - [Phase 08]: 08-07: deleted read is the live detail read in a deleted mode (SoftDelete lifted on the order and each child query); a restore between reads answers 404
+- [Phase 08 execute]: D-89 (owner, 2026-10-29, 08-06 deferred item 2): route `AdminNotFoundPage` as a splat under the admin layout so an unknown `/admin/...` address shows the in-shell "Page not found" screen; keep the file. Built as a follow-up task after wave 2.
 
 ### Pending Todos
 

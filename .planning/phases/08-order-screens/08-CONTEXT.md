@@ -1,6 +1,6 @@
 # Phase 8: Order Screens - Context
 
-*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-29T15:15:00-05:00*
+*Created: 2026-10-29T14:05:00-05:00 · Updated: 2026-10-29T21:40:00-05:00*
 
 **Gathered:** 2026-10-29
 **Status:** Ready for planning
@@ -107,6 +107,7 @@ Out of scope: image upload, gallery and cover (ORD-04, Phase 9); money on hand a
 - **D-60 (OQ 2):** The order list may run 3 fixed SQL commands: count, page, and one command for both D-41 list-wide counts. `OrderReaderQueryCountTests`, the endpoint count test and `list-performance.md` are updated together. The number stays fixed, so PERF-04 holds. (owner, 2026-10-29)
 - **D-61 (OQ 3):** `/admin` lands on `/admin/orders` in this phase, until the dashboard ships. (owner, 2026-10-29)
 - **D-62 (OQ 4):** E2E specs seed refunds through the testing seed endpoint (`POST /api/testing/orders`, Debug Testing builds only, never shipped). (owner, 2026-10-29)
+- **D-89 (08-06 deferred item 2):** Route `AdminNotFoundPage` as a splat under the admin layout, so an unknown `/admin/...` address shows the in-shell "Page not found" screen instead of the public holding page. Do not delete the file. (owner, 2026-10-29)
 - Note (OQ 5, not an owner ruling): golden vectors v3 stay deferred as before, because no Phase 8 preview computes refunds. Raise it with the owner if a plan needs them.
 
 ### Carried forward (not re-asked)
