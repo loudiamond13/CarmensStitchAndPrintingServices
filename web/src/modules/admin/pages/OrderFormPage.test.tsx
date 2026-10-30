@@ -9,6 +9,7 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { buildOrderDetail, orderId, useOrderHandlers, type OrderBackend } from '@/test/orderFixtures';
+import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // F1 New Order, /admin/orders/new (ORD-03, ORD-15, D-27, D-30, D-49; plan 08-13): the cards, the checks that run before any
@@ -221,7 +222,7 @@ describe('saving (ORD-03, SEC-06)', () => {
       notes: null,
       items: [
         {
-          productTypeId: '01a17fce-7800-7f5d-bc6c-5d14ceeca0c6',
+          productTypeId: BASKETBALL_ID,
           description: 'Test jersey',
           sizeVariant: null,
           quantity: 12,
@@ -238,7 +239,7 @@ describe('saving (ORD-03, SEC-06)', () => {
       detail: created,
       reply: async () => {
         await new Promise((resolve) => setTimeout(resolve, 60));
-        return undefined;
+        return HttpResponse.json(created, { status: 201 });
       },
     });
     const { user } = await openForm();

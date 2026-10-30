@@ -40,9 +40,9 @@ import {
   orderTabsRowClasses,
 } from '@/modules/admin/components/orderPage.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { safeReturnUrl } from '@/modules/admin/guard';
 import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { useOrderTab, type OrderTab } from '@/modules/admin/hooks/useOrderTab';
+import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
 import { showRefundsTab } from '@/modules/admin/orderRules';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
@@ -50,7 +50,6 @@ import type { OrderStatus } from '@/utils/csps';
 
 const COPY = ORDER_PAGE_COPY;
 const ID_BASE = 'order';
-const ORDERS_PATH = '/admin/orders';
 /** The id of the Totals heading: the phone balance card scrolls to it and focuses it (D-33). */
 const TOTALS_ID = 'order-totals';
 /** The tabs every order draws; Refunds joins them when `showRefundsTab` says so (D-13). */
@@ -65,20 +64,6 @@ const SKELETON_COLUMNS = [
   { key: 'unitPrice', header: COPY.items.columns.unitPrice, money: true },
   { key: 'lineTotal', header: COPY.items.columns.lineTotal, money: true },
 ] as const;
-
-/**
- * Where Back goes: the list address the card link sent in the navigation state, when it is a literal Orders path (D-51). Anything
- * else, a foreign host, a protocol-relative address, another admin page or a value that is not text, goes to the Orders list
- * (CWE-601, T-08-18). `safeReturnUrl` keeps only admin paths; the prefix check then keeps only Orders ones.
- */
-function backTarget(state: unknown): string {
-  if (typeof state !== 'object' || state === null || !('from' in state) || typeof state.from !== 'string') {
-    return ORDERS_PATH;
-  }
-  const from = safeReturnUrl(state.from);
-  const path = from.split(/[?#]/)[0] ?? '';
-  return path === ORDERS_PATH || path.startsWith(`${ORDERS_PATH}/`) ? from : ORDERS_PATH;
-}
 
 function tabItems(order: OrderDetailResponse, refundsShown: boolean): readonly TabItem<OrderTab>[] {
   return [

@@ -186,7 +186,10 @@ describe('items', () => {
 
 describe('orderDetailsSchema', () => {
   it('holds the customer and date rules alone, for the edit form to reuse', () => {
-    const { items: _items, status: _status, ...details } = order({ customerName: '' });
+    const { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes } = order({
+      customerName: '',
+    });
+    const details = { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes };
 
     const result = orderDetailsSchema.safeParse(details);
 

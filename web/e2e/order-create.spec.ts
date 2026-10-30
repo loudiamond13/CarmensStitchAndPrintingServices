@@ -4,8 +4,8 @@
 // finds its own order by a unique customer name.
 import { randomUUID } from 'node:crypto';
 import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
-import { manilaDate } from './helpers.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { createStaff } from './testing-api.ts';
 
 test('@orders-create a Manager creates an order with one item and lands on its page with the server total', async ({
@@ -24,6 +24,8 @@ test('@orders-create a Manager creates an order with one item and lands on its p
   await expect(page).toHaveTitle('New Order · CSPS Admin');
   await expect(page.getByText('Image uploads are coming soon.')).toBeVisible();
   await expect(page.getByLabel(/^Status/)).toHaveValue('pending');
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
 
   await page.getByLabel(/^Customer name/).fill(customer);
   await page.getByLabel(/^Team \/ organization/).fill('E2E Create Team');
