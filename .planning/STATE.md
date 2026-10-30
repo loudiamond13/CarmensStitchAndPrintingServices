@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-20-PLAN.md
-last_updated: "2026-10-30T11:01:18.600Z"
+stopped_at: Completed 08-21-PLAN.md
+last_updated: "2026-10-30T11:55:21.076Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: 45899cb7e495df2e32fa4b88849ac2aba99c9b28
+state_head: febaa65a887c577e983dabd04edf94e1b291fcc8
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 239
+  completed_plans: 240
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T20:37:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 21 of 24
+Plan: 22 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -299,6 +299,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P18 | 28 min | 2 tasks | 11 files |
 | Phase 08 P19 | 42 min | 3 tasks | 13 files |
 | Phase 08 P20 | 34 min | 3 tasks | 23 files |
+| Phase 08 P21 | 44 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -855,6 +856,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-20: Restore reuses useOrderAction with a second type parameter for its 204 answer
 - [Phase 08]: 08-20: ConfirmDialog gets optional countsLoading, countsLoadingLabel and confirmDisabled props for the permanent-delete skeleton box (UIC-16)
 - [Phase 08]: 08-20: Permanent delete sends the order number as confirm; a 404 on the counts read or the delete means already gone (info toast, lists read again)
+- [Phase 08]: 08-21: Add Refund and the cap sentence follow the cap (above 0.00, not Completed); refund Edit and Delete follow the status, so a Cancelled order at cap 0.00 keeps its row actions
+- [Phase 08]: 08-21: Record Refund focus returns by id: saved goes to the Totals heading, dismissed goes back to the Record Refund button (OrderTotals recordRefundId)
 
 ### Pending Todos
 
@@ -959,6 +962,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T11:01:17.345Z
-Stopped at: Completed 08-20-PLAN.md
+Last session: 2026-10-30T11:55:19.823Z
+Stopped at: Completed 08-21-PLAN.md
 Resume file: None
