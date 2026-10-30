@@ -1,4 +1,4 @@
-// O2 discount window: add (plan 08-17). Every rule is checked in the browser first with the server's own words (OR-3); a rule only
+// O2 discount window: add and edit (plan 08-17). Every rule is checked in the browser first with the server's own words (OR-3); a rule only
 // the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a
 // focus refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers
 // the whole order and the page shows the server's figures. "Computed amount" under Value is a preview from the server's items total.
@@ -7,6 +7,7 @@ import { useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Icon } from '@/components/brand';
 import { SegmentedControl, type SegmentOption } from '@/components/choice';
+import { RecordMeta } from '@/components/data';
 import { MoneyInput } from '@/components/entry';
 import { Field, labelClasses, messageClasses } from '@/components/forms';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
@@ -27,6 +28,7 @@ import {
 import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
 import { orderDiscountsService, type AddOrderDiscountRequest } from '@/modules/admin/services/orderDiscountsService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
+import { centavosToMoneyText } from '@/utils/format';
 
 const COPY = ORDER_DISCOUNT_COPY;
 
@@ -41,10 +43,11 @@ const KIND_OPTIONS: readonly SegmentOption<DiscountKindKey>[] = [
 /** A percent Value takes digits and one point only; the schema judges the rest. */
 const PERCENT_TEXT = /^\d{0,3}(\.\d*)?$/;
 
-export interface AddOrderDiscountModalProps {
+type OrderDiscount = OrderDetailResponse['discounts'][number];
+
+interface OrderDiscountModalCommon {
   /** The order as the page shows it: the window opens with its version, number, customer and items total. */
   order: OrderDetailResponse;
-  mode: 'add';
   /** False plays the close animation and then renders nothing; each new open starts clean. Default true. */
   open?: boolean;
   /** Closes the window: Cancel, Esc, the scrim and the close button (after the discard question), and after a save. */
@@ -53,7 +56,17 @@ export interface AddOrderDiscountModalProps {
   onSaved?: ((order: OrderDetailResponse) => void) | undefined;
 }
 
-export type OrderDiscountModalProps = AddOrderDiscountModalProps;
+export interface AddOrderDiscountModalProps extends OrderDiscountModalCommon {
+  mode: 'add';
+}
+
+export interface EditOrderDiscountModalProps extends OrderDiscountModalCommon {
+  mode: 'edit';
+  /** Which discount to edit. Null renders nothing (the window was never opened). */
+  discountId: string | null;
+}
+
+export type OrderDiscountModalProps = AddOrderDiscountModalProps | EditOrderDiscountModalProps;
 
 /** What one submission carries: the checked values and the order version the window opened with. */
 interface DiscountSave {
@@ -66,6 +79,16 @@ function toRequest({ values, version }: DiscountSave): AddOrderDiscountRequest {
   return { kind: values.kind, value: Number(values.value), reason: values.reason, version };
 }
 
+/** What the edit form shows for a saved discount: every control is text. */
+function valuesOf(discount: OrderDiscount): OrderDiscountFormInput {
+  const percent = discount.kind === 'percentage';
+  return {
+    kind: percent ? 'percentage' : 'fixed',
+    value: percent ? String(Number(discount.value)) : centavosToMoneyText(Math.round(Number(discount.value) * 100)),
+    reason: discount.reason,
+  };
+}
+
 export function OrderDiscountModal({ open = true, ...props }: OrderDiscountModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
   const [opens, setOpens] = useState(0);
@@ -76,33 +99,58 @@ export function OrderDiscountModal({ open = true, ...props }: OrderDiscountModal
       setOpens(opens + 1);
     }
   }
-  return <DiscountForm key={opens} open={open} order={props.order} onClose={props.onClose} onSaved={props.onSaved} />;
+  const discountId = props.mode === 'edit' ? props.discountId : null;
+  if (props.mode === 'edit' && discountId === null) {
+    return null;
+  }
+  return (
+    <DiscountForm
+      key={opens}
+      open={open}
+      order={props.order}
+      discountId={discountId}
+      onClose={props.onClose}
+      onSaved={props.onSaved}
+    />
+  );
 }
 
 interface DiscountFormProps {
   open: boolean;
   order: OrderDetailResponse;
+  /** The discount being edited; null in add mode. */
+  discountId: string | null;
   onClose: () => void;
   onSaved: ((order: OrderDetailResponse) => void) | undefined;
 }
 
-function DiscountForm({ open, order, onClose, onSaved }: DiscountFormProps) {
+interface Opened {
+  order: OrderDetailResponse;
+  discount: OrderDiscount | null;
+}
+
+function DiscountForm({ open, order, discountId: editedId, onClose, onSaved }: DiscountFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
-  // The order the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
-  const [opened, setOpened] = useState(order);
-  const subtotal = opened.totals.subtotal;
-  const others = otherDiscountsTotal(opened, undefined);
+  // The order and discount the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  const [opened, setOpened] = useState<Opened>(() => ({
+    order,
+    discount: editedId === null ? null : (order.discounts.find((candidate) => candidate.id === editedId) ?? null),
+  }));
+  const subtotal = opened.order.totals.subtotal;
+  // The cap leaves out the discount being edited, so its own saved amount does not count against it.
+  const others = otherDiscountsTotal(opened.order, editedId ?? undefined);
   const {
     control,
     handleSubmit,
     setError,
     setValue,
+    reset,
     formState: { isDirty },
   } = useForm<OrderDiscountFormInput, unknown, OrderDiscountFormValues>({
     resolver: zodResolver(orderDiscountSchema(subtotal, others)),
     mode: 'onBlur',
-    defaultValues: blankOrderDiscount(),
+    defaultValues: opened.discount === null ? blankOrderDiscount() : valuesOf(opened.discount),
   });
   const typed = useWatch({ control });
 
@@ -129,17 +177,29 @@ function DiscountForm({ open, order, onClose, onSaved }: DiscountFormProps) {
     return true;
   };
 
-  // Load Latest on an add keeps what was typed and takes the latest order, so the cap and the version are current.
+  // Load Latest: an edit takes the latest discount's values, version and cap; an add keeps what was typed and takes the version.
   const takeLatest = (latest: OrderDetailResponse): boolean => {
-    setOpened(latest);
+    if (editedId === null) {
+      setOpened({ order: latest, discount: null });
+      return true;
+    }
+    const latestDiscount = latest.discounts.find((candidate) => candidate.id === editedId);
+    if (latestDiscount === undefined) {
+      return false;
+    }
+    setOpened({ order: latest, discount: latestDiscount });
+    reset(valuesOf(latestDiscount));
     return true;
   };
 
   const save = useOrderChildSave<DiscountSave>({
-    orderId: opened.id,
+    orderId: opened.order.id,
     thing: 'discount',
-    verb: 'added',
-    send: (key, data) => orderDiscountsService.add(opened.id, toRequest(data), key),
+    verb: editedId === null ? 'added' : 'updated',
+    send: (key, data) =>
+      editedId === null
+        ? orderDiscountsService.add(opened.order.id, toRequest(data), key)
+        : orderDiscountsService.update(opened.order.id, editedId, toRequest(data)),
     onSaved: (saved) => {
       onSaved?.(saved);
       onClose();
@@ -150,12 +210,16 @@ function DiscountForm({ open, order, onClose, onSaved }: DiscountFormProps) {
 
   const loadLatest = async (): Promise<void> => {
     if (await save.loadLatest()) {
-      saveRef.current?.focus();
+      if (editedId === null) {
+        saveRef.current?.focus();
+      } else {
+        focusField('reason');
+      }
     }
   };
 
   const onValid = (values: OrderDiscountFormValues): void => {
-    save.submit({ values, version: opened.version });
+    save.submit({ values, version: opened.order.version });
   };
 
   const onInvalid = (errors: Partial<Record<FieldName, unknown>>): void => {
@@ -165,14 +229,16 @@ function DiscountForm({ open, order, onClose, onSaved }: DiscountFormProps) {
     }
   };
 
-  const who = opened.teamName !== null && opened.teamName !== '' ? opened.teamName : opened.customerName;
+  const who =
+    opened.order.teamName !== null && opened.order.teamName !== '' ? opened.order.teamName : opened.order.customerName;
+  const savedDiscount = opened.discount;
   const kind: DiscountKindKey = typed.kind === 'percentage' ? 'percentage' : 'fixed';
   const computed = COPY.computedAmount(discountPreview(kind, typed.value ?? '', subtotal));
 
   return (
     <OrderWindow
-      title={COPY.addTitle}
-      description={ORDER_WINDOWS_COPY.description(opened.number, who)}
+      title={editedId === null ? COPY.addTitle : COPY.editTitle}
+      description={ORDER_WINDOWS_COPY.description(opened.order.number, who)}
       open={open}
       isDirty={isDirty}
       pending={save.pending}
@@ -182,6 +248,16 @@ function DiscountForm({ open, order, onClose, onSaved }: DiscountFormProps) {
         void loadLatest();
       }}
       status={save.status}
+      recordMeta={
+        savedDiscount === null ? undefined : (
+          <RecordMeta
+            recordedBy={savedDiscount.recordedBy}
+            recordedAt={savedDiscount.recordedAt}
+            lastChangedBy={savedDiscount.lastChangedBy}
+            lastChangedAt={savedDiscount.lastChangedAt}
+          />
+        )
+      }
       saveLabel={COPY.save}
       saveBlocked={save.saveBlocked}
       formRef={formRef}
