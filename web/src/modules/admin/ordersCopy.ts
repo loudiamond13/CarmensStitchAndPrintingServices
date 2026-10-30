@@ -13,6 +13,14 @@ export const ORDERS_COPY = {
     newOrder: 'New Order',
     /** The visually hidden heading above the results (D-54e). */
     results: 'Results',
+    /** The plural noun of the list, for the loading words and the load error. */
+    things: 'orders',
+    /** The first-use state: the default view has no rows (D-55). */
+    empty: {
+      title: 'No active orders',
+      message:
+        'Orders in progress, and orders finished or cancelled in the last 30 days, show here. Older orders are under All statuses.',
+    },
   },
   /** The due date and its flag (D-36 to D-38). The empty value is the EmptyValue icon, not text. */
   due: {

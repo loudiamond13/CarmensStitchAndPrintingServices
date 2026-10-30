@@ -20,6 +20,26 @@ import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
 import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
 
 /**
+ * The dev preview of /admin/orders that plan 08-06 took out of `devRoutes` (the real Orders page replaced it). These layout
+ * tests still need a short page to render in the shell, so they add the preview to their own copy of the dev routes.
+ */
+function devRoutesWithOrdersPreview(): RouteObject[] {
+  const [admin, ...rest] = devRoutes;
+  const urlState = admin?.children?.[0];
+  if (admin === undefined || urlState === undefined) {
+    throw new Error('The admin routes changed shape: expected admin > url state.');
+  }
+  const preview: RouteObject = {
+    path: 'orders',
+    lazy: lazyRoute(() => Promise.resolve({ Component: AdminPreviewRoute })),
+  };
+  return [
+    { ...admin, children: [{ ...urlState, children: [...(urlState.children ?? []), preview] }] } as RouteObject,
+    ...rest,
+  ];
+}
+
+/**
  * The app's route tree as a dev build has it: the dev-only previews in front of the public layout and the guarded admin
  * routes. Tests run with `__DEV_ROUTES__` false (the production value), so they add the previews themselves, as
  * router.tsx does in dev.
@@ -29,7 +49,10 @@ function devTree(): RouteObject[] {
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [queryBranch(devRoutes), ...(root.children ?? [])] } as RouteObject, ...rest];
+  return [
+    { ...root, children: [queryBranch(devRoutesWithOrdersPreview()), ...(root.children ?? [])] } as RouteObject,
+    ...rest,
+  ];
 }
 
 interface AdminTreeOptions {
@@ -43,7 +66,7 @@ interface AdminTreeOptions {
 
 /** The dev route tree with the admin layout or the dashboard page swapped for a failing one; boundaries stay. */
 function adminTree({ layout, page, orders }: AdminTreeOptions): RouteObject[] {
-  const admin = devRoutes[0];
+  const admin = devRoutesWithOrdersPreview()[0];
   const urlState = admin?.children?.[0];
   const pages = urlState?.children ?? [];
   const [dashboard, ...others] = pages;

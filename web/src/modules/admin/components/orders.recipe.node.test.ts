@@ -49,4 +49,12 @@ describe('orders recipe (L1 grid)', () => {
     expect(ruleOf(PHONE).body).toContain('!important');
     expect(ruleOf(LAPTOP).body).not.toContain('!important');
   });
+
+  it('dims the cards of a refetching grid to --surface-2 by colour only (D-02)', () => {
+    const token = 'data-[refetching=true]:[&_article]:bg-surface-2';
+    const rule = ruleOf(token);
+    expect(css).toContain(`${classSelector(token)}[data-refetching="true"] article`);
+    expect(rule.body).toContain('background-color: var(--surface-2)');
+    expect(recipeTokens.filter((entry) => entry.token.includes('opacity'))).toEqual([]);
+  });
 });

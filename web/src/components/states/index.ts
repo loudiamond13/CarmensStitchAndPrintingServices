@@ -12,5 +12,5 @@ export type { LoadingRegionProps } from './LoadingRegion';
 export { Note } from './Note';
 export type { NoteProps } from './Note';
 export { SkeletonCard, SkeletonImage, SkeletonText } from './Skeletons';
-export type { SkeletonImageProps } from './Skeletons';
+export type { SkeletonImageProps, SkeletonTextProps } from './Skeletons';
 export { useDelayedFlag } from './useDelayedFlag';
