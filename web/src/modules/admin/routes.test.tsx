@@ -400,6 +400,45 @@ describe('Deleted Orders for Managers (ORD-06, D-23; plan 08-20)', () => {
   }, 15_000);
 });
 
+describe('One deleted order for Managers (ORD-06, D-24; plan 08-23)', () => {
+  const address = `/admin/orders/deleted/${order0148.id}`;
+
+  it('a Manager who opens a deleted order stays and sees it read-only, titled "(deleted)"', async () => {
+    answerRefresh(sessionResponse());
+    deletedOrdersBackend({ list: deletedOrderList([]) });
+    const router = createMemoryRouter(routes, { initialEntries: [address] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Restore Order' })).toBeVisible();
+    expect(router.state.location.pathname).toBe(address);
+    await waitFor(() => {
+      expect(document.title).toBe('ORD-2026-0148 (deleted) · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens a deleted order is redirected to /admin/orders by the route loader', async () => {
+    answerRefresh(adminSession());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: [address] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders');
+    expect(screen.queryByRole('button', { name: 'Restore Order' })).toBeNull();
+  }, 30_000);
+
+  it('a visitor without a session goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: [address] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(address)}`);
+  }, 15_000);
+});
+
 describe('Settings for Managers (D-14, OQ-3; plan 06-17)', () => {
   it('a Manager who opens /admin/settings stays and sees the page, with Settings the one current item and no tab current', async () => {
     answerRefresh(sessionResponse());
