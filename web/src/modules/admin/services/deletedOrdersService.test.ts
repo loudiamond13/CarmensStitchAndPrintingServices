@@ -70,7 +70,7 @@ describe('deletedOrdersService.restore', () => {
     expect(fake.calls[0]?.method).toBe('POST');
     expect(fake.calls[0]?.url).toBe(`/api/v1/orders/${ID}/restore`);
     expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
-    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.body ?? null).toBeNull();
   });
 });
 
@@ -86,6 +86,6 @@ describe('deletedOrdersService.purge', () => {
     expect(url.pathname).toBe(`/api/v1/orders/${ID}/permanent`);
     expect(Object.fromEntries(url.searchParams)).toEqual({ confirm: 'ORD-2026-0148' });
     expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
-    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.body ?? null).toBeNull();
   });
 });

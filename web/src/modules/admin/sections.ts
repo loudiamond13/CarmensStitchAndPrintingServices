@@ -3,8 +3,11 @@
 import type { Role } from '@/utils/csps';
 import { ADMIN_NAV, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM, type AdminNavItem } from '@/components/navigation';
 
-/** A page that lives under a section's item: it marks that item current (Deleted Expenses sits under Company Expenses). */
-const SECTION_CHILDREN: Readonly<Record<string, string>> = { '/admin/expenses/deleted': '/admin/expenses' };
+/** A page that lives under a section's item: it marks that item current (Deleted Expenses sits under Company Expenses, Deleted Orders under Orders). */
+const SECTION_CHILDREN: Readonly<Record<string, string>> = {
+  '/admin/expenses/deleted': '/admin/expenses',
+  '/admin/orders/deleted': '/admin/orders',
+};
 
 /** The nav item whose path is `pathname` (one trailing slash or more allowed), or undefined for any other path. */
 export function adminNavItemForPath(pathname: string): AdminNavItem | undefined {

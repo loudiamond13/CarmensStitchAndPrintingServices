@@ -32,6 +32,9 @@ export const ordersGridClasses = tw(
   'grid grid-cols-[repeat(4,minmax(0,1fr))] gap-5 pg-phone:grid-cols-[minmax(0,1fr)]! pg-tablet:grid-cols-[repeat(2,minmax(0,1fr))]! pg-lt-xl:grid-cols-[repeat(3,minmax(0,1fr))] data-[refetching=true]:[&_article]:bg-surface-2',
 );
 
+/** The header buttons in a row 8px apart (the Manager's Deleted Orders link and New Order); on phones they take the full width, each growing equally. */
+export const ordersHeadActionsClasses = tw('flex flex-wrap items-center gap-2 pg-phone:w-full pg-phone:*:flex-1');
+
 /** The one-line subline skeleton while the counts load: a fixed width, so the header does not jump. */
 export const ordersSublineSkeletonClasses = tw('w-[220px] max-w-full');
 

@@ -103,6 +103,10 @@ const deletedExpensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/DeletedExpensesPage')).DeletedExpensesRoute,
 }));
 
+const deletedOrdersPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/DeletedOrdersPage')).default,
+}));
+
 const settingsPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/SettingsPage')).SettingsRoute,
 }));
@@ -135,6 +139,10 @@ const requireManager: LoaderFunction = async (args) =>
 const requireManagerOrExpenses: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireManagerLoader(args, '/admin/expenses');
 
+/** requireManagerLoader for Deleted Orders: an Admin goes back to the Orders list, not to /admin (D-23). */
+const requireManagerOrOrders: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).requireManagerLoader(args, '/admin/orders');
+
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
 const redirectIfSignedIn: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).redirectIfSignedInLoader(args);
@@ -162,6 +170,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'orders', lazy: ordersPage },
           // ORD-03: the New Order form. A static segment, so it wins over the dynamic orders/:id below.
           { path: 'orders/new', lazy: orderFormPage },
+          // ORD-06, D-23: the Manager-only Deleted Orders page; an Admin is sent back to Orders by the loader. A static segment, so it wins over orders/:id below.
+          { path: 'orders/deleted', loader: requireManagerOrOrders, lazy: deletedOrdersPage },
           // ORD-07: one order. The static segments (orders/new, orders/deleted) win over this dynamic one.
           { path: 'orders/:id', lazy: orderPage },
           // ORD-15: Edit Order, the customer details, dates and notes of one order (D-28, D-46). The same lazy page as orders/new.

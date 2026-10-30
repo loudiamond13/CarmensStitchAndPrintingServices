@@ -25,8 +25,13 @@ import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
 import { OrdersTable } from '@/modules/admin/components/OrdersTable';
 import { OrdersToolbar } from '@/modules/admin/components/OrdersToolbar';
-import { ordersGridClasses, ordersSublineSkeletonClasses } from '@/modules/admin/components/orders.recipe';
+import {
+  ordersGridClasses,
+  ordersHeadActionsClasses,
+  ordersSublineSkeletonClasses,
+} from '@/modules/admin/components/orders.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
+import { DELETED_ORDERS_COPY } from '@/modules/admin/deletedOrdersCopy';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
 import {
   resolveOrderDateRange,
@@ -36,6 +41,7 @@ import {
 import { useOrdersQuery } from '@/modules/admin/hooks/useOrdersQuery';
 import { useOrdersView } from '@/modules/admin/hooks/useOrdersView';
 import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
+import { useSession } from '@/modules/admin/hooks/useSession';
 import { ORDERS_COPY } from '@/modules/admin/ordersCopy';
 import { ORDER_LISTS_COPY } from '@/modules/admin/orderListsCopy';
 import type { OrderListEntry } from '@/modules/admin/services/ordersService';
@@ -72,6 +78,8 @@ function toCardOrder(entry: OrderListEntry): OrderCardOrder {
 export default function OrdersPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user: me } = useSession();
+  const isManager = me?.role === 'manager';
   const [values, set] = useOrdersListParams();
   const settled = useSettledListParams(values, 300);
   const { view, setView } = useOrdersView(values, set);
@@ -206,7 +214,13 @@ export default function OrdersPage() {
             </div>
           )}
         </div>
-        <div>
+        <div className={ordersHeadActionsClasses}>
+          {/* ORD-06, D-23: the Manager's way to the deleted orders, before the one primary action. */}
+          {isManager && (
+            <ButtonLink variant="secondary" icon="archive" to="/admin/orders/deleted">
+              {DELETED_ORDERS_COPY.link}
+            </ButtonLink>
+          )}
           <ButtonLink variant="primary" icon="plus" to="/admin/orders/new">
             {COPY.newOrder}
           </ButtonLink>
