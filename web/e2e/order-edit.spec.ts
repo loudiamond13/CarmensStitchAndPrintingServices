@@ -31,6 +31,7 @@ test('@orders-edit a Manager edits the team name and sees it in the order header
   await expect(page.getByRole('heading', { level: 1, name: 'Edit Order' })).toBeVisible();
   await expect(page).toHaveTitle(`Edit ${number} · CSPS Admin`);
   await expect(page.getByLabel(/^Customer name/)).toHaveValue('E2E Edit Customer');
+  await expect(page.getByLabel(/^Customer name/)).toBeFocused();
   await expect(page.getByLabel(/^Status/)).toHaveCount(0);
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
   await expectNoAxeViolations(page);

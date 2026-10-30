@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldPath } from 'react-hook-form';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { UiLink, hitAreaClasses } from '@/components/actions';
+import { ButtonLink, UiLink, hitAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Select } from '@/components/forms';
 import { useToast } from '@/components/feedback';
@@ -17,10 +17,12 @@ import {
   pageHeadTitleClasses,
   pageSublineClasses,
   pageTitleClasses,
+  srOnlyClasses,
 } from '@/components/layout/layout.recipe';
 import { ConfirmDialog } from '@/components/overlays';
-import { ErrorState, LoadingRegion, SkeletonCard } from '@/components/states';
+import { ConflictBanner, ErrorState, LoadingRegion, SkeletonCard, SkeletonText } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
+import { describeHttpError } from '@/utils/describeHttpError';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import {
@@ -65,6 +67,7 @@ import {
 } from '@/modules/admin/orderFormSchemas';
 import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { orderStateActionClasses } from '@/modules/admin/components/orderPage.recipe';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { ORDER_STATUSES, type OrderStatus } from '@/utils/csps';
 import { isCalendarDate } from '@/lib/url-state/parsers';
@@ -74,6 +77,9 @@ const IMAGES = ORDER_PAGE_COPY.images;
 
 /** The server's code for "saving is busy, nothing was saved". */
 const ORDERS_BUSY = 'orders.busy';
+
+/** The server's code for "someone saved this order since the form opened" (05 D-20). */
+const EDIT_STALE = 'edit.stale';
 
 const STATUS_OPTIONS = CREATE_STATUSES.map((status) => ({
   value: status,
@@ -383,14 +389,24 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
   const navigate = useNavigate();
   const toast = useToast();
   const applyOrder = useApplyOrder();
-  const [opened] = useState(initial);
+  // The order the form was filled from. A refetch behind the form never changes it; only Load Latest does.
+  const [opened, setOpened] = useState(initial);
   const orderPath = `${ORDERS_PATH}/${opened.id}`;
+  const query = useOrderQuery(opened.id);
   const [focusTick, setFocusTick] = useState(0);
+  // How many stale saves the server has refused since the form was last current; the banner shows from the first.
+  const [conflicts, setConflicts] = useState(0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  // The order was deleted while the form was open (404).
+  const [gone, setGone] = useState(false);
+  // The polite line read out after Load Latest.
+  const [announcement, setAnnouncement] = useState('');
 
   const {
     control,
     handleSubmit,
     setError,
+    reset,
     formState: { errors, isDirty },
   } = useForm<UpdateOrderDetailsFormInput, unknown, UpdateOrderDetailsFormValues>({
     resolver: zodResolver(updateOrderDetailsSchema),
@@ -405,6 +421,18 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
   const noDueDate = opened.dueDate === null && dueDate.trim() === '';
   const dueHint = noDueDate ? COPY.edit.noDueDate : days === null ? undefined : COPY.details.dueHint(days);
 
+  const focusCustomerName = (): void => {
+    const element = formRef.current?.elements.namedItem('customerName');
+    if (element instanceof HTMLElement) {
+      element.focus();
+    }
+  };
+
+  // The order has arrived: the cursor goes to Customer name (UIC-14).
+  useEffect(() => {
+    focusCustomerName();
+  }, []);
+
   // Focus goes to the first flagged field once the messages are on screen.
   useEffect(() => {
     if (focusTick > 0 && formRef.current !== null) {
@@ -413,6 +441,15 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
   }, [focusTick]);
 
   const showFailure = (error: unknown, copy: { title: string; body: string }): void => {
+    // 05 D-20: a stale save keeps every typed value; the banner offers Load Latest, which takes focus.
+    if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
+      setConflicts((count) => count + 1);
+      return;
+    }
+    if (isHttpError(error) && error.status === 404) {
+      setGone(true);
+      return;
+    }
     if (isHttpError(error) && error.status === 400) {
       let matched = false;
       for (const [key, messages] of Object.entries(error.fieldErrors)) {
@@ -456,6 +493,36 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
     setFocusTick((tick) => tick + 1);
   };
 
+  /** Load Latest: the typed values are replaced only once the latest order has arrived. */
+  const loadLatest = async (): Promise<void> => {
+    setLoadingLatest(true);
+    const result = await query.refetch();
+    setLoadingLatest(false);
+    if (result.isError) {
+      if (isHttpError(result.error) && result.error.status === 404) {
+        setGone(true);
+        return;
+      }
+      const copy = describeHttpError(result.error);
+      if (copy !== null) {
+        toast.show({ tone: 'danger', title: copy.title, message: copy.body });
+      }
+      return;
+    }
+    const latest = result.data;
+    if (latest === undefined) return;
+    setOpened(latest);
+    reset(valuesOf(latest));
+    submission.reset();
+    setConflicts(0);
+    setAnnouncement(COPY.edit.latestLoaded);
+    focusCustomerName();
+  };
+
+  if (gone) {
+    return <OrderNotFound />;
+  }
+
   const caption = saveBarCaption(pending, countErrors(errors), isDirty);
 
   return (
@@ -482,6 +549,15 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
         }}
       >
         <div className={orderFormColClasses}>
+          {conflicts > 0 && (
+            <ConflictBanner
+              key={conflicts}
+              pending={loadingLatest}
+              onLoadLatest={() => {
+                void loadLatest();
+              }}
+            />
+          )}
           <OrderFormCustomerCard control={control} headingId={`${formId}-customer`} />
           <OrderFormDetailsCard control={control} headingId={`${formId}-details`} dueHint={dueHint} />
           <OrderFormSaveBar
@@ -493,6 +569,9 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
         </div>
         <OrderEditAside order={opened} />
       </form>
+      <div role="status" aria-live="polite" className={srOnlyClasses}>
+        {announcement}
+      </div>
       <ConfirmDialog
         open={guard.dialog.open}
         title={COPY.discard.title}
@@ -503,6 +582,20 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
         onCancel={guard.dialog.onKeepEditing}
         loading={pending}
       />
+    </div>
+  );
+}
+
+/** The order is missing or was deleted (404): a message and the way back to the list. */
+function OrderNotFound() {
+  return (
+    <div className={orderFormPageClasses}>
+      <ErrorState title={ORDER_PAGE_COPY.states.notFound} />
+      <div className={orderStateActionClasses}>
+        <ButtonLink variant="secondary" to={ORDERS_PATH}>
+          {ORDER_PAGE_COPY.states.backToOrders}
+        </ButtonLink>
+      </div>
     </div>
   );
 }
@@ -521,17 +614,30 @@ function EditOrderPage({ id }: { id: string }) {
     document.title = `${title}${ADMIN_COPY.titleSuffix}`;
   }, [number]);
 
-  if (initial !== null) {
-    return <EditOrderForm initial={initial} />;
+  const failed = initial === null && query.isError;
+  if (failed && isHttpError(query.error) && query.error.status === 404) {
+    return <OrderNotFound />;
   }
-  const failed = query.isError;
   return (
-    <div className={orderFormPageClasses}>
-      {failed && <ErrorState title={COPY.edit.loadFailed} error={query.error} onRetry={() => void query.refetch()} />}
-      <LoadingRegion loading={!failed} failed={failed} things={COPY.edit.things}>
-        {!failed && <SkeletonCard />}
+    <>
+      {failed && (
+        <div className={orderFormPageClasses}>
+          <ErrorState title={COPY.edit.loadFailed} error={query.error} onRetry={() => void query.refetch()} />
+        </div>
+      )}
+      <LoadingRegion loading={initial === null && !failed} failed={failed} things={COPY.edit.things}>
+        {initial !== null && <EditOrderForm initial={initial} />}
+        {initial === null && !failed && (
+          <div className={orderFormPageClasses}>
+            <div className={pageHeadTitleClasses} aria-hidden="true">
+              <h1 className={pageTitleClasses}>{COPY.edit.title}</h1>
+            </div>
+            <SkeletonText lines={3} />
+            <SkeletonCard />
+          </div>
+        )}
       </LoadingRegion>
-    </div>
+    </>
   );
 }
 
