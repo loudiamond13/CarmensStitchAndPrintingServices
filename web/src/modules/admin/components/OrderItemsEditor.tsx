@@ -10,7 +10,6 @@ import { Field, messageClasses } from '@/components/forms';
 import { Note } from '@/components/states';
 import { ListEntrySelect } from '@/modules/admin/components/ListEntrySelect';
 import {
-  orderFormCardClasses,
   orderFormCardHeadClasses,
   orderFormCardHintClasses,
   orderFormCardTitleClasses,
@@ -23,6 +22,7 @@ import {
   orderItemRemoveCellClasses,
   orderItemRowClasses,
   orderItemSizeCellClasses,
+  orderItemsCardClasses,
   orderItemsClasses,
   orderItemsCountClasses,
   orderItemsFootClasses,
@@ -209,7 +209,7 @@ export function OrderItemsEditor({ control, rootError }: OrderItemsEditorProps) 
   };
 
   return (
-    <section ref={sectionRef} className={orderFormCardClasses} aria-labelledby={headingId}>
+    <section ref={sectionRef} className={orderItemsCardClasses} aria-labelledby={headingId}>
       <div className={orderFormCardHeadClasses}>
         <div>
           <h2 id={headingId} className={orderFormCardTitleClasses}>

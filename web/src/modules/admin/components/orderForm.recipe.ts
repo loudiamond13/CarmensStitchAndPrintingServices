@@ -2,9 +2,8 @@
 // UI-SPEC F1; plan 08-13) as complete Tailwind tokens (D-33). Every string here is a class list; widths are classes, never inline
 // styles (strict CSP). No new token: spacing, radius, colour and type come from the theme.
 //
-// Cascade note: Tailwind emits the page-container variants in the order they are declared in app.css (phone, tablet, up to 1023px,
-// up to 1279px). The up-to-1279px rule would win over the tablet and phone grids, so those two carry `!`. Tablet-only and
-// phone-only rules use `pg-tablet:` and `pg-phone:`, which never overlap.
+// Cascade note: the page-container variants are emitted in the order app.css declares them (phone, tablet, up to 1023px, up to 1279px),
+// so rules that must not fight use `pg-tablet:` and `pg-phone:`, which never overlap. The item grid reads the Items card width instead.
 import clsx from 'clsx';
 import { cardClasses } from '@/components/money';
 import { tw } from '@/ui/tw';
@@ -59,63 +58,79 @@ export const orderFormSpacerClasses = tw('pg-phone:hidden');
 export const orderFormBannerClasses = tw('flex flex-col');
 
 // ── The item grid ──
+// SPEC-DEVIATION: the grid follows the width of the Items card, not the page. At the page widths the spec names (1024 to 1440), the
+// card sits beside the 320px aside and the 248px sidebar, so it is only 580 to 780px wide, too narrow for seven columns: the
+// description column shrank to nothing and the size box covered it (axe target-size, caught in e2e). The Items card is its own
+// container: under 560px each row is the 4-column phone layout, from 560px the 6-column tablet layout, and from 900px the
+// 7-column row with the header above it.
+
+/** The Items card is a container named items; the row variants below read its width. */
+export const orderItemsCardClasses = clsx(cardClasses, tw('@container/items min-w-0'));
 
 /** `.s-items`: the rows in a column. */
 export const orderItemsClasses = tw('flex flex-col');
 
 const ITEM_COLUMNS = tw(
-  'grid-cols-[180px_minmax(0,1.6fr)_96px_76px_120px_112px_44px] pg-lt-xl:grid-cols-[150px_minmax(0,1.4fr)_80px_64px_104px_100px_44px] pg-tablet:grid-cols-6! pg-phone:grid-cols-4!',
+  'grid-cols-4 it-md:grid-cols-6 it-lg:grid-cols-[180px_minmax(0,1.6fr)_96px_76px_120px_112px_44px]',
 );
 
-/** `.s-item-head`: the column headers, shown above 1023px only. */
+/** `.s-item-head`: the column headers, shown from 900px of card width only. */
 export const orderItemHeadClasses = clsx(
   ITEM_COLUMNS,
   tw(
-    'grid gap-3 px-5 pb-2 text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase pg-lt-lg:hidden',
+    'hidden gap-3 px-5 pb-2 text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase it-lg:grid',
   ),
 );
 
 /**
- * `.s-item`: one row. Above 1023px its labels are hidden (the header names the columns) and its controls are 40px; below it the
- * labels show as small capitals above each control. On phones the controls are 44px tall (D-54b). The row is marked
+ * `.s-item`: one row. From 900px of card width its labels are hidden (the header names the columns) and its controls are 40px;
+ * below it the labels show as small capitals above each control. On phones the controls are 44px tall (D-54b). The row is marked
  * `data-ui="s-item"`, which gives the 40px boxes and the 14px text.
  */
 export const orderItemRowClasses = clsx(
   ITEM_COLUMNS,
   tw(
-    'grid items-start gap-3 border-t border-line px-5 py-3 pg-tablet:gap-y-2 pg-phone:gap-y-2 pg-phone:p-4 [&_label]:sr-only pg-lt-lg:[&_label]:not-sr-only pg-lt-lg:[&_label]:text-[11px] pg-lt-lg:[&_label]:leading-4 pg-lt-lg:[&_label]:font-bold pg-lt-lg:[&_label]:tracking-[.1em] pg-lt-lg:[&_label]:text-ink-muted pg-lt-lg:[&_label]:uppercase pg-phone:[&_input]:h-11 pg-phone:[&_select]:h-11',
+    'grid items-start gap-3 border-t border-line px-5 py-3 it-lt-lg:gap-y-2 pg-phone:p-4 [&_label]:sr-only it-lt-lg:[&_label]:not-sr-only it-lt-lg:[&_label]:text-[11px] it-lt-lg:[&_label]:leading-4 it-lt-lg:[&_label]:font-bold it-lt-lg:[&_label]:tracking-[.1em] it-lt-lg:[&_label]:text-ink-muted it-lt-lg:[&_label]:uppercase pg-phone:[&_input]:h-11 pg-phone:[&_select]:h-11',
   ),
 );
 
-/** Product type: five of six columns on a tablet (the remove button takes the sixth), three of four on a phone. */
-export const orderItemTypeCellClasses = tw('min-w-0 pg-tablet:col-span-5 pg-phone:col-span-3');
+/** Product type: three of four columns on a phone, five of six next to the remove button, one column in the 7-column row. */
+export const orderItemTypeCellClasses = tw(
+  'col-span-3 min-w-0 it-md:col-span-5 it-lg:col-span-1',
+);
 
-/** Description: the full row below 1024px. */
-export const orderItemDescriptionCellClasses = tw('min-w-0 pg-tablet:col-span-6 pg-phone:col-span-4');
+/** Description: the full row below 900px. */
+export const orderItemDescriptionCellClasses = tw(
+  'col-span-4 min-w-0 it-md:col-span-6 it-lg:col-span-1',
+);
 
-/** Size / variant: two columns on a tablet and on a phone. */
-export const orderItemSizeCellClasses = tw('min-w-0 pg-tablet:col-span-2 pg-phone:col-span-2');
+/** Size / variant: two columns below 900px. */
+export const orderItemSizeCellClasses = tw('col-span-2 min-w-0 it-lg:col-span-1');
 
-/** Qty: one column on a tablet, two on a phone; the number sits at the right. */
-export const orderItemQuantityCellClasses = tw('min-w-0 pg-tablet:col-span-1 pg-phone:col-span-2 [&_input]:text-right');
+/** Qty: two columns on a phone, one from 560px; the number sits at the right. */
+export const orderItemQuantityCellClasses = tw(
+  'col-span-2 min-w-0 it-md:col-span-1 [&_input]:text-right',
+);
 
-/** Unit price: two columns on a tablet and on a phone. */
-export const orderItemPriceCellClasses = tw('min-w-0 pg-tablet:col-span-2 pg-phone:col-span-2');
+/** Unit price: two columns below 900px. */
+export const orderItemPriceCellClasses = tw('col-span-2 min-w-0 it-lg:col-span-1');
 
 /** The line total preview: bold, tabular, right-aligned, level with the 40px (44px on phones) controls. */
-export const orderItemTotalCellClasses = tw('flex min-w-0 flex-col items-end pg-tablet:col-span-1 pg-phone:col-span-2');
+export const orderItemTotalCellClasses = tw(
+  'col-span-2 flex min-w-0 flex-col items-end it-md:col-span-1',
+);
 
-/** The line total's own label: read aloud always, drawn below 1024px only (it is not a form control). */
+/** The line total's own label: read aloud always, drawn below 900px only (it is not a form control). */
 export const orderItemTotalLabelClasses = tw(
-  'sr-only pg-lt-lg:not-sr-only text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase',
+  'sr-only it-lt-lg:not-sr-only text-[11px] leading-4 font-bold tracking-[.1em] text-ink-muted uppercase',
 );
 
 /** The figure, level with the controls beside it. */
 export const orderItemTotalFigureClasses = tw('flex h-10 items-center text-right font-bold tabular-nums pg-phone:h-11');
 
-/** The remove button: top right of the row on a tablet and a phone. */
+/** The remove button: top right of the row below 900px. */
 export const orderItemRemoveCellClasses = tw(
-  'flex h-10 items-center justify-self-end pg-tablet:col-start-6 pg-tablet:row-start-1 pg-phone:col-start-4 pg-phone:row-start-1 pg-phone:h-11',
+  'col-start-4 row-start-1 flex h-10 items-center justify-self-end pg-phone:h-11 it-md:col-start-6 it-lg:col-auto it-lg:row-auto',
 );
 
 /** A right-aligned column header (Qty, Unit price, Line total). */

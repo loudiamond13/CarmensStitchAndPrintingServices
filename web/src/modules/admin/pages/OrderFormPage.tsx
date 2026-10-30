@@ -18,6 +18,7 @@ import {
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
+import { ConfirmDialog } from '@/components/overlays';
 import { ErrorState, LoadingRegion, SkeletonCard } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
@@ -48,6 +49,7 @@ import {
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
+import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import { ORDER_FORM_COPY } from '@/modules/admin/orderFormCopy';
 import { useItemsPreview } from '@/modules/admin/orderFormPreview';
 import {
@@ -149,7 +151,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     handleSubmit,
     setError,
     getValues,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<CreateOrderFormInput, unknown, CreateOrderFormValues>({
     resolver: zodResolver(createOrderSchema),
     mode: 'onBlur',
@@ -167,6 +169,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     },
   });
 
+  const guard = useUnsavedChangesGuard({ isDirty });
   const [orderDate, dueDate, status] = useWatch({ control, name: ['orderDate', 'dueDate', 'status'] });
   const preview = useItemsPreview(control);
   const days = daysBetween(orderDate, dueDate);
@@ -211,6 +214,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     {
       onSuccess: (order) => {
         applyOrder(order);
+        // The saved form must not hold its own way to the new order.
+        guard.allowLeave();
         void navigate(`/admin/orders/${order.id}`);
         const who = order.teamName !== null && order.teamName !== '' ? order.teamName : order.customerName;
         toast.show({ title: COPY.toast.title, message: COPY.toast.message(order.number, who) });
@@ -238,6 +243,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     caption = COPY.saveBar.saving;
   } else if (flagged > 0) {
     caption = COPY.saveBar.attention(flagged);
+  } else if (isDirty) {
+    caption = COPY.saveBar.unsaved;
   }
 
   return (
@@ -487,6 +494,16 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
           total={preview.subtotal}
         />
       </form>
+      <ConfirmDialog
+        open={guard.dialog.open}
+        title={COPY.discard.title}
+        message={COPY.discard.message}
+        cancelLabel={COPY.discard.keep}
+        confirmLabel={COPY.discard.discard}
+        onConfirm={guard.dialog.onDiscard}
+        onCancel={guard.dialog.onKeepEditing}
+        loading={pending}
+      />
     </div>
   );
 }

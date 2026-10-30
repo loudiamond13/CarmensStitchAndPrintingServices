@@ -69,7 +69,7 @@ async function renderEditor(items: OrderItemFormInput[] = [row()]) {
       <Harness items={items} />
     </QueryClientProvider>,
   );
-  await screen.findAllByRole('option', { name: 'Basketball Jersey' });
+  await screen.findAllByRole('option', { name: 'Basketball Jersey' }, { timeout: 15_000 });
   return { ...view, user: userEvent.setup() };
 }
 

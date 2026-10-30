@@ -27,7 +27,6 @@ function ruleOf(token: string, at = '@container pg'): { block: string; body: str
   };
 }
 
-const TABLET_BLOCK = '@container pg (min-width: 768px) and (max-width: 1023px) ';
 const PHONE_BLOCK = '@container pg (max-width: 767px) ';
 
 describe('order form recipe (F1 layout)', () => {
@@ -36,18 +35,23 @@ describe('order form recipe (F1 layout)', () => {
     expect(await checkClassTokens(recipeTokens, { file: recipeFile })).toEqual([]);
   });
 
-  it('puts the 6-column and 4-column item grids in their own widths, and makes them important over the 1279px grid', () => {
-    expect(ruleOf('pg-tablet:grid-cols-6!').block).toBe(TABLET_BLOCK);
-    expect(ruleOf('pg-tablet:grid-cols-6!').body).toContain('!important');
-    expect(ruleOf('pg-phone:grid-cols-4!').block).toBe(PHONE_BLOCK);
-    expect(ruleOf('pg-phone:grid-cols-4!').body).toContain('!important');
-    expect(ruleOf('pg-lt-xl:grid-cols-[150px_minmax(0,1.4fr)_80px_64px_104px_100px_44px]').block).toBe(
-      '@container pg (max-width: 1279px) ',
-    );
+  it('reads the Items card width, not the page width, for the item grid (a card beside the aside is narrow)', () => {
+    expect(css).toContain('container-name: items;');
+    const columns = 'it-lg:grid-cols-[180px_minmax(0,1.6fr)_96px_76px_120px_112px_44px]';
+    expect(ruleOf(columns, '@container items').block).toBe('@container items (min-width: 900px) ');
+    expect(ruleOf('it-md:grid-cols-6', '@container items').block).toBe('@container items (min-width: 560px) ');
+    // The two ranges meet at 900px with no gap between them: below 900px (not 899px), and from 900px.
+    expect(ruleOf('it-lt-lg:not-sr-only', '@container items').block).toBe('@container items (width < 900px) ');
   });
 
-  it('hides the column header row at 1023px and below', () => {
-    expect(ruleOf('pg-lt-lg:hidden').block).toBe('@container pg (max-width: 1023px) ');
+  it('shows the column header row from 900px of card width only', () => {
+    expect(ruleOf('it-lg:grid', '@container items').block).toBe('@container items (min-width: 900px) ');
+    expect(recipeSource).toContain("'hidden gap-3");
+  });
+
+  it('sends the remove button to the top right below 900px and back into its own column from 900px', () => {
+    expect(ruleOf('it-md:col-start-6', '@container items').block).toBe('@container items (min-width: 560px) ');
+    expect(ruleOf('it-lg:col-auto', '@container items').block).toBe('@container items (min-width: 900px) ');
   });
 
   it('makes the item controls 44px tall on phones (D-54b)', () => {
@@ -58,9 +62,9 @@ describe('order form recipe (F1 layout)', () => {
     }
   });
 
-  it('shows the item labels below 1024px only', () => {
+  it('shows the item labels below 900px of card width only', () => {
     expect(recipeSource).toContain('[&_label]:sr-only');
-    expect(ruleOf('pg-lt-lg:[&_label]:not-sr-only').block).toBe('@container pg (max-width: 1023px) ');
+    expect(ruleOf('it-lt-lg:[&_label]:not-sr-only', '@container items').block).toBe('@container items (width < 900px) ');
   });
 
   it('pads the scroll for the save bar on this page only, with more room on phones for the tab bar (D-54d)', () => {

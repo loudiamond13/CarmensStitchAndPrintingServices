@@ -66,6 +66,8 @@ test('@orders-create leaving a half filled form asks "Discard changes?" and Keep
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page).toHaveURL(/\/admin\/orders$/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Let the list finish loading before the next page opens, so no request is cut off.
+  await expect(page.getByText(/\d+ orders? · \d+ active/)).toBeVisible();
 
   // A half filled form asks; Keep Editing stays with the typed values.
   await page.goto('/admin/orders/new');
@@ -85,6 +87,7 @@ test('@orders-create leaving a half filled form asks "Discard changes?" and Keep
   await dialog.getByRole('button', { name: 'Discard Changes' }).click();
   await expect(page).toHaveURL(/\/admin\/orders$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
+  await expect(page.getByText(/\d+ orders? · \d+ active/)).toBeVisible();
 });
 
 test('@orders-create on a phone a focused item field is never hidden under the save bar (D-54d)', async ({
