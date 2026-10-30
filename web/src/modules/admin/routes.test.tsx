@@ -19,9 +19,10 @@ import {
   expenseList,
   expensesBackend,
 } from '@/test/expenseFixtures';
+import { deletedOrderItem, deletedOrderList, deletedOrdersBackend } from '@/test/deletedOrderFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
-import { order0148, useOrderHandlers } from '@/test/orderFixtures';
+import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -355,6 +356,47 @@ describe('Deleted Expenses for Managers (D-03, D-07, OQ-2; plan 06-16)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/expenses/deleted')}`);
+  }, 15_000);
+});
+
+describe('Deleted Orders for Managers (ORD-06, D-23; plan 08-20)', () => {
+  it('a Manager who opens /admin/orders/deleted stays and sees the page, with Orders the current item', async () => {
+    answerRefresh(sessionResponse());
+    deletedOrdersBackend({ list: deletedOrderList([deletedOrderItem(orderId(148))]) });
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Deleted Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Deleted orders' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders/deleted');
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Orders']);
+    await waitFor(() => {
+      expect(document.title).toBe('Deleted Orders · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens /admin/orders/deleted is redirected to /admin/orders by the route loader', async () => {
+    answerRefresh(adminSession());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders');
+    expect(screen.queryByRole('heading', { level: 1, name: 'Deleted Orders' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Deleted Orders' })).toBeNull();
+  }, 30_000);
+
+  it('a visitor without a session opening /admin/orders/deleted goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/orders/deleted')}`);
   }, 15_000);
 });
 

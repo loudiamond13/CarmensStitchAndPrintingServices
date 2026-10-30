@@ -252,6 +252,39 @@ describe('New Order and the card links (D-51)', () => {
 });
 
 // Fixture sanity: the list rows are the detail fixtures' stored figures.
+describe('the Deleted Orders link (ORD-06, D-23)', () => {
+  it('shows a Manager a secondary Deleted Orders link to /admin/orders/deleted, before New Order', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+
+    await screen.findByText('148 orders · 37 active');
+    const deleted = screen.getByRole('link', { name: 'Deleted Orders' });
+    expect(deleted).toHaveAttribute('href', '/admin/orders/deleted');
+    const links = screen.getAllByRole('link').map((link) => link.textContent);
+    expect(links.indexOf('Deleted Orders')).toBeLessThan(links.indexOf('New Order'));
+  });
+
+  it('shows an Admin no Deleted Orders link', async () => {
+    acceptSession(
+      sessionResponse({
+        user: {
+          id: '6a0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+          email: 'lito@example.ph',
+          firstName: 'Lito',
+          lastName: 'Santos',
+          role: 'Admin',
+        },
+      }),
+    );
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage();
+
+    await screen.findByText('148 orders · 37 active');
+    expect(screen.queryByRole('link', { name: 'Deleted Orders' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'New Order' })).toBeVisible();
+  });
+});
+
 describe('the fixtures', () => {
   it('derive the list row from the detail', () => {
     const list = buildOrderList([order0153, creditOrder].map(listEntryOf), { all: 2, active: 2 });
