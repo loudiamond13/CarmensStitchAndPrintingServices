@@ -79,6 +79,30 @@ export const ORDER_PAGE_COPY = {
       message: (number: string, label: string): string => `${number} is now ${label}.`,
     },
   },
+  /** The header Delete Order action and its confirm (D-21, D-22, D-51, D-57): a soft delete a Manager can undo. */
+  remove: {
+    button: 'Delete Order',
+    title: (number: string): string => `Delete ${number}?`,
+    /** The sentence parts: "Its {counts} {is | are} hidden ..." and the sentence for an order with no children at all. */
+    lead: 'Its',
+    leadNone: 'It is',
+    verbOne: 'is',
+    verbMany: 'are',
+    hidden: 'hidden from every list and total.',
+    restore: 'A Manager can restore it.',
+    cancel: 'Cancel',
+    confirm: 'Delete Order',
+    pending: 'Deleting',
+    toast: {
+      title: (number: string): string => `Order ${number} deleted`,
+      message: 'A Manager can restore it from Deleted Orders.',
+    },
+    /** The info toast when someone else deleted the order first (404). */
+    alreadyDeleted: {
+      title: 'Already deleted',
+      message: 'Someone else deleted this order. The list is up to date.',
+    },
+  },
   /** The Images card (D-27): Phase 9 replaces its body with the gallery. */
   images: {
     title: 'Images',

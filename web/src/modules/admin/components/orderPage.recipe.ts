@@ -22,6 +22,9 @@ export const orderSublineStrongClasses = tw('font-semibold text-ink');
 /** `.s-ph-actions`: the header buttons in a row 8px apart; on phones they take the full width and share it. */
 export const orderActionsClasses = tw('flex flex-wrap items-center gap-2 pg-phone:w-full pg-phone:*:flex-1');
 
+/** The ghost-danger Delete Order button keeps the `--line-strong` border its neighbour Edit Details has (UI-SPEC O1 Header, D-57). */
+export const orderDeleteButtonClasses = tw('border-line-strong!');
+
 /** The back link row above the title, kept clear of it. */
 export const orderBackRowClasses = tw('flex');
 

@@ -11,7 +11,13 @@ import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
 import { ordersDeletedKey } from '@/modules/admin/hooks/useRefreshOrders';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
-import { buildOrderDetail, order0148, useOrderHandlers, type OrderDetailFixture } from '@/test/orderFixtures';
+import {
+  buildOrderDetail,
+  order0148,
+  ORDER_STAFF,
+  useOrderHandlers,
+  type OrderDetailFixture,
+} from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The soft delete of an order from its page (ORD-06, D-21, D-22, D-51; plan 08-22): the confirm names the child counts in words,
@@ -53,18 +59,14 @@ describe('softDeleteSentence (D-21, UIC-51)', () => {
   });
 
   it('reads "is" for a single thing and "are" for two kinds, even when each is one', () => {
-    expect(softDeleteSentence({ items: 1, payments: 0, discounts: 0, expenses: 0 })).toBe(
-      `Its 1 item is ${TAIL}`,
-    );
+    expect(softDeleteSentence({ items: 1, payments: 0, discounts: 0, expenses: 0 })).toBe(`Its 1 item is ${TAIL}`);
     expect(softDeleteSentence({ items: 1, payments: 1, discounts: 0, expenses: 0 })).toBe(
       `Its 1 item and 1 payment are ${TAIL}`,
     );
   });
 
   it('uses the no-children sentence only when every count is zero', () => {
-    expect(softDeleteSentence({ items: 0, payments: 0, discounts: 0, expenses: 0, refunds: 0 })).toBe(
-      `It is ${TAIL}`,
-    );
+    expect(softDeleteSentence({ items: 0, payments: 0, discounts: 0, expenses: 0, refunds: 0 })).toBe(`It is ${TAIL}`);
   });
 
   it('writes 1,234 items with the en-PH thousands separator', () => {
@@ -81,12 +83,13 @@ function Where() {
 
 interface RenderOptions {
   order?: OrderDetailFixture;
-  from?: string | undefined;
+  /** The list address in the navigation state; null for none. */
+  from?: string | null;
   onClose?: () => void;
 }
 
 function renderDialog({ order = order0148, from = '/admin/orders?view=table', onClose = vi.fn() }: RenderOptions = {}) {
-  const entry = { pathname: `/admin/orders/${order.id}`, state: from === undefined ? null : { from } };
+  const entry = { pathname: `/admin/orders/${order.id}`, state: from === null ? null : { from } };
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -111,9 +114,7 @@ describe('the Delete Order confirm (D-21, UIC-51)', () => {
     renderDialog();
 
     const dialog = await screen.findByRole('dialog', { name: TITLE });
-    expect(
-      within(dialog).getByText(`Its 5 items, 2 payments, 1 discount and 3 expenses are ${TAIL}`),
-    ).toBeVisible();
+    expect(within(dialog).getByText(`Its 5 items, 2 payments, 1 discount and 3 expenses are ${TAIL}`)).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
     expect(within(dialog).queryByRole('textbox')).toBeNull();
     expect(within(dialog).queryByRole('alert')).toBeNull();
@@ -131,9 +132,9 @@ describe('the Delete Order confirm (D-21, UIC-51)', () => {
             refundDate: '2026-10-05',
             amount: 100,
             reason: 'Wrong size',
-            refundedBy: order0148.recordedBy,
+            refundedBy: ORDER_STAFF,
             refundedByActive: true,
-            recordedBy: order0148.recordedBy,
+            recordedBy: ORDER_STAFF,
             recordedAt: '2026-10-05T03:00:00Z',
             lastChangedBy: null,
             lastChangedAt: null,
@@ -178,9 +179,7 @@ describe('confirming the delete (D-22, D-51)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('where')).toHaveTextContent('/admin/orders?view=table');
     });
-    expect(backend.writes).toEqual([
-      { method: 'DELETE', path: `/orders/${order0148.id}`, body: null, key: null },
-    ]);
+    expect(backend.writes).toEqual([{ method: 'DELETE', path: `/orders/${order0148.id}`, body: null, key: null }]);
     expect(onClose).toHaveBeenCalled();
     expect(await screen.findByText('Order ORD-2026-0148 deleted')).toBeVisible();
     expect(screen.getByText('A Manager can restore it from Deleted Orders.')).toBeVisible();
@@ -190,7 +189,7 @@ describe('confirming the delete (D-22, D-51)', () => {
   it('goes to /admin/orders when there is no list address to return to', async () => {
     const user = userEvent.setup();
     useOrderHandlers();
-    renderDialog({ from: undefined });
+    renderDialog({ from: null });
 
     await screen.findByRole('dialog', { name: TITLE });
     await user.click(confirmButton());
