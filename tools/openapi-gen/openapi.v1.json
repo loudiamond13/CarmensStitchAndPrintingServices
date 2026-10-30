@@ -2068,6 +2068,15 @@
       "OrderDiscountResponse": {
         "description": "One discount of an order (D-15, ORD-05).",
         "properties": {
+          "amount": {
+            "description": "The pesos the discount comes to, worked out by the server over the stored subtotal (D-94).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
           "id": {
             "description": "The discount id.",
             "format": "uuid",
@@ -2130,6 +2139,7 @@
           "id",
           "kind",
           "value",
+          "amount",
           "reason",
           "recordedBy",
           "recordedAt",

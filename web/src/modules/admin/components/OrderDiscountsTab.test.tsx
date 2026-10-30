@@ -59,7 +59,7 @@ const ADDED_ID = '00000000-0000-4000-9400-0000000000aa';
 
 /** The order the server answers an add with: a second discount and the figures it works out. */
 function afterAdd(): OrderDetailFixture {
-  const added = orderDiscount('fixed', 500, 'Club discount', { id: ADDED_ID });
+  const added = orderDiscount('fixed', 500, 'Club discount', 500, { id: ADDED_ID });
   return buildOrderDetail({
     discounts: [...order0148.discounts, added],
     version: 'AAAAAAAAB9F=',
@@ -138,8 +138,8 @@ describe('locked and deleted views (D-15, D-24)', () => {
 
 const LEAGUE_ID = '00000000-0000-4000-9400-0000000000b1';
 const CLUB_ID = '00000000-0000-4000-9400-0000000000b2';
-const LEAGUE = orderDiscount('percentage', 5, 'Barangay league discount', { id: LEAGUE_ID });
-const CLUB = orderDiscount('fixed', 500, 'Club discount', { id: CLUB_ID });
+const LEAGUE = orderDiscount('percentage', 5, 'Barangay league discount', 1122.5, { id: LEAGUE_ID });
+const CLUB = orderDiscount('fixed', 500, 'Club discount', 500, { id: CLUB_ID });
 const TWO = buildOrderDetail({
   discounts: [LEAGUE, CLUB],
   totals: { ...order0148.totals, discount: 1622.5, total: 20827.5, balance: 8827.5 },
@@ -194,7 +194,7 @@ describe('Edit Discount', () => {
   it('opens the window with the row values and puts focus back on that row Edit after a save', async () => {
     const user = userEvent.setup();
     const answer = buildOrderDetail({
-      discounts: [LEAGUE, orderDiscount('fixed', 750, 'Club discount', { id: CLUB_ID })],
+      discounts: [LEAGUE, orderDiscount('fixed', 750, 'Club discount', 750, { id: CLUB_ID })],
       version: 'AAAAAAAAB9F=',
       totals: { ...order0148.totals, discount: 1872.5, total: 20577.5, balance: 8577.5 },
     });
@@ -335,7 +335,7 @@ describe('a discount that turns a paid order into a credit (07 D-12, D-05)', () 
   it('toasts "Customer credit now ₱X." when the answer has a positive customer credit', async () => {
     const user = userEvent.setup();
     const answer = buildOrderDetail({
-      discounts: [orderDiscount('fixed', 500, 'Goodwill', { id: ADDED_ID })],
+      discounts: [orderDiscount('fixed', 500, 'Goodwill', 500, { id: ADDED_ID })],
       version: 'AAAAAAAAB9F=',
       totals: {
         ...order0148.totals,

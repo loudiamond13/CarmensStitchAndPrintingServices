@@ -153,7 +153,7 @@ describe('the Discounts tab (ORD-07)', () => {
 
   it('gives each discount its own row', () => {
     const order = buildOrderDetail({
-      discounts: [orderDiscount('fixed', 100, 'First'), orderDiscount('fixed', 50, 'Second')],
+      discounts: [orderDiscount('fixed', 100, 'First', 100), orderDiscount('fixed', 50, 'Second', 50)],
     });
     render(<OrderDiscountsTab order={order} readOnly />);
 

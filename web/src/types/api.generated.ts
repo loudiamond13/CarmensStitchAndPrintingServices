@@ -2519,6 +2519,11 @@ export interface components {
         /** @description One discount of an order (D-15, ORD-05). */
         OrderDiscountResponse: {
             /**
+             * Format: double
+             * @description The pesos the discount comes to, worked out by the server over the stored subtotal (D-94).
+             */
+            amount: number | string;
+            /**
              * Format: uuid
              * @description The discount id.
              */

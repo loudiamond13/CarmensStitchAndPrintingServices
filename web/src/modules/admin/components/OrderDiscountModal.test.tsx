@@ -412,8 +412,8 @@ describe('add mode saving (ORD-07 idempotency, D-05)', () => {
 const LEAGUE_ID = '00000000-0000-4000-9400-0000000000b1';
 const CLUB_ID = '00000000-0000-4000-9400-0000000000b2';
 /** A 5% discount (1,122.50 of 22,450.00) and a fixed 500.00 one; the club one was changed once. */
-const LEAGUE = orderDiscount('percentage', 5, 'Barangay league discount', { id: LEAGUE_ID });
-const CLUB = orderDiscount('fixed', 500, 'Club discount', {
+const LEAGUE = orderDiscount('percentage', 5, 'Barangay league discount', 1122.5, { id: LEAGUE_ID });
+const CLUB = orderDiscount('fixed', 500, 'Club discount', 500, {
   id: CLUB_ID,
   recordedBy: ORDER_STAFF,
   lastChangedBy: ORDER_STAFF_TWO,
@@ -613,7 +613,7 @@ describe('edit mode server refusals', () => {
 
 describe('edit mode stale save (409) and a removed discount (404)', () => {
   it('keeps the typed values behind the banner, and Load Latest takes the latest values, version and cap', async () => {
-    const latestClub = orderDiscount('percentage', 10, 'Club discount, renewed', { id: CLUB_ID });
+    const latestClub = orderDiscount('percentage', 10, 'Club discount, renewed', 2245, { id: CLUB_ID });
     const latest = buildOrderDetail({
       discounts: [latestClub],
       version: NEW_VERSION,

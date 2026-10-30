@@ -181,12 +181,14 @@ export function orderDiscount(
   kind: 'percentage' | 'fixed',
   value: number,
   reason: string,
+  amount: number,
   overrides: Partial<OrderDiscountFixture> = {},
 ): OrderDiscountFixture {
   return {
     id: childId(4),
     kind,
     value,
+    amount,
     reason,
     recordedBy: ORDER_STAFF,
     recordedAt: '2026-09-28T02:30:00Z',
@@ -260,7 +262,7 @@ export function buildOrderDetail(overrides: Partial<OrderDetailFixture> = {}): O
       orderItem(LONG_SLEEVES, 'Warm-up shooting shirt', 15, 420, { sizeVariant: 'S-XL' }),
       orderItem(CUSTOM_DESIGN, 'Team logo redraw and vector cleanup', 1, 800),
     ],
-    discounts: [orderDiscount('percentage', 5, 'Barangay league discount')],
+    discounts: [orderDiscount('percentage', 5, 'Barangay league discount', 1122.5)],
     payments: [
       orderPayment('2026-09-28', GCASH, 10000, { reference: '9012 345 678901', notes: '50% downpayment' }),
       orderPayment('2026-10-03', CASH, 2000, { notes: 'For 2 added coach polos' }),
@@ -303,7 +305,7 @@ export const order0151: OrderDetailFixture = buildOrderDetail({
   dueDate: '2026-10-10',
   status: 'ready',
   items: [orderItem(BASKETBALL_JERSEY, 'Riding club jersey', 20, 1150)],
-  discounts: [orderDiscount('fixed', 500, 'Club discount')],
+  discounts: [orderDiscount('fixed', 500, 'Club discount', 500)],
   payments: [orderPayment('2026-09-30', GCASH, 12000), orderPayment('2026-10-05', CASH, 10500)],
   expenses: [orderExpense('2026-10-01', FABRIC, 7200, null), orderExpense('2026-10-02', INK_AND_PAPER, 2100, null)],
   totals: totals({
@@ -407,7 +409,7 @@ export const completedOrder: OrderDetailFixture = buildOrderDetail({
   dueDate: '2026-09-30',
   status: 'completed',
   items: [orderItem(BASKETBALL_JERSEY, 'Club jersey', 30, 690)],
-  discounts: [orderDiscount('fixed', 1000, 'Loyal customer')],
+  discounts: [orderDiscount('fixed', 1000, 'Loyal customer', 1000)],
   payments: [orderPayment('2026-09-12', GCASH, 10000), orderPayment('2026-09-28', CASH, 9700)],
   expenses: [orderExpense('2026-09-14', FABRIC, 8900, null)],
   totals: totals({

@@ -155,8 +155,8 @@ describe('otherDiscountsTotal', () => {
   it('adds the amounts of the other discounts over the server subtotal', () => {
     const order = buildOrderDetail({
       discounts: [
-        orderDiscount('percentage', 5, 'League', { id: 'a' }),
-        orderDiscount('fixed', 500, 'Club', { id: 'b' }),
+        orderDiscount('percentage', 5, 'League', 1122.5, { id: 'a' }),
+        orderDiscount('fixed', 500, 'Club', 500, { id: 'b' }),
       ],
     });
 
