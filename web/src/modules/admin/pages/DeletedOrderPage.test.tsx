@@ -290,6 +290,53 @@ describe('Delete Order Permanently (07 D-28, D-57)', () => {
   });
 });
 
+describe('the permanent-delete dialog keeps its own read (WR-04)', () => {
+  const pageKey = ['order-deleted', order0148.id];
+
+  it('does not read the page query again when the dialog opens', async () => {
+    const calls = backend();
+    const user = userEvent.setup();
+    renderPage();
+
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Delete Order Permanently' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete ORD-2026-0148 permanently?' });
+    await waitFor(() => {
+      expect(within(dialog).getByText(/This will also delete/)).toBeVisible();
+    });
+
+    expect(calls.reads).toHaveLength(2);
+    expect(queryClient.getQueryState(pageKey)?.dataUpdateCount).toBe(1);
+  });
+
+  it('does not put the page in its not-found state when only the dialog read answers 404', async () => {
+    let reads = 0;
+    deletedOrdersBackend({
+      list: deletedOrderList([]),
+      detail: () => {
+        reads += 1;
+        return reads === 1 ? deletedOrderDetail() : deletedProblem(404);
+      },
+    });
+    const pageErrors: unknown[] = [];
+    const stop = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type === 'updated' && event.action.type === 'error' && event.query.queryKey[0] === pageKey[0]) {
+        pageErrors.push(event.action.error);
+      }
+    });
+    const user = userEvent.setup();
+    const { router } = renderPage();
+
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Delete Order Permanently' }));
+
+    expect(await screen.findByText('The deleted list')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders/deleted');
+    expect(pageErrors).toEqual([]);
+    stop();
+  });
+});
+
 describe('the document title', () => {
   it('sets the document title to the number with (deleted)', async () => {
     backend();
