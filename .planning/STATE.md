@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-18-PLAN.md
-last_updated: "2026-10-30T09:45:44.871Z"
+stopped_at: Completed 08-19-PLAN.md
+last_updated: "2026-10-30T10:24:08.606Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 08 execution started
-state_head: e6b35290d28adec16f1ca8f3f9b6aff00d035636
+state_head: b44ba759f6ebb130f7f3a17e96eb166d742a57d6
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 243
-  completed_plans: 237
+  completed_plans: 238
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-29T20:37:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 19 of 24
+Plan: 20 of 24
 Status: Ready to execute
 Last activity: 2026-10-29 — Phase 08 execution started
 
@@ -297,6 +297,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P16 | 45 min | 3 tasks | 11 files |
 | Phase 08 P17 | 35min | 2 tasks | 11 files |
 | Phase 08 P18 | 28 min | 2 tasks | 11 files |
+| Phase 08 P19 | 42 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -849,6 +850,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-17: the discount cap is the server items total minus the other discounts, each rounded to the centavo; an edit leaves out its own saved amount
 - [Phase 08]: 08-17: switching the discount Type clears Value in add and edit; a percent Value takes digits and one point only (SPEC-GAP, owner review)
 - [Phase 08]: 08-18: the order expense window uses the server's field names and the PaidBySelect defaults; Description is optional and sent as null when empty; Edit and Delete stay on any editable order.
+- [Phase 08]: 08-19: a status move is keyed by order id plus status through useOrderAction; only a 422 shows server text in the failure toast; the page carries out focus after a complete, cancel or reopen by element id
 
 ### Pending Todos
 
@@ -953,6 +955,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T09:45:36.025Z
-Stopped at: Completed 08-18-PLAN.md
+Last session: 2026-10-30T10:24:07.353Z
+Stopped at: Completed 08-19-PLAN.md
 Resume file: None
