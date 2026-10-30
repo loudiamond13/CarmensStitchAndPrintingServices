@@ -1,8 +1,9 @@
 // The Orders list toolbar (ORD-02, D-42, D-43, D-55, WEB-10, OR-3; plan 08-09), in the UI-SPEC L1 order: Search, Status, Order
-// date, Product type, the balance box and Sort by. The controls read and write the URL only through the list's hook (values and
+// date, Product type, the balance box, Sort by and, pushed right, the Grid and Table view switch (ORD-10, plan 08-11). The controls read and write the URL only through the list's hook (values and
 // setters come in as props), so the page and the query see one source. A custom order date range is typed here and written to
 // the URL only once both dates are real and From is not after To; until then the list keeps the last applied range.
 import { useState } from 'react';
+import { SegmentedControl, type SegmentOption } from '@/components/choice';
 import { Checkbox } from '@/components/entry';
 import { DateInput, Select, type SelectOption } from '@/components/forms';
 import { FilterBar, SearchBox } from '@/components/lists';
@@ -12,6 +13,8 @@ import {
   ORDER_DATE_RANGES,
   ORDER_SORTS,
   ORDER_STATUS_FILTERS,
+  ORDER_VIEWS,
+  type OrderView,
   type useOrdersListParams,
 } from '@/modules/admin/hooks/useOrdersListParams';
 import { ORDERS_COPY } from '@/modules/admin/ordersCopy';
@@ -34,6 +37,13 @@ const DATE_OPTIONS: readonly SelectOption[] = [
 
 const SORT_OPTIONS: readonly SelectOption[] = ORDER_SORTS.map((sort) => ({ value: sort, label: COPY.sort[sort] }));
 
+/** Icon-only: each segment is named by its label and title. */
+const VIEW_OPTIONS: readonly SegmentOption<OrderView>[] = ORDER_VIEWS.map((view) => ({
+  value: view,
+  label: COPY.view[view],
+  icon: view === 'grid' ? 'layout-grid' : 'list',
+}));
+
 /** The offered value that `text` names, or null: a select only ever reports a value it was given. */
 function choice<const T extends string>(offered: readonly T[], text: string): T | null {
   return offered.find((value) => value === text) ?? null;
@@ -45,12 +55,24 @@ type Setters = ReturnType<typeof useOrdersListParams>[1];
 export interface OrdersToolbarProps {
   values: Values;
   set: Setters;
+  /** The view shown (ORD-10): the URL's, else the stored one, else grid. */
+  view: OrderView;
+  onViewChange: (view: OrderView) => void;
 }
 
-export function OrdersToolbar({ values, set }: OrdersToolbarProps) {
+export function OrdersToolbar({ values, set, view, onViewChange }: OrdersToolbarProps) {
   const [custom, setCustomOpen] = useCustomChoice(values);
   return (
-    <FilterBar>
+    <FilterBar
+      end={
+        <SegmentedControl<OrderView>
+          label={COPY.view.label}
+          options={VIEW_OPTIONS}
+          value={view}
+          onChange={onViewChange}
+        />
+      }
+    >
       <SearchBox
         value={values.q}
         label={COPY.search.label}

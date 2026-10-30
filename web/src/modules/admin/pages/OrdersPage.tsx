@@ -5,7 +5,8 @@
 // four skeleton cards, a failed load an ErrorState with Try Again, a refetch keeps the cards and dims them after 200 ms, and a
 // shop with no active orders sees the first-use EmptyState. The toolbar holds the search and the filters (ORD-02, plan 08-09): each
 // one is in the URL, sent to the API, and shown as a chip when it is not at its default. A date preset waits for the server's
-// business today (D-59) before the list is asked for.
+// business today (D-59) before the list is asked for. The View switch (ORD-10, plan 08-11) shows the same rows as cards or as
+// a table; the view is never sent to the API.
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Button, ButtonLink } from '@/components/actions';
@@ -22,6 +23,7 @@ import { FilterChip, LISTS_COPY, Pagination, ResultBar } from '@/components/list
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, useDelayedFlag } from '@/components/states';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
+import { OrdersTable } from '@/modules/admin/components/OrdersTable';
 import { OrdersToolbar } from '@/modules/admin/components/OrdersToolbar';
 import { ordersGridClasses, ordersSublineSkeletonClasses } from '@/modules/admin/components/orders.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
@@ -32,6 +34,7 @@ import {
   type OrderStatusFilter,
 } from '@/modules/admin/hooks/useOrdersListParams';
 import { useOrdersQuery } from '@/modules/admin/hooks/useOrdersQuery';
+import { useOrdersView } from '@/modules/admin/hooks/useOrdersView';
 import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
 import { ORDERS_COPY } from '@/modules/admin/ordersCopy';
 import { ORDER_LISTS_COPY } from '@/modules/admin/orderListsCopy';
@@ -71,6 +74,7 @@ export default function OrdersPage() {
   const location = useLocation();
   const [values, set] = useOrdersListParams();
   const settled = useSettledListParams(values, 300);
+  const { view, setView } = useOrdersView(values, set);
 
   // A date preset is worked out from the server's business today, never the device clock (D-59). Until it is known the list
   // is held back, so the first request already carries the range.
@@ -172,6 +176,14 @@ export default function OrdersPage() {
     set.setFilters({ status: null, dates: null, from: null, to: null, productType: null, hasBalance: null });
   };
 
+  const retry = (): void => {
+    if (todayFailed) {
+      businessToday.refetch();
+    } else {
+      void query.refetch();
+    }
+  };
+
   // The card links remember this list view for the order page's back link (D-51).
   const from = `${location.pathname}${location.search}`;
   const open = (path: string): void => {
@@ -200,7 +212,7 @@ export default function OrdersPage() {
           </ButtonLink>
         </div>
       </div>
-      <OrdersToolbar values={values} set={set} />
+      <OrdersToolbar values={values} set={set} view={view} onViewChange={setView} />
       <ResultBar count={total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortedBy[values.sort]}>
         {values.q !== null && (
           <FilterChip
@@ -251,69 +263,87 @@ export default function OrdersPage() {
       <h2 id={HEADING_ID} tabIndex={-1} className={srOnlyClasses}>
         {COPY.results}
       </h2>
-      {failed && (
-        <ErrorState
-          things={COPY.things}
+      {view === 'table' ? (
+        <OrdersTable
+          rows={data?.items}
+          pending={firstLoad}
+          refetching={query.isPlaceholderData && query.isFetching}
+          failed={failed}
           error={todayFailed ? businessToday.error : query.error}
-          onRetry={() => {
-            if (todayFailed) {
-              businessToday.refetch();
-            } else {
-              void query.refetch();
-            }
+          onRetry={retry}
+          filtered={filtered}
+          search={values.q}
+          filterSummary={filterSummary}
+          onClearFilters={clearFilters}
+          emptyIcon="clipboard-list"
+          emptyTitle={COPY.empty.title}
+          emptyMessage={COPY.empty.message}
+          emptyAction={
+            <ButtonLink variant="primary" icon="plus" to="/admin/orders/new">
+              {COPY.newOrder}
+            </ButtonLink>
+          }
+          onOpen={(entry) => {
+            open(`/admin/orders/${entry.id}`);
           }}
         />
-      )}
-      <LoadingRegion loading={firstLoad || refetching} things={COPY.things} failed={failed}>
-        {firstLoad && (
-          <div className={ordersGridClasses}>
-            {SKELETON_CARDS.map((key) => (
-              <SkeletonCard key={key} />
-            ))}
-          </div>
-        )}
-        {empty && filtered && (
-          <EmptyState
-            icon="search"
-            title={LISTS_COPY.noMatchesTitle}
-            message={LISTS_COPY.noMatchesBody(COPY.things, values.q, filterSummary)}
-            action={
-              <Button variant="secondary" onClick={clearFilters}>
-                {LISTS_COPY.clearFilters}
-              </Button>
-            }
-          />
-        )}
-        {empty && !filtered && (
-          <EmptyState
-            icon="clipboard-list"
-            title={COPY.empty.title}
-            message={COPY.empty.message}
-            action={
-              <ButtonLink variant="primary" icon="plus" to="/admin/orders/new">
-                {COPY.newOrder}
-              </ButtonLink>
-            }
-          />
-        )}
-        {hasRows && (
-          <div className={ordersGridClasses} data-refetching={refetching ? 'true' : undefined}>
-            {data.items.map((entry) => (
-              <OrderCard
-                key={entry.id}
-                order={toCardOrder(entry)}
-                due={<DueFlag dueDate={entry.dueDate} status={entry.status} today={data.today} />}
-                onView={() => {
-                  open(`/admin/orders/${entry.id}`);
-                }}
-                onEdit={() => {
-                  open(`/admin/orders/${entry.id}/edit`);
-                }}
+      ) : (
+        <>
+          {failed && (
+            <ErrorState things={COPY.things} error={todayFailed ? businessToday.error : query.error} onRetry={retry} />
+          )}
+          <LoadingRegion loading={firstLoad || refetching} things={COPY.things} failed={failed}>
+            {firstLoad && (
+              <div className={ordersGridClasses}>
+                {SKELETON_CARDS.map((key) => (
+                  <SkeletonCard key={key} />
+                ))}
+              </div>
+            )}
+            {empty && filtered && (
+              <EmptyState
+                icon="search"
+                title={LISTS_COPY.noMatchesTitle}
+                message={LISTS_COPY.noMatchesBody(COPY.things, values.q, filterSummary)}
+                action={
+                  <Button variant="secondary" onClick={clearFilters}>
+                    {LISTS_COPY.clearFilters}
+                  </Button>
+                }
               />
-            ))}
-          </div>
-        )}
-      </LoadingRegion>
+            )}
+            {empty && !filtered && (
+              <EmptyState
+                icon="clipboard-list"
+                title={COPY.empty.title}
+                message={COPY.empty.message}
+                action={
+                  <ButtonLink variant="primary" icon="plus" to="/admin/orders/new">
+                    {COPY.newOrder}
+                  </ButtonLink>
+                }
+              />
+            )}
+            {hasRows && (
+              <div className={ordersGridClasses} data-refetching={refetching ? 'true' : undefined}>
+                {data.items.map((entry) => (
+                  <OrderCard
+                    key={entry.id}
+                    order={toCardOrder(entry)}
+                    due={<DueFlag dueDate={entry.dueDate} status={entry.status} today={data.today} />}
+                    onView={() => {
+                      open(`/admin/orders/${entry.id}`);
+                    }}
+                    onEdit={() => {
+                      open(`/admin/orders/${entry.id}/edit`);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </LoadingRegion>
+        </>
+      )}
       <Pagination
         page={values.page}
         pageCount={pageCount}

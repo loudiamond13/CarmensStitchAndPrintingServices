@@ -8,6 +8,7 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { OrdersToolbar } from '@/modules/admin/components/OrdersToolbar';
 import { useOrdersListParams } from '@/modules/admin/hooks/useOrdersListParams';
+import { useOrdersView } from '@/modules/admin/hooks/useOrdersView';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { BASKETBALL_ID, CYCLING_ID, PRODUCT_TYPES } from '@/test/orderListFixtures';
@@ -16,7 +17,8 @@ import { BASKETBALL_ID, CYCLING_ID, PRODUCT_TYPES } from '@/test/orderListFixtur
 
 function Harness() {
   const [values, set] = useOrdersListParams();
-  return <OrdersToolbar values={values} set={set} />;
+  const { view, setView } = useOrdersView(values, set);
+  return <OrdersToolbar values={values} set={set} view={view} onViewChange={setView} />;
 }
 
 function renderToolbar(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
@@ -397,5 +399,42 @@ describe('the custom range (ORD-02, UIC-45, OR-3)', () => {
       expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?dates=month' }]);
     });
     expect(screen.queryByLabelText('From')).toBeNull();
+  });
+});
+
+describe('the View switch (ORD-10, plan 08-11)', () => {
+  it('sits last in the search landmark as an icon-only group of two radios', () => {
+    renderToolbar();
+
+    const group = screen.getByRole('radiogroup', { name: 'View' });
+    expect(screen.getByRole('search')).toContainElement(group);
+    const radios = within(group).getAllByRole('radio');
+    expect(radios.map((radio) => radio.getAttribute('aria-label'))).toEqual(['Grid view', 'Table view']);
+    expect(radios.map((radio) => radio.getAttribute('title'))).toEqual(['Grid view', 'Table view']);
+    expect(radios.map((radio) => radio.textContent)).toEqual(['', '']);
+  });
+
+  it('checks the view the URL names', () => {
+    renderToolbar('?view=table');
+
+    expect(screen.getByRole('radio', { name: 'Table view' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Grid view' })).not.toBeChecked();
+  });
+
+  it('writes the chosen view with one replace and leaves the other filters alone', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderToolbar('?page=2&status=delivered', onUrlUpdate);
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Table view' }));
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?page=2&status=delivered&view=table' }]);
+    });
+  });
+
+  it('has no axe violations', async () => {
+    const view = renderToolbar('?view=table');
+
+    await expectNoAxeViolations(view.container);
   });
 });

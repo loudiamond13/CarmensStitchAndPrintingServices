@@ -1,4 +1,6 @@
 // The order screens' looks as complete Tailwind tokens (D-33; plan 08-05). Every string here is a class list.
+import clsx from 'clsx';
+import { hitAreaClasses } from '@/components/actions';
 import { tw } from '@/ui/tw';
 
 /** The due date and its flag in one line of text that wraps after the dot (cards, the order subline). */
@@ -38,3 +40,15 @@ export const ordersCustomRangeClasses = tw('flex basis-full flex-wrap items-end 
 
 /** The balance box, as tall as the 40px controls beside it and bottom-aligned with them. */
 export const ordersBalanceFilterClasses = tw('flex min-h-10 items-center');
+
+/** The table's Order cell: the thumbnail beside the number link. */
+export const ordersOrderCellClasses = tw('flex items-center gap-3');
+
+/** The 44px placeholder thumbnail of a table row. */
+export const ordersThumbClasses = tw('block w-11 shrink-0 overflow-hidden rounded-sm');
+
+/** The order number link: the accent ink of the card's number, with a 44px tap area. */
+export const ordersNumberLinkClasses = clsx(
+  tw('font-display text-[15px] font-bold tracking-[.06em] text-accent-ink underline-offset-2 hover:underline'),
+  hitAreaClasses,
+);

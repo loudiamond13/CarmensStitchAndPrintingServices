@@ -60,6 +60,13 @@ export const ORDERS_COPY = {
       balance: 'Balance (highest)',
       total: 'Total (highest)',
     },
+    /** The View switch (ORD-10): the group name and the two icon-only choices. */
+    view: { label: 'View', grid: 'Grid view', table: 'Table view' },
+    /** The table view (UI-SPEC "Table view"): the caption and the column headers. */
+    table: {
+      caption: 'Orders',
+      columns: { order: 'Order', customer: 'Customer' },
+    },
     /** The first-use state: the default view has no rows (D-55). */
     empty: {
       title: 'No active orders',

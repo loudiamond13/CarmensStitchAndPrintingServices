@@ -2,13 +2,16 @@
 // through the one shared list-state factory. Defaults stay out of the URL; an invalid value (a size outside 10, 20, 50 and 100,
 // a status or sort that is not offered, a product that is not an id) falls back and is removed with one replace. A search,
 // filter, sort or size change replaces the entry and resets the page; a page change pushes. No key can hold a customer's name,
-// phone, email or address: only the free-text search `q` may (createListParams refuses such key names). The view joins in plan 08-11.
+// phone, email or address: only the free-text search `q` may (createListParams refuses such key names).
+//
+// View (ORD-10, plan 08-11): `view` is grid or table and has NO default, so a missing view stays missing in the URL and the
+// page can fall back to the stored choice (useOrdersView). `setView` writes it with a replace and keeps the page.
 //
 // Order date: `dates` is 30d, 90d, month or custom, and none means Any date (D-42). A preset is stored by name and worked out
 // from the server's business today on every visit (D-59), never from the device clock. `from` and `to` belong to `custom` and
 // are read only as a pair: a custom range with a missing, invalid or reversed date drops dates, from and to with one replace,
 // and a from or to beside a preset or no range is dropped too.
-import { parseAsStringLiteral } from 'nuqs';
+import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import { useEffect } from 'react';
 import { createListParams } from '@/lib/url-state/createListParams';
 import {
@@ -26,10 +29,14 @@ import {
 export const ORDER_STATUS_FILTERS = ['active', 'all', 'pending', 'mockup', 'production', 'ready', 'delivered', 'completed', 'cancelled'] as const;
 export const ORDER_SORTS = ['due', 'newest', 'balance', 'total'] as const;
 export const ORDER_DATE_RANGES = ['30d', '90d', 'month', 'custom'] as const;
+export const ORDER_VIEWS = ['grid', 'table'] as const;
 
 export type OrderStatusFilter = (typeof ORDER_STATUS_FILTERS)[number];
 export type OrderSort = (typeof ORDER_SORTS)[number];
 export type OrderDateRange = (typeof ORDER_DATE_RANGES)[number];
+export type OrderView = (typeof ORDER_VIEWS)[number];
+
+const viewParser = parseAsStringLiteral(ORDER_VIEWS);
 
 const useListParams = createListParams({
   page: pageParser,
@@ -42,6 +49,7 @@ const useListParams = createListParams({
   productType: guidParser,
   hasBalance: parseAsStringLiteral(['true']),
   sort: literalParser(ORDER_SORTS, 'due'),
+  view: viewParser,
 });
 
 /** A pair that cannot be a range: one date without the other, or the start after the end (YYYY-MM-DD sorts as text). */
@@ -80,10 +88,11 @@ export function resolveOrderDateRange(
 }
 
 export function useOrdersListParams() {
-  const [values, set] = useListParams();
+  const [values, listSet] = useListParams();
+  const [, writeView] = useQueryState('view', viewParser);
   const brokenCustom = values.dates === 'custom' && isBrokenPair(values.from, values.to);
   const strayDates = values.dates !== 'custom' && (values.from !== null || values.to !== null);
-  const { setFilters } = set;
+  const { setFilters } = listSet;
 
   useEffect(() => {
     if (brokenCustom) {
@@ -92,6 +101,14 @@ export function useOrdersListParams() {
       setFilters({ from: null, to: null });
     }
   }, [brokenCustom, strayDates, setFilters]);
+
+  // The view is not a filter: a switch keeps the page, so it is written on its own with a replace.
+  const set = {
+    ...listSet,
+    setView: (view: OrderView): void => {
+      void writeView(view, { history: 'replace' });
+    },
+  };
 
   // Until the replace lands, a broken range counts as Any date, so no request is sent with half a range.
   if (brokenCustom) return [{ ...values, dates: null, from: null, to: null }, set] as const;
