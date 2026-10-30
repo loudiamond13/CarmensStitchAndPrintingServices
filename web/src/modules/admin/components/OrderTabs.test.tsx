@@ -1,13 +1,22 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { OrderDiscountsTab } from '@/modules/admin/components/OrderDiscountsTab';
+import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
+import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
+import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   buildOrderDetail,
+  cancelledOrderWithRefunds,
+  FABRIC,
   creditOrder,
   order0148,
   order0151,
+  orderDiscount,
+  orderExpense,
   orderPayment,
+  orderRefund,
   CASH,
   ORDER_STAFF,
   ORDER_STAFF_TWO,
@@ -111,5 +120,205 @@ describe('the Payments tab (ORD-07, D-09, D-12)', () => {
     const { container } = render(<OrderPaymentsTab order={order0148} />);
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Discounts tab (ORD-07)', () => {
+  it('lists a percentage discount with its reason, type, value and negative amount', () => {
+    render(<OrderDiscountsTab order={order0148} />);
+
+    const table = screen.getByRole('table', { name: 'Discounts' });
+    for (const name of ['Reason', 'Type', 'Value', 'Amount']) {
+      expect(within(table).getByRole('columnheader', { name })).toBeInTheDocument();
+    }
+    const [row] = bodyRows(table);
+    if (row === undefined) throw new Error('Expected one discount row');
+    expect(within(row).getByText('Barangay league discount')).toBeVisible();
+    expect(within(row).getByText('Percentage')).toBeVisible();
+    expect(within(row).getByText('5%')).toBeVisible();
+    expect(within(row).getByText('−₱1,122.50')).toBeVisible();
+  });
+
+  it('lists a fixed discount with its peso value', () => {
+    render(<OrderDiscountsTab order={order0151} />);
+
+    const [row] = bodyRows(screen.getByRole('table', { name: 'Discounts' }));
+    if (row === undefined) throw new Error('Expected one discount row');
+    expect(within(row).getByText('Fixed amount')).toBeVisible();
+    expect(within(row).getByText('₱500.00')).toBeVisible();
+    expect(within(row).getByText('−₱500.00')).toBeVisible();
+  });
+
+  it('gives each discount its own row', () => {
+    const order = buildOrderDetail({
+      discounts: [orderDiscount('fixed', 100, 'First'), orderDiscount('fixed', 50, 'Second')],
+    });
+    render(<OrderDiscountsTab order={order} />);
+
+    expect(bodyRows(screen.getByRole('table', { name: 'Discounts' }))).toHaveLength(2);
+  });
+
+  it('ends with Total discount from the server figure, and names the caption', () => {
+    render(<OrderDiscountsTab order={order0148} />);
+
+    const footer = within(screen.getByRole('table', { name: 'Discounts' }))
+      .getByText('Total discount')
+      .closest('tr');
+    if (footer === null) throw new Error('No footer row');
+    expect(footer).toHaveTextContent('−₱1,122.50');
+    expect(screen.getByText('Percentages apply to the items total.')).toBeVisible();
+  });
+
+  it('shows an inline empty line when there are no discounts (UIC-4)', () => {
+    render(<OrderDiscountsTab order={buildOrderDetail({ discounts: [] })} />);
+
+    expect(screen.getByText('No discounts yet.')).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('shows no Add, Edit or Delete control when read only (D-24)', () => {
+    render(<OrderDiscountsTab order={order0148} readOnly />);
+
+    expect(screen.queryByRole('button', { name: /add|edit|delete/i })).toBeNull();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<OrderDiscountsTab order={order0148} />);
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Expenses tab (ORD-07, D-12)', () => {
+  it('lists each expense with its date, category, description, both people and amount', () => {
+    render(<OrderExpensesTab order={order0148} />);
+
+    const table = screen.getByRole('table', { name: 'Expenses' });
+    for (const name of ['Date', 'Category', 'Description', 'Paid by', 'Recorded by', 'Amount']) {
+      expect(within(table).getByRole('columnheader', { name })).toBeInTheDocument();
+    }
+    const [first] = bodyRows(table);
+    if (first === undefined) throw new Error('Expected expense rows');
+    expect(within(first).getByText('Oct 1, 2026')).toBeVisible();
+    expect(within(first).getByText('Fabric')).toBeVisible();
+    expect(within(first).getByText('Dri-fit mesh, 45 yds')).toBeVisible();
+    expect(within(first).getAllByText('Carmen Reyes')).toHaveLength(2);
+    expect(within(first).getByText('₱3,825.00')).toBeVisible();
+  });
+
+  it('shows the empty value for an expense with no description', () => {
+    render(<OrderExpensesTab order={order0151} />);
+
+    const [first] = bodyRows(screen.getByRole('table', { name: 'Expenses' }));
+    if (first === undefined) throw new Error('Expected expense rows');
+    expect(within(first).getByText('Not set')).toBeInTheDocument();
+  });
+
+  it('ends with Order expenses from the server figure, and says the costs are internal', () => {
+    render(<OrderExpensesTab order={order0148} />);
+
+    const footer = within(screen.getByRole('table', { name: 'Expenses' }))
+      .getByText('Order expenses')
+      .closest('tr');
+    if (footer === null) throw new Error('No footer row');
+    expect(footer).toHaveTextContent('₱6,065.00');
+    expect(screen.getByText('Internal costs for this order. Not shown to the customer.')).toBeVisible();
+  });
+
+  it('names a person whose account was deleted with (former staff)', () => {
+    const expense = orderExpense('2026-10-01', FABRIC, 100, 'Thread', {
+      paidBy: { ...ORDER_STAFF_TWO, formerStaff: true },
+    });
+    render(<OrderExpensesTab order={buildOrderDetail({ expenses: [expense] })} />);
+
+    const [row] = bodyRows(screen.getByRole('table', { name: 'Expenses' }));
+    if (row === undefined) throw new Error('Expected one expense row');
+    expect(row).toHaveTextContent('Paolo Garcia (former staff)');
+  });
+
+  it('shows an inline empty line when there are no expenses (UIC-4)', () => {
+    render(<OrderExpensesTab order={buildOrderDetail({ expenses: [] })} />);
+
+    expect(screen.getByText('No expenses recorded yet.')).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('shows no Add, Edit or Delete control when read only (D-24)', () => {
+    render(<OrderExpensesTab order={order0148} readOnly />);
+
+    expect(screen.queryByRole('button', { name: /add|edit|delete/i })).toBeNull();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<OrderExpensesTab order={order0148} />);
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Refunds tab (ORD-07, D-10, D-12)', () => {
+  it('lists each refund with its date, reason, both people and amount', () => {
+    render(<OrderRefundsTab order={cancelledOrderWithRefunds} />);
+
+    const table = screen.getByRole('table', { name: 'Refunds' });
+    for (const name of ['Date', 'Reason', 'Refunded by', 'Recorded by', 'Amount']) {
+      expect(within(table).getByRole('columnheader', { name })).toBeInTheDocument();
+    }
+    const [row] = bodyRows(table);
+    if (row === undefined) throw new Error('Expected one refund row');
+    expect(within(row).getByText('Sep 20, 2026')).toBeVisible();
+    expect(within(row).getByText('Order cancelled by the customer')).toBeVisible();
+    expect(within(row).getAllByText('Carmen Reyes')).toHaveLength(2);
+    expect(within(row).getByText('₱1,000.00')).toBeVisible();
+  });
+
+  it('ends with Total refunded from the server figure, and names the caption', () => {
+    render(<OrderRefundsTab order={cancelledOrderWithRefunds} />);
+
+    const footer = within(screen.getByRole('table', { name: 'Refunds' }))
+      .getByText('Total refunded')
+      .closest('tr');
+    if (footer === null) throw new Error('No footer row');
+    expect(footer).toHaveTextContent('₱1,000.00');
+    expect(screen.getByText('Money handed back to the customer.')).toBeVisible();
+  });
+
+  it('names a refunder whose account was deleted with (former staff)', () => {
+    const refund = orderRefund('2026-10-05', 300, 'Wrong size', {
+      refundedBy: { ...ORDER_STAFF_TWO, formerStaff: true },
+    });
+    render(<OrderRefundsTab order={buildOrderDetail({ refunds: [refund] })} />);
+
+    const [row] = bodyRows(screen.getByRole('table', { name: 'Refunds' }));
+    if (row === undefined) throw new Error('Expected one refund row');
+    expect(row).toHaveTextContent('Paolo Garcia (former staff)');
+  });
+
+  it('shows an inline empty line when there are no refunds (UIC-4)', () => {
+    render(<OrderRefundsTab order={creditOrder} />);
+
+    expect(screen.getByText('No refunds recorded yet.')).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('shows no Add, Edit or Delete control when read only (D-24)', () => {
+    render(<OrderRefundsTab order={cancelledOrderWithRefunds} readOnly />);
+
+    expect(screen.queryByRole('button', { name: /add|edit|delete/i })).toBeNull();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<OrderRefundsTab order={cancelledOrderWithRefunds} />);
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Items tab read only (D-24)', () => {
+  it('shows no Add, Edit or Delete control when read only', () => {
+    render(<OrderItemsTab order={order0148} readOnly />);
+
+    expect(screen.getByRole('table', { name: 'Order items' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /add|edit|delete/i })).toBeNull();
   });
 });

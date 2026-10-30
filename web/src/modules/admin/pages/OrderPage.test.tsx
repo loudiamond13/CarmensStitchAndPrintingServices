@@ -1,9 +1,9 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import OrderPage from '@/modules/admin/pages/OrderPage';
@@ -43,13 +43,15 @@ interface RenderOptions {
   search?: string;
   /** The navigation state the page was opened with (the list card links send `{ from }`). */
   state?: unknown;
+  /** Called with every URL write the nuqs adapter makes. */
+  onUrlUpdate?: OnUrlUpdateFunction | undefined;
 }
 
 /**
  * Opens the order page in a data router, with the Orders list and the edit page as stand-ins to land on. The fake API answers
  * ORD-2026-0148 unless the test called useOrderHandlers({ detail }) first.
  */
-function renderOrder({ order = order0148, search = '', state }: RenderOptions = {}) {
+function renderOrder({ order = order0148, search = '', state, onUrlUpdate }: RenderOptions = {}) {
   const router = createMemoryRouter(
     [
       { path: '/admin/orders', element: <p>The orders list</p> },
@@ -62,6 +64,7 @@ function renderOrder({ order = order0148, search = '', state }: RenderOptions = 
     <QueryClientProvider client={queryClient}>
       <NuqsTestingAdapter
         searchParams={search}
+        onUrlUpdate={onUrlUpdate}
         defaultOptions={URL_STATE_DEFAULTS}
         processUrlSearchParams={orderSearchParams}
         hasMemory
@@ -273,6 +276,105 @@ describe('the Payments tab on the page (ORD-07, D-09, D-12)', () => {
     expect(within(table).getByText('9012 345 678901')).toBeVisible();
     expect(screen.getByText(/^Downpayments and settlements\./)).toHaveTextContent('Balance due: ₱9,327.50');
     expect(screen.queryByRole('table', { name: 'Order items' })).toBeNull();
+  });
+});
+
+describe('the Discounts and Expenses tabs on the page (ORD-07)', () => {
+  it('shows the discounts table for ?tab=discounts', async () => {
+    renderOrder({ search: '?tab=discounts' });
+
+    const table = await screen.findByRole('table', { name: 'Discounts' });
+    expect(within(table).getByText('Barangay league discount')).toBeVisible();
+    expect(within(table).getByText('Total discount').closest('tr')).toHaveTextContent('−₱1,122.50');
+  });
+
+  it('shows the expenses table for ?tab=expenses', async () => {
+    renderOrder({ search: '?tab=expenses' });
+
+    const table = await screen.findByRole('table', { name: 'Expenses' });
+    expect(within(table).getByText('Dri-fit mesh, 45 yds')).toBeVisible();
+    expect(within(table).getByText('Order expenses').closest('tr')).toHaveTextContent('₱6,065.00');
+  });
+
+  it('shows the inline empty line of a tab with no rows (UIC-4)', async () => {
+    const bare = buildOrderDetail({ discounts: [] });
+    useOrderHandlers({ detail: bare });
+    renderOrder({ order: bare, search: '?tab=discounts' });
+
+    expect(await screen.findByText('No discounts yet.')).toBeVisible();
+  });
+});
+
+describe('the Refunds tab (ORD-07, D-13, UIC-35, UIC-46)', () => {
+  it('is not drawn for an open order with no credit and no refunds', async () => {
+    renderOrder();
+
+    await screen.findByRole('tab', { name: /^Items/ });
+    expect(screen.queryByRole('tab', { name: /^Refunds/ })).toBeNull();
+  });
+
+  it('is drawn with its count for an order that has refunds (UIC-35)', async () => {
+    useOrderHandlers({ detail: cancelledOrderWithRefunds });
+    renderOrder({ order: cancelledOrderWithRefunds, search: '?tab=refunds' });
+
+    const tab = await screen.findByRole('tab', { name: /^Refunds/ });
+    expect(tab).toHaveTextContent('1');
+    expect(tab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('table', { name: 'Refunds' })).toBeVisible();
+  });
+
+  it('is drawn for an order with customer credit, with a zero count', async () => {
+    useOrderHandlers({ detail: creditOrder });
+    renderOrder({ order: creditOrder });
+
+    expect(await screen.findByRole('tab', { name: /^Refunds/ })).toHaveTextContent('0');
+  });
+
+  it('is drawn for a Cancelled order with no refunds', async () => {
+    const cancelled = buildOrderDetail({ status: 'cancelled' });
+    useOrderHandlers({ detail: cancelled });
+    renderOrder({ order: cancelled });
+
+    expect(await screen.findByRole('tab', { name: /^Refunds/ })).toBeVisible();
+  });
+
+  it('replaces ?tab=refunds with items, in one replace, when the tab is not drawn (UIC-46)', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderOrder({ search: '?tab=refunds', onUrlUpdate });
+
+    expect(await screen.findByRole('tab', { name: /^Items/ })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    expect(
+      onUrlUpdate.mock.calls.map(([event]) => ({ history: event.options.history, query: event.queryString })),
+    ).toEqual([{ history: 'replace', query: '' }]);
+    expect(screen.getByRole('table', { name: 'Order items' })).toBeVisible();
+  });
+
+  it('keeps ?tab=refunds when the tab is drawn', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    useOrderHandlers({ detail: cancelledOrderWithRefunds });
+    renderOrder({ order: cancelledOrderWithRefunds, search: '?tab=refunds', onUrlUpdate });
+
+    await screen.findByRole('table', { name: 'Refunds' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('the tab strip on a narrow screen (D-34)', () => {
+  it('scrolls sideways inside itself while the page wrapper does not', async () => {
+    const { container } = renderOrder();
+
+    const strip = await screen.findByRole('tablist');
+    expect(strip.className).toContain('overflow-x-auto');
+    const page = container.firstElementChild;
+    if (page === null) throw new Error('No page wrapper');
+    expect(page.className).not.toContain('overflow-x');
+    for (let node = strip.parentElement; node !== null && node !== container; node = node.parentElement) {
+      expect(node.className).not.toContain('overflow-x-auto');
+    }
   });
 });
 
