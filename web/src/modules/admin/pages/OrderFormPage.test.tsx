@@ -8,7 +8,17 @@ import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
-import { buildOrderDetail, orderId, orderProblem, useOrderHandlers, type OrderBackend } from '@/test/orderFixtures';
+import {
+  buildOrderDetail,
+  ORDER_STAFF_TWO,
+  ORDER_VERSION,
+  order0148,
+  orderId,
+  orderProblem,
+  useOrderHandlers,
+  type OrderBackend,
+  type OrderDetailFixture,
+} from '@/test/orderFixtures';
 import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -567,5 +577,140 @@ describe('busy orders and the save bar (UIC-21)', () => {
 
     expect(await screen.findAllByText('Saving')).toHaveLength(2);
     await screen.findByText('The order page');
+  });
+});
+
+// F2 Edit Order, /admin/orders/:id/edit (ORD-15, D-28, D-46, SEC-08; plan 08-15): customer details, dates and notes only, saved
+// with the version the form opened with.
+
+/** Opens the edit form in a data router, with the order page and the Orders list as stand-ins to land on. */
+function renderEdit({ detail = order0148 }: { detail?: OrderDetailFixture } = {}) {
+  const backend = useOrderHandlers({ detail });
+  const router = createMemoryRouter(
+    [
+      { path: '/admin/orders', element: <p>The orders list</p> },
+      { path: '/admin/orders/:id/edit', element: <OrderFormPage /> },
+      { path: '/admin/orders/:id', element: <p>The order page</p> },
+      { path: '/admin/login', element: <p>Sign-in page</p> },
+    ],
+    { initialEntries: [`/admin/orders/${detail.id}/edit`] },
+  );
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...view, router, backend };
+}
+
+/** Waits for the order to fill the form, and returns the user. */
+async function openEdit(options: { detail?: OrderDetailFixture } = {}) {
+  const view = renderEdit(options);
+  await screen.findByRole('heading', { level: 1, name: 'Edit Order' });
+  await screen.findByLabelText(/^Customer name/);
+  return { ...view, user: userEvent.setup() };
+}
+
+describe('the edit form (D-28, D-46, SEC-08)', () => {
+  it('shows the details cards without Status, Images or Items, under a title with the order number', async () => {
+    await openEdit();
+
+    expect(document.title).toBe('Edit ORD-2026-0148 · CSPS Admin');
+    expect(
+      screen.getByText(
+        'Customer details, dates and notes. Items, payments, discounts and expenses are changed on the order page.',
+      ),
+    ).toBeVisible();
+    for (const name of ['Customer details', 'Order details']) {
+      expect(screen.getByRole('heading', { level: 2, name })).toBeVisible();
+    }
+    for (const name of ['Images', 'Order items']) {
+      expect(screen.queryByRole('heading', { level: 2, name })).toBeNull();
+    }
+    expect(screen.queryByLabelText(/^Status/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add Item' })).toBeNull();
+    expect(screen.getByLabelText(/^Notes/)).toBeVisible();
+  });
+
+  it("fills every box with the order's own values and links back to the order by its number", async () => {
+    await openEdit();
+
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Juan Dela Cruz');
+    expect(screen.getByLabelText(/^Team \/ organization/)).toHaveValue('Brgy. San Roque Ballers');
+    expect(screen.getByLabelText(/^Contact number/)).toHaveValue('0917 123 4567');
+    expect(screen.getByLabelText(/^Email/)).toHaveValue('juan.dc@example.ph');
+    expect(screen.getByLabelText(/^Address/)).toHaveValue('Brgy. San Roque, Marikina City');
+    expect(screen.getByLabelText(/^Order date/)).toHaveValue('2026-09-28');
+    expect(screen.getByLabelText(/^Due date/)).toHaveValue('2026-10-14');
+    expect(screen.getByRole('link', { name: 'ORD-2026-0148' })).toHaveAttribute('href', `/admin/orders/${order0148.id}`);
+  });
+
+  it('shows the order number, its status and who recorded and last changed it in the Summary', async () => {
+    await openEdit({
+      detail: buildOrderDetail({ lastChangedBy: ORDER_STAFF_TWO, lastChangedAt: '2026-10-03T06:15:00Z' }),
+    });
+
+    const aside = screen.getByRole('complementary', { name: 'Summary' });
+    expect(within(aside).getByText('ORD-2026-0148')).toBeVisible();
+    expect(within(aside).getByText('In Production')).toBeVisible();
+    expect(within(aside).getByText('Recorded by')).toBeVisible();
+    expect(within(aside).getByText('Last changed by')).toBeVisible();
+    expect(within(aside).getByText(/Carmen Reyes/)).toBeVisible();
+    expect(within(aside).getByText(ORDER_STAFF_TWO.name)).toBeVisible();
+  });
+
+  it('has Cancel and Save Changes in the save bar', async () => {
+    await openEdit();
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Save Order' })).toBeNull();
+  });
+});
+
+describe('saving the details (ORD-15, SEC-07)', () => {
+  it('PUTs the details with the version the form opened with, lands on the order and toasts', async () => {
+    const { user, router, backend } = await openEdit();
+    const contact = screen.getByLabelText(/^Contact number/);
+    await user.clear(contact);
+    await user.type(contact, '0917 999 8888');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('The order page');
+    expect(router.state.location.pathname).toBe(`/admin/orders/${order0148.id}`);
+    expect(backend.writes).toHaveLength(1);
+    const [write] = backend.writes;
+    expect(write?.method).toBe('PUT');
+    expect(write?.path).toBe(`/orders/${order0148.id}`);
+    expect(write?.key).toBeNull();
+    expect(write?.body).toEqual({
+      customerName: 'Juan Dela Cruz',
+      teamName: 'Brgy. San Roque Ballers',
+      contactNumber: '0917 999 8888',
+      email: 'juan.dc@example.ph',
+      address: 'Brgy. San Roque, Marikina City',
+      orderDate: '2026-09-28',
+      dueDate: '2026-10-14',
+      notes: order0148.notes,
+      version: ORDER_VERSION,
+    });
+    expect(await screen.findByText('Order details saved')).toBeVisible();
+    expect(screen.getByText('ORD-2026-0148')).toBeVisible();
+  });
+
+  it("shows the server's words and sends nothing for a contact number with letters", async () => {
+    const { user, backend } = await openEdit();
+    const contact = screen.getByLabelText(/^Contact number/);
+    await user.clear(contact);
+    await user.type(contact, 'abc');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('Use digits, spaces and + - ( ) only.')).toBeVisible();
+    expect(backend.writes).toHaveLength(0);
+    expect(contact).toHaveFocus();
   });
 });

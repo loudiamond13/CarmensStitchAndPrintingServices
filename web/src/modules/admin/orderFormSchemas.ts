@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { moneyInputError } from '@/components/entry';
 import { isCalendarDate } from '@/lib/url-state/parsers';
 import { isMoneyText, moneyTextToCentavos } from '@/utils/format';
-import type { CreateOrderRequest } from '@/modules/admin/services/ordersService';
+import type { CreateOrderRequest, UpdateOrderDetailsRequest } from '@/modules/admin/services/ordersService';
 import { ORDER_FORM_COPY } from './orderFormCopy';
 
 // The strict CSP has no 'unsafe-eval': every schema runs in its plain (non-generated) mode (see profileSchemas.ts).
@@ -178,4 +178,18 @@ export function toCreateOrderRequest(values: CreateOrderFormValues): CreateOrder
       unitPrice: Number(item.unitPrice),
     })),
   };
+}
+
+/** The Edit Order form (UpdateOrderDetailsRequestValidator): the same customer and date rules, with the due date required. */
+export const updateOrderDetailsSchema = orderDetailsSchema;
+
+export type UpdateOrderDetailsFormInput = z.input<typeof updateOrderDetailsSchema>;
+export type UpdateOrderDetailsFormValues = z.output<typeof updateOrderDetailsSchema>;
+
+// RED stub: replaced by the real request builder in the GREEN commit.
+export function toUpdateOrderDetailsRequest(
+  values: UpdateOrderDetailsFormValues,
+  _version: string,
+): UpdateOrderDetailsRequest {
+  return { ...values, version: null };
 }

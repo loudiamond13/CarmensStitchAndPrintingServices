@@ -5,6 +5,8 @@ import {
   orderDetailsSchema,
   orderItemSchema,
   toCreateOrderRequest,
+  toUpdateOrderDetailsRequest,
+  updateOrderDetailsSchema,
   type CreateOrderFormInput,
   type OrderItemFormInput,
 } from '@/modules/admin/orderFormSchemas';
@@ -227,5 +229,64 @@ describe('toCreateOrderRequest', () => {
       ],
     });
     expect(Object.keys(body)).not.toContain('createdById');
+  });
+});
+
+describe('updateOrderDetailsSchema (UpdateOrderDetailsRequestValidator)', () => {
+  const { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes } = order();
+  const details = { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes };
+
+  it('requires a due date, as the server does on an edit (D-38)', () => {
+    const result = updateOrderDetailsSchema.safeParse({ ...details, dueDate: '' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.message)).toEqual(['Enter the due date.']);
+    }
+  });
+
+  it('refuses a due date before the order date with the server words', () => {
+    const result = updateOrderDetailsSchema.safeParse({ ...details, dueDate: '2026-10-07' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("The due date can't be before the order date.");
+    }
+  });
+});
+
+describe('toUpdateOrderDetailsRequest', () => {
+  it('sends the checked details with the version the form opened with, and no attribution or status field', () => {
+    const { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes } = order({
+      teamName: '',
+      email: '',
+      notes: ' Rush ',
+    });
+    const parsed = updateOrderDetailsSchema.parse({
+      customerName,
+      teamName,
+      contactNumber,
+      email,
+      address,
+      orderDate,
+      dueDate,
+      notes,
+    });
+
+    const body = toUpdateOrderDetailsRequest(parsed, 'AAAAAAAAB9E=');
+
+    expect(body).toEqual({
+      customerName: 'Juan Dela Cruz',
+      teamName: null,
+      contactNumber: '0917 000 0000',
+      email: null,
+      address: null,
+      orderDate: '2026-10-08',
+      dueDate: '2026-10-20',
+      notes: 'Rush',
+      version: 'AAAAAAAAB9E=',
+    });
+    expect(Object.keys(body)).not.toContain('status');
+    expect(Object.keys(body)).not.toContain('updatedById');
   });
 });
