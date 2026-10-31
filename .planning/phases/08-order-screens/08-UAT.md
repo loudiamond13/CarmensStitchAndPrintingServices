@@ -4,12 +4,12 @@ phase: 08-order-screens
 source: [08-VERIFICATION.md]
 started: 2026-10-30T16:00:00-05:00
 created: 2026-10-30T16:00:00-05:00
-updated: 2026-10-30T22:49:44.384Z
+updated: 2026-10-31T07:21:44.725Z
 ---
 
 # Phase 08: Owner Checks (UAT)
 
-*Created: 2026-10-30T16:00:00-05:00 · Updated: 2026-10-30T20:15:00-05:00*
+*Created: 2026-10-30T16:00:00-05:00 · Updated: 2026-10-31T00:05:00-05:00*
 
 ## Current Test
 
@@ -45,10 +45,14 @@ severity: major
 expected: Read LegacyEditFilter.cs and the six UpdateOrder*Handler.cs files. Unchanged legacy values do not block an edit; changed fields are fully checked.
 result: pass
 
+### 7. O1 two-staff owner check (08-29)
+expected: Two real browsers, two real staff, one test order. (1) A opens Add Payment, B removes a payment, A types an amount the old balance refused and saves: it goes through if the server allows it; a stale version shows the conflict banner with Load Latest and the typed values kept. (2) With Add Payment open, B changes the balance, A returns to the tab: the Balance due hint follows without pressing Save. (3) B records the last payment, A opens Change Status: Mark Completed is enabled with no reason line, and completes the order. (4) On an order with a percent discount, the Discounts tab Amount column shows peso figures that add up to the Total discount footer and move when an item changes.
+result: pass
+
 ## Summary
 
-total: 6
-passed: 5
+total: 7
+passed: 6
 issues: 1
 pending: 0
 skipped: 0
@@ -58,7 +62,9 @@ blocked: 0
 
 - gap_id: G-08-5
   truth: "Owner rulings D-94 to D-96 hold: discount amounts come from the server, money caps check against current figures, and Mark Completed reads current figures."
-  status: failed
+  status: resolved
+  resolved_by: 08-29-PLAN
+  resolved_at: 2026-10-30
   reason: "User reported: chose the recommended fixes for WR-01, WR-02 and WR-05 (D-94 to D-96)."
   severity: major
   test: 5
