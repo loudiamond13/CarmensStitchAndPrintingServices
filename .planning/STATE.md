@@ -4,10 +4,10 @@ current_phase: 9
 current_phase_name: Order Images & Maintenance Jobs
 status: planning
 stopped_at: Phase 08 complete, ready to plan Phase 9
-last_updated: "2026-10-31T07:26:39.810Z"
+last_updated: "2026-10-31T07:55:50.267Z"
 last_activity: 2026-10-31
 last_activity_desc: Phase 08 complete, transitioned to Phase 9
-state_head: bc3c874ab54f2bdc592132fefc353e781d1d9d8b
+state_head: fd4ab2c2d083f67d5817b1e4160e0766d9dc53ca
 progress:
   total_phases: 18
   completed_phases: 8
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 9 — Order Images & Maintenance Jobs
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-31 — Phase 08 complete, transitioned to Phase 9
+Last activity: 2026-10-31 - Completed quick task 261031-3oo: filter chip Clear button drawn 24 px (D-98)
 
 Progress: [█████░░░░░] 47%
 
@@ -878,6 +878,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-28: D-95 applied to the refund and discount windows with 08-26's hook unchanged; the instant cap check stays, a focus or failed check reads the order, the save keeps the opened version
 - [Phase 08]: 08-29: the @orders-two-staff journeys prove D-95 and D-96 end to end with two staff in two browser contexts; D-94 scoped only the Discounts tab amount column, so otherDiscountsTotal and the discount window preview still add up in the browser (recorded in 08-REVIEW-DISPOSITION.md)
 - [Phase 08]: UAT rulings D-90 to D-97 (owner, 2026-10-30). The server sends each discount amount; payment, refund and discount windows re-read the order before refusing a cap; the status menu re-reads the order on open.
+- [Quick 261031-3oo]: D-98 (owner, 2026-10-31): the filter chip Clear button is 24 px, not 22 px. It amends O-8 for this one button (the other O-8 controls keep their sizes) and supersedes D-93; at 24 px axe target-size passes on size alone near the phone tab bar and in four-chip toolbars. The D-71 e2e check is unchanged.
 
 ### Pending Todos
 
@@ -973,6 +974,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 | 261027-t3j | Restyle shared Select and DateInput, remove the written-out date (D-63) | 2026-10-27 | df81a9e6 | [261027-t3j-restyle-shared-select-and-dateinput-remo](./quick/261027-t3j-restyle-shared-select-and-dateinput-remo/) |
 | 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
 | 261029-87p | Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82) | 2026-10-29 | 0f4c00c5 | [261029-87p-fix-phase-7-ui-review-findings-in-the-au](./quick/261029-87p-fix-phase-7-ui-review-findings-in-the-au/) |
+| 261031-3oo | Filter chip Clear button drawn 24 px (D-98, supersedes D-93) | 2026-10-31 | fd4ab2c2 | [261031-3oo-make-the-filter-chip-clear-button-24-px-](./quick/261031-3oo-make-the-filter-chip-clear-button-24-px-/) |
 
 ## Deferred Items
 
