@@ -4,9 +4,9 @@ current_phase: 9
 current_phase_name: Order Images & Maintenance Jobs
 status: planning
 stopped_at: Phase 08 complete, ready to plan Phase 9
-last_updated: "2026-10-31T07:55:50.267Z"
+last_updated: "2026-10-31T10:10:47.000Z"
 last_activity: 2026-10-31
-last_activity_desc: Phase 08 complete, transitioned to Phase 9
+last_activity_desc: Phase 7 PR #17 merged; Phase 8 re-verified and shipped for merge
 state_head: fd4ab2c2d083f67d5817b1e4160e0766d9dc53ca
 progress:
   total_phases: 18
@@ -15,7 +15,7 @@ progress:
   completed_plans: 248
   percent: 47
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-31T00:30:00-05:00"
+updated: "2026-10-31T05:10:47-05:00"
 ---
 
 # Project State
@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 
 Phase: 9 — Order Images & Maintenance Jobs
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-31 - Completed quick task 261031-3oo: filter chip Clear button drawn 24 px (D-98)
+Status: Ready to plan (Phase 8 shipped against main after #17 merged)
+Last activity: 2026-10-31 - PR #17 merged; Phase 8 rebased onto main, re-verified 8/8 and shipped
 
 Progress: [█████░░░░░] 47%
 
@@ -880,6 +880,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: UAT rulings D-90 to D-97 (owner, 2026-10-30). The server sends each discount amount; payment, refund and discount windows re-read the order before refusing a cap; the status menu re-reads the order on open.
 - [Quick 261031-3oo]: D-98 (owner, 2026-10-31): the filter chip Clear button is 24 px, not 22 px. It amends O-8 for this one button (the other O-8 controls keep their sizes) and supersedes D-93; at 24 px axe target-size passes on size alone near the phone tab bar and in four-chip toolbars. The D-71 e2e check is unchanged.
 - [Ship 08]: D-99 (owner, 2026-10-31): Phase 8 ships only after the Phase 7 PR (#17) is green and merged, then straight against main (no stacked PR). To make #17 pass, the owner approved copying the D-98 commits onto the Phase 7.1 branch, renaming the six `07-D48` commit scopes to `07-d48` (history rewrite, same code) and force-pushing that branch with a lease. Backups: `backup/phase-07.1-pre-scope-fix-20261031`, `backup/phase-08-pre-scope-fix-20261031` (local only). The Phase 8 branch got the same rename locally and still sits on the renamed 7.1.
+- [Ship 08]: D-100 (owner, 2026-10-31): "create pr for phase 8 then merge it". PR #17 merged through Merge-PullRequest.ps1. Phase 8 was rebased onto main (backup `backup/phase-08-pre-rebase-20261031`, local only; the two duplicate D-98 commits dropped as already upstream), re-verified 8/8, and its PR Definition of Done is ticked from the Phase 8 records on that instruction. The regression gate is left to CI `gate (full)` on the shared machine.
 
 ### Pending Todos
 
