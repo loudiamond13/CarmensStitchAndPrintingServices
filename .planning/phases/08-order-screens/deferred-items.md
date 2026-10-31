@@ -1,6 +1,6 @@
 ---
 created: 2026-10-29T19:20:00-05:00
-updated: 2026-10-31T02:56:30-05:00
+updated: "2026-10-31T06:45:48-05:00"
 ---
 
 # Phase 08 deferred items
@@ -263,3 +263,8 @@ These need the owner. Each would change behavior, the API, or an owner rule.
 
 1. **Unexplained one-off timeout in `@orders-refunds` (chromium).** In the first full order e2e run, `order-refunds.spec.ts` "a Manager works the refunds of a cancelled order without reopening it" timed out at 120 s waiting on Save Refund in the Add Refund window (the button stayed disabled, then the window detached). It passed alone three times in a row and in the next two full runs (95 passed each). The trace was not kept, so the cause is not known. If it comes back, run it with the trace kept and look at whether the first Save (the over-cap try) is still pending when the second Save is clicked.
 2. **Fixed in 08-29: a racy check in `@orders-deleted-view`.** The permanent-delete journey looked for the order number 5 s after the toast appeared, but the toast message is the number and stays 4.5 s. It failed once in firefox under load. The check now waits for the toast to go first (commit `32ccf5c9`).
+
+## From the ship (PR #19, 2026-10-31)
+
+1. **The 08-24 item 8 dialog height is fixed.** The cause was the refunds tile (08-02, 08 UI-SPEC six tiles) wrapping the 5-column delete tally, not #15 or #16. The desktop tally now has one column per tile (`cascadeListClasses`, red test in `ConfirmDialog.test.tsx` first). `@dialog-fit`, `@dialog-scrollbars` and `@orders-sweep` passed on chromium, firefox and webkit (105), and the delete and long-text journeys on chromium and pixel (46).
+2. **CI flake recorded:** `CreateUserEndpointTests.TwoCreatesWithTheSameEmailSentTogether...` gave a 500 once in 20 rounds on CI and passed 3 runs alone. Parked in the STATE.md Phase 8 ship backlog as a likely real race in Phase 5 code.

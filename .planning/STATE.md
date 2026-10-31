@@ -4,7 +4,7 @@ current_phase: 9
 current_phase_name: Order Images & Maintenance Jobs
 status: planning
 stopped_at: Phase 08 complete, ready to plan Phase 9
-last_updated: "2026-10-31T10:10:47.000Z"
+last_updated: "2026-10-31T11:45:48.000Z"
 last_activity: 2026-10-31
 last_activity_desc: Phase 7 PR #17 merged; Phase 8 re-verified and shipped for merge
 state_head: fd4ab2c2d083f67d5817b1e4160e0766d9dc53ca
@@ -15,7 +15,7 @@ progress:
   completed_plans: 248
   percent: 47
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-31T05:10:47-05:00"
+updated: "2026-10-31T06:45:48-05:00"
 ---
 
 # Project State
@@ -923,6 +923,10 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [ ] **Phase 7.1 hand-off to reviews and joint ship (plan 07.1-12, 2026-10-29):** execution is complete; no import relaxation was built (07.1 D-42). Run in this order: (1) `/gsd-code-review 07.1`; (2) `/gsd-secure-phase 07.1` (07.1 D-14: check the restore is only read, nothing writes outside the trial database, and no personal data reaches git or logs; no UI review, because there are no screens); (3) `/gsd-verify-work 07.1`; (4) `/gsd-ship` for the joint Phase 7 and 7.1 PR, opened from `gsd/phase-07.1-legacy-fit-check-read-only` (07.1 D-13, D-20; STATE D-85). Merge only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's word. The ROADMAP goal already names the company expenses (07.1 D-16); nothing changed there.
 - [x] **Ruled 08 D-25 (owner, 2026-10-29): set back to Pending until the Phase 8 screens ship (done).** **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
 
+Phase 8 ship backlog (away mode, parked 2026-10-31; nothing here was auto-approved):
+
+- [ ] **Rare 500 when two creates use the same email at once (Phase 5 code, seen on PR #19 CI, 2026-10-31):** `CreateUserEndpointTests.TwoCreatesWithTheSameEmailSentTogetherGiveOneAccountAndOneEmailFieldErrorEveryTime` got `[Created, InternalServerError]` instead of `[Created, BadRequest]` in round 18 of 20 on CI (head d4ca4f11, CI run 41196802048). It passed the branch's first CI run and 3 runs alone on LocalDB (20 rounds each). Phase 8 does not touch user creation. The CI log does not show the server exception. `UserAccounts.CreateAsync` maps a unique-index violation (2601/2627) and Identity duplicate errors to "email in use", so the 500 is likely another path, for example a deadlock (1205) on the insert or a violation in the temporary-password path. A real user could see "Something went wrong" instead of "Another account already uses this email." Suggested: a `/gsd-debug` session that logs the exception in the test host and maps the race to the email field error. Recorded as a CI flake; the failed job was re-run, not hidden.
+
 ### Blockers/Concerns
 
 - [Phase 1 → 3/4/17]: Hosting record still has Unverified facts: probe facts (runtime patch, content root, logs, client IP, HTTPS, Manila/en-PH, PFX, memory) verified on the Phase 3 first deploy; Gmail SPF/DKIM/DMARC pass (D2) before Phase 4. SmarterASP.NET confirmed SQL Server 2025 is offered (new DB + `.bak` restore, no in-place upgrade); still ask whether a temporary second database is allowed at no cost (Phase 17 prerequisite, D-33).
@@ -935,7 +939,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
-- Owner decision: chip Clear buttons (22 px) fail axe target-size near the fixed phone tab bar, and the Delete Order dialog is 559 px high where @dialog-fit allows 553. Both fail before plan 08-24 (deferred-items 08-24 items 7 and 8).
+- Resolved (2026-10-31, PR #19): chip Clear buttons draw at 24 px (D-98). The Delete Order dialog height (559 px where @dialog-fit allows 553) came from the sixth refunds tile (08-02) wrapping the 5-column tally, not from #15 or #16; the desktop tally now has one column per tile and @dialog-fit passes on chromium, firefox and webkit. What the dialog shows is unchanged (six tiles, 08 UI-SPEC).
 - [Phase 8 → ship]: One unexplained 120 s chromium timeout in `@orders-refunds` (Save Refund, over-cap read from 08-28). It passed alone 3 times and in 2 later full runs; owner chose to close the phase without a traced re-run (2026-10-31). Re-run it traced if it shows up again.
 
 ### Quick Tasks Completed
