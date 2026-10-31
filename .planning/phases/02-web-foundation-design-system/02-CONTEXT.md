@@ -1,6 +1,6 @@
 # Phase 2: Web Foundation & Design System - Context
 
-*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-13T17:31:12-05:00*
+*Created: 2026-10-07T19:31:36-05:00 · Updated: 2026-10-31T02:54:30-05:00*
 
 **Gathered:** 2026-10-07
 **Status:** Ready for planning
@@ -119,7 +119,7 @@ The owner answered "Option A: accept all (Recommended)" for D-BL-03 and "Option 
   - **O-5** (2026-10-08, by owner): approved as recommended. `.s-toast-layer` stays mounted (empty when there are no toasts) as the live region. Behaviour only.
   - **O-6** (2026-10-08, by owner): approved as recommended. Under `prefers-reduced-motion`, the skeleton shimmer and the modal and toast entry animations stop. Visible only to people who ask for reduced motion.
   - **O-7** (2026-10-08, by owner): approved as recommended. Warning toasts persist until closed, like danger toasts (D-04). Success and info timers pause while the pointer is over the toast stack or focus is inside it (WCAG 2.2.1). Behaviour only.
-  - **O-8** (2026-10-08, by owner): **keep the smaller designed controls as designed** and record the exception. These are the sm buttons and `.csp-iconbtn` / `.s-iconbtn` at 36 px, `.csp-seg-btn` at 32 px tall, the filter-chip clear button at 22 px and the label-wrapped login checkbox at 20 px. **Recorded exception:** they meet WCAG 2.2 AA **2.5.8 Target Size (Minimum)** (24 px or the spacing exception, checked by axe `target-size`), and spec §11 accepts 36 px with spacing. They are below the project's own 44 px touch-target goal (CLAUDE.md) by owner decision. Every other new control still targets 44 px.
+  - **O-8** (2026-10-08, by owner): **keep the smaller designed controls as designed** and record the exception. These are the sm buttons and `.csp-iconbtn` / `.s-iconbtn` at 36 px, `.csp-seg-btn` at 32 px tall, the filter-chip clear button at 22 px and the label-wrapped login checkbox at 20 px. **Recorded exception:** they meet WCAG 2.2 AA **2.5.8 Target Size (Minimum)** (24 px or the spacing exception, checked by axe `target-size`), and spec §11 accepts 36 px with spacing. They are below the project's own 44 px touch-target goal (CLAUDE.md) by owner decision. Every other new control still targets 44 px. **Amended by D-98 (owner, 2026-10-31):** the filter-chip clear button is now 24 px; the other controls listed here keep their sizes.
   - **D-27 confirmation** (2026-10-08, by owner): the Sidebar Logout `<button type="button" class="csp-nav">` look is **confirmed identical** to the old link. Chromium measured all 34 values equal, and the owner saw the before/after renders. The `/* D-27 */ button.csp-nav` compat rule stays as built in plan 02-09.
   - **D-BL-02** (2026-10-08, by owner, Option B, a D-08 item from plan 02-05): **hide** the "Manager" tag on the selected sidebar row. When its row is current, `.csp-nav-tag` is not shown, because the page title already says where you are. Plan 02-11 implements it as one rule in `overrides.css` that targets the App. B selectors `.csp-nav.is-on` / `.csp-nav-tag`, `/* D-31 D-BL-02 */ .csp-nav.is-on .csp-nav-tag { display: none; }`. Unselected rows keep the tag (with FYI-01's opacity 1 under D-02), and the tablet rule in App. C (`.s-admin-side .csp-nav-tag { display: none; }`) is unchanged.
   - **New D-08 items from plan 02-09:** none were found, so there is nothing more to rule.
