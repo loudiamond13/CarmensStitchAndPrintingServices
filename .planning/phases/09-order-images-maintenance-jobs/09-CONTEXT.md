@@ -1,5 +1,5 @@
 # Phase 9: Order Images & Maintenance Jobs - Context
-*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T12:30:00-05:00*
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T14:00:00-05:00*
 
 **Gathered:** 2026-10-31
 **Status:** Ready for planning
@@ -55,6 +55,15 @@ The owner decisions the roadmap lists for this phase are closed here: OD-9 and C
 - **D-22:** **Failures:** each removal is retried with leases and growing waits within a run, and failures are logged. A removal still failing at the end of a run makes the endpoint report failure, so the GitHub run turns red and GitHub emails the owner. No new screen (owner, 2026-10-31).
 - **D-23:** **Stray files:** the sweep deletes Cloudinary files under its own environment's `…/orders/` folder that match no photo row and are **older than 2 days**. Each removal is logged, with a count in the run summary (owner, 2026-10-31).
 - **D-24:** **Usage report:** each run reports Cloudinary storage and monthly credits used in the run summary. **Above 80% of the free plan, the run turns red** (owner, 2026-10-31).
+
+### UI contract rulings (UI-SPEC OQ-1 to OQ-7)
+- **D-25:** **Photos show as one compact photo list** on the order page and the order form: each photo is a small card with an 88px thumbnail, its description, "Make Cover" and four 44px buttons; 2 columns on wide screens, 1 on phones. No mosaic gallery (OQ-1 A; owner, 2026-10-31).
+- **D-26:** **"Take Photo" uses lucide's `camera` icon**, added to `icons.ts` from the already installed package (OQ-2 A; owner, 2026-10-31).
+- **D-27:** **"Open Full Size" opens the large photo in a new browser tab** (OQ-3 A; owner, 2026-10-31).
+- **D-28:** **New-order photos upload on the order page:** after Save, staff go to the new order's page at once and the photos upload there with progress (OQ-4 A; owner, 2026-10-31).
+- **D-29:** **Leaving the order page while photos wait or failed asks first:** "Leave this page?" with "Stay on Page" / "Leave Page", plus the browser prompt on reload or close (OQ-5 A; owner, 2026-10-31).
+- **D-30:** **The default description is not stored:** "Order {number} photo {n}" is shown from the photo's current position, so the number follows moves (OQ-6 A; owner, 2026-10-31).
+- **D-31:** **Upload progress is count-based** ("Uploading photo 2 of 4") with a spinner. No percent bar, so `core/api/http` is unchanged (OQ-7 A; owner, 2026-10-31).
 
 ### Carried forward (already decided, not re-asked)
 - **Scheduler:** GitHub Actions cron calling a secret-protected endpoint, because the Basic host has no scheduler (01 D-10). Nothing relies on in-memory state.
