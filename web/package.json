@@ -13,6 +13,7 @@
     "build:budget": "vite build --mode budget",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json && tsc -p tsconfig.reference.json",
     "lint": "eslint . --max-warnings 0",
+    "audit:check": "node scripts/audit-gate.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest",

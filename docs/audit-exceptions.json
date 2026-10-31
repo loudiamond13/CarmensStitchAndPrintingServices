@@ -1,0 +1,21 @@
+{
+  "_comment": "Owner-accepted npm audit advisories (OPS-03, 07.1 D-46). Read by web/scripts/audit-gate.mjs. Each entry is one GHSA id for the packages named, valid through reviewBy. Never add an entry without an owner ruling.",
+  "npmAuditExceptions": [
+    {
+      "id": "GHSA-3g3m-2fjr-6pw4",
+      "packages": ["glob"],
+      "reason": "Moderate. glob 13.0.6 is pulled in only by the lint and license tools (typescript-eslint, license-checker-rseidelsohn) and never ships to the browser. The fix (glob 14.0.2+) is a major version under the 14-day cool-down that the tools do not support yet. Published 2026-10-30.",
+      "approved": "2026-10-31",
+      "approvedBy": "owner",
+      "reviewBy": "2026-11-14"
+    },
+    {
+      "id": "GHSA-g3hv-75wg-m249",
+      "packages": ["minimatch"],
+      "reason": "Moderate. minimatch 10.2.6 is pulled in only by the ESLint stack, the license tool and openapi-gen tooling and never ships to the browser. The fix (minimatch 11.0.1+) is a major version under the 14-day cool-down; ESLint 10.14.0 still requires ^10.2.6. Published 2026-10-30.",
+      "approved": "2026-10-31",
+      "approvedBy": "owner",
+      "reviewBy": "2026-11-14"
+    }
+  ]
+}

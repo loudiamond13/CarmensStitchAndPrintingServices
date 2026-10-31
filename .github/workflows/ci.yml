@@ -112,11 +112,11 @@ jobs:
           npm ci --prefix web
           npm ci --prefix tools/openapi-gen
 
-      # OPS-03: npm audit at the lowest level, before any build or test. NuGetAudit already ran inside the locked restore.
+      # OPS-03: npm audit at every severity for web/ and tools/openapi-gen/, before any build or test. Only advisories the
+      # owner accepted in docs/audit-exceptions.json, within their review date, pass (07.1 D-46). NuGetAudit already ran
+      # inside the locked restore.
       - name: 1 audits
-        run: |
-          npm --prefix web audit --audit-level=low
-          npm --prefix tools/openapi-gen audit --audit-level=low
+        run: npm --prefix web run audit:check
 
       - name: 2 build
         run: dotnet build Csps.slnx --no-restore -tl:off
