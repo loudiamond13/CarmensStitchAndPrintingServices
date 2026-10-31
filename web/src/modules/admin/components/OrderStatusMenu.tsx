@@ -2,7 +2,8 @@
 // active order and lists "Move to {Status}" for every other active status, then Mark Completed (aria-disabled with its reason
 // unless the balance is exactly 0.00 and no credit is held) and Cancel Order. A move acts at once, with an Idempotency-Key and no
 // version (05 D-21): the page takes the answer as it is. The menu decides from orderRules only; the server still decides, and a
-// refusal is a danger toast with the server's sentence.
+// refusal is a danger toast with the server's sentence. The order is read again whenever the menu opens (D-96), so Mark Completed
+// follows the current figures.
 // Keyboard (WAI-ARIA APG menu button, the same rules as the user menu):
 //   - the button: Enter, Space or a click open the menu on its first item, ArrowDown on the first, ArrowUp on the last;
 //   - in the menu: ArrowDown and ArrowUp move with wrap-around, Home and End jump; Esc closes it and focuses the button; Tab
@@ -117,8 +118,10 @@ export function OrderStatusMenu({ order, onMoved }: OrderStatusMenuProps) {
     showFailure,
   );
 
+  // Every open path reads the order again; the menu shows at once on the held figures and follows the answer (D-96).
   const openMenu = (next: OpenAt): void => {
     setMenuState({ open: true, at: next });
+    void refetchOrder(order.id);
   };
 
   const close = (focusButton: boolean): void => {

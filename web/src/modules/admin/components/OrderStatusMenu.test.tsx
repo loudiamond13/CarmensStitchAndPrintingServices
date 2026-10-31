@@ -418,7 +418,7 @@ describe('moving the order (D-14, D-20, 05 D-21)', () => {
     const { user } = renderMenu();
     await user.click(await trigger());
     await waitFor(() => {
-      expect(backend.reads).toHaveLength(1);
+      expect(backend.reads).toHaveLength(2);
     });
 
     await user.click(screen.getByRole('menuitem', { name: 'Move to Ready' }));
@@ -426,7 +426,7 @@ describe('moving the order (D-14, D-20, 05 D-21)', () => {
     expect(await screen.findByText("Couldn't change the status")).toBeVisible();
     expect(screen.getByText(detail)).toBeVisible();
     await waitFor(() => {
-      expect(backend.reads.length).toBeGreaterThan(1);
+      expect(backend.reads.length).toBeGreaterThan(2);
     });
     expect(await trigger()).toHaveFocus();
   });
