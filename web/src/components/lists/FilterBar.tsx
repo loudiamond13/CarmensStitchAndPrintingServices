@@ -6,7 +6,7 @@
 //   - ResultBar is App. E.7's result bar: "Showing **12** orders · sorted by due date" ("Showing **1** order" for one),
 //     then the chips. The chips wrap onto new lines 8px apart and never widen the page.
 //   - FilterChip is one non-default filter: "Status: Active + recent" (the label truncates with an ellipsis, the full
-//     text stays in the text node) and a 22px clear button named "Clear status filter" (O-8 size kept).
+//     text stays in the text node) and a 24px clear button named "Clear status filter" (D-98).
 // The caller renders a chip only for a filter that differs from its default (defaults never show a chip or reach the
 // URL) and wires each control and each chip's clear to the list hook's setFilter, a replace that resets the page.
 // SPEC-DEVIATION: PERF-03 (UI-SPEC overflow row) the chips sit in their own wrapping group with the label in a
