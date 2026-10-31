@@ -916,7 +916,7 @@ Plans:
 
 **Research flag:** Standard patterns, once Phase 7 is settled.
 
-**Plans**: 28/29 plans executed in 8 waves (planned 2026-10-29; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 29/29 plans executed in 8 waves (planned 2026-10-29; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 08-01-PLAN.md — Order list and detail contracts: pieces, list-wide counts in 3 fixed commands, server today, item attribution (ORD-01, ORD-07, ORD-11; D-40, D-41, D-44, D-59, D-60)
@@ -961,7 +961,7 @@ Plans:
 - [x] 08-26-PLAN.md — Gap G-08-5: payment window checks caps against current figures (ORD-07; D-95)
 - [x] 08-27-PLAN.md — Gap G-08-5: the status menu reads the order again when it opens (ORD-07; D-96)
 - [x] 08-28-PLAN.md — Gap G-08-5: refund and discount windows check caps against current figures (ORD-07; D-95)
-- [ ] 08-29-PLAN.md — Gap G-08-5: two-staff e2e and final gates (ORD-07; D-94 to D-97)
+- [x] 08-29-PLAN.md — Gap G-08-5: two-staff e2e and final gates (ORD-07; D-94 to D-97)
 
 **UI hint**: yes
 
@@ -1356,7 +1356,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
-| 8. Order Screens | 28/29 | In Progress | - |
+| 8. Order Screens | 29/29 | In Progress | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |

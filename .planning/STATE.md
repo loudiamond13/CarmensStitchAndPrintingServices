@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-28-PLAN.md
-last_updated: "2026-10-31T01:05:10.542Z"
+stopped_at: Completed 08-29-PLAN.md
+last_updated: "2026-10-31T02:01:37.602Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 08 execution started
-state_head: 69bda528cb00d8667b9840ee802a59cb9f7f865d
+state_head: fc854debd2e38103716a031210b99371b570c250
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 248
-  completed_plans: 247
+  completed_plans: 248
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-30T13:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 5 of 29
+Plan: 6 of 29
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 08 execution started
 
@@ -307,6 +307,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P26 | 25 min | 3 tasks | 8 files |
 | Phase 08 P27 | 17 min | 2 tasks | 2 files |
 | Phase 08 P28 | 20 min | 2 tasks | 8 files |
+| Phase 08 P29 | 55 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -874,6 +875,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-26: D-95 applied to the payment window and delete check: a focus or failed cap check reads the order once, the check runs on current figures, the save keeps the opened version (queryClient.query used as fetchQuery is deprecated)
 - [Phase 08]: 08-27: D-96 applied. OrderStatusMenu.openMenu reads the order again (not awaited) on every open path, so Mark Completed follows current figures; the server's 422 stays the gate.
 - [Phase 08]: 08-28: D-95 applied to the refund and discount windows with 08-26's hook unchanged; the instant cap check stays, a focus or failed check reads the order, the save keeps the opened version
+- [Phase 08]: 08-29: the @orders-two-staff journeys prove D-95 and D-96 end to end with two staff in two browser contexts; D-94 scoped only the Discounts tab amount column, so otherDiscountsTotal and the discount window preview still add up in the browser (recorded in 08-REVIEW-DISPOSITION.md)
 
 ### Pending Todos
 
@@ -979,6 +981,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T01:05:09.180Z
-Stopped at: Completed 08-28-PLAN.md
+Last session: 2026-10-31T02:01:36.228Z
+Stopped at: Completed 08-29-PLAN.md
 Resume file: None
