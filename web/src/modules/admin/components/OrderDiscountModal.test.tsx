@@ -1,5 +1,5 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { focusManager, QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,6 +37,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  focusManager.setFocused(undefined);
   queryClient.clear();
   clearSession();
 });
@@ -45,10 +46,24 @@ interface RenderOptions {
   order?: OrderDetailFixture;
   onClose?: () => void;
   onSaved?: (order: unknown) => void;
+  /** How long ago the page read the held order, in ms. Over a second, a check that fails reads the order again (D-95). */
+  heldAge?: number;
+  /** The order the page holds when it is not the one the window opened with (another person changed it since). */
+  held?: OrderDetailFixture;
 }
 
-function renderModal({ order = order0148, onClose = vi.fn(), onSaved = vi.fn() }: RenderOptions = {}) {
-  queryClient.setQueryData(orderKey(order.id), order);
+function hold(order: OrderDetailFixture, heldAge: number): void {
+  queryClient.setQueryData(orderKey(order.id), order, heldAge === 0 ? undefined : { updatedAt: Date.now() - heldAge });
+}
+
+function renderModal({
+  order = order0148,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+  heldAge = 0,
+  held = order,
+}: RenderOptions = {}) {
+  hold(held, heldAge);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -407,6 +422,137 @@ describe('add mode saving (ORD-07 idempotency, D-05)', () => {
   });
 });
 
+// ---- The check reads the order again when the held figures refuse (D-95; plan 08-28) ----
+
+const HELD_FOR = 5_000;
+/** The order after another person added an item: the items total is 25,700.00 (the 5% discount is now 1,285.00) and the version moved on. */
+const BIGGER_SUBTOTAL = buildOrderDetail({
+  version: NEW_VERSION,
+  discounts: [orderDiscount('percentage', 5, 'Barangay league discount', 1285)],
+  totals: { ...order0148.totals, subtotal: 25700, discount: 1285, total: 24415, balance: 12415 },
+});
+
+function regainFocus(): void {
+  act(() => {
+    focusManager.setFocused(false);
+  });
+  act(() => {
+    focusManager.setFocused(true);
+  });
+}
+
+describe('add mode reads the order again when the held figures refuse the value (D-95)', () => {
+  it('reads once, then sends a value the old items total refused, still with the opened version', async () => {
+    const backend = useOrderHandlers({ detail: BIGGER_SUBTOTAL, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { onClose } = renderModal({ heldAge: HELD_FOR });
+
+    await user.type(reasonBox(), 'Big order');
+    // 22,450.00 less the 1,122.50 already given leaves 21,327.50; the newer items total leaves 24,415.00.
+    await user.type(valueBox(), '22000');
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toEqual([order0148.id]);
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.body).toMatchObject({ kind: 'fixed', value: 22000, version: ORDER_VERSION });
+  });
+
+  it('answers 409 with the banner and Load Latest when someone else changed the order meanwhile', async () => {
+    const backend = useOrderHandlers({ detail: BIGGER_SUBTOTAL, reply: () => problemResponse(409, 'edit.stale') });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+
+    await user.type(reasonBox(), 'Big order');
+    await user.type(valueBox(), '22000');
+    await user.click(saveButton());
+
+    expect(await screen.findByRole('button', { name: 'Load Latest' })).toBeInTheDocument();
+    expect((backend.writes[0]?.body as { version: string }).version).toBe(ORDER_VERSION);
+  });
+
+  it('refuses a value still above the current room in the same words, and sends nothing', async () => {
+    const backend = useOrderHandlers({ detail: BIGGER_SUBTOTAL });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+
+    await user.type(reasonBox(), 'Too much');
+    await user.type(valueBox(), '24415.01');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(CAP_WORDS)).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+    expect(backend.reads).toHaveLength(1);
+  });
+
+  it('keeps the held figures in the words when the read fails', async () => {
+    const backend = useOrderHandlers({ detail: () => new HttpResponse(null, { status: 500 }) });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+
+    await user.type(reasonBox(), 'Big order');
+    await user.type(valueBox(), '22000');
+    await user.click(saveButton());
+
+    expect(await screen.findByText(CAP_WORDS)).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+    expect(backend.reads.length).toBeGreaterThan(0);
+  });
+
+  it('sends no read for a value the held figures already allow', async () => {
+    const backend = useOrderHandlers({ detail: BIGGER_SUBTOTAL, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { onClose } = renderModal({ heldAge: HELD_FOR });
+
+    await user.type(reasonBox(), 'Club');
+    await user.type(valueBox(), '500');
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toEqual([]);
+  });
+});
+
+describe('add mode follows the order while it is open (D-95)', () => {
+  it('reads the order on focus and moves the Computed amount of a typed percent to the current items total', async () => {
+    const backend = useOrderHandlers({ detail: BIGGER_SUBTOTAL });
+    const user = userEvent.setup();
+    renderModal();
+    await user.click(percentRadio());
+    await user.type(valueBox(), '5');
+    expect(screen.getByText('Computed amount: ₱1,122.50')).toBeInTheDocument();
+
+    regainFocus();
+
+    expect(await screen.findByText('Computed amount: ₱1,285.00')).toBeInTheDocument();
+    expect(backend.reads).toEqual([order0148.id]);
+    expect(valueBox()).toHaveValue('5');
+  });
+
+  it('still sends the opened version after a focus read', async () => {
+    const backend = useOrderHandlers({ detail: BIGGER_SUBTOTAL, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { onClose } = renderModal();
+    await user.type(reasonBox(), 'Big order');
+    await user.click(percentRadio());
+    await user.type(valueBox(), '5');
+    regainFocus();
+    await screen.findByText('Computed amount: ₱1,285.00');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toHaveLength(1);
+    expect(backend.writes[0]?.body).toMatchObject({ kind: 'percentage', value: 5, version: ORDER_VERSION });
+  });
+});
+
 // ---- Edit mode (ORD-07, D-15, D-44, D-58) ----
 
 const LEAGUE_ID = '00000000-0000-4000-9400-0000000000b1';
@@ -429,8 +575,10 @@ function renderEdit({
   discountId = CLUB_ID,
   onClose = vi.fn(),
   onSaved = vi.fn(),
+  heldAge = 0,
+  held = order,
 }: RenderOptions & { discountId?: string } = {}) {
-  queryClient.setQueryData(orderKey(order.id), order);
+  hold(held, heldAge);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -529,6 +677,60 @@ describe('edit mode cap leaves out the discount own saved amount', () => {
     await waitFor(() => {
       expect(backend.writes).toHaveLength(1);
     });
+  });
+});
+
+describe('edit mode follows the order (D-95)', () => {
+  it('leaves the edited discount out of the current other discounts by id, using the current items total', async () => {
+    const current = buildOrderDetail({
+      discounts: [orderDiscount('percentage', 5, 'Barangay league discount', 1285, { id: LEAGUE_ID }), CLUB],
+      version: NEW_VERSION,
+      totals: { ...order0148.totals, subtotal: 25700, discount: 1785, total: 23915, balance: 11915 },
+    });
+    const backend = useOrderHandlers({ detail: current, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    renderEdit({ held: current, heldAge: HELD_FOR });
+
+    // 25,700.00 less the 1,285.00 of the other discount leaves 24,415.00 for this one.
+    await user.clear(valueBox());
+    await user.type(valueBox(), '24415.01');
+    await user.click(saveButton());
+    expect(await screen.findByText(CAP_WORDS)).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+
+    await user.clear(valueBox());
+    await user.type(valueBox(), '24415.00');
+    await user.click(saveButton());
+    await waitFor(() => {
+      expect(backend.writes).toHaveLength(1);
+    });
+    expect(backend.writes[0]?.body).toMatchObject({ value: 24415, version: ORDER_VERSION });
+  });
+
+  it('uses the opened figures when the current order no longer holds the discount, and a save answers 404', async () => {
+    const current = buildOrderDetail({
+      discounts: [orderDiscount('percentage', 5, 'Barangay league discount', 1285, { id: LEAGUE_ID })],
+      version: NEW_VERSION,
+      totals: { ...order0148.totals, subtotal: 25700, discount: 1285, total: 24415, balance: 12415 },
+    });
+    const backend = useOrderHandlers({
+      detail: current,
+      reply: () => problemResponse(404, 'orders.discount-not-found'),
+    });
+    const user = userEvent.setup();
+    renderEdit({ held: current, heldAge: HELD_FOR });
+
+    // The opened figures leave 21,327.50; the current items total alone would allow this.
+    await user.clear(valueBox());
+    await user.type(valueBox(), '21327.51');
+    await user.click(saveButton());
+    expect(await screen.findByText(CAP_WORDS)).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+
+    await user.clear(valueBox());
+    await user.type(valueBox(), '21327.50');
+    await user.click(saveButton());
+    expect(await screen.findByText('This discount was removed.')).toBeInTheDocument();
   });
 });
 

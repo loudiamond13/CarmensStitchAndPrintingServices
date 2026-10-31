@@ -3,6 +3,7 @@ import { buildOrderDetail, orderDiscount } from '@/test/orderFixtures';
 import {
   blankOrderDiscount,
   discountPreview,
+  isAboveItemsTotal,
   orderDiscountSchema,
   otherDiscountsTotal,
   type OrderDiscountFormInput,
@@ -167,5 +168,33 @@ describe('otherDiscountsTotal', () => {
 
   it('is 0 for an order with no discounts', () => {
     expect(otherDiscountsTotal(buildOrderDetail({ discounts: [] }), undefined)).toBe(0);
+  });
+});
+
+describe('isAboveItemsTotal', () => {
+  it('is true when the value is well formed and all the discounts would pass the items total', () => {
+    expect(isAboveItemsTotal('fixed', '21327.51', SUBTOTAL, 1122.5)).toBe(true);
+    expect(isAboveItemsTotal('percentage', '96', SUBTOTAL, 1122.5)).toBe(true);
+    expect(isAboveItemsTotal('fixed', '500', SUBTOTAL, 22000)).toBe(true);
+  });
+
+  it('is false when the discounts fit, exactly at the items total included', () => {
+    expect(isAboveItemsTotal('fixed', '21327.50', SUBTOTAL, 1122.5)).toBe(false);
+    expect(isAboveItemsTotal('percentage', '5', SUBTOTAL, 1122.5)).toBe(false);
+    expect(isAboveItemsTotal('percentage', '100', SUBTOTAL, 0)).toBe(false);
+  });
+
+  it('is false when another rule fails first: empty, zero, out of range, too many decimals, not a number', () => {
+    expect(isAboveItemsTotal('fixed', '', SUBTOTAL, 0)).toBe(false);
+    expect(isAboveItemsTotal('fixed', '.', SUBTOTAL, 0)).toBe(false);
+    expect(isAboveItemsTotal('fixed', '0', SUBTOTAL, 0)).toBe(false);
+    expect(isAboveItemsTotal('fixed', '1000000.01', 50, 0)).toBe(false);
+    expect(isAboveItemsTotal('percentage', '101', SUBTOTAL, 0)).toBe(false);
+    expect(isAboveItemsTotal('percentage', '5.555', SUBTOTAL, 22000)).toBe(false);
+    expect(isAboveItemsTotal('fixed', 'abc', SUBTOTAL, 0)).toBe(false);
+  });
+
+  it('takes the subtotal as server money text too', () => {
+    expect(isAboveItemsTotal('fixed', '100.01', '100.00', 0)).toBe(true);
   });
 });
