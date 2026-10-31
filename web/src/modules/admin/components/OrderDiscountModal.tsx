@@ -1,6 +1,7 @@
 // O2 discount window: add and edit (plan 08-17). Every rule is checked in the browser first with the server's own words (OR-3); a rule only
-// the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a
-// focus refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers
+// the server can check comes back under its field. The window sends the version of the order it opened with, so a refresh never changes
+// it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). The figures behind the cap and the preview
+// follow the current order, and a value the held figures refuse reads the order once more before it is refused (D-95). A save answers
 // the whole order and the page shows the server's figures. "Computed amount" under Value is a preview from the server's items total.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
@@ -15,10 +16,12 @@ import type { FieldErrors } from '@/lib/forms/useSubmission';
 import { OrderWindow } from '@/modules/admin/components/OrderWindow';
 import { orderWindowFullRowClasses, orderWindowGridClasses } from '@/modules/admin/components/orderWindow.recipe';
 import { useOrderChildSave } from '@/modules/admin/hooks/useOrderChildSave';
+import { freshCapResolver, useOrderWindowFigures } from '@/modules/admin/hooks/useOrderWindowFigures';
 import { ORDER_DISCOUNT_COPY } from '@/modules/admin/orderDiscountCopy';
 import {
   blankOrderDiscount,
   discountPreview,
+  isAboveItemsTotal,
   orderDiscountSchema,
   otherDiscountsTotal,
   type DiscountKindKey,
@@ -132,14 +135,23 @@ interface Opened {
 function DiscountForm({ open, order, discountId: editedId, onClose, onSaved }: DiscountFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
-  // The order and discount the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  // The order and discount the window was opened with; the version a save sends is this order's, whatever a later read brings.
   const [opened, setOpened] = useState<Opened>(() => ({
     order,
     discount: editedId === null ? null : (order.discounts.find((candidate) => candidate.id === editedId) ?? null),
   }));
-  const subtotal = opened.order.totals.subtotal;
-  // The cap leaves out the discount being edited, so its own saved amount does not count against it.
-  const others = otherDiscountsTotal(opened.order, editedId ?? undefined);
+  const figures = useOrderWindowFigures(opened.order);
+  // The items total and the other discounts by `current`'s figures. The cap leaves out the discount being edited, so its own saved
+  // amount does not count against it; when `current` no longer holds that discount, the opened figures stand and a save answers 404.
+  const capFor = (
+    current: OrderDetailResponse,
+  ): { subtotal: OrderDetailResponse['totals']['subtotal']; others: number } => {
+    const savedId = opened.discount?.id;
+    const basis =
+      savedId === undefined || current.discounts.some((candidate) => candidate.id === savedId) ? current : opened.order;
+    return { subtotal: basis.totals.subtotal, others: otherDiscountsTotal(basis, savedId) };
+  };
+  const { subtotal } = capFor(figures.current);
   const {
     control,
     handleSubmit,
@@ -148,7 +160,20 @@ function DiscountForm({ open, order, discountId: editedId, onClose, onSaved }: D
     reset,
     formState: { isDirty },
   } = useForm<OrderDiscountFormInput, unknown, OrderDiscountFormValues>({
-    resolver: zodResolver(orderDiscountSchema(subtotal, others)),
+    resolver: freshCapResolver<OrderDiscountFormInput, OrderDiscountFormValues>({
+      figures,
+      resolverFor: (current) => {
+        const { subtotal: itemsTotal, others } = capFor(current);
+        return zodResolver(orderDiscountSchema(itemsTotal, others));
+      },
+      overCap: (values, current) => {
+        if (values.kind !== 'fixed' && values.kind !== 'percentage') {
+          return false;
+        }
+        const { subtotal: itemsTotal, others } = capFor(current);
+        return isAboveItemsTotal(values.kind, values.value, itemsTotal, others);
+      },
+    }),
     mode: 'onBlur',
     defaultValues: opened.discount === null ? blankOrderDiscount() : valuesOf(opened.discount),
   });

@@ -36,8 +36,14 @@ function centavosOf(kind: DiscountKindKey, value: number, subtotal: number): num
   return Math.min(MAX_CENTAVOS, Math.max(0, Math.round(amount * 100)));
 }
 
-/** The message under Value for `text`, or null when it passes every rule, including the items-total cap. */
-function valueError(kind: DiscountKindKey, raw: string, subtotal: number, otherCentavos: number): string | null {
+/** The message under Value for `text`, or null when it passes every rule, including the items-total cap unless `checkCap` is false. */
+function valueError(
+  kind: DiscountKindKey,
+  raw: string,
+  subtotal: number,
+  otherCentavos: number,
+  checkCap = true,
+): string | null {
   const text = raw.trim();
   if (text === '' || text === '.') return COPY.valueRequired;
   const rangeMessage = kind === 'fixed' ? COPY.fixedOutOfRange : COPY.percentOutOfRange;
@@ -47,6 +53,7 @@ function valueError(kind: DiscountKindKey, raw: string, subtotal: number, otherC
   const fraction = text.split('.')[1] ?? '';
   // Trailing zeros are not a decimal place: the request sends the number, so "5.500" is 5.5.
   if (fraction.replace(/0+$/, '').length > 2) return COPY.moneyDecimals;
+  if (!checkCap) return null;
   const subtotalCentavos = Math.round(subtotal * 100);
   return centavosOf(kind, value, subtotal) + otherCentavos > subtotalCentavos ? COPY.aboveSubtotal : null;
 }
@@ -74,6 +81,24 @@ export function orderDiscountSchema(subtotal: MoneyValue, otherDiscounts: number
         context.addIssue({ code: 'custom', message, path: ['value'] });
       }
     });
+}
+
+/**
+ * True when `valueText` passes every value rule except the items-total cap and the discounts would pass the items total
+ * (`subtotal`, with `otherDiscounts` as in `orderDiscountSchema`): the one failure a fresh read can cure.
+ */
+export function isAboveItemsTotal(
+  kind: DiscountKindKey,
+  valueText: string,
+  subtotal: MoneyValue,
+  otherDiscounts: number,
+): boolean {
+  const subtotalPesos = Number(subtotal);
+  const otherCentavos = Math.round(otherDiscounts * 100);
+  return (
+    valueError(kind, valueText, subtotalPesos, otherCentavos, false) === null &&
+    valueError(kind, valueText, subtotalPesos, otherCentavos) !== null
+  );
 }
 
 export type OrderDiscountFormInput = z.input<ReturnType<typeof orderDiscountSchema>>;
