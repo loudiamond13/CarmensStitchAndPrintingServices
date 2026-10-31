@@ -79,15 +79,15 @@
     },
     {
       "id": "coverlet.MTP",
-      "version": "10.0.1",
+      "version": "10.1.0",
       "kind": "nuget",
       "scope": "test",
-      "purpose": "Code coverage collection under Microsoft.Testing.Platform (D-17). 10.1.0 is younger than the cool-down.",
+      "purpose": "Code coverage collection under Microsoft.Testing.Platform (D-17).",
       "license": "MIT",
       "publisher": "coverlet-coverage (verified reserved prefix)",
       "legitimacy": "1.0M downloads, 5 versions since 8.0.0, source github.com/coverlet-coverage/coverlet; no slop signal",
-      "published": "2026-05-18",
-      "adopted": "2026-10-07",
+      "published": "2026-09-27",
+      "adopted": "2026-10-31",
       "coolDown": "aged"
     },
     {
@@ -365,15 +365,15 @@
     },
     {
       "id": "Scalar.AspNetCore",
-      "version": "2.17.8",
+      "version": "2.17.13",
       "kind": "nuget",
       "scope": "runtime",
-      "purpose": "API reference viewer, served in Development only (D-14). 2.17.14 is younger than the cool-down.",
+      "purpose": "API reference viewer, served in Development only (D-14).",
       "license": "MIT",
       "publisher": "Scalar (verified reserved prefix)",
       "legitimacy": "48.1M downloads, 329 versions, source github.com/scalar/scalar; no slop signal",
-      "published": "2026-09-22",
-      "adopted": "2026-10-07",
+      "published": "2026-10-02",
+      "adopted": "2026-10-31",
       "coolDown": "aged"
     },
     {
