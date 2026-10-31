@@ -12,7 +12,9 @@ import {
   fieldInputClasses,
   labelClasses,
   messageClasses,
-  selectChevronClasses,
+  pickerControlClasses,
+  pickerIconClasses,
+  requiredClasses,
   selectOptionClasses,
 } from './field.recipe';
 
@@ -29,7 +31,11 @@ const PRODUCTS: readonly SelectOption[] = [
 // App. B `.csp-select select` (no native arrow, 40px end padding, pointer), `.csp-select-chev` and
 // `.csp-select select option`.
 const SELECT_END = 'cursor-pointer appearance-none pr-10';
-const CHEVRON = 'pointer-events-none absolute right-3 text-ink-muted';
+// D-63 adds the darker colour on focus and enabled hover to the chevron, and the hover fill, dark scheme and `group/picker`
+// to the box.
+const CHEVRON =
+  'pointer-events-none absolute right-3 text-ink-muted group-focus-within/picker:text-ink group-hover/picker:group-has-[:is(select,input):enabled]/picker:text-ink';
+const PICKER = 'group/picker dark:scheme-dark has-[:is(select,input):enabled]:hover:not-focus-within:bg-surface-3';
 const OPTION = 'bg-surface-3 text-ink';
 
 function tokens(...classLists: string[]): string[] {
@@ -98,10 +104,11 @@ describe('Select markup and options (App. D.3)', () => {
 
     expect(classTokens(container.firstElementChild)).toEqual(tokens(fieldClasses));
     expect(classTokens(container.querySelector('label'))).toEqual(tokens(labelClasses));
-    expect(classTokens(element.parentElement)).toEqual(tokens(fieldControlClasses));
+    expect(classTokens(element.parentElement)).toEqual(tokens(fieldControlClasses, pickerControlClasses));
+    expect(tokens(pickerControlClasses)).toEqual(tokens(PICKER));
     expect(classTokens(element)).toEqual(tokens(fieldInputClasses({ select: true })));
     expect(classTokens(element)).toEqual(expect.arrayContaining(tokens(SELECT_END)));
-    expect(tokens(selectChevronClasses)).toEqual(tokens(CHEVRON));
+    expect(tokens(pickerIconClasses)).toEqual(tokens(CHEVRON));
     expect(chevron?.getAttribute('class')?.split(/\s+/)).toEqual(expect.arrayContaining(tokens(CHEVRON)));
     expect(tokens(selectOptionClasses)).toEqual(tokens(OPTION));
     for (const option of element.options) {
@@ -180,6 +187,25 @@ describe('Select label, hint and error (A11Y-01)', () => {
     expect(classTokens(container.firstElementChild)).toEqual(tokens(fieldClasses, 'col-span-2'));
   });
 
+  it('marks a required select with an aria-hidden " *" in the label and the native required attribute', () => {
+    const { container } = render(<Select label="Category" options={METHODS} required />);
+    const label = container.querySelector('label');
+    const mark = label?.querySelector('span');
+
+    expect(label?.textContent).toBe('Category *');
+    expect(mark?.textContent).toBe(' *');
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
+    expect(classTokens(mark)).toEqual(tokens(requiredClasses));
+    expect(select('Category')).toBeRequired();
+  });
+
+  it('shows no required mark when the select is not required', () => {
+    const { container } = render(<Select label="Category" options={METHODS} />);
+
+    expect(container.querySelector('label span')).toBeNull();
+    expect(select('Category')).not.toBeRequired();
+  });
+
   it('renders without a label when none is given (the caller names the select)', () => {
     const { container } = render(<Select aria-label="Rows per page" options={['10', '20', '50', '100']} />);
 
@@ -193,6 +219,7 @@ describe('Select label, hint and error (A11Y-01)', () => {
         <Select label="Payment method" options={METHODS} hint="Paid in full." />
         <Select label="Product type" placeholder="Choose a product type" options={PRODUCTS} error="Choose one." />
         <Select label="Status" options={['Active', 'Inactive']} disabled />
+        <Select label="Category" options={METHODS} required />
       </div>,
     );
 
@@ -244,6 +271,55 @@ describe('select scenarios (the forms parity group)', () => {
       const frame = container.querySelector(`[data-case="${scenario.id}"]`);
       expect(frame?.querySelectorAll(scenario.target ?? ''), scenario.id).toHaveLength(1);
     }
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('Select grouped options (UI-SPEC "Select group option")', () => {
+  const ACTIONS: readonly SelectOption[] = [
+    { value: 'all', label: 'All actions' },
+    { value: 'user.created', label: 'User created', group: 'Users' },
+    { value: 'user.locked', label: 'User locked', group: 'Users' },
+    { value: 'login.ok', label: 'Signed in', group: 'Sign-in' },
+    { value: 'user.deleted', label: 'User deleted', group: 'Users' },
+  ];
+
+  it('wraps consecutive options of one group in an optgroup with that label, in order', () => {
+    const { container } = render(<Select label="Action" options={ACTIONS} />);
+    const groups = [...container.querySelectorAll('optgroup')];
+
+    expect(groups.map((group) => group.label)).toEqual(['Users', 'Sign-in', 'Users']);
+    expect(groups.map((group) => [...group.querySelectorAll('option')].map((option) => option.value))).toEqual([
+      ['user.created', 'user.locked'],
+      ['login.ok'],
+      ['user.deleted'],
+    ]);
+  });
+
+  it('leaves options without a group directly under the select, in order', () => {
+    const { container } = render(<Select label="Action" options={ACTIONS} />);
+    const direct = [...container.querySelectorAll('select > option')].map((option) => option.textContent);
+
+    expect(direct).toEqual(['All actions']);
+    expect(container.querySelector('select')?.firstElementChild?.tagName).toBe('OPTION');
+  });
+
+  it('selects a value inside a group', async () => {
+    const onChange = vi.fn();
+    render(<Select label="Action" options={ACTIONS} onChange={onChange} />);
+    await userEvent.selectOptions(select('Action'), 'login.ok');
+
+    expect(select('Action')).toHaveValue('login.ok');
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no optgroup when no option has a group', () => {
+    const { container } = render(<Select label="Payment method" options={METHODS} />);
+    expect(container.querySelector('optgroup')).toBeNull();
+  });
+
+  it('has no axe violations with groups', async () => {
+    const { container } = render(<Select label="Action" options={ACTIONS} />);
     await expectNoAxeViolations(container);
   });
 });

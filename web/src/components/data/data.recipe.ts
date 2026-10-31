@@ -45,7 +45,7 @@ export const orderCountClasses = tw(
 );
 
 /** `.csp-order-body`: the text column, 16px padded (12px at the bottom), 4px between lines, taking the spare height. */
-export const orderBodyClasses = tw('flex flex-1 flex-col gap-1 px-4 pt-4 pb-3');
+export const orderBodyClasses = tw('flex min-w-0 flex-1 flex-col gap-1 px-4 pt-4 pb-3');
 
 /** `.csp-order-head`: the order number and the piece count, spread apart on one baseline. */
 export const orderHeadClasses = tw('flex items-baseline justify-between');
@@ -57,10 +57,10 @@ export const orderNumberClasses = tw('font-display text-[15px] font-bold trackin
 export const orderQtyClasses = tw('text-[12px] font-semibold text-ink-muted');
 
 /** `.csp-order-team`: the team (or customer) name, display 700 22px, line height 1.1. */
-export const orderTeamClasses = tw('font-display text-[22px] leading-[1.1] font-bold');
+export const orderTeamClasses = tw('font-display text-[22px] leading-[1.1] font-bold wrap-anywhere');
 
 /** `.csp-order-cust`: the customer line, 14px/20px `--ink-muted`, at least one line high even when empty. */
-export const orderCustomerClasses = tw('min-h-5 text-[14px] leading-5 text-ink-muted');
+export const orderCustomerClasses = tw('min-h-5 text-[14px] leading-5 wrap-anywhere text-ink-muted');
 
 /** `.csp-order-dates`: the order and due dates, 12px/16px `--ink-muted`, 4px above and 12px below. */
 export const orderDatesClasses = tw('mt-1 mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] leading-4 text-ink-muted');
@@ -68,14 +68,8 @@ export const orderDatesClasses = tw('mt-1 mb-3 flex flex-wrap gap-x-4 gap-y-1 te
 /** `.csp-order-dates span`: an icon and its date, 4px apart. */
 export const orderDateClasses = tw('inline-flex items-center gap-1');
 
-/** `.csp-order-dates .is-overdue`: an overdue due date in `--danger`, 600. */
-export const orderOverdueClasses = tw('font-semibold text-danger');
-
 /** `.csp-order-actions`: the footer buttons, 2px apart, 8px by 12px padded, below a 1px `--line` rule. */
-export const orderActionsClasses = tw('flex gap-0.5 border-t border-line px-3 py-2');
-
-/** `.csp-order-actions .csp-btn:last-child`: the delete button pushed to the right. */
-export const orderLastActionClasses = tw('ml-auto');
+export const orderActionsClasses = tw('flex flex-wrap gap-0.5 border-t border-line px-3 py-2');
 
 /* ───────────── DataTable ───────────── */
 
@@ -172,3 +166,22 @@ export const chartTipClasses = tw(
 
 /** `.csp-chart-net`: the net line in `--ink-muted`. */
 export const chartNetClasses = tw('text-ink-muted');
+
+/* ───────────── ActorName and RecordMeta (SEC-08) ───────────── */
+
+/** The deleted-actor suffix: muted, so the name stays the loud part (D-11, OQ-8). */
+export const actorFormerClasses = tw('text-ink-muted');
+
+/** RecordMeta `dl`: terms and values in two columns (max-content, then the rest), 8px by 16px apart; stacked on phones. */
+export const recordMetaClasses = tw('grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 pg-phone:grid-cols-1');
+
+/** One term and its value: they share the list's two columns; stacked on phones, 4px apart. */
+export const recordMetaRowClasses = tw(
+  'col-span-2 grid grid-cols-subgrid pg-phone:col-span-1 pg-phone:grid-cols-1 pg-phone:gap-y-1',
+);
+
+/** `dt`: the Label look (14px, 600) in `--ink-muted`. */
+export const recordMetaTermClasses = tw('text-[14px] leading-5 font-semibold text-ink-muted');
+
+/** `dd`: the Small look (14px, 400) in `--ink`; a long name wraps anywhere instead of widening the panel. */
+export const recordMetaValueClasses = tw('text-[14px] leading-5 wrap-anywhere text-ink');

@@ -25,6 +25,18 @@ public enum AuthEmailKind
 
     /// <summary>The invitation to set a first password (D-29).</summary>
     Invite = 7,
+
+    /// <summary>The link to the new address that confirms an email change (PROF-02, D-25).</summary>
+    EmailChangeConfirm = 8,
+
+    /// <summary>The notice to the current address that an email change was requested (C-9).</summary>
+    EmailChangeNotice = 9,
+
+    /// <summary>The notice to the old address that a Manager changed the sign-in email at once (D-45).</summary>
+    ManagerEmailChanged = 10,
+
+    /// <summary>The reset link a Manager sent to a colleague (USER-07).</summary>
+    ManagerResetLink = 11,
 }
 
 /// <summary>What was guessed wrong often enough to lock the account.</summary>
@@ -49,6 +61,10 @@ public abstract record AuthEmail(string To)
     /// <returns>The code or link expiry, or one day after <paramref name="createdAt"/> for notices.</returns>
     public abstract DateTimeOffset NotAfter(DateTimeOffset createdAt);
 
+    /// <summary>Prints the type name only, so a log or debugger never shows an address, a name, a code or a token.</summary>
+    /// <returns>The type name.</returns>
+    public sealed override string ToString() => GetType().Name;
+
     /// <summary>One day, the useful life of an email that carries no code or link.</summary>
     protected static DateTimeOffset NoticeNotAfter(DateTimeOffset createdAt) => createdAt.AddDays(1);
 }
@@ -67,10 +83,6 @@ public sealed record SignInCodeEmail(string To, string Code, DateTimeOffset Expi
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
-
-    /// <summary>Prints the kind only, so a log or debugger never shows the code.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(SignInCodeEmail);
 }
 
 /// <summary>The account-locked email.</summary>
@@ -101,17 +113,14 @@ public sealed record PasswordResetEmail(string To, string Token, DateTimeOffset 
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
-
-    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(PasswordResetEmail);
 }
 
 /// <summary>The password-changed notice.</summary>
 /// <param name="To">The recipient address.</param>
 /// <param name="ChangedAt">When the password changed.</param>
 /// <param name="SessionsEnded">True when every signed-in device was signed out (the reset path).</param>
-public sealed record PasswordChangedEmail(string To, DateTimeOffset ChangedAt, bool SessionsEnded) : AuthEmail(To)
+/// <param name="OtherDevicesOnly">True when only the other devices were signed out (a change from My Profile, PROF-03).</param>
+public sealed record PasswordChangedEmail(string To, DateTimeOffset ChangedAt, bool SessionsEnded, bool OtherDevicesOnly = false) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.PasswordChanged;
@@ -149,15 +158,72 @@ public sealed record DeactivatedNoticeEmail(string To) : AuthEmail(To)
 /// <param name="Token">The invite token, placed in the link fragment.</param>
 /// <param name="ExpiresAt">When the link stops working.</param>
 /// <param name="RequestedAt">When the invitation was made.</param>
-public sealed record InviteEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt) : AuthEmail(To)
+/// <param name="InvitedBy">The Manager who set up the account, named in the first line; null for the bootstrap invite.</param>
+public sealed record InviteEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string? InvitedBy = null) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.Invite;
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
+}
 
-    /// <summary>Prints the kind only, so a log or debugger never shows the token.</summary>
-    /// <returns>The type name.</returns>
-    public override string ToString() => nameof(InviteEmail);
+/// <summary>The link to the new address that confirms an email change (PROF-02, D-25).</summary>
+/// <param name="To">The new address.</param>
+/// <param name="Token">The confirmation token, placed in the link fragment.</param>
+/// <param name="ExpiresAt">When the link stops working.</param>
+/// <param name="RequestedAt">When the change was requested.</param>
+/// <param name="OldEmail">The current sign-in email, named in the text.</param>
+/// <param name="ChangedBy">The Manager who started the change (C-9); null when the person asked for it themselves.</param>
+public sealed record EmailChangeConfirmEmail(
+    string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string OldEmail, string? ChangedBy = null) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.EmailChangeConfirm;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
+}
+
+/// <summary>The notice to the current address that an email change was requested (C-9).</summary>
+/// <param name="To">The current sign-in email.</param>
+/// <param name="NewEmail">The address the change would move to.</param>
+/// <param name="RequestedAt">When the change was requested.</param>
+/// <param name="Device">The coarse browser and device label.</param>
+public sealed record EmailChangeNoticeEmail(string To, string NewEmail, DateTimeOffset RequestedAt, DeviceDescription Device) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.EmailChangeNotice;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
+}
+
+/// <summary>The notice to the old address that a Manager changed the sign-in email at once and signed the person out (D-45).</summary>
+/// <param name="To">The old sign-in email.</param>
+/// <param name="NewEmail">The address that now signs in.</param>
+/// <param name="ChangedBy">The Manager's display name.</param>
+/// <param name="ChangedAt">When the email changed.</param>
+public sealed record ManagerEmailChangedEmail(string To, string NewEmail, string ChangedBy, DateTimeOffset ChangedAt) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.ManagerEmailChanged;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
+}
+
+/// <summary>The password reset link a Manager sent to a colleague, who opens it themself (USER-07).</summary>
+/// <param name="To">The recipient address.</param>
+/// <param name="Token">The reset token, placed in the link fragment.</param>
+/// <param name="ExpiresAt">When the link stops working.</param>
+/// <param name="RequestedAt">When the Manager sent it.</param>
+/// <param name="ManagerName">The Manager's display name, named in the text.</param>
+public sealed record ManagerResetLinkEmail(string To, string Token, DateTimeOffset ExpiresAt, DateTimeOffset RequestedAt, string ManagerName) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.ManagerResetLink;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
 }

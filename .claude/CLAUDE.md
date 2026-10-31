@@ -2,7 +2,7 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-16T10:56:00-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-20T06:02:41-05:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
@@ -12,7 +12,7 @@
 
 **Core Value:** staff record every order and always see correct, **server-computed** totals and balances, and migrated data has **zero loss**. If everything else slips, the order math, staff-account security and migrated-data integrity must still hold.
 
-Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, data) · `CSPS-UI-SPEC.md` (visuals, copy, markup) · `.planning/design/` (local-only Claude Design HTML the UI spec came from; git-ignored, never commit; a visual reference for look and feel and `// SPEC-GAP` items, and the UI spec wins where they disagree unless the owner rules otherwise).
+Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, data) · `docs/CSPS-UI-SPEC.md` (visuals, copy, markup) · `.planning/design/` (local-only Claude Design HTML the UI spec came from; git-ignored, never commit; a visual reference for look and feel and `// SPEC-GAP` items, and the UI spec wins where they disagree unless the owner rules otherwise).
 
 ### Constraints (binding)
 
@@ -88,7 +88,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - Actions pinned by commit SHA. Dependabot `cooldown` 14 days.
 - Free security tooling only: NuGetAudit as error, `npm audit`, nuget-license / license-checker gates, gitleaks. **No paid GitHub Code Security.**
 - **SmarterASP.NET Basic plan:** 1 DB, 256 MB app pool, no host scheduler, **no staging**. Production deploys need manual approval. Cron jobs run from GitHub Actions calling a secret-protected endpoint.
-- In-process IIS, framework-dependent publish (self-contained `win-x64` if the host runtime lags).
+- In-process IIS, self-contained `win-x64` publish (owner, 2026-10-16): the host runtime is 10.0.7, below the required 10.0.13, so the package carries its own runtime; .NET patches arrive through SDK updates and a redeploy, not the host.
 <!-- GSD:stack-end -->
 
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
@@ -124,6 +124,7 @@ Owner conventions set 2026-10-14 (quick 261014-ctx). A short copy sits in the ro
     dev/, test/            outside the owner tree (D-20 dev-only code, test harness)
   ```
 
+- **No SQL triggers (OR-7, owner 2026-10-17):** no migration, script or tool creates a database trigger. `TR_AuditLog_AppendOnly` (D-32, the audit log's append-only guarantee) is the only allowed trigger, and a schema test that lists `sys.triggers` fails on any other. Guards such as the last-Manager check are done in application code (a locking or serializable transaction) or with constraints.
 - **Placement:**
   - `components` is shared low-level UI, imported from the barrel `@/components`.
   - `ui` is the theme: `app.css` is the one stylesheet entry and only `App.tsx` imports it; `base.css`; `tw.ts` (the class-string marker).

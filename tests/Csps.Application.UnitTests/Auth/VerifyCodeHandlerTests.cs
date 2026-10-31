@@ -85,6 +85,68 @@ public sealed class VerifyCodeHandlerTests
     }
 
     [Fact]
+    public async Task ACorrectCodeOnAnUnconfirmedAccountConfirmsTheAddressOnceBeforeTheHandOver()
+    {
+        var harness = new Harness(mustChange: PasswordChangeReason.Temporary, confirmed: false);
+        TwoFactorChallengeStatus? statusAtConfirm = null;
+        var savesAtConfirm = -1;
+        harness.Accounts.When(accounts => accounts.ConfirmEmailAsync(UserId, Arg.Any<CancellationToken>()))
+            .Do(_ =>
+            {
+                statusAtConfirm = harness.Challenge.Status;
+                savesAtConfirm = harness.Unit.Saves;
+            });
+
+        var result = await harness.RunAsync(RightCode);
+
+        result.Value.Next.ShouldBe(VerifyNext.SetNewPassword);
+        await harness.Accounts.Received(1).ConfirmEmailAsync(UserId, Arg.Any<CancellationToken>());
+        statusAtConfirm.ShouldBe(TwoFactorChallengeStatus.Pending);
+        savesAtConfirm.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ACorrectCodeOnAnUnconfirmedAccountWithoutAMustChangeStillStartsTheSession()
+    {
+        var harness = new Harness(confirmed: false);
+
+        var result = await harness.RunAsync(RightCode);
+
+        result.Value.Next.ShouldBe(VerifyNext.SignedIn);
+        await harness.Accounts.Received(1).ConfirmEmailAsync(UserId, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(PasswordChangeReason.Temporary)]
+    public async Task ACorrectCodeOnAConfirmedAccountNeverConfirmsAgain(PasswordChangeReason? mustChange)
+    {
+        var harness = new Harness(mustChange: mustChange);
+
+        await harness.RunAsync(RightCode);
+
+        await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("wrong")]
+    [InlineData("used-up")]
+    [InlineData("expired")]
+    public async Task AWrongUsedUpOrExpiredCodeNeverConfirmsTheAddress(string failure)
+    {
+        var harness = new Harness(mustChange: PasswordChangeReason.Temporary, confirmed: false, failuresAlready: failure == "used-up" ? 5 : 0);
+        if (failure == "expired")
+        {
+            harness.Time.Advance(TimeSpan.FromMinutes(16));
+        }
+
+        var result = await harness.RunAsync(failure == "wrong" ? WrongCode : RightCode);
+
+        result.IsFailure.ShouldBeTrue();
+        await harness.Accounts.DidNotReceive().ConfirmEmailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task AWrongCodeIsA400OnTheCodeFieldAndTheAttemptIsCommittedFirst()
     {
         var harness = new Harness();
@@ -310,7 +372,8 @@ public sealed class VerifyCodeHandlerTests
             PasswordChangeReason? mustChange = null,
             int failuresAlready = 0,
             int failuresInWindow = 0,
-            string account = "active")
+            string account = "active",
+            bool confirmed = true)
         {
             Time = new FakeTimeProvider(Start);
             var settings = new AuthSettings();
@@ -336,7 +399,7 @@ public sealed class VerifyCodeHandlerTests
                 "missing" => null,
                 "deactivated" => Account(mustChange, isActive: false),
                 "locked" => Account(mustChange, lockoutEnd: Start.AddMinutes(10)),
-                _ => Account(mustChange),
+                _ => Account(mustChange, confirmed: confirmed),
             };
             Accounts.FindByIdAsync(UserId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(user));
 
@@ -380,7 +443,7 @@ public sealed class VerifyCodeHandlerTests
         public Task<Result<VerifyCodeOutcome>> RunAsync(string? code) =>
             Handler.HandleAsync(Ticket, new VerifyCodeRequest(code), TestContext.Current.CancellationToken);
 
-        private static UserAccount Account(PasswordChangeReason? mustChange, bool isActive = true, DateTimeOffset? lockoutEnd = null) =>
-            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, true, true, mustChange, false, lockoutEnd);
+        private static UserAccount Account(PasswordChangeReason? mustChange, bool isActive = true, DateTimeOffset? lockoutEnd = null, bool confirmed = true) =>
+            new(UserId, Email, "Paolo", "Reyes", "Manager", isActive, confirmed, true, mustChange, false, lockoutEnd);
     }
 }

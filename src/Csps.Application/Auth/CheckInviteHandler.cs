@@ -1,5 +1,6 @@
 using Csps.Application.Ports;
 using Csps.Domain.Common;
+using Csps.Domain.Identity;
 
 namespace Csps.Application.Auth;
 
@@ -17,7 +18,7 @@ public sealed class CheckInviteHandler(IAccountTokens tokens, IUserAccounts acco
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var invite = await InviteLinkLookup.FindAsync(request.Token, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
+        var invite = await AccountLinkLookup.FindAsync(request.Token, AccountTokenPurpose.Invitation, time.GetUtcNow(), tokens, accounts, cancellationToken).ConfigureAwait(false);
         return invite is null
             ? Result.Failure<InviteLinkResponse>(AuthErrors.InviteInvalid)
             : Result.Success(new InviteLinkResponse(invite.Account.Email, invite.Account.FirstName, invite.Account.LastName));

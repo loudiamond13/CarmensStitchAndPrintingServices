@@ -6,6 +6,7 @@ using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Identity;
+using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
@@ -92,6 +93,40 @@ public sealed class TestingFixturesEndpointTests(CspsDatabase database) : IClass
         account.EmailConfirmed.ShouldBeTrue();
         account.HasPassword.ShouldBeTrue();
         account.MustChangePassword.ShouldBe(reason);
+    }
+
+    [Fact]
+    public async Task ManagerLockedStateCreatesAnAccountWithTheLockSetThatCannotSignIn()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+
+        using var response = await client.PostAsJsonAsync(
+            new Uri(Route, UriKind.Relative), new { role = "Manager", state = "manager-locked" }, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var created = await ReadCreatedAsync(response);
+        var account = await FindAsync(factory, created.UserId);
+        account.IsManagerLocked.ShouldBeTrue();
+        account.IsActive.ShouldBeTrue();
+        account.IsDeleted.ShouldBeFalse();
+        using var signIn = await AuthClient.SignInAsync(client, created.Email, created.Password);
+        signIn.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        signIn.Headers.Contains("Set-Cookie").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AnUnknownStateIsRejectedWithTheAllowedStatesListed()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            new Uri(Route, UriKind.Relative), new { role = "Admin", state = "locked" }, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("errors").GetProperty("state")[0].GetString().ShouldNotBeNull().ShouldContain("manager-locked");
     }
 
     [Fact]

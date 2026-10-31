@@ -37,6 +37,9 @@ internal sealed class RecordingOutbox : IEmailOutbox
         Counts.Add((kind, toAddress, since));
         return Task.FromResult(Recent.GetValueOrDefault(kind));
     }
+
+    public Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken) =>
+        Task.FromResult(0);
 }
 
 /// <summary>An audit trail that keeps what was recorded.</summary>
@@ -58,8 +61,12 @@ internal sealed class RecordingAudit : IAuditTrail
 internal sealed class FakeUnitOfWork : IUnitOfWork
 {
     private int _failuresLeft;
+    private Exception? _saveFailure;
 
     public int Saves { get; private set; }
+
+    /// <summary>True while a transaction's work is running.</summary>
+    public bool InTransaction { get; private set; }
 
     /// <summary>How many transactions ended by returning.</summary>
     public int Commits { get; private set; }
@@ -73,9 +80,18 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
     /// <summary>Makes every save fail with that conflict.</summary>
     public void FailEverySaveWithConflict() => _failuresLeft = int.MaxValue;
 
+    /// <summary>Makes every save throw this error, such as the typed exception a constraint violation becomes.</summary>
+    /// <param name="failure">The error to throw.</param>
+    public void ThrowOnSave(Exception failure) => _saveFailure = failure;
+
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
         Saves++;
+        if (_saveFailure is not null)
+        {
+            throw _saveFailure;
+        }
+
         if (_failuresLeft > 0)
         {
             _failuresLeft--;
@@ -87,6 +103,7 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
 
     public async Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken)
     {
+        InTransaction = true;
         try
         {
             var result = await work(cancellationToken);
@@ -97,6 +114,10 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
         {
             Rollbacks++;
             throw;
+        }
+        finally
+        {
+            InTransaction = false;
         }
     }
 }

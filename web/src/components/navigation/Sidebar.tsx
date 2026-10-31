@@ -16,7 +16,7 @@
 import clsx from 'clsx';
 import { useId, useState } from 'react';
 import type { Role } from '@/utils/csps';
-import { UiLink } from '@/components/actions';
+import { targetAreaClasses, UiLink } from '@/components/actions';
 import { Icon, Logo, type IconName } from '@/components/brand';
 import { Avatar } from '@/components/status';
 import {
@@ -29,6 +29,7 @@ import {
   sidebarTopLayoutClasses,
   sidebarUserClasses,
   sidebarUserNameClasses,
+  sidebarUserTextClasses,
   sidebarUserRoleClasses,
   sidebarWidthClasses,
 } from './navigation.recipe';
@@ -40,7 +41,9 @@ import {
   navLabelRailClasses,
 } from './navItem.recipe';
 
-export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'users' | 'profile';
+// SPEC-DEVIATION: OQ-2 (contract default) 'audit' joins the sections for the Manager-only Audit Log item (USER-08); OQ-3 'settings' joins
+// them for the Manager-only Settings item (D-14).
+export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'users' | 'audit' | 'settings' | 'profile';
 
 /** One admin section: its id, label, 20px icon, path, and whether only a manager sees it. */
 export interface AdminNavItem {
@@ -60,6 +63,30 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
   { id: 'profile', label: 'My Profile', icon: 'user-round', to: '/admin/profile' },
 ];
 
+/**
+ * SPEC-DEVIATION: OQ-2 the Audit Log item (USER-08): Manager only, after Users. It is not in ADMIN_NAV (App. D.3's five
+ * items stay as they are); the Sidebar adds it with `withAuditLog`.
+ */
+export const AUDIT_NAV_ITEM: AdminNavItem = {
+  id: 'audit',
+  label: 'Audit Log',
+  icon: 'history',
+  to: '/admin/audit-log',
+  manager: true,
+};
+
+/**
+ * SPEC-DEVIATION: OQ-3 (contract default A) the Settings item (D-14): Manager only, after the Audit Log, in the sidebar and the phone
+ * drawer and not in the tab bar. Like the Audit Log it is not in ADMIN_NAV; the Sidebar adds it with `withAuditLog`.
+ */
+export const SETTINGS_NAV_ITEM: AdminNavItem = {
+  id: 'settings',
+  label: 'Settings',
+  icon: 'settings',
+  to: '/admin/settings',
+  manager: true,
+};
+
 export interface SidebarProps {
   /**
    * The current section (`aria-current="page"`); Dashboard when not given. SPEC-DEVIATION (A11Y-01, plan 02-34): null
@@ -76,6 +103,8 @@ export interface SidebarProps {
   onLogout?: (() => void) | undefined;
   /** Shows the user chip (avatar, name, role) above Logout. */
   user?: { name: string } | undefined;
+  /** Adds the Audit Log and Settings items after Users (a manager still needs the role to see them). The real admin shell sets it. */
+  withAuditLog?: boolean | undefined;
 }
 
 export function Sidebar({
@@ -86,12 +115,16 @@ export function Sidebar({
   onNavigate,
   onLogout,
   user,
+  withAuditLog = false,
 }: SidebarProps) {
   const [collapsedState, setCollapsedState] = useState(defaultCollapsed);
   const collapsed = collapsedProp ?? collapsedState;
   const layout = collapsed ? 'collapsed' : 'expanded';
   const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
   const idBase = useId();
+  const items = withAuditLog
+    ? ADMIN_NAV.flatMap((item) => (item.id === 'users' ? [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM] : [item]))
+    : ADMIN_NAV;
   return (
     <aside className={clsx(sidebarClasses, sidebarWidthClasses[layout])}>
       <div className={clsx(sidebarTopClasses, sidebarTopLayoutClasses[layout])}>
@@ -102,7 +135,7 @@ export function Sidebar({
         )}
         <button
           type="button"
-          className={sidebarToggleClasses}
+          className={clsx(sidebarToggleClasses, targetAreaClasses)}
           onClick={() => {
             setCollapsedState(!collapsed);
           }}
@@ -115,38 +148,42 @@ export function Sidebar({
         </button>
       </div>
       <nav className={sidebarNavClasses} aria-label="Admin">
-        {ADMIN_NAV.filter((item) => item.manager !== true || role === 'manager').map((item) => (
-          <UiLink
-            key={item.id}
-            to={item.to}
-            onClick={() => onNavigate?.(item.id)}
-            className={navItemClasses({ collapsed })}
-            aria-current={active === item.id ? 'page' : undefined}
-            aria-labelledby={
-              item.manager === true && !collapsed && active !== item.id
-                ? `${idBase}-${item.id} ${idBase}-${item.id}-tag`
-                : `${idBase}-${item.id}`
-            }
-            title={collapsed ? item.label : undefined}
-          >
-            <Icon name={item.icon} size={20} className={navIconClasses} />
-            <span id={`${idBase}-${item.id}`} className={labelClasses}>
-              {item.label}
-            </span>
-            {item.manager === true && !collapsed && (
-              <span id={`${idBase}-${item.id}-tag`} className={navTagClasses}>
-                Manager
+        {items
+          .filter((item) => item.manager !== true || role === 'manager')
+          .map((item) => (
+            <UiLink
+              key={item.id}
+              to={item.to}
+              onClick={() => onNavigate?.(item.id)}
+              className={navItemClasses({ collapsed })}
+              aria-current={active === item.id ? 'page' : undefined}
+              aria-labelledby={
+                item.manager === true && !collapsed && active !== item.id
+                  ? `${idBase}-${item.id} ${idBase}-${item.id}-tag`
+                  : `${idBase}-${item.id}`
+              }
+              title={collapsed ? item.label : undefined}
+            >
+              <Icon name={item.icon} size={20} className={navIconClasses} />
+              <span id={`${idBase}-${item.id}`} className={labelClasses}>
+                {item.label}
               </span>
-            )}
-          </UiLink>
-        ))}
+              {item.manager === true && !collapsed && (
+                <span id={`${idBase}-${item.id}-tag`} className={navTagClasses}>
+                  Manager
+                </span>
+              )}
+            </UiLink>
+          ))}
       </nav>
       <div className={sidebarFootClasses}>
         {user !== undefined && !collapsed && (
           <div className={sidebarUserClasses}>
             <Avatar name={user.name} size={32} context="sidebar" />
-            <div>
-              <strong className={sidebarUserNameClasses}>{user.name}</strong>
+            <div className={sidebarUserTextClasses}>
+              <strong className={sidebarUserNameClasses} title={user.name}>
+                {user.name}
+              </strong>
               <span className={sidebarUserRoleClasses}>{role === 'manager' ? 'Manager' : 'Admin'}</span>
             </div>
           </div>

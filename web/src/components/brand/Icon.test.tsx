@@ -1,5 +1,20 @@
 import { render, screen } from '@testing-library/react';
-import { Funnel, Minus, Trash } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  Copy,
+  Eraser,
+  Funnel,
+  History,
+  KeyRound,
+  LockOpen,
+  Minus,
+  RotateCcw,
+  Settings,
+  Trash,
+  UserCheck,
+  UserX,
+} from 'lucide-react';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { Icon, type IconName } from '@/components/brand';
@@ -66,8 +81,22 @@ const SPEC_ICON_NAMES = [
   'zap',
 ] as const;
 
-// Not in App. D.5: the owner's empty-value icon (OR-4, 2026-10-14).
-const OWNER_ICON_NAMES = ['minus'] as const;
+// Not in App. D.5: the owner's empty-value icon (OR-4, 2026-10-14), the six Phase 5 icons (UI-SPEC OQ-9), then the five Phase 6
+// icons (UI-SPEC OQ-12).
+const OWNER_ICON_NAMES = [
+  'minus',
+  'copy',
+  'lock-open',
+  'key-round',
+  'user-x',
+  'user-check',
+  'history',
+  'settings',
+  'rotate-ccw',
+  'archive',
+  'archive-restore',
+  'eraser',
+] as const;
 
 /** The one svg an Icon renders. */
 function onlySvg(container: HTMLElement): SVGSVGElement {
@@ -171,6 +200,32 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
 
   it('draws minus with lucide’s Minus (OR-4)', () => {
     expect(ICONS.minus).toBe(Minus);
+  });
+
+  it.each([
+    ['copy', Copy],
+    ['lock-open', LockOpen],
+    ['key-round', KeyRound],
+    ['user-x', UserX],
+    ['user-check', UserCheck],
+    ['history', History],
+  ] as const)('draws %s with the lucide component of the same name (Phase 5)', (name, component) => {
+    expect(ICONS[name]).toBe(component);
+  });
+
+  it.each([
+    ['settings', Settings],
+    ['rotate-ccw', RotateCcw],
+    ['archive', Archive],
+    ['archive-restore', ArchiveRestore],
+    ['eraser', Eraser],
+  ] as const)('draws %s with the lucide component of the same name (Phase 6, OQ-12)', (name, component) => {
+    expect(ICONS[name]).toBe(component);
+  });
+
+  it('renders the History icon as a named image', () => {
+    render(<Icon name="history" label="History" />);
+    expect(screen.getByRole('img', { name: 'History' })).toBeInTheDocument();
   });
 
   it('draws trash-2 with lucide’s Trash and filter with lucide’s Funnel (D-32)', () => {

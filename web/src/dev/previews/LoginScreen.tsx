@@ -1,5 +1,5 @@
 // Dev-only scenario wrapper (plan 04-32; never shipped, D-20): the S1 Sign in page as AuthLayout draws it, with the
-// real AuthFrame and SignInForm filled with the App. E.5 values for its `state` prop: the e-mail paolo.garcia@gmail.com;
+// real AuthFrame and SignInForm filled with the App. E.5 values for its `state` prop: the e-mail paolo.garcia@example.com;
 // the password empty (default) or "tahi2026" (error, loading); the generic banner (error); the pending button
 // (loading). "Keep me signed in" stays unticked (D-03). The skip link and the toast layer have no counterpart in
 // App. E.5 and are left out. The frame is fixed at the mockup's 960px (production uses the viewport height). The
@@ -23,7 +23,7 @@ function noop(): undefined {
 export function LoginScreen({ state = 'default', fit = 'frame' }: LoginScreenProps) {
   const { control } = useForm<SignInValues>({
     defaultValues: {
-      email: 'paolo.garcia@gmail.com',
+      email: 'paolo.garcia@example.com',
       password: state === 'default' ? '' : 'tahi2026',
       keepSignedIn: false,
     },

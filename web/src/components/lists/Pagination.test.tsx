@@ -43,6 +43,12 @@ describe('Pagination (SPEC-GAP, WEB-06, WEB-10)', () => {
     expect(tokens(numbers[0]?.className)).toEqual(['font-semibold', 'tabular-nums', 'text-ink']);
   });
 
+  it('shows large page numbers with a thousands separator', () => {
+    renderPagination({ page: 1234, pageCount: 1687 });
+    const nav = screen.getByRole('navigation', { name: LISTS_COPY.pagination.label });
+    expect(nav).toHaveTextContent('Page 1,234 of 1,687');
+  });
+
   it.each([0, 1])('is not rendered for %i page(s)', (pageCount) => {
     const { container } = render(<Pagination page={1} pageCount={pageCount} onPageChange={() => undefined} />);
     expect(container).toBeEmptyDOMElement();

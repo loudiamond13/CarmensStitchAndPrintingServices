@@ -36,6 +36,8 @@ export const LISTS_COPY = {
   /** The result bar: "Showing **12** orders · sorted by due date" (App. E.7). */
   showing: 'Showing',
   sortedBy: (sort: string): string => ` · sorted by ${sort}`,
+  /** A fixed order phrase: "Showing **12** entries · newest first". */
+  orderNote: (note: string): string => ` · ${note}`,
   /** The filter chip: "Status: Active + recent". */
   chip: (filter: string, value: string): string => `${filter}: ${value}`,
   /** The chip's clear button: "Clear status filter". */

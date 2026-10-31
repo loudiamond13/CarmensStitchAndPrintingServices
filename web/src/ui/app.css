@@ -20,6 +20,11 @@
 @custom-variant vp-lt-md (@media (max-width: 767px));
 @custom-variant vp-xs (@media (max-width: 420px));
 @custom-variant no-hover (@media (hover: none));
+/* The order form's Items card is a container named items (plan 08-13): its rows follow the card's own width, which the page width
+   cannot tell (the card sits beside a 320px aside). it-lt-lg is the exact complement of it-lg. */
+@custom-variant it-md (@container items (min-width: 560px));
+@custom-variant it-lg (@container items (min-width: 900px));
+@custom-variant it-lt-lg (@container items (width < 900px));
 
 @theme {
   /* No Tailwind default palette, radius, shadow, size, font or weight (spec §0 rule 1). */
@@ -45,6 +50,14 @@
   --animate-csp-fade: csp-fade 0.15s ease;
   --animate-csp-rise: csp-rise 0.2s ease;
   --animate-csp-slide: csp-slide 0.2s ease;
+  /* D-38, D-39: exit and phone-drawer motion, 150 to 250 ms, transform and opacity only. */
+  --animate-csp-fade-out: csp-fade-out 0.15s ease forwards;
+  --animate-csp-rise-out: csp-rise-out 0.15s ease forwards;
+  --animate-csp-slide-out: csp-slide-out 0.2s ease forwards;
+  --animate-csp-drawer-in: csp-drawer-in 0.2s ease;
+  --animate-csp-drawer-out: csp-drawer-out 0.2s ease forwards;
+  --animate-csp-pop-in: csp-pop-in 0.15s ease;
+  --animate-csp-pop-out: csp-pop-out 0.15s ease forwards;
   --animate-csp-shimmer: csp-shimmer 1.4s ease-in-out infinite;
 
   /* Copied from App. B unchanged. */
@@ -68,6 +81,45 @@
     from {
       transform: translateX(24px);
       opacity: 0;
+    }
+  }
+  @keyframes csp-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes csp-rise-out {
+    to {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+  @keyframes csp-slide-out {
+    to {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+  @keyframes csp-drawer-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes csp-drawer-out {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes csp-pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @keyframes csp-pop-out {
+    to {
+      opacity: 0;
+      transform: scale(0.96);
     }
   }
   @keyframes csp-shimmer {

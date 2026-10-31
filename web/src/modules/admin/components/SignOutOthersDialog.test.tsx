@@ -194,3 +194,110 @@ describe('SignOutOthersDialog', () => {
     await expectNoAxeViolations(view.container);
   });
 });
+
+// D-39: the dialog may stay mounted with `open` false so its close animation can play; each new open starts clean.
+describe('SignOutOthersDialog open prop (D-39)', () => {
+  function Mounted({ open }: { open?: boolean }) {
+    return (
+      <ToastProvider>
+        {open === undefined ? (
+          <SignOutOthersDialog onClose={vi.fn()} />
+        ) : (
+          <SignOutOthersDialog open={open} onClose={vi.fn()} />
+        )}
+      </ToastProvider>
+    );
+  }
+
+  it('is open when open is omitted and renders nothing when it is false', () => {
+    const { rerender } = render(<Mounted />);
+    expect(screen.getByRole('dialog', { name: 'Sign out of other devices?' })).toBeInTheDocument();
+
+    rerender(<Mounted open={false} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  /** Stays mounted and toggles `open`, like AdminLayout, so one submission lives across uses. */
+  function Layout({ onSignedOut, onClose }: { onSignedOut: () => void; onClose: () => void }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <ToastProvider>
+        <Button
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          Open
+        </Button>
+        <SignOutOthersDialog
+          open={open}
+          onClose={() => {
+            onClose();
+            setOpen(false);
+          }}
+          onSignedOut={onSignedOut}
+        />
+      </ToastProvider>
+    );
+  }
+
+  it('signs out the others on every use of one mounted dialog', async () => {
+    const probe = answerSignOutOthers();
+    const onSignedOut = vi.fn();
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<Layout onSignedOut={onSignedOut} onClose={onClose} />);
+
+    for (let use = 1; use <= 2; use += 1) {
+      await user.click(screen.getByRole('button', { name: 'Open' }));
+      const dialog = screen.getByRole('dialog', { name: 'Sign out of other devices?' });
+      await user.click(within(dialog).getByRole('button', { name: 'Sign Out Other Devices' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(probe.calls).toBe(use);
+    }
+
+    expect(screen.getAllByText('Signed out of other devices')).toHaveLength(2);
+    expect(onSignedOut).toHaveBeenCalledTimes(2);
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends one request for two fast clicks on the confirm button', async () => {
+    const gate = deferred();
+    let calls = 0;
+    server.use(
+      http.post('*/api/v1/auth/sign-out-others', async () => {
+        calls += 1;
+        await gate.promise;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Layout onSignedOut={vi.fn()} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Open' }));
+    const dialog = screen.getByRole('dialog', { name: 'Sign out of other devices?' });
+    await user.dblClick(within(dialog).getByRole('button', { name: 'Sign Out Other Devices' }));
+    gate.resolve();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    expect(calls).toBe(1);
+  });
+
+  it('opens again without the failure line', async () => {
+    answerSignOutOthers(500);
+    const user = userEvent.setup();
+    const { rerender } = render(<Mounted open />);
+    await user.click(screen.getByRole('button', { name: 'Sign Out Other Devices' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Reference: tr-9');
+
+    rerender(<Mounted open={false} />);
+    rerender(<Mounted open />);
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign Out Other Devices' })).toBeEnabled();
+  });
+});

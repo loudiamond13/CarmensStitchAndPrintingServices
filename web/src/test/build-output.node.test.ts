@@ -12,6 +12,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 const webDirectory = fileURLToPath(new URL('../../', import.meta.url));
 const webRoot = fileURLToPath(new URL('../../../src/Csps.Server/wwwroot/', import.meta.url));
 const assetsDir = join(webRoot, 'assets');
+/** The numbers the production build wrote (git-ignored; the budget plugin writes it at the end of every build). */
+const budgetReport = fileURLToPath(new URL('../../../artifacts/budget/budget.production.json', import.meta.url));
 
 const readText = (path: string): string => (existsSync(path) ? readFileSync(path, 'utf8') : '');
 const list = (dir: string): string[] => (existsSync(dir) && statSync(dir).isDirectory() ? readdirSync(dir) : []);
@@ -52,7 +54,7 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   });
 
   it('loads exactly one hashed module script under /assets', () => {
-    const scripts = indexHtml().match(/<script\b[^>]*>/g) ?? [];
+    const scripts = indexHtml().match(/<script\b[^>]*>/gi) ?? [];
     expect(scripts).toHaveLength(1);
     expect(scripts[0]).toMatch(/type="module"/);
     expect(scripts[0]).toMatch(/src="\/assets\/[\w.-]+-[\w-]{8,}\.js"/);
@@ -61,7 +63,9 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   it('has no inline script body, no style element and no style attribute (strict CSP)', () => {
     const html = indexHtml();
     expect(html).not.toBe('');
-    const scriptBodies = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]?.trim() ?? '');
+    const scriptBodies = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script[^>]*>/gi)].map(
+      (m) => m[1]?.trim() ?? '',
+    );
     expect(scriptBodies.filter((body) => body !== '')).toEqual([]);
     expect(html).not.toMatch(/<style\b/i);
     expect(html).not.toMatch(/\sstyle=/i);
@@ -114,9 +118,9 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
   });
 
   // D-20, CWE-489 (T-02-69), reversed in Phase 4 (plan 04-25): the guarded admin app and its sign-in ship, but the dev
-  // showcase and the dev-only preview pages never do, so no production asset may carry their copy.
-  it.each(['Open Component Showcase', 'Component Showcase', 'Development only'])(
-    'contains no dev or showcase module: no asset carries "%s" (D-20)',
+  // preview pages never do, so no production asset may carry their copy.
+  it.each(['Open Component Showcase', 'Development only'])(
+    'contains no dev preview module: no asset carries "%s" (D-20)',
     (copy) => {
       const files = listAll(webRoot).filter((name) => /\.(?:js|html|css)$/.test(name));
       expect(files.length).toBeGreaterThan(0);
@@ -159,6 +163,95 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     );
     expect(carriers.length).toBeGreaterThan(0);
     expect(carriers.filter((name) => initial.has(name))).toEqual([]);
+  });
+
+  // D-30..D-33 (plan 05-35): the Component Showcase ships for Managers as a lazy admin chunk of its own. Its copy lives in
+  // that chunk and the chunks only it reaches; nothing in the page the public or the admin loads first carries it.
+  /** The chunks a chunk imports statically (`from"./x.js"` and `import"./x.js"`; a dynamic `import()` is not followed). */
+  const staticImports = (name: string): string[] =>
+    [...readText(join(assetsDir, name)).matchAll(/\b(?:from|import)\s*["']\.\/([\w.-]+\.js)["']/g)].map(
+      (match) => match[1] ?? '',
+    );
+  const showcasePages = (): string[] =>
+    list(assetsDir).filter((name) => /^ComponentShowcasePage-[\w-]+\.js$/.test(name));
+  /** The showcase page chunk and everything it imports statically, each once. */
+  const showcaseChunks = (): string[] => {
+    const seen = new Set<string>();
+    const pending = showcasePages();
+    for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        pending.push(...staticImports(next));
+      }
+    }
+    return [...seen];
+  };
+
+  it('has one lazy chunk for the showcase page, and no script that `/` loads first is it (D-33)', () => {
+    expect(showcasePages()).toHaveLength(1);
+    const initial = new Set(publicInitialScripts());
+    expect(showcasePages().filter((name) => initial.has(name))).toEqual([]);
+    expect(showcaseChunks().length).toBeGreaterThan(1);
+  });
+
+  it('carries the showcase copy only in the showcase chunks (D-33)', () => {
+    const files = listAll(webRoot).filter((name) => /\.(?:js|html|css)$/.test(name));
+    const carriers = files
+      .filter((name) => readText(join(webRoot, name)).includes('Component Showcase'))
+      .map((name) => name.replace(/^assets\//, ''));
+    expect(carriers.length).toBeGreaterThan(0);
+    const allowed = new Set(showcaseChunks());
+    expect(carriers.filter((name) => !allowed.has(name))).toEqual([]);
+  });
+
+  it('ships no dev route path: no chunk names /dev/components or a quoted /dev/ path (D-33, D-41 Q3)', () => {
+    const files = list(assetsDir).filter((name) => name.endsWith('.js'));
+    expect(files.length).toBeGreaterThan(0);
+    const offenders = files.filter((name) => {
+      const code = readText(join(assetsDir, name));
+      return code.includes('/dev/components') || /["'`]\/dev\//.test(code);
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  // T-05-96: the static chunks are public even though the route is guarded, so the showcase holds demo data only.
+  const SECRET_PATTERNS: readonly [string, RegExp][] = [
+    ['JWT', /eyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]*/],
+    ['private key', /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+    ['connection string', /\b(?:Server|Data Source|Password|Pwd|User Id)\s*=/i],
+    ['cloud key', /\b(?:AKIA[0-9A-Z]{16}|sk_(?:live|test)_\w{10,}|cloudinary:\/\/\S+)/],
+    ['bearer token', /\bBearer\s+[\w-]{20,}/],
+  ];
+  /** Addresses allowed outside a reserved example domain; any other address in a showcase chunk is a finding. */
+  const DEMO_ADDRESSES = new Set([
+    'liza.mercado@example.com',
+    'maria.concepcion.villanueva.dela.cruz.j@barangay-sanroque.gov.ph',
+    'name@gmail.com',
+    'carmen@x.ph',
+    'hello@yourdomain.ph',
+  ]);
+  const RESERVED_DOMAIN = /@(?:[\w-]+\.)*(?:example\.(?:com|org|net|ph)|invalid|test|localhost)$/i;
+
+  it.each(SECRET_PATTERNS)('has no %s in the showcase chunks (T-05-96)', (_name, pattern) => {
+    const chunks = showcaseChunks();
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.filter((name) => pattern.test(readText(join(assetsDir, name))))).toEqual([]);
+  });
+
+  it('has no email address in the showcase chunks beyond the made-up demo ones (T-05-96)', () => {
+    const chunks = showcaseChunks();
+    expect(chunks.length).toBeGreaterThan(1);
+    const found = new Set(
+      chunks.flatMap((name) => readText(join(assetsDir, name)).match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []),
+    );
+    expect([...found].filter((address) => !DEMO_ADDRESSES.has(address) && !RESERVED_DOMAIN.test(address))).toEqual([]);
+  });
+
+  it('keeps the admin initial JS within 250 KB gzip with the showcase in the build (PERF-01)', () => {
+    const report: unknown = JSON.parse(readText(budgetReport) || '{}');
+    const adminJs = typeof report === 'object' && report !== null && 'adminJs' in report ? report.adminJs : null;
+    expect(typeof adminJs).toBe('number');
+    expect(adminJs).toBeLessThanOrEqual(250_000);
   });
 
   it('ships no source map and no .vite folder (D-35)', () => {

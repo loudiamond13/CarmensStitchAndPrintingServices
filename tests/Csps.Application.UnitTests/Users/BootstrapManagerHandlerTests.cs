@@ -13,7 +13,7 @@ using NSubstitute;
 namespace Csps.Application.UnitTests.Users;
 
 /// <summary>
-/// AUTH-12, D-29, T-04-77: the bootstrap creates a passwordless Manager and queues a 72-hour invite, writes both audit
+/// AUTH-12, D-29, T-04-77: the bootstrap creates a passwordless Manager and queues a 7-day invite, writes both audit
 /// entries, and refuses while an active Manager exists.
 /// </summary>
 public sealed class BootstrapManagerHandlerTests
@@ -38,13 +38,13 @@ public sealed class BootstrapManagerHandlerTests
         var token = harness.AddedToken.ShouldNotBeNull();
         token.UserId.ShouldBe(NewId);
         token.Purpose.ShouldBe(AccountTokenPurpose.Invitation);
-        token.ExpiresAt.ShouldBe(Start.AddHours(72));
+        token.ExpiresAt.ShouldBe(Start.AddDays(7));
         TokenHash.Equal(token.TokenHash, TokenHash.Compute(Secret)).ShouldBeTrue();
 
         var mail = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<InviteEmail>();
         mail.To.ShouldBe("carmen@csps.test");
         mail.Token.ShouldBe(Secret);
-        mail.ExpiresAt.ShouldBe(Start.AddHours(72));
+        mail.ExpiresAt.ShouldBe(Start.AddDays(7));
 
         harness.Audit.Entries.Select(e => e.Action).ShouldBe([AuditActions.BootstrapManagerCreated, AuditActions.UserInvited]);
         harness.Audit.Entries.ShouldAllBe(e => e.TargetType == "User" && e.TargetId == NewId.ToString("D") && !e.Independent);

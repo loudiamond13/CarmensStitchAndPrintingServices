@@ -1,3 +1,4 @@
+using System.Reflection;
 using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Domain.Identity;
@@ -14,6 +15,27 @@ public sealed class PasswordRulesTests
 
     private readonly IPwnedPasswords _pwned = Substitute.For<IPwnedPasswords>();
     private readonly ICommonPasswords _common = Substitute.For<ICommonPasswords>();
+
+    [Fact]
+    public void TheEmptyPasswordMessageIsDeclaredOnceAndMatchesThePolicy()
+    {
+        var shared = typeof(PasswordRules).GetField("NewPasswordRequired", BindingFlags.Public | BindingFlags.Static);
+
+        shared.ShouldNotBeNull();
+        shared.GetRawConstantValue().ShouldBe(PasswordPolicy.MessageFor(PasswordRuleFailure.Empty));
+    }
+
+    [Fact]
+    public void NoValidatorKeepsItsOwnCopyOfTheEmptyPasswordMessage()
+    {
+        var copies = typeof(PasswordRules).Assembly.GetTypes()
+            .Where(type => type.Name.EndsWith("RequestValidator", StringComparison.Ordinal))
+            .Where(type => type.GetField("NewPasswordRequired", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly) is not null)
+            .Select(type => type.Name)
+            .ToList();
+
+        copies.ShouldBeEmpty();
+    }
 
     [Fact]
     public async Task PolicyFailureIsReturnedFirstAndTheBreachServiceIsNeverCalled()

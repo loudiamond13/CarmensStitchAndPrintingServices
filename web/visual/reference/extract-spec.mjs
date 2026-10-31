@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** The approved spec, resolved from the repository root relative to this file (never the working directory). */
-export const SPEC_PATH = path.resolve(here, '../../../CSPS-UI-SPEC.md');
+export const SPEC_PATH = path.resolve(here, '../../../docs/CSPS-UI-SPEC.md');
 /** The generated, git-ignored frozen copy. */
 export const OUTPUT_DIR = path.resolve(here, '../.reference-src');
 /** The committed pin. */

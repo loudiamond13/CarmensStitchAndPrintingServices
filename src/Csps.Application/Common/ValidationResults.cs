@@ -6,7 +6,7 @@ namespace Csps.Application.Common;
 /// <summary>Turns FluentValidation results into the use-case <see cref="Error"/>.</summary>
 public static class ValidationResults
 {
-    /// <summary>Builds a validation error with camelCase field names and the messages in the order they were raised.</summary>
+    /// <summary>Builds a validation error with camelCase field names (every segment of a nested path) and the messages in the order they were raised.</summary>
     /// <param name="result">A failed validation result.</param>
     /// <param name="code">The machine code.</param>
     /// <param name="message">The text above the field errors.</param>
@@ -21,6 +21,7 @@ public static class ValidationResults
         return Error.Validation(code, message, fields);
     }
 
-    private static string CamelCase(string name) =>
-        name.Length == 0 ? name : string.Concat(char.ToLowerInvariant(name[0]).ToString(), name.AsSpan(1));
+    // Every dotted segment of a nested path starts with a lower case letter: Items[1].UnitPrice becomes items[1].unitPrice.
+    private static string CamelCase(string path) =>
+        string.Join('.', path.Split('.').Select(static segment => segment.Length == 0 ? segment : string.Concat(char.ToLowerInvariant(segment[0]).ToString(), segment.AsSpan(1))));
 }

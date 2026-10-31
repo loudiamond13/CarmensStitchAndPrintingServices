@@ -1,12 +1,15 @@
 // Admin keyboard journeys (A11Y-02, WEB-05, WCAG 2.1.1 / 2.1.2 / 2.4.3; plan 02-32): the phone navigation drawer and
 // the user menu work by keyboard alone on the real host, in all five projects. Every journey runs under the shared
 // guard (console, page errors, CSP, failed responses) and checks axe with the overlay open. The desktop projects run
-// the drawer journey on a 390px-wide page, where the Topbar shows its "Open navigation" button.
+// the drawer journey on a 390px-wide page, where the Topbar shows its "Open navigation" button (named "Close navigation"
+// while the drawer is open, D-34).
 //
 // WebKit's Tab stops on buttons and form fields only (Safari includes links only with "Press Tab to highlight each
 // item"), so in the webkit and iphone projects the Tab cycle in the drawer visits its buttons; the trap is the same.
 import type { Page } from '@playwright/test';
+import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { createStaff } from './testing-api.ts';
 
 /** The phone page width of the drawer journeys (the approved phone frame). */
 const PHONE = { width: 390, height: 844 } as const;
@@ -43,7 +46,7 @@ test('@keyboard @admin the navigation drawer opens from the menu button, traps T
   page,
 }) => {
   await openAdminOnPhone(page);
-  const menu = page.getByRole('button', { name: 'Open navigation' });
+  const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await expect(menu).toBeVisible();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 
@@ -57,7 +60,11 @@ test('@keyboard @admin the navigation drawer opens from the menu button, traps T
   expect(await menu.getAttribute('aria-controls')).toBe(await drawer.getAttribute('id'));
   expect((await focusState(page)).inDrawer).toBe(true);
 
-  // The 248px panel at the left edge, over the scrim, inside the viewport; body scroll is locked by the class.
+  // The 248px panel at the left edge, over the scrim, inside the viewport; body scroll is locked by the class. Measured
+  // once the slide-in (D-34) has finished.
+  await page.evaluate(
+    `Promise.all(document.querySelector('[role="dialog"][aria-label="Navigation"]').getAnimations().map((animation) => animation.finished))`,
+  );
   const box = await drawer.boundingBox();
   expect(box?.x).toBe(0);
   expect(box?.y).toBe(0);
@@ -92,9 +99,15 @@ test('@keyboard @admin the navigation drawer opens from the menu button, traps T
 
 test('@keyboard @admin following a link in the drawer goes there, closes the drawer and returns focus to the button', async ({
   page,
+  request,
+  guard,
 }) => {
+  test.setTimeout(90_000);
+  // Orders is the real signed-in page (plan 08-06): sign in first, then open the dev preview and follow its link.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
   await openAdminOnPhone(page);
-  const menu = page.getByRole('button', { name: 'Open navigation' });
+  const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await menu.focus();
   await page.keyboard.press('Enter');
   const drawer = page.getByRole('dialog', { name: 'Navigation' });
@@ -114,7 +127,7 @@ test('@keyboard @admin following a link in the drawer goes there, closes the dra
 
 test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page }) => {
   await openAdminOnPhone(page);
-  const menu = page.getByRole('button', { name: 'Open navigation' });
+  const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await menu.click();
   const drawer = page.getByRole('dialog', { name: 'Navigation' });
   await expect(drawer).toBeVisible();
@@ -217,8 +230,15 @@ test('@keyboard @admin "Sign Out Other Devices" opens a dialog over an inert pag
   expect(await page.evaluate(`document.querySelector('[inert]') === null`)).toBe(true);
 });
 
-test('@keyboard @admin "My Profile" in the user menu goes to the profile page in the app', async ({ page }) => {
-  await page.goto('/admin');
+test('@keyboard @admin "My Profile" in the user menu goes to the profile page in the app', async ({
+  page,
+  request,
+  guard,
+}) => {
+  // My Profile is a real, guarded page (plan 05-13): the person signs in first. Opening the sign-in page asks the refresh
+  // cookie for a session, and with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
   await expect(page.locator('h1')).toHaveText('Dashboard');
   await page.evaluate(`window.cspsSameDocument = true`);
   const button = page.locator('button[aria-haspopup="menu"]');
@@ -228,7 +248,8 @@ test('@keyboard @admin "My Profile" in the user menu goes to the profile page in
   await expect(page.getByRole('menuitem', { name: 'My Profile' })).toBeFocused();
   await page.keyboard.press('Enter');
 
-  await expect(page.locator('h1')).toHaveText('My Profile');
+  await expect(page.getByRole('tab', { name: 'Details' })).toBeVisible();
+  await expect(page).toHaveTitle('My Profile · CSPS Admin');
   await expect(page).toHaveURL(/\/admin\/profile$/);
   expect(await page.evaluate(`window.cspsSameDocument === true`), 'the router handled the link').toBe(true);
   await expect(page.getByRole('menu')).toHaveCount(0);

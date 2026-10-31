@@ -130,6 +130,11 @@ describe('ImageUploader drop zone (App. D.3)', () => {
     expect(screen.queryByRole('list')).toBeNull();
   });
 
+  it('shows a large max with a thousands separator in the hint', () => {
+    render(<ImageUploader max={1500} />);
+    expect(screen.getByText('JPG, PNG or WEBP · up to 10 MB each · 0/1,500')).toBeTruthy();
+  });
+
   it('accepts images only, through a hidden multiple file input that "browse" opens', async () => {
     const { container } = render(<ImageUploader />);
     const input = fileInput(container);

@@ -16,6 +16,28 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import { AdminFrame } from '@/layouts/AdminLayout';
+import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
+import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
+
+/**
+ * The dev preview of /admin/orders that plan 08-06 took out of `devRoutes` (the real Orders page replaced it). These layout
+ * tests still need a short page to render in the shell, so they add the preview to their own copy of the dev routes.
+ */
+function devRoutesWithOrdersPreview(): RouteObject[] {
+  const [admin, ...rest] = devRoutes;
+  const urlState = admin?.children?.[0];
+  if (admin === undefined || urlState === undefined) {
+    throw new Error('The admin routes changed shape: expected admin > url state.');
+  }
+  const preview: RouteObject = {
+    path: 'orders',
+    lazy: lazyRoute(() => Promise.resolve({ Component: AdminPreviewRoute })),
+  };
+  return [
+    { ...admin, children: [{ ...urlState, children: [...(urlState.children ?? []), preview] }] } as RouteObject,
+    ...rest,
+  ];
+}
 
 /**
  * The app's route tree as a dev build has it: the dev-only previews in front of the public layout and the guarded admin
@@ -27,7 +49,10 @@ function devTree(): RouteObject[] {
   if (root === undefined) {
     throw new Error('The app has no root route.');
   }
-  return [{ ...root, children: [queryBranch(devRoutes), ...(root.children ?? [])] } as RouteObject, ...rest];
+  return [
+    { ...root, children: [queryBranch(devRoutesWithOrdersPreview()), ...(root.children ?? [])] } as RouteObject,
+    ...rest,
+  ];
 }
 
 interface AdminTreeOptions {
@@ -41,7 +66,7 @@ interface AdminTreeOptions {
 
 /** The dev route tree with the admin layout or the dashboard page swapped for a failing one; boundaries stay. */
 function adminTree({ layout, page, orders }: AdminTreeOptions): RouteObject[] {
-  const admin = devRoutes[0];
+  const admin = devRoutesWithOrdersPreview()[0];
   const urlState = admin?.children?.[0];
   const pages = urlState?.children ?? [];
   const [dashboard, ...others] = pages;
@@ -106,6 +131,14 @@ function sidebarNav(): HTMLElement {
   return nav;
 }
 
+function sidebarAside(): HTMLElement {
+  const aside = document.querySelector('aside');
+  if (!(aside instanceof HTMLElement)) {
+    throw new Error('No sidebar.');
+  }
+  return aside;
+}
+
 function sidebarLink(name: string): HTMLElement {
   return within(sidebarNav()).getByRole('link', { name: new RegExp(`^${name}`) });
 }
@@ -134,28 +167,10 @@ function answerSignOut(...answers: SignOutAnswer[]): () => number {
   return () => calls;
 }
 
-describe('AdminLayout tracer (WEB-05, D-20)', () => {
-  it('on /admin/users shows the admin shell with Users current, its preview page and the document title', async () => {
-    await renderAt('/admin/users');
-
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Users');
-    expect(sidebarLink('Users')).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1 }));
-    expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Component Showcase' })).toHaveAttribute('href', '/dev/components');
-    await waitFor(() => {
-      expect(document.title).toBe('Users · CSPS Admin');
-    });
-  });
-});
-
 describe('AdminLayout sections (D-20, A11Y-04)', () => {
   it.each([
     ['/admin', 'Dashboard'],
     ['/admin/orders', 'Orders'],
-    ['/admin/expenses', 'Company Expenses'],
-    ['/admin/users', 'Users'],
-    ['/admin/profile', 'My Profile'],
     ['/admin/orders/', 'Orders'],
   ])('%s shows the h1 "%s", makes it the only current sidebar item and titles the document', async (path, label) => {
     await renderAt(path);
@@ -187,10 +202,28 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(screen.getAllByText('Carmen Reyes').length).toBeGreaterThan(0);
   });
 
-  it('hides the Manager tag on the current Users row (D-BL-02)', async () => {
-    await renderAt('/admin/users');
-    const tag = within(sidebarLink('Users')).getByText('Manager');
-    expect(tag.classList.contains('group-aria-[current=page]/nav:hidden')).toBe(true);
+  it('gives the Manager an Audit Log item and a Settings item after Users in the sidebar and the drawer, but no tab (OQ-2, OQ-3)', async () => {
+    await renderAt('/admin');
+    const labels = within(sidebarNav())
+      .getAllByRole('link')
+      .map((link) => link.textContent.replace('Manager', ''));
+    expect(labels).toEqual(['Dashboard', 'Orders', 'Company Expenses', 'Users', 'Audit Log', 'Settings', 'My Profile']);
+    expect(sidebarLink('Audit Log')).toHaveAttribute('href', '/admin/audit-log');
+    expect(sidebarLink('Settings')).toHaveAttribute('href', '/admin/settings');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const drawer = screen.getByRole('dialog', { name: 'Navigation' });
+    expect(within(drawer).getByRole('link', { name: /^Audit Log/ })).toHaveAttribute('href', '/admin/audit-log');
+    expect(within(drawer).getByRole('link', { name: /^Settings/ })).toHaveAttribute('href', '/admin/settings');
+
+    const tabBar = document.querySelectorAll('nav[aria-label="Admin"]');
+    const tabs = [...tabBar].filter((nav) => !nav.closest('aside'));
+    expect(tabs.flatMap((nav) => [...nav.querySelectorAll('a')].map((link) => link.getAttribute('href')))).toEqual([
+      '/admin',
+      '/admin/orders',
+      '/admin/expenses',
+      '/admin/profile',
+    ]);
   });
 
   it('follows a sidebar navigation: choosing Orders makes Orders current and retitles the page', async () => {
@@ -208,7 +241,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
 
 describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('has one main#main, focusable by script only, and labels the sidebar navigation "Admin"', async () => {
-    await renderAt('/admin/users');
+    await renderAt('/admin/orders');
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main');
     expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
@@ -217,20 +250,20 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   });
 
   it('puts the skip link first in the keyboard order; it moves focus to main and leaves the URL alone', async () => {
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
     const user = userEvent.setup();
 
     await user.tab();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveFocus();
     await user.keyboard('{Enter}');
     expect(screen.getByRole('main')).toHaveFocus();
-    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(router.state.location.pathname).toBe('/admin/orders');
     expect(router.state.location.hash).toBe('');
   });
 
   it('Logout signs out on the server, leaves the shell for /admin/login and shows the signed-out notice on the sign-in page', async () => {
     const calls = answerSignOut();
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
@@ -257,14 +290,14 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
     async (_name, answer) => {
       acceptSession(sessionResponse());
       const calls = answerSignOut(answer);
-      const { router } = await renderAt('/admin/users');
+      const { router } = await renderAt('/admin/orders');
 
       await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
       expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
       expect(screen.getByText(ADMIN_COPY.signOutFailed.message)).toBeInTheDocument();
       expect(calls()).toBe(1);
-      expect(router.state.location.pathname).toBe('/admin/users');
+      expect(router.state.location.pathname).toBe('/admin/orders');
       expect(screen.queryByText("You've signed out.")).toBeNull();
       expect(getSessionUser()).not.toBeNull();
     },
@@ -273,20 +306,20 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('a 409 twice makes two calls and then shows the same failure state', async () => {
     acceptSession(sessionResponse());
     const calls = answerSignOut(409);
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
 
     expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
     expect(calls()).toBe(2);
-    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(router.state.location.pathname).toBe('/admin/orders');
     expect(getSessionUser()).not.toBeNull();
   });
 
   it('a second failed press replaces the toast instead of stacking another', async () => {
     acceptSession(sessionResponse());
     const calls = answerSignOut(500);
-    await renderAt('/admin/users');
+    await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
     expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
@@ -303,7 +336,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('pressing Logout again after a failure retries and leaves for /admin/login', async () => {
     acceptSession(sessionResponse());
     answerSignOut(500, 204);
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
     expect(await screen.findByText(ADMIN_COPY.signOutFailed.title)).toBeInTheDocument();
@@ -320,7 +353,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   it('has no axe violations with the sign-out failure toast showing', async () => {
     acceptSession(sessionResponse());
     answerSignOut(500);
-    const { container } = await renderAt('/admin/users');
+    const { container } = await renderAt('/admin/orders');
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }));
     await screen.findByText(ADMIN_COPY.signOutFailed.title);
 
@@ -328,7 +361,7 @@ describe('AdminLayout landmarks and keyboard (A11Y-01, A11Y-02)', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = await renderAt('/admin/users');
+    const { container } = await renderAt('/admin/orders');
     await expectNoAxeViolations(container);
   });
 });
@@ -451,8 +484,6 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
   it.each([
     ['/admin', 'Dashboard'],
     ['/admin/orders', 'Orders'],
-    ['/admin/expenses', 'Expenses'],
-    ['/admin/profile', 'Profile'],
   ])('on %s marks %s current, in bold (D-03), and only it', async (path, label) => {
     await renderAt(path);
     const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
@@ -462,9 +493,45 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
     );
   });
 
-  it('marks no tab current on /admin/users, which has no tab', async () => {
-    await renderAt('/admin/users');
-    expect(tabBar().querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+  // Company Expenses is a real, guarded page since plan 06-04, so the frame is rendered on its own for that section.
+  it('marks Expenses current, in bold (D-03), and only it, on the expenses section (a real page since plan 06-04)', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="expenses" user={{ name: 'Lito Santos', role: 'admin' }} theme="light">
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
+    expect(current.map((link) => link.textContent)).toEqual(['Expenses']);
+    expect(current[0]?.className.split(' ')).toEqual(
+      expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
+    );
+  });
+
+  it('marks Profile current, in bold (D-03), and only it, on the profile section (a real page since plan 05-13)', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="profile" user={{ name: 'Lito Santos', role: 'admin' }} theme="light">
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    const current = [...tabBar().querySelectorAll('[aria-current="page"]')];
+    expect(current.map((link) => link.textContent)).toEqual(['Profile']);
+    expect(current[0]?.className.split(' ')).toEqual(
+      expect.arrayContaining(['aria-[current=page]:font-bold', 'aria-[current=page]:text-ink']),
+    );
   });
 
   it('shows only on phones: hidden by default, a 4-column grid in the phone container', async () => {
@@ -474,9 +541,9 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
 
   it('takes the visitor to the section of a tab', async () => {
     const { router } = await renderAt('/admin');
-    await userEvent.click(within(tabBar()).getByRole('link', { name: 'Expenses' }));
-    await screen.findByRole('heading', { level: 1, name: 'Company Expenses' });
-    expect(router.state.location.pathname).toBe('/admin/expenses');
+    await userEvent.click(within(tabBar()).getByRole('link', { name: 'Orders' }));
+    await screen.findByRole('heading', { level: 1, name: 'Orders' });
+    expect(router.state.location.pathname).toBe('/admin/orders');
   });
 });
 
@@ -533,28 +600,30 @@ describe('AdminLayout route-chunk loading (UI-SPEC UI Considerations: loading, r
 
 describe('AdminLayout re-render (React Compiler memo cache)', () => {
   it('keeps the shell when the same route renders again, and updates on a new path', async () => {
-    const { router } = await renderAt('/admin/profile');
+    const { router } = await renderAt('/admin/orders');
     await act(async () => {
-      await router.navigate('/admin/profile');
+      await router.navigate('/admin/orders');
     });
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('My Profile');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Orders');
     await act(async () => {
-      await router.navigate('/admin/expenses');
+      await router.navigate('/admin');
     });
-    expect(await screen.findByRole('heading', { level: 1, name: 'Company Expenses' })).toBeInTheDocument();
-    expect(sidebarLink('Company Expenses')).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(sidebarLink('Dashboard')).toHaveAttribute('aria-current', 'page');
   });
 });
 
 describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileNavDrawer, plan 02-32)', () => {
+  // D-34: the button is named for what it will do, so it is "Close navigation" while the drawer is open.
   function openNavigation(): HTMLElement {
-    return screen.getByRole('button', { name: 'Open navigation' });
+    return screen.getByRole('button', { name: /^(Open|Close) navigation$/ });
   }
 
   it('wires the Topbar menu button to the drawer: aria-controls names it, aria-expanded follows it', async () => {
     await renderAt('/admin/orders');
     expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
     expect(openNavigation()).toHaveAttribute('aria-expanded', 'false');
+    expect(openNavigation()).toHaveAccessibleName('Open navigation');
     const controls = openNavigation().getAttribute('aria-controls');
     expect(controls).toBeTruthy();
 
@@ -563,6 +632,7 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     const drawer = screen.getByRole('dialog', { name: 'Navigation' });
     expect(drawer.id).toBe(controls);
     expect(openNavigation()).toHaveAttribute('aria-expanded', 'true');
+    expect(openNavigation()).toHaveAccessibleName('Close navigation');
     expect(within(drawer).getByRole('link', { name: 'Orders' })).toHaveAttribute('aria-current', 'page');
     expect(drawer).toContainElement(document.activeElement as HTMLElement);
   });
@@ -590,10 +660,10 @@ describe('AdminLayout phone navigation drawer (WEB-05, A11Y-02; SPEC-GAP MobileN
     await userEvent.click(openNavigation());
 
     await userEvent.click(
-      within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('link', { name: 'Company Expenses' }),
+      within(screen.getByRole('dialog', { name: 'Navigation' })).getByRole('link', { name: 'Orders' }),
     );
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Company Expenses' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull();
     expect(openNavigation()).toHaveAttribute('aria-expanded', 'false');
     expect(document.activeElement).toBe(openNavigation());
@@ -643,13 +713,31 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
   });
 
   it('takes the user to My Profile from the user menu', async () => {
-    await renderAt('/admin');
+    // My Profile is a real, guarded page (plan 05-13), so the person is signed in and the profile answers.
+    acceptSession(sessionResponse());
+    server.use(
+      http.get('*/api/v1/profile', () =>
+        HttpResponse.json({
+          id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+          firstName: 'Carmen',
+          lastName: 'Reyes',
+          email: 'carmen@example.ph',
+          role: 'Manager',
+          pendingEmail: null,
+          memberSince: '2026-10-17T01:00:00Z',
+          version: '0b0e1c2a-3d4f-4a5b-8c6d-7e8f90a1b2c3',
+        }),
+      ),
+    );
+    const { router } = await renderAt('/admin');
 
     await userEvent.click(userButton());
     await userEvent.click(screen.getByRole('menuitem', { name: 'My Profile' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'My Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Details' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/admin/profile');
     expect(sidebarLink('My Profile')).toHaveAttribute('aria-current', 'page');
+    clearSession();
   });
 
   it('has no axe violations with the user menu open', async () => {
@@ -738,6 +826,27 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
     clearSession();
   });
 
+  // D-39: the dialog stays in the tree while it plays its exit; jsdom runs no animation, so the computed animation name
+  // of a closed element is mocked.
+  it('keeps the sign-out-others dialog in the tree while it closes, with focus back on the menu button', async () => {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-rise-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+    await renderAt('/admin');
+    await userEvent.click(userButton());
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign Out Other Devices' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Sign out of other devices?' });
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Keep Others Signed In' }));
+
+    expect(dialog.isConnected).toBe(true);
+    expect(dialog.getAttribute('data-state')).toBe('closed');
+    expect(document.activeElement).toBe(userButton());
+  });
+
   it('keeps the other devices signed in when the dialog is dismissed with Esc', async () => {
     await renderAt('/admin');
     await userEvent.click(userButton());
@@ -748,6 +857,180 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(userButton()).toHaveFocus();
+  });
+});
+
+/** A page that reads the theme the way a page under the admin layout does, and sets it from two buttons. */
+function ThemeProbe() {
+  const { theme, setTheme } = useAdminTheme();
+  return (
+    <div>
+      <h1>Theme probe</h1>
+      <p>Page theme: {theme}</p>
+      <button
+        type="button"
+        onClick={() => {
+          setTheme('dark');
+        }}
+      >
+        Probe dark
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setTheme('light');
+        }}
+      >
+        Probe light
+      </button>
+    </div>
+  );
+}
+
+describe('AdminLayout theme context for pages (PROF-04, D-22)', () => {
+  async function renderProbe() {
+    const router = createMemoryRouter(adminTree({ page: { lazy: () => Promise.resolve({ Component: ThemeProbe }) } }), {
+      initialEntries: ['/admin'],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1, name: 'Theme probe' }, { timeout: 5000 });
+    return router;
+  }
+
+  it('gives the page the layout theme and a setter: the setter changes the root, the saved value and the top bar toggle', async () => {
+    await renderProbe();
+    expect(screen.getByText('Page theme: light')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probe dark' }));
+
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    expect(window.localStorage.getItem('csps-theme')).toBe('dark');
+    expect(screen.getByText('Page theme: dark')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
+  });
+
+  it('shows the page the theme the top bar toggle chose', async () => {
+    await renderProbe();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to dark mode' }));
+
+    expect(screen.getByText('Page theme: dark')).toBeInTheDocument();
+    expect(window.localStorage.getItem('csps-theme')).toBe('dark');
+  });
+
+  it('reads a stored value that is not light or dark as light, for the page too', async () => {
+    window.localStorage.setItem('csps-theme', 'purple');
+
+    await renderProbe();
+
+    expect(screen.getByText('Page theme: light')).toBeInTheDocument();
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+
+  it('writes nothing when the page sets the theme that is already active', async () => {
+    await renderProbe();
+    const write = vi.spyOn(Storage.prototype, 'setItem');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probe light' }));
+
+    expect(write).not.toHaveBeenCalled();
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+  });
+
+  it('keeps the page and the toggle in step in memory when the storage throws', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    });
+    await renderProbe();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probe dark' }));
+
+    expect(screen.getByText('Page theme: dark')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
+  });
+
+  it('keeps the Appearance control of My Profile and the top bar toggle in step, both ways', async () => {
+    server.use(
+      http.get('*/api/v1/profile', () =>
+        HttpResponse.json({
+          id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+          firstName: 'Carmen',
+          lastName: 'Reyes',
+          email: 'carmen@example.ph',
+          role: 'Manager',
+          pendingEmail: null,
+          memberSince: '2026-10-17T01:00:00Z',
+          version: '0b0e1c2a-3d4f-4a5b-8c6d-7e8f90a1b2c3',
+        }),
+      ),
+    );
+    const router = createMemoryRouter(
+      adminTree({ page: { lazy: () => Promise.resolve({ Component: ProfileRoute }) } }),
+      {
+        initialEntries: ['/admin'],
+      },
+    );
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1, name: 'Carmen Reyes' }, { timeout: 5000 });
+    await userEvent.click(screen.getByRole('tab', { name: 'Appearance' }));
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Espresso (dark)' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'dark');
+    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
+    expect(pageRoot()).toHaveAttribute('data-theme', 'light');
+    expect(screen.getByRole('radio', { name: 'Blush (light)' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Espresso (dark)' })).toHaveAttribute('aria-checked', 'false');
+  });
+});
+
+describe('AdminLayout session user (PROF-01)', () => {
+  afterEach(() => {
+    clearSession();
+  });
+
+  /** The admin tree as production has it: the layout loader gives the session user. */
+  function signedInTree(): RouteObject[] {
+    return adminTree({ layout: { loader: () => getSessionUser() } });
+  }
+
+  function renewedSession(firstName: string, lastName: string) {
+    return sessionResponse({
+      user: {
+        id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+        email: 'carmen@example.ph',
+        firstName,
+        lastName,
+        role: 'Manager',
+      },
+    });
+  }
+
+  it('shows the new name in the Sidebar chip and the user menu button after the session user changes, without a reload', async () => {
+    acceptSession(renewedSession('Carmen', 'Reyes'));
+    const router = createMemoryRouter(signedInTree(), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
+    expect(within(sidebarAside()).getByText('Carmen Reyes')).toBeInTheDocument();
+
+    act(() => {
+      acceptSession(renewedSession('Ana', 'Cruz'));
+    });
+
+    // The names follow the session store on the next render, which a loaded machine can delay: wait for them.
+    expect(await within(sidebarAside()).findByText('Ana Cruz', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Ana Cruz/ }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.queryByText('Carmen Reyes')).toBeNull();
+  });
+
+  it('keeps the placeholder user of the dev routes, whatever session the tab holds', async () => {
+    acceptSession(renewedSession('Ana', 'Cruz'));
+
+    await renderAt('/admin');
+
+    expect(screen.getByRole('button', { name: /Carmen Reyes/ })).toBeInTheDocument();
+    expect(screen.queryByText('Ana Cruz')).toBeNull();
   });
 });
 
@@ -786,7 +1069,7 @@ describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
       http.get('*/api/v1/site-settings', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
       http.post('*/api/v1/auth/refresh', () => HttpResponse.json({ title: 'x', status: 401 }, { status: 401 })),
     );
-    const { router } = await renderAt('/admin/users');
+    const { router } = await renderAt('/admin/orders');
 
     await expect(siteSettingsService.get()).rejects.toMatchObject({ status: 401 });
 
@@ -795,5 +1078,50 @@ describe('AdminLayout session (AUTH-05, AUTH-06, R2-09)', () => {
     });
     expect(await screen.findByRole('status')).toHaveTextContent('Your session ended. Sign in again.');
     clearSession();
+  });
+});
+
+describe('AdminLayout topbar search (ORD-02, D-53)', () => {
+  it('Enter opens Orders with the text as q, encoded, and nothing else in the URL', async () => {
+    const { router } = await renderAt('/admin');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), 'Peña{Enter}');
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/orders');
+    });
+    expect(router.state.location.search).toBe('?q=Pe%C3%B1a');
+  });
+
+  it('trims the text before it goes to the URL', async () => {
+    const { router } = await renderAt('/admin');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), '  ballers  {Enter}');
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?q=ballers');
+    });
+  });
+
+  it('opens Orders with the other filters at their defaults when it starts on a filtered list', async () => {
+    const { router } = await renderAt('/admin/orders?status=delivered&page=3');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search' }), '0148{Enter}');
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?q=0148');
+    });
+    expect(router.state.location.pathname).toBe('/admin/orders');
+  });
+
+  it('does nothing for an empty search or one of only spaces', async () => {
+    const { router } = await renderAt('/admin');
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+
+    await userEvent.type(search, '{Enter}');
+    await userEvent.type(search, '   {Enter}');
+
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(router.state.location.search).toBe('');
   });
 });

@@ -9,6 +9,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildCss, checkClassTokens, collectClassTokens } from '../../../scripts/class-gate.mjs';
+import { targetAreaClasses } from '../actions/button.recipe.ts';
+import { chipGroupClasses, filterChipClasses, filterChipClearClasses } from './lists.recipe.ts';
 
 const recipeFile = 'src/components/lists/lists.recipe.ts';
 const recipeSource = readFileSync(new URL('./lists.recipe.ts', import.meta.url), 'utf8');
@@ -96,6 +98,18 @@ describe('lists recipe (App. C toolbar and responsive table)', () => {
     expect(enclosingBlock('pg-phone:contain-none')).toBe('@container pg (max-width: 767px) ');
     expectInOrder('contain-paint', 'pg-phone:contain-none');
   });
+
+  it('drops a parent row rule when open or last through the row data-edge, and keeps the detail card continuous on phones (D-27)', () => {
+    expect(css).toContain(classSelector('group-data-[edge=true]/row:border-b-0'));
+    expect(recipeTokensOf('detailRowClasses')).toEqual(
+      expect.arrayContaining(['pg-phone:border-t-0', 'pg-phone:rounded-b-md', 'pg-phone:block']),
+    );
+    expect(recipeTokensOf('detailRowClasses')).not.toContain('pg-phone:border-t');
+    expect(recipeTokens.map((entry) => entry.token)).toEqual(
+      expect.arrayContaining(['pg-phone:rounded-t-md', 'pg-phone:border-b-0']),
+    );
+    expect(enclosingBlock('pg-phone:border-t-0')).toBe('@container pg (max-width: 767px) ');
+  });
 });
 
 describe('list SearchBox focus look (D-41 R2-03)', () => {
@@ -105,7 +119,7 @@ describe('list SearchBox focus look (D-41 R2-03)', () => {
     expect(tokens).toEqual(
       [
         'flex',
-        'h-10',
+        'h-10.5',
         'items-center',
         'gap-2',
         'rounded-sm',
@@ -119,6 +133,46 @@ describe('list SearchBox focus look (D-41 R2-03)', () => {
     );
     expect(tokens.filter((token) => /shadow|ring|outline/.test(token))).toEqual([]);
     expect(recipeTokensOf('searchInputClasses')).toContain('[outline:none]');
+  });
+});
+
+describe('filter chip group keeps the clear tap area inside its box (PERF-03)', () => {
+  const tokensOf = (classes: string) => classes.split(/\s+/).filter(Boolean);
+  const chipCss = buildCss([
+    ...tokensOf(chipGroupClasses),
+    ...tokensOf(filterChipClasses),
+    ...tokensOf(filterChipClearClasses),
+    ...tokensOf(targetAreaClasses),
+  ]);
+
+  /** A px length from the compiled CSS: the first rule of this token, its declaration, `calc(var(--spacing) * n)` resolved. */
+  async function px(classes: string, pattern: RegExp, property: string): Promise<number> {
+    const built = await chipCss;
+    const token = tokensOf(classes).find((entry) => pattern.test(entry));
+    if (token === undefined) return 0;
+    const selector = `.${token.replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`)}`;
+    const start = built.indexOf(selector);
+    const body = built.slice(start, built.indexOf('}', start));
+    const value = new RegExp(`${property}: ([^;]+);`).exec(body)?.[1] ?? '';
+    const spacing = Number(/--spacing: (\d+(?:\.\d+)?)px/.exec(built)?.[1]);
+    const times = /^calc\(var\(--spacing\) \* ([\d.]+)\)$/.exec(value)?.[1];
+    return times === undefined ? Number.parseFloat(value) : Number(times) * spacing;
+  }
+
+  it('reserves at the group end what the 44px tap area reaches past the chip end', async () => {
+    const tapArea = await px(targetAreaClasses, /^before:size-/, 'width');
+    const clearButton = await px(filterChipClearClasses, /^size-/, 'width');
+    const chipEndPadding = await px(filterChipClasses, /^pr-/, 'padding-right');
+    const groupEndReserve = await px(chipGroupClasses, /^pr-/, 'padding-right');
+    const overhang = (tapArea - clearButton) / 2 - chipEndPadding;
+
+    expect(overhang).toBeGreaterThan(0);
+    expect(groupEndReserve).toBeGreaterThanOrEqual(overhang);
+  });
+
+  it('draws the clear button 24px square, so axe target-size passes on size alone (D-98)', async () => {
+    expect(await px(filterChipClearClasses, /^size-/, 'width')).toBe(24);
+    expect(await px(filterChipClearClasses, /^size-/, 'height')).toBe(24);
   });
 });
 

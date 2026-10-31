@@ -1,0 +1,72 @@
+// The order screens' looks as complete Tailwind tokens (D-33; plan 08-05). Every string here is a class list.
+import clsx from 'clsx';
+import { hitAreaClasses } from '@/components/actions';
+import { tw } from '@/ui/tw';
+
+/** The due date and its flag in one line of text that wraps after the dot (cards, the order subline). */
+export const dueFlagInlineClasses = tw('inline');
+
+/** The due date over its flag, 4px apart (table cell). */
+export const dueFlagStackedClasses = tw('flex flex-col items-start gap-1');
+
+/** The date, and the "Due" label when there is no date: muted ink. */
+export const dueFlagDateClasses = tw('text-[14px] leading-5 text-ink-muted');
+
+/** Days left: Small 14/400 muted. */
+export const dueFlagDaysLeftClasses = tw('text-[14px] leading-5 text-ink-muted');
+
+/** Due today and tomorrow: Label 14/600 ink. */
+export const dueFlagSoonClasses = tw('text-[14px] leading-5 font-semibold text-ink');
+
+/** Overdue: Label 14/600 danger, the icon beside the words (D-36). */
+export const dueFlagOverdueClasses = tw(
+  'inline-flex items-center gap-1 text-[14px] leading-5 font-semibold text-danger',
+);
+
+/**
+ * The order grid (`.s-orders`): four columns, three up to 1279px, two on tablets, one on phones, 20px apart. The page
+ * container variants are emitted widest first, so the narrower rules are important and the tablet and phone rules do not overlap.
+ * While the next page loads (`data-refetching`) the cards dim to --surface-2 by colour only (D-02, UI-SPEC "refetch").
+ */
+export const ordersGridClasses = tw(
+  'grid grid-cols-[repeat(4,minmax(0,1fr))] gap-5 pg-phone:grid-cols-[minmax(0,1fr)]! pg-tablet:grid-cols-[repeat(2,minmax(0,1fr))]! pg-lt-xl:grid-cols-[repeat(3,minmax(0,1fr))] data-[refetching=true]:[&_article]:bg-surface-2',
+);
+
+/** The header buttons in a row 8px apart (the Manager's Deleted Orders link and New Order); on phones they take the full width, each growing equally. */
+export const ordersHeadActionsClasses = tw('flex flex-wrap items-center gap-2 pg-phone:w-full pg-phone:*:flex-1');
+
+/** The one-line subline skeleton while the counts load: a fixed width, so the header does not jump. */
+export const ordersSublineSkeletonClasses = tw('w-[220px] max-w-full');
+
+/** The custom order date range (From and To) on its own row of the toolbar (UI-SPEC L1 toolbar). */
+export const ordersCustomRangeClasses = tw('flex basis-full flex-wrap items-end gap-3');
+
+/** The balance box, as tall as the 40px controls beside it and bottom-aligned with them. */
+export const ordersBalanceFilterClasses = tw('flex min-h-10 items-center');
+
+/** The table's Order cell: the thumbnail beside the number link. */
+export const ordersOrderCellClasses = tw('flex items-center gap-3');
+
+/** The 44px placeholder thumbnail of a table row. */
+export const ordersThumbClasses = tw('block w-11 shrink-0 overflow-hidden rounded-sm');
+
+/** The order number link: the accent ink of the card's number, with a 44px tap area. */
+export const ordersNumberLinkClasses = clsx(
+  tw('font-display text-[15px] font-bold tracking-[.06em] text-accent-ink underline-offset-2 hover:underline'),
+  hitAreaClasses,
+);
+
+/** The Balance cell: a due figure in display 17, or the same figure muted over "Not collected" (D-45). */
+export const ordersBalanceFigureClasses = {
+  due: tw('font-display text-[17px] leading-5 font-bold tabular-nums'),
+  muted: tw('font-display text-[17px] leading-5 font-bold text-ink-muted tabular-nums'),
+} as const;
+
+/** The muted figure over its "Not collected" words, end-aligned. */
+export const ordersBalanceStackClasses = tw('inline-flex flex-col items-end');
+
+/** "Not collected": Small 14/400 muted. */
+export const ordersNotCollectedClasses = tw('text-[14px] leading-5 font-normal text-ink-muted');
+
+/** "Fully Paid" with its check, in the success colour. */
+export const ordersFullyPaidClasses = tw('inline-flex items-center gap-1.5 font-semibold text-success');

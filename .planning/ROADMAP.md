@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-16T14:00:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-31T00:30:00-05:00*
 
 ## Overview
 
@@ -55,12 +55,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Hosting Verification & Backend Foundation** - Verified host facts, a zero-warning onion API on an empty EF-migrated database, the platform contract and shared backend primitives (completed 2026-10-07)
 - [x] **Phase 2: Web Foundation & Design System** - UI-spec design system imported and reconciled, layouts, primitives, `httpClient`/`api.ts`, golden vectors and all front-end gates (completed 2026-10-14)
-- [ ] **Phase 3: CI/CD & Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks, and an owner-run Web Deploy to the live SmarterASP.NET site with a smoke test and automatic rollback; CSPS replaces the legacy site (owner, 2026-10-15)
-- [ ] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit
-- [ ] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer
-- [ ] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards
-- [ ] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests
-- [ ] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete
+- [x] **Phase 3: CI/CD & Deploy** *(deferred until after Phase 4, owner 2026-10-14)* - Owner-created GitHub repo, full PR pipeline, supply-chain checks, and an owner-run Web Deploy to the live SmarterASP.NET site with a smoke test and automatic rollback; CSPS replaces the legacy site (owner, 2026-10-15) (completed 2026-10-17)
+- [x] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit (completed 2026-10-17)
+- [x] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer (completed 2026-10-19)
+- [x] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards (completed 2026-10-26)
+- [x] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests (completed 2026-10-29)
+- [x] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete (completed 2026-10-31)
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
 - [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers
 - [ ] **Phase 11: Public Site & Content Management** - Home/Products/Gallery/Contact from database content, OG/JSON-LD in server HTML, Manager content editing
@@ -346,7 +346,7 @@ Plans:
 
 **Research flag:** Standard patterns for the CI pipeline. SmarterASP.NET Web Deploy specifics (the AppOffline rule, the live-site deploy and rollback) are researched in 03-RESEARCH.md. They build on Phase 1's hosting record and stay LOW confidence until the first deploy verifies them.
 
-**Plans:** 20/23 plans executed
+**Plans:** 23/23 plans complete
 
 Plans:
 **Wave 1**
@@ -386,13 +386,13 @@ Plans:
 - [x] 03-19-PLAN.md — Cutover steps 2-3: receipt confirmed, legacy database retired, SQL Server 2025 database created and compatibility pinned (D-03)
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 03-20-PLAN.md — Cutover steps 4-5: host settings and deploy credentials, read-only dry run, one-time host probe, HTTPS rewrite ruling
+- [x] 03-20-PLAN.md — Cutover steps 4-5: host settings and deploy credentials, read-only dry run, one-time host probe, HTTPS rewrite ruling
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 03-21-PLAN.md — Cutover steps 6-7: schema script applied, first CSPS deploy on the live site with smoke and release (OPS-04)
+- [x] 03-21-PLAN.md — Cutover steps 6-7: schema script applied, first CSPS deploy on the live site with smoke and release (OPS-04)
 
 **Wave 11** *(blocked on Wave 10 completion)*
-- [ ] 03-22-PLAN.md — Cutover step 8: first Manager and sign-in on the live site; every first-deploy fact verified; CSPS accepted live (D-06)
+- [x] 03-22-PLAN.md — Cutover step 8: first Manager and sign-in on the live site; every first-deploy fact verified; CSPS accepted live (D-06)
 
 ### Phase 4: Identity & Authentication
 
@@ -449,7 +449,9 @@ Plans:
 - the refresh grace-window design
 - timing-parity tests
 
-**Plans**: 35/35 plans executed in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+**Plans**: 35/35 plans complete in 18 waves (planned 2026-10-14; execution starts after the owner's D-34 mail prerequisite in 04-01)
+
+**Status:** Complete (2026-10-17). Verification passed 6/6 with 18/18 requirement IDs, UAT 3/3 (C-23 confirmed on the live site on 2026-10-17), threats_open 0, and no review finding left open. The owner decisions above were closed at the discuss step (`04-CONTEXT.md`). Carried to Phase 5: the refresh cookie `Expires` check, review info notes IN-01 to IN-19, and the flaky resend-code test.
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Owner prerequisites: no-reply mailbox, DKIM and the Gmail D2 check (D-34), the 10.0.13 runtime (D-35), stdin-only dev secrets (IN-02)
@@ -556,11 +558,116 @@ Plans:
 - **OD-14**
 
 **Carried over from Phase 4** (owner, 2026-10-15; production was not deployed yet):
-- **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. Phase 5 UAT runs it (from 04-UAT Test 2).
+- **UAT: production Set-Cookie behaviour.** After the first HTTPS deploy, sign in and check that the responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict and Path=/api/v1/auth, with Expires only when "Keep me signed in" is ticked. The cookie attributes were confirmed on the live site on 2026-10-17 and 04-UAT Test 2 passed; Phase 5 UAT still checks the Expires part.
+- **Phase 4 review info notes (IN-01 to IN-19).** Triage and fix the 19 info-level findings in `04-REVIEW.md`, test first where behavior changes (for example IN-09 response size cap, IN-10 URL user info, IN-08 outbox recipient retention, IN-07 loopback forms). Record each outcome in `04-REVIEW-DISPOSITION.md` (owner, 2026-10-17).
+- **Flaky `ResendCodeEndpointTests.TheSixthCodeInAnHourIsRefusedWithNoWaitTime`** (from `.planning/phases/04-identity-authentication/deferred-items.md`): make it pass reliably in full runs without weakening the per-hour cap it proves.
 
 **Research flag:** Standard patterns.
 
-**Plans**: TBD
+**Plans**: 52/52 plans complete: 43 in 21 waves, plus 9 gap-closure plans (05-44 to 05-52) in 3 gap waves planned 2026-10-19 (planned 2026-10-17; revised the same day so no plan exceeds the context budget; the owner's shell and motion items come first, in Waves 1-2)
+
+**Wave 1**
+- [x] 05-01-PLAN.md — Full-bleed shell, phone tab bar at the viewport bottom, sticky sidebar and top bar, no sideways scroll (D-01..D-05, D-36)
+- [x] 05-02-PLAN.md — Open and close motion for every dialog and slide-over with an in-house presence hook (D-38, D-39)
+- [x] 05-03-PLAN.md — Manager-only route guard, fail-closed role mapping (IN-17), six new icons (USER-08)
+- [x] 05-04-PLAN.md — No-new-triggers schema test (D-06) and the flaky resend-code test
+- [x] 05-05-PLAN.md — Staff account schema (edit version, attribution, Manager lock, soft-delete marker, pending email); blocked accounts cannot sign in
+- [x] 05-06-PLAN.md — Invitation links last 7 days (D-13)
+- [x] 05-07-PLAN.md — Review notes IN-07, IN-08, IN-09, IN-10, IN-12
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 05-08-PLAN.md — Drawer and user-menu motion; existing dialogs close with motion (D-34, D-35, D-39)
+- [x] 05-09-PLAN.md — Profile API: name save with the edit version and the two-writer helper (PROF-01, SEC-07)
+- [x] 05-10-PLAN.md — Every auth path refuses Manager-locked and deleted accounts (D-16, D-17, D-41 Q5)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 05-11-PLAN.md — Server-set attribution in one stamping point (SEC-08)
+- [x] 05-13-PLAN.md — My Profile page: tabs, name save with the conflict banner, theme (PROF-01, PROF-04, D-20, D-23)
+- [x] 05-38-PLAN.md — Profile name change audited by field names only; profile handler unit tests (USER-06, D-40)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 05-12-PLAN.md — Change password from My Profile (PROF-03, D-41 Q9)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 05-14-PLAN.md — Email change: request and confirm through a 24-hour link (PROF-02, D-25)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 05-39-PLAN.md — Email change: shared current-password check, address rules, link check and exact email copy (PROF-02, D-24, D-41 Q9)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 05-15-PLAN.md — Email change: pending state, resend, cancel, taken meanwhile (D-24)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 05-16-PLAN.md — Confirm-your-email page and shared fragment helpers (PROF-02, IN-18 part)
+- [x] 05-17-PLAN.md — Users roster API: list and detail with attribution (USER-01, USER-08, D-09, D-11)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 05-18-PLAN.md — My Profile Security tab and Change Email dialog (PROF-02, PROF-03)
+- [x] 05-19-PLAN.md — Create a user by invitation or temporary password (USER-02, C-4, SEC-08)
+- [x] 05-20-PLAN.md — Users roster page with URL state (USER-01, USER-08)
+- [x] 05-36-PLAN.md — Web review notes IN-11, IN-13..IN-16, IN-18, IN-19
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 05-21-PLAN.md — Race-safe last-Manager guard, deactivate and activate (USER-04, USER-05, D-18, D-19)
+- [x] 05-22-PLAN.md — Add User panel, RadioGroup, temporary password shown once (USER-02, D-12, D-14, D-15)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 05-23-PLAN.md — Edit a user's name and role with the edit version; two-writer proof (USER-03, USER-04, USER-05, SEC-07)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 05-40-PLAN.md — A Manager changes a colleague's email the C-9 way, or cancels a pending change (USER-03, C-9)
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [x] 05-24-PLAN.md — Manager lock and unlock (D-16, D-17)
+- [x] 05-25-PLAN.md — Edit User panel with the conflict banner and Recorded by / Last changed by (SEC-08, D-11)
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [x] 05-26-PLAN.md — Final soft delete (D-07..D-11)
+- [x] 05-32-PLAN.md — Expandable table rows, grouped Select, DateInput, Audit Log navigation item
+
+**Wave 15** *(blocked on Wave 14 completion)*
+- [x] 05-27-PLAN.md — Resend invitation, send reset link, set temporary password (USER-07, C-4)
+- [x] 05-28-PLAN.md — Roster row actions: deactivate, activate, delete
+
+**Wave 16** *(blocked on Wave 15 completion)*
+- [x] 05-29-PLAN.md — Audit log API: list, filters and date bounds (AUDIT-02, D-26..D-29, D-40)
+- [x] 05-30-PLAN.md — Edit panel Account access, Lock and Temporary Password dialogs, email notes (USER-07, C-9)
+- [x] 05-31-PLAN.md — Owner review of the Phase 5 emails (checkpoint)
+
+**Wave 17** *(blocked on Wave 16 completion)*
+- [x] 05-34-PLAN.md — Application review notes IN-01, IN-03, IN-05, IN-06
+- [x] 05-41-PLAN.md — Audit filter people list and the viewer docs (AUDIT-02, D-11)
+
+**Wave 18** *(blocked on Wave 17 completion)*
+- [x] 05-33-PLAN.md — Audit Log page (AUDIT-02)
+- [x] 05-43-PLAN.md — Application review notes IN-02, IN-04: one home for audit words, keys and messages
+
+**Wave 19** *(blocked on Wave 18 completion)*
+- [x] 05-35-PLAN.md — Component showcase for Managers at /admin/components (D-30..D-33)
+
+**Wave 20** *(blocked on Wave 19 completion)*
+- [x] 05-42-PLAN.md — Phase 5 demos in the showcase (UI-SPEC C1)
+
+**Wave 21** *(blocked on Wave 20 completion)*
+- [x] 05-37-PLAN.md — Phase gate: overflow and long-text sweeps, owner review pack and OQ rulings, review dispositions, full local gate (checkpoint)
+
+**Gap closure** (planned 2026-10-19 from 05-VERIFICATION.md gaps_found and owner rulings D-49, D-50; 9 plans in 3 waves)
+
+**Gap wave 1**
+- [x] 05-44-PLAN.md — Sign Out Other Devices works on every use again; Resend Code too (CR-01, AUTH-06)
+- [x] 05-45-PLAN.md — Temporary password, profile password change and at-once email move end open reset links (WR-01)
+- [x] 05-46-PLAN.md — Temporary-password address unproved until the first correct code; sign-in still reaches the code (D-49, WR-03)
+- [x] 05-48-PLAN.md — One active-Manager rule for the bootstrap gate; bootstrap tests can never reach TheBETSLLC's database (WR-05, WR-14, WR-08)
+- [x] 05-49-PLAN.md — Keyed idempotency request hash and a real 24-hour lifetime (D-50, security D-1)
+
+**Gap wave 2** *(blocked on Gap wave 1 completion)*
+- [x] 05-47-PLAN.md — No reset link to an unproved address; an invited person's temporary password leaves it unproved (D-49, WR-03)
+- [x] 05-50-PLAN.md — 44 px tap areas for the phone menu button, sidebar toggle and filter-chip clear (WR-20, part 1)
+- [x] 05-52-PLAN.md — Rate-limit test for the profile password change and a guard over every limited endpoint (WR-09)
+
+**Gap wave 3** *(blocked on Gap wave 2 completion)*
+- [x] 05-51-PLAN.md — Owner ruling D-51 on row-action spacing, row-action tap areas and the roster target-size sweep (WR-20, part 2; checkpoint)
+
 **UI hint**: yes
 
 ### Phase 6: Company Expenses
@@ -577,6 +684,8 @@ Plans:
   5. **List performance.** The list endpoint runs a fixed number of queries whatever the page size (query-count test). It meets p95 < 300 ms on staging, with an index on every filter and sort column.
   6. **Paid by.** Every expense names who paid it (CEXP-05): a required, server-validated reference to an active Admin or Manager on create and edit, chosen from a staff lookup that both roles can use, with a plain-English field error otherwise. The list shows it, the staff-name search matches it, and a change of payer is audited because it moves money between staff balances (MONEY-01).
 
+  *Notes (owner decisions, Phase 6 discuss 2026-10-25; the criteria text above is unchanged):* criterion 1's "last 30 days" default is superseded by D-23 (30 days before to 30 days after the business today, with an Upcoming badge), and criterion 5's "on staging" by D-28 (the p95 check runs locally and in CI on about 5 years of fake data, and the live request logs confirm it after release). See `phases/06-company-expenses/06-CONTEXT.md`.
+
 **Owner decisions to close at discuss step:**
 - **OD-5** hard vs soft delete for company expenses
 - **OD-8** fixed vs Manager-editable categories, for both the company and the order expense lists
@@ -588,7 +697,53 @@ Plans:
 
 **Research flag:** Standard patterns.
 
-**Plans**: TBD
+**Plans**: 21/21 plans complete in 12 waves (planned 2026-10-25; each plan leads with an end-to-end tracer task; TDD)
+- [x] 06-20-PLAN.md
+- [x] 06-21-PLAN.md
+
+**Wave 1**
+- [x] 06-01-PLAN.md — Expense categories table with the ten seeded categories, the staff lookup for Paid by, and the D-27 audit catalog (D-08, D-09, D-13, D-15, D-27, D-32)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 06-02-PLAN.md — Record an expense: schema with soft delete and index set, POST and GET, every field rule, audited and attributed (CEXP-02, CEXP-04, CEXP-05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 06-03-PLAN.md — Expense list API: default window, filters, search, period total, canEdit, e2e seeding endpoint (CEXP-01, D-23, D-26)
+- [x] 06-11-PLAN.md — Dev seed for demo expenses and the no-inline-SQL architecture guard
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 06-04-PLAN.md — Company Expenses page lists rows with the server total; stored category tones (CEXP-01, D-13, D-23)
+- [x] 06-05-PLAN.md — Month KPIs API in Manila time (CEXP-03, D-24)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 06-06-PLAN.md — Query-count guards, compiled detail and KPI queries and the p95 timing test (PERF-04, D-28)
+- [x] 06-07-PLAN.md — Search, category and date filters in the URL (CEXP-01, WEB-10)
+- [x] 06-08-PLAN.md — Edit API with rowversion 409, the own-expense rule and payer audit (CEXP-02, SEC-07, D-26, D-27)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 06-09-PLAN.md — KPI row on the page (CEXP-03)
+- [x] 06-10-PLAN.md — Soft delete, restore, permanent delete and the deleted list API, Manager only (D-01 to D-07)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 06-12-PLAN.md — Add Expense modal with Paid by and browser checks (CEXP-02, CEXP-05, D-18)
+- [x] 06-13-PLAN.md — Category management API: add, rename, recolor, retire, use again, delete never-used (D-10 to D-15, D-30)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 06-14-PLAN.md — Edit and View modes with the conflict banner and the D-26 notice (CEXP-02, CEXP-04)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 06-15-PLAN.md — Audit Log shows expense and category changes (D-27); after 06-14, because its e2e edits through the Edit modal
+- [x] 06-16-PLAN.md — Delete dialogs and the Deleted Expenses page with restore (D-01 to D-07)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 06-17-PLAN.md — Settings page with the expense category list (D-08, D-10 to D-15)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 06-18-PLAN.md — Responsive and long-text sweeps, Phase 6 showcase cases
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 06-19-PLAN.md — Owner review pack and the slice pattern record for Phase 7 (D-29)
+
 **UI hint**: yes
 
 ### Phase 7: Order Domain & API
@@ -607,6 +762,8 @@ Plans:
   5. **Legacy import path.** `Order.Import` accepts legacy-shaped data (preserved order numbers, lenient rules) through configurable rule constants. An owner ruling then becomes a constant change rather than a schema change.
   6. **Payment receiver.** Every payment names who received the money (ORD-22): a required, server-validated reference to an active Admin or Manager on payment create, payment edit and full-aggregate create, with a plain-English field error otherwise. A receiver change is audited, and a staff lookup gives both roles the list of eligible receivers.
   7. **Expense payer.** Every order expense names who paid it (ORD-23): a required, server-validated reference to an active Admin or Manager on order-expense create, order-expense edit and full-aggregate create, with a plain-English field error otherwise. A change of payer is audited because it moves money between staff balances (MONEY-01).
+
+  *Notes (owner decisions, Phase 7 discuss 2026-10-27 and 2026-10-28; the criteria text above is unchanged):* criterion 1's "one of the 6 product types" is superseded by D-18 (a Manager-editable product type list that starts with the six), criterion 2's "overpayment rule across all mutation types" by D-12 (only a payment above the balance is refused; other changes may leave a customer credit that a refund clears), and criterion 4's refund and cancelled-order policy is D-07 to D-10 and D-34 to D-36 (payments stay collected cash unless refunded, refund caps, and cancelled-order profit). See `phases/07-order-domain-api/07-CONTEXT.md`. (owner, 2026-10-28, D-39)
 
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
@@ -630,7 +787,100 @@ Plans:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
 - counter-table locking under the execution strategy
 
-**Plans**: TBD
+**Plans**: 20/20 plans complete in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [x] 07-01-PLAN.md — Product types, payment methods and order expense categories: tables, seeds, read API, and the Phase 7 audit catalog (ORD-13; D-16 to D-20, D-31)
+- [x] 07-02-PLAN.md — Order math learns refunds, customer credit and cancelled-order profit, v2 vectors untouched (ORD-20, ORD-18; D-12, D-13, D-36)
+- [x] 07-03-PLAN.md — Seven statuses and the transition table (ORD-17; D-01 to D-05, D-38)
+- [x] 07-04-PLAN.md — Draft requirement amendments and the Phase 7.1 entry for owner approval (D-33; checkpoint)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 07-05-PLAN.md — Create an order with items and read it back: schema, per-year numbering, totals, history, audit (ORD-03, ORD-13, ORD-14, ORD-16, ORD-20)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 07-06-PLAN.md — Numbering under 20 parallel creates, across New Year in Manila, gapless on rollback (ORD-14)
+- [x] 07-07-PLAN.md — Edit order details with the 409 version check (ORD-05, ORD-08; D-25)
+- [x] 07-08-PLAN.md — The hidden "Legacy / unassigned" holder (D-32, D-37)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 07-09-PLAN.md — Add, edit and remove items; child-only edits guarded (ORD-05, ORD-08, ORD-13)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 07-10-PLAN.md — Discounts, many per order, never above the items total (ORD-05; D-15)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 07-11-PLAN.md — Payments with Received by, no overpayment, customer credit, two-payments race (ORD-05, ORD-08, ORD-22; D-11, D-12)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 07-12-PLAN.md — Order expenses with Paid by; full ORD-2026-0148 create exact (ORD-05, ORD-20, ORD-23)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 07-13-PLAN.md — Status changes, history, reopen and the end-state lock (ORD-16, ORD-17, ORD-18)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 07-14-PLAN.md — Refunds with the owner's caps and the cancelled-order exception (ORD-18; D-07, D-09, D-34 to D-36)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 07-15-PLAN.md — Soft delete, deleted list, restore and permanent delete (ORD-06 server side; D-26 to D-29)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 07-16-PLAN.md — Order list, search, filters and sort in two commands with the p95 proof (ORD-01, ORD-02 server side; PERF-04)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 07-17-PLAN.md — Managers manage the three order lists (ORD-13; D-16 to D-19)
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [x] 07-18-PLAN.md — Order.Import with named rule relaxations and preserved numbers (ORD-21, ORD-14)
+- [x] 07-19-PLAN.md — The audit viewer reads every order event (ORD-16, ORD-22, ORD-23; D-31)
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [x] 07-20-PLAN.md — Dev seed of the UI-spec orders and a testing-only seeding route (ORD-20, ORD-21)
+
+### Phase 07.1: Legacy Fit Check (read-only) (INSERTED)
+
+**Goal:** Before Phase 8 builds on the order rules, a read-only check runs the legacy orders in CSPS_Legacy_Restore through Order.Import's rules and the legacy company expenses through the Phase 6 expense rules, and lists every record that breaks them. It never derives the schema, never writes to the restore and never restores over CSPS_Dev (D-33). (owner, 2026-10-28, D-33, D-39; company expenses added by 07.1 D-16, owner, 2026-10-29)
+**Requirements**: None new (a read-only check; no requirement text depends on it)
+**Depends on:** Phase 7
+**Plans:** 12/12 plans complete
+
+Plans:
+
+**Wave 1**
+- [x] 07.1-01-PLAN.md — Tracer: one made-up order runs end to end on a fake restore; CI runs the tool's tests; the package never holds the tool (D-07, D-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 07.1-02-PLAN.md — The restore is provably read-only: fixed source, SELECT-only guard, never-committed transaction, write evidence (D-07, D-14)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 07.1-03-PLAN.md — Every legacy column accounted for, and the provisional draft mapping doc (D-04, D-05, D-09)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 07.1-04-PLAN.md — Every order part mapped; lists matched with trial-only entries (D-04, D-05, D-06)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 07.1-05-PLAN.md — People matched to pseudonymous trial staff or the Legacy holder (D-06)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 07.1-06-PLAN.md — Every rule each order breaks (probe), and legacy totals against CSPS math (D-03, D-08)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 07.1-07-PLAN.md — The trial database is safe on every path; import outcomes and counters (D-07)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 07.1-08-PLAN.md — Legacy company expenses against the Phase 6 rules, report only (D-12, D-16)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 07.1-09-PLAN.md — Private full list in _local, counts-only summary with a privacy self-check, runbook (D-01, D-02)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 07.1-10-PLAN.md — Owner go-ahead, the one real run, and the D-10 briefing (D-07, D-01)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 07.1-11-PLAN.md — Owner rulings on every findings group; counts-only findings published (D-10, D-02)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 07.1-12-PLAN.md — Approved relaxations built test first, re-run proof, hand-off to review and ship (D-11, D-13 to D-16)
 
 ### Phase 8: Order Screens
 
@@ -655,6 +905,8 @@ Plans:
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
 
+*Notes (owner decisions, Phase 8 discuss 2026-10-29; the criteria text above is unchanged):* criterion 5 is superseded by 07 D-26 to D-28 and 08 D-21 to D-24: a normal delete is a soft delete with a Yes/Cancel confirm that shows the child counts; only a Manager's permanent delete, from the Deleted orders page, requires typing the order number and removes the rows in one transaction. Criterion 3's label for the payment receiver is "Received by" (OD-20, 08 D-09). See `phases/08-order-screens/08-CONTEXT.md`.
+
 **Owner decisions to close at discuss step:**
 - **C-13** on-screen labels for Total, Discount and Balance
 - **C-18** where Estimated Profit appears
@@ -664,7 +916,53 @@ Plans:
 
 **Research flag:** Standard patterns, once Phase 7 is settled.
 
-**Plans**: TBD
+**Plans**: 29/29 plans complete in 8 waves (planned 2026-10-29; each plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [x] 08-01-PLAN.md — Order list and detail contracts: pieces, list-wide counts in 3 fixed commands, server today, item attribution (ORD-01, ORD-07, ORD-11; D-40, D-41, D-44, D-59, D-60)
+- [x] 08-02-PLAN.md — Order money panel, card and the Delivered status (ORD-01, ORD-12, ORD-19; D-01 to D-08, D-45)
+- [x] 08-03-PLAN.md — Dialog words, tab keep-in-view and the people picker (ORD-07, ORD-15; D-09 to D-11, D-34, D-57, D-58)
+- [x] 08-04-PLAN.md — The three order lists in pickers (ORD-02, ORD-07; D-32)
+- [x] 08-05-PLAN.md — Due dates and overdue flags from the server today (ORD-11; D-36 to D-38, D-59)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 08-06-PLAN.md — The Orders list shows real orders; /admin lands on Orders (ORD-01, ORD-11, ORD-12, ORD-19; D-41, D-61)
+- [x] 08-07-PLAN.md — A Manager can read a deleted order (ORD-06; D-24)
+- [x] 08-08-PLAN.md — Settings tabs for the order lists (ORD-07; D-31, D-32)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 08-09-PLAN.md — Search, filter and sort orders; topbar search (ORD-02; D-42, D-43, D-53)
+- [x] 08-10-PLAN.md — Open an order: header, totals with profit, items (ORD-07, ORD-11, ORD-19; D-06, D-08, D-51)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 08-11-PLAN.md — Orders as a table, and the view choice that sticks (ORD-01, ORD-10, ORD-12)
+- [x] 08-12-PLAN.md — The rest of the order page: tabs, customer card, history, phone balance card (ORD-07; D-12, D-13, D-17, D-33, D-50)
+- [x] 08-13-PLAN.md — Create an order, with the unsaved-changes guard (ORD-15, ORD-07; D-27, D-30, D-49)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 08-14-PLAN.md — Work the items of an order; the shared window frame (ORD-07; D-05, D-44, D-48, D-58)
+- [x] 08-15-PLAN.md — Edit an order's details (ORD-15, ORD-07; D-28, D-38, D-46)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 08-16-PLAN.md — Record payments with Received by (ORD-07; D-09, D-11, D-29, D-48)
+- [x] 08-17-PLAN.md — Give and change discounts (ORD-07)
+- [x] 08-18-PLAN.md — Record what an order cost, with Paid by (ORD-07, ORD-19)
+- [x] 08-19-PLAN.md — Move, complete, cancel and reopen an order (ORD-07; D-14 to D-16, D-18, D-20, D-47)
+- [x] 08-20-PLAN.md — Deleted Orders: restore and delete for good (ORD-06; D-23, D-52)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 08-21-PLAN.md — Hand money back with refunds; testing seed refunds (ORD-07, ORD-12; D-10, D-19, D-62)
+- [x] 08-22-PLAN.md — Delete an order safely (ORD-06; D-21, D-22, D-39)
+- [x] 08-23-PLAN.md — Look inside a deleted order before restoring it (ORD-06, ORD-07; D-24)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 08-24-PLAN.md — Prove the whole phase and hand it to the owner (all nine requirements; D-25, D-26, D-56)
+- [x] 08-25-PLAN.md — Gap G-08-5: the server sends each discount's amount (ORD-07; D-94)
+- [x] 08-26-PLAN.md — Gap G-08-5: payment window checks caps against current figures (ORD-07; D-95)
+- [x] 08-27-PLAN.md — Gap G-08-5: the status menu reads the order again when it opens (ORD-07; D-96)
+- [x] 08-28-PLAN.md — Gap G-08-5: refund and discount windows check caps against current figures (ORD-07; D-95)
+- [x] 08-29-PLAN.md — Gap G-08-5: two-staff e2e and final gates (ORD-07; D-94 to D-97)
+
 **UI hint**: yes
 
 ### Phase 9: Order Images & Maintenance Jobs
@@ -1053,12 +1351,12 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 |-------|----------------|--------|-----------|
 | 1. Hosting Verification & Backend Foundation | 13/13 | Complete    | 2026-10-07 |
 | 2. Web Foundation & Design System | 43/43 | Complete    | 2026-10-14 |
-| 3. CI/CD & Deploy | 20/23 | In Progress | - |
-| 4. Identity & Authentication | 35/35 | In Progress | - |
-| 5. Profile & User Management | 0/TBD | Not started | - |
-| 6. Company Expenses | 0/TBD | Not started | - |
-| 7. Order Domain & API | 0/TBD | Not started | - |
-| 8. Order Screens | 0/TBD | Not started | - |
+| 3. CI/CD & Deploy | 23/23 | Complete    | 2026-10-17 |
+| 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
+| 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
+| 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
+| 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
+| 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
@@ -1096,6 +1394,14 @@ Plans:
 **Follow-ups:**
 - [ ] Test 8: Review the shared list-query defaults (staleTime 30 s, gcTime 5 min, refetchOnWindowFocus true, retry false) per list screen as later phases build them, and override per query where needed (02-08 D10). (deferred 2026-10-08)
 
+### Phase 999.4: Follow-up — Phase 06 deferred UAT follow-up: Test 6 (BACKLOG)
+
+**Goal:** Resolve the UAT checkpoint deferred during Phase 06 verification
+**Source phase:** 06
+**Deferred at:** 2026-10-26 during /gsd-verify-work 6 session completion
+**Follow-ups:**
+- [ ] Test 6: Check the live request logs after release: p95 under 300 ms for GET /api/v1/company-expenses and /kpis, following docs/operations/list-performance.md (D-28, D-58). (deferred 2026-10-26)
+
 ---
 *Roadmap created: 2026-10-07*
-*Last updated: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*
+*Last updated: 2026-10-17T09:30:00-05:00 after plans 03-20 to 03-22 were marked complete (CSPS live, first Manager signed in, owner acceptance 2026-10-17). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*

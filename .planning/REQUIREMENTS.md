@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-15T22:10:30-05:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-10-30T13:30:00-05:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -55,11 +55,11 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### CI/CD & Hosting (OPS)
 
-- [ ] **OPS-01**: The GitHub repo exists (private) with a PR template carrying the DoD checklist, Conventional Commits, `.gitignore` per PRD §18 and CODEOWNERS. GitHub Free can't enforce branch rules on a private repo, so `main` is protected by the process merge gate (D-08): CI runs every check on every PR, and the merge command refuses unless every check on the PR head is green and the DoD is ticked. The intended rules (PR required, green checks, linear history, 0 approvals, CODEOWNERS, no bypass) are written down, ready to switch on ⚑ C-45 (owner creates the repo; owner, 2026-10-15)
+- [x] **OPS-01**: The GitHub repo exists (private) with a PR template carrying the DoD checklist, Conventional Commits, `.gitignore` per PRD §18 and CODEOWNERS. GitHub Free can't enforce branch rules on a private repo, so `main` is protected by the process merge gate (D-08): CI runs every check on every PR, and the merge command refuses unless every check on the PR head is green and the DoD is ticked. The intended rules (PR required, green checks, linear history, 0 approvals, CODEOWNERS, no bypass) are written down, ready to switch on ⚑ C-45 (owner creates the repo; owner, 2026-10-15)
 - [x] **OPS-02**: The CI pipeline on every PR runs locked restore → .NET build → format check → unit → integration → architecture tests → web typecheck/lint/Prettier/Vitest + coverage → web build → Playwright → Lighthouse CI → coverage gates → license notices. Actions are pinned by SHA with least-privilege permissions
 - [x] **OPS-03**: Supply-chain security runs in CI: Dependabot (NuGet, npm, Actions) with cooldown, plus CodeQL, secret scanning with push protection and dependency review, or the owner-approved substitute set ⚑ C-27/S-9
-- [ ] **OPS-04**: A deploy runs only when the owner presses Run (`workflow_dispatch`) on a build of `main` that passed CI; that press is the manual approval. The package goes to the live SmarterASP.NET site, the only site on the Basic plan, through Web Deploy with `app_offline.htm`. A smoke test runs afterwards, and a failed smoke test redeploys the last good package automatically ⚑ C-45 (host credentials; owner, 2026-10-15)
-- [ ] **OPS-05**: `web.config` provides in-process hosting, HTTPS rewrite, removed server headers, compression, `immutable` caching for hashed assets and `no-cache` for `index.html`. Production configuration secrets live only on the server
+- [x] **OPS-04**: A deploy runs only when the owner presses Run (`workflow_dispatch`) on a build of `main` that passed CI; that press is the manual approval. The package goes to the live SmarterASP.NET site, the only site on the Basic plan, through Web Deploy with `app_offline.htm`. A smoke test runs afterwards, and a failed smoke test redeploys the last good package automatically ⚑ C-45 (host credentials; owner, 2026-10-15)
+- [x] **OPS-05**: `web.config` provides in-process hosting, HTTPS rewrite, removed server headers, compression, `immutable` caching for hashed assets and `no-cache` for `index.html`. Production configuration secrets live only on the server
 
 ### Security (SEC)
 
@@ -68,9 +68,9 @@ Initial release: everything needed to replace the production system at cutover.
 - [ ] **SEC-03**: Rate limiting (per IP and per account) on auth, consent, analytics ingestion, inquiry and public endpoints. Request body limits (JSON 1 MB, uploads per §10), and page-size caps (max 100). List endpoints also cap free-text search at 100 characters and reject longer text with a 400 field error, because search text travels in URLs (WEB-10)
 - [x] **SEC-04**: Data Protection keys persist to the database, so app-pool recycles don't sign everyone out ⚑ C-32 (key encryption at rest)
 - [ ] **SEC-05**: Each phase's security review lists the CWE IDs it touches with the test proving each mitigation. Pre-release: full MITRE CWE Top 25 / ATT&CK review, CodeQL clean, ZAP baseline against staging with no high/critical findings, and signed security checklist (PRD §11.5)
-- [ ] **SEC-06**: Form posts are idempotent, so a double-click, retry or network replay never creates a duplicate (owner, 2026-10-07). Every state-changing `POST` requires an `Idempotency-Key` header holding a client-generated UUID. The server stores each key in a relational table with the user id (none for anonymous forms), the route, a SHA-256 hash of the request body, and the response status and body (`nvarchar`, never a JSON column, D-13) for 24 hours, and a key only ever matches for the same user and route. A replay with the same key and body returns the stored response without running the handler again. The same key with a different body gets a 422 ProblemDetails, a duplicate arriving while the first request is still running gets 409, and a missing or malformed key gets 400. Expired keys are ignored at once, and a JOB-01 maintenance job purges them (cron-endpoint pattern, no host scheduler). The only exemptions are POSTs on an explicit allow-list with a written reason, such as sign-in, 2FA verify, refresh and sign-out (their responses carry tokens, which must never be stored) and analytics beacons (ANL-05; beacons can't send headers). The endpoint discovery test (SEC-02) fails on any POST that is neither covered nor allow-listed, and an integration test proves a duplicate POST creates exactly one record. PUT, PATCH and DELETE rely on `rowversion` instead (SEC-07), so a replay can never apply a second change
-- [ ] **SEC-07**: Concurrent writes never lose an update or produce wrong money (owner, 2026-10-07). This sharpens CEXP-02, ORD-08 and USER-04 and applies to every later aggregate. Every mutable aggregate (orders with their items, payments, discounts and expenses; company expenses; users; site content; money transfers) uses optimistic concurrency: a `rowversion` (for users, a `rowversion` or Identity's concurrency stamp) comes with every read and must match on every update or delete. A stale write gets a 409 ProblemDetails reading "This was changed by someone else. Reload and try again.", and the UI shows that message and reloads the latest version (ORD-08 also keeps the user's typed input). Check-then-write money operations, such as the transfer balance check (MONEY-05) and the overpayment rule (ORD-05), run in one transaction with locking (e.g. `UPDLOCK, HOLDLOCK` on the guarded rows, or SERIALIZABLE), so two concurrent requests can't both pass the check. Order totals, balances and other server-computed figures are never served stale after a write: no server cache holds them across a write, and the client invalidates every affected query after each mutation. For each aggregate, integration tests run two concurrent conflicting writes and assert that exactly one wins, the other gets 409 or a refusal, and totals and balances stay exact
-- [ ] **SEC-08**: Every record staff create or edit shows who entered it and who last changed it (owner, 2026-10-07). Each such record stores `CreatedBy`, `CreatedAt` (UTC), `UpdatedBy` and `UpdatedAt` (UTC). This covers at least orders and their items, payments, discounts, order expenses and images; company expenses; money transfers; site content (settings, product lines and prices, testimonials, closures and gallery items); users; and inquiries once staff edit them. The server sets these values in one place (e.g. an EF `SaveChanges` interceptor, like Phase 1's audit interceptor) from the signed-in user (`IRequestContext.UserId`, the token's `sub` claim) and from `TimeProvider`, never from the request: request DTOs have no such fields, and anything a client sends for them is ignored (spoofing; CWE-915 mass assignment). Nobody can edit them, and no endpoint accepts them. `UpdatedBy` and `UpdatedAt` stay empty until the first change, then change on every staff edit (including actions such as lock, deactivate or a role change), but not on system bookkeeping such as Identity's failed-attempt counter, security stamp or token rotation. A change to a child record (for example a payment) stamps the child and its order, as ORD-08 treats child-only edits as order edits. `CreatedBy` and `UpdatedBy` reference the user, and the name still shows after that user is deactivated or deleted (as CEXP-04, USER-03); the C-41 ruling decides whether that is the soft-deleted user's kept name or a stored name snapshot. Records written with no signed-in user get a fixed attribution that can't sign in: "System" for tools such as the AUTH-12 bootstrap-manager command and for rows that exist before the fields are added, and "Legacy import" for migrated records whose creator is unknown (MIG-10). Anonymous visitor submissions (INQ-01) have no creator. Read endpoints return the values, and every detail or edit view shows them read-only as "Recorded by" and "Last changed by", with the name and the date in business time (ORD-09). They are separate from the domain's people fields: on a payment, Received by (ORD-22) is who took the money and `CreatedBy` is who entered it; on an expense, Paid by (CEXP-05, ORD-23) is whose money paid it. MONEY-04's "recorded by, recorded at" are a transfer's `CreatedBy` and `CreatedAt`. Deletes are covered by the audit log (AUDIT-01), not by these fields. For every aggregate, an integration test sends forged values for all four fields on create and on update and asserts that the stored values come from the token and the clock ⚑ C-41
+- [ ] **SEC-06**: Form posts are idempotent, so a double-click, retry or network replay never creates a duplicate (owner, 2026-10-07). Every state-changing `POST` requires an `Idempotency-Key` header holding a client-generated UUID. The server stores each key in a relational table with the user id (none for anonymous forms), the route, a keyed HMAC-SHA256 of the request target and body (05 D-50), and the response status and body (`nvarchar`, never a JSON column, D-13) for 24 hours, and a key only ever matches for the same user and route. A replay with the same key and body returns the stored response without running the handler again. The same key with a different body gets a 422 ProblemDetails, a duplicate arriving while the first request is still running gets 409, and a missing or malformed key gets 400. Expired keys are ignored at once, later POSTs remove them in small batches (05 D-50), and a JOB-01 maintenance job purges them (cron-endpoint pattern, no host scheduler). The only exemptions are POSTs on an explicit allow-list with a written reason, such as sign-in, 2FA verify, refresh and sign-out (their responses carry tokens, which must never be stored) and analytics beacons (ANL-05; beacons can't send headers). The endpoint discovery test (SEC-02) fails on any POST that is neither covered nor allow-listed, and an integration test proves a duplicate POST creates exactly one record. PUT and PATCH rely on `rowversion` instead (SEC-07), so a replay can never apply a second change. `DELETE /api/v1/sessions/{id}` and `DELETE /api/v1/users/{id}` act on the latest state without a row version and are naturally idempotent (04 D-43; 05 D-21, D-41 Q4): repeating one changes nothing more
+- [x] **SEC-07**: Concurrent writes never lose an update or produce wrong money (owner, 2026-10-07). This sharpens CEXP-02, ORD-08 and USER-04 and applies to every later aggregate. Every mutable aggregate (orders with their items, payments, discounts and expenses; company expenses; users; site content; money transfers) uses optimistic concurrency: a `rowversion` (for users, a `rowversion` or Identity's concurrency stamp) comes with every read and must match on every update or delete. A stale write gets a 409 ProblemDetails reading "This was changed by someone else. Reload and try again.", and the UI shows that message and reloads the latest version (ORD-08 also keeps the user's typed input). Check-then-write money operations, such as the transfer balance check (MONEY-05) and the overpayment rule (ORD-05), run in one transaction with locking (e.g. `UPDLOCK, HOLDLOCK` on the guarded rows, or SERIALIZABLE), so two concurrent requests can't both pass the check. Order totals, balances and other server-computed figures are never served stale after a write: no server cache holds them across a write, and the client invalidates every affected query after each mutation. For each aggregate, integration tests run two concurrent conflicting writes and assert that exactly one wins, the other gets 409 or a refusal, and totals and balances stay exact
+- [x] **SEC-08**: Every record staff create or edit shows who entered it and who last changed it (owner, 2026-10-07). Each such record stores `CreatedBy`, `CreatedAt` (UTC), `UpdatedBy` and `UpdatedAt` (UTC). This covers at least orders and their items, payments, discounts, order expenses and images; company expenses; money transfers; site content (settings, product lines and prices, testimonials, closures and gallery items); users; and inquiries once staff edit them. The server sets these values in one place (e.g. an EF `SaveChanges` interceptor, like Phase 1's audit interceptor) from the signed-in user (`IRequestContext.UserId`, the token's `sub` claim) and from `TimeProvider`, never from the request: request DTOs have no such fields, and anything a client sends for them is ignored (spoofing; CWE-915 mass assignment). Nobody can edit them, and no endpoint accepts them. `UpdatedBy` and `UpdatedAt` stay empty until the first change, then change on every staff edit (including actions such as lock, deactivate or a role change), but not on system bookkeeping such as Identity's failed-attempt counter, security stamp or token rotation. A change to a child record (for example a payment) stamps the child and its order, as ORD-08 treats child-only edits as order edits. `CreatedBy` and `UpdatedBy` reference the user, and the name still shows after that user is deactivated or deleted (as CEXP-04, USER-03); the C-41 ruling decides whether that is the soft-deleted user's kept name or a stored name snapshot. Records written with no signed-in user get a fixed attribution that can't sign in: "System" for tools such as the AUTH-12 bootstrap-manager command and for rows that exist before the fields are added, and "Legacy import" for migrated records whose creator is unknown (MIG-10). Anonymous visitor submissions (INQ-01) have no creator. Read endpoints return the values, and every detail or edit view shows them read-only as "Recorded by" and "Last changed by", with the name and the date in business time (ORD-09). They are separate from the domain's people fields: on a payment, Received by (ORD-22) is who took the money and `CreatedBy` is who entered it; on an expense, Paid by (CEXP-05, ORD-23) is whose money paid it. MONEY-04's "recorded by, recorded at" are a transfer's `CreatedBy` and `CreatedAt`. Deletes are covered by the audit log (AUDIT-01), not by these fields. For every aggregate, an integration test sends forged values for all four fields on create and on update and asserts that the stored values come from the token and the clock ⚑ C-41
 
 ### Authentication (AUTH)
 
@@ -81,69 +81,70 @@ Initial release: everything needed to replace the production system at cutover.
 - [x] **AUTH-05**: "Keep me signed in" keeps staff signed in for 90 days (absolute). Without it, the session ends when the browser closes, at most 12 hours. Access tokens last 15 minutes and stay in memory only. Refresh tokens are hashed, rotated on every use, delivered as an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`, and need an anti-CSRF header ⚑ C-19, C-23
 - [x] **AUTH-06**: Staff can sign out, which revokes the current refresh token and clears cookies, and can sign out of all devices from their profile. Reuse of a rotated refresh token revokes the whole family, with a short grace window for concurrent tabs
 - [x] **AUTH-07**: An account locks for 15 minutes after 5 failed password attempts, and the user is emailed about the lockout
-- [ ] **AUTH-08**: Staff can request a password reset by email. The response is always "If an account exists, we sent a link". The link token is hashed, valid 30 minutes and single-use ⚑ C-7
-- [ ] **AUTH-09**: Resetting a password enforces the password policy (AUTH-11), revokes all sessions and sends a "your password was changed" email ⚑ C-5
-- [ ] **AUTH-10**: Deactivated or locked users cannot sign in, refresh or reset into an active session
-- [ ] **AUTH-11**: Passwords are at least 8 and at most 64 characters with at least one number and one symbol (owner D-11, 2026-10-14, chosen over the NIST recommendation after seeing the trade-off). Any printable characters, spaces included, are allowed; length counts characters (Unicode code points after NFC). Passwords are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only; when HIBP is unreachable a bundled common-password list is the floor and invite acceptance fails closed, D-14) or if they contain the user's email local part, first name or last name (parts under 3 characters ignored, D-15). A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
-- [ ] **AUTH-12**: A first Manager can be bootstrapped on an empty database (CLI command), so staging and production can be signed into without seed data
-- [ ] **AUTH-13**: Auth emails (code, lockout, reset, changed-password, invite) are sent from the business domain over TLS SMTP through an outbox behind `IEmailSender`. They contain no secrets beyond the intended code or link ⚑ OD-12
+- [x] **AUTH-08**: Staff can request a password reset by email. The response is always "If an account exists, we sent a link". The link token is hashed, valid 30 minutes and single-use ⚑ C-7
+- [x] **AUTH-09**: Resetting a password enforces the password policy (AUTH-11), revokes all sessions and sends a "your password was changed" email ⚑ C-5
+- [x] **AUTH-10**: Deactivated or locked users cannot sign in, refresh or reset into an active session
+- [x] **AUTH-11**: Passwords are at least 8 and at most 64 characters with at least one number and one symbol (owner D-11, 2026-10-14, chosen over the NIST recommendation after seeing the trade-off). Any printable characters, spaces included, are allowed; length counts characters (Unicode code points after NFC). Passwords are rejected if found in breach corpora (HIBP k-anonymity, 5-char SHA-1 prefix only; when HIBP is unreachable a bundled common-password list is the floor and invite acceptance fails closed, D-14) or if they contain the user's email local part, first name or last name (parts under 3 characters ignored, D-15). A strength meter and accessible errors are shown ⚑ C-5, C-33 (HIBP fail mode)
+- [x] **AUTH-12**: A first Manager can be bootstrapped on an empty database (CLI command), so staging and production can be signed into without seed data
+- [x] **AUTH-13**: Auth emails (code, lockout, reset, changed-password, invite) are sent from the business domain over TLS SMTP through an outbox behind `IEmailSender`. They contain no secrets beyond the intended code or link ⚑ OD-12
 
 ### Profile (PROF)
 
-- [ ] **PROF-01**: Any signed-in user can update their first and last name
-- [ ] **PROF-02**: A user can change their email after entering their current password. A confirmation link goes to the new address and a notice to the old one, and the change applies only after confirmation ⚑ C-9
-- [ ] **PROF-03**: A user can change their password after entering the current one. The policy is enforced, other sessions are revoked and a notification email is sent
-- [ ] **PROF-04**: A user can toggle the admin theme between Blush (light) and Espresso (dark). The choice persists in `localStorage['csps-theme']` and the public site stays light ⚑ C-11
+- [x] **PROF-01**: Any signed-in user can update their first and last name
+- [x] **PROF-02**: A user can change their email after entering their current password. A confirmation link goes to the new address and a notice to the old one, and the change applies only after confirmation ⚑ C-9
+- [x] **PROF-03**: A user can change their password after entering the current one. The policy is enforced, other sessions are revoked and a notification email is sent
+- [x] **PROF-04**: A user can toggle the admin theme between Blush (light) and Espresso (dark). The choice persists in `localStorage['csps-theme']` and the public site stays light ⚑ C-11
 
 ### User Management — Manager only (USER)
 
-- [ ] **USER-01**: A Manager can list users with pagination, search by name/email, and filter by role and status. The search, filters and page live in the URL (WEB-10)
-- [ ] **USER-02**: A Manager can create a user (first name, last name, email, role). The user is onboarded without the Manager ever seeing or setting their password (emailed invitation link per PRD) ⚑ C-4
-- [ ] **USER-03**: A Manager can edit a user's name, email and role, lock/unlock, deactivate/reactivate, and delete with confirmation. Deleted users' names remain on the orders and expenses they recorded ⚑ C-41
-- [ ] **USER-04**: A Manager cannot delete, deactivate or demote themselves, and the system never allows removing the last active Manager (race-safe)
-- [ ] **USER-05**: Role or status changes revoke the affected user's sessions immediately
-- [ ] **USER-06**: All user-management actions are written to the audit log
-- [ ] **USER-07**: A Manager can resend an invitation or send a password-reset link from the Users screen
-- [ ] **USER-08**: Non-Managers never see the Users navigation item, and hitting `/admin/users` redirects them to `/admin`. The API returns 403
+- [x] **USER-01**: A Manager can list users with pagination, search by name/email, and filter by role and status. The search, filters and page live in the URL (WEB-10)
+- [x] **USER-02**: A Manager can create a user (first name, last name, email, role) who is onboarded by an emailed 7-day invitation link (the default) or by a Manager-set temporary password the person must replace at first sign-in (C-4, 04 D-23) ⚑ C-4
+- [x] **USER-03**: A Manager can edit a user's name, email and role, lock/unlock, deactivate/reactivate, and delete with confirmation. Deleted users' names remain on the orders and expenses they recorded ⚑ C-41
+- [x] **USER-04**: A Manager cannot delete, deactivate or demote themselves, and the system never allows removing the last active Manager (race-safe)
+- [x] **USER-05**: Role or status changes revoke the affected user's sessions immediately
+- [x] **USER-06**: All user-management actions are written to the audit log
+- [x] **USER-07**: A Manager can resend an invitation or send a password-reset link from the Users screen
+- [x] **USER-08**: Non-Managers never see the Users navigation item, and hitting `/admin/users` redirects them to `/admin`. The API returns 403
 
 ### Audit (AUDIT)
 
 - [ ] **AUDIT-01**: These events are recorded in the audit log: sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/change, email change, session revocation, user CRUD/role/status changes, order and company-expense deletions, order status changes and site-content changes
-- [ ] **AUDIT-02**: A Manager can view the audit log filtered by actor, action, target and date range (SPEC-GAP screen composed from the `.s-rt` table + toolbar pattern). The filters and page live in the URL (WEB-10), and the actor filter holds the user id, never an email
+- [x] **AUDIT-02**: A Manager can view the audit log filtered by actor, action, target and date range (SPEC-GAP screen composed from the `.s-rt` table + toolbar pattern). The filters and page live in the URL (WEB-10), and the actor filter holds the user id, never an email
 
 ### Company Expenses (CEXP)
 
-- [ ] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
-- [ ] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
-- [ ] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
-- [ ] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
-- [ ] **CEXP-05**: Every company expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it on create and edit: it must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for the payment receiver (ORD-22). A saved expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The form has a required "Paid by" picker of active staff, the list shows a Paid by column, and CEXP-01's staff-name search also matches it; the UI spec's modal and table lack the field, so both are marked SPEC-GAP. This phase builds the staff lookup (id and display name of active Admins and Managers, open to both roles because the USER-01 roster is Manager-only) that ORD-22 and ORD-23 reuse. Paid by is separate from Recorded by (CEXP-04, SEC-08): Paid by is whose money paid the expense, Recorded by is who entered it ⚑ OD-16, OD-21
+- [x] **CEXP-01**: Staff can list company expenses with pagination, a date-range filter (default last 30 days), a category filter, search by description or staff name, newest-first sorting and a period total. The date range, category, search and page live in the URL (WEB-10), and the 30-day default is counted from the business "today"
+  - *Phase 6 note (owner decision D-23, 2026-10-25; the requirement text above is unchanged):* the "last 30 days" default is superseded by a window from 30 days before to 30 days after the business today, so early-recorded expenses still show. See `phases/06-company-expenses/06-CONTEXT.md` D-23.
+- [x] **CEXP-02**: Staff can create, update and delete (with confirmation) a company expense: date, category, description, amount > 0. Stale updates return 409 ⚑ OD-5, OD-8, C-43
+- [x] **CEXP-03**: The expenses page shows KPIs: this month, last full month, and top category this month with its share, using business-time-zone month boundaries
+- [x] **CEXP-04**: Each expense shows who recorded it (read-only "Recorded by"), and the attribution survives user deletion. Recorded by is the expense's SEC-08 `CreatedBy`, so the Edit modal shows the original recorder rather than the editor (the UI spec's "{name} (you)" fits only Add, marked SPEC-DEVIATION), and an edited expense also shows a read-only "Last changed by"
+- [x] **CEXP-05**: Every company expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it on create and edit: it must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for the payment receiver (ORD-22). A saved expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The form has a required "Paid by" picker of active staff, the list shows a Paid by column, and CEXP-01's staff-name search also matches it; the UI spec's modal and table lack the field, so both are marked SPEC-GAP. This phase builds the staff lookup (id and display name of active Admins and Managers, open to both roles because the USER-01 roster is Manager-only) that ORD-22 and ORD-23 reuse. Paid by is separate from Recorded by (CEXP-04, SEC-08): Paid by is whose money paid the expense, Recorded by is who entered it ⚑ OD-16, OD-21
 
 ### Orders (ORD)
 
-- [ ] **ORD-01**: Staff see a paginated order preview list (grid cards or table) with order number, customer/team, dates, status, Total, Total Paid, Total Discount, Balance, and the cover image as a lazy thumbnail (placeholder if none). The list is projected server-side without N+1 queries ⚑ C-13
-- [ ] **ORD-02**: Staff can search orders by number, customer name, team and phone; filter by status (default "Active + recent"), order-date range, product type and "has balance"; sort by due date, newest, balance or total, with server-side pagination (default 20). The search, filters, sort and page live in the URL (WEB-10)
-- [ ] **ORD-03**: Staff can create an order (customer details, dates, status, notes, one or more items) in a single database transaction. The API accepts the full aggregate (optionally payments, discount(s), expenses), and the UI follows the UI-spec flow ⚑ C-3, C-14, OD-7
+- [x] **ORD-01**: Staff see a paginated order preview list (grid cards or table) with order number, customer/team, dates, status, Total (after discount) and Balance on cards, plus Paid in the table, and the cover image as a lazy thumbnail (placeholder if none). Discount shows only on the order page. The Balance spot reads "Fully Paid" or "Credit ₱X" for a customer credit. The list is projected server-side without N+1 queries ⚑ C-13 (owner, 2026-10-29, 08 D-01, D-04)
+- [x] **ORD-02**: Staff can search orders by number, customer name, team and phone; filter by status (default "Active + recent"), order-date range, product type and "has balance"; sort by due date, newest, balance or total, with server-side pagination (default 20). The search, filters, sort and page live in the URL (WEB-10)
+- [x] **ORD-03**: Staff can create an order (customer details, dates, status, notes, one or more items) in a single database transaction. The API accepts the full aggregate (optionally payments, discount(s), expenses), and the UI follows the UI-spec flow ⚑ C-3, C-14, OD-7
 - [ ] **ORD-04**: Staff can upload images to an order (during creation and later): a per-order maximum, reorder via an accessible non-drag alternative, choose the cover, set alt text and delete images ⚑ C-2, C-16, OD-9
-- [ ] **ORD-05**: Staff can update order details and add/edit/remove items, payments, discount(s) and order expenses. Each change revalidates invariants (quantity > 0, unit price ≥ 0, description 1–200 chars, payment > 0 and not future-dated in business time, percent 0–100, discount ≤ items total, overpayment rule across all mutation types) and recomputes totals server-side ⚑ C-1, OD-4, C-38
-- [ ] **ORD-06**: Staff can delete an order through a cascade confirmation that shows child counts and requires typing the order number. Deletion removes all children in one transaction and schedules its images for storage cleanup ⚑ OD-5, OD-6
-- [ ] **ORD-07**: The order detail page shows the image gallery, tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals, the live OrderTotals panel and the customer card. The active tab lives in the URL (WEB-10), so Back and a shared link reopen the same tab
-- [ ] **ORD-08**: Concurrent edits to the same order, including child-only edits, return 409. The UI explains the conflict, preserves the user's input and offers reload
+- [x] **ORD-05**: Staff can update order details and add/edit/remove items, payments, discount(s) and order expenses. Each change revalidates invariants (quantity > 0, unit price ≥ 0, description 1–200 chars, payment > 0 and not future-dated in business time, percent 0–100, discount ≤ items total, a payment above the remaining balance is refused) and recomputes totals server-side. Removing an item, lowering a quantity or price, or adding or raising a discount after payment may push the balance below ₱0.00. That is allowed: the order then shows a customer credit (the amount paid over the new total), and a refund clears it (ORD-18) ⚑ C-1, OD-4, C-38 (owner, 2026-10-28, D-12, D-13)
+- [x] **ORD-06**: Staff can delete an order. A delete is a soft delete that both Admins and Managers can do: the order and all its parts disappear from every list, total and balance, but the rows stay. Only Managers see the Deleted orders view, restore an order (it counts again everywhere), and delete an order permanently. A permanent delete keeps the cascade confirmation that shows child counts and requires typing the order number. It removes the order and all its children in one transaction and schedules its images for storage cleanup once order images exist ⚑ OD-5, OD-6 (owner, 2026-10-28, D-26, D-27, D-28)
+- [x] **ORD-07**: The order detail page shows the image gallery, tabbed Items/Payments/Discounts/Expenses tables with counts and add/edit/delete modals, the live OrderTotals panel and the customer card. The active tab lives in the URL (WEB-10), so Back and a shared link reopen the same tab
+- [x] **ORD-08**: Concurrent edits to the same order, including child-only edits, return 409. The UI explains the conflict, preserves the user's input and offers reload
 - [x] **ORD-09**: Money displays as `₱12,450.00` (en-PH, U+2212 minus) and dates as `Oct 6, 2026`. Money inputs accept only valid 2-decimal amounts with the numeric keypad ⚑ OD-1
-- [ ] **ORD-10**: The Orders grid ⇄ table view choice persists in `localStorage['csps-orders-view']`. With URL state (WEB-10, owner 2026-10-07), the view shown is the URL's `view` when it is valid (`grid` or `table`), otherwise the saved `localStorage['csps-orders-view']` when it is valid, otherwise Grid, the UI spec's default. Only the explicit toggle writes both the URL (`replace`) and localStorage, so a shared or bookmarked link with `?view=table` applies to that visit only and never overwrites the viewer's saved choice. The `view` parser has no `withDefault`, so a missing value falls through to localStorage, and no localStorage-derived default is ever handed to nuqs (that would break `clearOnDefault`). A component test covers the URL × localStorage matrix
-- [ ] **ORD-11**: Orders show overdue / days-left indicators (cards, table, detail subline) computed from the business-time-zone "today"
-- [ ] **ORD-12**: An order shows "Fully Paid" when Total > 0 and Balance ≤ 0 (fixture ORD-2026-0151)
-- [ ] **ORD-13**: Each order item has a product type (the 6 fixed types) and a free-text size/variant ⚑ C-44
-- [ ] **ORD-14**: New orders get a human-readable number `ORD-{YYYY}-{NNNN}`, sequential per year, unique and concurrency-safe. Legacy numbers are preserved ⚑ C-15, C-24
-- [ ] **ORD-15**: Leaving the create/edit form with unsaved changes asks "Discard changes?"
-- [ ] **ORD-16**: Each order keeps a status change history (from → to, who, when)
-- [ ] **ORD-17**: Order status changes follow defined allowed transitions among Pending, Mockup, In Production, Ready, Completed and Cancelled ⚑ OD-3, C-39
-- [ ] **ORD-18**: Payments on cancelled orders and refunds follow a decided policy, so collected-cash figures stay correct ⚑ C-37
-- [ ] **ORD-19**: The order detail shows internal Order Expenses and Estimated Profit (Total − Discount − Order Expenses), visible to staff only
-- [ ] **ORD-20**: The order math reproduces the UI-SPEC §12.2 fixtures exactly (ORD-2026-0148: Total ₱22,450.00 · Discount −₱1,122.50 · Paid −₱12,000.00 · Balance ₱9,327.50 · Expenses ₱6,065.00 · Profit ₱15,262.50)
-- [ ] **ORD-21**: The domain exposes a lenient import path (`Order.Import`) and configurable rule constants, so legacy data can be brought in without schema rewrites
-- [ ] **ORD-22**: Every order payment has a required **Received by**: the staff user who took the money. The owner calls it "PaidTo"; the domain name is `ReceivedByUserId`, a required (non-null) reference, and the on-screen label is the owner's choice. The server validates it like the other ORD-05 invariants on payment create, payment edit and the full-aggregate create (ORD-03): a new payment, or a change of receiver, must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. A saved payment keeps its receiver, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). A change of receiver moves money between staff balances (MONEY-01), so it is written to the audit log (old → new receiver, who, when). A staff lookup (id and display name of active Admins and Managers) serves both roles, because the USER-01 roster is Manager-only. `Order.Import` (ORD-21) accepts the legacy receiver rule (MIG-09). Received by is separate from who entered the payment, its SEC-08 `CreatedBy` (owner, 2026-10-07) ⚑ OD-15, OD-20
-- [ ] **ORD-23**: Every order expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it like the other ORD-05 invariants on order-expense create, order-expense edit and the full-aggregate create (ORD-03): a new order expense, or a change of payer, must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for ORD-22. A saved order expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The staff lookup from CEXP-05 serves the picker. Paid by is separate from the expense's CreatedBy (SEC-08): Paid by is whose money paid it, CreatedBy is who entered it. `Order.Import` (ORD-21) accepts the legacy payer rule (MIG-10) ⚑ OD-15, OD-16, OD-21
+- [x] **ORD-10**: The Orders grid ⇄ table view choice persists in `localStorage['csps-orders-view']`. With URL state (WEB-10, owner 2026-10-07), the view shown is the URL's `view` when it is valid (`grid` or `table`), otherwise the saved `localStorage['csps-orders-view']` when it is valid, otherwise Grid, the UI spec's default. Only the explicit toggle writes both the URL (`replace`) and localStorage, so a shared or bookmarked link with `?view=table` applies to that visit only and never overwrites the viewer's saved choice. The `view` parser has no `withDefault`, so a missing value falls through to localStorage, and no localStorage-derived default is ever handed to nuqs (that would break `clearOnDefault`). A component test covers the URL × localStorage matrix
+- [x] **ORD-11**: Orders show overdue / days-left indicators (cards, table, detail subline) computed from the business-time-zone "today"
+- [x] **ORD-12**: An order shows "Fully Paid" when Total > 0 and Balance ≤ 0 (fixture ORD-2026-0151)
+- [x] **ORD-13**: Each order item has a product type chosen from the Manager-editable product type list (it starts with the six: Basketball Jersey, Volleyball Jersey, Moto Riding Jersey, Long Sleeves, Polo Shirt and Custom Design) and a free-text size/variant. Items are not linked to the price list ⚑ C-44 (owner, 2026-10-28, D-18)
+- [x] **ORD-14**: New orders get a human-readable number `ORD-{YYYY}-{NNNN}`, sequential per year, unique and concurrency-safe. Legacy numbers are preserved ⚑ C-15, C-24
+- [x] **ORD-15**: Leaving the create/edit form with unsaved changes asks "Discard changes?"
+- [x] **ORD-16**: Each order keeps a status change history (from → to, who, when)
+- [x] **ORD-17**: Order status changes follow defined allowed transitions among seven statuses: Pending, Mockup, In Production, Ready, Delivered, Completed and Cancelled. Delivered means the order was handed to the customer, and a balance may still be owed. Staff can move an order forward or back freely among the five active statuses and can cancel from any of them. Completed needs a balance of exactly ₱0.00, so an order with money owed or with a customer credit cannot be Completed. Completed and Cancelled are locked end states that Admins and Managers can reopen; a reopen is recorded in the status history and audited like any other change. There is no direct move between Completed and Cancelled: reopen first, then cancel ⚑ OD-3, C-39 (owner, 2026-10-28, D-01 to D-05, D-38)
+- [x] **ORD-18**: Payments on a cancelled order stay collected cash unless a refund is recorded. A refund is its own record on the order: date, an amount more than ₱0.00 and at most ₱1,000,000.00, a short required reason, and who handed the money back (an active Admin or Manager, validated like Received by). Any staff member can record a refund, on a Cancelled order or on an order that shows a customer credit, and every refund is audited. The cap is the amount paid minus earlier refunds on a Cancelled order, and at most the customer credit on any other order, so a refund never puts the customer back in debt. Refunds on a Cancelled order can be recorded, edited or removed without reopening it. A cancelled order's expenses still count in the payer's money on hand, in expense totals and in the order's profit. Profit on a Cancelled order is money kept minus money spent, (paid − refunded) − expenses, so the order can show a loss; every other status keeps total − expenses ⚑ C-37 (owner, 2026-10-28, D-07, D-09, D-10, D-34, D-35, D-36)
+- [x] **ORD-19**: The order detail shows internal Order Expenses and Estimated Profit (Total − Discount − Order Expenses), visible to staff only
+- [x] **ORD-20**: The order math reproduces the UI-SPEC §12.2 fixtures exactly (ORD-2026-0148: Total ₱22,450.00 · Discount −₱1,122.50 · Paid −₱12,000.00 · Balance ₱9,327.50 · Expenses ₱6,065.00 · Profit ₱15,262.50)
+- [x] **ORD-21**: The domain exposes a lenient import path (`Order.Import`) and configurable rule constants, so legacy data can be brought in without schema rewrites
+- [x] **ORD-22**: Every order payment has a required **Received by**: the staff user who took the money. The owner calls it "PaidTo"; the domain name is `ReceivedByUserId`, a required (non-null) reference, and the on-screen label is the owner's choice. The server validates it like the other ORD-05 invariants on payment create, payment edit and the full-aggregate create (ORD-03): a new payment, or a change of receiver, must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. A saved payment keeps its receiver, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). A change of receiver moves money between staff balances (MONEY-01), so it is written to the audit log (old → new receiver, who, when). A staff lookup (id and display name of active Admins and Managers) serves both roles, because the USER-01 roster is Manager-only. `Order.Import` (ORD-21) accepts the legacy receiver rule (MIG-09). Received by is separate from who entered the payment, its SEC-08 `CreatedBy` (owner, 2026-10-07) ⚑ OD-15, OD-20
+- [x] **ORD-23**: Every order expense has a required **Paid by**: the staff user who paid it (owner, 2026-10-07). The domain name is `PaidByUserId`, a required (non-null) reference, and the on-screen label is "Paid by". The server validates it like the other ORD-05 invariants on order-expense create, order-expense edit and the full-aggregate create (ORD-03): a new order expense, or a change of payer, must name an existing, active Admin or Manager, otherwise the request gets a plain-English field error. Any staff member may name any active coworker, as for ORD-22. A saved order expense keeps its payer, with the name still shown, after that user is deactivated or deleted (as CEXP-04, USER-03). The amount comes off the payer's money on hand (MONEY-01), so a change of payer moves money between staff balances and is written to the audit log (old → new payer, who, when); that event joins the AUDIT-01 catalog. The staff lookup from CEXP-05 serves the picker. Paid by is separate from the expense's CreatedBy (SEC-08): Paid by is whose money paid it, CreatedBy is who entered it. `Order.Import` (ORD-21) accepts the legacy payer rule (MIG-10) ⚑ OD-15, OD-16, OD-21
 
 ### Background Jobs (JOB)
 
@@ -171,7 +172,7 @@ Initial release: everything needed to replace the production system at cutover.
 
 Added by the owner on 2026-10-07: "Every user can have money tied to them and users can transfer their money to basically other user which they are coworker." The owner then ruled the same day that only Managers delete transfers, and that an Admin sees only their own money while a Manager sees everyone's (OD-19, resolved). Later that day the owner added that every expense records who paid it, and that the amount comes off the payer's money on hand (CEXP-05, ORD-23). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover this yet.
 
-- [ ] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them − Σ company and order expenses they paid (CEXP-05, ORD-23; owner ruling, 2026-10-07). Deleted transfers and deleted expenses never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side). The expense payers ship before this phase (CEXP-05 in Phase 6, ORD-23 in Phase 7), so Phase 10 depends on both and no phase moves. An integration test gives one staff member payments received, transfers in and out, and company and order expenses paid, and asserts the exact balance; changing an expense's Paid by moves its amount from one balance to the other exactly ⚑ OD-15, OD-16
+- [ ] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them − Σ company and order expenses they paid (CEXP-05, ORD-23) − Σ refunds they handed back (ORD-18) (owner rulings, 2026-10-07 and, for refunds, D-08 of 2026-10-27). Deleted transfers and deleted expenses never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side). The expense payers ship before this phase (CEXP-05 in Phase 6, ORD-23 in Phase 7), and so do refunds (ORD-18 in Phase 7), so Phase 10 depends on all three and no phase moves. An integration test gives one staff member payments received, transfers in and out, company and order expenses paid, and refunds handed back, and asserts the exact balance; changing an expense's Paid by moves its amount from one balance to the other exactly ⚑ OD-15, OD-16 (owner, 2026-10-28, D-08)
 - [ ] **MONEY-02**: A staff user can see their own money on hand and its ledger (payments received with their order numbers, transfers in and out, and expenses they paid with their category, plus the order number for order expenses), newest first with server-side pagination, on a SPEC-GAP "My money" screen composed from the existing card and `.s-rt` table patterns. The dashboard shows their money on hand as one card. Every figure comes from the server. The ledger's page lives in the URL (WEB-10)
 - [ ] **MONEY-03**: Who sees which balances (owner ruling OD-19, 2026-10-07): an Admin sees only their own money on hand, ledger and transfers. A Manager sees every staff member's money on hand in one list, can open any member's ledger, and sees their own. The transfer list holds only the transfers an Admin sent or received, and every transfer for a Manager. An Admin asking for any other user's balance, ledger or transfers gets 403 whether or not that user exists, so the response reveals nothing (CWE-639, CWE-204). Deactivated or deleted users who still hold money stay visible to Managers
 - [ ] **MONEY-04**: A staff user can transfer part of their money on hand to a coworker, meaning another **active** Admin or Manager. The server validates every field with plain-English errors: amount `decimal(18,2)` PHP above zero with at most 2 decimals, recipient different from the sender, transfer date not in the future in business time (`IBusinessCalendar`), optional note of at most 200 characters. The sender is always the signed-in user, taken from the token and never from the request body (CWE-639). Creating a transfer needs an `Idempotency-Key` (SEC-06), so a double-click records one transfer. Each transfer stores from, to, amount, date, note, recorded by, recorded at (UTC) and a `rowversion`
@@ -248,7 +249,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [x] **PERF-01**: Bundle budgets are enforced in CI from the first build: public route initial JS ≤ 150 KB gz, admin ≤ 250 KB gz, total CSS ≤ 35 KB gz
 - [x] **PERF-02**: Public pages score ≥ 95 in every Lighthouse category on the mobile profile, with LCP < 2.0 s, CLS < 0.05 and INP < 200 ms (Lighthouse CI)
 - [x] **PERF-03**: Every screen works from 320 px to 1920 px in portrait and landscape (verified at 320/375/414/768/1024/1280/1536/1920) with no horizontal scrolling, touch targets ≥ 44 px, ≥ 16 px inputs and correct `inputmode`/`type`
-- [ ] **PERF-04**: List endpoints meet API p95 < 300 ms on the target host with `AsNoTracking` projections, indexes on every filter/sort column, compiled queries on hot paths, and query-count tests guarding against N+1
+- [x] **PERF-04**: List endpoints meet API p95 < 300 ms on the target host with `AsNoTracking` projections, indexes on every filter/sort column, compiled queries on hot paths, and query-count tests guarding against N+1
 - [x] **PERF-05**: Fonts are self-hosted woff2, subset, `font-display: swap`, with the primary font preloaded and metric-matched fallbacks. The ₱ glyph renders in the brand font
 - [ ] **PERF-06**: Staff can install the admin portal as a PWA (manifest + icons). The service worker caches only static assets and the app shell, never API or authenticated responses, and shows a "new version available — reload" prompt
 - [ ] **PERF-07**: Route transitions use the View Transitions API as a progressive enhancement, and all motion is disabled under `prefers-reduced-motion`
@@ -358,19 +359,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-04 | Phase 2 | Complete |
 | QUAL-05 | Phase 4 | Complete |
 | QUAL-06 | Phase 1 | Complete |
-| OPS-01 | Phase 3 | Pending |
+| OPS-01 | Phase 3 | Complete |
 | OPS-02 | Phase 3 | Complete |
 | OPS-03 | Phase 3 | Complete |
-| OPS-04 | Phase 3 | Pending |
-| OPS-05 | Phase 3 | Pending |
+| OPS-04 | Phase 3 | Complete |
+| OPS-05 | Phase 3 | Complete |
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
-| SEC-03 | Phase 4 | Pending |
+| SEC-03 | Phase 4 | Partial: auth limits done in Phase 4; consent, analytics and inquiry limits in Phases 12-13 |
 | SEC-04 | Phase 1 | Complete |
 | SEC-05 | Phase 14 | Pending |
-| SEC-06 | Phase 4 | Pending |
-| SEC-07 | Phase 5 | Pending |
-| SEC-08 | Phase 5 | Pending |
+| SEC-06 | Phase 4 | Partial: idempotency done in Phase 4; JOB-01 key purge in Phase 9 |
+| SEC-07 | Phase 5 | Complete |
+| SEC-08 | Phase 5 | Complete |
 | AUTH-01 | Phase 4 | Complete |
 | AUTH-02 | Phase 4 | Complete |
 | AUTH-03 | Phase 4 | Complete |
@@ -378,54 +379,54 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-05 | Phase 4 | Complete |
 | AUTH-06 | Phase 4 | Complete |
 | AUTH-07 | Phase 4 | Complete |
-| AUTH-08 | Phase 4 | Pending |
-| AUTH-09 | Phase 4 | Pending |
-| AUTH-10 | Phase 4 | Pending |
-| AUTH-11 | Phase 4 | Pending |
-| AUTH-12 | Phase 4 | Pending |
-| AUTH-13 | Phase 4 | Pending |
-| PROF-01 | Phase 5 | Pending |
-| PROF-02 | Phase 5 | Pending |
-| PROF-03 | Phase 5 | Pending |
-| PROF-04 | Phase 5 | Pending |
-| USER-01 | Phase 5 | Pending |
-| USER-02 | Phase 5 | Pending |
-| USER-03 | Phase 5 | Pending |
-| USER-04 | Phase 5 | Pending |
-| USER-05 | Phase 5 | Pending |
-| USER-06 | Phase 5 | Pending |
-| USER-07 | Phase 5 | Pending |
-| USER-08 | Phase 5 | Pending |
-| AUDIT-01 | Phase 4 | Pending |
-| AUDIT-02 | Phase 5 | Pending |
-| CEXP-01 | Phase 6 | Pending |
-| CEXP-02 | Phase 6 | Pending |
-| CEXP-03 | Phase 6 | Pending |
-| CEXP-04 | Phase 6 | Pending |
-| CEXP-05 | Phase 6 | Pending |
-| ORD-01 | Phase 8 | Pending |
-| ORD-02 | Phase 8 | Pending |
-| ORD-03 | Phase 7 | Pending |
+| AUTH-08 | Phase 4 | Complete |
+| AUTH-09 | Phase 4 | Complete |
+| AUTH-10 | Phase 4 | Complete |
+| AUTH-11 | Phase 4 | Complete |
+| AUTH-12 | Phase 4 | Complete |
+| AUTH-13 | Phase 4 | Complete |
+| PROF-01 | Phase 5 | Complete |
+| PROF-02 | Phase 5 | Complete |
+| PROF-03 | Phase 5 | Complete |
+| PROF-04 | Phase 5 | Complete |
+| USER-01 | Phase 5 | Complete |
+| USER-02 | Phase 5 | Complete |
+| USER-03 | Phase 5 | Complete |
+| USER-04 | Phase 5 | Complete |
+| USER-05 | Phase 5 | Complete |
+| USER-06 | Phase 5 | Complete |
+| USER-07 | Phase 5 | Complete |
+| USER-08 | Phase 5 | Complete |
+| AUDIT-01 | Phase 4 | Partial: auth events done in Phase 4; user, order, expense and content events with their features |
+| AUDIT-02 | Phase 5 | Complete |
+| CEXP-01 | Phase 6 | Complete |
+| CEXP-02 | Phase 6 | Complete |
+| CEXP-03 | Phase 6 | Complete |
+| CEXP-04 | Phase 6 | Complete |
+| CEXP-05 | Phase 6 | Complete |
+| ORD-01 | Phase 8 | Complete |
+| ORD-02 | Phase 8 | Complete |
+| ORD-03 | Phase 7 | Complete |
 | ORD-04 | Phase 9 | Pending |
-| ORD-05 | Phase 7 | Pending |
-| ORD-06 | Phase 8 | Pending |
-| ORD-07 | Phase 8 | Pending |
-| ORD-08 | Phase 7 | Pending |
+| ORD-05 | Phase 7 | Complete |
+| ORD-06 | Phase 8 | Complete |
+| ORD-07 | Phase 8 | Complete |
+| ORD-08 | Phase 7 | Complete |
 | ORD-09 | Phase 2 | Complete |
-| ORD-10 | Phase 8 | Pending |
-| ORD-11 | Phase 8 | Pending |
-| ORD-12 | Phase 8 | Pending |
-| ORD-13 | Phase 7 | Pending |
-| ORD-14 | Phase 7 | Pending |
-| ORD-15 | Phase 8 | Pending |
-| ORD-16 | Phase 7 | Pending |
-| ORD-17 | Phase 7 | Pending |
-| ORD-18 | Phase 7 | Pending |
-| ORD-19 | Phase 8 | Pending |
-| ORD-20 | Phase 7 | Pending |
-| ORD-21 | Phase 7 | Pending |
-| ORD-22 | Phase 7 | Pending |
-| ORD-23 | Phase 7 | Pending |
+| ORD-10 | Phase 8 | Complete |
+| ORD-11 | Phase 8 | Complete |
+| ORD-12 | Phase 8 | Complete |
+| ORD-13 | Phase 7 | Complete |
+| ORD-14 | Phase 7 | Complete |
+| ORD-15 | Phase 8 | Complete |
+| ORD-16 | Phase 7 | Complete |
+| ORD-17 | Phase 7 | Complete |
+| ORD-18 | Phase 7 | Complete |
+| ORD-19 | Phase 8 | Complete |
+| ORD-20 | Phase 7 | Complete |
+| ORD-21 | Phase 7 | Complete |
+| ORD-22 | Phase 7 | Complete |
+| ORD-23 | Phase 7 | Complete |
 | JOB-01 | Phase 9 | Pending |
 | JOB-02 | Phase 9 | Pending |
 | IMG-01 | Phase 9 | Pending |
@@ -492,7 +493,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERF-01 | Phase 2 | Complete |
 | PERF-02 | Phase 2 | Complete |
 | PERF-03 | Phase 2 | Complete |
-| PERF-04 | Phase 6 | Pending |
+| PERF-04 | Phase 6 | Complete |
 | PERF-05 | Phase 2 | Complete |
 | PERF-06 | Phase 14 | Pending |
 | PERF-07 | Phase 14 | Pending |
@@ -519,4 +520,4 @@ Cross-cutting QUAL/SEC/A11Y/PERF requirements are mapped to the phase where thei
 
 ---
 *Requirements defined: 2026-10-06*
-*Last updated: 2026-10-15T22:10:30-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*
+*Last updated: 2026-10-19T03:30:00-05:00 after plan 05-49 amended SEC-06 for the keyed request hash and batch purge (05 D-50, D-52). Earlier: 2026-10-18T08:20:00-05:00 after plan 05-26 amended SEC-06 so the two version-free DELETE routes are named (04 D-43; 05 D-21, D-41 Q4). Earlier: 2026-10-18T03:28:00-05:00 after plan 05-19 amended USER-02 to allow the Manager-set temporary-password route (C-4, 04 D-23). Earlier: 2026-10-17T13:42:00-05:00 after Phase 4 completion marked AUTH-08..13 complete and SEC-03, SEC-06 and AUDIT-01 partial. Earlier: 2026-10-17T09:30:00-05:00 after plan 03-22 marked OPS-04 and OPS-05 complete (first live deploy and smoke, owner acceptance). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended OPS-01, OPS-04, MIG-04, MIG-08 and CUT-02 to the Phase 3 owner decisions. Earlier: 2026-10-14T20:26:27-05:00 after plan 04-04 amended AUTH-11 to the owner's password rule (D-11: 8 to 64 characters with a number and a symbol; AUTH-09 now names the policy). Earlier: 2026-10-07, the owner chose URL query-string state with nuqs (WEB-10; 180/180 mapped)*

@@ -41,6 +41,9 @@ public sealed record PasswordRulesResult(PasswordRulesStatus Status, string? Mes
 /// <param name="common">The local list of the most common passwords, used when the breach service is down.</param>
 public sealed class PasswordRules(IPwnedPasswords pwned, ICommonPasswords common)
 {
+    /// <summary>Shown when the new password is empty; the one message the validators and <see cref="PasswordPolicy"/> share.</summary>
+    public const string NewPasswordRequired = PasswordPolicy.NewPasswordRequiredMessage;
+
     /// <summary>Shown when the password is in a known breach.</summary>
     public const string BreachedMessage = "This password has appeared in a data breach. Choose a different one.";
 
@@ -72,7 +75,7 @@ public sealed class PasswordRules(IPwnedPasswords pwned, ICommonPasswords common
         }
 
         var normalized = PasswordPolicy.Normalize(password);
-        var answer = await pwned.CheckAsync(normalized, cancellationToken);
+        var answer = await pwned.CheckAsync(normalized, cancellationToken).ConfigureAwait(false);
         return answer switch
         {
             BreachCheckResult.Breached => new PasswordRulesResult(PasswordRulesStatus.Rejected, BreachedMessage, false),

@@ -6,13 +6,16 @@
 //   - ResultBar is App. E.7's result bar: "Showing **12** orders · sorted by due date" ("Showing **1** order" for one),
 //     then the chips. The chips wrap onto new lines 8px apart and never widen the page.
 //   - FilterChip is one non-default filter: "Status: Active + recent" (the label truncates with an ellipsis, the full
-//     text stays in the text node) and a 22px clear button named "Clear status filter" (O-8 size kept).
+//     text stays in the text node) and a 24px clear button named "Clear status filter" (D-98).
 // The caller renders a chip only for a filter that differs from its default (defaults never show a chip or reach the
 // URL) and wires each control and each chip's clear to the list hook's setFilter, a replace that resets the page.
 // SPEC-DEVIATION: PERF-03 (UI-SPEC overflow row) the chips sit in their own wrapping group with the label in a
 // truncating span, so four chips at 320px wrap instead of scrolling; App. E.7 puts its one chip straight in the bar.
+import clsx from 'clsx';
 import { Children, type ReactNode } from 'react';
+import { targetAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
+import { formatCount } from '@/utils/format';
 import { LISTS_COPY, nounFor } from './copy';
 import {
   chipGroupClasses,
@@ -52,11 +55,13 @@ export interface ResultBarProps {
   things: string;
   /** "due date", read as " · sorted by due date". */
   sortLabel?: string | undefined;
+  /** A fixed order phrase, read as " · newest first" (the audit log, which cannot be sorted). */
+  orderNote?: string | undefined;
   /** One FilterChip per non-default filter. */
   children?: ReactNode;
 }
 
-export function ResultBar({ count, thing, things, sortLabel, children }: ResultBarProps) {
+export function ResultBar({ count, thing, things, sortLabel, orderNote, children }: ResultBarProps) {
   const chips = Children.toArray(children);
   if (count === 0 && chips.length === 0) {
     return null;
@@ -65,8 +70,10 @@ export function ResultBar({ count, thing, things, sortLabel, children }: ResultB
     <div className={resultBarClasses}>
       {count > 0 && (
         <span>
-          {LISTS_COPY.showing} <strong className={resultCountClasses}>{count}</strong> {nounFor(count, thing, things)}
+          {LISTS_COPY.showing} <strong className={resultCountClasses}>{formatCount(count)}</strong>{' '}
+          {nounFor(count, thing, things)}
           {sortLabel !== undefined && LISTS_COPY.sortedBy(sortLabel)}
+          {orderNote !== undefined && LISTS_COPY.orderNote(orderNote)}
         </span>
       )}
       {chips.length > 0 && <div className={chipGroupClasses}>{chips}</div>}
@@ -75,22 +82,24 @@ export function ResultBar({ count, thing, things, sortLabel, children }: ResultB
 }
 
 export interface FilterChipProps {
-  /** The filter's name, like "Status". */
+  /** The filter's name, like "Status". With no `value` it is the whole chip text, like "Has a balance". */
   label: string;
-  /** The chosen value's label, like "Active + recent". */
-  value: string;
+  /** The chosen value's label, like "Active + recent". Leave it out for a filter that is simply on or off. */
+  value?: string | undefined;
+  /** Names the clear button ("Clear {clearName} filter") when the label is not the filter's name; defaults to `label`. */
+  clearName?: string | undefined;
   /** The list hook's setFilter(key, null): a replace that resets the page. */
   onClear: () => void;
 }
 
-export function FilterChip({ label, value, onClear }: FilterChipProps) {
+export function FilterChip({ label, value, clearName, onClear }: FilterChipProps) {
   return (
     <span className={filterChipClasses}>
-      <span className={filterChipLabelClasses}>{LISTS_COPY.chip(label, value)}</span>
+      <span className={filterChipLabelClasses}>{value === undefined ? label : LISTS_COPY.chip(label, value)}</span>
       <button
         type="button"
-        className={filterChipClearClasses}
-        aria-label={LISTS_COPY.clearFilter(label)}
+        className={clsx(filterChipClearClasses, targetAreaClasses)}
+        aria-label={LISTS_COPY.clearFilter(clearName ?? label)}
         onClick={onClear}
       >
         <Icon name="x" size={14} />

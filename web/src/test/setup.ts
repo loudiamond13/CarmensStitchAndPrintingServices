@@ -24,6 +24,15 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// jsdom has no scrollIntoView either. A no-op lets components that scroll a control into view run under test.
+if (typeof window !== 'undefined') {
+  Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    configurable: true,
+    writable: true,
+    value: () => undefined,
+  });
+}
+
 // Any console.error or console.warn during a test fails that test (Pitfall 20). Vitest runs after-each hooks in
 // reverse registration order (sequence.hooks 'stack'), so registering the guard first makes its check run after the
 // cleanup below, and warnings raised while unmounting fail the test too.

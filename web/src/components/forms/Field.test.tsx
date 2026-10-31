@@ -155,6 +155,14 @@ describe('Field markup and labelling (App. D.3, A11Y-01)', () => {
     expect(screen.getByRole('textbox', { name: 'Customer name' })).toBeRequired();
   });
 
+  it('keeps the plain markup: the label, the box, then the message', () => {
+    const { container } = render(<Field label="Date" hint="Pick one." />);
+    const field = container.firstElementChild;
+
+    expect([...(field?.children ?? [])].map((child) => child.localName)).toEqual(['label', 'div', 'p']);
+    expect(classTokens(field?.children[1])).toEqual(tokens(CONTROL));
+  });
+
   it('renders a textarea for multiline, with the multiline box look', () => {
     const { container } = render(<Field label="Notes" multiline rows={4} placeholder="Optional" />);
     const textarea = box('Notes');

@@ -3,7 +3,7 @@ status: complete
 phase: 04-identity-authentication
 source: [04-VERIFICATION.md]
 started: 2026-10-15T18:20:00-05:00
-updated: 2026-10-15T22:25:00-05:00
+updated: 2026-10-17T18:17:51.663Z
 created: 2026-10-15T18:20:00-05:00
 ---
 
@@ -19,8 +19,8 @@ result: pass
 
 ### 2. Production Set-Cookie behaviour
 expected: After the first HTTPS deploy, the sign-in responses set `__Secure-csps_rt` and `__Secure-csps_2fa` with HttpOnly, Secure, SameSite=Strict, Path=/api/v1/auth.
-result: skipped
-reason: "Moved to Phase 5 by the owner on 2026-10-15. Production is not deployed yet, so Phase 5 UAT runs this check."
+result: pass
+note: "Owner confirmed 2026-10-17 (Phase 3 cutover, 03-CUTOVER-LOG.md Step 8): both cookies on https://cspstailoring.com had HttpOnly, Secure, SameSite Strict and Path /api/v1/auth. Earlier moved to Phase 5 on 2026-10-15; closed here instead."
 
 ### 3. Live HIBP reachability
 expected: A `CSPS_LIVE_HIBP=1` run of `HibpLiveTests` (and the same from the host at first deploy) classifies breached and clean passwords correctly.
@@ -30,10 +30,10 @@ note: "Local CSPS_LIVE_HIBP=1 run passed (1/1). The from-host run happens at fir
 ## Summary
 
 total: 3
-passed: 2
+passed: 3
 issues: 0
 pending: 0
-skipped: 1
+skipped: 0
 blocked: 0
 
 ## Gaps

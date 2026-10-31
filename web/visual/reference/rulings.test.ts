@@ -35,8 +35,14 @@ const RULING_IDS = [
   'D-41 R2-03',
   'D-42',
   'OQ-5',
+  'D-51',
+  'WR-20',
   'OQ-8',
   'OQ-9',
+  'P5 D-35',
+  'P5 long-text',
+  'D-60',
+  'D-63',
 ] as const;
 
 interface Group {
@@ -298,6 +304,32 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(rules.map((rule) => normalize(rule.body))).toEqual(['animation: none;']);
   });
 
+  it('P5 long-text: the sidebar chip and the top bar user button cut a long name short on one line, the user cell name column may shrink, a phone card value wraps anywhere, and a select clips a long chosen option', () => {
+    const groupsOfLongText = byRuling('P5 long-text');
+    const phone = groupsOfLongText.filter((group) => group.prelude === '@container pg (max-width: 767px)');
+    const phoneRules = phone.flatMap((group) => groupsOf(group.body));
+
+    expect(groupsOfLongText.map((group) => normalize(group.prelude))).toEqual([
+      '.csp-sidebar-user > div',
+      '.csp-sidebar-user strong, .csp-usermenu-text strong',
+      '.csp-usermenu-text',
+      '.csp-cell-user > span:last-child',
+      '@container pg (max-width: 767px)',
+      '.csp-select select',
+    ]);
+    expect(groupsOfLongText.slice(0, 4).map((group) => normalize(group.body))).toEqual([
+      'min-width: 0;',
+      'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
+      'max-width: 200px;',
+      'min-width: 0; overflow-wrap: anywhere;',
+    ]);
+    expect(phoneRules.map((rule) => [rule.prelude, normalize(rule.body)])).toEqual([
+      ['.s-rt td', 'overflow-wrap: anywhere;'],
+      ['.s-rt td::before', 'overflow-wrap: normal;'],
+    ]);
+    expect(normalize(groupsOfLongText[5]?.body ?? '')).toBe('overflow: hidden;');
+  });
+
   it('D-31 D-BL-02: the Manager tag is hidden on the current sidebar row', () => {
     const [group] = byRuling('D-31 D-BL-02');
 
@@ -334,6 +366,26 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
 
     expect(groupsOfR203.map((group) => group.prelude)).toEqual(['.s-search-box:focus-within']);
     expect(normalize(groupsOfR203[0]?.body ?? '')).toBe('border-color: var(--focus);');
+  });
+
+  it('D-60: the list search box is 42px tall, matching a toolbar field box, nothing else', () => {
+    const groupsOfD60 = byRuling('D-60');
+
+    expect(groupsOfD60.map((group) => group.prelude)).toEqual(['.s-search-box']);
+    expect(normalize(groupsOfD60[0]?.body ?? '')).toBe('height: 42px;');
+  });
+
+  it('D-63: the dropdown fills on enabled hover, darkens its chevron on enabled hover and focus, and goes dark scheme in Espresso, nothing else', () => {
+    const groupsOfD63 = byRuling('D-63');
+
+    expect(groupsOfD63.map((group) => [selectorsOf(group.prelude), normalize(group.body)])).toEqual([
+      [['.csp-select:has(select:enabled):hover:not(:focus-within)'], 'background: var(--surface-3);'],
+      [
+        ['.csp-select:has(select:enabled):hover .csp-select-chev', '.csp-select:focus-within .csp-select-chev'],
+        'color: var(--ink);',
+      ],
+      [['[data-theme="dark"] .csp-select'], 'color-scheme: dark;'],
+    ]);
   });
 
   it('D-42: the Overlay region is a column whose ::before spacer (124px, 96px on phones) shrinks before the dialog does, and the backdrop scrolls', () => {
@@ -376,6 +428,38 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
     expect(declarations('OQ-5')).toContain(
       'content: ""; position: absolute; inset: 50% 0 auto 0; height: 44px; transform: translateY(-50%);',
     );
+  });
+
+  it('D-51: the row action group puts 8px between its buttons and each button gets the invisible 44px ::before tap area, nothing else', () => {
+    const groupsOfD51 = byRuling('D-51');
+
+    expect(groupsOfD51.map((group) => group.prelude)).toEqual([
+      '.s-acts',
+      '.s-acts .s-iconbtn',
+      '.s-acts .s-iconbtn::before',
+    ]);
+    expect(groupsOfD51.map((group) => normalize(group.body))).toEqual([
+      'gap: 8px;',
+      'position: relative;',
+      'content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);',
+    ]);
+  });
+
+  it('WR-20: the sidebar toggle, the phone menu button and the user menu get an invisible ::before tap area, nothing else', () => {
+    const groupsOfWr20 = byRuling('WR-20');
+
+    expect(groupsOfWr20.map((group) => selectorsOf(group.prelude))).toEqual([
+      ['.csp-sidebar .csp-iconbtn', '.csp-topbar-menu'],
+      ['.csp-sidebar .csp-iconbtn::before', '.csp-topbar-menu::before'],
+      ['.csp-usermenu'],
+      ['.csp-usermenu::before'],
+    ]);
+    expect(groupsOfWr20.map((group) => normalize(group.body))).toEqual([
+      'position: relative;',
+      'content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);',
+      'position: relative;',
+      'content: ""; position: absolute; inset: 50% 0 auto 0; height: 44px; transform: translateY(-50%);',
+    ]);
   });
 
   it('OQ-8: the sign-in brand panel keeps the dot mesh the spec text asks for (the approved render lost it), nothing else', () => {

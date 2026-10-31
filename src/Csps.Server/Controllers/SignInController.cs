@@ -9,19 +9,11 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Csps.Server.Controllers;
 
-/// <summary>What a successful sign-in step answers: how long to wait before asking for a new code.</summary>
-/// <param name="ResendAfterSeconds">Whole seconds.</param>
-public sealed record SignInResponse(int ResendAfterSeconds);
-
 /// <summary>What a correct code answers: the next step and, when signed in, the session.</summary>
 /// <param name="Next">Either <c>signed-in</c> or <c>set-new-password</c>.</param>
 /// <param name="Reason">Why a new password is needed (<c>temporary</c> or <c>breach</c>); null when signed in.</param>
 /// <param name="Session">The started session; null when a new password is needed.</param>
 public sealed record VerifyCodeResponse(string Next, string? Reason, SessionResponse? Session);
-
-/// <summary>What a resend answers: how long to wait before asking again.</summary>
-/// <param name="ResendAfterSeconds">Whole seconds.</param>
-public sealed record ResendCodeResponse(int ResendAfterSeconds);
 
 /// <summary>
 /// Staff sign-in: email and password in, a code by email and the pending-login cookie out (AUTH-01, AUTH-02), then
@@ -46,7 +38,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     [EnableRateLimiting(RateLimitPolicies.SignIn)]
     [IdempotencyExempt("Answers set a pending-login cookie and must never be stored; repeats are harmless and rate-limited.")]
     [EndpointName("SignIn")]
-    [ProducesResponseType<SignInResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ResendWaitResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IResult> SignIn(
@@ -57,7 +49,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
         return result.ToHttpResult(HttpContext, outcome =>
         {
             AuthCookies.SetTicket(Response, outcome.Ticket, outcome.TicketExpiresAt);
-            return TypedResults.Ok(new SignInResponse(outcome.ResendAfterSeconds));
+            return TypedResults.Ok(new ResendWaitResponse(outcome.ResendAfterSeconds));
         });
     }
 
@@ -109,7 +101,7 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     [IdempotencyExempt("Bound to the ticket cookie; the 60 s cooldown and hourly cap already make a repeat harmless.")]
     [RequireCsrfHeader]
     [EndpointName("ResendCode")]
-    [ProducesResponseType<ResendCodeResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ResendWaitResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -117,6 +109,6 @@ public sealed class SignInController(SignInHandler signIn, VerifyCodeHandler ver
     {
         var ticket = Request.Cookies[AuthCookies.TicketCookieName];
         var result = await resendCode.HandleAsync(ticket, cancellationToken).ConfigureAwait(false);
-        return result.ToHttpResult(HttpContext, outcome => TypedResults.Ok(new ResendCodeResponse(outcome.ResendAfterSeconds)));
+        return result.ToHttpResult(HttpContext, outcome => TypedResults.Ok(new ResendWaitResponse(outcome.ResendAfterSeconds)));
     }
 }

@@ -1,6 +1,6 @@
 # Stack Research
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-07T15:53:21-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-17T09:36:00-05:00*
 
 **Domain:** Small-business order management + public marketing site (custom sublimation jerseys / tailoring, Philippines). .NET 10 Minimal API + React 19 SPA served from `wwwroot`, SmarterASP.NET shared Windows/IIS hosting.
 **Researched:** 2026-10-06
@@ -203,7 +203,7 @@
 | Item | Recommendation | Conf. |
 |---|---|---|
 | SmarterASP.NET runtime | The site lists ".NET 10.x" and "SQL Server 2025". **Verify in the control panel** that the installed ASP.NET Core Module + runtime patch is ≥ 10.0.12, that the app pool is **64-bit** and set to "No Managed Code", and that the database reports compat level 170. | LOW [W/D] |
-| Publish mode | **Framework-dependent** (`net10.0`, `win-x64` not required) if the host's 10.0.x patch is current. Framework-dependent apps roll forward to the latest installed 10.0.x patch. If the host lags on security patches, publish **self-contained `win-x64`** (`-r win-x64 --self-contained true`). That adds about 70–100 MB to the upload but gives you control of the patch level. A self-contained x64 app **fails in a 32-bit app pool**. | MEDIUM [K] |
+| Publish mode | **Framework-dependent** (`net10.0`, `win-x64` not required) if the host's 10.0.x patch is current. Framework-dependent apps roll forward to the latest installed 10.0.x patch. If the host lags on security patches, publish **self-contained `win-x64`** (`-r win-x64 --self-contained true`). That adds about 70–100 MB to the upload but gives you control of the patch level. A self-contained x64 app **fails in a 32-bit app pool**. **Decided (owner, 2026-10-16):** self-contained `win-x64`. The host probe found runtime 10.0.7, below the required 10.0.13; the package is about 60 MB zipped. | MEDIUM [K] |
 | IIS hosting model | `hostingModel="inprocess"` (`AspNetCoreModuleV2`). `web.config` should remove `Server` and `X-Powered-By`, set `stdoutLogEnabled="false"` in production, apply the static caching rules from PRD §19.1, and enable `app_offline.htm` during deploy. | HIGH [K] |
 | Deploy | **Web Deploy (MSDeploy) from a `windows-latest` job.** The runner image has the VS WebDeploy component and .NET SDK 10.0.401. Use `msdeploy.exe -verb:sync -source:contentPath=<publishDir> -dest:contentPath=<site>,computerName="https://<host>:8172/msdeploy.axd?site=<site>",userName=…,password=…,authType=Basic -enableRule:AppOffline -skip:Directory=\\logs`. Credentials go in GitHub **environment** secrets (`staging`, `production` with required reviewers). Build and test on ubuntu, then hand the publish artifact to the Windows deploy job. | MEDIUM [R][K] |
 | Plan sizing | Basic: 1 DB / 1 GB / 256 MB app pool / no scheduled tasks. **Advance** ($4.95: 6 DBs, 3 GB, 512 MB) is the realistic floor for staging + production. **Premium** has 3 GB memory and scheduled tasks. Without a host scheduler, use a GitHub Actions cron that calls the secret-protected maintenance endpoint (PRD §19.3). | LOW [W] |
@@ -315,7 +315,7 @@ import babel from '@rolldown/plugin-babel';
 | coverlet.MTP + ReportGenerator | Microsoft.Testing.Extensions.CodeCoverage | Never. Its license is proprietary. |
 | HybridCache (application-level) | Output caching only | Output caching is enough if the Android client is out of scope forever. It's still fine for anonymous public GETs. |
 | Serilog File sink | Serilog.Sinks.MSSqlServer | Never for app logs on a 1–10 GB shared database. |
-| Framework-dependent publish | Self-contained win-x64 | If the host runtime patch lags 10.0.12+ or the hosting bundle is missing. |
+| Framework-dependent publish | Self-contained win-x64 (in use since 2026-10-16) | The host runtime patch lags 10.0.13 (probe: 10.0.7) or the hosting bundle is missing. |
 | LocalDB for local dev/tests | Testcontainers + Docker SQL 2025 | See Stack Patterns. CI must use the container either way. |
 | No chart library | uPlot 1.6.32 (MIT, last release 2025-03) | Only if a chart needs zoom/pan or thousands of points. Recharts and Chart.js would blow the 250 KB admin budget. |
 | openapi-typescript in an isolated tool folder | Hand-written DTO types + contract tests | If the isolated folder is too much ceremony. |
@@ -383,7 +383,7 @@ import babel from '@rolldown/plugin-babel';
 - At Phase 1 install time, prefer versions at least 7–14 days old. Use `npm install --before=<ISO date>` [K] or pick the previous patch, and set Dependabot `cooldown`. Most "latest" versions in this file were flagged `too-new` by the GSD legitimacy seam only because of age. For each one, record either "aged" or "accepted with reason" in the Phase 1 RESEARCH.md.
 
 **If the SmarterASP plan is Basic (256 MB):**
-- Disable the React Compiler debug features (irrelevant server-side). Keep HybridCache small (size limits). Avoid self-contained publish where possible. Expect app-pool recycles under memory pressure, which makes the Data Protection DB persistence mandatory, not optional.
+- Disable the React Compiler debug features (irrelevant server-side). Keep HybridCache small (size limits). The publish is self-contained (2026-10-16, host runtime too old), so watch app-pool memory after deploys. Expect app-pool recycles under memory pressure, which makes the Data Protection DB persistence mandatory, not optional.
 
 ---
 

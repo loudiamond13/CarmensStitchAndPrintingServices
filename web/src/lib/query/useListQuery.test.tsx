@@ -130,3 +130,28 @@ describe('useListQuery', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useListQuery enabled', () => {
+  it('sends no request while enabled is false and runs it once enabled turns true', async () => {
+    const client = createQueryClient();
+    const fetcher = vi.fn<Fetcher>(() => Promise.resolve({ rows: ['a'] }));
+    const params: OrderListParams = { page: 1, pageSize: 20, status: 'all' };
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) => useListQuery({ key: 'orders', params, fetcher, enabled }),
+      { wrapper: wrapperFor(client), initialProps: { enabled: false } },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(result.current.isPending).toBe(true);
+
+    rerender({ enabled: true });
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual({ rows: ['a'] });
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});

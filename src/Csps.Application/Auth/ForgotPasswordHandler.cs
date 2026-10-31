@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -12,7 +11,7 @@ namespace Csps.Application.Auth;
 /// <summary>
 /// Use case: ask for a password reset link by email (AUTH-08, D-16). The answer and its timing are the same for every
 /// address, so nothing says whether an account exists (CWE-204, D-39). An active account gets a link, a deactivated one
-/// a notice without a link (D-20), an unknown address nothing. At most 3 emails per account per hour go out (D-39), and a
+/// a notice without a link (D-20), a Manager-locked one nothing (D-41), and an unknown or deleted address nothing. At most 3 emails per account per hour go out (D-39), and a
 /// new link revokes the earlier ones, so one link works at a time.
 /// </summary>
 public sealed class ForgotPasswordHandler(
@@ -54,16 +53,20 @@ public sealed class ForgotPasswordHandler(
         return Result.Success();
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
-    // An account that cannot sign in yet (invited, email unconfirmed) is answered like an unknown address.
+    // An account that cannot sign in yet (invited, email unconfirmed) or is deleted is answered like an unknown address.
+    // A Manager lock is checked before the deactivated notice, so a locked account never learns anything by email (D-41 Q5).
     private Task<bool> AnswerAsync(UserAccount? account, CancellationToken cancellationToken) =>
         unitOfWork.InTransactionAsync(
             async token =>
             {
-                if (account is null || (account.IsActive && !account.EmailConfirmed))
+                if (account is null || account.IsDeleted || (account.IsActive && !account.EmailConfirmed))
                 {
-                    audit.Record(AuditActions.PasswordResetRequested, null, null, "unknown-account");
+                    audit.Record(AuditActions.PasswordResetRequested, null, null, AuditActions.DetailUnknownAccount);
+                }
+                else if (account.IsManagerLocked)
+                {
+                    audit.Record(AuditActions.PasswordResetRequested, UserTarget, AuditKey.Of(account.Id), AuditActions.DetailManagerLocked);
                 }
                 else if (account.IsActive)
                 {
@@ -86,9 +89,10 @@ public sealed class ForgotPasswordHandler(
         await tokens.LockAccountAsync(account.Id, cancellationToken).ConfigureAwait(false);
 
         var now = time.GetUtcNow();
-        if (await IsCappedAsync(AuthEmailKind.PasswordReset, account.Email, now, cancellationToken).ConfigureAwait(false))
+        // A Manager's reset link counts toward the same hourly cap (USER-07).
+        if (await ResetEmailCap.IsReachedAsync(outbox, account.Email, now, settings, cancellationToken).ConfigureAwait(false))
         {
-            audit.Record(AuditActions.PasswordResetRequested, UserTarget, Key(account.Id), "capped");
+            audit.Record(AuditActions.PasswordResetRequested, UserTarget, AuditKey.Of(account.Id), AuditActions.DetailCapped);
             return;
         }
 
@@ -101,19 +105,19 @@ public sealed class ForgotPasswordHandler(
         await outbox.EnqueueAsync(
             new PasswordResetEmail(account.Email, secret, created.ExpiresAt, now, DeviceSummary.Describe(requestContext.UserAgent)),
             cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.PasswordResetRequested, UserTarget, Key(account.Id), "sent");
+        audit.Record(AuditActions.PasswordResetRequested, UserTarget, AuditKey.Of(account.Id), AuditActions.DetailSent);
     }
 
     private async Task SendNoticeAsync(UserAccount account, CancellationToken cancellationToken)
     {
         if (await IsCappedAsync(AuthEmailKind.DeactivatedNotice, account.Email, time.GetUtcNow(), cancellationToken).ConfigureAwait(false))
         {
-            audit.Record(AuditActions.PasswordResetRequested, UserTarget, Key(account.Id), "capped");
+            audit.Record(AuditActions.PasswordResetRequested, UserTarget, AuditKey.Of(account.Id), AuditActions.DetailCapped);
             return;
         }
 
         await outbox.EnqueueAsync(new DeactivatedNoticeEmail(account.Email), cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.PasswordResetRequested, UserTarget, Key(account.Id), "deactivated");
+        audit.Record(AuditActions.PasswordResetRequested, UserTarget, AuditKey.Of(account.Id), AuditActions.DetailDeactivated);
     }
 
     private async Task<bool> IsCappedAsync(AuthEmailKind kind, string toAddress, DateTimeOffset now, CancellationToken cancellationToken) =>

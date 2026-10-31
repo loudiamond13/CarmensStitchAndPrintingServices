@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
@@ -54,7 +53,6 @@ public sealed class SetNewPasswordHandler(
         }
     }
 
-    private static string Key(Guid id) => id.ToString("D", CultureInfo.InvariantCulture);
 
     private async Task<Result<IssuedSession>> ApplyAsync(string? ticket, SetNewPasswordRequest request, CancellationToken cancellationToken)
     {
@@ -120,14 +118,14 @@ public sealed class SetNewPasswordHandler(
         await sessions.RevokeAllAsync(user.Id, null, SessionRevocationReason.PasswordReset, now, cancellationToken).ConfigureAwait(false);
         var issued = await sessionIssuer.StartAsync(user, challenge.Persistent, cancellationToken).ConfigureAwait(false);
         await outbox.EnqueueAsync(new PasswordChangedEmail(user.Email, now, false), cancellationToken).ConfigureAwait(false);
-        audit.Record(AuditActions.PasswordChanged, UserTarget, Key(user.Id), null);
-        audit.Record(AuditActions.SessionsRevoked, UserTarget, Key(user.Id), "password-reset");
+        audit.Record(AuditActions.PasswordChanged, UserTarget, AuditKey.Of(user.Id), null);
+        audit.Record(AuditActions.SessionsRevoked, UserTarget, AuditKey.Of(user.Id), AuditActions.DetailPasswordReset);
         if (breachCheckSkipped)
         {
-            audit.Record(AuditActions.BreachCheckUnavailable, UserTarget, Key(user.Id), null);
+            audit.Record(AuditActions.BreachCheckUnavailable, UserTarget, AuditKey.Of(user.Id), null);
         }
 
-        audit.Record(AuditActions.SignedIn, SessionTarget, Key(issued.SessionId), null);
+        audit.Record(AuditActions.SignedIn, SessionTarget, AuditKey.Of(issued.SessionId), null);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return issued;
     }

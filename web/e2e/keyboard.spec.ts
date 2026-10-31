@@ -173,7 +173,7 @@ for (const { trigger, dialog: dialogName, field } of [
     page,
   }) => {
     await openShowcase(page);
-    const button = page.getByRole('button', { name: trigger });
+    const button = page.getByRole('button', { name: trigger, exact: true });
     const dialog = await openByKeyboard(page, button, dialogName);
     await expect(dialog.getByRole('textbox', { name: field })).toBeFocused();
     await expectTrapped(page);

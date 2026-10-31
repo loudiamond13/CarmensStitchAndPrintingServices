@@ -1,6 +1,6 @@
 # Runbook: switch the live site from the legacy app to CSPS
 
-*Created: 2026-10-16T08:20:00-05:00 · Updated: 2026-10-16T17:00:00-05:00*
+*Created: 2026-10-16T08:20:00-05:00 · Updated: 2026-10-25T22:05:00-05:00*
 
 This is the numbered plan for the day CSPS replaces the legacy site on the live host (D-01, D-18, OPS-04). You do every control-panel step. Claude checks each result before the next step starts. The legacy data is kept byte for byte in a verified backup (`.bak`) first (D-03, D-04), and the legacy site's files are kept as a rollback kit (D-05).
 
@@ -300,5 +300,5 @@ The question (PRD 19.2) was whether the host allows a second, lower-rights datab
 - **The site and the bootstrap tool** use an extra database user with `db_datareader` and `db_datawriter` only. It cannot create, alter or drop anything, so it cannot switch off the audit log's append-only triggers (the old `db_owner` login could).
 - **You** use the database's main login (`db_owner`) in SSMS to apply the migration script and for look-only checks.
 - The extra user's password is 8 to 20 characters. Use only letters and digits, and keep it in your password manager. Rotate it by changing it in the control panel and in `ConnectionStrings__Csps`, then restarting the pool.
-- The site uses one raw SQL call, `sp_getapplock`, for duplicate-request protection. It is allowed for a `db_datawriter` user. If a later phase needs more (a stored procedure, a sequence), a reviewed script gives that one right, and this note is updated.
+- The site uses no raw SQL. Duplicate-request protection and its other locks are rows in the `DatabaseLocks` table, read and written like any table, so `db_datareader` and `db_datawriter` cover them (D-50). If a later phase needs more (a stored procedure, a sequence), a reviewed script gives that one right, and this note is updated.
 - If the site reports a permission error with this user and it cannot be fixed with a reviewed script, the fallback is the main login in `ConnectionStrings__Csps`. That is an accepted risk and needs your explicit decision on record.

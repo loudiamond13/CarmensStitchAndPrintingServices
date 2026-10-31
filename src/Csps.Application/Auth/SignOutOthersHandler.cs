@@ -44,7 +44,7 @@ public sealed class SignOutOthersHandler(
             return Result.Success();
         }
 
-        audit.Record(AuditActions.SessionsRevoked, "User", userId.ToString("D", CultureInfo.InvariantCulture), "sign-out-others");
+        audit.Record(AuditActions.SessionsRevoked, "User", userId.ToString("D", CultureInfo.InvariantCulture), AuditActions.DetailSignOutOthers);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         foreach (var id in revoked)
         {

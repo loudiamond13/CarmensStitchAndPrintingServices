@@ -24,7 +24,7 @@ import { isGitIgnored, REVIEW_TARGETS, REVIEW_WIDTHS } from './owner-review.mjs'
 /**
  * @typedef {'light' | 'dark'} Theme
  * @typedef {{ readonly path: string, readonly slug: string, readonly title: string, readonly design: 'public' | 'admin', readonly themes: readonly Theme[], readonly boards: Readonly<Record<number, string | null>> }} Pairing
- * @typedef {{ readonly path: string, readonly slug: string, readonly title: string, readonly theme: Theme, readonly width: number, readonly designFile: string, readonly board: string | null, readonly ours: string, readonly output: string | null }} SideBySideItem
+ * @typedef {{ readonly path: string, readonly slug: string, readonly title: string, readonly theme: Theme, readonly width: number, readonly designFile: string, readonly board: string | null, readonly ours: string, readonly output: string | null, readonly signedIn: boolean }} SideBySideItem
  * @typedef {{ readonly ok: true } | { readonly ok: false, readonly message: string }} GuardResult
  */
 
@@ -76,6 +76,7 @@ export const PAIRINGS = Object.freeze([
     title: 'Admin: Orders',
     design: 'admin',
     themes: BOTH,
+    signedIn: true,
     boards: { 390: 'Orders — mobile', 820: 'Orders — tablet', 1440: 'Orders — grid/table toggle, delete works' },
   },
   {
@@ -186,6 +187,8 @@ export function planSideBySide(pairings = PAIRINGS, widths = REVIEW_WIDTHS) {
           board,
           ours: `../shots/${target.slug}-${theme}-${String(width)}.png`,
           output: board === null ? null : path.join(SIDE_BY_SIDE_DIR, `${name}-design.png`),
+          // Our side of a real, guarded page is photographed signed in as a Manager (owner-review.mjs, plans 05-37 and 06-19).
+          signedIn: target.signedIn === true,
         };
       }),
     );
@@ -258,7 +261,7 @@ export function renderSideBySide({ generatedAt, items }) {
                   `Approved design, ${title}, ${label}`,
                 )}"></a></figure>`;
           const ours =
-            `<figure class="w${String(item.width)}"><figcaption>Our page</figcaption>` +
+            `<figure class="w${String(item.width)}"><figcaption>Our page${item.signedIn ? ', signed in as a Manager' : ''}</figcaption>` +
             `<a href="${escapeHtml(item.ours)}"><img src="${escapeHtml(item.ours)}" alt="${escapeHtml(
               `Our page, ${title}, ${label}`,
             )}"></a></figure>`;
@@ -282,10 +285,10 @@ export function renderSideBySide({ generatedAt, items }) {
 <p class="note">Made on this computer on ${escapeHtml(generatedAt)}. On the left is the screen from your original design
 files; on the right is the same page in the new app, at the same width and in the same colour theme. These pictures and
 the design files are never put in git, uploaded or put on the live site.</p>
-<p class="note">The admin pages of the new app are still placeholders: their real content comes in later phases. For now,
-please compare the frame around the page: the side menu, the top bar, the phone tab bar, the colours, the fonts and the
-spacing. The public home page is also a placeholder; compare its header and footer. Write down anything that looks
-wrong, in your own words.</p>
+<p class="note">The Dashboard and Orders pages of the new app are still placeholders: their real content comes in later phases.
+For those, please compare the frame around the page: the side menu, the top bar, the phone tab bar, the colours, the fonts
+and the spacing. Company Expenses, Users and My Profile are the real pages, photographed signed in as a Manager. The public
+home page is also a placeholder; compare its header and footer. Write down anything that looks wrong, in your own words.</p>
 ${sections}
 </main>
 </body>

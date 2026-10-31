@@ -13,7 +13,7 @@ namespace Csps.Infrastructure.Passwords;
 /// go to the fixed address below, with <c>Add-Padding</c>; the rest of the hash is compared here. The address is a
 /// constant and is never read from settings or the client (CWE-918, T-04-59).
 /// </summary>
-/// <param name="http">The typed client; its resilience handler bounds the wait.</param>
+/// <param name="http">The typed client; its resilience handler bounds the wait and its buffer cap bounds the answer size (IN-09).</param>
 /// <param name="logger">Receives a warning with the failure status only (T-04-58).</param>
 internal sealed partial class HibpPwnedPasswords(HttpClient http, ILogger<HibpPwnedPasswords> logger) : IPwnedPasswords
 {
@@ -35,14 +35,14 @@ internal sealed partial class HibpPwnedPasswords(HttpClient http, ILogger<HibpPw
 
         try
         {
-            using var response = await http.SendAsync(request, cancellationToken);
+            using var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 LogUnavailableStatus(logger, (int)response.StatusCode);
                 return BreachCheckResult.Unavailable;
             }
 
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (!HibpRangeParser.HasEntries(body))
             {
                 LogUnavailable(logger, "unreadable answer");

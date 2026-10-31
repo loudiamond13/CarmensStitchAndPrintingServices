@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Csps.Server.IntegrationTests.Auth;
 
 /// <summary>
-/// AUTH-12, D-14, D-29: an invite works once, for 72 hours, and every invite that does not work gets the same 404. The
+/// AUTH-12, D-14, D-29: an invite works once, for 7 days, and every invite that does not work gets the same 404. The
 /// breach check fails closed, and a refused password leaves the invite usable.
 /// </summary>
 public sealed class InviteTests(CspsDatabase database) : IClassFixture<CspsDatabase>
@@ -48,7 +48,7 @@ public sealed class InviteTests(CspsDatabase database) : IClassFixture<CspsDatab
     }
 
     [Fact]
-    public async Task AnInviteWorksUntilTheLastMomentAndIsInvalidAtExactlySeventyTwoHours()
+    public async Task AnInviteWorksUntilTheLastMomentAndIsInvalidAtExactlySevenDays()
     {
         var clock = new SteppedClock();
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -56,7 +56,7 @@ public sealed class InviteTests(CspsDatabase database) : IClassFixture<CspsDatab
         using var client = AuthClient.CreateClient(factory);
         var invited = await CreateInvitedAsync(client);
 
-        clock.Advance(TimeSpan.FromHours(72) - TimeSpan.FromMilliseconds(1));
+        clock.Advance(TimeSpan.FromDays(7) - TimeSpan.FromMilliseconds(1));
         using (var justInTime = await AuthClient.CheckInviteAsync(client, invited.Token))
         {
             justInTime.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -240,7 +240,7 @@ public sealed class InviteTests(CspsDatabase database) : IClassFixture<CspsDatab
 
                 return invited.Token;
             case "expired":
-                clock.Advance(TimeSpan.FromHours(73));
+                clock.Advance(TimeSpan.FromDays(8));
                 return invited.Token;
             case "revoked":
                 await using (var context = database.CreateContext())

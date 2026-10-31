@@ -17,6 +17,9 @@ public static class PasswordCheckRegistration
 
     private const string TestingEnvironment = "Testing";
 
+    /// <summary>The largest answer read (1 MB); a padded range answer is about 40 KB, so more is not from HIBP (IN-09).</summary>
+    private const long MaxAnswerBytes = 1024 * 1024;
+
     private static readonly TimeSpan TotalTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(250);
@@ -24,7 +27,7 @@ public static class PasswordCheckRegistration
     /// <summary>
     /// Adds <see cref="PasswordRules"/>, the embedded common-password list and the breach checker. Outside Testing the
     /// checker is the HIBP client: a total timeout of 3 seconds, so an outage never holds up a password change for
-    /// long (D-14), with one quick retry. The Testing environment gets the offline stand-in (Debug builds only, QUAL-05).
+    /// long (D-14), with one quick retry, and a 1 MB cap on the answer (an oversized answer reads as unavailable). The Testing environment gets the offline stand-in (Debug builds only, QUAL-05).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="environment">The host environment.</param>
@@ -52,7 +55,7 @@ public static class PasswordCheckRegistration
 
     private static void AddHibp(IServiceCollection services)
     {
-        services.AddHttpClient(HttpClientName)
+        services.AddHttpClient(HttpClientName, http => http.MaxResponseContentBufferSize = MaxAnswerBytes)
             .AddTypedClient<IPwnedPasswords>((http, provider) =>
                 new HibpPwnedPasswords(http, provider.GetRequiredService<ILogger<HibpPwnedPasswords>>()))
             .AddStandardResilienceHandler(options =>

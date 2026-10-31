@@ -2,7 +2,7 @@
 // text colour, then the text. With `live` it is a polite status, so a notice that appears is read out.
 import type { ReactNode } from 'react';
 import { Icon } from '@/components/brand';
-import { noteClasses } from './states.recipe';
+import { noteClasses, noteTextClasses } from './states.recipe';
 
 export interface NoteProps {
   icon: 'shield-check' | 'info' | 'circle-check';
@@ -15,7 +15,7 @@ export function Note({ icon, children, live = false }: NoteProps) {
   return (
     <div className={noteClasses} role={live ? 'status' : undefined}>
       <Icon name={icon} size={18} />
-      <span>{children}</span>
+      <span className={noteTextClasses}>{children}</span>
     </div>
   );
 }

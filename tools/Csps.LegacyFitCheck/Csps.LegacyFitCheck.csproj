@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The legacy fit check (Phase 7.1, D-07): reads CSPS_Legacy_Restore only, imports into a throwaway CSPS_Test database it drops,
+    writes findings to _local only. No src project references it, so it is never deployed.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Csps.LegacyFitCheck.Tests" />
+  </ItemGroup>
+
+</Project>

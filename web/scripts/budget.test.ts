@@ -11,6 +11,8 @@ import {
   PARITY_ENTRY,
   PUBLIC_ROUTE,
   routeInitialSize,
+  SHOWCASE_ONLY_MODULE_PREFIXES,
+  SHOWCASE_PAGE,
   type BudgetAsset,
   type BudgetChunk,
   type BudgetGraph,
@@ -425,11 +427,12 @@ describe('evaluateBudgets: the parity build (test-only parity page)', () => {
 
 describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
   it.each([
-    ['src/dev/scenarios/groups/money.ts'],
+    ['src/dev/parity-main.tsx'],
     ['visual/parity/page.tsx'],
     ['visual/.reference-src/ui/index.tsx'],
     ['src/modules/admin/pages/AdminPreviewPage.tsx'],
     ['src/modules/admin/previewCopy.ts'],
+    ['src/modules/public/pages/PublicLayoutCheckPage.tsx'],
   ])('fails a production chunk that contains %s', (moduleId) => {
     const graph = productionGraph(120_000);
     const leaked = graph.chunks.map((c) =>
@@ -468,6 +471,134 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
       expect(report.errors).toEqual([expect.stringContaining(fileName)]);
     },
   );
+});
+
+// D-33 / D-41 Q3: the component showcase ships to production as a lazy admin chunk, with the scenario data, the kit and
+// the previews it renders. Those modules may sit only in chunks that the public and admin initial JS do not load and
+// that the showcase page's own chunk reaches; the parity entry, visual/, the preview page and its copy stay out.
+describe('evaluateBudgets: the showcase in production (D-33, D-41 Q3)', () => {
+  const SHOWCASE_CHUNK = 'assets/ComponentShowcasePage-S1.js';
+  const KIT_CHUNK = 'assets/showcase-kit-S2.js';
+  const USERS_CHUNK = 'assets/UsersPage-U1.js';
+  const KIT_MODULES = [
+    'src/dev/kit.ts',
+    'src/dev/scenarios/groups/money.ts',
+    'src/dev/previews/ListTable.tsx',
+    'src/modules/admin/components/showcase/ShowcaseDemos.tsx',
+  ];
+
+  /** The production graph plus a lazy showcase page chunk that statically imports one kit chunk holding the dev modules. */
+  function showcaseGraph(): BudgetGraph {
+    const base = productionGraph(120_000);
+    return {
+      ...base,
+      chunks: [
+        ...base.chunks,
+        chunk(SHOWCASE_CHUNK, 20_000, {
+          isDynamicEntry: true,
+          facadeModuleId: SHOWCASE_PAGE,
+          imports: [SHARED, KIT_CHUNK],
+          moduleIds: [SHOWCASE_PAGE, 'src/modules/admin/components/showcase/showcaseCopy.ts'],
+        }),
+        chunk(KIT_CHUNK, 60_000, { imports: [SHARED], moduleIds: KIT_MODULES }),
+        // Another lazy admin page: no initial JS loads it and the showcase page does not reach it.
+        chunk(USERS_CHUNK, 8_000, {
+          isDynamicEntry: true,
+          facadeModuleId: 'src/modules/admin/pages/UsersPage.tsx',
+          imports: [SHARED],
+          moduleIds: ['src/modules/admin/pages/UsersPage.tsx'],
+        }),
+      ],
+    };
+  }
+
+  /** The same graph with one extra module id in the named chunk. */
+  function withModule(graph: BudgetGraph, fileName: string, moduleId: string): BudgetGraph {
+    return {
+      ...graph,
+      chunks: graph.chunks.map((c) => (c.fileName === fileName ? { ...c, moduleIds: [...c.moduleIds, moduleId] } : c)),
+    };
+  }
+
+  it('names the showcase page and the showcase-only prefixes', () => {
+    expect(SHOWCASE_PAGE).toBe('src/modules/admin/pages/ComponentShowcasePage.tsx');
+    expect(SHOWCASE_ONLY_MODULE_PREFIXES).toEqual([
+      'src/dev/',
+      'src/modules/admin/components/showcase/',
+      'src/modules/admin/pages/ComponentShowcasePage',
+    ]);
+  });
+
+  it('passes when the dev modules sit only in chunks the showcase page reaches, and its size does not count toward admin JS', () => {
+    const report = evaluateBudgets(showcaseGraph(), production);
+    expect(report.errors).toEqual([]);
+    expect(report.ok).toBe(true);
+    expect(report.adminJs).toBe(162_000);
+    expect(report.publicJs).toBe(120_000);
+  });
+
+  it.each([
+    ['the entry chunk', ENTRY],
+    ['a chunk the public route shares', SHARED],
+    ['the admin layout chunk', 'assets/AdminLayout-H8.js'],
+    ['the sign-in page chunk', 'assets/SignInPage-M4.js'],
+  ])('fails when a src/dev module sits in %s (initial JS)', (_name, fileName) => {
+    const report = evaluateBudgets(
+      withModule(showcaseGraph(), fileName, 'src/dev/scenarios/groups/money.ts'),
+      production,
+    );
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([
+      expect.stringContaining(`${fileName} contains the showcase-only module src/dev/scenarios/groups/money.ts`),
+    ]);
+  });
+
+  it('fails when a showcase module sits in a lazy chunk the showcase page does not reach', () => {
+    const report = evaluateBudgets(
+      withModule(showcaseGraph(), USERS_CHUNK, 'src/modules/admin/components/showcase/showcaseCopy.ts'),
+      production,
+    );
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([
+      expect.stringMatching(/UsersPage-U1\.js contains the showcase-only module .*showcaseCopy\.ts/),
+    ]);
+  });
+
+  it('fails when another chunk outside the showcase imports a chunk that holds showcase modules', () => {
+    const graph = showcaseGraph();
+    const chunks = graph.chunks.map((c) => (c.fileName === USERS_CHUNK ? { ...c, imports: [SHARED, KIT_CHUNK] } : c));
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([
+      expect.stringMatching(/UsersPage-U1\.js imports assets\/showcase-kit-S2\.js, which holds showcase-only modules/),
+    ]);
+  });
+
+  it('fails when the build holds showcase modules but no showcase page chunk', () => {
+    const graph = showcaseGraph();
+    const chunks = graph.chunks.filter((c) => c.fileName !== SHOWCASE_CHUNK);
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual(expect.arrayContaining([expect.stringContaining(`no chunk holds ${SHOWCASE_PAGE}`)]));
+  });
+
+  it.each([
+    ['src/dev/parity-main.tsx'],
+    ['visual/parity/page.tsx'],
+    ['src/modules/admin/pages/AdminPreviewPage.tsx'],
+    ['src/modules/admin/previewCopy.ts'],
+    ['src/modules/public/pages/PublicLayoutCheckPage.tsx'],
+  ])('fails %s even inside the showcase chunks', (moduleId) => {
+    const report = evaluateBudgets(withModule(showcaseGraph(), KIT_CHUNK, moduleId), production);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([expect.stringContaining(`${KIT_CHUNK} contains the dev-only module ${moduleId}`)]);
+  });
+
+  it('does not apply to the e2e, budget and parity builds', () => {
+    const graph = withModule(showcaseGraph(), ENTRY, 'src/dev/kit.ts');
+    expect(evaluateBudgets(graph, devRoutes).errors).toEqual([]);
+    expect(evaluateBudgets(graph, parity).errors).toEqual([]);
+  });
 });
 
 describe('evaluateBudgets: the public initial JS carries no TanStack Query and no admin code (PERF-02)', () => {

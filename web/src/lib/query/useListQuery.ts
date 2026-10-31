@@ -13,16 +13,20 @@ export interface UseListQueryOptions<R extends string, P extends object, T> {
    * params change while the request is in flight, so a superseded request never keeps running.
    */
   fetcher: (params: P, signal: AbortSignal) => Promise<T>;
+  /** False holds the request back until a value it needs is known (default true). */
+  enabled?: boolean;
 }
 
 export function useListQuery<const R extends string, P extends object, T>({
   key,
   params,
   fetcher,
+  enabled = true,
 }: UseListQueryOptions<R, P, T>): UseQueryResult<T> {
   return useQuery({
     queryKey: listKey(key, params),
     queryFn: ({ signal }) => fetcher(params, signal),
     placeholderData: keepPreviousPage,
+    enabled,
   });
 }

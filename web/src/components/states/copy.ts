@@ -12,6 +12,14 @@ export const STATES_COPY = {
     reference: (traceId: string): string => `Reference: ${traceId}`,
     retry: 'Try Again',
   },
+  /** ConflictBanner (D-20, SEC-07): the stale-save banner every aggregate form shares, and the live line after Load Latest. */
+  conflict: {
+    title: 'This was changed by someone else.',
+    body: 'Reload and try again. Your typed changes stay here until you press Load Latest.',
+    loadLatest: 'Load Latest',
+    loading: 'Loading',
+    loaded: 'Latest version loaded. Make your changes again.',
+  },
   /** The hidden text of EmptyValue (spec §9.4 Empty, OR-4). */
   emptyValue: 'Not set',
   /** LoadingRegion's polite announcements ("Loading announcement"). */

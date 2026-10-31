@@ -107,6 +107,13 @@ describe('PublicLayout landmarks and page root (A11Y-01, D-14)', () => {
     expect(main).not.toHaveAttribute('aria-busy');
   });
 
+  it('gives the page top scroll padding for the sticky header, one value at every width', async () => {
+    await renderAt('/');
+    expect(screen.getByRole('main').className.split(' ')).toContain(
+      '[:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6))]',
+    );
+  });
+
   it('has no axe violations', async () => {
     const { container } = await renderAt('/products');
     await expectNoAxeViolations(container);
@@ -271,5 +278,14 @@ describe('ShellFallback and SiteFooter (research Pattern 2, Pitfall 10)', () => 
     const root = container.firstElementChild;
     expect(root).toHaveAttribute('data-theme', 'light');
     expect(root?.childElementCount).toBe(0);
+  });
+
+  it('the shell fallback and the public layout page roots carry the viewport marker (D-01)', async () => {
+    const fallback = render(<ShellFallback />);
+    expect(fallback.container.firstElementChild).toHaveAttribute('data-fill', 'viewport');
+    fallback.unmount();
+
+    const { container } = await renderAt('/products');
+    expect(container.firstElementChild).toHaveAttribute('data-fill', 'viewport');
   });
 });

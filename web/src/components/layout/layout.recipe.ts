@@ -11,9 +11,12 @@ export const srOnlyClasses = tw('absolute h-px w-px overflow-hidden whitespace-n
 /**
  * The page root: the App. C `.s-page` look (`container: pg / inline-size; position: relative; min-height: 100%;
  * background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 16px; line-height: 24px`).
- * The `pg-*` variants need this container as an ancestor.
+ * The `pg-*` variants need this container as an ancestor. The real layouts add `data-fill="viewport"` (D-01), which makes
+ * the root the dynamic viewport tall; previews and parity frames never carry it and keep `min-height: 100%`.
  */
-export const pageRootClasses = tw('@container/pg relative min-h-full bg-bg font-sans text-[16px] leading-6 text-ink');
+export const pageRootClasses = tw(
+  '@container/pg relative min-h-full bg-bg font-sans text-[16px] leading-6 text-ink data-[fill=viewport]:min-h-dvh',
+);
 
 // ── Page header (App. C `.s-ph`, spec §8.1; plan 02-31) ──
 // The tablet and phone sizes are App. C's two container rules, kept as two variants with the same query text: between

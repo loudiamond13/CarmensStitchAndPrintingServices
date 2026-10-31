@@ -1,7 +1,7 @@
 // Reference side of the S1 Sign in page (plan 04-32; test only, never shipped): a JSX transcription of App. E.5, the
 // `div.s-login` (the `.s-login-brand.s-mesh` panel and the `.s-login-form` column holding `form.s-login-card`), with the
 // frozen App. D.3 Logo, Field, PasswordField, Button and Icon, for the `state` prop default | error | loading and the
-// App. E.5 values (email paolo.garcia@gmail.com; password empty, then "tahi2026"; the button reads "Sign In" or
+// App. E.5 values (email paolo.garcia@example.com; password empty, then "tahi2026"; the button reads "Sign In" or
 // "Signing in"). Deviations, all listed in docs/web/parity.md section 6:
 //   - D-03 (owner): "Keep me signed in" is drawn unticked. App. E.5 ticks it.
 //   - The quote reads "Orders, payments and expenses, all in one place." (the OR-4 rewrite of the spec's long dash,
@@ -95,7 +95,7 @@ export function LoginScreen({ state = 'default' }: LoginScreenProps) {
             </div>
           )}
 
-          <Field label="Email" type="email" defaultValue="paolo.garcia@gmail.com" autoComplete="username" />
+          <Field label="Email" type="email" defaultValue="paolo.garcia@example.com" autoComplete="username" />
           <PasswordField
             label="Password"
             defaultValue={state === 'default' ? '' : 'tahi2026'}

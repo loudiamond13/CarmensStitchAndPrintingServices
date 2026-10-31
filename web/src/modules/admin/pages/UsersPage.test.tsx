@@ -1,0 +1,1367 @@
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { delay, http, HttpResponse } from 'msw';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
+import { MemoryRouter } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { badgeToneClasses } from '@/components/status/status.recipe';
+import { createQueryClient } from '@/lib/query/queryClient';
+import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { UsersRoute } from '@/modules/admin/pages/UsersPage';
+import type { UserListItem, UserListResponse } from '@/modules/admin/services/usersService';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
+import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { sessionResponse } from '@/test/sessionFixtures';
+
+// U1 Users, /admin/users (USER-01, USER-08, D-09, D-19, C-35, OR-4; plan 05-20): the Manager-only roster.
+
+const ME = '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f';
+
+function person(id: string, first: string, last: string, overrides: Partial<UserListItem> = {}): UserListItem {
+  return {
+    id,
+    firstName: first,
+    lastName: last,
+    email: `${first.toLowerCase()}@example.ph`,
+    role: 'Admin',
+    status: 'active',
+    inviteState: 'none',
+    createdAt: '2026-10-17T01:00:00Z',
+    ...overrides,
+  };
+}
+
+/** One row in every state the roster can show. */
+const ROWS: UserListItem[] = [
+  person(ME, 'Carmen', 'Reyes', { role: 'Manager', email: 'carmen@example.ph' }),
+  person('00000000-0000-4000-8000-000000000002', 'Paolo', 'Garcia'),
+  person('00000000-0000-4000-8000-000000000003', 'Liza', 'Mercado', { status: 'inactive' }),
+  person('00000000-0000-4000-8000-000000000004', 'Rhea', 'Villanueva', { role: 'Manager', status: 'locked' }),
+  person('00000000-0000-4000-8000-000000000005', 'Jomar', 'Santos', { inviteState: 'pending' }),
+  person('00000000-0000-4000-8000-000000000006', 'Mario', 'Lopez', { inviteState: 'expired' }),
+  person('00000000-0000-4000-8000-000000000007', 'Nena', 'Cruz', {
+    // 17:00 UTC on Oct 16 is already Oct 17 in Manila.
+    createdAt: '2026-10-16T17:00:00Z',
+  }),
+];
+
+function listOf(items: UserListItem[], total = items.length): UserListResponse {
+  return { items, page: 1, pageSize: 20, total };
+}
+
+/** What the fake API answers for one request: a page, or a ready-made response. */
+type Responder = (url: URL) => UserListResponse | Response | Promise<UserListResponse | Response>;
+
+function backend(items: UserListItem[] = ROWS, respond?: Responder): { calls: URL[] } {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/users', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const answer = respond === undefined ? listOf(items) : await respond(url);
+      return answer instanceof Response ? answer : HttpResponse.json(answer);
+    }),
+  );
+  return { calls };
+}
+
+function problem(status: number): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status }), {
+    status,
+    headers: { 'Content-Type': 'application/problem+json' },
+  });
+}
+
+let queryClient: QueryClient;
+
+function Harness({ search, onUrlUpdate }: { search: string; onUrlUpdate: OnUrlUpdateFunction }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <NuqsTestingAdapter
+        searchParams={search}
+        onUrlUpdate={onUrlUpdate}
+        defaultOptions={URL_STATE_DEFAULTS}
+        processUrlSearchParams={orderSearchParams}
+        hasMemory
+      >
+        <MemoryRouter>
+          <ToastProvider>
+            <UsersRoute />
+          </ToastProvider>
+        </MemoryRouter>
+      </NuqsTestingAdapter>
+    </QueryClientProvider>
+  );
+}
+
+function renderPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
+  return render(<Harness search={search} onUrlUpdate={onUrlUpdate} />);
+}
+
+async function openPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
+  const view = renderPage(search, onUrlUpdate);
+  await screen.findByText('Paolo Garcia');
+  return view;
+}
+
+/** The URL writes nuqs made, as history mode and query string. */
+function updates(spy: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): { history: string; query: string }[] {
+  return spy.mock.calls.map(([event]: [UrlUpdateEvent]) => ({
+    history: event.options.history,
+    query: event.queryString,
+  }));
+}
+
+function rowOf(name: string): HTMLElement {
+  const row = screen.getAllByRole('row').find((candidate) => within(candidate).queryByText(name) !== null);
+  if (row === undefined) {
+    throw new Error(`No row for ${name}`);
+  }
+  return row;
+}
+
+function cellOf(row: HTMLElement, label: string): HTMLElement {
+  const cell = row.querySelector<HTMLElement>(`td[data-label="${label}"]`);
+  if (cell === null) {
+    throw new Error(`No ${label} cell`);
+  }
+  return cell;
+}
+
+function tokens(classes: string): string[] {
+  return classes.split(/\s+/).filter(Boolean);
+}
+
+function hasTone(badge: HTMLElement, tone: keyof typeof badgeToneClasses): boolean {
+  return tokens(badgeToneClasses[tone]).every((token) => tokens(badge.className).includes(token));
+}
+
+beforeEach(() => {
+  clearSession();
+  acceptSession(sessionResponse());
+  queryClient = createQueryClient();
+});
+
+afterEach(() => {
+  queryClient.clear();
+  clearSession();
+  document.title = '';
+});
+
+describe('U1 the header', () => {
+  it('shows the h1, the Manager only badge and the verbatim subline', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toBeInTheDocument();
+    expect(screen.getByText('Manager only')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Who can sign in to CSPS Admin. Admins manage orders and expenses; Managers can also manage users.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('sets the document title to "Users · CSPS Admin"', async () => {
+    backend();
+    await openPage();
+
+    expect(document.title).toBe('Users · CSPS Admin');
+  });
+
+  it('names the table "Users" and shows the columns, with Actions visually hidden', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.getByRole('table', { name: 'Users' })).toBeInTheDocument();
+    const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
+    expect(headers).toEqual(['User', 'Email', 'Role', 'Status', 'Created', 'Actions']);
+    expect(tokens(screen.getByText('Actions').className)).toEqual(expect.arrayContaining(tokens(srOnlyClasses)));
+  });
+
+  it('shows the caption under the table', async () => {
+    backend();
+    await openPage();
+
+    expect(
+      screen.getByText(
+        "You can't lock, deactivate, demote or delete your own account. Locked and deactivated users can't sign in, but their records stay on orders and expenses.",
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('U1 the rows', () => {
+  it('shows a row for every person with the name, the email and the created date in the business zone', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.getAllByRole('row')).toHaveLength(ROWS.length + 1);
+    const paolo = rowOf('Paolo Garcia');
+    expect(within(cellOf(paolo, 'Email')).getByText('paolo@example.ph')).toBeInTheDocument();
+    expect(cellOf(paolo, 'Created')).toHaveTextContent('Oct 17, 2026');
+    expect(cellOf(rowOf('Nena Cruz'), 'Created')).toHaveTextContent('Oct 17, 2026');
+  });
+
+  it('shows the role as the sub line on other rows and "You" on the signed-in Manager', async () => {
+    backend();
+    await openPage();
+
+    const me = rowOf('Carmen Reyes');
+    expect(within(cellOf(me, 'User')).getByText('You')).toBeInTheDocument();
+    expect(within(cellOf(rowOf('Paolo Garcia'), 'User')).getByText('Admin')).toBeInTheDocument();
+    expect(within(cellOf(rowOf('Rhea Villanueva'), 'User')).getByText('Manager')).toBeInTheDocument();
+  });
+
+  it('shows the role badge: Manager accent, Admin neutral', async () => {
+    backend();
+    await openPage();
+
+    const manager = within(cellOf(rowOf('Carmen Reyes'), 'Role')).getByText('Manager');
+    const admin = within(cellOf(rowOf('Paolo Garcia'), 'Role')).getByText('Admin');
+    expect(hasTone(manager, 'accent')).toBe(true);
+    expect(hasTone(admin, 'neutral')).toBe(true);
+  });
+
+  it.each([
+    ['Paolo Garcia', 'Active', 'success'],
+    ['Liza Mercado', 'Inactive', 'neutral'],
+    ['Rhea Villanueva', 'Locked', 'warning'],
+  ] as const)('shows %s as a %s badge with a dot in the %s tone', async (name, label, tone) => {
+    backend();
+    await openPage();
+
+    const badge = within(cellOf(rowOf(name), 'Status')).getByText(label);
+    expect(hasTone(badge, tone)).toBe(true);
+    expect(badge.querySelector('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it('adds "Invite pending" (info) or "Invite expired" (warning) after the status when no password is set', async () => {
+    backend();
+    await openPage();
+
+    const pending = within(cellOf(rowOf('Jomar Santos'), 'Status')).getByText('Invite pending');
+    const expired = within(cellOf(rowOf('Mario Lopez'), 'Status')).getByText('Invite expired');
+    expect(hasTone(pending, 'info')).toBe(true);
+    expect(hasTone(expired, 'warning')).toBe(true);
+    expect(within(cellOf(rowOf('Jomar Santos'), 'Status')).getByText('Active')).toBeInTheDocument();
+  });
+
+  it('shows no invitation badge when a password is set', async () => {
+    backend();
+    await openPage();
+
+    expect(within(cellOf(rowOf('Paolo Garcia'), 'Status')).queryByText(/Invite/)).toBeNull();
+  });
+
+  it('gives an Inactive row the surface-2 look on its cells and no other row', async () => {
+    backend();
+    await openPage();
+
+    const inactive = tokens(cellOf(rowOf('Liza Mercado'), 'Email').className);
+    const active = tokens(cellOf(rowOf('Paolo Garcia'), 'Email').className);
+    expect(inactive).toContain('bg-surface-2');
+    expect(active).not.toContain('bg-surface-2');
+    expect(inactive.some((token) => token.startsWith('opacity-'))).toBe(false);
+  });
+
+  it('wraps a long name and email anywhere', async () => {
+    const long = person('00000000-0000-4000-8000-000000000008', 'Maximiliano', 'Villavicencio-Montenegro', {
+      email: 'maximiliano.villavicencio.montenegro.the.third@example.ph',
+    });
+    backend([person(ME, 'Carmen', 'Reyes', { role: 'Manager' }), long]);
+    renderPage();
+    await screen.findByText('Maximiliano Villavicencio-Montenegro');
+
+    // overflow-wrap is inherited, so the name's wrapper carries it.
+    expect(tokens(screen.getByText('Maximiliano Villavicencio-Montenegro').parentElement?.className ?? '')).toContain(
+      'wrap-anywhere',
+    );
+    expect(tokens(screen.getByText('maximiliano.villavicencio.montenegro.the.third@example.ph').className)).toContain(
+      'wrap-anywhere',
+    );
+  });
+});
+
+describe('U1 the row actions (D-19)', () => {
+  it('gives the signed-in Manager only a pencil link to My Profile named "Edit your details in My Profile"', async () => {
+    backend();
+    await openPage();
+
+    const me = rowOf('Carmen Reyes');
+    const link = within(me).getByRole('link', { name: 'Edit your details in My Profile' });
+    expect(link).toHaveAttribute('href', '/admin/profile');
+    expect(within(me).queryAllByRole('button')).toHaveLength(0);
+    expect(within(me).getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('offers the signed-in Manager no deactivate, activate, lock or delete on their own row', async () => {
+    backend();
+    await openPage();
+
+    expect(
+      within(rowOf('Carmen Reyes')).queryByRole('button', { name: /activate|deactivate|lock|delete/i }),
+    ).toBeNull();
+  });
+
+  it('puts no profile link on any other row', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.getAllByRole('link', { name: 'Edit your details in My Profile' })).toHaveLength(1);
+  });
+});
+
+describe('U1 deleted users (D-09)', () => {
+  it('has no Deleted filter, no Restore action and no deleted rows', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByText(/restore/i)).toBeNull();
+    expect(screen.queryByRole('option', { name: /deleted/i })).toBeNull();
+    expect(screen.queryByText(/deleted/i)).toBeNull();
+  });
+});
+
+describe('U1 states', () => {
+  it('shows the loading skeleton and announces "Loading users…" and then "Users loaded."', async () => {
+    server.use(
+      http.get('*/api/v1/users', async () => {
+        await delay(50);
+        return HttpResponse.json(listOf(ROWS));
+      }),
+    );
+    renderPage();
+
+    expect(await screen.findByText('Loading users…')).toBeInTheDocument();
+    expect(await screen.findByText('Users loaded.')).toBeInTheDocument();
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+  });
+
+  it('shows "Couldn\'t load users." with Try Again on a 500, and Try Again reads the roster again', async () => {
+    let fail = true;
+    server.use(http.get('*/api/v1/users', () => (fail ? problem(500) : HttpResponse.json(listOf(ROWS)))));
+    renderPage();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't load users.");
+    fail = false;
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('shows the "You don\'t have access to this" banner when the role was lost mid-session (403)', async () => {
+    server.use(http.get('*/api/v1/users', () => problem(403)));
+    renderPage();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("You don't have access to this");
+    expect(alert).toHaveTextContent('Ask a Manager if you need it.');
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+describe('U1 accessibility', () => {
+  it('has no axe violations with every row state on screen', async () => {
+    backend();
+    const { container } = await openPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('row')).toHaveLength(ROWS.length + 1);
+    });
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('U1 toolbar (WEB-10)', () => {
+  it('shows Search "Name or email" capped at 100, a Role select and a Status select with the verbatim options', async () => {
+    backend();
+    await openPage();
+
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    expect(search).toHaveAttribute('placeholder', 'Name or email');
+    expect(search).toHaveAttribute('maxlength', '100');
+    const options = (name: string) =>
+      within(screen.getByRole('combobox', { name }))
+        .getAllByRole('option')
+        .map((option) => option.textContent);
+    expect(options('Role')).toEqual(['All roles', 'Admin', 'Manager']);
+    expect(options('Status')).toEqual(['All statuses', 'Active', 'Inactive', 'Locked']);
+  });
+
+  it('writes a typed search to the URL after 300 ms with a replace, and asks the server once for the settled text', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('', onUrlUpdate);
+
+    const search = screen.getByRole('searchbox', { name: 'Search' });
+    for (const text of ['c', 'ca', 'car', 'carm']) {
+      fireEvent.change(search, { target: { value: text } });
+    }
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=carm' }]);
+    });
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('q')).toBe('carm');
+    });
+    expect(calls.filter((url) => url.searchParams.has('q'))).toHaveLength(1);
+  });
+
+  it('adds the chip "Role: Manager" when Role is set, asks the server for it and replaces the URL', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('', onUrlUpdate);
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Role' }), 'manager');
+
+    expect(await screen.findByText('Role: Manager')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('role')).toBe('manager');
+    });
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?role=manager' }]);
+  });
+
+  it('adds the chip "Status: Locked" when Status is set', async () => {
+    const { calls } = backend();
+    await openPage();
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'locked');
+
+    expect(await screen.findByText('Status: Locked')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('status')).toBe('locked');
+    });
+  });
+
+  it('shows one chip per non-default filter, and clearing a chip removes only that filter from the URL', async () => {
+    backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('?q=ca&role=manager&status=locked', onUrlUpdate);
+
+    expect(screen.getByText('Search: ca')).toBeInTheDocument();
+    expect(screen.getByText('Role: Manager')).toBeInTheDocument();
+    expect(screen.getByText('Status: Locked')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear role filter' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Role: Manager')).toBeNull();
+    });
+    expect(screen.getByText('Search: ca')).toBeInTheDocument();
+    expect(screen.getByText('Status: Locked')).toBeInTheDocument();
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '?q=ca&status=locked' });
+  });
+
+  it('shows no chip and sends no filter in the unfiltered roster', async () => {
+    const { calls } = backend();
+    await openPage();
+
+    expect(screen.queryByRole('button', { name: /^Clear .* filter$/ })).toBeNull();
+    expect(Object.fromEntries(calls[0]?.searchParams ?? [])).toEqual({ page: '1', pageSize: '20' });
+  });
+
+  it('removes an invalid role from the URL once and asks the server with no role', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('?role=owner', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    expect(calls.every((url) => !url.searchParams.has('role'))).toBe(true);
+    expect(screen.queryByText(/^Role:/)).toBeNull();
+  });
+});
+
+describe('U1 result bar and empty result', () => {
+  it('says "Showing 2 users" for many, sorted by name', async () => {
+    backend([
+      person(ME, 'Carmen', 'Reyes', { role: 'Manager' }),
+      person('00000000-0000-4000-8000-000000000002', 'Paolo', 'Garcia'),
+    ]);
+    await openPage();
+
+    expect(await screen.findByText(/Showing/)).toHaveTextContent('Showing 2 users · sorted by name');
+  });
+
+  it('says "Showing 1 user" for exactly one', async () => {
+    backend([person(ME, 'Carmen', 'Reyes', { role: 'Manager' })]);
+    renderPage();
+    await screen.findByText('Carmen Reyes');
+
+    expect(await screen.findByText(/Showing/)).toHaveTextContent('Showing 1 user · sorted by name');
+  });
+
+  it('shows "No matches" with the search and filter named, and Clear Filters clears all of them', async () => {
+    backend(ROWS, (url) =>
+      url.searchParams.get('role') === 'manager' && url.searchParams.get('q') === 'zzz' ? listOf([], 0) : listOf(ROWS),
+    );
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?q=zzz&role=manager', onUrlUpdate);
+
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    expect(
+      screen.getByText('No users match “zzz” with role Manager. Try another search or clear the filters.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Search: zzz')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+    expect(screen.queryByText('Search: zzz')).toBeNull();
+    expect(screen.queryByText('Role: Manager')).toBeNull();
+    expect(updates(onUrlUpdate).at(-1)?.query).toBe('');
+  });
+
+  it('never shows an empty state for the unfiltered roster', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByText('No matches')).toBeNull();
+    expect(screen.queryByText(/No users yet/)).toBeNull();
+  });
+});
+
+describe('U1 paging', () => {
+  const MANY = (url: URL): UserListResponse => ({
+    items: ROWS,
+    page: Number(url.searchParams.get('page')),
+    pageSize: Number(url.searchParams.get('pageSize')),
+    total: 45,
+  });
+
+  it('shows Page 1 of 3 for 45 people at 20 a page, and Next pushes ?page=2 and asks for page 2', async () => {
+    const { calls } = backend(ROWS, MANY);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('', onUrlUpdate);
+
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 3');
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }));
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('page')).toBe('2');
+    });
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'push', query: '?page=2' }]);
+    expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toHaveFocus();
+  });
+
+  it('Rows per page replaces the URL, resets the page and asks the server for that size', async () => {
+    const { calls } = backend(ROWS, MANY);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openPage('?page=2', onUrlUpdate);
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('50');
+    });
+    expect(calls.at(-1)?.searchParams.get('page')).toBe('1');
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?size=50' }]);
+  });
+
+  it('reads ?size=50 from the link', async () => {
+    const { calls } = backend();
+    await openPage('?size=50');
+
+    expect(calls[0]?.searchParams.get('pageSize')).toBe('50');
+  });
+
+  it('clamps page 3 of 2 to the last page with one replace and shows that page', async () => {
+    const { calls } = backend(ROWS, (url) => {
+      const page = Number(url.searchParams.get('page'));
+      return { items: page === 3 ? [] : ROWS, page, pageSize: 20, total: 25 };
+    });
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?page=3', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?page=2' }]);
+    });
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 2');
+    expect(calls.map((url) => url.searchParams.get('page'))).toEqual(['3', '2']);
+  });
+});
+
+describe('U1 refetch', () => {
+  it('keeps the rows and dims them by colour after 200 ms while a filter change loads', async () => {
+    backend(ROWS, async (url) => {
+      if (url.searchParams.get('role') === 'manager') {
+        await delay(600);
+      }
+      return listOf(ROWS);
+    });
+    await openPage();
+    const region = screen.getByRole('region', { name: 'Users' });
+    expect(region).not.toHaveAttribute('data-refetching');
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Role' }), 'manager');
+
+    expect(screen.getByText('Paolo Garcia')).toBeInTheDocument();
+    expect(region).not.toHaveAttribute('data-refetching');
+    await waitFor(() => {
+      expect(region).toHaveAttribute('data-refetching', 'true');
+    });
+    expect(screen.getByText('Paolo Garcia')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(region).not.toHaveAttribute('data-refetching');
+    });
+  });
+});
+
+describe('U2 Add User from the page (USER-02, D-12)', () => {
+  const ANA_ID = '00000000-0000-4000-8000-0000000000aa';
+
+  /** A roster that gains Ana once she is created. */
+  function rosterThatGainsAna(): { posted: unknown[]; calls: URL[] } {
+    const rows = [...ROWS];
+    const posted: unknown[] = [];
+    const { calls } = backend(ROWS, () => listOf(rows));
+    server.use(
+      http.post('*/api/v1/users', async ({ request }) => {
+        posted.push(await request.json());
+        rows.push(person(ANA_ID, 'Ana', 'Reyes', { inviteState: 'pending' }));
+        return HttpResponse.json({ id: ANA_ID }, { status: 201 });
+      }),
+    );
+    return { posted, calls };
+  }
+
+  const addButton = () => screen.getByRole('button', { name: 'Add User' });
+
+  it('shows the primary "Add User" button in the header', async () => {
+    backend();
+    await openPage();
+
+    expect(addButton()).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the Add User panel with focus on First name', async () => {
+    backend();
+    await openPage();
+
+    await userEvent.click(addButton());
+
+    expect(screen.getByRole('dialog', { name: 'Add User' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /^First name/ })).toHaveFocus();
+  });
+
+  it('after an invitation the panel closes, focus is on Add User, the roster reads again and the toast says 7 days', async () => {
+    const { posted, calls } = rosterThatGainsAna();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(addButton());
+    await user.type(screen.getByRole('textbox', { name: /^First name/ }), 'Ana');
+    await user.type(screen.getByRole('textbox', { name: /^Last name/ }), 'Reyes');
+    await user.type(screen.getByRole('textbox', { name: /^Email/ }), 'ana@example.ph');
+
+    await user.click(screen.getByRole('button', { name: 'Create User' }));
+
+    expect(await screen.findByText('User created')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ana Reyes · Admin. We emailed them an invitation that works for 7 days.'),
+    ).toBeInTheDocument();
+    expect(posted).toEqual([
+      { firstName: 'Ana', lastName: 'Reyes', email: 'ana@example.ph', role: 'Admin', access: 'invitation' },
+    ]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(addButton()).toHaveFocus();
+    await screen.findByText('Ana Reyes');
+    expect(within(rowOf('Ana Reyes')).getByText('Invite pending')).toBeInTheDocument();
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('Cancel closes the panel without a request, returns focus to Add User and reopens on the defaults', async () => {
+    const { posted } = rosterThatGainsAna();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(addButton());
+    await user.type(screen.getByRole('textbox', { name: /^First name/ }), 'Ana');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(addButton()).toHaveFocus();
+    expect(posted).toHaveLength(0);
+    await user.click(addButton());
+    expect(screen.getByRole('textbox', { name: /^First name/ })).toHaveValue('');
+  });
+
+  it('has no axe violations with the panel open', async () => {
+    backend();
+    await openPage();
+    await userEvent.click(addButton());
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('U3 Edit User from the page (USER-03)', () => {
+  const PAOLO_ID = '00000000-0000-4000-8000-000000000002';
+  const VERSION = '0b0e1c2a-3d4f-4a5b-8c6d-7e8f90a1b2c3';
+
+  function paoloDetail(overrides: Record<string, unknown> = {}) {
+    return {
+      ...ROWS[1],
+      hasPassword: true,
+      managerLocked: false,
+      pendingEmail: null,
+      updatedAt: null,
+      version: VERSION,
+      recordedBy: null,
+      lastChangedBy: null,
+      ...overrides,
+    };
+  }
+
+  /** A roster whose Paolo is renamed once the PUT lands; records the PUT bodies. */
+  function rosterThatRenamesPaolo(): { puts: unknown[]; calls: URL[] } {
+    const rows = [...ROWS];
+    const puts: unknown[] = [];
+    const { calls } = backend(ROWS, () => listOf(rows));
+    server.use(
+      http.get(`*/api/v1/users/${PAOLO_ID}`, () => HttpResponse.json(paoloDetail())),
+      http.put(`*/api/v1/users/${PAOLO_ID}`, async ({ request }) => {
+        const body = (await request.json()) as { firstName: string; lastName: string; role: string };
+        puts.push(body);
+        rows[1] = person(PAOLO_ID, body.firstName, body.lastName, { role: body.role });
+        return HttpResponse.json(paoloDetail({ firstName: body.firstName, lastName: body.lastName, role: body.role }));
+      }),
+    );
+    return { puts, calls };
+  }
+
+  const editButton = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
+
+  it('gives every other row a pencil "Edit {First Last}" and the signed-in Manager none', async () => {
+    backend();
+    await openPage();
+
+    for (const name of [
+      'Paolo Garcia',
+      'Liza Mercado',
+      'Rhea Villanueva',
+      'Jomar Santos',
+      'Mario Lopez',
+      'Nena Cruz',
+    ]) {
+      expect(within(rowOf(name)).getByRole('button', { name: `Edit ${name}` })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'Edit Carmen Reyes' })).toBeNull();
+  });
+
+  it('opens the Edit User panel for that row with the person loaded and focus on First name', async () => {
+    rosterThatRenamesPaolo();
+    await openPage();
+
+    await userEvent.click(editButton('Paolo Garcia'));
+
+    expect(screen.getByRole('dialog', { name: 'Edit User' })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Paolo')).toHaveFocus();
+  });
+
+  it("after a save the panel closes, focus is on that row's Edit button, the roster reads again and the toast says User updated", async () => {
+    const { puts, calls } = rosterThatRenamesPaolo();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    const first = await screen.findByRole('textbox', { name: /^First name/ });
+    await user.clear(first);
+    await user.type(first, 'Paulo');
+    await user.click(screen.getByRole('radio', { name: 'Manager' }));
+    const before = calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(screen.getByText('Paulo Garcia · Manager')).toBeInTheDocument();
+    expect(puts).toEqual([
+      { firstName: 'Paulo', lastName: 'Garcia', email: 'paolo@example.ph', role: 'Manager', version: VERSION },
+    ]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await screen.findByText('Paulo Garcia', { selector: 'td *, td' });
+    expect(calls.length).toBeGreaterThan(before);
+    await waitFor(() => {
+      expect(editButton('Paulo Garcia')).toHaveFocus();
+    });
+  });
+
+  it("Cancel closes the panel without a request and returns focus to that row's Edit button", async () => {
+    const { puts } = rosterThatRenamesPaolo();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    await screen.findByDisplayValue('Paolo');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(puts).toHaveLength(0);
+    expect(editButton('Paolo Garcia')).toHaveFocus();
+  });
+
+  it('locking from the open panel reads the roster again, so the row behind it turns Locked', async () => {
+    const rows = [...ROWS];
+    backend(ROWS, () => listOf(rows));
+    server.use(
+      http.get(`*/api/v1/users/${PAOLO_ID}`, () =>
+        HttpResponse.json(paoloDetail(rows[1]?.status === 'locked' ? { status: 'locked', managerLocked: true } : {})),
+      ),
+      http.post(`*/api/v1/users/${PAOLO_ID}/lock`, () => {
+        rows[1] = person(PAOLO_ID, 'Paolo', 'Garcia', { status: 'locked' });
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    await screen.findByDisplayValue('Paolo');
+    await user.click(screen.getByRole('button', { name: 'Lock' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Lock Paolo Garcia?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Lock User' }));
+
+    await screen.findByRole('button', { name: 'Unlock' });
+    await waitFor(() => {
+      const row = screen
+        .getAllByRole('row', { hidden: true })
+        .find((candidate) => within(candidate).queryByText('Paolo Garcia') !== null);
+      expect(row?.querySelector('td[data-label="Status"]')).toHaveTextContent('Locked');
+    });
+  });
+
+  /** Edits Paolo's email to a new address and saves; the PUT answers `answer`. */
+  async function saveNewEmail(
+    answer: Record<string, unknown>,
+    options: { now?: boolean; detail?: Record<string, unknown> } = {},
+  ) {
+    backend();
+    server.use(
+      http.get(`*/api/v1/users/${PAOLO_ID}`, () => HttpResponse.json(paoloDetail(options.detail))),
+      http.put(`*/api/v1/users/${PAOLO_ID}`, () => HttpResponse.json(paoloDetail(answer))),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(editButton('Paolo Garcia'));
+    const emailBox = await screen.findByRole('textbox', { name: /^Email/ });
+    await user.clear(emailBox);
+    await user.type(emailBox, 'paolo.g@example.ph');
+    if (options.now === true) {
+      await user.click(screen.getByRole('radio', { name: 'Save at once' }));
+    }
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+  }
+
+  it('says the email changes when the link is opened when the save left a change pending (C-9)', async () => {
+    await saveNewEmail({ pendingEmail: 'paolo.g@example.ph', version: VERSION });
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(
+      screen.getByText('Paolo Garcia · Admin. Their email changes when they open the link sent to paolo.g@example.ph.'),
+    ).toBeInTheDocument();
+  });
+
+  it('says the email changed and they are signed out everywhere after "Save at once" (D-45)', async () => {
+    await saveNewEmail({ email: 'paolo.g@example.ph' }, { now: true });
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Paolo Garcia · Admin. Their email is now paolo.g@example.ph and they are signed out everywhere.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the plain "User updated" toast for an invited person whose address moved', async () => {
+    await saveNewEmail(
+      { hasPassword: false, inviteState: 'pending', email: 'paolo.g@example.ph' },
+      { detail: { hasPassword: false, inviteState: 'pending' } },
+    );
+
+    expect(await screen.findByText('User updated')).toBeInTheDocument();
+    expect(screen.getByText('Paolo Garcia · Admin')).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the Edit panel open', async () => {
+    rosterThatRenamesPaolo();
+    await openPage();
+    await userEvent.click(editButton('Paolo Garcia'));
+    await screen.findByDisplayValue('Paolo');
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+// U4 row actions (USER-03, OQ-1, OQ-3; plan 05-28): the status toggle, Deactivate behind a confirm, Activate at once.
+describe('U4 Deactivate and Activate from the page (USER-03, OQ-1, OQ-3)', () => {
+  const PAOLO_ID = '00000000-0000-4000-8000-000000000002';
+  const LIZA_ID = '00000000-0000-4000-8000-000000000003';
+
+  interface Posted {
+    action: 'deactivate' | 'activate';
+    id: string;
+    key: string | null;
+  }
+
+  /** A roster whose rows change status when the POSTs land; records each POST with its Idempotency-Key. */
+  function rosterWithToggles(fail?: (action: string) => Response | null): { posted: Posted[]; calls: URL[] } {
+    const rows = ROWS.map((row) => ({ ...row }));
+    const posted: Posted[] = [];
+    const { calls } = backend(ROWS, () => listOf(rows));
+    const handler =
+      (action: 'deactivate' | 'activate') =>
+      ({ params, request }: { params: Record<string, unknown>; request: Request }) => {
+        const id = String(params.id);
+        posted.push({ action, id, key: request.headers.get('Idempotency-Key') });
+        const refused = fail?.(action) ?? null;
+        if (refused !== null) {
+          return refused;
+        }
+        const row = rows.find((candidate) => candidate.id === id);
+        if (row !== undefined) {
+          row.status = action === 'deactivate' ? 'inactive' : 'active';
+        }
+        return new HttpResponse(null, { status: 204 });
+      };
+    server.use(
+      http.post('*/api/v1/users/:id/deactivate', handler('deactivate')),
+      http.post('*/api/v1/users/:id/activate', handler('activate')),
+    );
+    return { posted, calls };
+  }
+
+  const toggle = (name: string) => screen.getByRole('button', { name });
+
+  it('gives every other row a status toggle: Deactivate for Active and Locked, Activate for Inactive, none on your own row', async () => {
+    backend();
+    await openPage();
+
+    for (const [row, name, icon] of [
+      ['Paolo Garcia', 'Deactivate Paolo', 'lucide-user-x'],
+      ['Rhea Villanueva', 'Deactivate Rhea', 'lucide-user-x'],
+      ['Liza Mercado', 'Activate Liza', 'lucide-user-check'],
+    ] as const) {
+      const button = within(rowOf(row)).getByRole('button', { name });
+      expect(button).toHaveAttribute('title', name);
+      expect(button.querySelector('svg')).toHaveClass(icon);
+    }
+    expect(within(rowOf('Carmen Reyes')).queryByRole('button', { name: /^(De)?[Aa]ctivate/ })).toBeNull();
+  });
+
+  it('opens the Deactivate dialog for that person with "Keep Active" focused and sends nothing yet', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+
+    await userEvent.click(toggle('Deactivate Paolo'));
+
+    const dialog = screen.getByRole('dialog', { name: 'Deactivate Paolo Garcia?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Active' })).toHaveFocus();
+    expect(posted).toHaveLength(0);
+  });
+
+  it('Keep Active closes the dialog without a request and returns focus to the toggle', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Paolo'));
+
+    await user.click(screen.getByRole('button', { name: 'Keep Active' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(posted).toHaveLength(0);
+    expect(toggle('Deactivate Paolo')).toHaveFocus();
+  });
+
+  it('after Deactivate User the dialog closes, the row is Inactive, the toggle reads "Activate Paolo" with focus, and the toast says so', async () => {
+    const { posted, calls } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Paolo'));
+    const before = calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    expect(await screen.findByText('User deactivated')).toBeInTheDocument();
+    expect(screen.getByText('Paolo Garcia can no longer sign in.')).toBeInTheDocument();
+    expect(posted.map(({ action, id }) => ({ action, id }))).toEqual([{ action: 'deactivate', id: PAOLO_ID }]);
+    expect(posted[0]?.key).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(within(cellOf(rowOf('Paolo Garcia'), 'Status')).getByText('Inactive')).toBeInTheDocument();
+    });
+    expect(calls.length).toBeGreaterThan(before);
+    await waitFor(() => {
+      expect(toggle('Activate Paolo')).toHaveFocus();
+    });
+  });
+
+  it('Activate acts at once: no dialog, the toggle keeps focus and flips, and the toast says they can sign in again', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(toggle('Activate Liza'));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await screen.findByText('User activated')).toBeInTheDocument();
+    expect(screen.getByText('Liza Mercado can sign in again.')).toBeInTheDocument();
+    expect(posted.map(({ action, id }) => ({ action, id }))).toEqual([{ action: 'activate', id: LIZA_ID }]);
+    expect(posted[0]?.key).toBeTruthy();
+    await waitFor(() => {
+      expect(within(cellOf(rowOf('Liza Mercado'), 'Status')).getByText('Active')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(toggle('Deactivate Liza')).toHaveFocus();
+    });
+  });
+
+  it('can deactivate, activate and deactivate the same person again, each with a request of its own', async () => {
+    const { posted } = rosterWithToggles();
+    await openPage();
+    const user = userEvent.setup();
+
+    await user.click(toggle('Deactivate Paolo'));
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+    await user.click(await screen.findByRole('button', { name: 'Activate Paolo' }));
+    await user.click(await screen.findByRole('button', { name: 'Deactivate Paolo' }));
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    await waitFor(() => {
+      expect(posted.map((entry) => entry.action)).toEqual(['deactivate', 'activate', 'deactivate']);
+    });
+    expect(new Set(posted.map((entry) => entry.key)).size).toBe(3);
+  });
+
+  it('keeps the dialog open with the alert line when Deactivate fails, and a retry sends the same Idempotency-Key', async () => {
+    let refuse = true;
+    const { posted } = rosterWithToggles(() => (refuse ? problem(500) : null));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Paolo'));
+
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Deactivate Paolo Garcia?' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
+    expect(within(dialog).getByRole('button', { name: 'Deactivate User' })).toHaveFocus();
+    refuse = false;
+    await user.click(within(dialog).getByRole('button', { name: 'Deactivate User' }));
+
+    expect(await screen.findByText('User deactivated')).toBeInTheDocument();
+    expect(posted).toHaveLength(2);
+    expect(posted[1]?.key).toBe(posted[0]?.key);
+  });
+
+  it('shows the last-Manager guard line in the Deactivate dialog for a 422', async () => {
+    rosterWithToggles(
+      () =>
+        new HttpResponse(JSON.stringify({ title: 'x', status: 422, code: 'users.last-active-manager' }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(toggle('Deactivate Rhea'));
+
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "You can't remove the last active Manager. Make another user a Manager first, then try again.",
+    );
+    expect(screen.getByRole('dialog', { name: 'Deactivate Rhea Villanueva?' })).toBeInTheDocument();
+  });
+
+  it('raises a danger toast that stays when Activate fails, and the row stays Inactive', async () => {
+    rosterWithToggles(() => problem(500));
+    await openPage();
+
+    await userEvent.click(toggle('Activate Liza'));
+
+    const title = await screen.findByText("Couldn't activate Liza Mercado");
+    expect(title.parentElement).toHaveTextContent('Something went wrong. Please try again.');
+    expect(within(cellOf(rowOf('Liza Mercado'), 'Status')).getByText('Inactive')).toBeInTheDocument();
+    expect(toggle('Activate Liza')).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the Deactivate dialog open', async () => {
+    rosterWithToggles();
+    await openPage();
+    await userEvent.click(toggle('Deactivate Paolo'));
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+// U4 Delete (USER-03, USER-04, D-09, OQ-7; plan 05-28): the shared ConfirmDialog, focus that lands somewhere sensible, and the
+// guard line when the server refuses.
+describe('U4 Delete from the page (USER-03, USER-04, D-09)', () => {
+  const PAOLO_ID = '00000000-0000-4000-8000-000000000002';
+
+  /** A roster that loses a row when its DELETE lands; records each DELETE with its Idempotency-Key header. */
+  function rosterThatDeletes(
+    items: UserListItem[] = ROWS,
+    fail?: () => Response | null,
+  ): { deleted: { id: string; key: string | null }[] } {
+    const rows = items.map((row) => ({ ...row }));
+    const deleted: { id: string; key: string | null }[] = [];
+    backend(items, () => listOf(rows));
+    server.use(
+      http.delete('*/api/v1/users/:id', ({ params, request }) => {
+        const id = String(params.id);
+        deleted.push({ id, key: request.headers.get('Idempotency-Key') });
+        const refused = fail?.() ?? null;
+        if (refused !== null) {
+          return refused;
+        }
+        rows.splice(
+          rows.findIndex((row) => row.id === id),
+          1,
+        );
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    return { deleted };
+  }
+
+  function refusal(status: number, code: string): Response {
+    return new HttpResponse(JSON.stringify({ title: 'x', status, code }), {
+      status,
+      headers: { 'Content-Type': 'application/problem+json' },
+    });
+  }
+
+  const deleteButton = (name: string) => screen.getByRole('button', { name: `Delete ${name}` });
+  const editButton = (name: string) => screen.getByRole('button', { name: `Edit ${name}` });
+
+  it('gives every other row a danger trash button "Delete {First Last}" and your own row none', async () => {
+    backend();
+    await openPage();
+
+    for (const name of [
+      'Paolo Garcia',
+      'Liza Mercado',
+      'Rhea Villanueva',
+      'Jomar Santos',
+      'Mario Lopez',
+      'Nena Cruz',
+    ]) {
+      const button = within(rowOf(name)).getByRole('button', { name: `Delete ${name}` });
+      expect(button.querySelector('svg')).toHaveClass('lucide-trash');
+    }
+    expect(screen.queryByRole('button', { name: 'Delete Carmen Reyes' })).toBeNull();
+  });
+
+  it('opens the shared confirm with the amended message, Cancel focused, and sends nothing yet', async () => {
+    const { deleted } = rosterThatDeletes();
+    await openPage();
+
+    await userEvent.click(deleteButton('Paolo Garcia'));
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete Paolo Garcia?' });
+    expect(dialog).toHaveTextContent(
+      "They won't be able to sign in. Orders and expenses they recorded stay, under their name. If they might come back, deactivate instead. This can't be undone.",
+    );
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Delete User' })).toBeEnabled();
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(deleted).toHaveLength(0);
+  });
+
+  it("Cancel closes the dialog without a request and returns focus to that row's Delete button", async () => {
+    const { deleted } = rosterThatDeletes();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(deleted).toHaveLength(0);
+    expect(deleteButton('Paolo Garcia')).toHaveFocus();
+  });
+
+  it("removes the row after Delete User, sends a DELETE with no Idempotency-Key, toasts, and focuses the next row's Edit", async () => {
+    const { deleted } = rosterThatDeletes();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    expect(await screen.findByText('User deleted')).toBeInTheDocument();
+    expect(deleted).toEqual([{ id: PAOLO_ID, key: null }]);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Paolo Garcia', { selector: 'strong' })).toBeNull();
+    });
+    expect(screen.getByText('User deleted').parentElement).toHaveTextContent('Paolo Garcia');
+    await waitFor(() => {
+      expect(editButton('Liza Mercado')).toHaveFocus();
+    });
+  });
+
+  it("moves focus to the previous row's Edit when the last row is deleted", async () => {
+    rosterThatDeletes();
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Nena Cruz'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    await waitFor(() => {
+      expect(editButton('Mario Lopez')).toHaveFocus();
+    });
+  });
+
+  it('moves focus to the page heading when no other row with an Edit button is left', async () => {
+    rosterThatDeletes(ROWS.slice(0, 2));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toHaveFocus();
+    });
+  });
+
+  it('keeps the dialog open with the last-Manager guard line and focus on Delete User for a 422', async () => {
+    rosterThatDeletes(ROWS, () => refusal(422, 'users.last-active-manager'));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Rhea Villanueva'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete Rhea Villanueva?' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "You can't remove the last active Manager. Make another user a Manager first, then try again.",
+    );
+    expect(within(dialog).getByRole('button', { name: 'Delete User' })).toHaveFocus();
+    expect(screen.queryByText('User deleted')).toBeNull();
+  });
+
+  it('keeps the dialog open and says the user was deleted when the server answers 404', async () => {
+    rosterThatDeletes(ROWS, () => refusal(404, 'users.not-found'));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete Paolo Garcia?' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'This user was deleted. Close this and refresh the list.',
+    );
+  });
+
+  it('repeats the DELETE on a retry after a server error, with no Idempotency-Key', async () => {
+    let refuse = true;
+    const { deleted } = rosterThatDeletes(ROWS, () => (refuse ? problem(500) : null));
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
+    refuse = false;
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete User' }));
+
+    expect(await screen.findByText('User deleted')).toBeInTheDocument();
+    expect(deleted).toEqual([
+      { id: PAOLO_ID, key: null },
+      { id: PAOLO_ID, key: null },
+    ]);
+  });
+
+  it('shows "Deleting" on the confirm button while the request runs', async () => {
+    rosterThatDeletes();
+    server.use(
+      http.delete('*/api/v1/users/:id', async () => {
+        await delay(150);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await openPage();
+    const user = userEvent.setup();
+    await user.click(deleteButton('Paolo Garcia'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    expect(await screen.findByRole('button', { name: 'Deleting' })).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('has no axe violations with the Delete dialog open', async () => {
+    rosterThatDeletes();
+    await openPage();
+    await userEvent.click(deleteButton('Paolo Garcia'));
+
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+// D-39: the row dialogs stay mounted with `open` false so their exit can play. jsdom runs no CSS animation, so a closed
+// element reports one through getComputedStyle.
+describe('U4 dialogs close with motion (D-39)', () => {
+  function animateClosedElements(): void {
+    const real = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.getAttribute('data-state') === 'closed'
+        ? ({ animationName: 'csp-rise-out' } as CSSStyleDeclaration)
+        : real(element, pseudo),
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ['Deactivate Paolo', 'Deactivate Paolo Garcia?', 'Keep Active'],
+    ['Delete Paolo Garcia', 'Delete Paolo Garcia?', 'Cancel'],
+  ])(
+    'keeps the dialog opened by %s in the tree, showing its person, while it closes',
+    async (opener, title, dismiss) => {
+      backend();
+      animateClosedElements();
+      const user = userEvent.setup();
+      await openPage();
+      await user.click(screen.getByRole('button', { name: opener }));
+      const dialog = screen.getByRole('dialog', { name: title });
+
+      await user.click(within(dialog).getByRole('button', { name: dismiss }));
+
+      expect(dialog.isConnected).toBe(true);
+      expect(dialog.getAttribute('data-state')).toBe('closed');
+      expect(dialog.textContent).toContain(title);
+    },
+  );
+});

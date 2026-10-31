@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { scenarios as overlayScenarios } from '@/dev/scenarios/groups/overlays';
 import { HttpError } from '@/core/api/errors';
-import type { CascadeCounts } from '@/utils/csps';
+import { CASCADE_LABELS, type CascadeCounts } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components/feedback';
 import { messageClasses } from '@/components/forms';
@@ -102,6 +102,12 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
   });
 
+  it('shows large cascade counts with a thousands separator in the tally', () => {
+    render(<DeleteOrder counts={{ expenses: 1235 }} />);
+    const items = [...within(screen.getByRole('alert')).getAllByRole('listitem')].map((item) => item.textContent);
+    expect(items).toContain('1,235expenses');
+  });
+
   it('renders the danger tile, the message and the cascade box with the sentence, the tally and the warning', () => {
     render(<DeleteOrder />);
     const dialog = screen.getByRole('dialog');
@@ -118,6 +124,7 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
       '2payments',
       '1discount',
       '3expenses',
+      '0refunds',
       '4images',
     ]);
     expect(foot?.textContent).toBe("This can't be undone.");
@@ -136,12 +143,24 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(tile?.querySelector('svg')?.getAttribute('width')).toBe('22');
   });
 
+  it('lays the six desktop tiles in one row, so the dialog still fits a 585px window (08 UI-SPEC, D-42)', () => {
+    expect(tokens(cascadeListClasses)).toContain(`grid-cols-[repeat(${String(CASCADE_LABELS.length)},minmax(0,1fr))]`);
+    expect(tokens(cascadeListClasses)).toContain('pg-phone:grid-cols-[repeat(3,minmax(0,1fr))]');
+  });
+
   it('dims zero-count tiles and names one of a kind in the singular', () => {
     render(<DeleteOrder counts={{ items: 1, payments: 0 }} />);
     const items = [...screen.getByRole('list').children];
 
     expect(screen.getByRole('alert').firstElementChild?.textContent).toBe('This will also delete 1 item.');
-    expect(items.map((item) => item.textContent)).toEqual(['1item', '0payments', '0discounts', '0expenses', '0images']);
+    expect(items.map((item) => item.textContent)).toEqual([
+      '1item',
+      '0payments',
+      '0discounts',
+      '0expenses',
+      '0refunds',
+      '0images',
+    ]);
     expect(classTokens(items[0])).toEqual(tokens(cascadeItemClasses));
     expect(classTokens(items[0]?.firstElementChild)).toEqual(tokens(cascadeCountClasses({ zero: false })));
     expect(classTokens(items[1]?.firstElementChild)).toEqual(tokens(cascadeCountClasses({ zero: true })));
@@ -336,6 +355,42 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(await screen.findByText(/Reference: 00-retry/)).toBeVisible();
   });
 
+  it('words a failure the caller recognises through describeFailure and leaves the rest to the mapper', async () => {
+    const user = userEvent.setup();
+    const guard = new Error('guard');
+    const describeFailure = (error: unknown) =>
+      error === guard ? { title: "You can't do this.", body: 'Try something else.' } : undefined;
+    const onConfirm = vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({ ok: false, error: guard })
+      .mockResolvedValueOnce({ ok: false, error: serverError('00-other') });
+    render(<DeleteOrder onConfirm={onConfirm} describeFailure={describeFailure} />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+    expect(await screen.findByText("You can't do this. Try something else.")).toBeVisible();
+    await user.click(deleteButton());
+
+    expect(await screen.findByText(/Reference: 00-other/)).toBeVisible();
+    expect(screen.queryByText("You can't do this. Try something else.")).toBeNull();
+  });
+
+  it('shows pendingLabel on the confirm button while the action runs, and the confirm label again after it', async () => {
+    const user = userEvent.setup();
+    const action = deferred();
+    render(<DeleteOrder onConfirm={() => action.promise} pendingLabel="Deleting" />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+
+    expect(screen.getByRole('button', { name: 'Deleting' })).toHaveAttribute('aria-busy', 'true');
+    await act(async () => {
+      action.resolve({ ok: false, error: serverError() });
+      await action.promise;
+    });
+    expect(deleteButton()).toBeEnabled();
+  });
+
   it('shows a title that already ends a sentence as it is, and a title alone when there is no body', async () => {
     const user = userEvent.setup();
     const badRequest = new HttpError({
@@ -460,5 +515,178 @@ describe('ConfirmDialog scenarios (the overlays parity group)', () => {
     expect(scenario?.parity).toBe(false);
     expect(scenario?.frame).toBe('viewport');
     expect(JSON.stringify(scenario?.node)).toContain('"component":"FailedConfirmDialog"');
+  });
+});
+
+// Phase 8 (D-57, D-58): the dismiss words, the confirm icon and a one-line failure mapper are props.
+describe('ConfirmDialog dismiss words, confirm icon and failure line (Phase 8)', () => {
+  it('keeps Cancel and the trash icon when the new props are not set', () => {
+    render(<DeleteOrder confirmText={undefined} counts={undefined} />);
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
+    expect(deleteButton().querySelector('svg')).toHaveClass('lucide-trash-2');
+  });
+
+  it('shows Keep Editing and Discard Changes, focuses Keep Editing first and treats Esc as Keep Editing', async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <ConfirmDialog
+        title="Discard changes?"
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Discard Changes' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+
+    await user.keyboard('{Escape}');
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws the confirm icon it is given instead of the trash', () => {
+    render(<DeleteOrder confirmText={undefined} counts={undefined} confirmIcon="x" />);
+
+    const icon = deleteButton().querySelector('svg');
+    expect(icon).toHaveClass('lucide-x');
+    expect(icon).not.toHaveClass('lucide-trash-2');
+  });
+
+  it('shows a one-line string from describeFailure and falls back to the mapper on null', async () => {
+    const user = userEvent.setup();
+    const guard = new Error('guard');
+    const describeFailure = (error: unknown) =>
+      error === guard ? 'Type the order number exactly to delete it for good.' : null;
+    const onConfirm = vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({ ok: false, error: guard })
+      .mockResolvedValueOnce({ ok: false, error: serverError('00-other') });
+    render(<DeleteOrder onConfirm={onConfirm} describeFailure={describeFailure} />);
+    await user.type(confirmField(), ORDER);
+
+    await user.click(deleteButton());
+    expect(await screen.findByText('Type the order number exactly to delete it for good.')).toBeVisible();
+    await user.click(deleteButton());
+
+    expect(await screen.findByText(/Reference: 00-other/)).toBeVisible();
+    expect(screen.queryByText('Type the order number exactly to delete it for good.')).toBeNull();
+  });
+
+  it('has no axe violations with the Phase 8 words', async () => {
+    const { container } = render(
+      <ConfirmDialog
+        title="Discard changes?"
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+        confirmIcon="x"
+        onCancel={vi.fn()}
+      />,
+    );
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+// D-39: the dialog may stay mounted with `open` false so its close animation can play; each new open starts clean.
+describe('ConfirmDialog open prop (D-39)', () => {
+  it('renders nothing while open is false', () => {
+    const { container } = render(<DeleteOrder open={false} onCancel={vi.fn()} />);
+
+    expect(container.childElementCount).toBe(0);
+  });
+
+  it('is open when open is omitted', () => {
+    render(<DeleteOrder onCancel={vi.fn()} />);
+
+    expect(screen.getByRole('dialog')).toBeVisible();
+  });
+
+  it('opens again with an empty type-to-confirm field', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DeleteOrder onCancel={vi.fn()} />);
+    await user.type(confirmField(), ORDER);
+    expect(deleteButton()).toBeEnabled();
+
+    rerender(<DeleteOrder open={false} onCancel={vi.fn()} />);
+    rerender(<DeleteOrder onCancel={vi.fn()} />);
+
+    expect(confirmField()).toHaveValue('');
+    expect(deleteButton()).toBeDisabled();
+  });
+
+  it('opens again without the failure line and with an enabled Delete', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn(() => Promise.reject(serverError()));
+    const { rerender } = render(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    await user.click(deleteButton());
+    await screen.findByText(/Reference:/);
+
+    rerender(<ConfirmDialog open={false} confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    rerender(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+
+    expect(screen.queryByText(/Reference:/)).toBeNull();
+    expect(deleteButton()).toBeEnabled();
+  });
+
+  it('opens again without the pending state', async () => {
+    const user = userEvent.setup();
+    const action = deferred();
+    const onConfirm = vi.fn(() => action.promise);
+    const { rerender } = render(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    await user.click(deleteButton());
+    expect(deleteButton().getAttribute('aria-busy')).toBe('true');
+
+    rerender(<ConfirmDialog open={false} confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+    rerender(<ConfirmDialog confirmLabel="Delete Order" onConfirm={onConfirm} onCancel={vi.fn()} />);
+
+    expect(deleteButton().getAttribute('aria-busy')).toBeNull();
+    await act(async () => {
+      action.resolve({ ok: true, value: undefined });
+      await action.promise;
+    });
+  });
+});
+
+describe('ConfirmDialog while the counts load (plan 08-20, UIC-16)', () => {
+  const LOADING = 'Reading what this order holds';
+
+  it('shows a skeleton box instead of the tally and keeps the confirm disabled even with the number typed', async () => {
+    const user = userEvent.setup();
+    render(<DeleteOrder counts={undefined} countsLoading countsLoadingLabel={LOADING} />);
+
+    const box = within(screen.getByRole('dialog')).getByRole('status');
+    expect(within(box).getByText(LOADING)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText("This can't be undone.")).toBeNull();
+    await user.type(confirmField(), ORDER);
+    expect(deleteButton()).toBeDisabled();
+  });
+
+  it('shows the tally and enables the confirm once the counts arrive and the number is typed', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DeleteOrder counts={undefined} countsLoading countsLoadingLabel={LOADING} />);
+    await user.type(confirmField(), ORDER);
+
+    rerender(<DeleteOrder counts={COUNTS} countsLoading={false} countsLoadingLabel={LOADING} />);
+
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(within(screen.getByRole('alert')).getByText(SENTENCE)).toBeVisible();
+    expect(deleteButton()).toBeEnabled();
+  });
+
+  it('keeps the confirm disabled while confirmDisabled is set, whatever is typed', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(<DeleteOrder confirmDisabled onConfirm={onConfirm} />);
+
+    await user.type(confirmField(), ORDER);
+
+    expect(deleteButton()).toBeDisabled();
+    await user.click(deleteButton());
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

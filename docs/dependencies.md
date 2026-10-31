@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-16T08:44:00-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-26T08:30:00-05:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -75,7 +75,7 @@ For staff sign-in, the owner approved these packages on **2026-10-14** (decision
 | Microsoft.Extensions.Http.Resilience 10.10.0 | Adds a time limit and a retry to the check that a new password has not appeared in a known data breach. | MIT |
 | Microsoft.Extensions.Diagnostics.Testing 10.10.0 | Tests only. Lets a test read the log and prove that no secret or code is ever written to it. Never ships. | MIT |
 | react-hook-form 7.89.0 (web) | Keeps the state of each form in the browser: what was typed and which fields have errors. | MIT |
-| zod 4.6.5 (web) | Checks every field in the browser before anything is sent, with the same rules the server checks (OR-3). | MIT |
+| zod 4.6.7 (web) | Checks every field in the browser before anything is sent, with the same rules the server checks (OR-3). | MIT |
 | @hookform/resolvers 5.9.1 (web) | Connects the zod rules to the form so errors show next to the field. | MIT |
 | msw 3.0.1 (web, tests only) | Fakes the server in tests and fails any test that tries a real network call. Never ships. | MIT |
 
@@ -130,13 +130,15 @@ Both are older than the 14-day wait and have no known advisories. They run only 
 
 The web app in `web/` and the API type generator in `tools/openapi-gen/` use packages from npm, the JavaScript package registry. They are under the same rules as the .NET packages, and they are free too.
 
-- **Every npm pin has an entry.** `docs/dependencies.json` lists each package named in `web/package.json` and `tools/openapi-gen/package.json`: the normal packages, the development packages and the `overrides` (versions we force for a package that another package pulls in). An npm entry has `"kind": "npm"` and names its folder in `manifest` (`web` or `tools/openapi-gen`). The same package can sit in both folders at different versions. TypeScript does: 7.0.2 and 6.0.2 in `web/`, 5.9.3 in `tools/openapi-gen/`.
+- **Every npm pin has an entry.** `docs/dependencies.json` lists each package named in `web/package.json` and `tools/openapi-gen/package.json`: the normal packages, the development packages and the `overrides` (versions we force for a package that another package pulls in). An npm entry has `"kind": "npm"` and names its folder in `manifest` (`web` or `tools/openapi-gen`). The same package can sit in both folders at different versions. TypeScript does: 7.0.2 and 6.0.2 in `web/`, 5.9.3 in `tools/openapi-gen/`. zod is listed both as a normal package and as an override at the same version (4.6.7), like axe-core, so every copy in the tree, including the one chromium-bidi asks for, is 4.6.7. The test counts the two as one pin (D-65).
 - **Exact versions only.** A range such as `^1.2.0` would let npm pick a newer version on its own, so the automated check fails on any range. An alias such as `"typescript": "npm:@typescript/typescript6@6.0.2"` is checked as the real package it installs (`@typescript/typescript6` 6.0.2).
 - **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react, react-hook-form, zod, @hookform/resolvers and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
-- **Cool-down exceptions are written down.** Four npm versions were adopted before they were 14 days old, each with the owner's approval and its reason in `coolDown`: vite 8.3.3 (it fixes three security problems, D-25), lucide-react 1.53.0 (the owner waived the wait for the icon package, D-11 and D-34), and source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes for packages that other packages pull in, approved 2026-10-07).
+- **Cool-down exceptions are written down.** Five npm versions were adopted before they were 14 days old, each with the owner's approval and its reason in `coolDown`: vite 8.3.3 (it fixes three security problems, D-25), lucide-react 1.53.0 (the owner waived the wait for the icon package, D-11 and D-34), source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes for packages that other packages pull in, approved 2026-10-07), and zod 4.6.7 (a security fix, D-63, installed on 2026-10-26, a few hours before it turned 14 days old).
 - **nuqs is installed.** It was approved on 2026-10-07 and installed in Phase 2 at 2.10.1. A newer 2.10.2 came out on 2026-10-08, so it is not 14 days old until 2026-10-22, and switching to it needs the owner's OK.
 
 There is no separate `planned` list any more: everything approved so far is installed and in the main list.
+
+**npm security fixes (approved 2026-10-26, D-63 to D-66).** The npm audit on pull request 11 reported known security problems, so the owner approved exact fixes. Three are pins: zod 4.6.7, vitest 5.0.4 and @vitest/coverage-v8 5.0.4. One top-level override, `"zod": "4.6.7"`, also forces the same zod onto chromium-bidi, a part of Lighthouse's browser driver that wanted the older zod 3 (D-65). Four more fixes only move inside the lockfile and are not pins, so they have no entry in `docs/dependencies.json`: undici 8.12.2 and 6.29.1, fast-uri 3.1.9 and ip-address 10.7.4. undici and fast-uri were younger than 14 days, and they skip the wait because they are security fixes (D-63). vitest 5.0.4 also needs newer versions of about a dozen test-only helper packages, which the owner accepted (D-66). None of them reaches the visitor's browser. One limit is accepted (D-65): chromium-bidi was written for zod 3, so with zod 4 a malformed command gives a generic TypeError instead of its own error message. Lighthouse never loads chromium-bidi, so nothing in the project reaches that code.
 
 ## Extra licenses for the web tools only (D-26)
 

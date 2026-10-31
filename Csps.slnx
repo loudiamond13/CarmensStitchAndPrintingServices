@@ -13,11 +13,13 @@
     <Project Path="tests/Csps.Application.UnitTests/Csps.Application.UnitTests.csproj" />
     <Project Path="tests/Csps.Infrastructure.IntegrationTests/Csps.Infrastructure.IntegrationTests.csproj" />
     <Project Path="tests/Csps.HostProbe.Tests/Csps.HostProbe.Tests.csproj" />
+    <Project Path="tests/Csps.LegacyFitCheck.Tests/Csps.LegacyFitCheck.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Csps.BootstrapManager/Csps.BootstrapManager.csproj" />
     <Project Path="tools/Csps.DevSeed/Csps.DevSeed.csproj" />
     <Project Path="tools/Csps.EmailPreview/Csps.EmailPreview.csproj" />
     <Project Path="tools/Csps.HostProbe/Csps.HostProbe.csproj" />
+    <Project Path="tools/Csps.LegacyFitCheck/Csps.LegacyFitCheck.csproj" />
   </Folder>
 </Solution>

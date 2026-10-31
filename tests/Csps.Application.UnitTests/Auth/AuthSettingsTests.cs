@@ -27,7 +27,8 @@ public sealed class AuthSettingsTests
         settings.GraceSiblingCap.ShouldBe(5);
         settings.ResetLinkLifetime.ShouldBe(TimeSpan.FromMinutes(30));
         settings.ResetEmailsPerHour.ShouldBe(3);
-        settings.InviteLinkLifetime.ShouldBe(TimeSpan.FromHours(72));
+        settings.InviteLinkLifetime.ShouldBe(TimeSpan.FromDays(7));
+        settings.EmailChangeLinkLifetime.ShouldBe(TimeSpan.FromHours(24));
         AuthSettings.SectionName.ShouldBe("Auth");
     }
 
@@ -91,6 +92,7 @@ public sealed class AuthSettingsTests
             RefreshGrace = TimeSpan.Zero,
             ResetLinkLifetime = TimeSpan.Zero,
             InviteLinkLifetime = TimeSpan.Zero,
+            EmailChangeLinkLifetime = TimeSpan.Zero,
             CodeAttempts = 0,
             SendsPerHour = 0,
             AccountFailureCap = 0,
@@ -100,11 +102,12 @@ public sealed class AuthSettingsTests
 
         var problems = settings.Validate();
 
-        problems.Count.ShouldBe(17);
+        problems.Count.ShouldBe(18);
         problems.ShouldAllBe(problem => problem.StartsWith("Auth:", StringComparison.Ordinal) && problem.EndsWith("must be greater than zero.", StringComparison.Ordinal));
         problems.ShouldContain("Auth:ResponseFloor must be greater than zero.");
         problems.ShouldContain("Auth:CodeLockoutDuration must be greater than zero.");
         problems.ShouldContain("Auth:PasswordLockoutDuration must be greater than zero.");
         problems.ShouldContain("Auth:ResetEmailsPerHour must be greater than zero.");
+        problems.ShouldContain("Auth:EmailChangeLinkLifetime must be greater than zero.");
     }
 }

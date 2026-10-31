@@ -1,6 +1,9 @@
+using Csps.Application.Audit;
 using Csps.Application.Auth;
 using Csps.Application.Content;
+using Csps.Application.Profile;
 using Csps.Application.Users;
+using FluentValidation;
 
 namespace Csps.Server.Composition;
 
@@ -32,6 +35,34 @@ public static class ApplicationRegistration
         services.AddScoped<CheckInviteHandler>();
         services.AddScoped<AcceptInviteHandler>();
         services.AddScoped<BootstrapManagerHandler>();
+        services.AddScoped<GetProfileHandler>();
+        services.AddScoped<UpdateProfileNameHandler>();
+        services.AddScoped<CurrentPasswordCheck>();
+        services.AddScoped<ChangePasswordHandler>();
+        services.AddScoped<RequestEmailChangeHandler>();
+        services.AddScoped<ConfirmEmailChangeHandler>();
+        services.AddScoped<CheckEmailChangeHandler>();
+        services.AddScoped<ResendEmailChangeHandler>();
+        services.AddScoped<CancelEmailChangeHandler>();
+        services.AddScoped<ListUsersHandler>();
+        services.AddScoped<GetUserHandler>();
+        services.AddScoped<CreateUserHandler>();
+        services.AddScoped<ManagerGuard>();
+        services.AddScoped<DeactivateUserHandler>();
+        services.AddScoped<ActivateUserHandler>();
+        services.AddScoped<LockUserHandler>();
+        services.AddScoped<UnlockUserHandler>();
+        services.AddScoped<DeleteUserHandler>();
+        services.AddScoped<UpdateUserHandler>();
+        services.AddScoped<CancelUserEmailChangeHandler>();
+        services.AddScoped<ResendInvitationHandler>();
+        services.AddScoped<SendResetLinkHandler>();
+        services.AddScoped<SetTemporaryPasswordHandler>();
+        services.AddScoped<ListAuditLogHandler>();
+        services.AddScoped<ListAuditPeopleHandler>();
+        services.AddScoped<IValidator<ListAuditLogRequest>, ListAuditLogRequestValidator>();
+        services.AddCspsExpenseHandlers();
+        services.AddCspsOrderHandlers();
         return services;
     }
 }

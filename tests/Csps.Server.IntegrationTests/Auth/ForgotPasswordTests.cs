@@ -1,9 +1,11 @@
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using Csps.Application.Security;
 using Csps.Domain.Auditing;
 using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.Http;
+using Csps.Server.IntegrationTests.Users;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
 
@@ -158,6 +160,35 @@ public sealed partial class ForgotPasswordTests(CspsDatabase database) : IClassF
     }
 
     [Fact]
+    public async Task ATemporaryPasswordPersonGetsNothingBeforeTheFirstCorrectCodeAndTheUsualAnswerAfterTheFloor()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var email = AuthClient.NewEmail();
+        var id = await UserFixtures.CreateWithTemporaryPasswordAsync(client, manager.AccessToken, email, "Tela-Sukat-7381");
+        await using var context = database.CreateContext();
+        var unknownBefore = await context.AuditLog.AsNoTracking()
+            .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == null && a.Detail == "unknown-account", TestContext.Current.CancellationToken);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        using var response = await AuthClient.ForgotPasswordAsync(client, email);
+        stopwatch.Stop();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBeEmpty();
+        stopwatch.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(490));
+        (await context.EmailOutbox.AsNoTracking().CountAsync(m => m.ToAddress == email, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AccountTokens.AsNoTracking().CountAsync(t => t.UserId == id, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.AsNoTracking()
+            .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == null && a.Detail == "unknown-account", TestContext.Current.CancellationToken))
+            .ShouldBe(unknownBefore + 1);
+        (await context.AuditLog.AsNoTracking()
+            .CountAsync(a => a.Action == AuditActions.PasswordResetRequested && a.TargetId == id.ToString("D"), TestContext.Current.CancellationToken))
+            .ShouldBe(0);
+    }
+
+    [Fact]
     public async Task OnlyThreeLinkEmailsAreSentPerHourAndTheNewestLinkIsTheOnlyLiveOne()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -228,6 +259,35 @@ public sealed partial class ForgotPasswordTests(CspsDatabase database) : IClassF
         rows.Count.ShouldBe(2);
         rows.Count(row => row.IsUsable(TimeProvider.System.GetUtcNow())).ShouldBe(1);
         rows.Count(row => row.RevokedAt is not null).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TwoRequestsForTheSamePersonAtTheSameMomentLeaveOneUsableLinkEveryRound()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var first = AuthClient.CreateClient(factory);
+        using var second = AuthClient.CreateClient(factory);
+
+        for (var round = 0; round < 10; round++)
+        {
+            var staff = await AuthClient.CreateStaffAsync(factory);
+
+            var (one, two) = await ConcurrentRequests.SendTogetherAsync(
+                () => AuthClient.ForgotPasswordAsync(first, staff.Email),
+                () => AuthClient.ForgotPasswordAsync(second, staff.Email));
+            using (one)
+            using (two)
+            {
+                one.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+                two.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+            }
+
+            await using var context = database.CreateContext();
+            var rows = await context.AccountTokens.AsNoTracking().Where(t => t.UserId == staff.Id).ToListAsync(TestContext.Current.CancellationToken);
+            rows.Count.ShouldBe(2, $"round {round}");
+            rows.Count(row => row.IsUsable(TimeProvider.System.GetUtcNow())).ShouldBe(1, $"round {round}");
+            rows.Count(row => row.RevokedAt is not null).ShouldBe(1, $"round {round}");
+        }
     }
 
     [GeneratedRegex(@"#token=([A-Za-z0-9_-]+)")]

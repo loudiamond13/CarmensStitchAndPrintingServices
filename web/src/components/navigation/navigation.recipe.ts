@@ -15,10 +15,11 @@ import { tw } from '@/ui/tw';
 
 /**
  * `.csp-sidebar`: the Taupe column with its own ink and the width transition. The width is per layout. In the admin
- * shell's side column (App. C `.s-admin-side .csp-sidebar`, plan 02-31) it sticks to the top at the column's full height.
+ * shell's side column (App. C `.s-admin-side .csp-sidebar`, plan 02-31) it sticks to the top. Under the real layouts' viewport
+ * marker (D-02, D-03) it is exactly the viewport tall, so its nav scrolls inside it and the footer stays at the bottom.
  */
 export const sidebarClasses = tw(
-  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease] in-data-[ui=s-admin-side]:sticky in-data-[ui=s-admin-side]:top-0 in-data-[ui=s-admin-side]:min-h-full pg-tablet:in-data-[ui=s-admin-side]:w-(--sidebar-collapsed)',
+  'flex h-full min-h-[480px] flex-col border-r border-line bg-nav-bg text-nav-ink transition-[width] duration-200 ease-[ease] in-data-[ui=s-admin-side]:sticky in-data-[ui=s-admin-side]:top-0 in-data-[ui=s-admin-side]:min-h-full in-data-[fill=viewport]:in-data-[ui=s-admin-side]:h-dvh in-data-[fill=viewport]:in-data-[ui=s-admin-side]:min-h-0 pg-tablet:in-data-[ui=s-admin-side]:w-(--sidebar-collapsed)',
 );
 
 /** `.csp-sidebar { width }` and `.csp-sidebar.is-collapsed { width }`. */
@@ -46,9 +47,9 @@ export const sidebarToggleClasses = tw(
   'inline-grid size-9 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-nav-ink hover:bg-[color-mix(in_srgb,var(--nav-ink)_12%,transparent)] pg-tablet:in-data-[ui=s-admin-side]:hidden',
 );
 
-/** `.csp-sidebar-nav`; on the rail 12px 8px with the items centred. */
+/** `.csp-sidebar-nav`; on the rail 12px 8px with the items centred. In the pinned side column it scrolls on its own (D-03). */
 export const sidebarNavClasses = tw(
-  'flex flex-1 flex-col gap-0.5 p-3 pg-tablet:in-data-[ui=s-admin-side]:items-center pg-tablet:in-data-[ui=s-admin-side]:px-2 pg-tablet:in-data-[ui=s-admin-side]:py-3',
+  'flex flex-1 flex-col gap-0.5 p-3 in-data-[fill=viewport]:in-data-[ui=s-admin-side]:min-h-0 in-data-[fill=viewport]:in-data-[ui=s-admin-side]:overflow-y-auto in-data-[fill=viewport]:in-data-[ui=s-admin-side]:overscroll-contain pg-tablet:in-data-[ui=s-admin-side]:items-center pg-tablet:in-data-[ui=s-admin-side]:px-2 pg-tablet:in-data-[ui=s-admin-side]:py-3',
 );
 
 /**
@@ -70,8 +71,11 @@ export const sidebarUserClasses = tw(
   'mb-1 flex items-center gap-3 border-b-2 border-dashed border-line px-2 pt-2 pb-3 pg-tablet:in-data-[ui=s-admin-side]:hidden',
 );
 
-/** `.csp-sidebar-user strong`. */
-export const sidebarUserNameClasses = tw('block text-[14px] leading-[18px]');
+/** P5 long-text: the name and role column may shrink below its content, so a long name is cut short instead of widening the chip. */
+export const sidebarUserTextClasses = tw('min-w-0');
+
+/** `.csp-sidebar-user strong`; P5 long-text: one line, cut short with an ellipsis (the whole name stays in the text). */
+export const sidebarUserNameClasses = tw('block truncate text-[14px] leading-[18px]');
 
 /** `.csp-sidebar-user span`. */
 export const sidebarUserRoleClasses = tw('text-[12px] leading-4 text-nav-ink');
@@ -183,36 +187,49 @@ export const topbarRightClasses = tw('ml-auto flex items-center gap-2');
 
 /** `.csp-usermenu` and its hover: the pill button with the avatar, the name and role, and the chevron. */
 export const userMenuClasses = tw(
-  'flex cursor-pointer items-center gap-2 rounded-pill border-0 bg-transparent py-1 pr-2 pl-1 text-ink-muted hover:bg-surface-2',
+  'group/um flex cursor-pointer items-center gap-2 rounded-pill border-0 bg-transparent py-1 pr-2 pl-1 text-ink-muted hover:bg-surface-2',
 );
 
-/** `.csp-usermenu-text`: the name over the role, hidden on phones. */
-export const userMenuTextClasses = tw('flex flex-col text-left leading-4 pg-phone:hidden');
+/** The chevron of the user-menu button: half a turn while the button is expanded (D-35); no motion under reduced motion. */
+export const userMenuChevronClasses = tw(
+  'transition-transform duration-200 ease-[ease] group-aria-expanded/um:rotate-180 motion-reduce:duration-0',
+);
 
-/** `.csp-usermenu-text strong`. */
-export const userMenuNameClasses = tw('text-[14px] leading-[18px] text-ink');
+/** `.csp-usermenu-text`: the name over the role, hidden on phones; P5 long-text: at most 200px wide. */
+export const userMenuTextClasses = tw('flex max-w-[200px] flex-col text-left leading-4 pg-phone:hidden');
+
+/** `.csp-usermenu-text strong`; P5 long-text: one line, cut short with an ellipsis (the whole name stays in the text). */
+export const userMenuNameClasses = tw('truncate text-[14px] leading-[18px] text-ink');
 
 /** `.csp-usermenu-text span`. */
 export const userMenuRoleClasses = tw('text-[12px]');
 
 // ── Mobile navigation drawer (SPEC-GAP: mobile nav drawer, spec §2.10 #6; plan 02-32) ──
 // Composed from existing tokens only (UI-SPEC "SPEC-GAP Primitive Specs" → MobileNavDrawer): the `--scrim` overlay at
-// `--z-overlay` and the Sidebar's own 248px width. The layer is fixed inside the page root. The page root is a size
-// container, which makes it the containing block of fixed descendants, so the panel also sticks to the top of the
-// viewport at the viewport's height: the whole Sidebar stays in view however far the page was scrolled.
+// `--z-overlay` and the Sidebar's own 248px width. The layer is fixed inside the page root. The page root does not trap
+// fixed children (probed in Chromium, Firefox and WebKit), so the layer covers the viewport; the panel is sticky at the
+// viewport's height, so the whole Sidebar stays in view however far the page was scrolled. D-34: the scrim fades and the
+// panel slides in from the left and back out (theme keyframes, `data-state` from MobileNavDrawer; none under reduced motion).
 
 /** The drawer layer: the scrim over the whole page root at the overlay layer; the panel sits at its left edge. */
-export const drawerClasses = tw('fixed inset-0 z-(--z-overlay) flex items-start bg-scrim');
+export const drawerClasses = tw(
+  'fixed inset-0 z-(--z-overlay) flex animate-csp-fade items-start bg-scrim data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-fade-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none',
+);
 
 /** The panel: the full Sidebar at its 248px width and the viewport's height, scrolling inside when the phone is short. */
-export const drawerPanelClasses = tw('sticky top-0 h-dvh w-(--sidebar-width) overflow-y-auto overscroll-contain');
+export const drawerPanelClasses = tw(
+  'sticky top-0 h-dvh w-(--sidebar-width) animate-csp-drawer-in overflow-y-auto overscroll-contain data-[state=closed]:animate-csp-drawer-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none',
+);
 
 // ── User menu popover (SPEC-GAP: user menu, spec §6.6; plan 02-32) ──
 // Composed from existing tokens only (UI-SPEC "SPEC-GAP Primitive Specs" → UserMenu). The Topbar is its containing
 // block (sticky in the admin shell's main column), so the popover hangs from the bar's bottom edge at the bar's inline
 // padding (24px, 20px on tablets, 16px on phones), right under the user-menu button, the bar's last item.
 
-/** The popover: `--surface-3`, radius 12, `--shadow-2`, at least 200px wide, the nav-item rows 2px apart. */
+/**
+ * The popover: `--surface-3`, radius 12, `--shadow-2`, at least 200px wide, the nav-item rows 2px apart. D-35: it pops in
+ * from its top-right anchor and back out (theme keyframes, `data-state` from UserMenu).
+ */
 export const userMenuPopoverClasses = tw(
-  'absolute top-full right-6 mt-1 flex min-w-[200px] flex-col gap-0.5 rounded-md bg-surface-3 p-2 shadow-level-2 pg-phone:right-4 pg-tablet:right-5',
+  'absolute top-full right-6 mt-1 flex min-w-[200px] origin-top-right animate-csp-pop-in flex-col gap-0.5 rounded-md bg-surface-3 p-2 shadow-level-2 data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-pop-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none pg-phone:right-4 pg-tablet:right-5',
 );

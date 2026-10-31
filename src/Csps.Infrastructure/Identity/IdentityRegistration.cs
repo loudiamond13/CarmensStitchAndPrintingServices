@@ -2,6 +2,7 @@ using Csps.Application.Ports;
 using Csps.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Csps.Infrastructure.Identity;
 
@@ -53,7 +54,10 @@ public static class IdentityRegistration
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<CspsDbContext>();
 
+        // UserAccounts stamps CreatedAtUtc; the host registers the same instance first.
+        services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IUserAccounts, UserAccounts>();
+        services.AddScoped<IUserDirectory, UserDirectory>();
 
         // The code key is a secret (AUTH-03): the host stops at start when it is missing or too short.
         services.AddOptions<AuthSecretsOptions>()
@@ -62,6 +66,7 @@ public static class IdentityRegistration
             .ValidateOnStart();
         services.AddScoped<ITwoFactorChallenges, TwoFactorChallengeStore>();
         services.AddScoped<IAccountTokens, AccountTokenStore>();
+        services.AddScoped<IManagerRosterLock, ManagerRosterLock>();
         services.AddScoped<ISessions, SessionStore>();
         services.AddSingleton<ISessionCache, SessionCache>();
         services.AddSingleton<ICodeMac, HmacCodeMac>();

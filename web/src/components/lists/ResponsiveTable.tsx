@@ -15,7 +15,7 @@
 // Cell text is rendered as React text nodes only, and each `data-label` comes from the column definition, never from
 // row data (T-02-68). The looks are in lists.recipe.ts.
 import clsx from 'clsx';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Button } from '@/components/actions';
 import type { IconName } from '@/components/brand';
 import { EmptyState, type EmptyStateHeadingLevel } from '@/components/feedback';
@@ -28,11 +28,16 @@ import {
   bodyCellKindClasses,
   bodyCellToneClasses,
   cellSharedClasses,
+  detailCellClasses,
+  detailParentCellClasses,
+  detailRowClasses,
   footCellClasses,
   footCellKindClasses,
   moneyCellClasses,
   mutedCellClasses,
+  openRowClasses,
   tableClasses,
+  tableFitTabletClasses,
   tableFootRowClasses,
   tableHeadCellClasses,
   tableHeadClasses,
@@ -84,6 +89,46 @@ export interface ResponsiveTableProps<T> {
   emptyLevel?: EmptyStateHeadingLevel | undefined;
   /** One totals row, by column key; a missing key leaves its cell empty. */
   footer?: Readonly<Record<string, ReactNode>> | undefined;
+  /**
+   * How a footer cell differs from its column, by column key: `span` makes it cover that many columns (the cells it
+   * covers are not drawn), `label` is its phone label when it differs from the column's ("Amount" → "Total").
+   */
+  footerLayout?: Readonly<Record<string, FooterCellLayout>> | undefined;
+  /** The first-use title when it should not read "No {things} yet" (a list whose rows are records, like "No expenses recorded"). */
+  emptyTitle?: string | undefined;
+  /** D-27: a row's expandable details. The toggle is the caller's RowAction; the table only renders the detail row. */
+  detail?: ((row: T) => ReactNode) | undefined;
+  /** The keys of the rows whose detail is open. */
+  expandedKeys?: ReadonlySet<string> | undefined;
+  /** Called by the caller's toggle with the row key; kept for the caller's wiring. */
+  onToggleRow?: ((key: string) => void) | undefined;
+  /** Few short columns: no 680px floor on tablets, so the table fits its card with no sideways scroll. */
+  fitTablet?: boolean | undefined;
+}
+
+export interface FooterCellLayout {
+  span?: number | undefined;
+  label?: string | undefined;
+}
+
+/** The footer cells to draw: each column's, minus the ones an earlier cell's span covers. */
+function footerCells<T>(
+  columns: readonly ResponsiveTableColumn<T>[],
+  layout: Readonly<Record<string, FooterCellLayout>> | undefined,
+): { column: ResponsiveTableColumn<T>; span: number; label: string }[] {
+  const cells: { column: ResponsiveTableColumn<T>; span: number; label: string }[] = [];
+  let covered = 0;
+  for (const column of columns) {
+    if (covered > 0) {
+      covered -= 1;
+      continue;
+    }
+    const cellLayout = layout?.[column.key];
+    const span = Math.max(1, cellLayout?.span ?? 1);
+    covered = span - 1;
+    cells.push({ column, span, label: cellLayout?.label ?? labelOf(column) });
+  }
+  return cells;
 }
 
 /** How long placeholder rows may show before they are marked as refreshing (UI-SPEC "refetch", owner probe). */
@@ -111,7 +156,7 @@ function toneOf(inactive: boolean): RowTone {
   return inactive ? 'inactive' : 'active';
 }
 
-function bodyCellClasses<T>(column: ResponsiveTableColumn<T>, tone: RowTone): string {
+function bodyCellClasses<T>(column: ResponsiveTableColumn<T>, tone: RowTone, hasDetail: boolean): string {
   return clsx(
     cellSharedClasses,
     bodyCellBorderClasses,
@@ -119,6 +164,7 @@ function bodyCellClasses<T>(column: ResponsiveTableColumn<T>, tone: RowTone): st
     bodyCellToneClasses[tone],
     column.money === true && moneyCellClasses,
     column.muted === true && mutedCellClasses,
+    hasDetail && detailParentCellClasses,
   );
 }
 
@@ -153,6 +199,11 @@ export function ResponsiveTable<T>({
   emptyAction,
   emptyLevel,
   footer,
+  footerLayout,
+  emptyTitle,
+  detail,
+  expandedKeys,
+  fitTablet = false,
 }: ResponsiveTableProps<T>) {
   const shown = rows ?? [];
   const hasRows = shown.length > 0;
@@ -163,7 +214,7 @@ export function ResponsiveTable<T>({
 
   let body: ReactNode = null;
   if (firstLoad) {
-    body = <SkeletonTable columns={columns} />;
+    body = <SkeletonTable columns={columns} fitTablet={fitTablet} />;
   } else if (empty) {
     body = narrowed ? (
       <EmptyState
@@ -186,7 +237,7 @@ export function ResponsiveTable<T>({
       <EmptyState
         icon={emptyIcon}
         level={emptyLevel}
-        title={LISTS_COPY.emptyTitle(things)}
+        title={emptyTitle ?? LISTS_COPY.emptyTitle(things)}
         message={emptyMessage}
         action={emptyAction}
       />
@@ -205,7 +256,7 @@ export function ResponsiveTable<T>({
             descendants, so a dialog in a cell would be trapped and clipped. The context (no DOM) makes Modal and
             ConfirmDialog refuse to render here; see fixedLayerGuard.ts. */}
         <PaintContainmentContext value>
-          <table className={tableClasses}>
+          <table className={fitTablet ? tableFitTabletClasses : tableClasses}>
             <caption id={captionId} tabIndex={captionId === undefined ? undefined : -1} className={srOnlyClasses}>
               {caption}
             </caption>
@@ -213,27 +264,52 @@ export function ResponsiveTable<T>({
               <tr>{columns.map((column) => headCell(column))}</tr>
             </thead>
             <tbody className={tableSectionClasses}>
-              {shown.map((row) => {
+              {shown.map((row, index) => {
+                const key = rowKey(row);
                 const tone = toneOf(isInactive?.(row) ?? false);
+                const hasDetail = detail !== undefined;
+                const open = hasDetail && (expandedKeys?.has(key) ?? false);
+                const last = index === shown.length - 1;
                 return (
-                  <tr key={rowKey(row)} className={tableRowClasses[tone]}>
-                    {columns.map((column) => {
-                      const content = column.cell(row);
-                      return (
-                        <td key={column.key} data-label={labelOf(column)} className={bodyCellClasses(column, tone)}>
-                          {column.actions !== true && isMissing(content) ? <EmptyValue /> : content}
+                  <Fragment key={key}>
+                    <tr
+                      className={open ? openRowClasses[tone] : tableRowClasses[tone]}
+                      data-edge={hasDetail && (open || last) ? 'true' : undefined}
+                    >
+                      {columns.map((column) => {
+                        const content = column.cell(row);
+                        return (
+                          <td
+                            key={column.key}
+                            data-label={labelOf(column)}
+                            className={bodyCellClasses(column, tone, hasDetail)}
+                          >
+                            {column.actions !== true && isMissing(content) ? <EmptyValue /> : content}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {hasDetail && (
+                      <tr hidden={!open} className={detailRowClasses}>
+                        <td colSpan={columns.length} data-label="Details" className={detailCellClasses}>
+                          {detail(row)}
                         </td>
-                      );
-                    })}
-                  </tr>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
             {footer !== undefined && (
               <tfoot className={tableSectionClasses}>
                 <tr className={tableFootRowClasses}>
-                  {columns.map((column) => (
-                    <td key={column.key} data-label={labelOf(column)} className={footCellClassList(column)}>
+                  {footerCells(columns, footerLayout).map(({ column, span, label }) => (
+                    <td
+                      key={column.key}
+                      data-label={label}
+                      colSpan={span > 1 ? span : undefined}
+                      className={footCellClassList(column)}
+                    >
                       {footer[column.key]}
                     </td>
                   ))}

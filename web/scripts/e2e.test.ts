@@ -77,9 +77,17 @@ describe('planSteps', () => {
       kind: 'run',
       name: 'seed',
       command: 'dotnet',
-      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--database', 'CSPS_E2E'],
+      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--reset', '--database', 'CSPS_E2E'],
       cwd: repoRoot,
     });
+  });
+
+  it('drops and recreates CSPS_E2E on every run, so data from earlier runs never piles up (D-77)', () => {
+    for (const env of [{}, { CSPS_E2E_CONNECTION: containerConnection }]) {
+      const seed = planSteps({ portBusy: false, env })[0];
+
+      expect(seed?.kind === 'run' && seed.args.filter((arg) => arg === '--reset')).toEqual(['--reset']);
+    }
   });
 
   it('builds --mode e2e with this Node binary and the vite JS entry, in web/', () => {
@@ -142,7 +150,7 @@ describe('CSPS_E2E_CONNECTION (CI override)', () => {
 
     expect(seed).toMatchObject({
       name: 'seed',
-      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--database', 'CSPS_E2E'],
+      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--reset', '--database', 'CSPS_E2E'],
     });
   });
 
@@ -151,7 +159,7 @@ describe('CSPS_E2E_CONNECTION (CI override)', () => {
 
     expect(seed).toMatchObject({
       name: 'seed',
-      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--connection', containerConnection],
+      args: ['run', '--project', 'tools/Csps.DevSeed', '--', '--reset', '--connection', containerConnection],
     });
     expect(seed?.kind === 'run' && seed.args.includes('--database')).toBe(false);
   });

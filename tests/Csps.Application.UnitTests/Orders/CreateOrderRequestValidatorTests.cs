@@ -1,0 +1,463 @@
+using System.Globalization;
+using Csps.Application.Common;
+using Csps.Application.Orders;
+using FluentValidation;
+using FluentValidation.Results;
+
+namespace Csps.Application.UnitTests.Orders;
+
+/// <summary>ORD-03, ORD-13, D-21, D-22, D-30, OR-3: every static order rule and its plain-English message, at its boundary.</summary>
+public sealed class CreateOrderRequestValidatorTests
+{
+    private static readonly Guid ProductTypeId = Guid.Parse("01a17fce-7800-7f5d-bc6c-5d14ceeca0c6");
+    private static readonly CreateOrderRequestValidator Validator = new();
+    private static readonly Guid MethodId = Guid.Parse("01a17fce-7806-77e1-91b7-d3b852f2fd1d");
+    private static readonly Guid ReceiverId = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
+    private static readonly Guid CategoryId = Guid.Parse("01a17fce-780b-75d1-89e0-5b3b9b185a2c");
+
+    [Fact]
+    public void ABoundaryValidFormHasNoErrors() => Fields(Valid()).ShouldBeEmpty();
+
+    [Fact]
+    public void AnEmptyFormListsEveryRequiredField() =>
+        Fields(CreateOrderRequest.Empty).Keys.Order(StringComparer.Ordinal).ShouldBe(["contactNumber", "customerName", "dueDate", "items", "orderDate"]);
+
+    [Theory]
+    [InlineData(null, "Enter the customer's name.")]
+    [InlineData("", "Enter the customer's name.")]
+    [InlineData("   ", "Enter the customer's name.")]
+    public void AMissingCustomerNameIsRefused(string? name, string message) => One(Valid() with { CustomerName = name }, "customerName", message);
+
+    [Fact]
+    public void ACustomerNameIsLimitedToOneHundredCharactersAfterTrimming()
+    {
+        Fields(Valid() with { CustomerName = "  " + new string('a', 100) + "  " }).ShouldBeEmpty();
+        One(Valid() with { CustomerName = new string('a', 101) }, "customerName", "Keep the customer name to 100 characters or fewer.");
+    }
+
+    [Fact]
+    public void ATeamNameIsLimitedToOneHundredCharacters()
+    {
+        Fields(Valid() with { TeamName = new string('t', 100) }).ShouldBeEmpty();
+        One(Valid() with { TeamName = new string('t', 101) }, "teamName", "Keep the team name to 100 characters or fewer.");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void AMissingContactNumberIsRefused(string? contact) =>
+        One(Valid() with { ContactNumber = contact }, "contactNumber", "Enter a contact number.");
+
+    [Fact]
+    public void AContactNumberIsLimitedToThirtyCharacters()
+    {
+        Fields(Valid() with { ContactNumber = new string('1', 30) }).ShouldBeEmpty();
+        One(Valid() with { ContactNumber = new string('1', 31) }, "contactNumber", "Keep the contact number to 30 characters or fewer.");
+    }
+
+    [Theory]
+    [InlineData("0917-ABC")]
+    [InlineData("0917.123")]
+    public void AContactNumberWithOtherCharactersIsRefused(string contact) =>
+        One(Valid() with { ContactNumber = contact }, "contactNumber", "Use digits, spaces and + - ( ) only.");
+
+    [Fact]
+    public void AContactNumberOfDigitsSpacesAndPlusDashParenthesesIsAccepted() =>
+        Fields(Valid() with { ContactNumber = "+63 (917) 123-4567" }).ShouldBeEmpty();
+
+    [Theory]
+    [InlineData("juan@")]
+    [InlineData("juan")]
+    [InlineData("juan@example")]
+    [InlineData("Juan <juan@example.com>")]
+    public void AnEmailThatIsNotAnAddressIsRefused(string email) =>
+        One(Valid() with { Email = email }, "email", "Enter a valid email address.");
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AnEmptyEmailIsAccepted(string? email) => Fields(Valid() with { Email = email }).ShouldBeEmpty();
+
+    [Fact]
+    public void AnEmailIsLimitedToTwoHundredAndFiftyFourCharacters()
+    {
+        var longest = new string('a', 64) + "@" + new string('b', 63) + "." + new string('c', 63) + "." + new string('d', 57) + ".com";
+
+        Fields(Valid() with { Email = longest }).ShouldBeEmpty();
+        One(Valid() with { Email = "e" + longest }, "email", "Keep the email to 254 characters or fewer.");
+    }
+
+    [Fact]
+    public void AnAddressIsLimitedToThreeHundredCharacters()
+    {
+        Fields(Valid() with { Address = new string('a', 300) }).ShouldBeEmpty();
+        One(Valid() with { Address = new string('a', 301) }, "address", "Keep the address to 300 characters or fewer.");
+    }
+
+    [Fact]
+    public void NotesAreLimitedToTwoThousandCharacters()
+    {
+        Fields(Valid() with { Notes = new string('n', 2000) }).ShouldBeEmpty();
+        One(Valid() with { Notes = new string('n', 2001) }, "notes", "Keep notes to 2,000 characters or fewer.");
+    }
+
+    [Theory]
+    [InlineData(null, "Enter the order date.")]
+    [InlineData("", "Enter the order date.")]
+    [InlineData("2026-02-30", "Enter a real date.")]
+    [InlineData("28/10/2026", "Enter a real date.")]
+    [InlineData("2026-10-28T00:00:00", "Enter a real date.")]
+    [InlineData("not a date", "Enter a real date.")]
+    public void AnOrderDateThatIsNotARealIsoDateIsRefused(string? date, string message) =>
+        One(Valid() with { OrderDate = date }, "orderDate", message);
+
+    [Theory]
+    [InlineData(null, "Enter the due date.")]
+    [InlineData(" ", "Enter the due date.")]
+    [InlineData("2026-02-30", "Enter a real date.")]
+    [InlineData("11-12-2026", "Enter a real date.")]
+    public void ADueDateThatIsMissingOrNotARealIsoDateIsRefused(string? date, string message) =>
+        One(Valid() with { DueDate = date }, "dueDate", message);
+
+    [Fact]
+    public void ADueDateEqualToTheOrderDateIsAcceptedAndOneDayBeforeIsRefused()
+    {
+        Fields(Valid() with { OrderDate = "2026-10-28", DueDate = "2026-10-28" }).ShouldBeEmpty();
+        One(Valid() with { OrderDate = "2026-10-28", DueDate = "2026-10-27" }, "dueDate", "The due date can't be before the order date.");
+    }
+
+    [Fact]
+    public void ADueDateIsNotComparedWhenTheOrderDateIsNotADate() =>
+        One(Valid() with { OrderDate = "nope", DueDate = "2026-10-27" }, "orderDate", "Enter a real date.");
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("pending")]
+    [InlineData("MOCKUP")]
+    [InlineData(" production ")]
+    [InlineData("ready")]
+    [InlineData("delivered")]
+    public void AnActiveStatusOrNoStatusIsAccepted(string? status) => Fields(Valid() with { Status = status }).ShouldBeEmpty();
+
+    [Theory]
+    [InlineData("completed")]
+    [InlineData("Cancelled")]
+    public void CompletedAndCancelledAreRefusedOnANewOrder(string status) =>
+        One(Valid() with { Status = status }, "status", "Create the order first, then complete or cancel it.");
+
+    [Theory]
+    [InlineData("done")]
+    [InlineData("in production")]
+    [InlineData("1")]
+    public void AStatusNameThatIsNotOneOfTheSevenIsRefused(string status) =>
+        One(Valid() with { Status = status }, "status", "Choose a status.");
+
+    [Fact]
+    public void NoItemsAndANullListAreRefused()
+    {
+        One(Valid() with { Items = [] }, "items", "Add at least one item.");
+        One(Valid() with { Items = null }, "items", "Add at least one item.");
+    }
+
+    [Fact]
+    public void OneHundredItemsAreAcceptedAndOneHundredAndOneAreRefused()
+    {
+        Fields(Valid() with { Items = [.. Enumerable.Repeat(Item(), 100)] }).ShouldBeEmpty();
+        One(Valid() with { Items = [.. Enumerable.Repeat(Item(), 101)] }, "items", "An order can have at most 100 items.");
+    }
+
+    [Fact]
+    public void ANullItemInTheListIsRefusedOnItsPath() =>
+        One(Valid() with { Items = [Item(), null!] }, "items[1]", "Fill in this item.");
+
+    [Fact]
+    public void AMissingOrEmptyProductTypeIsRefusedOnTheItemPath()
+    {
+        One(Valid() with { Items = [Item() with { ProductTypeId = null }] }, "items[0].productTypeId", "Choose a product type.");
+        One(Valid() with { Items = [Item(), Item() with { ProductTypeId = Guid.Empty }] }, "items[1].productTypeId", "Choose a product type.");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AMissingDescriptionIsRefused(string? description) =>
+        One(Valid() with { Items = [Item() with { Description = description }] }, "items[0].description", "Describe the item.");
+
+    [Fact]
+    public void ADescriptionIsLimitedToTwoHundredCharacters()
+    {
+        Fields(Valid() with { Items = [Item() with { Description = new string('d', 200) }] }).ShouldBeEmpty();
+        One(Valid() with { Items = [Item() with { Description = new string('d', 201) }] }, "items[0].description", "Keep the description to 200 characters or fewer.");
+    }
+
+    [Fact]
+    public void ASizeOrVariantIsLimitedToOneHundredCharacters()
+    {
+        Fields(Valid() with { Items = [Item() with { SizeVariant = new string('s', 100) }] }).ShouldBeEmpty();
+        Fields(Valid() with { Items = [Item() with { SizeVariant = null }] }).ShouldBeEmpty();
+        One(Valid() with { Items = [Item() with { SizeVariant = new string('s', 101) }] }, "items[0].sizeVariant", "Keep the size or variant to 100 characters or fewer.");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(10_001)]
+    public void AQuantityOutsideOneToTenThousandIsRefused(int? quantity) =>
+        One(Valid() with { Items = [Item(), Item() with { Quantity = quantity }] }, "items[1].quantity", "Enter a quantity from 1 to 10,000.");
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(10_000)]
+    public void AQuantityOfOneAndTenThousandIsAccepted(int quantity) =>
+        Fields(Valid() with { Items = [Item() with { Quantity = quantity }] }).ShouldBeEmpty();
+
+    [Fact]
+    public void AMissingUnitPriceIsRefused() =>
+        One(Valid() with { Items = [Item() with { UnitPrice = null }] }, "items[0].unitPrice", "Enter a unit price.");
+
+    [Theory]
+    [InlineData("-0.01")]
+    [InlineData("1000000.01")]
+    public void AUnitPriceOutsideZeroToOneMillionIsRefused(string price) =>
+        One(Valid() with { Items = [Item() with { UnitPrice = Parse(price) }] }, "items[0].unitPrice", "Enter a unit price from ₱0.00 to ₱1,000,000.00.");
+
+    [Theory]
+    [InlineData("0.00")]
+    [InlineData("0.01")]
+    [InlineData("650")]
+    [InlineData("1000000.00")]
+    public void AUnitPriceOfZeroAndOneMillionIsAccepted(string price) =>
+        Fields(Valid() with { Items = [Item() with { UnitPrice = Parse(price) }] }).ShouldBeEmpty();
+
+    [Fact]
+    public void AUnitPriceWithMoreThanTwoDecimalPlacesIsRefused() =>
+        One(Valid() with { Items = [Item() with { UnitPrice = 650.123m }] }, "items[0].unitPrice", "Use at most 2 decimal places.");
+
+    [Fact]
+    public void NoDiscountsAndAnEmptyListAreAccepted()
+    {
+        Fields(Valid()).ShouldBeEmpty();
+        Fields(Valid() with { Discounts = [] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ABrokenDiscountIsRefusedOnItsPath()
+    {
+        One(Valid() with { Discounts = [Discount() with { Value = 0m }] }, "discounts[0].value", "Enter a discount from ₱0.01 to ₱1,000,000.00.");
+        One(Valid() with { Discounts = [Discount(), Discount() with { Kind = "half" }] }, "discounts[1].kind", "Choose fixed or percentage.");
+        One(Valid() with { Discounts = [Discount() with { Reason = " " }] }, "discounts[0].reason", "Enter a reason for the discount.");
+    }
+
+    [Fact]
+    public void AnEmptyDiscountListsEveryRequiredFieldOnItsPath()
+    {
+        Fields(Valid() with { Discounts = [new OrderDiscountRequest(null, null, null)] }).Keys.Order(StringComparer.Ordinal)
+            .ShouldBe(["discounts[0].kind", "discounts[0].reason", "discounts[0].value"]);
+    }
+
+    [Fact]
+    public void ANullDiscountInTheListIsRefusedOnItsPath() =>
+        One(Valid() with { Discounts = [Discount(), null!] }, "discounts[1]", "Fill in this discount.");
+
+    [Fact]
+    public void TwentyDiscountsAreAcceptedAndTwentyOneAreRefused()
+    {
+        Fields(Valid() with { Discounts = [.. Enumerable.Repeat(Discount(), 20)] }).ShouldBeEmpty();
+        One(Valid() with { Discounts = [.. Enumerable.Repeat(Discount(), 21)] }, "discounts", "An order can have at most 20 discounts.");
+    }
+
+    [Fact]
+    public void NoPaymentsAndAnEmptyListAreAccepted()
+    {
+        Fields(Valid()).ShouldBeEmpty();
+        Fields(Valid() with { Payments = [] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ABrokenPaymentIsRefusedOnItsPath()
+    {
+        One(Valid() with { Payments = [Payment() with { Amount = 0m }] }, "payments[0].amount", "Enter an amount from ₱0.01 to ₱1,000,000.00.");
+        One(Valid() with { Payments = [Payment(), Payment() with { PaymentDate = "2026-10-29" }] }, "payments[1].paymentDate", "The payment date can't be in the future.");
+        One(Valid() with { Payments = [Payment() with { ReceivedByUserId = null }] }, "payments[0].receivedByUserId", "Choose who received the money.");
+        One(Valid() with { Payments = [Payment() with { PaymentMethodId = Guid.Empty }] }, "payments[0].paymentMethodId", "Choose a payment method.");
+    }
+
+    [Fact]
+    public void AnEmptyPaymentListsEveryRequiredFieldOnItsPath() =>
+        Fields(Valid() with { Payments = [new OrderPaymentRequest(null, null, null, null, null, null)] }).Keys.Order(StringComparer.Ordinal)
+            .ShouldBe(["payments[0].amount", "payments[0].paymentDate", "payments[0].paymentMethodId", "payments[0].receivedByUserId"]);
+
+    [Fact]
+    public void ANullPaymentInTheListIsRefusedOnItsPath() =>
+        One(Valid() with { Payments = [Payment(), null!] }, "payments[1]", "Fill in this payment.");
+
+    [Fact]
+    public void OneHundredPaymentsAreAcceptedAndOneHundredAndOneAreRefused()
+    {
+        Fields(Valid() with { Payments = [.. Enumerable.Repeat(Payment(), 100)] }).ShouldBeEmpty();
+        One(Valid() with { Payments = [.. Enumerable.Repeat(Payment(), 101)] }, "payments", "An order can have at most 100 payments.");
+    }
+
+    [Fact]
+    public void APaymentWithoutTheBusinessTodayInTheContextIsAProgrammingError()
+    {
+        Should.Throw<InvalidOperationException>(() => Validator.Validate(Valid() with { Payments = [Payment()] }));
+    }
+
+    [Fact]
+    public void NoExpensesAndAnEmptyListAreAccepted()
+    {
+        Fields(Valid()).ShouldBeEmpty();
+        Fields(Valid() with { Expenses = [] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ABrokenExpenseIsRefusedOnItsPath()
+    {
+        One(Valid() with { Expenses = [Expense() with { Amount = 0m }] }, "expenses[0].amount", "Enter an amount greater than ₱0.00.");
+        One(Valid() with { Expenses = [Expense(), Expense() with { ExpenseDate = "2026-11-28" }] }, "expenses[1].expenseDate", "Choose a date up to 30 days from today, Nov 27, 2026 at the latest.");
+        One(Valid() with { Expenses = [Expense() with { PaidByUserId = null }] }, "expenses[0].paidByUserId", "Choose who paid.");
+        One(Valid() with { Expenses = [Expense() with { OrderExpenseCategoryId = Guid.Empty }] }, "expenses[0].orderExpenseCategoryId", "Choose a category.");
+        One(Valid() with { Expenses = [Expense() with { Description = new string('d', 201) }] }, "expenses[0].description", "Keep the description to 200 characters or fewer.");
+    }
+
+    [Fact]
+    public void AnExpenseDatedLongAgoOrThirtyDaysAheadIsAccepted()
+    {
+        Fields(Valid() with { Expenses = [Expense() with { ExpenseDate = "2024-01-05" }, Expense() with { ExpenseDate = "2026-11-27" }] }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AnEmptyExpenseListsEveryRequiredFieldOnItsPath() =>
+        Fields(Valid() with { Expenses = [new OrderExpenseRequest(null, null, null, null, null)] }).Keys.Order(StringComparer.Ordinal)
+            .ShouldBe(["expenses[0].amount", "expenses[0].expenseDate", "expenses[0].orderExpenseCategoryId", "expenses[0].paidByUserId"]);
+
+    [Fact]
+    public void ANullExpenseInTheListIsRefusedOnItsPath() =>
+        One(Valid() with { Expenses = [Expense(), null!] }, "expenses[1]", "Fill in this expense.");
+
+    [Fact]
+    public void OneHundredExpensesAreAcceptedAndOneHundredAndOneAreRefused()
+    {
+        Fields(Valid() with { Expenses = [.. Enumerable.Repeat(Expense(), 100)] }).ShouldBeEmpty();
+        One(Valid() with { Expenses = [.. Enumerable.Repeat(Expense(), 101)] }, "expenses", "An order can have at most 100 expenses.");
+    }
+
+    [Fact]
+    public void AnExpenseWithoutTheBusinessTodayInTheContextIsAProgrammingError()
+    {
+        Should.Throw<InvalidOperationException>(() => Validator.Validate(Valid() with { Expenses = [Expense()] }));
+    }
+
+    [Fact]
+    public void TheExpenseValidatorWorksOnItsOwnInterface()
+    {
+        var context = new ValidationContext<IOrderExpenseFields>(Expense() with { Amount = 10.005m });
+        context.RootContextData[OrderExpenseFieldsValidator.TodayKey] = new DateOnly(2026, 10, 28);
+
+        var result = new OrderExpenseFieldsValidator().Validate(context);
+
+        result.Errors.Select(error => error.PropertyName).ShouldBe(["Amount"]);
+    }
+
+    [Fact]
+    public void ThePaymentValidatorWorksOnItsOwnInterface()
+    {
+        var context = new ValidationContext<IOrderPaymentFields>(Payment() with { Amount = 10.005m });
+        context.RootContextData[OrderPaymentFieldsValidator.TodayKey] = new DateOnly(2026, 10, 28);
+
+        var result = new OrderPaymentFieldsValidator().Validate(context);
+
+        result.Errors.Select(error => error.PropertyName).ShouldBe(["Amount"]);
+    }
+
+    [Fact]
+    public void TheDiscountValidatorWorksOnItsOwnInterface()
+    {
+        var result = new OrderDiscountFieldsValidator().Validate(Discount() with { Value = 100.01m, Kind = "percentage" });
+
+        result.Errors.Select(error => error.PropertyName).ShouldBe(["Value"]);
+    }
+
+    [Fact]
+    public void ManyBrokenFieldsComeBackTogetherWithTheirPaths()
+    {
+        var request = Valid() with
+        {
+            CustomerName = "",
+            Email = "juan@",
+            Items = [Item() with { Quantity = 0 }, Item() with { UnitPrice = 650.123m, Description = " " }],
+        };
+
+        Fields(request).Keys.Order(StringComparer.Ordinal).ShouldBe(["customerName", "email", "items[0].quantity", "items[1].description", "items[1].unitPrice"]);
+    }
+
+    [Fact]
+    public void TheDetailsAndItemValidatorsWorkOnTheirOwnInterfaces()
+    {
+        var details = new OrderDetailsFieldsValidator().Validate(Valid());
+        var item = new OrderItemFieldsValidator().Validate(Item() with { Quantity = 0 });
+
+        details.IsValid.ShouldBeTrue();
+        item.Errors.Select(error => error.PropertyName).ShouldBe(["Quantity"]);
+    }
+
+    [Theory]
+    [InlineData("2026-10-28", true, 2026, 10, 28)]
+    [InlineData("  2026-10-28  ", true, 2026, 10, 28)]
+    [InlineData("2026-02-30", false, 1, 1, 1)]
+    [InlineData("", false, 1, 1, 1)]
+    [InlineData(null, false, 1, 1, 1)]
+    public void ADateIsReadOnlyInTheIsoForm(string? text, bool parsed, int year, int month, int day)
+    {
+        OrderDetailsFieldsValidator.TryParseDate(text, out var date).ShouldBe(parsed);
+
+        date.ShouldBe(new DateOnly(year, month, day));
+    }
+
+    private static CreateOrderRequest Valid() => new(
+        "Juan Dela Cruz",
+        "Brgy. San Roque Ballers",
+        "0917 123 4567",
+        "juan.dc@example.com",
+        null,
+        "2026-10-28",
+        "2026-11-11",
+        null,
+        null,
+        [Item()]);
+
+    private static OrderItemRequest Item() => new(ProductTypeId, "Jersey top", "S-XL", 15, 650.00m);
+
+    private static OrderDiscountRequest Discount() => new("fixed", 100.00m, "League");
+
+    private static OrderPaymentRequest Payment() => new("2026-10-27", 100.00m, MethodId, null, null, ReceiverId);
+
+    private static OrderExpenseRequest Expense() => new("2026-10-27", CategoryId, "Dri-fit mesh", 100.00m, ReceiverId);
+
+    private static decimal Parse(string text) => decimal.Parse(text, CultureInfo.InvariantCulture);
+
+    private static Dictionary<string, string[]> Fields(CreateOrderRequest request)
+    {
+        var context = new ValidationContext<CreateOrderRequest>(request);
+        context.RootContextData[OrderPaymentFieldsValidator.TodayKey] = new DateOnly(2026, 10, 28);
+        ValidationResult result = Validator.Validate(context);
+        return result.IsValid
+            ? []
+            : ValidationResults.ToError(result, "orders.invalid-request", "Check the highlighted fields.").FieldErrors.ShouldNotBeNull()
+                .ToDictionary(pair => pair.Key, pair => pair.Value);
+    }
+
+    private static void One(CreateOrderRequest request, string field, string message)
+    {
+        var fields = Fields(request);
+        fields.Keys.ShouldBe([field]);
+        fields[field].ShouldBe([message]);
+    }
+}

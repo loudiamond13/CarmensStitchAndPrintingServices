@@ -3,7 +3,7 @@ using MimeKit;
 namespace Csps.Infrastructure.Email;
 
 /// <summary>
-/// Command-line options of <c>tools/Csps.EmailPreview</c> (D-30): either <c>--to</c>, which sends the seven sample emails
+/// Command-line options of <c>tools/Csps.EmailPreview</c> (D-30): either <c>--to</c>, which sends the eight sample emails
 /// to one address, or <c>--out</c>, which writes them as files. Error messages never repeat an argument value.
 /// </summary>
 public sealed class EmailPreviewOptions

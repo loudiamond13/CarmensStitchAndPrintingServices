@@ -5,8 +5,15 @@
 // rail) are `in-data-[ui=s-admin-side]:` / `in-data-[ui=s-admin-main]:` variants in the navigation recipes.
 import { tw } from '@/ui/tw';
 
-/** `.s-admin`: the sidebar column and the main column side by side. */
-export const adminClasses = tw('flex min-h-full bg-bg text-ink');
+/**
+ * `.s-admin`: the sidebar column and the main column side by side. The page (html) also gets top scroll padding at every
+ * width and, on phone viewports, bottom scroll padding, so a focused or scrolled-to control stops 24px clear of the
+ * sticky top bar and the tab bar (WCAG 2.4.11); they are utilities because the D-33 contract keeps html out of the
+ * stylesheets.
+ */
+export const adminClasses = tw(
+  'flex min-h-full bg-bg text-ink in-data-[fill=viewport]:min-h-dvh [:root:has(&)]:scroll-pt-[calc(var(--topbar-height)+var(--space-6))] vp-lt-md:[:root:has(&)]:scroll-pb-[calc(71px+var(--space-6)+env(safe-area-inset-bottom))]',
+);
 
 /** `.s-admin-side`: the sidebar column (`data-ui="s-admin-side"`), hidden on phones. */
 export const adminSideClasses = tw('relative flex-none pg-phone:hidden');
@@ -14,18 +21,23 @@ export const adminSideClasses = tw('relative flex-none pg-phone:hidden');
 /** `.s-admin-main`: the topbar, the body and the phone tab bar in one column (`data-ui="s-admin-main"`). */
 export const adminMainClasses = tw('flex min-w-0 flex-1 flex-col');
 
-/** `.s-body`: 32 32 48 with 24px gaps, up to 1440px wide; 24 24 48 on tablets; 20 16 32 with 20px gaps on phones. */
+/**
+ * `.s-body`: 32 32 48 with 24px gaps, up to 1440px wide; 24 24 48 on tablets; 20 16 32 with 20px gaps on phones. When a
+ * classic scrollbar keeps a 768px or wider window in the phone layout, html cannot see that, so the controls in main carry
+ * the tab bar's bottom spacing instead; dialog contents are left out.
+ */
 export const adminBodyClasses = tw(
-  'flex w-full max-w-[1440px] flex-col gap-6 px-8 pt-8 pb-12 pg-phone:gap-5 pg-phone:px-4 pg-phone:pt-5 pg-phone:pb-8 pg-tablet:px-6 pg-tablet:pt-6 pg-tablet:pb-12',
+  'flex w-full max-w-[1440px] flex-col gap-6 px-8 pt-8 pb-12 pg-phone:gap-5 pg-phone:px-4 pg-phone:pt-5 pg-phone:pb-8 pg-tablet:px-6 pg-tablet:pt-6 pg-tablet:pb-12 md:pg-phone:[&_:not([aria-modal=true]_*)]:scroll-mb-[calc(71px+var(--space-6)+env(safe-area-inset-bottom))]',
 );
 
 // ── Phone tab bar (App. C `/* mobile tab bar (admin) */`, App. E.6 `nav.s-tabbar`) ──
 // App. C hides the bar everywhere and shows it as a grid only inside `@container pg (max-width: 767px)`, where all its
 // other rules sit too. A hidden bar shows nothing, so here only its display depends on the container.
 
-/** `.s-tabbar`: a sticky 4-column bar at the bottom of the main column, on the surface at 94% over a 12px blur. */
+/** `.s-tabbar`: a sticky 4-column bar at the bottom of the main column, on the surface at 94% over a 12px blur,
+ * with 12px of bottom padding plus the device's safe area (D-36). */
 export const tabBarClasses = tw(
-  'sticky bottom-0 z-30 mt-auto hidden grid-cols-4 border-t border-line bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] px-2 pt-[6px] pb-3 [backdrop-filter:blur(12px)] pg-phone:grid',
+  'sticky bottom-0 z-30 mt-auto hidden grid-cols-4 border-t border-line bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] px-2 pt-[6px] pb-[calc(12px+env(safe-area-inset-bottom))] [backdrop-filter:blur(12px)] pg-phone:grid',
 );
 
 /**

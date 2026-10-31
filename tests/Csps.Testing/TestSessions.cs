@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.Security;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
 
@@ -16,10 +17,10 @@ public sealed record StartedSession(Guid UserId, Guid SessionId, string AccessTo
 public static class TestSessions
 {
     /// <summary>Creates a staff account and starts a session for it.</summary>
-    /// <param name="factory">A host with a database.</param>
+    /// <param name="factory">A host with a database; a host with a fixed clock issues tokens for that clock.</param>
     /// <param name="role">The role, <c>Admin</c> or <c>Manager</c>.</param>
     /// <returns>The account, its session and the access token.</returns>
-    public static async Task<StartedSession> StartAsync(CspsApiFactory factory, string role = Roles.Manager)
+    public static async Task<StartedSession> StartAsync(WebApplicationFactory<Program> factory, string role = Roles.Manager)
     {
         ArgumentNullException.ThrowIfNull(factory);
         var scope = factory.Services.CreateAsyncScope();

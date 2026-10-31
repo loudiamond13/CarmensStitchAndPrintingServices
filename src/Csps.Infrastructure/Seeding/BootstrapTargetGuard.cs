@@ -14,6 +14,9 @@ public sealed record BootstrapTargetCheck(bool Allowed, string? DatabaseName, st
 /// Pure: it never opens a connection. The operator must repeat the database name in <c>--confirm-database</c>. The
 /// other project's <c>BetsLLC_*</c> databases, <c>CSPS_Legacy_Restore</c> and the SQL Server system databases are always
 /// refused, and on this machine only <c>CSPS_Dev</c>, <c>CSPS_E2E</c> and <c>CSPS_Test_&lt;guid&gt;</c> pass.
+/// "This machine" means a <c>(localdb)</c> instance, a loopback server (<c>127.0.0.1</c>, <c>localhost</c>, <c>::1</c> with
+/// or without brackets, <c>.</c>, <c>(local)</c>) with or without <c>tcp:</c>, or an <c>np:</c> named pipe on one of those
+/// servers or a <c>LOCALDB#</c> pipe name (IN-07).
 /// Reasons never repeat the connection string, which holds a password.
 /// </summary>
 public static partial class BootstrapTargetGuard
@@ -104,7 +107,9 @@ public static partial class BootstrapTargetGuard
             : null;
     }
 
-    // A LocalDB instance or a loopback address, with an optional tcp: prefix, port or instance name.
+    // This machine: a LocalDB instance, a loopback address (IPv4, IPv6 with or without brackets, localhost, "." or
+    // "(local)") with an optional tcp: prefix, port or instance name, or a named pipe on one of those servers
+    // (np:\\.\pipe\LOCALDB#...\tsql\query is how a LocalDB instance is reached over a pipe).
     private static bool IsLocalServer(string dataSource)
     {
         var server = dataSource.Trim();
@@ -113,14 +118,33 @@ public static partial class BootstrapTargetGuard
             return true;
         }
 
+        if (server.StartsWith("np:", StringComparison.OrdinalIgnoreCase))
+        {
+            return IsLocalPipeServer(server[3..]);
+        }
+
         if (server.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase))
         {
             server = server[4..];
         }
 
-        var host = server.Split(',', '\\')[0];
-        return LoopbackHosts.Contains(host, StringComparer.OrdinalIgnoreCase);
+        if (server.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            return IsLocalPipeServer(server);
+        }
+
+        return IsLoopbackHost(server.Split(',', '\\')[0]);
     }
+
+    // The server part of a pipe path (\\server\pipe\name), or a bare server name after np:.
+    private static bool IsLocalPipeServer(string pipePath)
+    {
+        var server = pipePath.TrimStart('\\').Split('\\')[0].Trim();
+        return IsLoopbackHost(server) || server.StartsWith("LOCALDB#", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLoopbackHost(string host) =>
+        LoopbackHosts.Contains(host.Trim().Trim('[', ']'), StringComparer.OrdinalIgnoreCase);
 
     private static BootstrapTargetCheck Refused(string? database, string reason) => new(false, database, reason);
 

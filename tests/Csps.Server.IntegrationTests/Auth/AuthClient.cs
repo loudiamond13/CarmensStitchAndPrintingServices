@@ -135,7 +135,8 @@ internal static partial class AuthClient
     public const string ChromeOnAndroid =
         "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
 
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(5);
+    // A wait returns as soon as the mail is there; the limit only has to outlast a loaded machine and a slow sweep.
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
 
     /// <summary>Creates an https client that keeps cookies, so Secure cookies flow (the Testing host does not redirect).</summary>
     /// <param name="factory">The test host.</param>

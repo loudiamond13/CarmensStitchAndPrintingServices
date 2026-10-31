@@ -7,10 +7,12 @@
 //   - any same-origin request that failed at network level (reset, refused, DNS: no response at all) that the test did
 //     not declare with guard.expectFailure; a cancellation (a navigation or an AbortController) is not a failure.
 // Every page of the test's browser context is guarded, not only the fixture `page` (TOOL-WR-14).
-// expectNoAxeViolations(page) adds the page-level axe check with the same tags as the component tests.
+// expectNoAxeViolations(page) adds the page-level axe check with the same tags as the component tests. A target-size
+// finding that only a fixed or sticky bar causes is re-checked after the target is scrolled clear of the bar (D-71).
 import { AxeBuilder } from '@axe-core/playwright';
 import { test as base, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import type { CheckResult, NodeResult, Result } from 'axe-core';
 import { AXE_TAGS } from '../src/test/axeTags.ts';
 
 export { expect };
@@ -66,6 +68,12 @@ const NETWORK_FAILURE = /^Failed to load resource\b/;
 // matched exactly: our own /assets/*.js chunk and WebKit's wording, nothing else.
 const UNUSED_PRELOAD =
   /^The resource https?:\/\/[^\s/]+\/assets\/[\w.-]+\.js was preloaded using link preload but not used within a few seconds from the window's load event\. Please make sure it wasn't preloaded for nothing\.$/;
+// Firefox's warning for the page's one font <link rel="preload"> (the Archivo Variable woff2) when the page stays open for
+// more than a few seconds: it reports the preload as unused although the page renders with the font (the fonts spec proves
+// the font loads once, same origin). Any long Firefox journey on one document meets it (plans 05-08, 05-18, 05-28, 05-33).
+// It is matched exactly: our own /assets/archivo-latin-wght-normal-*.woff2 and Firefox's wording, nothing else.
+const UNUSED_FONT_PRELOAD =
+  /^\[JavaScript Warning: "The resource at “https?:\/\/[^\s/]+\/assets\/archivo-latin-wght-normal-[\w-]+\.woff2” preloaded with link preload was not used within a few seconds\. Make sure all attributes of the preload tag are set correctly\."/;
 // How each engine names a cancelled request: Chromium net::ERR_ABORTED, Firefox NS_BINDING_ABORTED, WebKit cancelled.
 const CANCELLED = /ERR_ABORTED|NS_BINDING_ABORTED|cancel/i;
 
@@ -135,7 +143,7 @@ export const test = base.extend<{ guard: Guard }>({
           if (loadFailure === null && NETWORK_FAILURE.test(text) && isDeclaredFailure(url)) {
             return;
           }
-          if (type === 'warning' && UNUSED_PRELOAD.test(text)) {
+          if (type === 'warning' && (UNUSED_PRELOAD.test(text) || UNUSED_FONT_PRELOAD.test(text))) {
             return;
           }
           consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
@@ -218,8 +226,168 @@ export const test = base.extend<{ guard: Guard }>({
 });
 
 /**
- * Runs axe over the whole page with the A11Y-01 tags (src/test/axeTags.ts, shared with the component tests). The
- * contrast rule stays on here, unlike in jsdom. Rejects with one `<rule id>: <targets>` line per violation, sorted.
+ * The axe run every e2e check uses: the A11Y-01 tags (src/test/axeTags.ts), every rule on every node, full detail for
+ * violations only. The default run gives every passing node a unique selector before it trims anything, which took about
+ * 25 s per check in WebKit on a picker of 2,300 options (debug session expenses-add-save-slow). Legacy mode runs axe in
+ * the page, where passes are trimmed first. It skips cross-origin frames; the app has none.
+ */
+export function pageAxe(page: Page): AxeBuilder {
+  // options() replaces every option set before it, so it goes before withTags.
+  return new AxeBuilder({ page })
+    .options({ resultTypes: ['violations'] })
+    .withTags([...AXE_TAGS])
+    .setLegacyMode();
+}
+
+/** The scroll offsets the D-71 re-check puts back: the window, and each scrolled ancestor of the target by depth. */
+interface ScrollState {
+  readonly x: number;
+  readonly y: number;
+  /** [depth above the target, scrollTop, scrollLeft] */
+  readonly ancestors: readonly (readonly [number, number, number])[];
+}
+
+/** A selector axe gave as one plain string (no frame or shadow path), or null. */
+function plainSelector(target: NodeResult['target']): string | null {
+  const [only] = target;
+  return target.length === 1 && typeof only === 'string' ? only : null;
+}
+
+/** True when the check is target-size's "partially obscured" finding. */
+function isPartiallyObscured(check: CheckResult): boolean {
+  const data: unknown = check.data;
+  return typeof data === 'object' && data !== null && 'messageKey' in data && data.messageKey === 'partiallyObscured';
+}
+
+/** The plain selectors of the controls that partly cover the target (axe lists them on the check). */
+function coveringSelectors(check: CheckResult): string[] {
+  return (check.relatedNodes ?? []).flatMap((related) => {
+    const selector = plainSelector(related.target);
+    return selector === null ? [] : [selector];
+  });
+}
+
+/** One page script: does any of these elements sit in, or inside, an element with position fixed or sticky? */
+function inFixedOrStickyBar(selectors: readonly string[]): string {
+  return `(() => {
+    for (const selector of ${JSON.stringify(selectors)}) {
+      let element = null;
+      try { element = document.querySelector(selector); } catch { element = null; }
+      for (let node = element; node !== null; node = node.parentElement) {
+        const position = getComputedStyle(node).position;
+        if (position === 'fixed' || position === 'sticky') { return true; }
+      }
+    }
+    return false;
+  })()`;
+}
+
+/** Scrolls the target to the middle of the padded scrollport and waits for the scroll to stop; returns the old offsets. */
+function scrollToMiddle(selector: string): string {
+  return `(async () => {
+    const element = document.querySelector(${JSON.stringify(selector)});
+    if (element === null) { return null; }
+    const ancestors = [];
+    let depth = 0;
+    for (let node = element.parentElement; node !== null; node = node.parentElement) {
+      ancestors.push([depth, node.scrollTop, node.scrollLeft]);
+      depth += 1;
+    }
+    const saved = { x: window.scrollX, y: window.scrollY, ancestors };
+    element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    let steady = 0;
+    let last = Number.NaN;
+    for (let frame = 0; frame < 120 && steady < 5; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      steady = window.scrollY === last ? steady + 1 : 0;
+      last = window.scrollY;
+    }
+    return saved;
+  })()`;
+}
+
+/** Puts every recorded scroll offset back. */
+function restoreScroll(selector: string, saved: ScrollState): string {
+  return `(() => {
+    const saved = ${JSON.stringify(saved)};
+    const element = document.querySelector(${JSON.stringify(selector)});
+    if (element !== null) {
+      let node = element.parentElement;
+      for (let depth = 0; node !== null; depth += 1, node = node.parentElement) {
+        const offsets = saved.ancestors.find((entry) => entry[0] === depth);
+        if (offsets !== undefined) { node.scrollTop = offsets[1]; node.scrollLeft = offsets[2]; }
+      }
+    }
+    window.scrollTo({ left: saved.x, top: saved.y, behavior: 'instant' });
+    return true;
+  })()`;
+}
+
+/**
+ * D-71: whether a target-size finding is cleared by scrolling the target clear of a bar. Only a "partially obscured"
+ * finding with at least one covering control in a fixed or sticky bar is re-checked: the target is scrolled to the middle
+ * of the padded window, target-size runs on it alone, and every scroll offset is put back. It is cleared only when
+ * target-size passes for it; a finding that is still covered, or not evaluated, stays.
+ */
+async function clearedByScrolling(page: Page, node: NodeResult): Promise<boolean> {
+  const check = node.any.find((candidate) => candidate.id === 'target-size');
+  const selector = plainSelector(node.target);
+  if (check === undefined || selector === null || !isPartiallyObscured(check)) {
+    return false;
+  }
+  const covering = coveringSelectors(check);
+  if (covering.length === 0 || !(await page.evaluate<boolean>(inFixedOrStickyBar(covering)))) {
+    return false;
+  }
+  const saved = await page.evaluate<ScrollState | null>(scrollToMiddle(selector));
+  if (saved === null) {
+    return false;
+  }
+  try {
+    // options() replaces every option set before it, so it goes before withRules; passes are needed to tell "passed"
+    // from "not evaluated".
+    const rerun = await pageAxe(page)
+      .options({ resultTypes: ['violations', 'passes'] })
+      .withRules(['target-size'])
+      .include(selector)
+      .analyze();
+    const here = (result: Result): boolean =>
+      result.id === 'target-size' && result.nodes.some((candidate) => plainSelector(candidate.target) === selector);
+    return rerun.passes.some(here) && !rerun.violations.some(here);
+  } finally {
+    await page.evaluate<boolean>(restoreScroll(selector, saved));
+  }
+}
+
+/** The violations without the target-size nodes that scrolling clears (D-71); every other finding is kept as it is. */
+async function withoutBarCoveredNodes(page: Page, violations: Result[]): Promise<Result[]> {
+  const kept: Result[] = [];
+  for (const violation of violations) {
+    if (violation.id !== 'target-size') {
+      kept.push(violation);
+      continue;
+    }
+    const nodes: NodeResult[] = [];
+    for (const node of violation.nodes) {
+      if (!(await clearedByScrolling(page, node))) {
+        nodes.push(node);
+      }
+    }
+    if (nodes.length > 0) {
+      kept.push({ ...violation, nodes });
+    }
+  }
+  return kept;
+}
+
+/**
+ * Runs axe over the whole page with pageAxe. The contrast rule stays on here, unlike in jsdom. Rejects with one
+ * `<rule id>: <targets>` line per violation, sorted.
+ *
+ * D-71: a target-size finding that is only "partially obscured", where at least one covering control sits in a fixed or
+ * sticky bar (the admin top bar, the phone tab bar, the public header), is scrolled to the middle of the window inside the
+ * page's scroll padding, checked again for target-size alone, and the scroll is put back. It fails only if it is still
+ * covered. Every other finding, and the message format, are unchanged.
  */
 export async function expectNoAxeViolations(page: Page): Promise<void> {
   // Axe reads colors as painted, so a toast or dialog still fading in fails contrast. Finite animations finish first.
@@ -228,8 +396,8 @@ export async function expectNoAxeViolations(page: Page): Promise<void> {
     await Promise.allSettled(running.map((animation) => animation.finished));
     return true;
   })()`);
-  const results = await new AxeBuilder({ page }).withTags([...AXE_TAGS]).analyze();
-  const lines = results.violations
+  const results = await pageAxe(page).analyze();
+  const lines = (await withoutBarCoveredNodes(page, results.violations))
     .map((violation) => ({
       id: violation.id,
       targets: violation.nodes.map((node) => node.target.join(' ')).sort((a, b) => a.localeCompare(b)),

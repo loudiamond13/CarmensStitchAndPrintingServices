@@ -9,10 +9,8 @@
 //   - A saved password issues the session: it is stored, a one-shot toast is left for the admin shell, and the person goes
 //     to the validated return path or /admin.
 //   - "Use a different account" drops what this tab holds for the pending sign-in and returns to S1.
-import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm, type FieldErrors } from 'react-hook-form';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
@@ -21,11 +19,12 @@ import { ErrorState, LoadingRegion } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
-import { newPasswordSchema, type NewPasswordValues } from '@/modules/admin/authSchemas';
+import type { NewPasswordValues } from '@/modules/admin/authSchemas';
 import { AuthHeader } from '@/modules/admin/components/AuthHeader';
-import { CheckingCard, NewPasswordForm, type AuthBanner } from '@/modules/admin/components/AuthCards';
+import { CheckingCard, NewPasswordForm } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { safeReturnUrl } from '@/modules/admin/guard';
+import { useSetPasswordForm } from '@/modules/admin/hooks/useSetPasswordForm';
 import {
   passwordService,
   type SessionResponse,
@@ -35,27 +34,17 @@ import { clearSession, completeSignIn, setSignedInToast, setSignInNotice } from 
 import { describeHttpError } from '@/utils/describeHttpError';
 
 const SIGN_IN_PATH = '/admin/login';
-const FIELD_ORDER = ['newPassword', 'confirmPassword'] as const;
-type FieldName = (typeof FIELD_ORDER)[number];
 
 interface NewPasswordFormStateProps {
   context: SetNewPasswordContext;
 }
 
-/** The form state: owns the form, the schema for this account and the save. */
+/** The form state: the shared set-password form for this account, and the save. */
 function NewPasswordFormState({ context }: NewPasswordFormStateProps) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const returnUrl = params.get('returnUrl');
-  const formRef = useRef<HTMLFormElement>(null);
-  const [banner, setBanner] = useState<AuthBanner | null>(null);
-  const { email, firstName, lastName } = context;
-  // D-15: the checked sign-in names the account, so the password can be kept free of its email and names.
-  const schema = useMemo(() => newPasswordSchema({ email, firstName, lastName }), [email, firstName, lastName]);
-  const { control, handleSubmit, setError } = useForm<NewPasswordValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { newPassword: '', confirmPassword: '' },
-  });
+  const form = useSetPasswordForm(context);
 
   const { submit, pending } = useSubmission<NewPasswordValues, SessionResponse>(
     (_key, values) => passwordService.setNewPassword({ newPassword: values.newPassword }),
@@ -68,41 +57,15 @@ function NewPasswordFormState({ context }: NewPasswordFormStateProps) {
     },
   );
 
-  const focusField = (name: FieldName): void => {
-    const element = formRef.current?.elements.namedItem(name);
-    if (element instanceof HTMLElement) {
-      element.focus();
-    }
-  };
-
-  useEffect(() => {
-    focusField('newPassword');
-  }, []);
-
   const showFailure = (error: unknown): void => {
-    if (isHttpError(error)) {
-      if (error.status === 401) {
-        // The ticket is gone (expired or used): start over.
-        setSignInNotice('timed-out');
-        void navigate(SIGN_IN_PATH);
-        return;
-      }
-      if (error.status === 400) {
-        const entries = Object.entries(error.fieldErrors);
-        // The server's words win over the screen's own.
-        for (const name of FIELD_ORDER) {
-          const message = entries.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1][0];
-          if (message !== undefined) {
-            setError(name, { type: 'server', message });
-            focusField(name);
-            return;
-          }
-        }
-      }
+    if (isHttpError(error) && error.status === 401) {
+      // The ticket is gone (expired or used): start over.
+      setSignInNotice('timed-out');
+      void navigate(SIGN_IN_PATH);
+      return;
     }
-    const described = describeHttpError(error);
-    if (described !== null) {
-      setBanner({ title: described.title, message: described.body, error });
+    if (!form.applyFieldErrors(error)) {
+      form.showBanner(error);
     }
   };
 
@@ -113,26 +76,16 @@ function NewPasswordFormState({ context }: NewPasswordFormStateProps) {
     }
   };
 
-  const onInvalid = (errors: FieldErrors<NewPasswordValues>): void => {
-    const first = FIELD_ORDER.find((name) => errors[name] !== undefined);
-    if (first !== undefined) {
-      focusField(first);
-    }
-  };
-
   return (
     <NewPasswordForm
-      formRef={formRef}
-      control={control}
+      formRef={form.formRef}
+      control={form.control}
       pending={pending}
-      email={email}
+      email={context.email}
       reason={context.reason === 'breach' ? 'breach' : 'temporary'}
-      banner={banner}
+      banner={form.banner}
       onBack={clearSession}
-      onSubmit={(event) => {
-        setBanner(null);
-        void handleSubmit(onValid, onInvalid)(event);
-      }}
+      onSubmit={form.submitHandler(onValid)}
     />
   );
 }

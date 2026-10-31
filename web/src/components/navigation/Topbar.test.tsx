@@ -183,6 +183,21 @@ describe('Topbar menu button (phones)', () => {
   });
 });
 
+describe('Topbar menu button name follows the drawer (D-34)', () => {
+  it('is "Open navigation" while the drawer is closed or unwired, and "Close navigation" while it is open', () => {
+    const { rerender } = render(<Topbar onMenu={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toBeInTheDocument();
+
+    rerender(<Topbar onMenu={vi.fn()} menuExpanded={false} menuControls="mobile-nav" />);
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Close navigation' })).toBeNull();
+
+    rerender(<Topbar onMenu={vi.fn()} menuExpanded menuControls="mobile-nav" />);
+    expect(screen.getByRole('button', { name: 'Close navigation' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('button', { name: 'Open navigation' })).toBeNull();
+  });
+});
+
 describe('Topbar theme toggle', () => {
   it('is named for what it will do, with the moon in light and the sun in dark, and calls onToggleTheme', async () => {
     const onToggleTheme = vi.fn();

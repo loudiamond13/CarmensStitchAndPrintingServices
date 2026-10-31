@@ -207,6 +207,38 @@ public sealed class OrderMathTests
     }
 
     [Fact]
+    public void ADiscountAmountRoundsSevenAndAHalfPercentOfSeventeenPesosHalfAwayFromZeroTo1Point28()
+    {
+        OrderMath.DiscountAmount(new(DiscountKind.Percentage, 7.5m), 17.00m).ShouldBe(1.28m);
+    }
+
+    [Fact]
+    public void AFixedDiscountAmountIsTheValueItself()
+    {
+        OrderMath.DiscountAmount(new(DiscountKind.Fixed, 500.00m), 22_450.00m).ShouldBe(500.00m);
+    }
+
+    [Fact]
+    public void AFivePercentDiscountAmountOfTheOrd0148SubtotalIs1122Point50()
+    {
+        OrderMath.DiscountAmount(new(DiscountKind.Percentage, 5m), 22_450.00m).ShouldBe(1122.50m);
+    }
+
+    [Fact]
+    public void ADiscountAmountOfAnUndefinedKindThrowsNamingTheDiscount()
+    {
+        var error = Should.Throw<ArgumentOutOfRangeException>(() => OrderMath.DiscountAmount(new((DiscountKind)99, 10m), 100m));
+
+        error.ParamName.ShouldBe("discount");
+    }
+
+    [Fact]
+    public void ANullDiscountThrowsWhenItsAmountIsAsked()
+    {
+        Should.Throw<ArgumentNullException>(() => OrderMath.DiscountAmount(null!, 100m)).ParamName.ShouldBe("discount");
+    }
+
+    [Fact]
     public void TheDefaultDiscountKindIsNotAValidKind()
     {
         Enum.IsDefined(default(DiscountKind)).ShouldBeFalse();

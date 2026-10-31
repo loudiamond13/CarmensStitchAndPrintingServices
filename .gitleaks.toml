@@ -17,6 +17,7 @@ paths = [
   '''^tests/Csps\.Server\.IntegrationTests/Auth/MustChangePasswordTests\.cs$''',
   '''^tests/Csps\.Server\.IntegrationTests/Auth/PasswordResetTests\.cs$''',
   '''^tests/Csps\.Server\.IntegrationTests/Logging/SensitiveDataMaskingTests\.cs$''',
+  '''^tests/Csps\.Server\.IntegrationTests/Users/CreateUserEndpointTests\.cs$''',
 ]
 
 [[allowlists]]
@@ -33,6 +34,9 @@ paths = [
   '''^web/scripts/smoke\.test\.ts$''',
   '''^web/src/modules/admin/pages/AcceptInvitePage\.test\.tsx$''',
   '''^web/src/modules/admin/pages/ResetPasswordPage\.test\.tsx$''',
+  '''^web/src/modules/admin/components/AddUserPanel\.test\.tsx$''',
+  '''^web/src/modules/admin/services/usersService\.test\.ts$''',
+  '''^web/src/modules/admin/usersSchemas\.test\.ts$''',
 ]
 
 [[allowlists]]

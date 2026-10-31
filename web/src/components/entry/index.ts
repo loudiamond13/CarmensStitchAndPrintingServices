@@ -6,5 +6,6 @@ export { MoneyInput, moneyInputError } from './MoneyInput';
 export type { MoneyInputProps } from './MoneyInput';
 export { OtpInput, otpInputError } from './OtpInput';
 export type { OtpInputProps } from './OtpInput';
+export { RadioGroup, type RadioGroupProps, type RadioOption } from './RadioGroup';
 export { SkipLink } from './SkipLink';
 export type { SkipLinkProps } from './SkipLink';

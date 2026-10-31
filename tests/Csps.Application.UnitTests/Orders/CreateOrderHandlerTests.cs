@@ -1,0 +1,684 @@
+using Csps.Application.Auth;
+using Csps.Application.Orders;
+using Csps.Application.Ports;
+using Csps.Application.Security;
+using Csps.Application.Staff;
+using Csps.Application.UnitTests.Auth;
+using Csps.Application.Users;
+using Csps.Domain.Auditing;
+using Csps.Domain.Common;
+using Csps.Domain.OrderLists;
+using Csps.Domain.Orders;
+using Csps.Domain.Time;
+using FluentValidation;
+using FluentValidation.Results;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
+
+namespace Csps.Application.UnitTests.Orders;
+
+/// <summary>
+/// ORD-03, ORD-13, ORD-14, D-18, D-23: the handler checks the form and the product types together and lists every failed field in
+/// one 400, takes a number only after every check passed, and saves the order once inside one transaction.
+/// </summary>
+public sealed class CreateOrderHandlerTests
+{
+    // 2027-01-01 00:00 in the fixed UTC+8 zone, so the business year differs from the UTC year.
+    private static readonly DateTimeOffset Now = new(2026, 12, 31, 16, 0, 0, TimeSpan.Zero);
+    private static readonly TimeZoneInfo Manila = TimeZoneInfo.CreateCustomTimeZone("Manila", TimeSpan.FromHours(8), "Manila", "Manila");
+    private static readonly Guid CallerId = Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43");
+    private static readonly Guid ProductTypeId = Guid.Parse("01a17fce-7800-7f5d-bc6c-5d14ceeca0c6");
+    private static readonly Guid OtherProductTypeId = Guid.Parse("01a17fce-7801-7e45-b875-357767854eda");
+    private static readonly Guid CashId = Guid.Parse("01a17fce-7806-77e1-91b7-d3b852f2fd1d");
+    private static readonly Guid RetiredMethodId = Guid.Parse("5b3e8a14-6c27-4d90-a1f5-0e9c7d2b4a68");
+    private static readonly Guid GoodReceiverId = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
+    private static readonly Guid BlockedReceiverId = Guid.Parse("d6e90b13-72a4-4f58-8c1d-3a5b7e9f0c26");
+    private static readonly Guid FabricId = Guid.Parse("01a17fce-780b-75d1-89e0-5b3b9b185a2c");
+    private static readonly Guid RetiredCategoryId = Guid.Parse("8e2c5a47-1d93-4b60-a7f4-6c0d9b3e5a12");
+
+    [Fact]
+    public async Task WithNoCallerTheSessionHasEnded()
+    {
+        var harness = new Harness(noCaller: true);
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(AuthErrors.SessionEnded);
+        harness.Orders.ReceivedCalls().ShouldBeEmpty();
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AnUnknownProductTypeIsRefusedOnTheItemPath()
+    {
+        var harness = new Harness();
+        harness.Lists.GetStatesAsync(OrderListKind.ProductType, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<OrderListEntryState>>([]));
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        OnlyField(result, "items[0].productTypeId", "Choose a product type.");
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ARetiredProductTypeIsRefusedWithTheRetiredMessage()
+    {
+        var harness = new Harness();
+        harness.Lists.GetStatesAsync(OrderListKind.ProductType, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<OrderListEntryState>>([new OrderListEntryState(ProductTypeId, "Polo Shirt", Retired: true)]));
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        OnlyField(result, "items[0].productTypeId", "This product type was retired. Choose another one.");
+    }
+
+    [Fact]
+    public async Task EachItemIsCheckedOnItsOwnPathAndTheLookupAsksOnceForTheDistinctIds()
+    {
+        var harness = new Harness();
+        harness.Lists.GetStatesAsync(OrderListKind.ProductType, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<OrderListEntryState>>([new OrderListEntryState(ProductTypeId, "Basketball Jersey", Retired: false)]));
+        var request = Valid() with
+        {
+            Items = [Item(ProductTypeId), Item(OtherProductTypeId), Item(ProductTypeId), Item(OtherProductTypeId)],
+        };
+
+        var result = await harness.Handler.HandleAsync(request, TestContext.Current.CancellationToken);
+
+        Fields(result).Keys.Order(StringComparer.Ordinal).ShouldBe(["items[1].productTypeId", "items[3].productTypeId"]);
+        await harness.Lists.Received(1).GetStatesAsync(
+            OrderListKind.ProductType,
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 2 && ids.Contains(ProductTypeId) && ids.Contains(OtherProductTypeId)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AStaticErrorAndAProductTypeErrorComeBackTogetherInOneBadRequest()
+    {
+        var harness = new Harness();
+        harness.Lists.GetStatesAsync(OrderListKind.ProductType, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<OrderListEntryState>>([]));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { CustomerName = " ", Items = [Item(ProductTypeId) with { Quantity = 0 }] }, TestContext.Current.CancellationToken);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        result.Error.Message.ShouldBe("Check the highlighted fields.");
+        Fields(result).Keys.Order(StringComparer.Ordinal).ShouldBe(["customerName", "items[0].productTypeId", "items[0].quantity"]);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AFormWithNoProductTypeIdsIsNotLookedUp()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(CreateOrderRequest.Empty, TestContext.Current.CancellationToken);
+
+        Fields(result).Keys.Order(StringComparer.Ordinal).ShouldBe(["contactNumber", "customerName", "dueDate", "items", "orderDate"]);
+        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ANullItemAndAnEmptyProductTypeAreNotLookedUp()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Items = [null!, Item(Guid.Empty), Item(null)] },
+            TestContext.Current.CancellationToken);
+
+        Fields(result).Keys.Order(StringComparer.Ordinal).ShouldBe(["items[0]", "items[1].productTypeId", "items[2].productTypeId"]);
+        await harness.Lists.DidNotReceiveWithAnyArgs().GetStatesAsync(default, default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task PaymentsAreCheckedWithTheItemsAndEveryFailureIsListedInOne400()
+    {
+        var harness = new Harness();
+        var request = Valid() with
+        {
+            Payments =
+            [
+                Payment(),
+                Payment() with { PaymentMethodId = RetiredMethodId },
+                Payment() with { PaymentMethodId = Guid.NewGuid(), ReceivedByUserId = BlockedReceiverId },
+                Payment() with { ReceivedByUserId = Guid.NewGuid() },
+            ],
+        };
+
+        var result = await harness.Handler.HandleAsync(request, TestContext.Current.CancellationToken);
+
+        var fields = Fields(result);
+        fields.Keys.Order(StringComparer.Ordinal).ShouldBe(["payments[1].paymentMethodId", "payments[2].paymentMethodId", "payments[2].receivedByUserId", "payments[3].receivedByUserId"]);
+        fields["payments[1].paymentMethodId"].ShouldBe(["This payment method was retired. Choose another one."]);
+        fields["payments[2].paymentMethodId"].ShouldBe(["Choose a payment method."]);
+        fields["payments[2].receivedByUserId"].ShouldBe(["This person can't be chosen because their account isn't active. Choose someone else."]);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AReceiverNamedByManyPaymentsIsLookedUpOnce()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Payments = [Payment(), Payment(), Payment()] }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Staff.Received(1).GetStaffStateAsync(GoodReceiverId, Arg.Any<CancellationToken>());
+        await harness.Lists.Received(1).GetStatesAsync(OrderListKind.PaymentMethod, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PaymentsAreSavedWithTheOrderAndItsAuditEntryStaysFreeOfPaymentText()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(orders => orders.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Payments = [Payment() with { Amount = 500m, Reference = "Private ref" }] }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = added.ShouldNotBeNull();
+        order.Payments.ShouldHaveSingleItem().Amount.ShouldBe(500m);
+        order.PaidTotal.ShouldBe(500m);
+        harness.Audit.Entries.ShouldHaveSingleItem().Call.Detail.ShouldNotBeNull().ShouldNotContain("Private");
+    }
+
+    [Fact]
+    public async Task ExpensesAreCheckedWithTheItemsAndEveryFailureIsListedInOne400()
+    {
+        var harness = new Harness();
+        var request = Valid() with
+        {
+            Expenses =
+            [
+                Expense(),
+                Expense() with { OrderExpenseCategoryId = RetiredCategoryId },
+                Expense() with { OrderExpenseCategoryId = Guid.NewGuid(), PaidByUserId = BlockedReceiverId },
+                Expense() with { PaidByUserId = Guid.NewGuid() },
+            ],
+        };
+
+        var result = await harness.Handler.HandleAsync(request, TestContext.Current.CancellationToken);
+
+        var fields = Fields(result);
+        fields.Keys.Order(StringComparer.Ordinal).ShouldBe(["expenses[1].orderExpenseCategoryId", "expenses[2].orderExpenseCategoryId", "expenses[2].paidByUserId", "expenses[3].paidByUserId"]);
+        fields["expenses[1].orderExpenseCategoryId"].ShouldBe(["This category was retired. Choose another one."]);
+        fields["expenses[2].orderExpenseCategoryId"].ShouldBe(["Choose a category."]);
+        fields["expenses[2].paidByUserId"].ShouldBe(["This person can't be chosen because their account isn't active. Choose someone else."]);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task APayerNamedByManyExpensesIsLookedUpOnce()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Expenses = [Expense(), Expense(), Expense()] }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Staff.Received(1).GetStaffStateAsync(GoodReceiverId, Arg.Any<CancellationToken>());
+        await harness.Lists.Received(1).GetStatesAsync(OrderListKind.OrderExpenseCategory, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExpensesAreSavedWithTheOrderAndItsAuditEntryStaysFreeOfExpenseText()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(orders => orders.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Expenses = [Expense() with { Amount = 500m, Description = "Private words" }] }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = added.ShouldNotBeNull();
+        order.Expenses.ShouldHaveSingleItem().Amount.ShouldBe(500m);
+        order.ExpensesTotal.ShouldBe(500m);
+        order.Profit.ShouldBe(9250m);
+        harness.Audit.Entries.ShouldHaveSingleItem().Call.Detail.ShouldNotBeNull().ShouldNotContain("Private");
+    }
+
+    [Fact]
+    public async Task APaymentAboveTheTotalIsA400OnPaymentsAndTakesNoNumber()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Payments = [Payment() with { Amount = 9750.01m }] }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, "payments", "The payments would be more than the order total. Lower a payment first.");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ADomainRefusalAfterTheFormPassedTakesNoNumberAndSavesNothing()
+    {
+        var harness = new Harness(validator: new PassingValidator());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { CustomerName = " " }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, "customerName", "Enter the customer's name.");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Unit.Saves.ShouldBe(0);
+        harness.Unit.Commits.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ABusyNumberLockIsA409AndTheTransactionRollsBack()
+    {
+        var harness = new Harness();
+        harness.Numbers.NextAsync(Arg.Any<int>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).ThrowsAsync(new OrderNumberBusyException());
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("orders.busy");
+        result.Error.Message.ShouldBe("Orders are being saved right now. Try again in a moment.");
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ADeadlockVictimAtSaveIsTheSame409AsABusyNumberLockAndTheTransactionRollsBack()
+    {
+        var harness = new Harness();
+        harness.Unit.FailFirstSaveWithConflict();
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("orders.busy");
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(OrderListKind.ProductType, "items[0].productTypeId", "This product type was deleted.")]
+    [InlineData(OrderListKind.PaymentMethod, "payments[0].paymentMethodId", "This payment method was deleted.")]
+    [InlineData(OrderListKind.OrderExpenseCategory, "expenses[0].orderExpenseCategoryId", "This category was deleted.")]
+    public async Task AnEntryDeletedBeforeTheSaveIsA400OnTheRowsOwnFieldWithTheDeletedMessage(OrderListKind kind, string field, string message)
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(kind));
+        var lookups = 0;
+        harness.Lists.GetStatesAsync(kind, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            lookups++;
+            IReadOnlyList<OrderListEntryState> states = lookups == 1
+                ? [.. call.Arg<IReadOnlyCollection<Guid>>().Select(static id => new OrderListEntryState(id, "Entry", Retired: false))]
+                : [];
+            return Task.FromResult(states);
+        });
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Payments = [Payment()], Expenses = [Expense()] }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, field, message);
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(0);
+        await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(OrderListKind.ProductType, "items", "This product type was deleted.")]
+    [InlineData(OrderListKind.PaymentMethod, "payments", "This payment method was deleted.")]
+    [InlineData(OrderListKind.OrderExpenseCategory, "expenses", "This category was deleted.")]
+    public async Task AnEntryDeletedThatTheRecheckStillFindsIsA400OnTheListField(OrderListKind kind, string field, string message)
+    {
+        var harness = new Harness();
+        harness.Unit.ThrowOnSave(new OrderListEntryDeletedException(kind));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Payments = [Payment()], Expenses = [Expense()] }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, field, message);
+    }
+
+    [Fact]
+    public async Task ASuccessTakesTheNumberOfTheBusinessYearAddsTheOrderOnceAndSavesOnceInOneTransaction()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(store => store.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { Status = "mockup", CustomerName = "  Juan  " }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Numbers.Received(1).NextAsync(2027, Now, Arg.Any<CancellationToken>());
+        harness.Orders.Received(1).Add(Arg.Any<Order>());
+        var order = added.ShouldNotBeNull();
+        order.Number.ShouldBe("ORD-2027-0001");
+        order.CustomerName.ShouldBe("Juan");
+        order.Status.ShouldBe(OrderStatus.Mockup);
+        order.StatusChanges.ShouldHaveSingleItem().ChangedById.ShouldBe(CallerId);
+        order.Totals.Total.ShouldBe(9750.00m);
+        order.CreatedById.ShouldBeNull();
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(1);
+        await harness.Reader.Received(1).GetDetailAsync(order.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DiscountsInTheBodySaveWithTheOrderAndTheTotalFollowThem()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(store => store.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Discounts = [new OrderDiscountRequest("percentage", 5m, "  League  "), new OrderDiscountRequest("FIXED", 250.00m, "Club member")] },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = added.ShouldNotBeNull();
+        order.Discounts.Select(static discount => (discount.Kind, discount.Value, discount.Reason)).ShouldBe(
+            [(DiscountKind.Percentage, 5m, "League"), (DiscountKind.Fixed, 250.00m, "Club member")]);
+        order.Discounts.Select(static discount => discount.Position).ShouldBe([0, 1]);
+        order.Totals.Discount.ShouldBe(737.50m);
+        order.Totals.Total.ShouldBe(9012.50m);
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task DiscountsPastTheItemsTotalAreA400OnDiscountsAndTakeNoNumber()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Discounts = [new OrderDiscountRequest("fixed", 9_750.01m, "Too big")] },
+            TestContext.Current.CancellationToken);
+
+        OnlyField(result, "discounts", "The discounts would be more than the items total. Lower or remove a discount first.");
+        result.Error.Code.ShouldBe("orders.invalid-request");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Unit.Saves.ShouldBe(0);
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADiscountErrorIsListedTogetherWithAnItemError()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { Items = [Item(ProductTypeId) with { Quantity = 0 }], Discounts = [new OrderDiscountRequest("fixed", 0m, "League")] },
+            TestContext.Current.CancellationToken);
+
+        Fields(result).Keys.Order(StringComparer.Ordinal).ShouldBe(["discounts[0].value", "items[0].quantity"]);
+    }
+
+    [Fact]
+    public async Task WithNoStatusTheOrderStartsPending()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(store => store.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        (await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+
+        added.ShouldNotBeNull().Status.ShouldBe(OrderStatus.Pending);
+    }
+
+    [Fact]
+    public async Task AnOrderTheReaderCannotFindAfterTheSaveIsA404()
+    {
+        var harness = new Harness();
+        harness.Reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<OrderDetailResponse?>(null));
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.NotFound);
+    }
+
+    [Fact]
+    public async Task ASuccessRecordsOneCreatedEntryForTheOrderBeforeTheSave()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(store => store.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(
+            Valid() with { CustomerName = "Private Customer", Notes = "Private note" },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        entry.Call.ShouldBe(new AuditCall(
+            AuditActions.OrderCreated,
+            "Order",
+            added.ShouldNotBeNull().Id.ToString("D"),
+            "number=ORD-2027-0001;status=pending;orderDate=2026-12-31;dueDate=2027-01-14;items=1;total=9750.00",
+            Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+        harness.Unit.Saves.ShouldBe(1);
+        entry.Call.Detail.ShouldNotBeNull().ShouldNotContain("Private", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task ARefusedFormRecordsNothing()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { CustomerName = " " }, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ABusyNumberLockRecordsNothingBecauseNoEntryWasWrittenBeforeTheNumber()
+    {
+        var harness = new Harness();
+        harness.Numbers.NextAsync(Arg.Any<int>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).ThrowsAsync(new OrderNumberBusyException());
+
+        await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetReturnsTheOrderA404ForAMissingOneAndTheSessionErrorWithNoCaller()
+    {
+        var harness = new Harness();
+        var id = Guid.NewGuid();
+
+        var found = await harness.Get.HandleAsync(id, TestContext.Current.CancellationToken);
+        harness.Reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<OrderDetailResponse?>(null));
+        var missing = await harness.Get.HandleAsync(id, TestContext.Current.CancellationToken);
+        var anonymous = await new Harness(noCaller: true).Get.HandleAsync(id, TestContext.Current.CancellationToken);
+
+        found.IsSuccess.ShouldBeTrue();
+        missing.Error.ShouldBe(OrderErrors.NotFound);
+        missing.Error.Code.ShouldBe("orders.not-found");
+        missing.Error.Message.ShouldBe("This order was not found or was deleted.");
+        anonymous.Error.ShouldBe(AuthErrors.SessionEnded);
+    }
+
+    [Theory]
+    [InlineData("pending", OrderStatus.Pending)]
+    [InlineData("mockup", OrderStatus.Mockup)]
+    [InlineData("production", OrderStatus.InProduction)]
+    [InlineData("ready", OrderStatus.Ready)]
+    [InlineData("delivered", OrderStatus.Delivered)]
+    [InlineData("completed", OrderStatus.Completed)]
+    [InlineData("cancelled", OrderStatus.Cancelled)]
+    [InlineData(" Cancelled ", OrderStatus.Cancelled)]
+    public void StatusKeysRoundTrip(string key, OrderStatus status)
+    {
+        OrderStatusNames.TryParse(key, out var parsed).ShouldBeTrue();
+
+        parsed.ShouldBe(status);
+        OrderStatusNames.ToKey(status).ShouldBe(key.Trim().ToLowerInvariant());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("done")]
+    public void AnUnknownStatusKeyDoesNotParse(string? key) => OrderStatusNames.TryParse(key, out _).ShouldBeFalse();
+
+    [Fact]
+    public void AnUndefinedStatusNumberHasNoKey() =>
+        Should.Throw<ArgumentOutOfRangeException>(() => OrderStatusNames.ToKey((OrderStatus)0));
+
+    private static CreateOrderRequest Valid() => new(
+        "Juan Dela Cruz",
+        "Brgy. San Roque Ballers",
+        "0917 123 4567",
+        "juan.dc@example.com",
+        null,
+        "2026-12-31",
+        "2027-01-14",
+        null,
+        null,
+        [Item(ProductTypeId)]);
+
+    private static OrderPaymentRequest Payment() => new("2026-12-31", 100m, CashId, null, null, GoodReceiverId);
+
+    private static OrderExpenseRequest Expense() => new("2026-12-30", FabricId, "Dri-fit mesh", 100m, GoodReceiverId);
+
+    private static OrderItemRequest Item(Guid? productTypeId) => new(productTypeId, "Jersey top", "S-XL", 15, 650.00m);
+
+    private static void OnlyField(Result<OrderDetailResponse> result, string field, string message)
+    {
+        var fields = Fields(result);
+        fields.Keys.ShouldBe([field]);
+        fields[field].ShouldBe([message]);
+    }
+
+    private static IReadOnlyDictionary<string, string[]> Fields(Result<OrderDetailResponse> result)
+    {
+        result.IsFailure.ShouldBeTrue();
+        return result.Error.FieldErrors.ShouldNotBeNull();
+    }
+
+    private sealed class PassingValidator : AbstractValidator<CreateOrderRequest>
+    {
+    }
+
+    private sealed class Harness
+    {
+        public Harness(bool noCaller = false, IValidator<CreateOrderRequest>? validator = null)
+        {
+            Audit = new SaveAwareAudit(Unit);
+            Orders = Substitute.For<IOrders>();
+            Reader = Substitute.For<IOrderReader>();
+            Reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<OrderDetailResponse?>(Detail()));
+            Numbers = Substitute.For<IOrderNumbers>();
+            Numbers.NextAsync(Arg.Any<int>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+                .Returns(call => Task.FromResult(OrderNumber.Format(call.Arg<int>(), 1)));
+            Lists = Substitute.For<IOrderLists>();
+            Lists.GetStatesAsync(OrderListKind.ProductType, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult<IReadOnlyList<OrderListEntryState>>(
+                [
+                    new OrderListEntryState(ProductTypeId, "Basketball Jersey", Retired: false),
+                    new OrderListEntryState(OtherProductTypeId, "Volleyball Jersey", Retired: false),
+                ]));
+            Lists.GetStatesAsync(OrderListKind.PaymentMethod, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(call =>
+            {
+                IReadOnlyList<OrderListEntryState> states =
+                [
+                    .. call.Arg<IReadOnlyCollection<Guid>>().Where(static id => id == CashId || id == RetiredMethodId).Select(static id => new OrderListEntryState(id, "Method", id == RetiredMethodId)),
+                ];
+                return Task.FromResult(states);
+            });
+            Lists.GetStatesAsync(OrderListKind.OrderExpenseCategory, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns(call =>
+            {
+                IReadOnlyList<OrderListEntryState> states =
+                [
+                    .. call.Arg<IReadOnlyCollection<Guid>>().Where(static id => id == FabricId || id == RetiredCategoryId).Select(static id => new OrderListEntryState(id, "Category", id == RetiredCategoryId)),
+                ];
+                return Task.FromResult(states);
+            });
+            Staff = Substitute.For<IStaffDirectory>();
+            Staff.GetStaffStateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(call =>
+            {
+                var id = call.Arg<Guid>();
+                StaffState? state = id == GoodReceiverId
+                    ? new StaffState(id, "Mina Mercado", Roles.Manager, true, false, false, true)
+                    : id == BlockedReceiverId ? new StaffState(id, "Dee Dizon", Roles.Admin, false, false, false, true) : null;
+                return Task.FromResult(state);
+            });
+            var request = Substitute.For<IRequestContext>();
+            request.UserId.Returns(noCaller ? null : CallerId);
+            Handler = new CreateOrderHandler(Orders, Reader, Numbers, Lists, Staff, new FixedCalendar(), Audit, Unit, request, validator ?? new CreateOrderRequestValidator());
+            Get = new GetOrderHandler(Reader, request);
+        }
+
+        public IOrders Orders { get; }
+
+        public IOrderReader Reader { get; }
+
+        public IOrderNumbers Numbers { get; }
+
+        public IOrderLists Lists { get; }
+
+        public IStaffDirectory Staff { get; }
+
+        public FakeUnitOfWork Unit { get; } = new();
+
+        public SaveAwareAudit Audit { get; }
+
+        public CreateOrderHandler Handler { get; }
+
+        public GetOrderHandler Get { get; }
+
+        private static OrderDetailResponse Detail() => new(
+            Guid.NewGuid(),
+            "ORD-2027-0001",
+            "Juan Dela Cruz",
+            null,
+            "0917 123 4567",
+            null,
+            null,
+            new DateOnly(2026, 12, 31),
+            new DateOnly(2027, 1, 14),
+            "pending",
+            Now,
+            null,
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            new OrderTotalsResponse(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, false),
+            new ActorRef(CallerId, "Mina Mercado", false),
+            Now,
+            null,
+            null,
+            "AAAAAAAAH6Q=",
+            new DateOnly(2026, 10, 28));
+    }
+
+    // Remembers how many saves had happened when each entry was recorded, so a test can prove the entry joins the change's save.
+    private sealed class SaveAwareAudit(FakeUnitOfWork unit) : IAuditTrail
+    {
+        public List<(AuditCall Call, int SavesSoFar)> Entries { get; } = [];
+
+        public void Record(string action, string? targetType, string? targetId, string? detail) =>
+            Entries.Add((new AuditCall(action, targetType, targetId, detail, Independent: false), unit.Saves));
+
+        public ValueTask RecordIndependentlyAsync(string action, string? targetType, string? targetId, string? detail, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("The order audit entry must join the change's own save.");
+    }
+
+    private sealed class FixedCalendar : IBusinessCalendar
+    {
+        public ValueTask<BusinessClock> GetClockAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new BusinessClock(Manila, ZoneSource.Stored, Now));
+    }
+}

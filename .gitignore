@@ -3,7 +3,7 @@ _local/
 *.bak
 *.mdf
 *.ldf
-# Claude Design exports: local-only visual UI reference behind CSPS-UI-SPEC.md (owner, 2026-10-07). Never commit.
+# Claude Design exports: local-only visual UI reference behind docs/CSPS-UI-SPEC.md (owner, 2026-10-07). Never commit.
 .planning/design/
 
 # Secrets and local configuration

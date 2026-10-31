@@ -17,7 +17,7 @@ const USERS: readonly ListTableUser[] = [
   {
     first: 'Carmen',
     last: 'Reyes',
-    email: 'carmen.reyes.csp@gmail.com',
+    email: 'carmen.reyes.csp@example.com',
     role: 'Manager',
     active: true,
     created: '2026-01-12',
@@ -26,7 +26,7 @@ const USERS: readonly ListTableUser[] = [
   {
     first: 'Paolo',
     last: 'Garcia',
-    email: 'paolo.garcia@gmail.com',
+    email: 'paolo.garcia@example.com',
     role: 'Admin',
     active: true,
     created: '2026-02-03',

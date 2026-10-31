@@ -1,7 +1,9 @@
 // SPEC-GAP: S7 Signed-in devices (D-43), /admin/sessions (UI-SPEC "S7 Signed-in devices"; plan 04-29). An ordinary admin
 // page: the `.s-ph` header, then a ResponsiveTable of the caller's own active sessions, this device first with the
 // "This device" badge and no sign-out button. Another device's row opens SignOutDeviceDialog; the dialog lives here, in the
-// page root, because a ResponsiveTable cell is a paint-containment frame that would trap its scrim.
+// page root, because a ResponsiveTable cell is a paint-containment frame that would trap its scrim. Both dialogs stay
+// mounted and take `open`, so each plays its exit animation (D-39); the per-device dialog keeps the device it was opened
+// for while it closes.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { isHttpError } from '@/core/api/errors';
@@ -23,7 +25,8 @@ export function SessionsRoute() {
   const query = useSessionsQuery();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [target, setTarget] = useState<SessionListItem | null>(null);
+  // The device the per-device dialog was last opened for; `open` is false while it closes.
+  const [deviceDialog, setDeviceDialog] = useState<{ device: SessionListItem; open: boolean } | null>(null);
   const [othersOpen, setOthersOpen] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -68,6 +71,10 @@ export function SessionsRoute() {
     }
   };
 
+  const closeDeviceDialog = () => {
+    setDeviceDialog((current) => (current === null ? null : { ...current, open: false }));
+  };
+
   const showGone = () => {
     toast.show({
       tone: 'info',
@@ -97,7 +104,7 @@ export function SessionsRoute() {
     }
     chooseFocusAfter(device);
     removeRow(device.id);
-    setTarget(null);
+    closeDeviceDialog();
     if (answer.gone) {
       showGone();
     } else {
@@ -125,7 +132,9 @@ export function SessionsRoute() {
         onOpenOthers={() => {
           setOthersOpen(true);
         }}
-        onSignOut={setTarget}
+        onSignOut={(device) => {
+          setDeviceDialog({ device, open: true });
+        }}
         headingRef={headingRef}
         registerButton={(id, button) => {
           if (button === null) {
@@ -135,21 +144,19 @@ export function SessionsRoute() {
           }
         }}
       />
-      {othersOpen && (
-        <SignOutOthersDialog
-          onClose={() => {
-            setOthersOpen(false);
-          }}
-          onSignedOut={afterSignedOutOthers}
-        />
-      )}
-      {target !== null && (
+      <SignOutOthersDialog
+        open={othersOpen}
+        onClose={() => {
+          setOthersOpen(false);
+        }}
+        onSignedOut={afterSignedOutOthers}
+      />
+      {deviceDialog !== null && (
         <SignOutDeviceDialog
-          device={target}
-          onConfirm={() => revoke(target)}
-          onCancel={() => {
-            setTarget(null);
-          }}
+          open={deviceDialog.open}
+          device={deviceDialog.device}
+          onConfirm={() => revoke(deviceDialog.device)}
+          onCancel={closeDeviceDialog}
         />
       )}
     </>

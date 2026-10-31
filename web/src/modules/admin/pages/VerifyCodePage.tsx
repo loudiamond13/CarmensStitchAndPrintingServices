@@ -23,7 +23,7 @@ import { verifySchema, type VerifyValues } from '@/modules/admin/authSchemas';
 import { VerifyCodeForm } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { safeReturnUrl } from '@/modules/admin/guard';
-import { authService, type ResendCodeResponse, type VerifyCodeResponse } from '@/modules/admin/services/authService';
+import { authService, type ResendWaitResponse, type VerifyCodeResponse } from '@/modules/admin/services/authService';
 import {
   completeSignIn,
   getPendingEmail,
@@ -74,6 +74,8 @@ export function VerifyCodeRoute() {
   const [now, setNow] = useState(Date.now);
   // True once a cooldown has run on this screen, so the end of it is announced (and a quiet start is not).
   const [cooled, setCooled] = useState(() => secondsLeft(getResendAvailableAt(), Date.now()) > 0);
+  // The length of the current cooldown, so the spoken wait is the same number the countdown starts from (IN-16).
+  const [cooldownSeconds, setCooldownSeconds] = useState(() => secondsLeft(getResendAvailableAt(), Date.now()));
   const [announce, setAnnounce] = useState(false);
   const [capReached, setCapReached] = useState(false);
   const { control, handleSubmit, setError, setValue } = useForm<VerifyValues>({
@@ -86,7 +88,7 @@ export function VerifyCodeRoute() {
   let status = '';
   if (announce) {
     if (remaining > 0) {
-      status = AUTH_COPY.verify.resendStarted;
+      status = AUTH_COPY.verify.resendStarted(cooldownSeconds);
     } else if (cooled) {
       status = AUTH_COPY.verify.resendReady;
     }
@@ -119,9 +121,11 @@ export function VerifyCodeRoute() {
       },
     },
   );
-  const { submit: resend, pending: resendPending } = useSubmission<undefined, ResendCodeResponse>(() =>
-    authService.resendCode(),
-  );
+  const {
+    submit: resend,
+    pending: resendPending,
+    reset: resetResend,
+  } = useSubmission<undefined, ResendWaitResponse>(() => authService.resendCode());
 
   useEffect(() => {
     document.title = `${AUTH_COPY.verify.title}${ADMIN_COPY.titleSuffix}`;
@@ -194,11 +198,15 @@ export function VerifyCodeRoute() {
     setResent(false);
     const outcome = await resend();
     if (outcome.ok) {
+      // The countdown blocks presses, so a later press is a new request.
+      resetResend();
       const current = Date.now();
-      const at = current + Number(outcome.value.resendAfterSeconds) * 1000;
+      const seconds = Number(outcome.value.resendAfterSeconds);
+      const at = current + seconds * 1000;
       setResendAvailableAt(at);
       setNow(current);
       setResendAt(at);
+      setCooldownSeconds(seconds);
       setCooled(true);
       setResent(true);
       return;

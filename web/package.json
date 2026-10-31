@@ -13,6 +13,7 @@
     "build:budget": "vite build --mode budget",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json && tsc -p tsconfig.reference.json",
     "lint": "eslint . --max-warnings 0",
+    "audit:check": "node scripts/audit-gate.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest",
@@ -29,7 +30,8 @@
   "overrides": {
     "axe-core": "4.13.0",
     "http-cache-semantics": "4.3.0",
-    "source-map-js": "1.2.2"
+    "source-map-js": "1.2.2",
+    "zod": "4.6.7"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",
@@ -43,7 +45,7 @@
     "react-dom": "19.3.0",
     "react-hook-form": "7.89.0",
     "react-router": "8.4.0",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
@@ -62,7 +64,7 @@
     "@types/react-dom": "19.3.0",
     "@typescript/native": "npm:typescript@7.0.2",
     "@vitejs/plugin-react": "6.1.1",
-    "@vitest/coverage-v8": "5.0.1",
+    "@vitest/coverage-v8": "5.0.4",
     "axe-core": "4.13.0",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "10.11.0",
@@ -81,6 +83,6 @@
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-eslint": "8.70.1",
     "vite": "8.3.3",
-    "vitest": "5.0.1"
+    "vitest": "5.0.4"
   }
 }

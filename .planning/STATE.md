@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 03
-current_phase_name: CI/CD & Staging Deploy
-status: executing
-stopped_at: Completed 03-16-PLAN.md
-last_updated: "2026-10-17T04:46:18.357Z"
-last_activity: 2026-10-16
-last_activity_desc: Phase 03 execution started
-state_head: 1578dc759a53fa4bbfea9532dbbaa4715325b19b
+current_phase: 9
+current_phase_name: Order Images & Maintenance Jobs
+status: planning
+stopped_at: Phase 08 complete, ready to plan Phase 9
+last_updated: "2026-10-31T11:45:48.000Z"
+last_activity: 2026-10-31
+last_activity_desc: Phase 7 PR #17 merged; Phase 8 re-verified and shipped for merge
+state_head: fd4ab2c2d083f67d5817b1e4160e0766d9dc53ca
 progress:
-  total_phases: 17
-  completed_phases: 2
-  total_plans: 114
-  completed_plans: 111
-  percent: 12
+  total_phases: 18
+  completed_phases: 8
+  total_plans: 248
+  completed_plans: 248
+  percent: 47
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-16T22:30:41-05:00"
+updated: "2026-10-31T06:45:48-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-14)
+See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 03 — CI/CD & Staging Deploy
+**Current focus:** Phase 9 - Order Images & Maintenance Jobs
 
 ## Current Position
 
-Phase: 03 (CI/CD & Staging Deploy) — EXECUTING
-Plan: 21 of 23
-Status: Ready to execute
-Last activity: 2026-10-16 - Completed quick task 261016-w4u: Act on the host probe results (IIS https rule, self-contained win-x64, machine-store certificate, probe facts recorded)
+Phase: 9 — Order Images & Maintenance Jobs
+Plan: Not started
+Status: Ready to plan (Phase 8 shipped against main after #17 merged)
+Last activity: 2026-10-31 - PR #17 merged; Phase 8 rebased onto main, re-verified 8/8 and shipped
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [█████░░░░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56
+- Total plans completed: 248
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,13 @@ Progress: [█░░░░░░░░░] 12%
 |-------|-------|-------|----------|
 | 1 | 13 | - | - |
 | 2 | 43 | - | - |
+| 03 | 23 | - | - |
+| 4 | 35 | - | - |
+| 5 | 52 | - | - |
+| 06 | 21 | - | - |
+| 7 | 20 | - | - |
+| 07.1 | 12 | - | - |
+| 08 | 29 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -167,6 +174,141 @@ Progress: [█░░░░░░░░░] 12%
 | Phase 03 P09 | 47 min | 3 tasks | 21 files |
 | Phase 03 P14 | 15 min | 3 tasks | 3 files |
 | Phase 03 P16 | 6h 30m | 3 tasks | 29 files |
+| Phase 03 P22 | 10 min | 2 tasks | 2 files |
+| Phase 05 P01 | 39 min | 3 tasks | 11 files |
+| Phase 05 P02 | 29 min | 3 tasks | 16 files |
+| Phase 05 P03 | 22 min | 2 tasks | 9 files |
+| Phase 05 P04 | 25 min | 2 tasks | 4 files |
+| Phase 05 P05 | 21 min | 2 tasks | 17 files |
+| Phase 05 P06 | 10 min | 2 tasks | 12 files |
+| Phase 05 P07 | 13 min | 3 tasks | 17 files |
+| Phase 05 P08 | 58 min | 3 tasks | 15 files |
+| Phase 05 P09 | 22 min | 2 tasks | 20 files |
+| Phase 05 P10 | 16 min | 3 tasks | 16 files |
+| Phase 05 P11 | 15 min | 2 tasks | 11 files |
+| Phase 05 P13 | 82 min | 3 tasks | 29 files |
+| Phase 05 P38 | 10 min | 2 tasks | 9 files |
+| Phase 05 P12 | 26 min | 3 tasks | 25 files |
+| Phase 05 P14 | 22 min | 2 tasks | 27 files |
+| Phase 05 P39 | 22 min | 2 tasks | 19 files |
+| Phase 05 P15 | 18 min | 2 tasks | 18 files |
+| Phase 05 P16 | 23 min | 2 tasks | 12 files |
+| Phase 05 P17 | 20 min | 3 tasks | 22 files |
+| Phase 05 P18 | 45 min | 3 tasks | 17 files |
+| Phase 05 P19 | 24 min | 3 tasks | 26 files |
+| Phase 05 P20 | 60 min | 3 tasks | 19 files |
+| Phase 05 P36 | 30 min | 3 tasks | 13 files |
+| Phase 05 P21 | 24 min | 3 tasks | 26 files |
+| Phase 05 P22 | 44 min | 3 tasks | 22 files |
+| Phase 05 P23 | 30 min | 2 tasks | 17 files |
+| Phase 05 P40 | 30min | 2 tasks | 30 files |
+| Phase 05 P24 | 19 min | 2 tasks | 16 files |
+| Phase 05 P25 | 42 min | 3 tasks | 23 files |
+| Phase 05 P26 | 45 min | 3 tasks | 23 files |
+| Phase 05 P32 | 20 min | 3 tasks | 17 files |
+| Phase 05 P27 | 26 min | 3 tasks | 29 files |
+| Phase 05 P28 | 42 min | 3 tasks | 14 files |
+| Phase 05 P29 | 31 min | 2 tasks | 17 files |
+| Phase 05 P30 | 65 min | 3 tasks | 17 files |
+| Phase 05 P31 | 12 min | 2 tasks | 3 files |
+| Phase 05 P34 | 25 min | 2 tasks | 15 files |
+| Phase 05 P41 | 10 min | 2 tasks | 11 files |
+| Phase 05 P33 | 59 min | 3 tasks | 25 files |
+| Phase 05 P43 | 25 min | 2 tasks | 30 files |
+| Phase 05 P35 | 55 min | 2 tasks | 19 files |
+| Phase 05 P42 | 50 min | 2 tasks | 16 files |
+| Phase 05 P37 | 4h 25m | 3 tasks | 50 files |
+| Phase 05 P44 | 20 min | 2 tasks | 6 files |
+| Phase 05 P45 | 20 min | 3 tasks | 10 files |
+| Phase 05 P46 | 25 min | 2 tasks | 11 files |
+| Phase 05 P48 | 10 min | 2 tasks | 5 files |
+| Phase 05 P49 | 17 min | 2 tasks | 10 files |
+| Phase 05 P47 | 15 min | 2 tasks | 9 files |
+| Phase 05 P50 | 15 min | 2 tasks | 7 files |
+| Phase 05 P52 | 5 min | 2 tasks | 2 files |
+| Phase 05 P51 | 45 min | 3 tasks | 6 files |
+| Phase 06 P01 | 20 min | 3 tasks | 41 files |
+| Phase 06 P02 | 27 min | 3 tasks | 39 files |
+| Phase 06 P03 | 23 min | 3 tasks | 25 files |
+| Phase 06 P11 | 8 min | 2 tasks | 7 files |
+| Phase 06 P04 | 41 min | 2 tasks | 29 files |
+| Phase 06 P05 | 13 min | 2 tasks | 15 files |
+| Phase 06 P06 | 26 min | 2 tasks | 9 files |
+| Phase 06 P07 | 28 min | 3 tasks | 18 files |
+| Phase 06 P08 | 28 min | 3 tasks | 26 files |
+| Phase 06 P09 | 28 min | 2 tasks | 16 files |
+| Phase 06 P10 | 40 min | 3 tasks | 26 files |
+| Phase 06 P12 | 37 min | 3 tasks | 21 files |
+| Phase 06 P13 | 68 min | 3 tasks | 48 files |
+| Phase 06 P14 | 43 min | 3 tasks | 16 files |
+| Phase 06 P15 | 50 min | 3 tasks | 20 files |
+| Phase 06 P16 | 61 min | 3 tasks | 27 files |
+| Phase 06 P17 | 41 min | 3 tasks | 25 files |
+| Phase 06 P18 | 2h 20m | 2 tasks | 15 files |
+| Phase 06 P19 | 56 min | 2 tasks | 7 files |
+| Phase 06 P20 | 38 min | 3 tasks | 20 files |
+| Phase 06 P21 | 52 min | 4 tasks | 26 files |
+| Phase 07 P01 | 36 min | 3 tasks | 41 files |
+| Phase 07 P02 | 5min | 2 tasks | 4 files |
+| Phase 07 P03 | 4min | 2 tasks | 5 files |
+| Phase 07 P04 | 30min | 3 tasks | 6 files |
+| Phase 07 P05 | 39 min | 3 tasks | 56 files |
+| Phase 07 P06 | 20 min | 2 tasks | 4 files |
+| Phase 07 P07 | 25 min | 3 tasks | 17 files |
+| Phase 07 P08 | 35 min | 2 tasks | 14 files |
+| Phase 07 P09 | 53 min | 3 tasks | 28 files |
+| Phase 07 P10 | 45 min | 3 tasks | 48 files |
+| Phase 07 P11 | 55 min | 3 tasks | 50 files |
+| Phase 07 P12 | 35 min | 3 tasks | 50 files |
+| Phase 07 P13 | 45 min | 3 tasks | 21 files |
+| Phase 07 P14 | 50 min | 3 tasks | 48 files |
+| Phase 07 P15 | 45 min | 3 tasks | 27 files |
+| Phase 07 P16 | 40 min | 3 tasks | 30 files |
+| Phase 07 P17 | 39 min | 3 tasks | 41 files |
+| Phase 07 P18 | 35 min | 3 tasks | 22 files |
+| Phase 07 P19 | 41 min | 3 tasks | 18 files |
+| Phase 07 P20 | 35 min | 2 tasks | 10 files |
+| Phase 07.1 P01 | 25 min | 2 tasks | 28 files |
+| Phase 07.1 P02 | 26 min | 3 tasks | 14 files |
+| Phase 07.1 P03 | 20 min | 3 tasks | 13 files |
+| Phase 07.1 P04 | 22 min | 3 tasks | 12 files |
+| Phase 07.1 P05 | 9 min | 2 tasks | 9 files |
+| Phase 07.1 P06 | 19 min | 3 tasks | 9 files |
+| Phase 07.1 P07 | 20 min | 2 tasks | 7 files |
+| Phase 07.1 P08 | 25 min | 2 tasks | 8 files |
+| Phase 07.1 P09 | 26 min | 3 tasks | 11 files |
+| Phase 07.1 P10 | 35 min | 2 tasks | 5 files |
+| Phase 07.1 P11 | 15 min | 2 tasks | 6 files |
+| Phase 07.1 P12 | 5 min | 2 tasks | 3 files |
+| Phase 08 P01 | 35 min | 2 tasks | 26 files |
+| Phase 08 P02 | 27 min | 3 tasks | 17 files |
+| Phase 08 P03 | 13 min | 3 tasks | 7 files |
+| Phase 08 P04 | 20 min | 3 tasks | 13 files |
+| Phase 08 P05 | 9 min | 2 tasks | 6 files |
+| Phase 08 P06 | 76 min | 3 tasks | 23 files |
+| Phase 08 P07 | 60 min | 2 tasks | 14 files |
+| Phase 08 P08 | 72 min | 3 tasks | 22 files |
+| Phase 08 P09 | 47 min | 3 tasks | 21 files |
+| Phase 08 P10 | 23 min | 3 tasks | 18 files |
+| Phase 08 P11 | 38 min | 3 tasks | 13 files |
+| Phase 08 P12 | 25 min | 3 tasks | 18 files |
+| Phase 08 P13 | 52 min | 3 tasks | 19 files |
+| Phase 08 P14 | 50 min | 3 tasks | 17 files |
+| Phase 08 P15 | 41 min | 3 tasks | 16 files |
+| Phase 08 P16 | 45 min | 3 tasks | 11 files |
+| Phase 08 P17 | 35min | 2 tasks | 11 files |
+| Phase 08 P18 | 28 min | 2 tasks | 11 files |
+| Phase 08 P19 | 42 min | 3 tasks | 13 files |
+| Phase 08 P20 | 34 min | 3 tasks | 23 files |
+| Phase 08 P21 | 44 min | 3 tasks | 21 files |
+| Phase 08 P22 | 25 min | 2 tasks | 7 files |
+| Phase 08 P23 | 22 min | 2 tasks | 9 files |
+| Phase 08 P24 | 5h 35m | 3 tasks | 35 files |
+| Phase 08 P25 | 26 min | 3 tasks | 15 files |
+| Phase 08 P26 | 25 min | 3 tasks | 8 files |
+| Phase 08 P27 | 17 min | 2 tasks | 2 files |
+| Phase 08 P28 | 20 min | 2 tasks | 8 files |
+| Phase 08 P29 | 55 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -427,10 +569,363 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 03]: 03-09: Lighthouse LCP 2185-2261 ms is over 2000 ms (2267 ms before the plan); left open for an owner decision, see deferred-items.md and WINDOWS.md
 - [Phase 03]: Cutover: the app connects as an extra DB user (db_datareader + db_datawriter); the owner's db_owner SSMS login applies migrations. The .Net Core 64-bit pool switch happens only in runbook Step 4, after the legacy DB is deleted. The D-05 kit is a folder restored by Web Deploy.
 - [Phase 03]: Owner 2026-10-16: LCP is report-only in the Lighthouse gate until Phase 11 (REPORT_ONLY_METRICS); the full ruleset on main replaced the interim one once the gate was green; the required check is the gate result job
+- [Phase 03]: 03-22: __Secure-csps_2fa stays Unverified (not observed by the owner; attributes pinned by auth integration tests) pending owner sign-off
+- [Phase 03]: 03-22: owner accepted CSPS live 2026-10-17; a rollback now means redeploying an earlier CSPS release (D-05)
+- [Phase 05]: 05-01: shell viewport rules hang off data-fill=viewport on the real layout roots (in-data variants); previews and parity frames stay unmarked
+- [Phase 05]: 05-01: sideways-scroll guard compares scrollWidth with clientWidth and requires html/body overflow-x visible; D-05 did not reproduce at this commit
+- [Phase 05]: 05-02: the presence node is the dialog panel and usePresence decides in a layout effect, so a no-animation dialog leaves before paint; the closing overlay is also inert
+- [Phase 05]: 05-03: a refresh that brings an unknown server role is refused as a 401 so ensureSession gives null and the session-ended path runs (IN-17) — One signed-out path for every refused refresh; the shell never guesses Manager
+- [Phase 05]: 05-04: shared sink wait (AuthClient.Patience) is 30 s, returning as soon as mail arrives; the resend-cap proof is unchanged
+- [Phase 05]: 05-05: deleted marker is nullable DeletedAtUtc and the Manager lock is ManagerLockedAtUtc, separate from LockoutEnd; one UserAccount.IsBlocked rule gates sign-in
+- [Phase 05]: 05-05: migration backfill SQL is wrapped in EXEC so the idempotent production script compiles it; tested both via IMigrator and via the script
+- [Phase 05]: D-13: invite links last 7 days via the single AuthSettings.InviteLinkLifetime; existing rows keep their 72-hour ExpiresAt
+- [Phase 05]: 05-07: ResendWaitResponse lives in Csps.Application.Auth so sign-in and resend share one contract schema (IN-12)
+- [Phase 05]: 05-07: outbox purge of closed rows deferred to Phase 9 JOB-01; retention rule (30 days after close) written in mail-setup.md (IN-08)
+- [Phase 05]: 05-08: closing drawer layer and user-menu popover are inert and pointer-events none, handlers ignore events while open is false (T-05-20)
+- [Phase 05]: 05-08: chevron parity difference recorded as P5 D-35 ruling on .csp-usermenu svg in rulings.css, no tolerance; no P5 D-34 group needed
+- [Phase 05]: 05-09: stored EditVersion is compared before the same-names shortcut, so an old version is always 409 and equal names with the current version is a 200 that does not rotate
+- [Phase 05]: 05-09: UpdateNameAsync reloads after a ConcurrencyFailure and retries when only Identity's stamp moved, so bookkeeping never causes a false 409
+- [Phase 05]: 05-10: a deleted account asking for a reset is answered like an unknown address; a Manager lock is checked before the deactivated notice
+- [Phase 05]: 05-11: Created* always overwritten on add; Updated* stamped only when EditVersion changed (or any Modified for non-versioned records); a null actor keeps a server-set UpdatedById
+- [Phase 05]: 05-11: AddCspsPersistence registers TimeProvider, NoCurrentActor and RecordStampInterceptor via TryAdd; the Server registers HttpCurrentActor first
+- [Phase 05]: 05-13: the name form sends the edit version it was opened with, changed only by its own save or Load Latest, never by a refetch (D-20)
+- [Phase 05]: 05-13: the profile dev preview route was removed from devRoutes because it shadowed the real page in the e2e bundle; users and audit-log previews need the same treatment in 05-20 and 05-33, and owner-review.mjs and design-side-by-side.mjs need a signed-in capture in 05-37
+- [Phase 05]: 05-13: the admin theme is one layout state (useThemeState) shared by the top bar and pages through the Outlet context; UrlStateLayout forwards the context
+- [Phase 05]: 05-38: profile.name-changed detail lists changed field names only (fields=first-name,last-name); the name save and its audit entry share one transaction and only a real change (Saved) writes an entry
+- [Phase 05]: 05-12: PasswordChanged is stored as 8 (6 and 7 were taken); the current password is verified and counted before the same-as-current check and the breach lookup (no guessing oracle)
+- [Phase 05]: 05-12: IdempotencyOutcome.KeepChanges lets an endpoint commit its change when the answer is not stored; the profile password 429 uses it so the lock-causing wrong password is not rolled back (SEC-06 key stays required)
+- [Phase 05]: 05-14: email-change confirm applies the pending address before it spends the link, so a Taken or NothingPending outcome writes nothing and answers the one invalid 404 (05-15 owns the taken answer)
+- [Phase 05]: 05-14: ApplyPendingEmailAsync records the account itself as last changer with a second unstamped save, because the stamp interceptor nulls an unchanged UpdatedById when nobody is signed in
+- [Phase 05]: Plan 05-39: the email change reuses CurrentPasswordCheck (shared with the password change); a taken address is revealed only after the current password is right, and a correct password clears the wrong-password count
+- [Phase 05]: Plan 05-39: the same-address rule reaches the shared validator through ValidationContext.RootContextData (key currentEmail), so one validator holds every rule the browser mirrors
+- [Phase 05]: 05-15: a taken-address confirm saves its writes (link spent, pending cleared, audit canceled/taken) and the controller marks the 409 KeepChanges because the idempotency gate rolls back unstored 4xx
+- [Phase 05]: 05-15: resend and cancel read the pending address through IUserDirectory inside the per-account link lock; cancel (DELETE) takes no row version and answers 204 with no audit when nothing is pending
+- [Phase 05]: [05-16] Only a 409 with code email-change.taken opens the can't-be-used state on the confirm-email page; any other 409 keeps Ready with the shared banner and a retry reuses the Idempotency-Key
+- [Phase 05]: [05-16] The email-change check's 409 carries no address, so a link whose address was taken before it was opened says 'this email' (bodyNoAddress); needs the D-48 owner wording review
+- [Phase 05]: 05-17: roster status is lowercase active|inactive|locked and inviteState none|pending|expired; both are computed by one shared function (UserStatuses.Of, InviteStates.Of) for the list and the detail
+- [Phase 05]: 05-17: roster page is capped at 100000 (400 above) so the row offset cannot overflow; the search is escaped LIKE with backslash as the escape character
+- [Phase 05]: 05-17: detail actors (recordedBy, lastChangedBy) are read from the actors' own rows; a soft-deleted actor keeps the name with formerStaff true, and a pre-Phase-5 account has null actors
+- [Phase 05]: 05-18: ChangeEmailDialog.onSent(newEmail, profile); the page writes the returned profile into the profile query (a pending email does not change the edit version, so the open name form stays current)
+- [Phase 05]: 05-18: Sign-in Email card hides Change Email while a change waits (UI-SPEC either/or); replacing a pending change means Cancel Change first. Owner may rule in the 05-37 review
+- [Phase 05]: 05-18: useSubmission with no data (Resend Link, Cancel Change) is reset after success, else the same-data rule makes the next press send nothing
+- [Phase 05]: 05-18: NewPasswordFields is generic over a form with at least the pair, so the profile form can add Current password; lock line is the server's own detail (profile.password-locked)
+- [Phase 05]: 05-19: a taken address is signalled by EmailInUseException from IUserAccounts.CreateAsync (Identity's duplicate check and the unique-index violation, which also detaches the failed row); CreateUserHandler turns it into the 400 on field email
+- [Phase 05]: 05-19: POST /api/v1/users accepts role and access in any letter case, an invitation ignores a temporaryPassword sent with it, and the temporary-password empty message is 'Enter a temporary password.'; CreateUserRequest.ToString hides the password
+- [Phase 05]: 05-20: The Users dev preview is removed from devRoutes (it shadowed the real roster in the e2e bundle, as profile did in 05-13); unsigned e2e page lists drop it — A signed-in e2e can only reach the guarded page if no preview sits at the same path
+- [Phase 05]: 05-20: Clear Filters clears the search, Role and Status but keeps Rows per page; the Add User button is left to 05-22 — reset() would also drop the page size; the Add User panel it opens is 05-22
+- [Phase 05]: 05-20: RowAction is a button/link union (to prop); UserCell text wraps anywhere for every list — The own-row pencil must be a router link in the icon-button look (D-19); long names must not widen the table
+- [Phase 05]: 05-36: safeReturnUrl validates the literal path (decoded once) and returns the validated text; query kept as given
+- [Phase 05]: 05-36: useSetPasswordForm is the single owner of set-password form focus and server field-error mapping
+- [Phase 05]: SessionRevocationReason.AccountChanged is stored as 9: the plan said 7 but 7 (Expired) and 8 (PasswordChanged) are already in use; nothing renumbered
+- [Phase 05]: Deactivate takes the csps-active-managers roster lock first and ManagerGuard decides own-account and last-active-Manager; Activate takes no lock but keeps the own-account rule
+- [Phase 05]: Session cache is evicted whenever a deactivate or activate changed the state; a no-op writes, revokes, audits and evicts nothing
+- [Phase 05]: 05-22: Add User fires onCreated at once for an invitation and, for a temporary password, when its shown-once step is closed; one Modal serves the form and the step so focus returns to Add User
+- [Phase 05]: 05-22: the temporary password lives in component state only; the form and submission forget it on success and the step state is dropped 350 ms after the panel closes (D-14)
+- [Phase 05]: 05-22: newTemporaryPassword draws Word-Word-NNNN from 40 sewing words with crypto.getRandomValues and rejection sampling; the word list awaits owner review (D-48)
+- [Phase 05]: 05-23: the roster lock is taken first for any requested role other than Manager, because the target's current role cannot be read safely before the lock is held (the request's tracked account row would be stale).
+- [Phase 05]: 05-23: ManagerGuard runs before the version check, so a stale form that would demote the last active Manager answers 422 rather than 409; a role change swaps the role link row after the guarded account UPDATE.
+- [Phase 05]: Plan 05-40: D-45 applied. PUT /users/{id} carries email (required) and emailChange (confirm | now); a changed email without a valid choice is 400 under emailChange; an invited person always moves at once with a fresh 7-day invitation; the 'now' path signs the person out and sends the new 'A Manager changed your CSPS sign-in email' notice to the old address (wording pending owner review, D-48)
+- [Phase 05]: Plan 05-40: AuditActions.UserInvitationResent (user.invitation-resent) is declared by 05-40; plan 05-27 must reuse it. The email preview tool has eight samples, so 05-31 expected counts rise by one
+- [Phase 05]: 05-24: Unlock takes no roster lock and runs no guard; lock runs the roster lock then ManagerGuard like deactivate (D-16, D-18, D-19)
+- [Phase 05]: 05-24: SetManagerLockAsync compares locked vs not locked only, so a repeat lock or unlock writes, audits and revokes nothing; no code reads the lock time as an expiry (D-16)
+- [Phase 05]: 05-25 D-45 in the Edit User form: a changed email (compared after trim, ignoring letter case) needs a choice; the RadioGroup Confirm by link (preselected) or Save at once shows only for a person with a password; emailChange is sent only when the email changed, and an invited person always sends confirm
+- [Phase 05]: 05-25 The Edit User detail query has no cache lifetime and the panel trusts data only when isFetchedAfterMount, so every open reads the person and the edit version fresh; Load Latest also resets the form so typed values are replaced even when the latest version holds the same values
+- [Phase 05]: 05-25 ActorName and RecordMeta live in components/data for every later detail view: a null actor reads System, a deleted actor keeps the name with a muted former-staff suffix, a record with no time shows EmptyValue
+- [Phase 05]: D-07 soft delete: scrambled deleted-{id:N}@deleted.invalid address per id, names kept, DeletedAtUtc set, every session and open link revoked, final (no restore) — 05-26: D-07..D-11; a second DELETE is 404 and records nothing
+- [Phase 05]: Delete also scrubs the outbox: rows for the old and any pending address are expired if unsent, readdressed and left without bodies; the outbox refuses .invalid recipients (IN-08 part) — 05-26: defense in depth for deleted addresses; waiting email-change address scrubbed too
+- [Phase 05]: 05-32: AdminFrame takes withAuditLog (default false); only the real AdminShell sets it so the dev parity scenarios stay equal to the frozen reference — The Manager DEV_USER scenarios render AdminFrame; an unconditional prop would add a sixth nav item there
+- [Phase 05]: 05-32: DateInput shows the caller's message through error; range and format rules stay in the caller's zod schema (OR-3) — One source of validation rules
+- [Phase 05]: 05-27: ManagerResetLinkEmail is (To, Token, ExpiresAt, RequestedAt, ManagerName), like PasswordResetEmail and InviteEmail, so the lifetime is worded from the dates; 05-31 previews must pass five arguments
+- [Phase 05]: 05-27: reset-link emails share one hourly cap of 3 per address in both directions (ResetEmailCap counts PasswordReset and ManagerResetLink kinds), used by forgot-password and the Manager's send
+- [Phase 05]: 05-27: a temporary password is a staff edit: IUserAccounts.MarkStaffEditAsync rotates EditVersion so SEC-08 stamps the Manager (Identity bookkeeping never does); resend and send-link leave the version alone
+- [Phase 05]: 05-27: a person invited but not yet set up can get a temporary password: the address counts as confirmed and the open invitation is revoked; Blocked is checked before every action-specific rule
+- [Phase 05]: 05-28: guard and deleted-meanwhile words ride an optional describeFailure prop on SignOutDialog and ConfirmDialog; ConfirmDialog gains pendingLabel (Deleting)
+- [Phase 05]: 05-28: useUserAction moves an identity generation after the roster refreshes so a repeated action on the same person sends a new request with a new Idempotency-Key
+- [Phase 05]: 05-28: focus after a delete skips the signed-in Manager's own row (no Edit button): next other row, else previous other row, else the h1
+- [Phase 05]: 05-29: ipPrefix is returned with its length (/24 or /48); the log stores the bare network address and UI-SPEC shows the length
+- [Phase 05]: 05-29: one done-by rule for the audit viewer rows and the actor filter (actor, else the person a self-service entry is about, else unknown account, else System); AuditActions.SelfService lists the 21 anonymous self-service codes
+- [Phase 05]: 05-29: audit-log from alone means up to today, to alone means from the start of the 8-month window; neither means the last 7 business days; actor accepts system or a dashed GUID only
+- [Phase 05]: 05-30 D-45: the Edit panel's Email note follows the Manager's live choice (invitation note for an invited person, confirmation-link note for Confirm by link, a new Save at once note), and the save toast says a link was sent or the email moved at once (onSaved reports plain, pending or moved)
+- [Phase 05]: 05-30: the Lock and Set Temporary Password dialogs are DOM siblings of the Edit slide-over; account actions are aria-disabled while the form is dirty (D-21), re-read the person after success, and tell the roster through onAccountChanged; the temporary password lives in the dialog's component state only and is dropped after close
+- [Phase 05]: 05-31: Owner approved the seven Phase 5 emails on 2026-10-18 with no copy or look changes; the optional wording suggestions were not taken
+- [Phase 05]: 05-34: the breach verdict is computed once before the transaction and reused by the conflict retry, so a retry never repeats the HTTP call
+- [Phase 05]: 05-34: AuthEmail.ToString is sealed and returns the type name; per-record overrides removed (IN-06)
+- [Phase 05]: 05-41: GET /api/v1/audit-log/people returns a bare AuditPerson array, current staff first then former staff, ordered in SQL; names and ids only
+- [Phase 05]: 05-33: the Audit Log toggle's aria-controls names the dl inside the detail cell (the shared table's detail row has no id); an unapplied custom range keeps the 7-day default; the business today is read once when the page opens
+- [Phase 05]: 05-33: describeAuditDetail maps stored detail words per action to fixed sentences and gives nothing for unknown words, so no name or email can reach the screen (D-40); the e2e guard ignores Firefox's unused-font-preload warning for the app's own Archivo woff2
+- [Phase 05]: 05-43: audit detail words are AuditActions.Detail* constants; one AccountLinkLookup replaces the invite and reset lookups; PasswordRules.NewPasswordRequired is the one empty-password message — IN-02 and IN-04 closed with no behaviour change
+- [Phase 05]: 05-35: the showcase ships at /admin/components as a lazy chunk; budget.ts allows src/dev/ and the showcase parts in production only in chunks the showcase page reaches (never in initial JS, never imported from outside), and the parity entry, visual/, AdminPreviewPage and previewCopy stay out
+- [Phase 05]: 05-35: PreviewBody picks AdminPreviewPage only where __DEV_ROUTES__ is true, and the budget plugin counts a module only when it ships code beyond CommonJS import bindings, so AdminPreviewPage never ships with the kit
+- [Phase 05]: 05-35: the showcase chunk scan allows exact made-up addresses (spec section 12) and reserved example domains only; the sample gmail.com and yahoo.com addresses are flagged for the owner (public static chunk)
+- [Phase 05]: 05-42: the showcase Add User demo is a local-state twin of AddUserPanel (the real panel posts to the users API); dialogs that take their request as a prop use the real components with closing handlers
+- [Phase 05]: 05-42 (owner ruling 2026-10-18): every sample email in the shipped showcase and preview data uses example.com; name@gmail.com stays as the product's own validation hint
+- [Phase 05]: 05-44: a no-data useSubmission on an always-mounted component calls reset() when its success settles (SignOutOthersDialog, VerifyCodePage resend); CR-01 closed
+- [Phase 05]: 05-45: ChangePasswordHandler takes the account lock first and revokes PasswordReset tokens in the same transaction; UpdateUserHandler revokes them only on the MoveNow path for a person with a password (confirm and invited leave them alone)
+- [Phase 05]: 05-46: temporary-password accounts are created with NewUserAccount.KeepEmailUnconfirmed (password set at create, address unconfirmed) instead of create-then-SetPasswordAsync, which deadlocked the same-email race test
+- [Phase 05]: 05-48: AnyActiveManagerAsync delegates to CountActiveManagersAsync(null), one D-18 active-Manager rule for the bootstrap gate; SoftDeleteAsync unchanged
+- [Phase 05]: 05-49: idempotency request hash is HMAC-SHA256 under an HKDF key from Auth:CodeMacKey (label csps/idempotency/request-hash/v1); an old or rotated-key record is a 422 mismatch and never runs again; each covered POST purges up to 100 expired rows (D-50)
+- [Phase 05]: 05-47: SendResetLinkHandler sends nothing, with the usual 204, for an unconfirmed person (checked before the cap); SetTemporaryPasswordHandler no longer confirms an invited person's address (D-49)
+- [Phase 05]: 05-52: the rate-limit guard matches list rows to route patterns per path segment with {parameter} as a one-segment wildcard
+- [Phase 05]: D-51 (owner, 2026-10-19): row actions sit 8 px apart with a full 44 x 44 px tap area each; the top bar user menu gets a 44 px tall tap area; WR-20 tap areas are recorded in the look-equality rulings
+- [Phase 06]: D-30 to D-33 (owner, 2026-10-25, after research): a category is deletable again once its expenses are all permanently deleted; soft delete and restore update "Last changed by"; Paid by must be signed-in staff (invited people who have not finished set-up can't be chosen); the database checks only Amount > 0, the ₱1,000,000.00 cap lives in validators. Full text in 06-CONTEXT.md.
+- [Phase 06]: 06-01: A-06-01 built as option 2 (D-32 literally: has a password); the set-up check lives only in StaffDirectory.cs, pinned by StaffLookupEndpointTests; owner choice parked in the Owner backlog
+- [Phase 06]: 06-02: The seven CompanyExpenses indexes, the soft-delete columns and the named SoftDelete query filter ship in the first migration (D-01), so the list, the Deleted view and the Phase 10 sums need no schema change
+- [Phase 06]: 06-02: ExpenseRules.AmountMax is a static readonly decimal (a const decimal leaves an unexecuted static constructor that costs the Domain 100 percent line gate)
+- [Phase 06]: 06-02: the category and payer database checks are merged into the validator's own failures, so one 400 lists every field; the audit entry joins the create's save inside the idempotency gate's transaction
+- [Phase 06]: 06-03: a lone from or to puts 'Enter both dates, or neither.' on the missing field
+- [Phase 06]: 06-03: the list page command reads category, payer and recorder with joins; the reader runs exactly two SQL commands (measured)
+- [Phase 06]: 06-03: the Testing seeder saves first, then stamps recorder and delete marker with ExecuteUpdateAsync (the stamp interceptor overwrites CreatedById on add)
+- [Phase 06]: 06-11: the dev seed derives its 64 demo expenses from the row number (no Random), and NoInlineSqlTests allows exactly IdempotencyGate.cs, AccountTokenStore.cs and ManagerRosterLock.cs until the owner rules (Owner backlog)
+- [Phase 06]: 06-04: ResponsiveTable has two additive props, footerLayout (a footer cell can span columns and carry its own phone label) and emptyTitle; the E1 footer spans Date to Description and the phone label is Total
+- [Phase 06]: 06-04: e2e specs on the shared CSPS_E2E database judge every row against the response it was drawn from (100 a page) and never rely on a row's page position, because earlier runs keep their rows
+- [Phase 06]: 06-04: CategoryBadge lets a long name wrap through important utilities (h-auto!, whitespace-normal!) passed as Badge className; no avatar is drawn for a System recorder
+- [Phase 06]: 06-05: the KPI share is rounded in the handler (half away from zero) and the reader returns raw decimals; KPI tests with a distant fixed clock start sessions on the clock host and mint tokens for the real now (TestSessions takes any host)
+- [Phase 06]: 06-06: the expense detail and both KPI commands are compiled (EF.CompileAsyncQuery with a CancellationToken parameter), the list stays plain LINQ; the reader runs list 2, KPIs 2, detail 1 commands, guarded by CommandCounter (reader exact, endpoint by equality)
+- [Phase 06]: 06-06: System.Random is banned, so the five-year timing data uses a small xorshift sequence; p95 on this machine: default window 106.6 ms, category 3.7 ms, search 79.6 ms, five-year last page 197.8 ms, KPIs 8.5 ms (limit 300 ms)
+- [Phase 06]: 06-07: the date pair rule is a wrapper around createListParams (not a change to the shared factory); a broken pair reads as no dates at once and is removed with one replace
+- [Phase 06]: 06-07: with the default window shown, a valid date typed into only From or only To is a valid pair and applies as a custom range; a half-filled range arises only when a date is cleared or invalid, and an empty date reads 'Enter a real date.'
+- [Phase 06]: 06-07: ExpenseCategorySelect types mode as 'filter' only; plan 06-12 widens it with the picker props. expensesBackend in the fixtures also answers the category list
+- [Phase 06]: 06-08: A form edit never retries on a conflict; the version byte compare and a lost race at save both answer edit.stale
+- [Phase 06]: 06-08: Add and Edit Expense share ExpenseFieldsValidator (Include over IExpenseFieldsRequest); only a changed category or payer is re-checked, so a saved retired category or deactivated payer may stay
+- [Phase 06]: 06-08: An edit writes company-expense.changed (old>new amount, date, category; fields= names only; ends with the payer) and a separate company-expense.payer-changed; no change writes nothing
+- [Phase 06]: 06-09: text KPI values wrap at word boundaries (kpiTextValueClasses); numbers and counts keep the one-line look
+- [Phase 06]: 06-09: every expense mutation must invalidate expenseKpisKey ('company-expense-kpis') as well as expensesKey; the KPI query key holds no list params
+- [Phase 06]: 06-09: the e2e list helpers match the list route by pathname, because the KPI route shares the /api/v1/company-expenses prefix
+- [Phase 06]: 06-10: Soft delete, restore and permanent delete take no row version and run inside ConflictRetry plus InTransactionAsync; a lost race is read again and a vanished row answers 404
+- [Phase 06]: 06-10: The permanent delete is a tracked Remove with the audit entry recorded first in the same save, so the entry outlives the row; never ExecuteDelete
+- [Phase 06]: 06-10: The authorization matrix harness always sends an Idempotency-Key, so the restore row expects Manager 404; the missing-key 400 has its own test
+- [Phase 06]: 06-12: Add Expense stays aria-disabled until the page knows the server's business today (list, else the month figures), so the modal never starts from the device clock
+- [Phase 06]: 06-12: Paid by lists only the staff lookup (signed-in user first as '(you)'); a failed lookup disables the field but does not block the save, the server's CanPay check is the authority
+- [Phase 06]: 06-12: expenseFormSchema(today) counts the 30-day limit from the server today string; the amount stays text until the 2-decimal and cap checks pass and becomes a number only in the request builder
+- [Phase 06]: 06-12: a save invalidates expensesKey, expenseKpisKey and expensesDeletedKey; the toast adds the outside-filters note by comparing the saved row with the URL search, category and dates
+- [Phase 06]: 06-13: category race backstops (unique name, expense foreign key, deadlock victim) are translated in CspsUnitOfWork; the foreign key side is read from the failing EF entries
+- [Phase 06]: 06-13: an expense saved in a category deleted a moment earlier is a 400 on categoryId, Choose a category.
+- [Phase 06]: 06-14: the Edit and View modals read the expense on a query root of their own (company-expense, id) with no cache and no refetch on focus; the form keeps the row version of its first answer, so a refetch never changes what a save sends (SEC-07).
+- [Phase 06]: 06-14: row actions follow the server's canEdit alone (pencil Edit when true, eye View when false); View keeps the UI-SPEC footer Close beside the dialog's header Close icon, and its scrolling body is a named focusable region.
+- [Phase 06]: 06-15: the server parses expense and category audit details into typed lines and a snapshot (AuditChangeLines) and resolves payers and category names; Done to is the payer and the Done to filter also matches an expense by its current, old or new payer
+- [Phase 06]: 06-15: category added, retired, back in use and deleted entries show 'Name: {name}' (and 'Color: {color}' when added) and payer names carry '(former staff)'; both are new copy for the 05 D-48 review
+- [Phase 06]: 06-16: Delete, Delete permanently and Restore act on the latest state (no row version); only Restore sends an Idempotency-Key, kept through a retry by useExpenseAction and replaced for the next action
+- [Phase 06]: 06-16: Admins get no Deleted Expenses link or delete action, the /admin/expenses/deleted loader redirects them to /admin/expenses (requireManagerLoader fallback path), and a 403 there shows the P2 access banner
+- [Phase 06]: 06-16: OQ-1, OQ-2, OQ-5 and OQ-12 were built with their contract defaults (eraser third icon, separate Deleted Expenses page, Restore with no confirm, five icons added); owner rulings still pending
+- [Phase 06]: 06-17: Retire and Use again flip the status in the cached list at once, then the lists read again; the flipped action keeps (or regains) focus
+- [Phase 06]: 06-17: Delete is offered for a non-Others category with expenseCount 0; a 422 expense-categories.in-use keeps the dialog open with the contract refusal and refetches, a 404 shows the shared mapper line (no new wording invented)
+- [Phase 06]: 06-17: every category change refreshes through useRefreshCategories (categories, expenses, KPIs, deleted list); the category detail is read fresh under its own query root so a refresh never replaces an open form's version
+- [Phase 06]: 06-18: A money figure of 15 characters or more takes a smaller KPI clamp (22px floor, 13.5cqi) so 999,999,999.99 fits the card at 320 px; shorter figures keep the approved clamp
+- [Phase 06]: 06-18: The showcase section for the Phase 6 demos is titled Expenses and settings, because the E1 table region is already named Company expenses
+- [Phase 06]: 06-19: A-06-01 and the three inline SQL files are shown in the review pack as ruled (D-49, D-50) with follow-up plans 06-20 and 06-21; option 2 and option 1 stay marked built until those land
+- [Phase 06]: 06-19: npm run review reads the copy modules through a short-lived Vite server when plain Node cannot resolve the app's @/ paths (06-15 had stopped the script)
+- [Phase 06]: 06-19: the review pack's Phase 6 pages are narrowed by this run's tag; the month cards count the whole CSPS_E2E database and the pack says so
+- [Phase 06]: 06-20: D-49 built as A-06-01 option 1: Paid by needs a password and the first sign-in mark (EmailConfirmed) in the staff lookup, the create and edit check, the detail paidByActive flag and the dev seed; staff after a Manager password reset stay choosable; no schema change
+- [Phase 06]: 06-20: Phase 17 legacy import must set the first sign-in mark on imported staff, or they cannot be chosen as Paid by
+- [Phase 06]: 06-21: D-50 built. The three locks are rows of the new DatabaseLocks table taken with ExecuteUpdate inside the caller's transaction; a rollback to a savepoint frees a lock taken after it
+- [Ship 06]: D-63 (owner, 2026-10-26): the npm audit fixes for PR #11 are approved at exact versions (zod 4.6.7, vitest and @vitest/coverage-v8 5.0.4, ip-address 10.7.4, undici 8.12.2 and 6.29.1, fast-uri 3.1.9, chromium-bidi's zod forced to 4.6.7); undici and fast-uri skip the 14-day cool-down as security fixes (quick 261026-au5).
+- [Ship 06]: D-64 (owner, 2026-10-26): the package fix goes on the PR #11 branch. D-67 (owner, 2026-10-26): the nine non-conventional UI-fix commit subjects were then reworded to `type(06): ...` and the branch force-pushed, trees unchanged; old commit ids in the planning docs were remapped (backup ref `backup/phase-06-before-reword`, local only).
+- [Ship 06]: D-65 (owner, 2026-10-26): zod 4.6.7 is forced everywhere with one top-level npm override (the axe-core pattern), not a nested one. Accepted risk: Lighthouse's unused WebDriver BiDi driver (chromium-bidi 17.0.2, written for zod 3) gives a generic TypeError on malformed input instead of its own error; Lighthouse does not load it (quick 261026-au5).
+- [Ship 06]: D-66 (owner, 2026-10-26): the test-only packages vitest 5.0.4 requires (about 12, including obug 3 and why-is-node-running 3.2.1) are accepted; any other lockfile change stops the task.
+- [Ship 06]: D-68 (owner, 2026-10-26): main CI for a8c408bf failed twice on useUsersListParams "a search writes after 300 ms ... resets the page" (passes alone locally 5 of 5). Root cause: nuqs 2.10.1 debounces each URL key on its own timer, so q and the page reset can flush as two URL updates under load. Fixed in a small PR (quick 261026-m16, branch fix/list-search-single-update) before deploying, not by re-running CI.
+- [Ship 06]: D-69 (owner, 2026-10-26): in the 261026-m16 fix the list hook shows a waiting search and page 1 at once (a waiting view over the nuqs values) while the URL write waits 300 ms; a search still waiting joins the next setter's single URL update; reset and unmount drop it.
+- [Ship 06]: D-70 (owner, 2026-10-26): on phone layouts a focused field can sit fully behind the fixed bottom tab bar (Confirm new password on My Profile Security: 0 of 44 px visible on pixel and iphone), a WCAG 2.2 AA 2.4.11 failure. Fix in its own PR (quick 261026-ooe): scroll padding for the fixed bars, and the e2e axe helper re-checks a target axe reports as partially obscured after scrolling it into view. The intermittent @profile axe failure (about 7 in 205 runs) came from the random test email wrapping to 2 lines instead of 3.
+- [Ship 06]: D-71 (owner, 2026-10-26): the e2e axe helper re-checks a target-size "partially obscured" target when at least one covering control sits in a fixed or sticky bar (axe always lists the field's own Show password button too); it scrolls the target into view, re-runs target-size on it alone and restores the scroll; a target still covered fails.
+- [Ship 06]: D-72 (owner, 2026-10-26): the same fix (261026-ooe) also covers the sticky admin top bar at tablet and desktop widths, the sticky public header on phones, desktop windows 768 to about 782 px wide with classic scrollbars that show the tab bar, and removes the three now-redundant e2e scroll workarounds (profile.spec.ts, audit-log.spec.ts, users.spec.ts).
+- [Ship 06]: D-73 (owner, 2026-10-26): the fix stays CSS-only; Safari with classic scrollbars in a 768 to about 782 px window ignores the scroll margin and is accepted and recorded as the one known limit (no Playwright project can draw it).
+- [Ship 06]: D-74 (owner, 2026-10-26): a dev-only /dev/public page (PublicLayoutCheckPage, in devRoutes and DEV_ONLY_MODULE_PREFIXES) is added so the public header fix can be tested before Phase 11; production falls through to the holding page, proven by routes.test.tsx. Toasts stay as they are (transient, dismissible).
+- [Ship 06]: D-75 (owner, 2026-10-26): UpdateUserEndpointTests.TwoManagersDemotingEachOtherTogetherLeaveExactlyOneActiveManagerEveryTime failed once in PR #13's CI re-run (loser got 401, not 422: the winner's demotion signed it out before its request authenticated; still exactly one active Manager). The test now requires exactly one winner and the winner as the only active Manager, accepts a 401 only when the loser's token is then rejected, and requires the 422 guard path at least once in the 20 rounds (fast task, commit 11edfd4e).
+- [Ship 06]: D-76 (owner, 2026-10-27): A-06-03 option 1, the 300 ms limit stays. Flake on 2026-10-27, PR #13 CI (GitHub ubuntu runner, SQL container), run 40442789402: ExpenseListTimingTests failed only on "five years, last page, size 100" at p50 186.0 ms, p95 340.2 ms (default window p95 74.5 ms, category 3.5 ms, staff-name search 92.4 ms, KPIs 10.3 ms). Re-running the failed jobs alone passed; a passing run prints no numbers, so its margin is unknown. PR #13 changes only web code, so the slow run is runner noise. If it fails again in CI, look at the five-year last-page query before any margin talk.
+- [Quick 261028-2e4]: D-77 (owner, 2026-10-28): reset CSPS_E2E at the start of every e2e run (option 1 of 3). The WebKit audit-log failures came from about 4,600 people piled up in CSPS_E2E over many runs; Playwright Windows WebKit fills a select with about 9,300 options in about 7 s. npm run e2e now passes --reset to the guarded dev-seed tool (CSPS_Dev/CSPS_E2E only). Specs, fixtures and timeouts stay as written.
+- [Ship 06]: Definition of Done on PR #14 (quick 261026-ooe) ticked by the owner's instruction (2026-10-27); no reviewer requested.
+- [Quick 261027-t3j]: Definition of Done on PR #15 (D-63 picker look) ticked by the owner's instruction (2026-10-28), including the two items left to their judgment (no screenshots attached; Lighthouse not run).
+- [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
+- [Phase 07]: 07-01: AddOrderLists is one migration (20261028141016) creating ProductTypes, PaymentMethods and OrderExpenseCategories with 17 literal-id seed rows; each list is its own table with no discriminator
+- [Phase 07]: 07-01: audit catalog grows 49 to 92 with 43 Phase 7 codes; order and child events share the viewer group Orders, list events the group Order lists; details documented in docs/operations/audit-log.md
+- [Phase 07]: 07-02: Balance = Total - Paid + Refunded; CustomerCredit = max(-Balance, 0) written as 0.00 (D-12, D-13). Cancelled order Profit = (Paid - Refunded) - Expenses (D-36, D-10). Golden vectors stay v2; v3 bump is a Phase 8 follow-up.
+- [Phase 07]: 07-03: OrderStatusRules.Check orders its rules as undefined-throws, same-status NoChange, locked source reopens or is refused with orders.reopen-first, then the Completed zero-balance gate
+- [Phase 07]: 07-04: D-39 approve-all; requirement and roadmap wording applied, Phase 7.1 Legacy Fit Check inserted; refunds on a soft-deleted order vs money on hand left open (Owner backlog)
+- [Phase 07]: 07-05: Order.Create(NewOrder, callerId, now) has no today parameter; plans 07-10 and 07-11 re-add the business today when payments and discounts need it
+- [Phase 07]: 07-05: migration is 20261028152204_AddOrders (four tables, lock row order-numbers, 66 standing locks); children bind through scalar EF constructors so Domain stays at 100% coverage
+- [Phase 07]: 07-05: IOrderReader returns OrderDetailResponse directly; CreateOrderRequest.Items has non-null element type and a null JSON element is refused on items[n]
+- [Phase 07]: 07-06: OrderNumberAllocator has an internal constructor taking the lock wait (public one keeps the 10 s default); order number race, New Year, rollback and busy-lock proofs are characterization tests, the 07-05 allocator needed no fix
+- [Phase 07]: 07-07: Order.UpdateDetails takes no today parameter and the due date change is its own DueDateChange record (ValueChange cannot hold a nullable day); a stale version or lost race is 409 edit.stale with no retry; an unchanged save keeps the version and writes no audit entry.
+- [Phase 07]: 07-08: AddLegacyHolder migration id is the generated 20261028165341 (the plan placeholder sorted before AddOrders); IsActive=false is listed by hand in the InsertData because EF leaves a false value out when the column default is true
+- [Phase 07]: 07-08: UserAccounts.FindUserAsync is the single door that hides the Legacy holder from sign-in and every user action; person-name lookups are not filtered so legacy money still shows Legacy / unassigned
+- [Phase 07]: 07-09: lock the order row first in every child write (OrderChildWrite -> IOrders.LockAsync) — IOrders.LockAsync takes the order row before any child row is written: without it two same-version idempotent child POSTs deadlock (EF saves OrderItems before Orders) and the caller gets 500; with it the loser gets 409 edit.stale and has written nothing. Later child plans (payments, discounts, expenses, refunds) inherit it through OrderChildWrite.
+- [Phase 07]: 07-09: item Position only orders lines; a removal leaves a gap and a new item goes after the highest — No renumbering, so a removal never touches or stamps the other items rows.
+- [Phase 07]: 07-09: child change callbacks return Result<OrderChildAudit?>; null means a no-op that saves, records and locks nothing — Keeps the no-op version-unchanged rule while giving every child write one place for lock, audit and save.
+- [Phase 07]: 07-10: the discount cap (discounts not above the subtotal) is one OrderMath check in the domain, run before anything is assigned; discount forms get 400 on value, the create body 400 on discounts, item edits and removals 422 orders.discount-above-subtotal
+- [Phase 07]: 07-10: OrderDiscounts carries a Position column (like OrderItems) so discounts keep the order given; no database-level subtotal check was added because it would change Orders and could fail legacy rows (owner choice pending)
+- [Phase 07]: 07-11: A payment is at most the balance; an edit may lower freely and raise up to balance plus its old amount; other changes after payment show a customer credit (D-11, D-12)
+- [Phase 07]: 07-11: A saved retired payment method or ineligible receiver may stay on an edit; a new or changed one is checked (D-16, ORD-22)
+- [Phase 07]: 07-11: OrderStore.FindAsync re-reads the row version after its split read, so an order read across another save is 409 edit.stale, not a verdict on mixed data
+- [Phase 07]: 07-11: OrderPayments has a Position column like OrderDiscounts, so create-body paths payments[i].x match the stored order
+- [Phase 07]: 07-12: OrderExpenses has a Position column like items, discounts and payments, so create-body paths expenses[i].x match the stored order
+- [Phase 07]: 07-12: order expenses reuse the Phase 6 company-expense words; the changed audit entry shows the payer as it now is and a new payer writes its own order-expense.payer-changed entry
+- [Phase 07]: 07-13: the end-state lock lives in the aggregate (Order.EnsureEditable in all 13 mutators), so it runs before the order's own rules; form field errors stay 400 first
+- [Phase 07]: 07-13: the status move is single-click (no version) over OrderChildWrite.AttemptAsync with ConflictRetry, judged on the balance read inside the save
+- [Phase 07]: 07-14: the refund exception to the end-state lock is a separate EnsureRefundEditable (only Completed is locked) used by the three refund methods; every other mutator keeps EnsureEditable
+- [Phase 07]: 07-14: the refund not-allowed rule (only a Cancelled order or one with a credit) is judged on add only; an existing refund can be lowered or removed on an active order
+- [Phase 07]: 07-15: delete, restore and permanent delete read the order with the delete filter lifted where needed, record their audit entry before the save, and answer 409 edit.stale after two lost races
+- [Phase 07]: 07-15: order.permanently-deleted lists people once, in the order first recorded, and cuts the longest list with +N to fit the 400 character audit limit (owner may rule on widening the column)
+- [Phase 07]: 07-16: the order list sort 'newest' is latest order date, then latest recorded, then id (imported orders all share one recorded time); owner may rule otherwise
+- [Phase 07]: 07-16: the order list reads the clock from TimeProvider, not the business calendar, so it stays at exactly two SQL commands
+- [Phase 07]: 07-16: ORD-01 and ORD-02 stay unmarked in REQUIREMENTS.md (plan scope note keeps them with Phase 8); ORD-20 waits for 07-20
+- [Phase 07]: 07-16: the wire row of the order list is OrderListEntry because OrderListItem already names the product type list entry
+- [Phase 07]: 07-17: a new name for the order expense Others answers 422 order-expense-categories.protected as the plan says (Phase 6 answered 400 on name); awaiting owner confirmation.
+- [Phase 07]: 07-17: useCount is on the staff list items (Admin included) and the Manager entry detail, soft-deleted orders counted; an entry with 0 can be deleted.
+- [Phase 07]: Import (07-18): Strict import rules equal the create path; the Check* overloads take OrderImportRules, so each relaxation is one named test in the existing rule and words
+- [Phase 07]: Import (07-18): IgnoreAmountCaps also lifts the quantity range to 0 or more (the database checks quantity >= 0); a negative quantity or price is never stored
+- [Phase 07]: Import (07-18): the legacy number must be plain ASCII (varchar column, zero loss); imported refunds skip the refund eligibility and cap rules; contact number characters, email shape and due-before-order-date have no relaxation (open for Phase 7.1)
+- [Phase 07]: 07-19: a percentage discount value is sent as text ending in % on each side, so a kind change reads correctly in one value line
+- [Phase 07]: 07-19: order audit entries carry orderNumber and the Done to column shows it; the API doneTo stays null and the Done to filter still searches only company-expense entries
+- [Phase 07]: 07-20: the orders seed gives each order one status-history row at 09:00 Manila on its order date; receivers and payers are the active payers or the Legacy holder; the testing route POST /api/testing/orders is Debug and Testing only
+- [Phase 07 UAT]: D-78 (owner, 2026-10-29, APX-IN-04, option 1 of 2): a list create, retire, reactivate or delete that loses its race twice keeps answering the shared `auth.session-busy` code ("Something changed at the same time. Try again."), the same as Phase 6. No list-specific busy code.
+- [Phase 07 UI review]: D-79 (owner, 2026-10-29, UI-REVIEW fix 1): the Audit Log table gets its own "Order" column for the order number. "Done to" holds people only. Each column shows `EmptyValue` when it has no value.
+- [Phase 07 UI review]: D-80 (owner, 2026-10-29, UI-REVIEW fix 2): the Audit Log filters get a "Group" select (the AUDIT_GROUPS list) that only shortens the Action select, in the browser. No server change: the log still filters by one action code.
+- [Phase 07 UI review]: D-81 (owner, 2026-10-29, UI-REVIEW fix 3): a change line whose values cannot be read shows "<Field> changed" (for example "Amount changed") with no values, instead of being dropped.
+- [Phase 07 UI review]: D-82 (owner, 2026-10-29, UI-REVIEW fix 3): order sub-entry action labels name the order: "Order item added", "Order payment added", "Order refund added", "Order discount added", and the same for changed, removed and the receiver or refunder changes.
+- [Phase 07 UI review]: D-83 (owner, 2026-10-29, quick 261029-87p open items 1 and 2): keep the Audit Log copy as built: "Payer changed", "Receiver changed", "Refunder changed" for unreadable person lines, and "Group" and "All groups" for the Group select. A change line for a field the screen does not know about stays left out (no generic sentence), because the screen and the API ship together.
+- [Phase 07 UI review]: D-84 (owner, 2026-10-29, replaces the unknown-field part of D-83): a change line for a field the screen does not know about reads "Other detail changed", with no field name or values, and shows once per entry however many unknown fields there are. The rest of D-83 (the copy) stands.
+- [Phase 07.1 execute]: D-85 (owner, 2026-10-29; PR part corrected the same day by 07.1 D-20): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 and 7.1 ship together in one PR from this branch (07.1 D-13, D-15, D-20).
+- [Phase 07.1 execute]: D-86 (owner, 2026-10-29, plan 07.1-02 follow-up): named exception to the no-raw-SQL rule: `ReadOnlyGuardTests` in `tests/Csps.LegacyFitCheck.Tests` keep their `ExecuteSqlRaw`, `FromSqlRaw` and `SqlQueryRaw` calls. They run only against the throwaway fake restore and exist to prove the read-only guard refuses raw SQL. The tool itself holds none, and `ToolSourceRulesTests` keeps it that way.
+- [Phase 07.1 execute]: D-87 (owner, 2026-10-29, plan 07.1-08 follow-up): legacy `Expenses` rows with `isCompanyExpenses` false and no `OrderId` are counted, not ignored. The fit check reports them as a new finding (for example `expense.unplaced`, kind CannotMap), counts only with no values, so the real run shows how many exist. Built in plan 07.1-09 alongside the report split.
+- [Phase 07.1 execute]: 07.1 D-17 to D-20 (owner, 2026-10-29): real fit-check run approved (Claude runs it); summary self-check stays strict; expenses pointing at a missing order are counted too; the joint PR opens from the 7.1 branch. Full text in 07.1-CONTEXT.md.
+- [Phase 07.1 execute]: D-88 (owner, 2026-10-29, follows D-76): `ExpenseListTimingTests` fails locally even run alone (five years, last page, size 100: p95 359.3 ms against 300 ms; Phase 6 measured 197.8 ms). Phase 7.1 changed nothing under src except one InternalsVisibleTo line. Investigate the five-year last-page query as its own task; the joint Phase 7 and 7.1 PR waits for the result. Also recorded: `LastManagerGuardTests.TwoManagersDeactivatingEachOtherTogetherLeaveExactlyOneActiveEveryTime` failed once in the full local run and passed alone (flake, recorded, not hidden).
+- [Phase 07.1]: Fit check tool gets InternalsVisibleTo on Csps.Infrastructure to register the internal CspsUnitOfWork; no new public DI surface
+- [Phase 07.1]: Fit check tests run in CI step 3 integration tests (full mode, container SQL) because they need a real SQL Server
+- [Phase 07.1]: 07.1-02: read window is one never-committed ReadCommitted transaction; write evidence (tables, rows, index updates) must match before and after or the run fails. The transaction also keeps one connection open, because auto-close resets index counters.
+- [Phase 07.1]: 07.1-02: LegacySource allows the restore on LocalDB only; CSPS_Test_{guid} fakes also on loopback containers; refusal text is fixed and never repeats the connection string.
+- [Phase 07.1]: 07.1-03: columns the tool reads but CSPS has no place for (IsDone, DiscountedBy) are not mapped (CannotMap); creator and date-stamp columns are not read (NotChecked). Missing is judged for mapped columns only.
+- [Phase 07.1]: 07.1-03: legacy AspNetUsers and AspNetRoles ids are modelled as nvarchar(450) strings (Identity v2 default); first confirmed by the real run in 07.1-10.
+- [Phase 07.1]: 07.1-04: a blank order type word is CannotMap list.name-blank and the order is not imported
+- [Phase 07.1]: 07.1-04: payments and order expenses stay on the Legacy holder (LegacyHolderUsed person.legacy-holder) until plan 05 matches people
+- [Phase 07.1]: 07.1-05: only the legacy role Admin maps to pseudonymous trial staff; Company, Employee, Manager and no role use the Legacy holder (person.role-no-match). Open for the owner: whether legacy Manager should map to CSPS Manager once the real counts are known.
+- [Phase 07.1]: 07.1-05: every holder use is UnmatchedPerson plus LegacyHolderUsed person.legacy-holder per payment receiver and order expense payer; the trial staff placeholder password hash is AAAA so verification fails instead of throwing
+- [Phase 07.1]: 07.1-06: a RuleBreak finding's rule key is the field path without indexes plus the rule message; the real path (with the child's index) is in Path; all probe findings use RecordKind.Order and the order key, so counts are orders
+- [Phase 07.1]: 07.1-06: refunds are probed like other children (Rule 2); the 3 handler flags are not probed (AllowRetiredListEntries and AllowInactivePeople have no count yet: open gap for 07.1-09/10)
+- [Phase 07.1]: 07.1-06: a discount above the subtotal also shows AllowOverpaid (negative balance); recorded as an open note for the D-10 session, not filtered
+- [Phase 07.1]: 07.1-07: trial import success key is trial.imported; year counters are one Info trial.counter-lifted per year with the value only in Detail; trial database removal is confirmed by name after the drop in finally
+- [Phase 07.1]: ExpenseRule findings use the rule key '{field}: {Phase 6 message}' with the field as the path; plan 09 groups company expense findings by it
+- [Phase 07.1]: Plan 07.1-09: the full findings file is written before the summary self-check and stays when the self-check refuses; a refusal exits 1 with fixed text and writes no summary
+- [Phase 07.1]: Plan 07.1-09: D-87 built as rule key expense.unplaced (CannotMap, RecordKind.UnplacedExpense), counts only; summary line 'Expenses with no order and not marked as company expenses (counted only, not judged)'
+- [Phase 07.1]: D-22 (owner, 2026-10-29): counts-only summary published as shown in `07.1-FINDINGS.md` (one-way, public repo)
+- [Phase 07.1]: D-23 (owner, 2026-10-29): Group 1 keep the probe, no Domain change
+- [Phase 07.1]: D-24 (owner, 2026-10-29): Group 2 read stored times as UTC and show in Manila time
+- [Phase 07.1]: D-25 (owner, 2026-10-29): Group 3 keep `ORD-{year}-{legacy id}` for the check; final scheme in Phase 15
+- [Phase 07.1]: D-26 (owner, 2026-10-29): Group 4 keep legacy table and column names in committed docs
+- [Phase 07.1]: D-27 (owner, 2026-10-29): Group 5 / 07 D-40: discount cap stays in domain and validators only; no schema change
+- [Phase 07.1]: D-28 (owner, 2026-10-29): Group 6 / 07 D-47: closed with no relaxation
+- [Phase 07.1]: D-29 (owner, 2026-10-29): Group 7 orders with no order number: map in Phase 15 with the built number
+- [Phase 07.1]: D-30 (owner, 2026-10-29): Group 8 product type 'Garments' has no match: decide in Phase 15 with the real product list (map to an existing type or add it as a new type)
+- [Phase 07.1]: D-31 (owner, 2026-10-29): Group 9 payments with no payment method: map in Phase 15 (placeholder method or new list entry, with owner approval then)
+- [Phase 07.1]: D-32 (owner, 2026-10-29): Group 10 payer text stays in the payment notes
+- [Phase 07.1]: D-33 (owner, 2026-10-29): Group 11 map legacy Manager to CSPS Manager in Phase 15 (mapping ruling, not an import relaxation); provisional rule is legacy Admin and Manager map to staff; tool code unchanged
+- [Phase 07.1]: D-34 (owner, 2026-10-29): Group 12 expenses with no category: map to `Others`, classify later in Phase 15 or 16
+- [Phase 07.1]: D-35 (owner, 2026-10-29): Group 13 deleted payments (3): keep as notes in Phase 15
+- [Phase 07.1]: D-36 (owner, 2026-10-29): Group 14 discount giver (52 discounts): keep as a note in Phase 15
+- [Phase 07.1]: D-37 (owner, 2026-10-29): Group 15 orders with no status history: accept, the tool writes one row
+- [Phase 07.1]: D-38 (owner, 2026-10-29): Group 16 items with a done flag (2): accept as dropped with a reconciliation note
+- [Phase 07.1]: D-39 (owner, 2026-10-29): Group 17 unmapped columns: decide each in Phase 15 when the schema document is written
+- [Phase 07.1]: D-40 (owner, 2026-10-29): Group 18 discount above subtotal also shows `AllowOverpaid`: leave as is
+- [Phase 07.1]: D-41 (owner, 2026-10-29): Group 20 keep the two relaxations already relied on (missing contact number, missing due date) for the Phase 16 import
+- [Phase 07.1]: D-42 (owner, 2026-10-29): no new import relaxation approved; plan 07.1-12's relaxation list is empty. Groups 19, 21, 22 noted, nothing to rule
+- [Phase 08]: ListOrdersHandler takes IBusinessCalendar instead of TimeProvider and reads the clock once for the recent window and today (D-59)
+- [Phase 08]: OrderReader stamps Today after the detail read loop so every order answer carries the business date with no handler change
+- [Phase 08]: List-wide counts use one GroupBy-on-constant LINQ command with the five active statuses listed by name (D-41, D-60: list is 3 fixed commands)
+- [Phase 08]: 08-02: OrderTotals and OrderCard parity scenarios run implementation-only (parity false) because the frozen design cannot show the owner's new money rows, balance states and card actions
+- [Phase 08]: 08-02: the credit block is info-soft on the panel and neutral with a Credit badge on the card; the create-form preview turns an overpayment into a credit
+- [Phase 08]: 08-03: ConfirmDialog describeFailure keeps title-and-body and also accepts a sentence or null; no existing caller changed
+- [Phase 08]: 08-03: jsdom scrollIntoView no-op lives once in web/src/test/setup.ts
+- [Phase 08]: 08-04: ListEntrySelect reads its query hook from a list config map; ExpenseCategorySelect is a thin wrapper
+- [Phase 08]: dueFlagState never throws: an unreadable due date has no flag, an unreadable today keeps the date; unknown statuses show the date only (08-05)
+- [Phase 08]: 08-06: order fixtures are full order answers; the list row is derived with listEntryOf(), pieces being the sum of item quantities
+- [Phase 08]: 08-06: the orders grid uses pg-lt-xl for 3 columns and important pg-tablet and pg-phone rules for 2 and 1, because Tailwind emits the wider rule last; a node test reads the generated CSS
+- [Phase 08]: 08-06: /admin/orders left ADMIN_PAGES in sweep.ts (sweeps open pages unsigned); plan 08-24 adds the order pages with a sign-in step
+- [Phase 08]: 08-07: deleted read is the live detail read in a deleted mode (SoftDelete lifted on the order and each child query); a restore between reads answers 404
+- [Phase 08 execute]: D-89 (owner, 2026-10-29, 08-06 deferred item 2): route `AdminNotFoundPage` as a splat under the admin layout so an unknown `/admin/...` address shows the in-shell "Page not found" screen; keep the file. Built as a follow-up task after wave 2.
+- [Phase 08]: 08-08: Settings list tabs run on one config-driven ListSettingsSection; CategoryModal takes an optional list config — One card serves all four lists; the Phase 6 words and tests stay the default config
+- [Phase 08]: Orders list search and filters (q, status, dates, from, to, productType, hasBalance, sort) live in the URL; status and sort are always sent to the API
+- [Phase 08]: Order date presets 30d, 90d and month come from the server business today and the list request waits for it; a stray from or to beside no custom range is dropped with one replace
+- [Phase 08]: 08-10: the order query key is ['order', id] with the default cache time, so useBusinessToday reads the order's today from the cache
+- [Phase 08]: 08-10: canComplete judges the figures only (balance exactly 0.00 and no customer credit); an overpaid order with fullyPaid true cannot complete
+- [Phase 08]: 08-10: the order page back link accepts only a literal /admin/orders path from navigation state (safeReturnUrl plus prefix check), else /admin/orders (T-08-18)
+- [Phase 08]: 08-11: The Grid and Table switch keeps the current page; only a filter change goes back to page 1 (RESEARCH A4, logged for owner review).
+- [Phase 08]: 08-11: useOrdersView takes the list values and setters so the page runs useOrdersListParams once; only the toggle writes the URL and localStorage, and pressing the shown view writes nothing.
+- [Phase 08]: 08-12: The order page tab panels are titled Payments, Discounts, Expenses and Refunds (UI-SPEC names no h3 titles); a discount row amount is the csps.ts preview and the footer is the server total
+- [Phase 08]: 08-12: The phone balance card also says Not collected for a Cancelled order with money unpaid (D-45), SPEC-GAP for owner review; the side column follows the tab card on phones and sits above it on tablets
+- [Phase 08]: 08-13: the item grid follows the Items card width (container variants it-md, it-lg, it-lt-lg), not the page width, because the card sits beside the aside and is too narrow for seven columns at the spec page widths — Owner review in deferred-items.md (From plan 08-13)
+- [Phase 08]: 08-13: useUnsavedChangesGuard returns allowLeave and dialog; allowLeave is called before navigating after a save, and the sign-in page is never held — Plan 08-15 reuses it unchanged
+- [Phase 08]: 08-14: order windows share OrderWindow and useOrderChildSave; a window sends the version it opened with inside its submission data, so Load Latest starts a new submission
+- [Phase 08]: 08-14: focus after a window closes is set by name (Add Item, the row Edit or Delete, else the tab heading) because Safari does not focus a button on click
+- [Phase 08]: [08-15] The Edit Order form always rereads the order on open (refetchOnMount always) and keeps the order it opened with; a save sends that version, and a later focus refetch never changes it
+- [Phase 08]: [08-15] A locked order (Completed or Cancelled) shows OrderLockedBanner with Back to Order instead of the Edit Order form, also after a 422 orders.locked on save; the banner action is a slot for Reopen Order (08-19)
+- [Phase 08]: [08-15] updateOrderDetailsSchema is a constant (no today argument): no server rule depends on today and orderDetailsSchema already requires the due date
+- [Phase 08]: 08-16: the payments-below-refunds check runs when Delete Payment is pressed and sends nothing; Edit and Delete stay on a fully paid order while Add Payment is hidden (D-48); a save that settles the order sends focus to the tab heading
+- [Phase 08]: 08-17: the discount cap is the server items total minus the other discounts, each rounded to the centavo; an edit leaves out its own saved amount
+- [Phase 08]: 08-17: switching the discount Type clears Value in add and edit; a percent Value takes digits and one point only (SPEC-GAP, owner review)
+- [Phase 08]: 08-18: the order expense window uses the server's field names and the PaidBySelect defaults; Description is optional and sent as null when empty; Edit and Delete stay on any editable order.
+- [Phase 08]: 08-19: a status move is keyed by order id plus status through useOrderAction; only a 422 shows server text in the failure toast; the page carries out focus after a complete, cancel or reopen by element id
+- [Phase 08]: 08-20: Restore reuses useOrderAction with a second type parameter for its 204 answer
+- [Phase 08]: 08-20: ConfirmDialog gets optional countsLoading, countsLoadingLabel and confirmDisabled props for the permanent-delete skeleton box (UIC-16)
+- [Phase 08]: 08-20: Permanent delete sends the order number as confirm; a 404 on the counts read or the delete means already gone (info toast, lists read again)
+- [Phase 08]: 08-21: Add Refund and the cap sentence follow the cap (above 0.00, not Completed); refund Edit and Delete follow the status, so a Cancelled order at cap 0.00 keeps its row actions
+- [Phase 08]: 08-21: Record Refund focus returns by id: saved goes to the Totals heading, dismissed goes back to the Record Refund button (OrderTotals recordRefundId)
+- [Phase 08]: 08-22: the Delete Order dialog finds its way back with backTarget(location.state), so OrderPage.tsx stays untouched — Same function as the back link (D-51); the page file belongs to another plan in the wave
+- [Phase 08]: 08-23: the deleted order view builds its own header and renders every part readOnly; a 404 on Restore shows the not-in-Deleted-Orders page with no toast (owner review in deferred-items.md)
+- [Phase 08]: 08-24: a fix for a sweep finding lives in the shared recipe that owns the look, with a red recipe or component test first (header subline, balance figure, order card text, card footer buttons)
+- [Phase 08]: 08-24: web branch coverage is held over 90 percent with one StrictMode render test per large screen (src/test/strictMode.ts), because the React Compiler's cached branch only runs on a second render
+- [Phase 08]: 08-24: the full npm run e2e still fails 14 tests that fail the same way at 5118c182 (dialog-fit 1274x585, dialog-scrollbars, long-text four-chip, shell 1440x900) plus orders-filters on pixel with the same chip-button cause; recorded for the owner, not fixed here
+- [Phase 08]: 08-25: the order answer carries each discount's server Amount (OrderMath.DiscountAmount, D-94); the Discounts tab renders it with no browser money math
+- [Phase 08]: 08-26: D-95 applied to the payment window and delete check: a focus or failed cap check reads the order once, the check runs on current figures, the save keeps the opened version (queryClient.query used as fetchQuery is deprecated)
+- [Phase 08]: 08-27: D-96 applied. OrderStatusMenu.openMenu reads the order again (not awaited) on every open path, so Mark Completed follows current figures; the server's 422 stays the gate.
+- [Phase 08]: 08-28: D-95 applied to the refund and discount windows with 08-26's hook unchanged; the instant cap check stays, a focus or failed check reads the order, the save keeps the opened version
+- [Phase 08]: 08-29: the @orders-two-staff journeys prove D-95 and D-96 end to end with two staff in two browser contexts; D-94 scoped only the Discounts tab amount column, so otherDiscountsTotal and the discount window preview still add up in the browser (recorded in 08-REVIEW-DISPOSITION.md)
+- [Phase 08]: UAT rulings D-90 to D-97 (owner, 2026-10-30). The server sends each discount amount; payment, refund and discount windows re-read the order before refusing a cap; the status menu re-reads the order on open.
+- [Quick 261031-3oo]: D-98 (owner, 2026-10-31): the filter chip Clear button is 24 px, not 22 px. It amends O-8 for this one button (the other O-8 controls keep their sizes) and supersedes D-93; at 24 px axe target-size passes on size alone near the phone tab bar and in four-chip toolbars. The D-71 e2e check is unchanged.
+- [Ship 08]: D-99 (owner, 2026-10-31): Phase 8 ships only after the Phase 7 PR (#17) is green and merged, then straight against main (no stacked PR). To make #17 pass, the owner approved copying the D-98 commits onto the Phase 7.1 branch, renaming the six `07-D48` commit scopes to `07-d48` (history rewrite, same code) and force-pushing that branch with a lease. Backups: `backup/phase-07.1-pre-scope-fix-20261031`, `backup/phase-08-pre-scope-fix-20261031` (local only). The Phase 8 branch got the same rename locally and still sits on the renamed 7.1.
+- [Ship 08]: D-100 (owner, 2026-10-31): "create pr for phase 8 then merge it". PR #17 merged through Merge-PullRequest.ps1. Phase 8 was rebased onto main (backup `backup/phase-08-pre-rebase-20261031`, local only; the two duplicate D-98 commits dropped as already upstream), re-verified 8/8, and its PR Definition of Done is ticked from the Phase 8 records on that instruction. The regression gate is left to CI `gate (full)` on the shared machine.
 
 ### Pending Todos
 
-None yet.
+Owner items (updated 2026-10-17):
+
+None open. HOSTPROBE_KEY deleted, the least-privilege SQL user confirmed and __Secure-csps_2fa checked by the owner (2026-10-17).
+
+Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and execution; nothing here was auto-approved):
+
+- [x] **Ruled D-54 (owner, 2026-10-26): all 15 defaults confirmed.** **Phase 6 UI-SPEC OQ-1 to OQ-15:** the build uses the contract defaults in `06-UI-SPEC.md`. Rule each one, or confirm the defaults.
+- [x] **Ruled D-53 (owner, 2026-10-25): option A confirmed.** **Phase 6 audit viewer for expense events (06-RESEARCH open question 2):** planned with option A (the server turns the stored detail into change lines and names payer and category; "Done to" also matches expense payers). Confirm or change.
+- [x] **Ruled D-52 (owner, 2026-10-25): real rate is lower; size stays.** **Phase 6 timing data size (open question 5):** the speed test assumes about 20 expenses a day for 5 years (~36,500 rows). Tell us if the shop's real rate is higher.
+- [x] **Ruled D-55 (owner, 2026-10-26): wording approved as built.** **Phase 6 copy review (05 D-48):** read the new expense and Settings page wording before release.
+- [ ] Any checkpoints, manual checks or package approvals that Phase 6 execution parks are added below this line.
+- [x] **Ruled D-59 (owner, 2026-10-26): confirmed; leave CSPS_E2E staff; cancelled-request logging goes to a later quick task.** **Phase 6 slow add-expense test fix (parked 2026-10-26, away mode):** the add-expense browser test took about 2 minutes on Safari-type browsers. Cause: the accessibility check scanned a Paid by list of 2,288 test accounts. Fixed in test code only (commits a7ddcd76, 39cc69e3); the full expense and settings run passed 140 of 140. Pick one. (1) Recommended: confirm, and `.planning/debug/expenses-add-save-slow.md` is closed. (2) Ask for more proof. Two side notes in `deferred-items.md`: test staff keep piling up in CSPS_E2E (leave it, recommended, or retire old test staff in the e2e seed step); a request the browser cancels is logged as a server error (fix in a later quick task, recommended).
+- [x] **Ruled D-57 (owner, 2026-10-26): option 2, keep as built.** **Phase 6 expense notes for staff who cannot edit (code review A-IN-03, parked 2026-10-25):** an Admin can open any expense in View, and the server sends its notes, including notes on expenses the Admin did not record or pay and cannot edit (D-25, D-26). Notes are free text and may hold personal details (D-06). Your decisions do not say who may read them. Pick one. (1) Recommended: only someone who can edit the expense sees its notes; an Admin viewing another person's expense sees no notes. It keeps personal details to the people who own the row. Where it changes: `CompanyExpenseDetailResponse.From` (notes empty when the caller cannot edit) and the View modal. (2) Keep as built: every staff member can read every expense's notes, recorded as your ruling.
+- [x] **Ruled D-59 (owner, 2026-10-26): confirmed.** **Phase 6 command-count flake fix (parked 2026-10-25, away mode):** the expense list speed test sometimes counted an extra SQL command. Cause: the test also counted the email sender's once-a-second background check. Fixed in test code only (commit c0616d1c); three full test runs passed. Pick one. (1) Recommended: confirm, and the debug note `.planning/debug/expense-list-command-count-flake.md` is closed. (2) Ask for more proof.
+- [x] **Approved (owner, 2026-10-26, 06-UAT tests 1 and 2; OQs ruled D-54).** **Phase 6 review pack (plan 06-19, parked 2026-10-25):** open `artifacts/owner-review/index.html` (made on this computer, never committed), section "Company expenses and settings (Phase 6)", check the screens and rule OQ-1 to OQ-15 (the defaults are built). The same section lists the other open items and a table of every new sentence for the copy review.
+- [x] **Ruled D-49 (owner, 2026-10-25): option 1, first sign-in required; follow-up 06-20.** **Phase 6 Paid by and temporary passwords (A-06-01, D-32):** a person a Manager creates with a temporary password has a password but has never signed in, so today they can be chosen as Paid by. Pick one. (1) Recommended: they can be chosen only after their first sign-in. The app already marks an account at the first sign-in code, so no database change is needed, and staff whose password a Manager reset stay choosable. (2) Built now: keep the rule as written ('has a password'), so they can be chosen before their first sign-in. (3) Hide anyone who still has to change a temporary password: also hides long-time staff after a Manager resets their password, until they sign in again. Where it changes: the staff rule in `StaffDirectory.cs` (two lines); the test `StaffLookupEndpointTests` pins option 2. **Built in plan 06-20 (option 1): `StaffDirectory.cs`, `CompanyExpenseReader.cs` and `CompanyExpensesSeedStep.cs` now need the first sign-in mark, and `StaffLookupEndpointTests` pins option 1.**
+- [x] **Ruled D-50 (owner, 2026-10-25): option 2, rework all three without inline SQL; follow-up 06-21.** **Phase 6 inline SQL in three existing files (06-11, your rule on inline SQL):** your rule allows hand-written SQL only where you approve it by name. Three files from Phases 4 and 5 each run one short SQL line that takes a database lock, so two requests at the same moment cannot collide: `IdempotencyGate.cs` (stops a double-submitted form from saving twice), `AccountTokenStore.cs` (one sign-in link per person at a time) and `ManagerRosterLock.cs` (keeps at least one active Manager). EF has no built-in way to take this kind of lock. The new guard test allows exactly these three and fails on any other. Pick one. (1) Recommended: approve the three by name; nothing changes. (2) Rework them without hand-written SQL: each lock is rebuilt with EF's own tools (for example a lock row updated inside the same transaction), which is more code and may need a small new table. Until you answer, the three stay allowed and no new one can be added.
+- [x] **Ruled D-51 (owner, 2026-10-25): option 1 confirmed.** **Phase 6 month KPI edge cases (A-06-02, CEXP-03):** the KPI cards are tested at the change of month in Manila time, for an empty month, for ties, for upcoming dates and for deleted expenses. We assumed no other case needs its own rule, for example a business time zone other than Asia/Manila in Site settings. Pick one. (1) Recommended: confirm; the cards follow the business time zone in Site settings, which is Asia/Manila today. (2) Name another case you want tested before release.
+- [x] **Ruled D-56 (owner, 2026-10-26): option 1, keep the sentence.** **Phase 6 wording for a Paid by who has not signed in (plan 06-20, 05 D-48, parked 2026-10-25):** a Manager adds Tia with a temporary password. Until her first sign-in code, choosing her as Paid by gives the existing sentence "This person can't be chosen because their account isn't active. Choose someone else." Her account is active, so the sentence can read oddly. Nothing was reworded. Pick one. (1) Recommended: keep the sentence; it is short and the person appears in the list after the first sign-in. (2) Add a second sentence for this case, for example "This person hasn't signed in yet. Choose someone else.", which needs a small change in the payer check and the web copy. (3) Show the person in the Paid by list but not selectable, with a hint. Where it changes: `ExpenseRules.PaidByInactive` and the payer check in `CreateCompanyExpenseHandler.cs` and `UpdateCompanyExpenseHandler.cs`.
+- [ ] **Quick task: log a cancelled request as cancelled, not as a server error (D-59, 2026-10-26):** a request the browser cancels (`TaskCanceledException`, for example `GET /api/v1/staff` in `StaffDirectory.ListActiveStaffAsync`) is logged as an Error with status 500 though no client saw a 500. Detail in `.planning/phases/06-company-expenses/deferred-items.md`. Run as `/gsd-quick` when convenient.
+- [ ] **Phase 6 release day (owner reminder, 2026-10-26):** do not run any SQL on production before release. On release day, after Phase 6 is merged: take `csps-migrations.sql` from that release's deploy package, apply it to the production database (it adds expense categories, company expenses and the database lock table; additive only), then press Run on the deploy (`docs/operations/deploy.md`).
+- [ ] **Phase 6 UI fixes, your visual check (quick 261026-89i, not blocking):** on your dev server at 390, 820 and 1440 px: the expense toolbar labels line up; From and To show "Sep 26, 2026" beside the box, one filter per row on phones, no sideways scroll at 320 px; the expense form Date shows the friendly date; Settings row icons line up with space at the card edge at 820 px; Category and Paid by show the required *; counts show commas ("Showing 1,687 expenses"). Tell me anything that looks off.
+- [ ] **Phase 17 legacy import carry-forward (plan 06-20, D-49):** imported staff must get the first sign-in mark (`EmailConfirmed`) set, or they cannot be chosen as Paid by. Recorded in `docs/api/company-expenses.md`; add it to the Phase 17 plan.
+- [x] **Ruled D-76 (owner, 2026-10-27): option 1, keep 300 ms and re-run alone first; one CI flake recorded.** **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
+- [ ] **Phase 6 duplicate-request guard after a crash (06-21, D-50):** the rebuilt guard marks a request key as 'in progress' in the database while it runs. If the app stops in the middle of a request (for example the host restarts it), a retry with the same key answers 'This request is already being processed' for up to 2 minutes, then works again. The old lock was freed at once. Nothing is saved twice or lost either way. Pick one. (1) Recommended: keep 2 minutes (built). (2) A shorter time, for example 30 seconds: a retry works sooner, but a request slower than that could start twice. Where the app stores the answer (for example adding an expense), the database still lets only one of them save and the other one shows an error. For the profile actions that keep a change without storing an answer (a wrong password that counts toward the lock, or a spent email-change link), both may apply. Where it changes: `IdempotencyGate.ClaimLease` (one constant).
+- [ ] **Open: refunds on a soft-deleted order and money on hand (owner, 2026-10-28, 07-04, D-39):** no ruling says whether a refund on a soft-deleted order still counts toward the payer's money on hand (MONEY-01). The owner left it open, so MONEY-01 says nothing about it. Rule it when the money-on-hand reports are planned (Phase 10), before that report is built.
+- [x] **Ruled D-45 (owner, 2026-10-28): keep newest, drop both indexes (done), wording approved.** **Order list choices (plan 07-16, nothing blocks on these):** (1) `newest` sort: built as latest order date first, then latest recorded; the other choice is latest recorded first (recommended: keep the order date, because imported orders are all recorded at the same instant). (2) `IX_Orders_CreatedAtUtc` is created as the plan said but no sort uses it today (recommended: drop it in a small migration unless a recorded-time sort is wanted). (3) `IX_OrderItems_ProductTypeId` is now covered by the new `IX_OrderItems_ProductTypeId_OrderId` (recommended: keep it until a later cleanup, since a drop is a one-way door). (4) Wording to approve: "Choose a sort order." for an unknown sort.
+
+Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing here was auto-approved):
+
+- [x] **UAT walked (owner, 2026-10-29): 2 passed, 3 deferred (tests 1, 4, 5), 0 issues.** **Phase 7 sign-off (07-UAT.md):** the verifier passed all 7 must-haves with no gaps; the status is `human_needed` only for the items below. Run `/gsd-verify-work 7` to walk them and mark the phase complete. The phase is not marked complete until you do.
+- [ ] **Your check of two logic changes from the code review (07-REVIEW-DISPOSITION.md):** (1) DOM-WR-04, D-49b: edits now re-check only the fields they change (`LegacyEditFilter.cs` and the six edit handlers); the D-05 lock and the totals caps (overpayment, discount cap, refunds above payments) still run on every edit. (2) APO-WR-01, commit `529510b1`: a deadlock inside the duplicate-request guard's transaction now answers 409 "busy" instead of 500, and is not retried. Confirm both, or ask for changes.
+- [ ] **Reminder after Phase 8 ships (owner, 2026-10-29, 07-UAT test 1 deferred):** remind the owner to read the DOM-WR-04 code: `LegacyEditFilter.cs`, the six `UpdateOrder*Handler.cs` files and the legacy edit checks in `Order.cs` (tests: `OrderLegacyEditTests`, `LegacyEditHandlerTests`). Also ask them to confirm that a legacy order with no due date still needs one on edit, unlike a missing contact number. Raise this at the start of the first session after Phase 8 is complete.
+- [x] **Ruled D-78 (owner, 2026-10-29): option 1, keep `auth.session-busy`.** **List writes busy code (APX-IN-04):** a list create, retire, reactivate or delete that loses a race twice answers the shared `auth.session-busy` code (Phase 6 does the same). Pick one. (1) Recommended: keep it. (2) Give order lists their own busy code.
+- [ ] **Confirmed for the Phase 8 UI review (owner, 2026-10-29, 07-UAT test 4).** **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
+- [x] **Ruled 07.1 D-22 to D-42 (owner, 2026-10-29): publish as shown; every group answered, all recommendations accepted (Group 8 decide in Phase 15, Group 11 map Manager to CSPS Manager); no new relaxation. Still open: delete the refused run's full list by hand.** **Phase 7.1 rulings session (plan 07.1-11, owner, 2026-10-29):** the real fit-check run is done (07.1 D-17, D-21): the restore was proven unchanged and the trial database removed. A plain-words briefing with options for every finding group is in `_local/legacy-fit-check/briefing-20261029-162702.md` (private, never committed). Read it and rule on each group. Also delete the first, refused run's full list `_local/legacy-fit-check/findings-20261029-161931.md` by hand (it was never opened).
+- [ ] **Phase 7.1 hand-off to reviews and joint ship (plan 07.1-12, 2026-10-29):** execution is complete; no import relaxation was built (07.1 D-42). Run in this order: (1) `/gsd-code-review 07.1`; (2) `/gsd-secure-phase 07.1` (07.1 D-14: check the restore is only read, nothing writes outside the trial database, and no personal data reaches git or logs; no UI review, because there are no screens); (3) `/gsd-verify-work 07.1`; (4) `/gsd-ship` for the joint Phase 7 and 7.1 PR, opened from `gsd/phase-07.1-legacy-fit-check-read-only` (07.1 D-13, D-20; STATE D-85). Merge only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's word. The ROADMAP goal already names the company expenses (07.1 D-16); nothing changed there.
+- [x] **Ruled 08 D-25 (owner, 2026-10-29): set back to Pending until the Phase 8 screens ship (done).** **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
+
+Phase 8 ship backlog (away mode, parked 2026-10-31; nothing here was auto-approved):
+
+- [ ] **Rare 500 when two creates use the same email at once (Phase 5 code, seen on PR #19 CI, 2026-10-31):** `CreateUserEndpointTests.TwoCreatesWithTheSameEmailSentTogetherGiveOneAccountAndOneEmailFieldErrorEveryTime` got `[Created, InternalServerError]` instead of `[Created, BadRequest]` in round 18 of 20 on CI (head d4ca4f11, CI run 41196802048). It passed the branch's first CI run and 3 runs alone on LocalDB (20 rounds each). Phase 8 does not touch user creation. The CI log does not show the server exception. `UserAccounts.CreateAsync` maps a unique-index violation (2601/2627) and Identity duplicate errors to "email in use", so the 500 is likely another path, for example a deadlock (1205) on the insert or a violation in the temporary-password path. A real user could see "Something went wrong" instead of "Another account already uses this email." Suggested: a `/gsd-debug` session that logs the exception in the test host and maps the race to the email field error. Recorded as a CI flake; the failed job was re-run, not hidden.
 
 ### Blockers/Concerns
 
@@ -444,6 +939,8 @@ None yet.
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
+- Resolved (2026-10-31, PR #19): chip Clear buttons draw at 24 px (D-98). The Delete Order dialog height (559 px where @dialog-fit allows 553) came from the sixth refunds tile (08-02) wrapping the 5-column tally, not from #15 or #16; the desktop tally now has one column per tile and @dialog-fit passes on chromium, firefox and webkit. What the dialog shows is unchanged (six tiles, 08 UI-SPEC).
+- [Phase 8 → ship]: One unexplained 120 s chromium timeout in `@orders-refunds` (Save Refund, over-cap read from 08-28). It passed alone 3 times and in 2 later full runs; owner chose to close the phase without a traced re-run (2026-10-31). Re-run it traced if it shows up again.
 
 ### Quick Tasks Completed
 
@@ -469,6 +966,21 @@ None yet.
 | 261016-ns5 | Merge script sets the squash commit message; merge gate refuses GitHub skip markers | 2026-10-16 | 3333dc6 | [261016-ns5-merge-script-sets-the-squash-commit-mess](./quick/261016-ns5-merge-script-sets-the-squash-commit-mess/) |
 | 261016-ui0 | Host probe reports certificate failure detail and tries other key storage options | 2026-10-16 | c2730c7 | [261016-ui0-host-probe-reports-certificate-failure-d](./quick/261016-ui0-host-probe-reports-certificate-failure-d/) |
 | 261016-w4u | Act on the host probe results: IIS https rewrite rule, self-contained win-x64 package, machine-store certificate load, record probe facts | 2026-10-16 | 1578dc7 | [261016-w4u-act-on-the-host-probe-results-iis-https-](./quick/261016-w4u-act-on-the-host-probe-results-iis-https-/) |
+| 21 | Fix the flaky /admin redirect test: answer GET /api/v1/sessions after the redirect | 2026-10-17 | 0e65223 | — |
+| 22 | Stack docs say the package is self-contained win-x64 | 2026-10-17 | 5c8644f | — |
+| 261017-efe | Detailed GitHub Actions workflow reference in docs/operations/ci.md (every workflow, job and step, plus Hygiene and Dependabot) | 2026-10-17 | 0fd2f11 | [261017-efe-detailed-github-actions-workflow-referen](./quick/261017-efe-detailed-github-actions-workflow-referen/) |
+| 261017-j36 | Harden two load-sensitive tests (sign-in timing runs alone with warm-up; ESLint config test shares one instance with a 30 s budget) | 2026-10-17 | 8f232de | [261017-j36-harden-two-load-sensitive-tests-sign-in-](./quick/261017-j36-harden-two-load-sensitive-tests-sign-in-/) |
+| 261018-st8 | Raise the class-gate sweep test timeout so web verify passes under full coverage load | 2026-10-18 | 831f3fa | [261018-st8-raise-the-class-gate-sweep-test-timeout-](./quick/261018-st8-raise-the-class-gate-sweep-test-timeout-/) |
+| 261020-pr10 | Fix PR #10 CI (OpenAPI snapshot line endings) and move the UI spec to docs/ | 2026-10-20 | pending | [261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec](./quick/261020-pr10-fix-openapi-snapshot-crlf-and-move-ui-spec/) |
+| 261026-89i | Phase 6 UI review fixes (D-60, D-61, D-62) | 2026-10-26 | b0c3e9eb | [261026-89i-phase-6-ui-review-fixes-d-60](./quick/261026-89i-phase-6-ui-review-fixes-d-60/) |
+| 261026-au5 | Fix npm audit advisories on PR 11 (D-63 to D-66) | 2026-10-26 | 8431bb8a | [261026-au5-fix-npm-audit-advisories-on-pr-11](./quick/261026-au5-fix-npm-audit-advisories-on-pr-11/) |
+| 261026-ooe | Focused fields stay clear of the fixed and sticky bars (WCAG 2.4.11, D-70 to D-74) | 2026-10-26 | 5413711c | [261026-ooe-focused-fields-stay-clear-of-the-phone-b](./quick/261026-ooe-focused-fields-stay-clear-of-the-phone-b/) |
+| 261026-m16 | List search writes the page reset in one URL update (D-68, D-69) | 2026-10-26 | 4bb2c5b5 | [261026-m16-list-search-writes-the-page-reset-in-one](./quick/261026-m16-list-search-writes-the-page-reset-in-one/) |
+| 30 | D-75: two-Manager demotion race test accepts the sign-out path, guard path still required | 2026-10-26 | 11edfd4e | — |
+| 261027-t3j | Restyle shared Select and DateInput, remove the written-out date (D-63) | 2026-10-27 | df81a9e6 | [261027-t3j-restyle-shared-select-and-dateinput-remo](./quick/261027-t3j-restyle-shared-select-and-dateinput-remo/) |
+| 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
+| 261029-87p | Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82) | 2026-10-29 | 0f4c00c5 | [261029-87p-fix-phase-7-ui-review-findings-in-the-au](./quick/261029-87p-fix-phase-7-ui-review-findings-in-the-au/) |
+| 261031-3oo | Filter chip Clear button drawn 24 px (D-98, supersedes D-93) | 2026-10-31 | fd4ab2c2 | [261031-3oo-make-the-filter-chip-clear-button-24-px-](./quick/261031-3oo-make-the-filter-chip-clear-button-24-px-/) |
 
 ## Deferred Items
 
@@ -480,6 +992,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T19:37:34.800Z
-Stopped at: Completed 03-16-PLAN.md
+Last session: 2026-10-31T00:30:00-05:00
+Stopped at: Phase 08 complete, ready to plan Phase 9
 Resume file: None

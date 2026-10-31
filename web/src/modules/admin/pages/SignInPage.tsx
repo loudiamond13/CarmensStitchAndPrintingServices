@@ -20,7 +20,7 @@ import { signInSchema, type SignInValues } from '@/modules/admin/authSchemas';
 import { SignInForm, type SignInBanner } from '@/modules/admin/components/SignInForm';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { safeReturnUrl } from '@/modules/admin/guard';
-import { authService, type SignInResponse } from '@/modules/admin/services/authService';
+import { authService, type ResendWaitResponse } from '@/modules/admin/services/authService';
 import {
   setPendingEmail,
   setResendAvailableAt,
@@ -63,7 +63,7 @@ export function SignInRoute() {
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '', keepSignedIn: false },
   });
-  const { submit, pending } = useSubmission<SignInValues, SignInResponse>(
+  const { submit, pending } = useSubmission<SignInValues, ResendWaitResponse>(
     (_key, values) => authService.signIn(values),
     {
       onSuccess: (response, values) => {

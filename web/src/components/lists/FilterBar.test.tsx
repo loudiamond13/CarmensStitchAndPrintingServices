@@ -185,6 +185,16 @@ describe('ResultBar and FilterChip (App. E.7, zero-one-many)', () => {
     expect(screen.queryByRole('button', { name: /^Clear .* filter$/ })).toBeNull();
   });
 
+  it('reads a fixed order phrase as "Showing 3 entries · newest first" (the audit log)', () => {
+    render(<ResultBar count={3} thing="entry" things="entries" orderNote="newest first" />);
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 3 entries · newest first');
+  });
+
+  it('shows a large count with a thousands separator', () => {
+    render(<ResultBar count={1687} thing="expense" things="expenses" orderNote="newest first" />);
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 1,687 expenses · newest first');
+  });
+
   it('says "Showing 1 order" for exactly one', () => {
     renderToolbar('', 1);
     expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 1 order · sorted by due date');
@@ -221,6 +231,15 @@ describe('ResultBar and FilterChip (App. E.7, zero-one-many)', () => {
     expect(label.parentElement?.className.split(/\s+/)).toContain('max-w-full');
     expect(screen.getByRole('button', { name: 'Clear team filter' })).toBeInTheDocument();
     expect(LISTS_COPY.clearFilter('Order date')).toBe('Clear order date filter');
+  });
+
+  it('shows a flag-style chip with only its words and a clear button named by clearName (plan 08-09, D-54f)', () => {
+    const onClear = vi.fn();
+    render(<FilterChip label="Has a balance" clearName="balance" onClear={onClear} />);
+
+    expect(screen.getByText('Has a balance')).toBeInTheDocument();
+    expect(screen.queryByText(/:/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Clear balance filter' })).toBeInTheDocument();
   });
 });
 

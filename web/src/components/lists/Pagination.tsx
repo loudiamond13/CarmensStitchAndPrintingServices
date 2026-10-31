@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'react';
 import { PAGE_SIZES, type PageSize } from '@/lib/url-state/parsers';
 import { Button } from '@/components/actions';
 import { Select } from '@/components/forms';
+import { formatCount } from '@/utils/format';
 import { LISTS_COPY } from './copy';
 import {
   paginationButtonClasses,
@@ -106,8 +107,8 @@ export function Pagination({
         {copy.previous}
       </Button>
       <p className={paginationStatusClasses}>
-        {copy.page} <strong className={paginationNumberClasses}>{page}</strong> {copy.of}{' '}
-        <strong className={paginationNumberClasses}>{pageCount}</strong>
+        {copy.page} <strong className={paginationNumberClasses}>{formatCount(page)}</strong> {copy.of}{' '}
+        <strong className={paginationNumberClasses}>{formatCount(pageCount)}</strong>
       </p>
       <Button
         variant="secondary"

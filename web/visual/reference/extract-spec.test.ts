@@ -15,7 +15,7 @@ import {
   runExtract,
 } from './extract-spec.mjs';
 
-const specPath = fileURLToPath(new URL('../../../CSPS-UI-SPEC.md', import.meta.url));
+const specPath = fileURLToPath(new URL('../../../docs/CSPS-UI-SPEC.md', import.meta.url));
 const pinPath = fileURLToPath(new URL('./spec-appendix.sha256', import.meta.url));
 const rawSpec = readFileSync(specPath, 'utf8');
 const lfSpec = rawSpec.replace(/\r\n/g, '\n');

@@ -16,6 +16,11 @@ internal static class ConflictRetry
         {
             return await attempt().ConfigureAwait(false);
         }
+        catch (ConcurrencyConflictException conflict) when (conflict.OuterTransactionEnded)
+        {
+            // The server rolled back the transaction around the attempt, so a second pass could not write anything.
+            return whenBusy;
+        }
         catch (ConcurrencyConflictException)
         {
             // The unit of work dropped its tracked state, so the second pass reads what the other request saved.

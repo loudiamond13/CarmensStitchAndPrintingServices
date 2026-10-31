@@ -7,16 +7,19 @@ import { SignOutDialog } from '@/modules/admin/components/SignOutDialog';
 import type { SessionListItem } from '@/modules/admin/services/sessionsService';
 
 export interface SignOutDeviceDialogProps {
+  /** False plays the close animation and then renders nothing (D-39). Default true. */
+  open?: boolean;
   device: SessionListItem;
   /** Signs the device out; return the promise of the outcome so the dialog can follow it. */
   onConfirm: () => unknown;
   onCancel: () => void;
 }
 
-export function SignOutDeviceDialog({ device, onConfirm, onCancel }: SignOutDeviceDialogProps) {
+export function SignOutDeviceDialog({ open = true, device, onConfirm, onCancel }: SignOutDeviceDialogProps) {
   const copy = AUTH_COPY.sessions.deviceDialog;
   return (
     <SignOutDialog
+      open={open}
       title={copy.title(deviceLabel(device))}
       message={copy.body(signedInText(device))}
       keepLabel={copy.keep}

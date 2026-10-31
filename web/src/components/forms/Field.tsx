@@ -4,8 +4,9 @@
 // triangle-alert) or else the hint. The box gets `aria-invalid` with an error and `aria-describedby` naming the
 // message. Nothing is invalid until the caller passes an `error` (no validation before the first submit).
 // The look comes from field.recipe.ts; `.is-invalid` is keyed off the box's own aria-invalid, `.has-prefix` and
-// `.is-multiline` are recipe options. App. D.3's native attribute passthrough is kept (UI-SPEC: Field accepts all native
-// input props), so the memo is pinned by an equal-props re-render test (L-13). `className` is layout glue on the field.
+// `.is-multiline` are recipe options. App. D.3's native attribute passthrough is kept (UI-SPEC: Field accepts all
+// native input props), so the memo is pinned by an equal-props re-render test (L-13). `className` is layout glue on the
+// field.
 import clsx from 'clsx';
 import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
 import { Icon } from '@/components/brand';
@@ -51,6 +52,20 @@ export function Field(props: FieldProps) {
     'aria-describedby': hasMessage ? messageId : undefined,
     required,
   };
+  const box = (
+    <div className={fieldControlClasses}>
+      {hasPrefix && (
+        <span className={prefixClasses} aria-hidden="true">
+          {prefix}
+        </span>
+      )}
+      {multiline ? (
+        <textarea {...common} {...(rest as TextareaHTMLAttributes<HTMLTextAreaElement>)} />
+      ) : (
+        <input {...common} {...(rest as InputHTMLAttributes<HTMLInputElement>)} />
+      )}
+    </div>
+  );
   return (
     <div className={clsx(fieldClasses, className)}>
       {Boolean(label) && (
@@ -63,18 +78,7 @@ export function Field(props: FieldProps) {
           )}
         </label>
       )}
-      <div className={fieldControlClasses}>
-        {hasPrefix && (
-          <span className={prefixClasses} aria-hidden="true">
-            {prefix}
-          </span>
-        )}
-        {multiline ? (
-          <textarea {...common} {...(rest as TextareaHTMLAttributes<HTMLTextAreaElement>)} />
-        ) : (
-          <input {...common} {...(rest as InputHTMLAttributes<HTMLInputElement>)} />
-        )}
-      </div>
+      {box}
       {hasMessage && (
         <p id={messageId} className={messageClasses({ error: invalid })}>
           {invalid && <Icon name="triangle-alert" size={14} />}

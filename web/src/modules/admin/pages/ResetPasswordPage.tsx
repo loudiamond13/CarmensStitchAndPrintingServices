@@ -9,10 +9,8 @@
 //     again.
 //   - Saving ends every session of the account on the server (D-19) and signs nobody in (D-17): this tab drops its own
 //     session too, and S1 shows the "password changed" notice.
-import { zodResolver } from '@hookform/resolvers/zod';
 import clsx from 'clsx';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm, type FieldErrors } from 'react-hook-form';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
@@ -21,34 +19,17 @@ import { ErrorState, LoadingRegion } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
-import { newPasswordSchema, type NewPasswordValues } from '@/modules/admin/authSchemas';
+import type { NewPasswordValues } from '@/modules/admin/authSchemas';
 import { AuthHeader } from '@/modules/admin/components/AuthHeader';
-import {
-  CheckingCard,
-  ResetInvalidCard,
-  ResetPasswordForm,
-  type AuthBanner,
-} from '@/modules/admin/components/AuthCards';
+import { CheckingCard, ResetInvalidCard, ResetPasswordForm } from '@/modules/admin/components/AuthCards';
 import { ADMIN_COPY } from '@/modules/admin/copy';
+import { useSetPasswordForm } from '@/modules/admin/hooks/useSetPasswordForm';
 import { passwordService } from '@/modules/admin/services/passwordService';
 import { clearSession, setSignInNotice } from '@/modules/admin/services/session';
 import { describeHttpError } from '@/utils/describeHttpError';
+import { removeFragment, tokenFromHash } from '@/utils/urlFragment';
 
 const SIGN_IN_PATH = '/admin/login';
-const FIELD_ORDER = ['newPassword', 'confirmPassword'] as const;
-type FieldName = (typeof FIELD_ORDER)[number];
-
-/** The token in a fragment like `#token=abc`, or null when there is none. */
-export function tokenFromHash(hash: string): string | null {
-  const token = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash).get('token');
-  return token === null || token === '' ? null : token;
-}
-
-/** Drops the fragment from the address bar without a navigation, keeping the router's history state. */
-export function removeFragment(): void {
-  const { pathname, search } = window.location;
-  window.history.replaceState(window.history.state, '', `${pathname}${search}`);
-}
 
 interface ResetFormProps {
   token: string;
@@ -59,17 +40,10 @@ interface ResetFormProps {
   onLinkGone: () => void;
 }
 
-/** The form state: owns the form, the schema for this account and the save. */
+/** The form state: the shared set-password form for this account, and the save. */
 function ResetForm({ token, email, firstName, lastName, onLinkGone }: ResetFormProps) {
   const navigate = useNavigate();
-  const formRef = useRef<HTMLFormElement>(null);
-  const [banner, setBanner] = useState<AuthBanner | null>(null);
-  // D-15: the checked link names the account, so the password can be kept free of its email and names.
-  const schema = useMemo(() => newPasswordSchema({ email, firstName, lastName }), [email, firstName, lastName]);
-  const { control, handleSubmit, setError } = useForm<NewPasswordValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { newPassword: '', confirmPassword: '' },
-  });
+  const form = useSetPasswordForm({ email, firstName, lastName });
   const { submit, pending } = useSubmission<NewPasswordValues, undefined>(
     async (key, values) => {
       await passwordService.resetPassword({ token, newPassword: values.newPassword }, { idempotencyKey: key });
@@ -85,43 +59,19 @@ function ResetForm({ token, email, firstName, lastName, onLinkGone }: ResetFormP
     },
   );
 
-  const focusField = (name: FieldName): void => {
-    const element = formRef.current?.elements.namedItem(name);
-    if (element instanceof HTMLElement) {
-      element.focus();
-    }
-  };
-
-  useEffect(() => {
-    focusField('newPassword');
-  }, []);
-
   const showFailure = (error: unknown): void => {
     if (isHttpError(error)) {
       if (error.status === 404) {
         onLinkGone();
         return;
       }
-      if (error.status === 400) {
-        const entries = Object.entries(error.fieldErrors);
-        if (entries.some(([key]) => key.toLowerCase() === 'token')) {
-          onLinkGone();
-          return;
-        }
-        // The server's words win over the screen's own.
-        for (const name of FIELD_ORDER) {
-          const message = entries.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1][0];
-          if (message !== undefined) {
-            setError(name, { type: 'server', message });
-            focusField(name);
-            return;
-          }
-        }
+      if (error.status === 400 && Object.keys(error.fieldErrors).some((key) => key.toLowerCase() === 'token')) {
+        onLinkGone();
+        return;
       }
     }
-    const copy = describeHttpError(error);
-    if (copy !== null) {
-      setBanner({ title: copy.title, message: copy.body, error });
+    if (!form.applyFieldErrors(error)) {
+      form.showBanner(error);
     }
   };
 
@@ -132,24 +82,14 @@ function ResetForm({ token, email, firstName, lastName, onLinkGone }: ResetFormP
     }
   };
 
-  const onInvalid = (errors: FieldErrors<NewPasswordValues>): void => {
-    const first = FIELD_ORDER.find((name) => errors[name] !== undefined);
-    if (first !== undefined) {
-      focusField(first);
-    }
-  };
-
   return (
     <ResetPasswordForm
-      formRef={formRef}
-      control={control}
+      formRef={form.formRef}
+      control={form.control}
       pending={pending}
       email={email}
-      banner={banner}
-      onSubmit={(event) => {
-        setBanner(null);
-        void handleSubmit(onValid, onInvalid)(event);
-      }}
+      banner={form.banner}
+      onSubmit={form.submitHandler(onValid)}
     />
   );
 }

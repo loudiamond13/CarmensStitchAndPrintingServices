@@ -3,9 +3,11 @@ using Csps.Infrastructure.Auditing;
 using Csps.Infrastructure.Content;
 using Csps.Infrastructure.DataProtection;
 using Csps.Infrastructure.Email;
+using Csps.Infrastructure.Expenses;
 using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Orders;
 using Csps.Infrastructure.Passwords;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Time;
@@ -79,9 +81,12 @@ public static class DependencyInjection
 
         // Needs IRequestContext, which the host registers (the Server reads it from HttpContext, plan 07).
         services.AddScoped<IAuditTrail, AuditTrail>();
+        services.AddScoped<IAuditLogReader, AuditLogReader>();
         services.AddScoped<IUnitOfWork, CspsUnitOfWork>();
 
         services.AddCspsIdentity();
+        services.AddCspsExpenses();
+        services.AddCspsOrders();
         services.AddCspsIdempotency();
         services.AddCspsEmail(configuration, environment);
         services.AddCspsPasswordChecks(environment);
@@ -117,8 +122,16 @@ public static class DependencyInjection
         // The interceptor wakes the email dispatcher after a commit that added outbox rows.
         services.TryAddSingleton<OutboxSignal>();
         services.TryAddSingleton<OutboxSignalInterceptor>();
+
+        // The one SEC-08 stamping point. The host registers its own ICurrentActor first; a plain collection (tests,
+        // tools) gets the no-actor default, so its writes read as System.
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<ICurrentActor, NoCurrentActor>();
+        services.TryAddSingleton<RecordStampInterceptor>();
         services.AddDbContextFactory<CspsDbContext>((provider, options) =>
-            CspsDbContextOptions.Configure(options, connectionString).AddInterceptors(provider.GetRequiredService<OutboxSignalInterceptor>()));
+            CspsDbContextOptions.Configure(options, connectionString).AddInterceptors(
+                provider.GetRequiredService<OutboxSignalInterceptor>(),
+                provider.GetRequiredService<RecordStampInterceptor>()));
         return services;
     }
 }

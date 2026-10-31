@@ -24,4 +24,16 @@ public interface IEmailOutbox
     /// <param name="cancellationToken">Cancels the count.</param>
     /// <returns>How many emails were queued in the window.</returns>
     Task<int> CountRecentAsync(AuthEmailKind kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Forgets a deleted person's old address (IN-08, D-07): every row addressed to <paramref name="oldAddress"/> is readdressed to
+    /// <paramref name="replacement"/> with its subject and bodies cleared, and a row still waiting to be sent is expired first, so it is
+    /// never sent. Rows are changed on the caller's unit of work; nothing is saved until the caller commits.
+    /// </summary>
+    /// <param name="oldAddress">The address to forget; the comparison ignores case.</param>
+    /// <param name="replacement">The address the rows keep instead.</param>
+    /// <param name="now">The current instant, used as the expiry time of rows that had not been sent.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>How many rows were readdressed.</returns>
+    Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken);
 }

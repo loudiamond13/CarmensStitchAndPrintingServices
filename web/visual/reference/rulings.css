@@ -190,6 +190,67 @@ button.csp-nav {
   display: none;
 }
 
+/* P5 D-35 the user-menu chevron turns half a turn while the menu is open, so it carries a 0.2s ease transition on the
+   same properties as Tailwind's transition-transform. The reference never opens the menu, so only the transition is
+   stated. */
+.csp-usermenu svg {
+  transition-property: transform, translate, scale, rotate;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* P5 long-text (plan 05-37, UI-SPEC UI Considerations "long-text": the sidebar chip and the top bar truncate) a long name keeps
+   one line and is cut short with an ellipsis in the sidebar user chip and in the top bar's user button; the whole name stays
+   in the text and in the title. A normal name is shorter than both columns, so nothing changes for it. First, the chip's
+   text column may shrink below its content. */
+.csp-sidebar-user > div {
+  min-width: 0;
+}
+
+/* P5 long-text second, both names get the one-line clip. */
+.csp-sidebar-user strong,
+.csp-usermenu-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* P5 long-text third, the top bar's text column stops at 200px. */
+.csp-usermenu-text {
+  max-width: 200px;
+}
+
+/* P5 long-text fourth, the user cell's name column (the avatar's sibling) wraps a long name anywhere and may shrink below its
+   content, so a 100-character name wraps beside the avatar instead of widening the table (UI-SPEC UI Considerations
+   "long-text": UserCell wraps anywhere). The approved markup has no wrapper to carry this, so the reference gets the same
+   two declarations the implementation uses: min-width 0 and overflow-wrap anywhere. Plan 05-37 chose this over a wrapper
+   element, which would be a structural difference. */
+.csp-cell-user > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* P5 long-text fifth (quick 261028-2e4, 2026-10-28), phone list cards: a value with no space to break at (a 100-character
+   name, a long email) wraps anywhere inside its card instead of running past the card and scrolling the page sideways.
+   App. C lets it overflow (the long-name card's email runs off the right edge). The cell's label keeps wrapping only
+   between words. */
+@container pg (max-width: 767px) {
+  .s-rt td {
+    overflow-wrap: anywhere;
+  }
+
+  .s-rt td::before {
+    overflow-wrap: normal;
+  }
+}
+
+/* P5 long-text sixth (quick 261028-2e4, 2026-10-28), a select clips its chosen option, so a 100-character name stays inside
+   the box. WebKit otherwise counts the option's full width and the page scrolls sideways (1682px at 320px). The native
+   control already cuts the text at its box, so nothing visible changes. */
+.csp-select select {
+  overflow: hidden;
+}
+
 /* O-6 (D-31) reduced motion stops the skeleton shimmer and the modal and toast entry animations (the overlay fade is
    part of the modal entry). The spinner keeps App. B's own slowed reduced-motion rule. */
 @media (prefers-reduced-motion: reduce) {
@@ -229,6 +290,29 @@ button.csp-nav {
    themes (WCAG 1.4.11; web/src/components/lists/search-focus-contrast.node.test.ts). */
 .s-search-box:focus-within {
   border-color: var(--focus);
+}
+
+/* D-60 (owner, 2026-10-26) the list search box is 42px tall, the outside height of a toolbar field box (a 40px input
+   inside a 1px border). App. E.7 made it 40px, so its label sat 2px lower than the Category, From and To labels. */
+.s-search-box {
+  height: 42px;
+}
+
+/* D-63 (owner, 2026-10-27) the dropdown shares one picker look with the date box: its box fills with --surface-3 on hover
+   while the select is enabled and the box is not focused. */
+.csp-select:has(select:enabled):hover:not(:focus-within) {
+  background: var(--surface-3);
+}
+
+/* D-63 the chevron darkens from --ink-muted to --ink on enabled hover and while the box has focus. */
+.csp-select:has(select:enabled):hover .csp-select-chev,
+.csp-select:focus-within .csp-select-chev {
+  color: var(--ink);
+}
+
+/* D-63 in Espresso the browser's own option list renders dark. */
+[data-theme="dark"] .csp-select {
+  color-scheme: dark;
 }
 
 /* D-42 (owner, 2026-10-13, UAT G-2-199) a dialog in the Overlay region always fits or can be scrolled to on a short
@@ -324,6 +408,65 @@ button.csp-nav {
 .s-login-card .s-check::before,
 .s-login-card .s-link::before,
 .s-login-card .s-back::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+/* D-51 (owner, 2026-10-19, WR-20) the row action buttons (.s-iconbtn, 36px) sit 8px apart instead of 2px, so each one gets a
+   full 44px tap area that never reaches its neighbour. The buttons keep their size and look; only the space between them
+   grows. The tap area is an invisible 44px ::before box centred on each button, like the converted screen draws, and
+   paints nothing. */
+.s-acts {
+  gap: 8px;
+}
+
+/* D-51 each row action button is the box its tap area is placed in. */
+.s-acts .s-iconbtn {
+  position: relative;
+}
+
+/* D-51 the tap area itself: 44px square, centred on the button. */
+.s-acts .s-iconbtn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/* WR-20 (D-31 O-8 keeps the drawn size of the small icon buttons) the sidebar collapse toggle and the phone "Open
+   navigation" button (36px) each get an invisible 44px square tap area centred on them, like the converted screen draws;
+   nothing is painted and the buttons keep their size and look. */
+.csp-sidebar .csp-iconbtn,
+.csp-topbar-menu {
+  position: relative;
+}
+
+/* WR-20 the square tap area itself. */
+.csp-sidebar .csp-iconbtn::before,
+.csp-topbar-menu::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/* WR-20 the top bar user menu button (.csp-usermenu, 40px tall) gets an invisible 44px-tall tap area, as wide as the button
+   and centred on it; nothing is painted and the button keeps its size and look. */
+.csp-usermenu {
+  position: relative;
+}
+
+/* WR-20 the user menu tap area itself. */
+.csp-usermenu::before {
   content: "";
   position: absolute;
   inset: 50% 0 auto 0;
