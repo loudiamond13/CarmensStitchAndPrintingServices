@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-31T00:30:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-31T12:30:00-05:00*
 
 ## Overview
 
@@ -983,7 +983,7 @@ Plans:
      - processes that queue with leases and retries
      - purges expired tokens, 2FA codes and idempotency keys
 
-     A weekly orphan sweep reconciles storage.
+     An orphan sweep reconciles storage. (09 D-21, owner 2026-10-31: everything runs in one monthly run, plus a manual "Run now".)
 **Owner decisions to close at discuss step:**
 - **OD-9 + C-26** public vs authenticated delivery. Authenticated delivery allows eager variants only, and signed URLs don't expire below the Advanced plan.
 - **C-2** 5 vs 12 images per order
@@ -1066,7 +1066,7 @@ Plans:
      Each change appears publicly at once, because the cache is invalidated (`ETag`/`Cache-Control`).
 **Owner decisions to close at discuss step:**
 - **C-21** content model: fixed product lines with rich copy vs a database price list (a hybrid `ProductLine` is recommended)
-- **C-12** Gallery scope
+- **C-12** Gallery scope. Owner input from 09 CONTEXT Deferred (2026-10-31): order photos show on the public site by default, and a Manager can hide any order. Settle customer consent (Data Privacy Act, LEGAL-01) when discussing.
 - **C-36** scope check only: does the quote/inquiry feature ship this milestone? The answer decides the Contact layout; the details close in Phase 13.
 - **C-35** apply the Phase 2 ruling on lightbox controls on phones
 - **C-17** spec-gap screens: site content and price-list management

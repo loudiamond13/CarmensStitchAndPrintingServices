@@ -1,0 +1,143 @@
+# Phase 9: Order Images & Maintenance Jobs - Context
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T12:30:00-05:00*
+
+**Gathered:** 2026-10-31
+**Status:** Ready for planning
+
+<domain>
+## Phase Boundary
+
+Staff (Admin and Manager) can attach, arrange, view and delete order photos, on the new-order form and on the order page, including straight from a phone camera. Photos upload through the server to Cloudinary and load fast at the right size. A secret-protected maintenance endpoint, called on a GitHub Actions schedule, removes deleted photos from Cloudinary, purges expired tokens, 2FA codes and idempotency keys, and sweeps stray files.
+
+Requirements: ORD-04, IMG-01 to IMG-05, JOB-01, JOB-02, plus the JOB-01 idempotency-key purge left over from SEC-06.
+
+Out of scope:
+- The public gallery, and showing orders on the public site (Phase 11; see Deferred).
+- Analytics aggregation and inquiry retention jobs (Phases 12 and 13 add them to this endpoint).
+- The audit-log retention purge (hardening phase, `docs/operations/audit-log.md`).
+- Legacy images (MIG-05, Phases 15 and 16).
+
+The owner decisions the roadmap lists for this phase are closed here: OD-9 and C-26 (D-01), C-2 (D-08) and C-16 (D-13 to D-15). OD-14 carries forward (see Carried forward).
+
+</domain>
+
+<decisions>
+## Implementation Decisions
+
+### Photo privacy and delivery (OD-9, C-26)
+- **D-01:** Order photos use **public Cloudinary delivery with random, unguessable public ids** under `csps/orders/{orderId}/` (owner, 2026-10-31). This goes against the PRD's recommendation of authenticated delivery. The owner chose it knowing that anyone who has an address can open the photo. Addresses appear only in staff API responses and staff pages, never on the public site. — **Reversibility:** costly — moving to authenticated delivery later means re-uploading or retyping every stored asset and rebuilding every delivery URL.
+- **D-02:** **GPS and camera data are stripped before the file reaches Cloudinary** (server side, at upload). Delivery also strips it, so the stored copy is clean even if an address leaks (owner, 2026-10-31).
+- **D-03:** **Strict transformations are on** in Cloudinary: only the named sizes the app uses can be loaded. No raw original and no ad-hoc sizes, so free credits can't be burned (owner, 2026-10-31). The owner turns the setting on (owner checklist item). Research picks the named sizes (list thumb, grid, viewer, full size).
+- **D-04:** Staff get an **"Open full size"** action. It loads one large allowed size (about 2000 px long side, metadata stripped), never the raw upload (owner, 2026-10-31).
+- **D-05:** **Deleting a photo from Cloudinary also clears its cached copies** (invalidate), so the old address stops loading within minutes of the job running (owner, 2026-10-31).
+- **D-06:** **Cloudinary account: the owner has a free-plan account** and supplies the cloud name, key and secret as host secrets and dev user-secrets, never in git (owner, 2026-10-31). Every design must fit the free plan (no paid features, such as expiring signed URLs).
+- **D-07:** **Development and live share the one account, in separate folders:** `csps-dev/orders/` for development and `csps/orders/` for live, each from configuration. A job or sweep touches only its own environment's folder. **Automated tests never call Cloudinary.** They use a fake `IImageStorage` (owner, 2026-10-31).
+
+### Photo limit and new orders (C-2)
+- **D-08:** **Maximum 5 photos per order**, as in the PRD and the domain rule (`MaxImagesPerOrder = 5`, Domain plus DB-level guard). The uploader is passed `max = 5` (owner, 2026-10-31).
+- **D-09:** **On the new-order form, staff pick photos like any other field.** Save creates the order first, then the photos upload one by one with progress (owner, 2026-10-31).
+- **D-10:** **If a photo fails after the order is saved, the order stays saved.** Staff land on the order page, a message says how many photos didn't upload, and those photos wait there with "Try again" and "Remove". They are lost only if staff leave the page (owner, 2026-10-31).
+- **D-11:** **Closed orders follow the Phase 8 lock** (08 D-15, 07 D-05): photos can't be added, moved or deleted on a Completed or Cancelled order until it is reopened (owner, 2026-10-31).
+- **D-12:** **Alt text is optional, with a default** of "Order {number} photo {n}", which staff can edit. An upload is never blocked on typing (owner, 2026-10-31).
+
+### Reorder, cover and viewing (C-16)
+- **D-13:** **Reorder by buttons, with drag as a bonus:** each photo has "Move left" and "Move right" buttons (44 px, named per photo). Mouse drag stays. A live region announces "Moved to position {n} of {total}" (owner, 2026-10-31; WCAG 2.5.7).
+- **D-14:** **"Make cover" is an always-visible button** on every photo except the cover, with no hover gate. The cover keeps its "Cover" tag. This replaces the Phase 2 hover star for this action (owner, 2026-10-31). The cover is the lazy thumbnail in the order list, with the existing placeholder when there's none.
+- **D-15:** **Photo changes save immediately** (move, cover, alt text, delete), each with a small "Saved" message. Delete asks to confirm. A conflict (rowversion 409) reloads the latest photos (owner, 2026-10-31).
+- **D-16:** **Tapping a photo opens a viewer** with Previous and Next buttons, arrow keys, Esc to close, the alt text and "Open full size". Focus goes back to the photo on close (owner, 2026-10-31).
+- **D-17:** **On phones, two buttons: "Take Photo"** (opens the camera, `capture`) **and "Choose Photos"** (gallery). A computer shows the drop zone and browse only (owner, 2026-10-31).
+- **D-18:** **Every upload is downscaled in the browser to a 2000 px long side**, camera and gallery alike. A file already within that size is left as it is. The server still enforces 10 MB (configurable), magic bytes (JPEG/PNG/WebP/HEIC), max dimensions and no SVG (owner, 2026-10-31).
+- **D-19:** **Admins and Managers both** add, arrange and delete photos, like other order parts (07 D-25). Every photo change goes in the audit log (07 D-31) (owner, 2026-10-31).
+
+### Deletes and maintenance jobs (JOB-01, JOB-02)
+- **D-20:** **Photos leave Cloudinary only on a permanent delete:** deleting one photo, or a Manager's "Delete permanently" of an order. A soft-deleted order keeps its photos, so a restore brings them back (07 D-26 to D-28). The removal is queued in the **same transaction** as the business change (owner, 2026-10-31).
+- **D-21:** **The scheduled maintenance call runs once a month**, and it does everything in one run: the Cloudinary removal queue, the token, 2FA code and idempotency-key purges, the stray-file check and the usage report. The owner chose this knowing that a deleted photo stays reachable at its old address for up to a month and that expired rows build up between runs (owner, 2026-10-31). The workflow also has a manual **"Run now"** (`workflow_dispatch`). This overrides the roadmap's "weekly orphan sweep": the sweep is monthly. — **Reversibility:** reversible — one cron line in the workflow.
+- **D-22:** **Failures:** each removal is retried with leases and growing waits within a run, and failures are logged. A removal still failing at the end of a run makes the endpoint report failure, so the GitHub run turns red and GitHub emails the owner. No new screen (owner, 2026-10-31).
+- **D-23:** **Stray files:** the sweep deletes Cloudinary files under its own environment's `…/orders/` folder that match no photo row and are **older than 2 days**. Each removal is logged, with a count in the run summary (owner, 2026-10-31).
+- **D-24:** **Usage report:** each run reports Cloudinary storage and monthly credits used in the run summary. **Above 80% of the free plan, the run turns red** (owner, 2026-10-31).
+
+### Carried forward (already decided, not re-asked)
+- **Scheduler:** GitHub Actions cron calling a secret-protected endpoint, because the Basic host has no scheduler (01 D-10). Nothing relies on in-memory state.
+- **OD-14:** design-vs-WCAG clashes on these screens are ruled item by item in `/gsd-ui-phase 9`, as in Phases 4 to 8.
+- **Phase 8 D-27:** the "Image uploads are coming soon." card on the form and order page is replaced by the real uploader and gallery.
+- Server-only upload (IMG-01), no local disk or webroot (IMG-02), lazy responsive delivery with explicit sizes and placeholders (IMG-04), CSP `img-src` already allows `https://res.cloudinary.com`.
+
+### Claude's Discretion
+- The named transformation sizes and the `srcset`/`sizes` set (within D-03 and IMG-04).
+- The lease, retry and back-off numbers within a run, and the batch sizes for purges.
+- How the maintenance secret is sent and checked (constant-time compare, rotation notes), and which endpoint shape it takes, within the controller rules.
+- Upload concurrency (one at a time is the default), and HEIC preview handling in browsers that can't show HEIC.
+- How the job runner is laid out so Phases 12 and 13 can add jobs to the same endpoint.
+
+</decisions>
+
+<canonical_refs>
+## Canonical References
+
+**Downstream agents MUST read these before planning or implementing.**
+
+### Requirements and scope
+- `.planning/ROADMAP.md` §Phase 9 (around line 968) — goal, success criteria, research flag
+- `.planning/REQUIREMENTS.md` — ORD-04, IMG-01 to IMG-05, JOB-01, JOB-02, SEC-06 (idempotency-key purge)
+- `.planning/PROJECT.md` — OD-9, OD-14, C-2, C-16 rows (closed by D-01, D-08, D-13 to D-15)
+
+### Behavior, security and UI
+- `CSPS-PRD.md` §10 Images (Cloudinary), §21 delete semantics, CWE-434 and CWE-918 rows, the CSP header, the test matrix (5-image limit, 100% Domain)
+- `docs/CSPS-UI-SPEC.md` §6.3 ImageUploader (App. D.3), LazyImage, the order screens §8.5 to §8.7
+- `.planning/design/` — local-only visual reference (git-ignored, never commit)
+
+### Prior phase decisions
+- `.planning/phases/01-hosting-verification-backend-foundation/01-CONTEXT.md` — D-10 (no host scheduler, Actions cron), D-25/D-32 (audit retention)
+- `.planning/phases/07-order-domain-api/07-CONTEXT.md` — D-05 (locked orders), D-25, D-26 to D-28 (soft delete, restore, permanent delete), D-31 (audit every order change)
+- `.planning/phases/08-order-screens/08-CONTEXT.md` — D-15 and D-39 (locked order banner and hidden actions), D-27 (images placeholder card)
+- `.planning/HOSTING-RECORD.md` — Basic plan limits (256 MB pool, secrets as app-pool env vars)
+- `docs/operations/audit-log.md` §Retention purge — the later audit purge uses the same endpoint pattern
+- `docs/operations/ci.md` — workflow rules (actions pinned by SHA, `ApprovedActions` list)
+
+</canonical_refs>
+
+<code_context>
+## Existing Code Insights
+
+### Reusable Assets
+- `web/src/components/media/ImageUploader.tsx`: drop zone, thumbnail grid, cover tag, native drag, "Make cover image" and "Remove". The header says uploads and keyboard reorder arrive in Phase 9. The hover gate (D-05 of Phase 2) changes for "Make cover" per D-14.
+- `web/src/components/states/LazyImage` and `MediaPlaceholder`: lazy image with placeholder, already used by `OrderCard`.
+- `web/src/utils/csps.ts`: the client `OrderImage` type.
+- `web/src/modules/admin/pages/OrderFormPage.tsx`, `OrderPage.tsx`, `DeletedOrderPage.tsx`: where the uploader and gallery go.
+- `.github/workflows/weekly.yml`: a model for a scheduled workflow with empty default permissions.
+
+### Established Patterns
+- One `[ApiController]` per resource, thin actions, one handler per use case, `Result<T>` to ProblemDetails; default-deny with explicit policy; authorization-matrix test discovers every action.
+- Idempotency-Key on every state-changing POST (SEC-06); a multipart upload POST needs it too, or an allow-list entry with a reason.
+- rowversion per aggregate (409), soft delete with Manager restore, audit on every change.
+- `Testing*Controllers` and fakes for test-only seams; no real external calls in tests.
+
+### Integration Points
+- Order aggregate (Phase 7): new `OrderImage` child plus a removal-queue table in the same transaction (EF migration, no JSON columns, no triggers, OR-7).
+- `IImageStorage` port in Application, Cloudinary adapter in Infrastructure (CloudinaryDotNet, already in the approved stack; exact version needs the package check).
+- Existing token tables: `RefreshToken`, `TwoFactorChallenge`, `TwoFactorCode`, account links, and the idempotency-key table, for the purges.
+- `SecurityHeadersMiddleware.cs`: CSP already lists Cloudinary.
+
+</code_context>
+
+<specifics>
+## Specific Ideas
+
+- Default alt text: "Order {number} photo {n}".
+- Live region text on move: "Moved to position {n} of {total}".
+- Phone buttons: "Take Photo" and "Choose Photos". Failed upload actions: "Try again" and "Remove".
+- Owner checklist items: turn on strict transformations in Cloudinary; add the Cloudinary keys and the maintenance secret as host and GitHub secrets.
+
+</specifics>
+
+<deferred>
+## Deferred Ideas
+
+- **Featured orders on the public site (Phase 11, input to C-12):** order photos show on the public site **by default**, and a Manager can turn it off per order so it doesn't show. Raised by the owner on 2026-10-31. Open for the Phase 11 discussion: showing customer orders publicly by default may need customer consent under the Philippine Data Privacy Act, or a "Customer said OK to show" box, and it affects the Privacy Policy (LEGAL-01). Phase 9's public delivery (D-01) and strict sizes (D-03) can serve it.
+
+</deferred>
+
+---
+
+*Phase: 09-order-images-maintenance-jobs*
+*Context gathered: 2026-10-31*
