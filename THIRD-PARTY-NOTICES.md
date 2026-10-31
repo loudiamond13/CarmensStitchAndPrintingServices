@@ -76,7 +76,7 @@ Packages: 88
 | Polly.Core | 8.4.2 | BSD-3-Clause | https://github.com/App-vNext/Polly |
 | Polly.Extensions | 8.4.2 | BSD-3-Clause | https://github.com/App-vNext/Polly |
 | Polly.RateLimiting | 8.4.2 | BSD-3-Clause | https://github.com/App-vNext/Polly |
-| Scalar.AspNetCore | 2.17.8 | MIT | https://scalar.com/ |
+| Scalar.AspNetCore | 2.17.13 | MIT | https://scalar.com/ |
 | Serilog | 4.3.0 | Apache-2.0 | https://serilog.net/ |
 | Serilog.AspNetCore | 10.0.0 | Apache-2.0 | https://github.com/serilog/serilog-aspnetcore |
 | Serilog.Extensions.Hosting | 10.0.0 | Apache-2.0 | https://github.com/serilog/serilog-extensions-hosting |
