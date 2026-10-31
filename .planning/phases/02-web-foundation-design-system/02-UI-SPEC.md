@@ -6,7 +6,7 @@ reviewed_at: 2026-10-08
 shadcn_initialized: false
 preset: none
 created: "2026-10-07T19:42:42-05:00"
-updated: 2026-10-13T17:31:12-05:00
+updated: 2026-10-31T02:56:30-05:00
 ---
 
 # Phase 2 — UI Design Contract
@@ -326,7 +326,7 @@ Declared values. All are multiples of 4 and are the spec's own `--space-*` token
 **Exceptions:**
 - **Inherited non-4 values stay as designed:** 2px (`.s-tab-i` gap), 6px (field gap, badge gap, phone `td` padding) and 10px (segmented-button padding, the App. E.8 skeleton-card gap). They come from App. B/C/E and are part of the approved design. They are transcribed so the computed value is identical, with the fractional step (`gap-0.5`, `gap-1.5`, `px-2.5`) or an arbitrary px value.
 - **SPEC-GAP code uses only the token steps** listed above (`1, 2, 3, 4, 5, 6, 8, 12, 16, 24`).
-- **O-8 recorded exception (owner, D-31):** the sm buttons and `.csp-iconbtn` / `.s-iconbtn` at 36px, `.csp-seg-btn` at 32px tall, the filter-chip clear button at 22px and the label-wrapped login checkbox at 20px stay as designed. They meet WCAG 2.2 AA 2.5.8 (24px or the spacing exception, checked by axe `target-size`) and are below the project's 44px goal by owner decision. Every other new control targets 44px.
+- **O-8 recorded exception (owner, D-31):** the sm buttons and `.csp-iconbtn` / `.s-iconbtn` at 36px, `.csp-seg-btn` at 32px tall, and the label-wrapped login checkbox at 20px stay as designed. They meet WCAG 2.2 AA 2.5.8 (24px or the spacing exception, checked by axe `target-size`) and are below the project's 44px goal by owner decision. The filter-chip clear button is 24px, 2px over its designed 22px, so it passes 2.5.8 on size alone (D-98, owner 2026-10-31). Every other new control targets 44px.
 
 ---
 
@@ -605,7 +605,7 @@ The orchestrator ran the UI-consideration probe after the checker approved the f
 | partial | Table cells | ✅ covered | A missing value renders "—" (spec §9.4). A missing team shows "Walk-in customer" (spec §8.3), and the OrderCard customer line says the same (D-40). |
 | partial | OtpInput | ✅ covered | 1–5 digits: `onComplete` does not fire; on submit, "Enter all 6 digits." |
 | overflow | Tabs, ResponsiveTable at tablet | ✅ covered | The tab strip scrolls horizontally (`[scrollbar-width:none]`, as App. B hides the scrollbar; arrow keys reach every tab). The table scrolls **inside** its wrapper (min-width 680). The page never scrolls horizontally. |
-| overflow | FilterBar active chips at 320px (owner, probe) | ✅ covered | **Chips wrap onto new lines.** The result bar and its chip group use `flex-wrap` with gap 8px (`gap-2`), and rows are added as needed. A chip has `max-w-full`. Its label truncates with an ellipsis (`min-w-0 truncate`), while the full text stays in the chip's text node and in the clear button's `aria-label` ("Clear {filter} filter"). The 22px clear button keeps its O-8 spacing. There is no horizontal scroll, which the Playwright overflow test checks with a 4-chip fixture in the showcase. |
+| overflow | FilterBar active chips at 320px (owner, probe) | ✅ covered | **Chips wrap onto new lines.** The result bar and its chip group use `flex-wrap` with gap 8px (`gap-2`), and rows are added as needed. A chip has `max-w-full`. Its label truncates with an ellipsis (`min-w-0 truncate`), while the full text stays in the chip's text node and in the clear button's `aria-label` ("Clear {filter} filter"). The 24px clear button (D-98, owner 2026-10-31) keeps its 44px tap area. There is no horizontal scroll, which the Playwright overflow test checks with a 4-chip fixture in the showcase. |
 | overflow | Toast stack | ✅ covered | Max 3; the trim rule protects the persistent toasts (D-04, O-7). |
 | overflow | Whole page 320–1920 | 🧪 backstop | Playwright asserts `scrollWidth <= innerWidth` on `/`, every admin preview route and `/dev/components` at 320, 375, 414, 768, 1024, 1280, 1536 and 1920, portrait and landscape (PERF-03). |
 | zero-one-many | Result bar, tab counts, cascade | ✅ covered | "Showing **1** order" vs "Showing **12** orders"; tab count chips show 0; `cascadeSentence()` handles singular and plural, and `.is-zero` tiles are dimmed by colour only (D-02). A KpiCard showing zero (₱0.00 or a count of 0) dims its value the same way, colour only (D-39). |

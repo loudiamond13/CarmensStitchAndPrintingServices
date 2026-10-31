@@ -1,5 +1,5 @@
 # CSPS — UI Implementation Spec (strict)
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-15T16:21:29-05:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-31T02:56:30-05:00*
 
 **Carmen's Stitch & Printing Services** — public website + staff admin
 Spec version 1.1 · Oct 6, 2026 · **Target stack: React + TypeScript + Tailwind CSS v4 (Vite)**
@@ -4958,7 +4958,7 @@ class Component extends DCLogic {
 
       <div class="s-resultbar">
         <span>Showing <strong style="color: var(--ink)">{{shownCount}}</strong> orders · sorted by due date</span>
-        <span class="s-filter-chip">Status: Active + recent <button type="button" class="s-iconbtn" style="width: 22px; height: 22px; color: inherit" aria-label="Clear status filter"><x-import component-from-global-scope="CSP.Icon" name="x" size="{{n14}}"></x-import></button></span>
+        <span class="s-filter-chip">Status: Active + recent <button type="button" class="s-iconbtn" style="width: 24px; height: 24px; color: inherit" aria-label="Clear status filter"><x-import component-from-global-scope="CSP.Icon" name="x" size="{{n14}}"></x-import></button></span>
       </div>
 
       <sc-if value="{{isGrid}}" hint-placeholder-val="{{yes}}">
@@ -5106,6 +5106,8 @@ class Component extends DCLogic {
 }
 </script>
 ```
+
+> **D-98 (owner, 2026-10-31):** the filter chip clear button is 24px (it was 22px), so it passes WCAG 2.2 AA 2.5.8 on size alone. The other small controls keep their sizes.
 
 ### E.8 Orders — empty / no matches / loading / error states
 
