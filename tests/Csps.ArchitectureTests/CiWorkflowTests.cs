@@ -457,8 +457,12 @@ public sealed partial class CiWorkflowTests
         names.IndexOf("1 audits").ShouldBeGreaterThanOrEqualTo(0);
         names.IndexOf("1 audits").ShouldBeLessThan(names.IndexOf("2 build"));
 
-        StepText("1 audits").ShouldContain("npm --prefix web audit --audit-level=low");
-        StepText("1 audits").ShouldContain("npm --prefix tools/openapi-gen audit --audit-level=low");
+        // 07.1 D-46: the audit gate covers both npm trees and passes only owner-accepted advisories.
+        StepText("1 audits").ShouldContain("npm --prefix web run audit:check");
+        File.ReadAllText(RepoRoot.PathOf("web/package.json")).ShouldContain("\"audit:check\": \"node scripts/audit-gate.mjs\"");
+        var gate = File.ReadAllText(RepoRoot.PathOf("web/scripts/audit-gate.mjs"));
+        gate.ShouldContain("'tools', 'openapi-gen'");
+        gate.ShouldContain("'audit', '--json'");
     }
 
     [Fact]
