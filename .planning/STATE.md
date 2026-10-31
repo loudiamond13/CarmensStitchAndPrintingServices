@@ -879,6 +879,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-29: the @orders-two-staff journeys prove D-95 and D-96 end to end with two staff in two browser contexts; D-94 scoped only the Discounts tab amount column, so otherDiscountsTotal and the discount window preview still add up in the browser (recorded in 08-REVIEW-DISPOSITION.md)
 - [Phase 08]: UAT rulings D-90 to D-97 (owner, 2026-10-30). The server sends each discount amount; payment, refund and discount windows re-read the order before refusing a cap; the status menu re-reads the order on open.
 - [Quick 261031-3oo]: D-98 (owner, 2026-10-31): the filter chip Clear button is 24 px, not 22 px. It amends O-8 for this one button (the other O-8 controls keep their sizes) and supersedes D-93; at 24 px axe target-size passes on size alone near the phone tab bar and in four-chip toolbars. The D-71 e2e check is unchanged.
+- [Ship 08]: D-99 (owner, 2026-10-31): Phase 8 ships only after the Phase 7 PR (#17) is green and merged, then straight against main (no stacked PR). To make #17 pass, the owner approved copying the D-98 commits onto the Phase 7.1 branch, renaming the six `07-D48` commit scopes to `07-d48` (history rewrite, same code) and force-pushing that branch with a lease. Backups: `backup/phase-07.1-pre-scope-fix-20261031`, `backup/phase-08-pre-scope-fix-20261031` (local only). The Phase 8 branch got the same rename locally and still sits on the renamed 7.1.
 
 ### Pending Todos
 
