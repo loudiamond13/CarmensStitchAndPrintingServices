@@ -1,5 +1,5 @@
 # Phase 9: Order Images & Maintenance Jobs - Context
-*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T14:00:00-05:00*
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T16:30:00-05:00*
 
 **Gathered:** 2026-10-31
 **Status:** Ready for planning
@@ -64,6 +64,12 @@ The owner decisions the roadmap lists for this phase are closed here: OD-9 and C
 - **D-29:** **Leaving the order page while photos wait or failed asks first:** "Leave this page?" with "Stay on Page" / "Leave Page", plus the browser prompt on reload or close (OQ-5 A; owner, 2026-10-31).
 - **D-30:** **The default description is not stored:** "Order {number} photo {n}" is shown from the photo's current position, so the number follows moves (OQ-6 A; owner, 2026-10-31).
 - **D-31:** **Upload progress is count-based** ("Uploading photo 2 of 4") with a spinner. No percent bar, so `core/api/http` is unchanged (OQ-7 A; owner, 2026-10-31).
+- **D-32:** **Photos are stored as Cloudinary's "private" type:** the allowed sizes stay public (D-01), and the untouched original needs a signed link, so no raw original is openable by a plain address (D-03) (RQ-1 A; owner, 2026-10-31).
+- **D-33:** **Named sizes are WebP; "Open Full Size" is JPEG.** No `f_auto` inside named sizes, because Cloudinary does not allow it; this replaces the `f_auto` wording in IMG-04 (RQ-2 A; owner, 2026-10-31).
+- **D-34:** **Largest photo: at most 25 megapixels and at most 10,000 px on a side.** Message: "{file name} is too big. Photos can be at most 25 megapixels." This replaces the UI-SPEC's "N pixels wide or tall" wording (RQ-3 A; owner, 2026-10-31).
+- **D-35:** **The monthly run also deletes closed email-outbox rows 30 days after they close**, as `docs/operations/mail-setup.md` already states (RQ-4 A; owner, 2026-10-31).
+- **D-36:** **The public run summary shows counts only:** "Cloudinary storage used: {n} GB" and "Cloudinary credits this month: {used} of {limit} ({p}%)", with nothing that identifies the account (RQ-5 A; owner, 2026-10-31).
+- **D-37:** **CloudinaryDotNet 1.29.3 is approved** (MIT, pinned to that exact version; its dependency Newtonsoft.Json 13.0.4 is already locked) (owner, 2026-10-31).
 
 ### Carried forward (already decided, not re-asked)
 - **Scheduler:** GitHub Actions cron calling a secret-protected endpoint, because the Basic host has no scheduler (01 D-10). Nothing relies on in-memory state.

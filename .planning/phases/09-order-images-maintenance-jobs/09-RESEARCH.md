@@ -1,6 +1,6 @@
 # Phase 9: Order Images & Maintenance Jobs - Research
 
-*Created: 2026-10-31T10:05:00-05:00 · Updated: 2026-10-31T10:05:00-05:00*
+*Created: 2026-10-31T10:05:00-05:00 · Updated: 2026-10-31T16:30:00-05:00*
 
 **Researched:** 2026-10-31
 **Domain:** server-side image upload to Cloudinary (free plan), image delivery, browser photo preparation, a scheduled maintenance endpoint
@@ -657,6 +657,8 @@ var result = await cloudinary.DestroyAsync(new DeletionParams(publicId) { Type =
 | A14 | New class and policy names in the code examples | Code Examples | Planner renames freely |
 
 ## Open Questions (for the owner)
+
+**Resolved 2026-10-31:** the owner chose A for all five. See 09-CONTEXT.md D-32 to D-36, and D-37 for the package approval.
 
 1. **Store photos as Cloudinary "private" type?** D-03 says "no raw original". Strict transformations stop ad-hoc sizes, but Cloudinary does not say they stop the untransformed original of a normal ("upload") photo. With the "private" type, the original needs a signed link, while the allowed sizes stay public exactly as D-01 chose.
    - **A (recommended):** "private" type. It is free, keeps D-01's public sizes and guarantees D-03.
