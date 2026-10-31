@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { scenarios as overlayScenarios } from '@/dev/scenarios/groups/overlays';
 import { HttpError } from '@/core/api/errors';
-import type { CascadeCounts } from '@/utils/csps';
+import { CASCADE_LABELS, type CascadeCounts } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components/feedback';
 import { messageClasses } from '@/components/forms';
@@ -141,6 +141,11 @@ describe('ConfirmDialog (App. D.3, WEB-06)', () => {
     expect(tile?.localName).toBe('span');
     expect(classTokens(tile)).toEqual(tokens(confirmIconClasses));
     expect(tile?.querySelector('svg')?.getAttribute('width')).toBe('22');
+  });
+
+  it('lays the six desktop tiles in one row, so the dialog still fits a 585px window (08 UI-SPEC, D-42)', () => {
+    expect(tokens(cascadeListClasses)).toContain(`grid-cols-[repeat(${String(CASCADE_LABELS.length)},minmax(0,1fr))]`);
+    expect(tokens(cascadeListClasses)).toContain('pg-phone:grid-cols-[repeat(3,minmax(0,1fr))]');
   });
 
   it('dims zero-count tiles and names one of a kind in the singular', () => {
