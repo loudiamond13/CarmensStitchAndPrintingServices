@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 6 of 29
-Status: Ready to execute
-Last activity: 2026-10-30 — Phase 08 execution started
+Plan: 29 of 29
+Status: Awaiting human verification (O1, /gsd-verify-work 08)
+Last activity: 2026-10-30 — G-08-5 gap plans 08-25 to 08-29 executed; re-verification human_needed
 
 Progress: [████░░░░░░] 39%
 
