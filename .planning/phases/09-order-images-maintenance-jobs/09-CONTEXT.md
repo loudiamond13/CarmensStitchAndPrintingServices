@@ -1,5 +1,5 @@
 # Phase 9: Order Images & Maintenance Jobs - Context
-*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T16:30:00-05:00*
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T12:35:00-05:00*
 
 **Gathered:** 2026-10-31
 **Status:** Ready for planning
@@ -70,6 +70,7 @@ The owner decisions the roadmap lists for this phase are closed here: OD-9 and C
 - **D-35:** **The monthly run also deletes closed email-outbox rows 30 days after they close**, as `docs/operations/mail-setup.md` already states (RQ-4 A; owner, 2026-10-31).
 - **D-36:** **The public run summary shows counts only:** "Cloudinary storage used: {n} GB" and "Cloudinary credits this month: {used} of {limit} ({p}%)", with nothing that identifies the account (RQ-5 A; owner, 2026-10-31).
 - **D-37:** **CloudinaryDotNet 1.29.3 is approved** (MIT, pinned to that exact version; its dependency Newtonsoft.Json 13.0.4 is already locked) (owner, 2026-10-31).
+- **D-38:** **Plan size exception:** 09-01 (the upload tracer, 36 files) and 09-20 (move and describe, 22 files) may exceed the checker's soft limit of about 15 files per plan. Each is one end-to-end slice, and splitting it would leave gates red between plans or drop the tracer. The plan checker treats these two as accepted (owner, 2026-10-31).
 
 ### Carried forward (already decided, not re-asked)
 - **Scheduler:** GitHub Actions cron calling a secret-protected endpoint, because the Basic host has no scheduler (01 D-10). Nothing relies on in-memory state.

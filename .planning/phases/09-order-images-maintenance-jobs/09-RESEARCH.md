@@ -1,6 +1,6 @@
 # Phase 9: Order Images & Maintenance Jobs - Research
 
-*Created: 2026-10-31T10:05:00-05:00 · Updated: 2026-10-31T16:30:00-05:00*
+*Created: 2026-10-31T10:05:00-05:00 · Updated: 2026-10-31T10:10:00-05:00*
 
 **Researched:** 2026-10-31
 **Domain:** server-side image upload to Cloudinary (free plan), image delivery, browser photo preparation, a scheduled maintenance endpoint

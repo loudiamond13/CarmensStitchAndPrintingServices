@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-31T12:30:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-31T11:52:00-05:00*
 
 ## Overview
 
@@ -999,7 +999,56 @@ Plans:
 - eager variants
 - caching of signed URLs
 
-**Plans**: TBD
+**Plans**: 30 plans in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; each plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [ ] 09-01-PLAN.md — Upload one photo to an order through the API: OrderImage, 5-photo domain and database guard, random ids, 503 when unset (ORD-04, IMG-01, IMG-02, IMG-03; D-01, D-08, D-11, D-12, D-19)
+- [ ] 09-02-PLAN.md — Named sizes and delivery addresses, folder guard (IMG-03, IMG-04; D-01, D-03, D-04, D-07, D-32, D-33)
+- [ ] 09-03-PLAN.md — Prepare a photo in the browser: sniff, upright, 2000 px downscale (IMG-05, IMG-02; D-18, D-34)
+- [ ] 09-04-PLAN.md — Photo viewer, responsive LazyImage, camera icon (ORD-04, IMG-04; D-04, D-16, D-26, D-27)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 09-05-PLAN.md — The 5-photo limit, closed orders and the size rules refused at the endpoint; uploads never touch disk (ORD-04, IMG-01, IMG-02; D-08, D-11, D-12, D-34)
+- [ ] 09-06-PLAN.md — Maintenance endpoint, key check, runner and the request-key purge (JOB-01; D-21, D-36)
+- [ ] 09-07-PLAN.md — Photos come back in the order answer with sized addresses (IMG-04, ORD-04, IMG-03; D-04, D-07)
+- [ ] 09-08-PLAN.md — The photo list component: phone and computer add, always-visible controls (ORD-04, IMG-05; D-13, D-14, D-17, D-25)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 09-09-PLAN.md — Image rules endpoint, Testing image routes for e2e, upload contract docs (ORD-04, IMG-01, IMG-02; D-07, D-08, D-34)
+- [ ] 09-10-PLAN.md — Every photo type recognized, look-alikes and hostile files refused (IMG-02)
+- [ ] 09-11-PLAN.md — Maintenance lease, failure isolation and time budget (JOB-01; D-21, D-36)
+- [ ] 09-12-PLAN.md — Maintenance key rate limit, log masking and the runbook (JOB-01; D-21, D-36)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 09-13-PLAN.md — Orders list carries each order's cover and photo count in the same 3 commands (ORD-04, IMG-04; D-14)
+- [ ] 09-14-PLAN.md — Full-size uploads on one route, multipart retries exactly once, upload limits (IMG-02, IMG-01)
+- [ ] 09-15-PLAN.md — Location and camera data stripped before storage (IMG-03; D-02)
+- [ ] 09-16-PLAN.md — Add photos on the order page: queue, progress, failures, leave guard (ORD-04, IMG-05; D-09, D-10, D-29, D-31)
+- [ ] 09-17-PLAN.md — Monthly purge of sessions, 2FA codes, links and old emails (JOB-01; D-35)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 09-18-PLAN.md — Orders list shows each order's cover (ORD-04, IMG-04; D-14)
+- [ ] 09-19-PLAN.md — Cloudinary adapter with CloudinaryDotNet 1.29.3 (IMG-01, IMG-03; D-05, D-06, D-32, D-37)
+- [ ] 09-20-PLAN.md — Move photos, choose the cover, describe photos (API) (ORD-04; D-12 to D-15, D-30)
+- [ ] 09-21-PLAN.md — New-order photos upload after Save (ORD-04; D-09, D-10, D-28)
+- [ ] 09-22-PLAN.md — Monthly scheduled run and Run now (JOB-01, JOB-02; D-21, D-22, D-36)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 09-23-PLAN.md — Viewer on the order and deleted pages; read-only closed orders (ORD-04; D-11, D-16, D-20)
+- [ ] 09-24-PLAN.md — Removal queue: a permanent order delete or a failed upload save queues the storage removal (JOB-02, IMG-01; D-20)
+- [ ] 09-25-PLAN.md — Cloudinary size setup command and the usage report (IMG-04, JOB-01; D-03, D-24)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 09-26-PLAN.md — Delete a photo; its storage removal is queued in the same transaction (ORD-04, JOB-02; D-11, D-19, D-20)
+- [ ] 09-27-PLAN.md — Arrange photos on the page: move, cover, describe, audit wording (ORD-04; D-13 to D-15, D-19)
+- [ ] 09-28-PLAN.md — Removal job with leases and retries; stray sweep (JOB-02; D-05, D-22, D-23)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 09-29-PLAN.md — Delete photos on the page; real photo count in permanent delete (ORD-04; D-15, D-20)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 09-30-PLAN.md — Prove the phase and the owner's Cloudinary setup (all eight requirements; D-03, D-06)
+
 **UI hint**: yes
 
 ### Phase 10: Admin Dashboard
