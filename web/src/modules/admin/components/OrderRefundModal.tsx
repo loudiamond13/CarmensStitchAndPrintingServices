@@ -1,8 +1,9 @@
 // O2 refund window: add and edit (plan 08-21). Every rule is checked in the browser first with the server's own words (OR-3); a rule only
-// the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a focus
-// refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers the
-// whole order and the page shows the server's figures. "You can refund up to" under Amount is a preview of the most that may be handed
-// back, from the server's figures (`refundCap`): on an edit it adds back the refund's own saved amount.
+// the server can check comes back under its field. The window sends the version of the order it opened with, so a refresh never changes
+// it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). The figures behind the cap follow the current
+// order, and an amount the held figures refuse reads the order once more before it is refused (D-95). A save answers the whole order and
+// the page shows the server's figures. "You can refund up to" under Amount is a preview of the most that may be handed back, from the
+// server's figures (`refundCap`): on an edit it adds back the refund's own saved amount.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -15,14 +16,17 @@ import { OrderWindow } from '@/modules/admin/components/OrderWindow';
 import { PaidBySelect } from '@/modules/admin/components/PaidBySelect';
 import { orderWindowFullRowClasses, orderWindowGridClasses } from '@/modules/admin/components/orderWindow.recipe';
 import { useOrderChildSave } from '@/modules/admin/hooks/useOrderChildSave';
+import { freshCapResolver, useOrderWindowFigures } from '@/modules/admin/hooks/useOrderWindowFigures';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { ORDER_REFUND_COPY } from '@/modules/admin/orderRefundCopy';
 import {
   blankOrderRefund,
+  isOverRefundCap,
   orderRefundSchema,
   refundCapKind,
   type OrderRefundFormInput,
   type OrderRefundFormValues,
+  type RefundCapKind,
 } from '@/modules/admin/orderRefundSchemas';
 import { refundCap } from '@/modules/admin/orderRules';
 import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
@@ -135,12 +139,25 @@ function RefundForm({ open, order, refundId: editedId, prefillAmount, onClose, o
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
   const { user } = useSession();
-  // The order and refund the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  // The order and refund the window was opened with; the version a save sends is this order's, whatever a later read brings.
   const [opened, setOpened] = useState<Opened>(() => ({
     order,
     refund: editedId === null ? null : (order.refunds.find((candidate) => candidate.id === editedId) ?? null),
   }));
-  const cap = refundCap(opened.order, opened.refund?.amount);
+  const figures = useOrderWindowFigures(opened.order);
+  // The most that may be refunded, and its kind, by `current`'s figures. An edit adds that order's copy of the refund; when it no
+  // longer holds the refund, the opened figures stand and a save answers 404.
+  const capFor = (current: OrderDetailResponse): { cap: string; kind: RefundCapKind } => {
+    if (opened.refund === null) {
+      return { cap: refundCap(current), kind: refundCapKind(current) };
+    }
+    const savedId = opened.refund.id;
+    const copy = current.refunds.find((candidate) => candidate.id === savedId);
+    return copy === undefined
+      ? { cap: refundCap(opened.order, opened.refund.amount), kind: refundCapKind(opened.order) }
+      : { cap: refundCap(current, copy.amount), kind: refundCapKind(current) };
+  };
+  const { cap } = capFor(figures.current);
   const {
     control,
     handleSubmit,
@@ -148,7 +165,14 @@ function RefundForm({ open, order, refundId: editedId, prefillAmount, onClose, o
     reset,
     formState: { isDirty },
   } = useForm<OrderRefundFormInput, unknown, OrderRefundFormValues>({
-    resolver: zodResolver(orderRefundSchema(opened.order.today, cap, refundCapKind(opened.order))),
+    resolver: freshCapResolver<OrderRefundFormInput, OrderRefundFormValues>({
+      figures,
+      resolverFor: (current) => {
+        const { cap: maxAmount, kind } = capFor(current);
+        return zodResolver(orderRefundSchema(opened.order.today, maxAmount, kind));
+      },
+      overCap: (values, current) => isOverRefundCap(values.amount, capFor(current).cap),
+    }),
     mode: 'onBlur',
     defaultValues:
       opened.refund === null

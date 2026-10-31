@@ -78,6 +78,14 @@ export function orderRefundSchema(today: string, maxAmount: string, capKind: Ref
   });
 }
 
+/** True when `amountText` passes every amount rule except the cap and is above `maxAmount` (money text): the one failure a fresh read can cure. */
+export function isOverRefundCap(amountText: string, maxAmount: string): boolean {
+  return (
+    amountError(amountText, Number.POSITIVE_INFINITY, 'credit') === null &&
+    amountError(amountText, moneyTextToCentavos(maxAmount), 'credit') !== null
+  );
+}
+
 export type OrderRefundFormInput = z.input<ReturnType<typeof orderRefundSchema>>;
 export type OrderRefundFormValues = z.output<ReturnType<typeof orderRefundSchema>>;
 
