@@ -1,8 +1,9 @@
 // O2 payment window: add and edit (plan 08-16). Every rule is checked in the browser first with the server's own words (OR-3); a rule
-// only the server can check comes back under its field. The window keeps the order it opened with and sends that order's version, so a
-// focus refetch never changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). A save answers
-// the whole order and the page shows the server's figures. "Balance due" under Amount is a preview of the most that may be paid: the
-// server balance on an add, and on an edit the balance plus the payment's saved amount.
+// only the server can check comes back under its field. The window sends the version of the order it opened with, so a refresh never
+// changes it (RESEARCH Pitfall 10); a stale save keeps the typed values behind a banner (05 D-20). The figures behind the cap follow the
+// current order, and an amount the held figures refuse reads the order once more before it is refused (D-95). A save answers the whole
+// order and the page shows the server's figures. "Balance due" under Amount is a preview of the most that may be paid: the server
+// balance on an add, and on an edit the balance plus the payment's saved amount.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -16,10 +17,12 @@ import { OrderWindow } from '@/modules/admin/components/OrderWindow';
 import { PaidBySelect } from '@/modules/admin/components/PaidBySelect';
 import { orderWindowFullRowClasses, orderWindowGridClasses } from '@/modules/admin/components/orderWindow.recipe';
 import { useOrderChildSave } from '@/modules/admin/hooks/useOrderChildSave';
+import { freshCapResolver, useOrderWindowFigures } from '@/modules/admin/hooks/useOrderWindowFigures';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { ORDER_PAYMENT_COPY } from '@/modules/admin/orderPaymentCopy';
 import {
   blankOrderPayment,
+  isOverPaymentCap,
   orderPaymentSchema,
   paymentCap,
   type OrderPaymentFormInput,
@@ -135,12 +138,14 @@ function PaymentForm({ open, order, paymentId: editedId, onClose, onSaved }: Pay
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
   const { user } = useSession();
-  // The order and payment the window was opened with; the version a save sends is this order's, whatever a later refetch brings.
+  // The order and payment the window was opened with; the version a save sends is this order's, whatever a later read brings.
   const [opened, setOpened] = useState<Opened>(() => ({
     order,
     payment: editedId === null ? null : (order.payments.find((candidate) => candidate.id === editedId) ?? null),
   }));
-  const cap = paymentCap(opened.order, opened.payment?.amount);
+  const figures = useOrderWindowFigures(opened.order);
+  const capFor = (current: OrderDetailResponse): string => paymentCap(current, opened.payment?.amount);
+  const cap = capFor(figures.current);
   const {
     control,
     handleSubmit,
@@ -148,7 +153,11 @@ function PaymentForm({ open, order, paymentId: editedId, onClose, onSaved }: Pay
     reset,
     formState: { isDirty },
   } = useForm<OrderPaymentFormInput, unknown, OrderPaymentFormValues>({
-    resolver: zodResolver(orderPaymentSchema(opened.order.today, cap)),
+    resolver: freshCapResolver<OrderPaymentFormInput, OrderPaymentFormValues>({
+      figures,
+      resolverFor: (current) => zodResolver(orderPaymentSchema(opened.order.today, capFor(current))),
+      overCap: (values, current) => isOverPaymentCap(values.amount, capFor(current)),
+    }),
     mode: 'onBlur',
     defaultValues:
       opened.payment === null ? blankOrderPayment(opened.order.today, user?.id ?? '') : valuesOf(opened.payment),

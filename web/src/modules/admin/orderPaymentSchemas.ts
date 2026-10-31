@@ -78,6 +78,14 @@ export function orderPaymentSchema(today: string, maxAmount: string) {
   });
 }
 
+/** True when `amountText` passes every amount rule except the cap and is above `maxAmount` (money text): the one failure a fresh read can cure. */
+export function isOverPaymentCap(amountText: string, maxAmount: string): boolean {
+  return (
+    amountError(amountText, Number.POSITIVE_INFINITY) === null &&
+    amountError(amountText, moneyTextToCentavos(maxAmount)) !== null
+  );
+}
+
 export type OrderPaymentFormInput = z.input<ReturnType<typeof orderPaymentSchema>>;
 export type OrderPaymentFormValues = z.output<ReturnType<typeof orderPaymentSchema>>;
 
