@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildOrderDetail, CASH, order0148, orderPayment } from '@/test/orderFixtures';
 import {
   blankOrderPayment,
+  isOverPaymentCap,
   orderPaymentSchema,
   paymentCap,
   wouldLeavePaymentsBelowRefunds,
@@ -158,6 +159,28 @@ describe('paymentCap', () => {
     expect(paymentCap(credit)).toBe('0.00');
     expect(paymentCap(credit, 300)).toBe('0.00');
     expect(paymentCap(credit, 700)).toBe('200.00');
+  });
+});
+
+describe('isOverPaymentCap', () => {
+  it('is true for a well-formed amount above the cap', () => {
+    expect(isOverPaymentCap('9327.51', CAP)).toBe(true);
+    expect(isOverPaymentCap('12000', CAP)).toBe(true);
+    expect(isOverPaymentCap('1.00', '0.00')).toBe(true);
+  });
+
+  it('is false for an amount within the cap, at the cap or empty', () => {
+    expect(isOverPaymentCap('9327.50', CAP)).toBe(false);
+    expect(isOverPaymentCap('1.00', CAP)).toBe(false);
+    expect(isOverPaymentCap('', CAP)).toBe(false);
+    expect(isOverPaymentCap('.', CAP)).toBe(false);
+  });
+
+  it('is false when another rule fails first: three decimals, out of range, not an amount', () => {
+    expect(isOverPaymentCap('10000.005', CAP)).toBe(false);
+    expect(isOverPaymentCap('0', CAP)).toBe(false);
+    expect(isOverPaymentCap('1000000.01', '2000000.00')).toBe(false);
+    expect(isOverPaymentCap('abc', CAP)).toBe(false);
   });
 });
 

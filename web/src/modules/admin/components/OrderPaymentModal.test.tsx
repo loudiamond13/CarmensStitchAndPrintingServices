@@ -49,10 +49,16 @@ interface RenderOptions {
   order?: OrderDetailFixture;
   onClose?: () => void;
   onSaved?: (order: unknown) => void;
+  /** How long ago the page read the held order, in ms. Over a second, a check that fails reads the order again (D-95). */
+  heldAge?: number;
 }
 
-function renderModal({ order = order0148, onClose = vi.fn(), onSaved = vi.fn() }: RenderOptions = {}) {
-  queryClient.setQueryData(orderKey(order.id), order);
+function hold(order: OrderDetailFixture, heldAge: number): void {
+  queryClient.setQueryData(orderKey(order.id), order, heldAge === 0 ? undefined : { updatedAt: Date.now() - heldAge });
+}
+
+function renderModal({ order = order0148, onClose = vi.fn(), onSaved = vi.fn(), heldAge = 0 }: RenderOptions = {}) {
+  hold(order, heldAge);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -318,6 +324,116 @@ describe('add mode saving (ORD-07 idempotency, ORD-08, ORD-22)', () => {
       expect(screen.getByText('Payment added')).toBeInTheDocument();
     });
     expect(backend.writes).toHaveLength(1);
+  });
+});
+
+// ---- The check reads the order again when the held figures refuse (D-95; plan 08-26) ----
+
+const HELD_FOR = 5_000;
+/** The order after another person removed the 2,000.00 payment: more is owed, and the row version moved on. */
+const NEWER = buildOrderDetail({
+  payments: order0148.payments.slice(0, 1),
+  version: NEW_VERSION,
+  totals: { ...order0148.totals, paid: 10000, balance: 11327.5 },
+});
+
+async function typeAmountAndMethod(user: ReturnType<typeof userEvent.setup>, amount: string): Promise<void> {
+  await ready();
+  await user.type(amountBox(), amount);
+  await user.selectOptions(methodBox(), 'GCash');
+}
+
+describe('add mode reads the order again when the held figures refuse the amount (D-95)', () => {
+  it('reads once, then sends an amount the old figures refused, still with the opened version', async () => {
+    const backend = useOrderHandlers({ detail: NEWER });
+    const user = userEvent.setup();
+    const { onClose } = renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndMethod(user, '10000.00');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toEqual([order0148.id]);
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.body).toMatchObject({ amount: 10000, version: ORDER_VERSION });
+  });
+
+  it('answers 409 with the banner and Load Latest when someone else changed the order meanwhile', async () => {
+    const backend = useOrderHandlers({ detail: NEWER, reply: () => problemResponse(409, 'edit.stale') });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndMethod(user, '10000.00');
+
+    await user.click(saveButton());
+
+    expect(await screen.findByRole('button', { name: 'Load Latest' })).toBeInTheDocument();
+    expect((backend.writes[0]?.body as { version: string }).version).toBe(ORDER_VERSION);
+  });
+
+  it('shows the current balance under Amount after the read', async () => {
+    useOrderHandlers({ detail: NEWER });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndMethod(user, '10000.00');
+
+    await user.click(saveButton());
+
+    expect(await screen.findByText('Balance due: ₱11,327.50')).toBeInTheDocument();
+  });
+
+  it('refuses an amount above the current balance in the words naming the current figure, and sends nothing', async () => {
+    const backend = useOrderHandlers({ detail: NEWER });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndMethod(user, '12000.00');
+
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This is more than the balance. Enter ₱11,327.50 or less.')).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+    expect(backend.reads).toHaveLength(1);
+  });
+
+  it('keeps the held figures in the words when the read fails', async () => {
+    const backend = useOrderHandlers({ detail: () => new HttpResponse(null, { status: 500 }) });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndMethod(user, '10000.00');
+
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This is more than the balance. Enter ₱9,327.50 or less.')).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+    expect(backend.reads).toHaveLength(1);
+  });
+
+  it('sends no read for an amount the held figures already allow', async () => {
+    const backend = useOrderHandlers({ detail: NEWER, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { onClose } = renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndMethod(user, '2000');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toEqual([]);
+  });
+
+  it('shares one read between the blur and the Save that follows within a second', async () => {
+    const backend = useOrderHandlers({ detail: NEWER });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndMethod(user, '12000.00');
+
+    await user.click(saveButton());
+    await user.click(saveButton());
+
+    await screen.findByText('This is more than the balance. Enter ₱11,327.50 or less.');
+    expect(backend.reads).toHaveLength(1);
   });
 });
 
