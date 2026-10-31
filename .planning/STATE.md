@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-26-PLAN.md
-last_updated: "2026-10-31T00:31:08.417Z"
+stopped_at: Completed 08-27-PLAN.md
+last_updated: "2026-10-31T00:47:53.558Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 08 execution started
-state_head: 2c22c6e8c9706906191116d9ae945e3af12a1135
+state_head: 63ff79f38c47749ef96e37b8367f8b05d88b7d12
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 248
-  completed_plans: 245
+  completed_plans: 246
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-30T13:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 3 of 29
+Plan: 4 of 29
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 08 execution started
 
@@ -305,6 +305,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P24 | 5h 35m | 3 tasks | 35 files |
 | Phase 08 P25 | 26 min | 3 tasks | 15 files |
 | Phase 08 P26 | 25 min | 3 tasks | 8 files |
+| Phase 08 P27 | 17 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -870,6 +871,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-24: the full npm run e2e still fails 14 tests that fail the same way at 5118c182 (dialog-fit 1274x585, dialog-scrollbars, long-text four-chip, shell 1440x900) plus orders-filters on pixel with the same chip-button cause; recorded for the owner, not fixed here
 - [Phase 08]: 08-25: the order answer carries each discount's server Amount (OrderMath.DiscountAmount, D-94); the Discounts tab renders it with no browser money math
 - [Phase 08]: 08-26: D-95 applied to the payment window and delete check: a focus or failed cap check reads the order once, the check runs on current figures, the save keeps the opened version (queryClient.query used as fetchQuery is deprecated)
+- [Phase 08]: 08-27: D-96 applied. OrderStatusMenu.openMenu reads the order again (not awaited) on every open path, so Mark Completed follows current figures; the server's 422 stays the gate.
 
 ### Pending Todos
 
@@ -975,6 +977,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T00:31:07.041Z
-Stopped at: Completed 08-26-PLAN.md
+Last session: 2026-10-31T00:47:52.190Z
+Stopped at: Completed 08-27-PLAN.md
 Resume file: None
