@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
-import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
+import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { staffBackend } from '@/test/expenseFixtures';
 import {
@@ -47,7 +47,11 @@ function Page({ id, readOnly }: { id: string; readOnly?: boolean | undefined }) 
   return query.data === undefined ? null : <OrderPaymentsTab order={query.data} readOnly={readOnly} />;
 }
 
-function renderTab(order: OrderDetailFixture = order0148, readOnly?: boolean): void {
+function renderTab(order: OrderDetailFixture = order0148, readOnly?: boolean, heldAge = 0): void {
+  // The page already holds the order, read heldAge ms ago; over a second, a failed check reads it again (D-95).
+  if (heldAge > 0) {
+    queryClient.setQueryData(orderKey(order.id), order, { updatedAt: Date.now() - heldAge });
+  }
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -268,6 +272,95 @@ describe('Delete Payment', () => {
 
     await screen.findByText('Payment deleted');
     expect(backend.writes).toHaveLength(1);
+  });
+
+  describe('reads the order once more before it refuses (D-95)', () => {
+    const HELD_FOR = 5_000;
+    const BELOW_REFUNDS = 'The refunds would be more than the payments. Lower or remove a refund first.';
+    const held = buildOrderDetail({ totals: { ...order0148.totals, paid: 12000, refunded: 11000 } });
+    const deleteCash = async (user: ReturnType<typeof userEvent.setup>): Promise<void> => {
+      await user.click(await screen.findByRole('button', { name: 'Delete payment of ₱2,000.00, Oct 3, 2026' }));
+      await user.click(screen.getByRole('button', { name: 'Delete Payment' }));
+    };
+
+    it('sends the DELETE when the current figures allow it, after one read', async () => {
+      const current = buildOrderDetail({
+        totals: { ...order0148.totals, paid: 12000, refunded: 1000 },
+        version: 'AAAAAAAAB9F=',
+      });
+      const backend = useOrderHandlers({
+        detail: current,
+        reply: () =>
+          HttpResponse.json(afterRemoval(GCASH_PAYMENT === undefined ? [] : [GCASH_PAYMENT], 10000, 11327.5)),
+      });
+      renderTab(held, undefined, HELD_FOR);
+
+      await deleteCash(userEvent.setup());
+
+      expect(await screen.findByText('Payment deleted')).toBeInTheDocument();
+      expect(backend.reads).toEqual([order0148.id]);
+      expect(backend.writes).toHaveLength(1);
+      expect(backend.writes[0]).toMatchObject({ method: 'DELETE' });
+    });
+
+    it('shows the below-refunds sentence and sends nothing when the read gives the same figures', async () => {
+      const backend = useOrderHandlers({ detail: held });
+      renderTab(held, undefined, HELD_FOR);
+
+      await deleteCash(userEvent.setup());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(BELOW_REFUNDS);
+      expect(backend.reads).toEqual([order0148.id]);
+      expect(backend.writes).toEqual([]);
+    });
+
+    it('shows the below-refunds sentence and sends nothing when the read fails', async () => {
+      const backend = useOrderHandlers({ detail: () => new HttpResponse(null, { status: 500 }) });
+      renderTab(held, undefined, HELD_FOR);
+
+      await deleteCash(userEvent.setup());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(BELOW_REFUNDS);
+      expect(backend.reads).toEqual([order0148.id]);
+      expect(backend.writes).toEqual([]);
+    });
+
+    it('sends the DELETE when the current order no longer holds the payment, and the server 404 shows the removed line', async () => {
+      const current = buildOrderDetail({
+        payments: GCASH_PAYMENT === undefined ? [] : [GCASH_PAYMENT],
+        totals: { ...order0148.totals, paid: 10000, refunded: 11000 },
+        version: 'AAAAAAAAB9F=',
+      });
+      const backend = useOrderHandlers({
+        detail: current,
+        reply: () =>
+          new HttpResponse(JSON.stringify({ title: 'x', status: 404, code: 'orders.payment-not-found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/problem+json' },
+          }),
+      });
+      renderTab(held, undefined, HELD_FOR);
+
+      await deleteCash(userEvent.setup());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('This payment was removed.');
+      expect(backend.writes).toHaveLength(1);
+    });
+
+    it('sends no read when the held figures already allow the delete', async () => {
+      const allowed = buildOrderDetail({ totals: { ...order0148.totals, paid: 12000, refunded: 10000 } });
+      const backend = useOrderHandlers({
+        detail: allowed,
+        reply: () =>
+          HttpResponse.json(afterRemoval(GCASH_PAYMENT === undefined ? [] : [GCASH_PAYMENT], 10000, 11327.5)),
+      });
+      renderTab(allowed, undefined, HELD_FOR);
+
+      await deleteCash(userEvent.setup());
+
+      await screen.findByText('Payment deleted');
+      expect(backend.reads).toEqual([]);
+    });
   });
 
   it('keeps the dialog open and shows the server sentence for a 422 orders.payment-below-refunds', async () => {
