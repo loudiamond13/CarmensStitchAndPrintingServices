@@ -212,7 +212,7 @@ public sealed class BootstrapManagerTests
 
         await using (var context = database.CreateContext())
         {
-            var user = await context.Users.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+            var user = await context.Users.AsNoTracking().SingleAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken);
             user.Email.ShouldBe(Email);
             user.IsActive.ShouldBeTrue();
             user.EmailConfirmed.ShouldBeFalse("the email is confirmed when the invite is accepted");
@@ -232,7 +232,7 @@ public sealed class BootstrapManagerTests
         second.Error.ShouldContain("An active Manager already exists");
         second.Output.ShouldBeEmpty();
         await using var after = database.CreateContext();
-        (await after.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await after.Users.AsNoTracking().CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
         (await after.EmailOutbox.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
@@ -260,7 +260,7 @@ public sealed class BootstrapManagerTests
         recovery.ExitCode.ShouldBe(0, recovery.Error);
         recovery.Output.ShouldContain("Invite queued for other@csps.test.");
         await using var after = database.CreateContext();
-        (await after.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+        (await after.Users.AsNoTracking().CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(2);
         var created = await after.Users.AsNoTracking().SingleAsync(user => user.Email == "other@csps.test", TestContext.Current.CancellationToken);
         (await after.UserRoles.AsNoTracking().CountAsync(
             link => link.UserId == created.Id && after.Roles.Any(role => role.Id == link.RoleId && role.Name == Roles.Manager),
@@ -285,7 +285,7 @@ public sealed class BootstrapManagerTests
         again.ExitCode.ShouldBe(2);
         again.Error.ShouldContain("An account with that email already exists");
         await using var after = database.CreateContext();
-        (await after.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await after.Users.AsNoTracking().CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public sealed class BootstrapManagerTests
         run.ExitCode.ShouldBe(64);
         run.Error.ShouldContain("email");
         await using var context = database.CreateContext();
-        (await context.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.Users.AsNoTracking().CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]
@@ -312,7 +312,7 @@ public sealed class BootstrapManagerTests
         run.Error.ShouldContain("--confirm-database");
         run.Error.ShouldNotContain(database.ConnectionString);
         await using var context = database.CreateContext();
-        (await context.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.Users.AsNoTracking().CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]
@@ -368,7 +368,7 @@ public sealed class BootstrapManagerTests
         run.ExitCode.ShouldBe(64);
         run.Error.ShouldContain("App:PublicBaseUrl");
         await using var context = database.CreateContext();
-        (await context.Users.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.Users.AsNoTracking().CountAsync(user => user.Id != LegacyHolder.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     private static void AssertSafeReason(BootstrapTargetCheck check, string? connectionString)

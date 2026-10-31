@@ -169,6 +169,11 @@ describe('filter chip group keeps the clear tap area inside its box (PERF-03)', 
     expect(overhang).toBeGreaterThan(0);
     expect(groupEndReserve).toBeGreaterThanOrEqual(overhang);
   });
+
+  it('draws the clear button 24px square, so axe target-size passes on size alone (D-98)', async () => {
+    expect(await px(filterChipClearClasses, /^size-/, 'width')).toBe(24);
+    expect(await px(filterChipClearClasses, /^size-/, 'height')).toBe(24);
+  });
 });
 
 /** The sorted class tokens of one exported `tw('…')` list in lists.recipe.ts. */

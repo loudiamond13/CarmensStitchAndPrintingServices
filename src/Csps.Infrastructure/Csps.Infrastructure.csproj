@@ -18,6 +18,8 @@
     <InternalsVisibleTo Include="Csps.Infrastructure.IntegrationTests" />
     <!-- The preview tool composes the internal renderer and transport the site uses (D-30). -->
     <InternalsVisibleTo Include="Csps.EmailPreview" />
+    <!-- The legacy fit check registers the internal unit of work for its trial import (07.1 D-07). -->
+    <InternalsVisibleTo Include="Csps.LegacyFitCheck" />
   </ItemGroup>
 
   <ItemGroup>

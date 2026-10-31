@@ -93,7 +93,7 @@ public sealed class CompanyExpensesSeedStep : ISeedStep
 
     // D-32, D-49: an Admin or Manager who is active, not locked, not deleted, has a password and has signed in once.
     // Must match StaffState.CanPay.
-    private static async Task<List<Guid>> ReadPayersAsync(CspsDbContext db, CancellationToken cancellationToken) =>
+    internal static async Task<List<Guid>> ReadPayersAsync(CspsDbContext db, CancellationToken cancellationToken) =>
         await db.Users
             .AsNoTracking()
             .Where(user => user.IsActive && user.ManagerLockedAtUtc == null && user.DeletedAtUtc == null

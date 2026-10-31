@@ -24,10 +24,12 @@ public sealed class SolutionLayoutTests
         "tests/Csps.ArchitectureTests/Csps.ArchitectureTests.csproj",
         "tests/Csps.Testing/Csps.Testing.csproj",
         "tests/Csps.HostProbe.Tests/Csps.HostProbe.Tests.csproj",
+        "tests/Csps.LegacyFitCheck.Tests/Csps.LegacyFitCheck.Tests.csproj",
         "tools/Csps.BootstrapManager/Csps.BootstrapManager.csproj",
         "tools/Csps.DevSeed/Csps.DevSeed.csproj",
         "tools/Csps.EmailPreview/Csps.EmailPreview.csproj",
         "tools/Csps.HostProbe/Csps.HostProbe.csproj",
+        "tools/Csps.LegacyFitCheck/Csps.LegacyFitCheck.csproj",
     ];
 
     [Fact]

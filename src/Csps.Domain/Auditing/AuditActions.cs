@@ -153,6 +153,135 @@ public static class AuditActions
     /// <summary>An unused expense category was deleted (D-27).</summary>
     public const string ExpenseCategoryDeleted = "expense-category.deleted";
 
+    /// <summary>An order was created (D-31).</summary>
+    public const string OrderCreated = "order.created";
+
+    /// <summary>An order's dates or customer details changed; the detail names fields, never customer text (D-31).</summary>
+    public const string OrderChanged = "order.changed";
+
+    /// <summary>An order moved to another status (D-31).</summary>
+    public const string OrderStatusChanged = "order.status-changed";
+
+    /// <summary>A completed or cancelled order was reopened (D-31).</summary>
+    public const string OrderReopened = "order.reopened";
+
+    /// <summary>An order was deleted into the bin (D-31).</summary>
+    public const string OrderDeleted = "order.deleted";
+
+    /// <summary>A deleted order was restored (D-31).</summary>
+    public const string OrderRestored = "order.restored";
+
+    /// <summary>A deleted order was removed for good; the detail keeps its totals, never customer details (D-29, D-31).</summary>
+    public const string OrderPermanentlyDeleted = "order.permanently-deleted";
+
+    /// <summary>An item was added to an order (D-31).</summary>
+    public const string OrderItemAdded = "order-item.added";
+
+    /// <summary>An order item changed (D-31).</summary>
+    public const string OrderItemChanged = "order-item.changed";
+
+    /// <summary>An order item was removed (D-31).</summary>
+    public const string OrderItemRemoved = "order-item.removed";
+
+    /// <summary>A payment was added to an order (D-31).</summary>
+    public const string OrderPaymentAdded = "order-payment.added";
+
+    /// <summary>An order payment changed (D-31).</summary>
+    public const string OrderPaymentChanged = "order-payment.changed";
+
+    /// <summary>An order payment's receiver changed (D-31).</summary>
+    public const string OrderPaymentReceiverChanged = "order-payment.receiver-changed";
+
+    /// <summary>An order payment was removed (D-31).</summary>
+    public const string OrderPaymentRemoved = "order-payment.removed";
+
+    /// <summary>A refund was added to an order (D-31).</summary>
+    public const string OrderRefundAdded = "order-refund.added";
+
+    /// <summary>An order refund changed (D-31).</summary>
+    public const string OrderRefundChanged = "order-refund.changed";
+
+    /// <summary>An order refund's refunder changed (D-31).</summary>
+    public const string OrderRefundRefunderChanged = "order-refund.refunder-changed";
+
+    /// <summary>An order refund was removed (D-31).</summary>
+    public const string OrderRefundRemoved = "order-refund.removed";
+
+    /// <summary>A discount was added to an order (D-31).</summary>
+    public const string OrderDiscountAdded = "order-discount.added";
+
+    /// <summary>An order discount changed (D-31).</summary>
+    public const string OrderDiscountChanged = "order-discount.changed";
+
+    /// <summary>An order discount was removed (D-31).</summary>
+    public const string OrderDiscountRemoved = "order-discount.removed";
+
+    /// <summary>An expense was added to an order (D-31).</summary>
+    public const string OrderExpenseAdded = "order-expense.added";
+
+    /// <summary>An order expense changed (D-31).</summary>
+    public const string OrderExpenseChanged = "order-expense.changed";
+
+    /// <summary>An order expense's payer changed (D-31).</summary>
+    public const string OrderExpensePayerChanged = "order-expense.payer-changed";
+
+    /// <summary>An order expense was removed (D-31).</summary>
+    public const string OrderExpenseRemoved = "order-expense.removed";
+
+    /// <summary>A product type was added (D-31).</summary>
+    public const string ProductTypeAdded = "product-type.added";
+
+    /// <summary>A product type was renamed (D-31).</summary>
+    public const string ProductTypeRenamed = "product-type.renamed";
+
+    /// <summary>A product type's tone changed (D-31).</summary>
+    public const string ProductTypeRecolored = "product-type.recolored";
+
+    /// <summary>A product type was retired (D-31).</summary>
+    public const string ProductTypeRetired = "product-type.retired";
+
+    /// <summary>A retired product type was reactivated (D-31).</summary>
+    public const string ProductTypeReactivated = "product-type.reactivated";
+
+    /// <summary>An unused product type was deleted (D-31).</summary>
+    public const string ProductTypeDeleted = "product-type.deleted";
+
+    /// <summary>A payment method was added (D-31).</summary>
+    public const string PaymentMethodAdded = "payment-method.added";
+
+    /// <summary>A payment method was renamed (D-31).</summary>
+    public const string PaymentMethodRenamed = "payment-method.renamed";
+
+    /// <summary>A payment method's tone changed (D-31).</summary>
+    public const string PaymentMethodRecolored = "payment-method.recolored";
+
+    /// <summary>A payment method was retired (D-31).</summary>
+    public const string PaymentMethodRetired = "payment-method.retired";
+
+    /// <summary>A retired payment method was reactivated (D-31).</summary>
+    public const string PaymentMethodReactivated = "payment-method.reactivated";
+
+    /// <summary>An unused payment method was deleted (D-31).</summary>
+    public const string PaymentMethodDeleted = "payment-method.deleted";
+
+    /// <summary>An order expense category was added (D-31).</summary>
+    public const string OrderExpenseCategoryAdded = "order-expense-category.added";
+
+    /// <summary>An order expense category was renamed (D-31).</summary>
+    public const string OrderExpenseCategoryRenamed = "order-expense-category.renamed";
+
+    /// <summary>An order expense category's tone changed (D-31).</summary>
+    public const string OrderExpenseCategoryRecolored = "order-expense-category.recolored";
+
+    /// <summary>An order expense category was retired (D-31).</summary>
+    public const string OrderExpenseCategoryRetired = "order-expense-category.retired";
+
+    /// <summary>A retired order expense category was reactivated (D-31).</summary>
+    public const string OrderExpenseCategoryReactivated = "order-expense-category.reactivated";
+
+    /// <summary>An unused order expense category was deleted (D-31).</summary>
+    public const string OrderExpenseCategoryDeleted = "order-expense-category.deleted";
+
     /// <summary>Sign-in failure detail: no account has that email.</summary>
     public const string DetailUnknownAccount = "unknown-account";
 
@@ -318,5 +447,48 @@ public static class AuditActions
         ExpenseCategoryRetired,
         ExpenseCategoryReactivated,
         ExpenseCategoryDeleted,
+        OrderCreated,
+        OrderChanged,
+        OrderStatusChanged,
+        OrderReopened,
+        OrderDeleted,
+        OrderRestored,
+        OrderPermanentlyDeleted,
+        OrderItemAdded,
+        OrderItemChanged,
+        OrderItemRemoved,
+        OrderPaymentAdded,
+        OrderPaymentChanged,
+        OrderPaymentReceiverChanged,
+        OrderPaymentRemoved,
+        OrderRefundAdded,
+        OrderRefundChanged,
+        OrderRefundRefunderChanged,
+        OrderRefundRemoved,
+        OrderDiscountAdded,
+        OrderDiscountChanged,
+        OrderDiscountRemoved,
+        OrderExpenseAdded,
+        OrderExpenseChanged,
+        OrderExpensePayerChanged,
+        OrderExpenseRemoved,
+        ProductTypeAdded,
+        ProductTypeRenamed,
+        ProductTypeRecolored,
+        ProductTypeRetired,
+        ProductTypeReactivated,
+        ProductTypeDeleted,
+        PaymentMethodAdded,
+        PaymentMethodRenamed,
+        PaymentMethodRecolored,
+        PaymentMethodRetired,
+        PaymentMethodReactivated,
+        PaymentMethodDeleted,
+        OrderExpenseCategoryAdded,
+        OrderExpenseCategoryRenamed,
+        OrderExpenseCategoryRecolored,
+        OrderExpenseCategoryRetired,
+        OrderExpenseCategoryReactivated,
+        OrderExpenseCategoryDeleted,
     ];
 }

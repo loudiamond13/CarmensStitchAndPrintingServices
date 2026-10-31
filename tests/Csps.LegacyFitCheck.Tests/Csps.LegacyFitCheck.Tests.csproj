@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests for the legacy fit check (Phase 7.1). They use made-up rows in throwaway CSPS_Test databases only. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Csps.LegacyFitCheck\Csps.LegacyFitCheck.csproj" />
+    <ProjectReference Include="..\Csps.Testing\Csps.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

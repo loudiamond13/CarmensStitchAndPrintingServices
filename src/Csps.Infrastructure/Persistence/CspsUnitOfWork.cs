@@ -1,6 +1,8 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Expenses;
+using Csps.Infrastructure.OrderLists;
+using Csps.Infrastructure.Orders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -27,9 +29,11 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
         }
         catch (DbUpdateException exception)
         {
-            // A category constraint (unique name, or an expense still using the category) becomes a typed error the handler maps.
-            // The failed row leaves the context, or the next save on this request would try it again.
-            var translated = ExpenseCategoryStore.TranslateSaveFailure(exception);
+            // A category, order list or order number constraint (unique name, a row still using the entry, or a number another order
+            // holds) becomes a typed error the handler maps. The failed row leaves the context, or the next save on this request would try it again.
+            var translated = ExpenseCategoryStore.TranslateSaveFailure(exception)
+                ?? OrderListStore.TranslateSaveFailure(exception)
+                ?? OrderStore.TranslateSaveFailure(exception);
             if (translated is null && !IsDeadlockVictim(exception))
             {
                 throw;
@@ -76,6 +80,12 @@ internal sealed class CspsUnitOfWork(CspsDbContext context) : IUnitOfWork
         try
         {
             result = await work(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ConcurrencyConflictException conflict) when (IsDeadlockVictim(conflict))
+        {
+            // The server rolled the whole transaction back, so no savepoint is left to go back to. The caller answers the lost race
+            // and the gate ends its lease.
+            throw new ConcurrencyConflictException(conflict.InnerException ?? conflict, outerTransactionEnded: true);
         }
         catch
         {

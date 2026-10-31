@@ -22,6 +22,8 @@ function entry(overrides: Partial<AuditLogItem> = {}): AuditLogItem {
     reference: 'c0ffee00-1111-4222-8333-444455556666',
     changes: [],
     snapshot: null,
+    orderSnapshot: null,
+    orderNumber: null,
     ...overrides,
   };
 }
@@ -127,8 +129,149 @@ describe('AuditDetail', () => {
     expect(container).not.toHaveTextContent('payer=');
   });
 
+  it('names the order and reads the lines of an added payment as stated values (D-31)', () => {
+    const ana = { id: '11111111-1111-4111-8111-111111111111', name: 'Ana Reyes', formerStaff: false };
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order-payment.added',
+          doneTo: null,
+          detail: 'payment=x;receiver=y',
+          orderNumber: 'ORD-2026-0148',
+          changes: [
+            { field: 'date', from: null, to: '2026-10-25', fromPerson: null, toPerson: null },
+            { field: 'amount', from: null, to: '10000.00', fromPerson: null, toPerson: null },
+            { field: 'method', from: null, to: 'GCash', fromPerson: null, toPerson: null },
+            { field: 'receiver', from: null, to: null, fromPerson: null, toPerson: ana },
+          ],
+        })}
+      />,
+    );
+
+    expect(termsOf(container)).toEqual(['Order', 'What changed', 'IP address', 'Device', 'Reference']);
+    expect(valueOf(container, 'Order')).toHaveTextContent('ORD-2026-0148');
+    expect(
+      within(valueOf(container, 'What changed'))
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Date: Oct 25, 2026', 'Amount: ₱10,000.00', 'Payment method: GCash', 'Received by: Ana Reyes']);
+    expect(container).not.toHaveTextContent('payment=x');
+  });
+
+  it('reads a receiver change as before and after, and an edit as a pair even with no old value', () => {
+    const ana = { id: '11111111-1111-4111-8111-111111111111', name: 'Ana Reyes', formerStaff: false };
+    const bea = { id: '22222222-2222-4222-8222-222222222222', name: 'Bea Navarro', formerStaff: true };
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order-payment.receiver-changed',
+          detail: 'payment=x;receiver=a>b',
+          orderNumber: 'ORD-2026-0148',
+          changes: [
+            { field: 'receiver', from: null, to: null, fromPerson: ana, toPerson: bea },
+            { field: 'method', from: null, to: 'GCash', fromPerson: null, toPerson: null },
+          ],
+        })}
+      />,
+    );
+
+    expect(
+      within(valueOf(container, 'What changed'))
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      'Received by: Ana Reyes to Bea Navarro (former staff)',
+      'Payment method: a deleted payment method to GCash',
+    ]);
+  });
+
+  it('lists a line it cannot read as "<Field> changed" instead of dropping it (D-81)', () => {
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order-payment.changed',
+          detail: 'payment=x',
+          orderNumber: 'ORD-2026-0148',
+          changes: [
+            { field: 'amount', from: null, to: '10000.00', fromPerson: null, toPerson: null },
+            { field: 'method', from: 'Cash', to: 'GCash', fromPerson: null, toPerson: null },
+          ],
+        })}
+      />,
+    );
+
+    const lines = within(valueOf(container, 'What changed'))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(lines).toEqual(['Amount changed', 'Payment method: Cash to GCash']);
+  });
+
+  it('lists fields it does not know as one "Other detail changed" line (D-84)', () => {
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order.changed',
+          detail: 'order=x',
+          orderNumber: 'ORD-2026-0148',
+          changes: [
+            { field: 'shoeSize', from: 'small', to: 'large', fromPerson: null, toPerson: null },
+            { field: 'notes', from: null, to: null, fromPerson: null, toPerson: null },
+            { field: 'jerseyCut', from: 'slim', to: 'loose', fromPerson: null, toPerson: null },
+          ],
+        })}
+      />,
+    );
+
+    const lines = within(valueOf(container, 'What changed'))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(lines).toEqual(['Other detail changed', 'Notes changed']);
+  });
+
+  it('reads the snapshot of a deleted order after the order is gone (ORD-16)', () => {
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order.permanently-deleted',
+          doneTo: null,
+          detail: 'number=ORD-2026-0148;status=cancelled',
+          orderNumber: 'ORD-2026-0148',
+          orderSnapshot: { number: 'ORD-2026-0148', status: 'cancelled', total: 21327.5, paid: 12000, balance: 9327.5 },
+        })}
+      />,
+    );
+
+    expect(valueOf(container, 'What changed')).toHaveTextContent(
+      'ORD-2026-0148, Cancelled, total ₱21,327.50, paid ₱12,000.00, balance ₱9,327.50',
+    );
+    expect(container).not.toHaveTextContent('status=');
+  });
+
+  it('leaves out the Order row for an entry that is not about an order', () => {
+    const { container } = render(<AuditDetail item={entry({ orderNumber: null })} />);
+
+    expect(termsOf(container)).not.toContain('Order');
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(<AuditDetail item={entry()} />);
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('has no axe violations for an order entry with its lines and snapshot', async () => {
+    const { container } = render(
+      <AuditDetail
+        item={entry({
+          action: 'order.deleted',
+          doneTo: null,
+          detail: null,
+          orderNumber: 'ORD-2026-0148',
+          orderSnapshot: { number: 'ORD-2026-0148', status: 'pending', total: 100, paid: 0, balance: 100 },
+          changes: [{ field: 'customerName', from: null, to: null, fromPerson: null, toPerson: null }],
+        })}
+      />,
+    );
 
     await expectNoAxeViolations(container);
   });

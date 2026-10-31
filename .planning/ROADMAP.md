@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-26T05:53:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-29T07:40:00-05:00*
 
 ## Overview
 
@@ -59,7 +59,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Identity & Authentication** - Email + password + mandatory emailed code, remember me, rotating refresh, lockout, reset, bootstrap Manager, auth audit (completed 2026-10-17)
 - [x] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer (completed 2026-10-19)
 - [x] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards (completed 2026-10-26)
-- [ ] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests
+- [x] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests (completed 2026-10-29)
 - [ ] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
 - [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers
@@ -763,6 +763,8 @@ Plans:
   6. **Payment receiver.** Every payment names who received the money (ORD-22): a required, server-validated reference to an active Admin or Manager on payment create, payment edit and full-aggregate create, with a plain-English field error otherwise. A receiver change is audited, and a staff lookup gives both roles the list of eligible receivers.
   7. **Expense payer.** Every order expense names who paid it (ORD-23): a required, server-validated reference to an active Admin or Manager on order-expense create, order-expense edit and full-aggregate create, with a plain-English field error otherwise. A change of payer is audited because it moves money between staff balances (MONEY-01).
 
+  *Notes (owner decisions, Phase 7 discuss 2026-10-27 and 2026-10-28; the criteria text above is unchanged):* criterion 1's "one of the 6 product types" is superseded by D-18 (a Manager-editable product type list that starts with the six), criterion 2's "overpayment rule across all mutation types" by D-12 (only a payment above the balance is refused; other changes may leave a customer credit that a refund clears), and criterion 4's refund and cancelled-order policy is D-07 to D-10 and D-34 to D-36 (payments stay collected cash unless refunded, refund caps, and cancelled-order profit). See `phases/07-order-domain-api/07-CONTEXT.md`. (owner, 2026-10-28, D-39)
+
 **Owner decisions to close at discuss step:** All of these must close before the first test.
 - **OD-3 + C-39** statuses, transitions, reopen rules and status history
 - **OD-4 + C-38** overpayments, including via removed items or added discounts. *OD-4 ruled by the owner, 2026-10-13: no overpayment; the server refuses a payment above the balance and the payment form warns during input. Still to confirm here: C-38 (other mutations that would push the balance below zero) and how already-overpaid legacy orders import and display.*
@@ -785,7 +787,100 @@ Plans:
 - EF 10 complex-type `Money` translation for `Sum`/`OrderBy` (spike)
 - counter-table locking under the execution strategy
 
-**Plans**: TBD
+**Plans**: 20/20 plans complete in 14 waves (planned 2026-10-28; each code plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [x] 07-01-PLAN.md — Product types, payment methods and order expense categories: tables, seeds, read API, and the Phase 7 audit catalog (ORD-13; D-16 to D-20, D-31)
+- [x] 07-02-PLAN.md — Order math learns refunds, customer credit and cancelled-order profit, v2 vectors untouched (ORD-20, ORD-18; D-12, D-13, D-36)
+- [x] 07-03-PLAN.md — Seven statuses and the transition table (ORD-17; D-01 to D-05, D-38)
+- [x] 07-04-PLAN.md — Draft requirement amendments and the Phase 7.1 entry for owner approval (D-33; checkpoint)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 07-05-PLAN.md — Create an order with items and read it back: schema, per-year numbering, totals, history, audit (ORD-03, ORD-13, ORD-14, ORD-16, ORD-20)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 07-06-PLAN.md — Numbering under 20 parallel creates, across New Year in Manila, gapless on rollback (ORD-14)
+- [x] 07-07-PLAN.md — Edit order details with the 409 version check (ORD-05, ORD-08; D-25)
+- [x] 07-08-PLAN.md — The hidden "Legacy / unassigned" holder (D-32, D-37)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 07-09-PLAN.md — Add, edit and remove items; child-only edits guarded (ORD-05, ORD-08, ORD-13)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 07-10-PLAN.md — Discounts, many per order, never above the items total (ORD-05; D-15)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 07-11-PLAN.md — Payments with Received by, no overpayment, customer credit, two-payments race (ORD-05, ORD-08, ORD-22; D-11, D-12)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 07-12-PLAN.md — Order expenses with Paid by; full ORD-2026-0148 create exact (ORD-05, ORD-20, ORD-23)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 07-13-PLAN.md — Status changes, history, reopen and the end-state lock (ORD-16, ORD-17, ORD-18)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 07-14-PLAN.md — Refunds with the owner's caps and the cancelled-order exception (ORD-18; D-07, D-09, D-34 to D-36)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 07-15-PLAN.md — Soft delete, deleted list, restore and permanent delete (ORD-06 server side; D-26 to D-29)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 07-16-PLAN.md — Order list, search, filters and sort in two commands with the p95 proof (ORD-01, ORD-02 server side; PERF-04)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 07-17-PLAN.md — Managers manage the three order lists (ORD-13; D-16 to D-19)
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [x] 07-18-PLAN.md — Order.Import with named rule relaxations and preserved numbers (ORD-21, ORD-14)
+- [x] 07-19-PLAN.md — The audit viewer reads every order event (ORD-16, ORD-22, ORD-23; D-31)
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [x] 07-20-PLAN.md — Dev seed of the UI-spec orders and a testing-only seeding route (ORD-20, ORD-21)
+
+### Phase 07.1: Legacy Fit Check (read-only) (INSERTED)
+
+**Goal:** Before Phase 8 builds on the order rules, a read-only check runs the legacy orders in CSPS_Legacy_Restore through Order.Import's rules and the legacy company expenses through the Phase 6 expense rules, and lists every record that breaks them. It never derives the schema, never writes to the restore and never restores over CSPS_Dev (D-33). (owner, 2026-10-28, D-33, D-39; company expenses added by 07.1 D-16, owner, 2026-10-29)
+**Requirements**: None new (a read-only check; no requirement text depends on it)
+**Depends on:** Phase 7
+**Plans:** 12/12 plans complete
+
+Plans:
+
+**Wave 1**
+- [x] 07.1-01-PLAN.md — Tracer: one made-up order runs end to end on a fake restore; CI runs the tool's tests; the package never holds the tool (D-07, D-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 07.1-02-PLAN.md — The restore is provably read-only: fixed source, SELECT-only guard, never-committed transaction, write evidence (D-07, D-14)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 07.1-03-PLAN.md — Every legacy column accounted for, and the provisional draft mapping doc (D-04, D-05, D-09)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 07.1-04-PLAN.md — Every order part mapped; lists matched with trial-only entries (D-04, D-05, D-06)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 07.1-05-PLAN.md — People matched to pseudonymous trial staff or the Legacy holder (D-06)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 07.1-06-PLAN.md — Every rule each order breaks (probe), and legacy totals against CSPS math (D-03, D-08)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 07.1-07-PLAN.md — The trial database is safe on every path; import outcomes and counters (D-07)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 07.1-08-PLAN.md — Legacy company expenses against the Phase 6 rules, report only (D-12, D-16)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 07.1-09-PLAN.md — Private full list in _local, counts-only summary with a privacy self-check, runbook (D-01, D-02)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 07.1-10-PLAN.md — Owner go-ahead, the one real run, and the D-10 briefing (D-07, D-01)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 07.1-11-PLAN.md — Owner rulings on every findings group; counts-only findings published (D-10, D-02)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 07.1-12-PLAN.md — Approved relaxations built test first, re-run proof, hand-off to review and ship (D-11, D-13 to D-16)
 
 ### Phase 8: Order Screens
 
@@ -1212,7 +1307,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 4. Identity & Authentication | 35/35 | Complete    | 2026-10-17 |
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
-| 7. Order Domain & API | 0/TBD | Not started | - |
+| 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 0/TBD | Not started | - |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |

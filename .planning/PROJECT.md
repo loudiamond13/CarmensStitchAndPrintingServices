@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-26T07:02:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-29T05:45:00-05:00*
 
 ## What This Is
 
@@ -46,6 +46,8 @@ All existing production data is migrated in without loss. The API is client-agno
 - ✓ **Profile and user management:** own name, email change with confirmation, password change, admin theme; Manager-only users list with URL filters, invite or temporary password, edit, role, lock, deactivate, delete with last-Manager guard, session revoke on role or status change, resend invite or reset link; audit log viewer; optimistic concurrency and server-set record attribution for users (PROF-01..04, USER-01..08, AUDIT-02; Phase 5 share of SEC-07, SEC-08) — Phase 5 (2026-10-19: 52 plans, UAT 4/4 on a real phone and inbox, verification 12/12, threats_open 0; owner rulings D-50 to D-55)
 
 - ✓ **Company expenses:** add, edit, soft delete with Manager restore and permanent delete; filters, search, period totals and Manila-time month KPIs; Manager-editable categories on a Settings page; required "Paid by" with audited payer changes; rowversion 409s; fixed query counts and a 300 ms p95 list gate (CEXP-01..05, PERF-04) — Phase 6 (2026-10-26: 21 plans plus quick 261026-89i, UAT 6/6 with the live speed check deferred to backlog 999.4, verification 6/6, threats_open 0, UI review 20/24 with all five warnings fixed; owner rulings D-54 to D-62)
+
+- ✓ **Order domain and API (screens come in Phase 8):** order aggregate with items, discounts, payments (Received by), refunds, order expenses (Paid by) and status rules; server-computed totals matching the 220 golden vectors; per-year numbers under a lock; rowversion 409s; soft delete, Manager restore and permanent delete; list search, filter and sort; Manager-editable product types, payment methods and expense categories; legacy holder and legacy import path; every change audited without customer text (ORD-01..09, ORD-21..23 API side) - Phase 7 (2026-10-29: UAT 2 passed, 3 deferred to Phases 8 and 10, threats_open 0 of 61, 5,915 tests, rulings D-78)
 
 ### Active
 
@@ -235,4 +237,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-26T07:02:00-05:00 after Phase 6 verification and transition*
+*Last updated: 2026-10-29T05:45:00-05:00 after Phase 7 verification and transition*

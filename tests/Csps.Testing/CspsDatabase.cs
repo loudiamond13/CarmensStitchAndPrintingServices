@@ -1,4 +1,7 @@
 using Csps.Domain.Expenses;
+using Csps.Domain.Identity;
+using Csps.Domain.OrderLists;
+using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -125,6 +128,8 @@ public sealed class CspsDatabase : IAsyncLifetime
         }
 
         await ReseedExpenseCategoriesAsync().ConfigureAwait(false);
+        await ReseedOrderListsAsync().ConfigureAwait(false);
+        await ReseedLegacyHolderAsync().ConfigureAwait(false);
     }
 
     // Respawn empties ExpenseCategories, but the ten migration-seeded rows belong to every database (D-09), and an expense
@@ -142,6 +147,42 @@ public sealed class CspsDatabase : IAsyncLifetime
             }
 
             context.ExpenseCategories.AddRange(missing.Select(ExpenseCategory.FromSeed));
+            await context.SaveChangesAsync().ConfigureAwait(false);
+        }
+    }
+
+    // Respawn also empties the order list tables, but their migration-seeded rows belong to every database (D-16, D-17, D-18).
+    // Put back any that are missing, from the same seed the migration uses.
+    private async Task ReseedOrderListsAsync()
+    {
+        var context = CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            var productTypes = await context.ProductTypes.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
+            context.ProductTypes.AddRange(OrderListSeed.ProductTypes.Where(row => !productTypes.Contains(row.Id)).Select(ProductType.FromSeed));
+
+            var paymentMethods = await context.PaymentMethods.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
+            context.PaymentMethods.AddRange(OrderListSeed.PaymentMethods.Where(row => !paymentMethods.Contains(row.Id)).Select(PaymentMethod.FromSeed));
+
+            var categories = await context.OrderExpenseCategories.AsNoTracking().Select(entry => entry.Id).ToListAsync().ConfigureAwait(false);
+            context.OrderExpenseCategories.AddRange(OrderListSeed.OrderExpenseCategories.Where(row => !categories.Contains(row.Id)).Select(OrderExpenseCategory.FromSeed));
+
+            await context.SaveChangesAsync().ConfigureAwait(false);
+        }
+    }
+
+    // Respawn also deletes the Legacy / unassigned holder, which every database has from its migration (D-37). Put it back when missing.
+    private async Task ReseedLegacyHolderAsync()
+    {
+        var context = CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            if (await context.Users.AsNoTracking().AnyAsync(user => user.Id == LegacyHolder.Id).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            context.Users.Add(ApplicationUser.ForLegacyHolder());
             await context.SaveChangesAsync().ConfigureAwait(false);
         }
     }

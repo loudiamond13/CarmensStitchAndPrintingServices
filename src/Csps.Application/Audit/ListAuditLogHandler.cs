@@ -74,7 +74,9 @@ public sealed class ListAuditLogHandler(IAuditLogReader reader, IBusinessCalenda
             entry.Device,
             entry.Reference,
             entry.Changes,
-            entry.Snapshot);
+            entry.Snapshot,
+            entry.OrderSnapshot,
+            entry.OrderNumber);
 
     // The stored prefix is the network address; the viewer shows it with its length, /24 for IPv4 and /48 for IPv6 (D-24).
     private static string? NetworkOf(string? prefix) =>

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Csps.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// Maps the DatabaseLocks table (D-50): the 65 standing lock rows and, in time, short-lived idempotency claims.
+/// Maps the DatabaseLocks table (D-50): the 66 standing lock rows and, in time, short-lived idempotency claims.
 /// There is no row version, because a lock row must never cause a 409. The standing rows come from the migration with literal values only.
 /// </summary>
 internal sealed class DatabaseLockConfiguration : IEntityTypeConfiguration<DatabaseLock>

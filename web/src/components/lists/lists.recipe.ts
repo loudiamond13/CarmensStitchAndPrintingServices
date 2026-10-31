@@ -258,7 +258,7 @@ export const resultCountClasses = tw('text-ink');
 
 /**
  * The chip group (UI-SPEC overflow row): chips wrap onto new lines 8px apart and never widen the page. The 5px end padding
- * keeps a clear button's 44px tap area, which reaches 5px past the chip's end, inside the group's own box.
+ * keeps a clear button's 44px tap area, which reaches 4px past the chip's end, inside the group's own box.
  */
 export const chipGroupClasses = tw('flex max-w-full min-w-0 flex-wrap gap-2 pr-1.25');
 
@@ -270,9 +270,9 @@ export const filterChipClasses = tw(
 /** The chip label: truncated with an ellipsis when the chip hits the bar's width. */
 export const filterChipLabelClasses = tw('min-w-0 truncate');
 
-/** `.s-iconbtn` at App. E.7's inline 22px with `color: inherit` (O-8 size kept); it never shrinks. */
+/** `.s-iconbtn` at 24px with `color: inherit` (D-98; App. E.7 draws 22px); it never shrinks. */
 export const filterChipClearClasses = tw(
-  'inline-grid size-[22px] flex-none cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-inherit hover:bg-surface-2',
+  'inline-grid size-6 flex-none cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-inherit hover:bg-surface-2',
 );
 
 /* ───────────── Pagination ───────────── */

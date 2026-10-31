@@ -7,6 +7,7 @@ using Csps.Infrastructure.Expenses;
 using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Orders;
 using Csps.Infrastructure.Passwords;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Time;
@@ -85,6 +86,7 @@ public static class DependencyInjection
 
         services.AddCspsIdentity();
         services.AddCspsExpenses();
+        services.AddCspsOrders();
         services.AddCspsIdempotency();
         services.AddCspsEmail(configuration, environment);
         services.AddCspsPasswordChecks(environment);

@@ -58,13 +58,14 @@ public static class AuthorizationMatrix
     ];
 
     // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
-    // POST /api/testing/staff and POST /api/testing/expenses get no body here, so every caller meets the same 400.
+    // POST /api/testing/staff, POST /api/testing/expenses and POST /api/testing/orders get no body here, so every caller meets the same 400.
     private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
         ?
         [
             new("GET", "/api/testing/emails", "/api/testing/emails", Anonymous: 200, Admin: 200, Manager: 200),
             new("POST", "/api/testing/staff", "/api/testing/staff", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/expenses", "/api/testing/expenses", Anonymous: 400, Admin: 400, Manager: 400),
+            new("POST", "/api/testing/orders", "/api/testing/orders", Anonymous: 400, Admin: 400, Manager: 400),
         ]
         : [];
 
@@ -147,6 +148,34 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
         new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
 
+        // The order lists (D-16, D-17, D-18, D-19): Staff only, both roles read them.
+        new("GET", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/payment-methods", "/api/v1/payment-methods", Anonymous: 401, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/order-expense-categories", "/api/v1/order-expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
+        // Adding a product type (D-19): Managers only, so an Admin meets 403. With no body a Manager meets the 400 field errors.
+        new("POST", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 403, Manager: 400),
+        // Reading one product type (D-19): Managers only. A fresh random id is no entry, so a Manager meets 404 product-types.not-found.
+        new("GET", "/api/v1/product-types/{id:guid}", "/api/v1/product-types/0b6e8d24-7a31-4c95-b2f0-5d9c1a3e7f68", Anonymous: 401, Admin: 403, Manager: 404),
+        // Editing, retiring, bringing back and deleting a product type (D-19): Managers only. A fresh random id is no entry, so a Manager meets 404 product-types.not-found; an edit with no body meets the 400 field errors first.
+        new("PUT", "/api/v1/product-types/{id:guid}", "/api/v1/product-types/4d8f2a61-9c07-4e35-b1a8-6f3e0d7c5b92", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/product-types/{id:guid}/retire", "/api/v1/product-types/7a1c5e93-2f48-4b06-9d3a-c8e0b6f4d125/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/product-types/{id:guid}/reactivate", "/api/v1/product-types/e3b9d705-6a2c-4f18-8b4e-1d7a9c0f3e56/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/product-types/{id:guid}", "/api/v1/product-types/92c4a8f1-5d36-4b7e-a0c9-3e8f1b6d2a47", Anonymous: 401, Admin: 403, Manager: 404),
+        // The same eight routes for the payment methods (D-16, D-19).
+        new("POST", "/api/v1/payment-methods", "/api/v1/payment-methods", Anonymous: 401, Admin: 403, Manager: 400),
+        new("GET", "/api/v1/payment-methods/{id:guid}", "/api/v1/payment-methods/5e0b7d39-1a64-4c82-9f5d-b2a8c4e6130f", Anonymous: 401, Admin: 403, Manager: 404),
+        new("PUT", "/api/v1/payment-methods/{id:guid}", "/api/v1/payment-methods/a6d2f084-3b91-4e57-8c0a-7f5e1d9b4c28", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/payment-methods/{id:guid}/retire", "/api/v1/payment-methods/18f5c3a7-d092-4b6e-a741-9e0c8b2d5f63/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/payment-methods/{id:guid}/reactivate", "/api/v1/payment-methods/c7e1a950-4d3b-4f28-b6a9-0d2f8e5c1a74/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/payment-methods/{id:guid}", "/api/v1/payment-methods/3b9e6d12-8f05-4a7c-91d4-e5c0a2b7f836", Anonymous: 401, Admin: 403, Manager: 404),
+        // The same eight routes for the order expense categories (D-17, D-19).
+        new("POST", "/api/v1/order-expense-categories", "/api/v1/order-expense-categories", Anonymous: 401, Admin: 403, Manager: 400),
+        new("GET", "/api/v1/order-expense-categories/{id:guid}", "/api/v1/order-expense-categories/d4a0c862-7e19-4b53-8a2f-6c9d1e3b5f07", Anonymous: 401, Admin: 403, Manager: 404),
+        new("PUT", "/api/v1/order-expense-categories/{id:guid}", "/api/v1/order-expense-categories/6f2d8b45-0c93-4e1a-b7d6-a3e5c9f08142", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/order-expense-categories/{id:guid}/retire", "/api/v1/order-expense-categories/b1e7a329-5f60-4d84-9c3b-2a8d0f6e4c91/retire", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/order-expense-categories/{id:guid}/reactivate", "/api/v1/order-expense-categories/2c5f9a06-e813-4b72-a4d1-8e0b3c7f5a69/reactivate", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/order-expense-categories/{id:guid}", "/api/v1/order-expense-categories/f8a3d514-2b70-4c96-8e0f-5d1c7a9b3e28", Anonymous: 401, Admin: 403, Manager: 404),
+
         // The expense category list (D-08, D-15): Staff only, both roles read it.
         new("GET", "/api/v1/expense-categories", "/api/v1/expense-categories", Anonymous: 401, Admin: 200, Manager: 200),
         // Adding a category (CEXP-02, D-08, D-14): Managers only, so an Admin meets 403. With no body a Manager meets the 400 field errors.
@@ -181,6 +210,47 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/company-expenses/{id:guid}/restore", "/api/v1/company-expenses/c5e8f2b0-3a74-4d91-8b26-8f4d1e9c7a53/restore", Anonymous: 401, Admin: 403, Manager: 404),
         // Deleting for good (CEXP-02, D-04): Managers only. A fresh random id is no expense, so a Manager meets 404 company-expenses.not-found.
         new("DELETE", "/api/v1/company-expenses/{id:guid}/permanent", "/api/v1/company-expenses/d7a1b9e3-5c28-4f60-a4d2-1b8e6f3c0a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
+
+        // Listing orders (ORD-01, ORD-02): both roles read every order.
+        new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
+        // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.
+        new("POST", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 400, Manager: 400),
+        // Reading one order (ORD-03): both roles. A fresh random id is no order, so both meet 404 orders.not-found.
+        new("GET", "/api/v1/orders/{id:guid}", "/api/v1/orders/3f7a2c91-6d48-4e15-b0a3-9c1e5d8f2b64", Anonymous: 401, Admin: 404, Manager: 404),
+        // Editing an order's details (ORD-05): both roles may edit any order (D-25). The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("PUT", "/api/v1/orders/{id:guid}", "/api/v1/orders/9b2d6e14-7a35-4c80-a1f9-3e5c8d0b2a76", Anonymous: 401, Admin: 400, Manager: 400),
+        // Adding an item to a saved order (ORD-05): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("POST", "/api/v1/orders/{orderId:guid}/items", "/api/v1/orders/4c8e1a73-5d29-4b06-9f3a-2e7b0d6c1a85/items", Anonymous: 401, Admin: 400, Manager: 400),
+        // Editing an item (ORD-05): both roles. The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("PUT", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/7d3b9e25-1a64-4c80-b5f2-8e0c4a6d1b97/items/2f8a5c13-9e47-4d06-a1b3-6c0d7e4f9a28", Anonymous: 401, Admin: 400, Manager: 400),
+        // Removing an item (ORD-05): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
+        new("DELETE", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/1e6c4a82-3b95-4d07-8a1f-5d2e9b7c0a34/items/9c4e7a16-2d83-4b05-a6f1-3e8b0d5c2a79", Anonymous: 401, Admin: 404, Manager: 404),
+        // Adding a discount to a saved order (ORD-05, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("POST", "/api/v1/orders/{orderId:guid}/payments", "/api/v1/orders/9e4b1c73-2a58-4d06-b3f9-5c7a0e1d8f24/payments", Anonymous: 401, Admin: 400, Manager: 400),
+        new("PUT", "/api/v1/orders/{orderId:guid}/payments/{paymentId:guid}", "/api/v1/orders/4a7c1e90-6b25-4d83-8f0a-2e5b9c3d7a16/payments/c8f2a05d-3e71-4b96-a4d0-1b7e6c9f2a53", Anonymous: 401, Admin: 400, Manager: 400),
+        new("DELETE", "/api/v1/orders/{orderId:guid}/payments/{paymentId:guid}", "/api/v1/orders/d3b5f8a2-1c64-4e97-b0a3-7f9e2d6c4b18/payments/6e0a9d47-5f28-4c13-8b7a-9c1d3e5f2a60", Anonymous: 401, Admin: 404, Manager: 404),
+        new("POST", "/api/v1/orders/{orderId:guid}/expenses", "/api/v1/orders/5f1d8a26-7c93-4e04-b2a7-0d6c9e3b1f85/expenses", Anonymous: 401, Admin: 400, Manager: 400),
+        new("PUT", "/api/v1/orders/{orderId:guid}/expenses/{expenseId:guid}", "/api/v1/orders/b7e3a914-2c58-4f06-9d1a-4e8c0b6f3a27/expenses/1d9f6a30-8b45-4c72-a3e1-5f0c7d2b9e84", Anonymous: 401, Admin: 400, Manager: 400),
+        new("DELETE", "/api/v1/orders/{orderId:guid}/expenses/{expenseId:guid}", "/api/v1/orders/e2a8c571-9d36-4b04-8f7a-0c5d3e1b6a49/expenses/7a4e1c98-3f62-4d05-b8a1-9e2c6d0f5b73", Anonymous: 401, Admin: 404, Manager: 404),
+        // Refunds on a saved order (ORD-18, D-07): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request.
+        new("POST", "/api/v1/orders/{orderId:guid}/refunds", "/api/v1/orders/a4d7e920-3b61-4c85-9f0a-6e2c8b1d5a37/refunds", Anonymous: 401, Admin: 400, Manager: 400),
+        new("PUT", "/api/v1/orders/{orderId:guid}/refunds/{refundId:guid}", "/api/v1/orders/c6e1a493-7d28-4b50-8f3a-0a9d5e2b7c14/refunds/3b8f0d62-1e95-4a47-b6c0-8d2a7e5f1c39", Anonymous: 401, Admin: 400, Manager: 400),
+        new("DELETE", "/api/v1/orders/{orderId:guid}/refunds/{refundId:guid}", "/api/v1/orders/f2a7c580-4e19-4d63-9b0a-5c8e1d3f6a72/refunds/9d4e1b07-6a32-4c85-a0f1-2b7c9e5d3a68", Anonymous: 401, Admin: 404, Manager: 404),
+        // Changing an order's status (ORD-17): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("POST", "/api/v1/orders/{id:guid}/status", "/api/v1/orders/8c3f1b64-2d97-4e05-a6b8-1f4a7e0d9c52/status", Anonymous: 401, Admin: 400, Manager: 400),
+        // Deleting an order (ORD-06, D-26): both roles. A fresh random id is no order, so both meet 404 orders.not-found.
+        new("DELETE", "/api/v1/orders/{id:guid}", "/api/v1/orders/1f6b3d84-9a27-4c50-8e1d-7a4c0b5e2f93", Anonymous: 401, Admin: 404, Manager: 404),
+        // The deleted list (ORD-06, D-28): Managers only, so an Admin meets 403.
+        new("GET", "/api/v1/orders/deleted", "/api/v1/orders/deleted", Anonymous: 401, Admin: 403, Manager: 200),
+        // Restoring (ORD-06, D-28): Managers only. The matrix sends an Idempotency-Key, so a fresh random id is no order and a Manager meets 404 orders.not-found.
+        new("POST", "/api/v1/orders/{id:guid}/restore", "/api/v1/orders/6d2a8c15-3b94-4e07-a1f6-0c9e5b7d4a38/restore", Anonymous: 401, Admin: 403, Manager: 404),
+        // Deleting for good (ORD-06, D-28): Managers only. A fresh random id is no order, so a Manager meets 404 orders.not-found before the confirm is checked.
+        new("DELETE", "/api/v1/orders/{id:guid}/permanent", "/api/v1/orders/9a4e7c13-5d28-4b60-8f1a-2e6c0d3b7a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/orders/{orderId:guid}/discounts","/api/v1/orders/6a9d3f27-8c14-4e50-b7a2-1d4f8e0c5b93/discounts", Anonymous: 401, Admin: 400, Manager: 400),
+        // Editing a discount (ORD-05, D-15): both roles. The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
+        new("PUT", "/api/v1/orders/{orderId:guid}/discounts/{discountId:guid}", "/api/v1/orders/2b7e5a91-4d36-4c08-a9f1-7e3c0d8b5a64/discounts/8d1f4b27-6a93-4e50-b2c7-0a5e9d3f1b48", Anonymous: 401, Admin: 400, Manager: 400),
+        // Removing a discount (ORD-05, D-15): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
+        new("DELETE", "/api/v1/orders/{orderId:guid}/discounts/{discountId:guid}", "/api/v1/orders/5c9a2e68-1f47-4b03-8d6a-3b0e7f4c2a91/discounts/a3e6d0b5-7c28-4f19-9b4a-6d1c8e2f0a37", Anonymous: 401, Admin: 404, Manager: 404),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
@@ -221,7 +291,7 @@ public static class AuthorizationMatrix
             "* /scalar/{**path}",
         }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
 
-    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses"] : [];
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>

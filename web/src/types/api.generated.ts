@@ -504,6 +504,750 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/order-expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every order expense category, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers
+         *     hide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or
+         *     `retired`), `isOthers`, which is true only for Others, always last, and `useCount`, the number of order expenses
+         *     that use the category, soft-deleted orders included.
+         */
+        get: operations["ListOrderExpenseCategories"];
+        put?: never;
+        /**
+         * Adds an order expense category, Managers only. The name is required, at most 40 characters and unique among all order expense categories, retired
+         *     ones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Staff can pick the new category on an order at once. Who added it and when come from the token
+         *     and the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored 201 and adds nothing more.
+         */
+        post: operations["CreateOrderExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/order-expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one order expense category with how many order expenses use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetOrderExpenseCategory"];
+        /**
+         * Renames and recolors one order expense category with the version the form was opened with, Managers only. The new name shows on every
+         *     order expense, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
+         *     answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and
+         *     keeps the version. Others keeps its name but may change colour: any other name for it answers 400 on `name` with "The Others name can't change.".
+         *     Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateOrderExpenseCategory"];
+        post?: never;
+        /**
+         * Deletes an order expense category, Managers only, while no order expense uses it. An order expense uses it when a row exists, expenses of
+         *     soft-deleted orders included. A used category answers 422 `order-expense-categories.in-use` and should be retired instead. Others can never be deleted. It takes no
+         *     version.
+         */
+        delete: operations["DeleteOrderExpenseCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/order-expense-categories/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Brings a retired order expense category back, Managers only: it can be chosen on an order expense again. Bringing back an active category is
+         *     a 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with
+         *     the stored 204.
+         */
+        post: operations["ReactivateOrderExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/order-expense-categories/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retires an order expense category, Managers only: it can no longer be chosen on a new or changed order expense but stays in the list and
+         *     the filters, marked `retired`, and saved expenses keep it. Retiring a retired category is a 204 that changes and records
+         *     nothing. Others can never be retired. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RetireOrderExpenseCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists orders for both roles, with the stored money figures, never any contact details. By default it keeps the orders in play:
+         *     Pending to Delivered, plus Completed and Cancelled orders whose status changed in the last 30 days, soonest due first with
+         *     orders that have no due date last. Deleted orders never appear and never count. The total covers every page of the filter.
+         */
+        get: operations["ListOrders"];
+        put?: never;
+        /**
+         * Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order
+         *     date and the due date are required, and the due date may not be before the order date. The status may be pending, mockup,
+         *     production, ready or delivered and is pending when not sent; Completed and Cancelled are refused on a new order. An order
+         *     has 1 to 100 items, each with a product type that exists and is not retired, a description of up to 200 characters, an
+         *     optional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.
+         *     The order number, `ORD-{YYYY}-{NNNN}`, takes its year from the business year of the save, and the money figures
+         *     are worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number
+         *     or totals in the body are ignored. The first status history row is written with the order. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored 201 and creates nothing more.
+         */
+        post: operations["CreateOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the deleted orders, Managers only, most recently deleted first and then by id. Each row has the number, customer, team,
+         *     status, total, paid and balance, and who deleted it and when. The total covers every page.
+         */
+        get: operations["ListDeletedOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one order with its items, status history, money figures, who recorded it and who last changed it. Both roles read
+         *     every order. A deleted order is the same 404 as an unknown one.
+         */
+        get: operations["GetOrder"];
+        /**
+         * Saves an edit of one order's customer details, dates and notes with the version the form was opened with. The field rules are
+         *     the same as when creating, and the due date is required even for an imported order that had none. A version that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. Any staff member may edit any
+         *     order. Items, status, number and money figures are not changed here. Who changed it and when come from the token and the
+         *     clock; any such member in the body is ignored. A form with no change saves nothing and keeps the version.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        put: operations["UpdateOrderDetails"];
+        post?: never;
+        /**
+         * Deletes one order, both roles. The order stays in the database with its items, payments, refunds, discounts, expenses and
+         *     history, but it and all of them leave every read: the order, its status and every child route answer 404, and its money counts
+         *     nowhere. Who deleted it and when are recorded. It takes no version: it acts on the latest state, and deleting an order that is
+         *     already deleted is a 404 that changes nothing. Only a Manager can see it in the deleted list and restore it.
+         */
+        delete: operations["DeleteOrder"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Deletes one order for good, Managers only, whether or not it was deleted before. The order and every item, payment, refund,
+         *     discount, expense and history row are removed from the database in one step and there is no way back. The query value
+         *     `confirm` must be the order number typed exactly (same letters, no extra spaces), or nothing is removed. The audit log
+         *     keeps one entry with the number, status, money figures and the user ids of the people who took payments, paid expenses and
+         *     handed refunds back, and never customer details or notes. It takes no version, and removing an order that is already gone
+         *     is a 404 that changes nothing. Image cleanup joins this delete when orders have images.
+         */
+        delete: operations["PermanentlyDeleteOrder"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restores a deleted order, Managers only: it and all its items, payments, refunds, discounts, expenses and history count and
+         *     show again. It takes no version. Restoring an order that is not deleted answers 404 and changes nothing. A retry with the
+         *     same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RestoreOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves an order to another status. The body is `{ "status": "..." }` with one of pending, mockup, production, ready,
+         *     delivered, completed or cancelled. Moves among pending, mockup, production, ready and delivered are free, and cancelling is
+         *     allowed from any of them. Completed needs a balance of exactly 0.00: money owed answers 422
+         *     `orders.complete-balance-owed` and a customer credit 422 `orders.complete-credit`. A Completed or Cancelled order
+         *     is reopened by moving it to any of the five active statuses, by an Admin or a Manager; going straight from Completed to
+         *     Cancelled or back answers 422 `orders.reopen-first`. No version is sent: the move is judged on the latest state. Every
+         *     move and reopen is recorded in the status history with who made it and when. A request for the status the order already has
+         *     answers 200 and changes nothing. Cancelling keeps every payment and expense counting. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and moves nothing more.
+         */
+        post: operations["ChangeOrderStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/discounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds a discount to a saved order with the order's version the form was opened with. The kind is `fixed` (a value from
+         *     0.01 to 1,000,000.00) or `percentage` (a value above 0 and up to 100), each with at most two decimal places, and the
+         *     reason is 1 to 100 characters. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a
+         *     form save is never retried. The server works out the order's totals. Who added the discount and when come from the token and
+         *     the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        post: operations["AddOrderDiscount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/discounts/{discountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one discount of a saved order with the order's version the form was opened with. The rules are the same as
+         *     when adding, and the discounts together may not be more than the items total (400 on `value`). A discount id that is not
+         *     on this order answers 404 `orders.discount-not-found`. A version that is not the stored one answers 409
+         *     `edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing saves nothing and keeps
+         *     the version. Who changed the discount and when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        put: operations["UpdateOrderDiscount"];
+        post?: never;
+        /**
+         * Removes one discount of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
+         *     again and decided again once. A discount id that is not on this order answers 404 `orders.discount-not-found`. The
+         *     totals are worked out again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        delete: operations["RemoveOrderDiscount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records an expense on a saved order with the order's version the form was opened with. The date is a real
+         *     `yyyy-MM-dd` day: any past day, and up to 30 days after today in the shop's time zone. The amount is above 0.00 and at
+         *     most 1,000,000.00 with at most two decimal places. The category must exist and not be retired. `paidByUserId` names who
+         *     spent the money and must be an active Admin or Manager; it is separate from who typed the expense in, which comes from the
+         *     token. The description is optional, up to 200 characters. A version that is not the stored one answers 409
+         *     `edit.stale` and changes nothing; a form save is never retried. The server works out the expenses and the profit. A
+         *     retry with the same `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        post: operations["AddOrderExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/expenses/{expenseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one expense of a saved order with the order's version the form was opened with. The rules are the same as
+         *     when adding. The category and the payer are checked only when the edit changes them, so an expense may keep a category that
+         *     was retired or a payer who was deactivated after it was saved. An expense id that is not on this order answers 404
+         *     `orders.expense-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a
+         *     form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the expense and
+         *     when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        put: operations["UpdateOrderExpense"];
+        post?: never;
+        /**
+         * Removes one expense of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
+         *     again and decided again once. An expense id that is not on this order answers 404 `orders.expense-not-found`. The
+         *     expenses and the profit are worked out again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        delete: operations["RemoveOrderExpense"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds an item to a saved order with the order's version the form was opened with. The item rules are the same as when creating
+         *     an order: a product type that exists and is not retired, a description of up to 200 characters, an optional size or variant
+         *     of up to 100, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places. An order has at
+         *     most 100 items. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never
+         *     retried. The server works out the line total and the order's totals. Who added the item and when come from the token and the
+         *     clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored
+         *     answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         *     An item that makes the rounded discounts more than the new items total answers 422 `orders.discount-above-subtotal`.
+         */
+        post: operations["AddOrderItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one item of a saved order with the order's version the form was opened with. The item rules are the same as
+         *     when adding. The product type is checked against the list only when the edit changes it, so an item may keep a type that was
+         *     retired after it was saved. An item id that is not on this order answers 404 `orders.item-not-found`. A version that is
+         *     not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes
+         *     nothing saves nothing and keeps the version. An edit that would leave the discounts more than the new items total answers 422
+         *     `orders.discount-above-subtotal` and changes nothing. Who changed the item and when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        put: operations["UpdateOrderItem"];
+        post?: never;
+        /**
+         * Removes one item of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read again
+         *     and decided again once. An order keeps at least one item, so removing the last one answers 422 `orders.last-item`. An item
+         *     id that is not on this order answers 404 `orders.item-not-found`. A removal that would leave the discounts more than the
+         *     new items total answers 422 `orders.discount-above-subtotal`. The totals are worked out again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        delete: operations["RemoveOrderItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a payment on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`
+         *     day, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal
+         *     places, and it may not be more than the balance: a payment above it answers 400 on `amount` with the most that can be
+         *     entered. The payment method must exist and not be retired. `receivedByUserId` names who has the money and must be an
+         *     active Admin or Manager; it is separate from who typed the payment in, which comes from the token. The reference holds up to
+         *     100 characters and the notes up to 500. A version that is not the stored one answers 409 `edit.stale` and changes
+         *     nothing; a form save is never retried. The server works out the order's totals. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and adds nothing more.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         */
+        post: operations["AddOrderPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one payment of a saved order with the order's version the form was opened with. The rules are the same as
+         *     when adding. An edit may lower the amount freely and may raise it only up to the balance plus the amount it had (400 on
+         *     `amount`). The payment method and the receiver are checked only when the edit changes them, so a payment may keep a
+         *     method that was retired or a receiver who was deactivated after it was saved. A payment id that is not on this order answers
+         *     404 `orders.payment-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing;
+         *     a form save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the payment and
+         *     when come from the token and the clock.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         *     A change that would leave the payments below the refunds already recorded answers 422 `orders.payment-below-refunds` and changes nothing.
+         */
+        put: operations["UpdateOrderPayment"];
+        post?: never;
+        /**
+         * Removes one payment of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
+         *     again and decided again once. A payment id that is not on this order answers 404 `orders.payment-not-found`. The totals
+         *     are worked out again; if the order was fully paid it now has a balance again.
+         *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
+         *     A change that would leave the payments below the refunds already recorded answers 422 `orders.payment-below-refunds` and changes nothing.
+         */
+        delete: operations["RemoveOrderPayment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a refund on a saved order with the order's version the form was opened with. The date is a real `yyyy-MM-dd`
+         *     day, never after today in the shop's time zone. The amount is above 0.00 and at most 1,000,000.00 with at most two decimal
+         *     places. The reason is 1 to 200 characters. `refundedByUserId` names who handed the money back and must be an active
+         *     Admin or Manager; it is separate from who typed the refund in, which comes from the token. A refund is allowed only on a
+         *     cancelled order or one with a customer credit (422 `orders.refund-not-allowed` otherwise); on an order that is not
+         *     cancelled it may not pass the credit, and on a cancelled order it may not pass what was paid and not yet refunded (400 on
+         *     `amount`). A completed order answers 422 `orders.locked`. A version that is not the stored one answers 409
+         *     `edit.stale` and changes nothing; a form save is never retried. A retry with the same `Idempotency-Key` and body
+         *     answers with the stored answer and adds nothing more.
+         */
+        post: operations["AddOrderRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/refunds/{refundId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves an edit of one refund of a saved order with the order's version the form was opened with. The rules are the same as
+         *     when adding, except that the cap adds back the refund's own old amount. The refunder is checked only when the edit changes
+         *     them, so a refund may keep a refunder who was deactivated after it was saved. A refund id that is not on this order
+         *     answers 404 `orders.refund-not-found`. A completed order answers 422 `orders.locked`. A version that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. An edit that changes nothing
+         *     saves nothing and keeps the version. Who changed the refund and when come from the token and the clock.
+         */
+        put: operations["UpdateOrderRefund"];
+        post?: never;
+        /**
+         * Removes one refund of a saved order. No version is sent: the removal applies to the latest state, and a lost race is read
+         *     again and decided again once. A refund id that is not on this order answers 404 `orders.refund-not-found`. A completed
+         *     order answers 422 `orders.locked`. The totals are worked out again.
+         */
+        delete: operations["RemoveOrderRefund"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every payment method, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers
+         *     hide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or
+         *     `retired`), `isOthers`, which is always false for payment methods, and `useCount`, the number of payments
+         *     that use the method, soft-deleted orders included.
+         */
+        get: operations["ListPaymentMethods"];
+        put?: never;
+        /**
+         * Adds a payment method, Managers only. The name is required, at most 40 characters and unique among all payment methods, retired
+         *     ones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Staff can pick the new method on an order at once. Who added it and when come from the token
+         *     and the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored 201 and adds nothing more.
+         */
+        post: operations["CreatePaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-methods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one payment method with how many payments use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetPaymentMethod"];
+        /**
+         * Renames and recolors one payment method with the version the form was opened with, Managers only. The new name shows on every
+         *     payment, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
+         *     answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and
+         *     keeps the version. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdatePaymentMethod"];
+        post?: never;
+        /**
+         * Deletes a payment method, Managers only, while no payment uses it. A payment uses it when a row exists, payments of
+         *     soft-deleted orders included. A used method answers 422 `payment-methods.in-use` and should be retired instead. It takes no
+         *     version.
+         */
+        delete: operations["DeletePaymentMethod"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-methods/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Brings a retired payment method back, Managers only: it can be chosen on a payment again. Bringing back an active method is
+         *     a 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with
+         *     the stored 204.
+         */
+        post: operations["ReactivatePaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-methods/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retires a payment method, Managers only: it can no longer be chosen on a new or changed payment but stays in the list and
+         *     the filters, marked `retired`, and saved payments keep it. Retiring a retired method is a 204 that changes and records
+         *     nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RetirePaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every product type, retired ones included with status `retired`, A to Z ignoring letter case, then by id. Pickers
+         *     hide retired ones; filters keep them. Each item has `id`, `name`, `tone`, `status` (`active` or
+         *     `retired`), `isOthers`, which is always false for product types, and `useCount`, the number of order items
+         *     that use the type, soft-deleted orders included.
+         */
+        get: operations["ListProductTypes"];
+        put?: never;
+        /**
+         * Adds a product type, Managers only. The name is required, at most 40 characters and unique among all product types, retired
+         *     ones included, ignoring letter case. The tone is one of six: `neutral`, `accent`, `info`, `mockup`,
+         *     `warning` or `success`. Staff can pick the new type on an order at once. Who added it and when come from the token
+         *     and the clock; any such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the
+         *     stored 201 and adds nothing more.
+         */
+        post: operations["CreateProductType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one product type with how many order items use it, who recorded and last changed it, and the version a save must send back. Managers only. */
+        get: operations["GetProductType"];
+        /**
+         * Renames and recolors one product type with the version the form was opened with, Managers only. The new name shows on every
+         *     order item, past ones included. The name and tone follow the same rules as when adding. A version that is not the stored one
+         *     answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change saves nothing and
+         *     keeps the version. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateProductType"];
+        post?: never;
+        /**
+         * Deletes a product type, Managers only, while no order item uses it. An item uses it when a row exists, items of
+         *     soft-deleted orders included. A used type answers 422 `product-types.in-use` and should be retired instead. It takes no
+         *     version.
+         */
+        delete: operations["DeleteProductType"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-types/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Brings a retired product type back, Managers only: it can be chosen on an order item again. Bringing back an active type is
+         *     a 204 that changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with
+         *     the stored 204.
+         */
+        post: operations["ReactivateProductType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-types/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retires a product type, Managers only: it can no longer be chosen on a new or changed order item but stays in the list and
+         *     the filters, marked `retired`, and saved items keep it. Retiring a retired type is a 204 that changes and records
+         *     nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["RetireProductType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -946,11 +1690,147 @@ export interface components {
             /** @description The actor's name, first then last. */
             name: string;
         };
-        /** @description One "What changed" line of an expense or category entry (D-27). Text fields carry no text, only the fact that they changed. */
+        /**
+         * @description The Add Discount form on a saved order (D-15, ORD-05). It carries the order's version as the form was opened. Any other member in
+         *     the body, such as a forged `createdById`, is ignored: who added the discount and when come from the token and the clock
+         *     (SEC-08).
+         */
+        AddOrderDiscountRequest: {
+            /** @description The kind: `fixed` or `percentage`. */
+            kind: null | string;
+            /** @description Why the discount is given. */
+            reason: null | string;
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Add Expense form on a saved order (ORD-05, ORD-23). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `createdById`, is ignored: who recorded the expense and when come from the token and the
+         *     clock (SEC-08). Who paid is a separate choice, `paidByUserId`.
+         */
+        AddOrderExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short description. */
+            description: null | string;
+            /** @description The day of the expense, `yyyy-MM-dd`. */
+            expenseDate: null | string;
+            /**
+             * Format: uuid
+             * @description The order expense category.
+             */
+            orderExpenseCategoryId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Add Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in
+         *     the body, such as a forged `createdById` or `lineTotal`, is ignored: who added the item and when come from the token and
+         *     the clock (SEC-08), and the line total is worked out by the server.
+         */
+        AddOrderItemRequest: {
+            /** @description What the line is. */
+            description: null | string;
+            /**
+             * Format: uuid
+             * @description The product type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: null | number | string;
+            /** @description The size or variant. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Add Payment form on a saved order (ORD-05, ORD-22). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `createdById`, is ignored: who recorded the payment and when come from the token and the
+         *     clock (SEC-08). Who received the money is a separate choice, `receivedByUserId`.
+         */
+        AddOrderPaymentRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the money was received, `yyyy-MM-dd`. */
+            paymentDate: null | string;
+            /**
+             * Format: uuid
+             * @description The payment method.
+             */
+            paymentMethodId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who received the money.
+             */
+            receivedByUserId: null | string;
+            /** @description The reference, such as a transfer number. */
+            reference: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Add Refund form on a saved order (ORD-18, D-07). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `createdById`, is ignored: who recorded the refund and when come from the token and the
+         *     clock (SEC-08). Who handed the money back is a separate choice, `refundedByUserId`.
+         */
+        AddOrderRefundRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short reason, 1 to 200 characters. */
+            reason: null | string;
+            /** @description The day the money was handed back, `yyyy-MM-dd`. */
+            refundDate: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who handed the money back.
+             */
+            refundedByUserId: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /** @description One "What changed" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed. */
         AuditChangeLine: {
-            /** @description One of `amount`, `date`, `category`, `payer`, `description`, `notes`, `name` or `tone`. */
+            /**
+             * @description One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,
+             *     `dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,
+             *     `payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,
+             *     `sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.
+             */
             field: string;
-            /** @description The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a category name, a tone); null when there is none. */
+            /**
+             * @description The old value (an amount as `0.00`, a date as `yyyy-MM-dd`, a status or kind key, a quantity, a list entry name, a tone; a
+             *     percentage discount value ends with `%`); null when there is none. A line that states a value as it was added or removed has no
+             *     old value.
+             */
             from: null | string;
             fromPerson: null | components["schemas"]["ActorRef"];
             /** @description The new value; null when there is none or the field is a text field. */
@@ -977,7 +1857,7 @@ export interface components {
         AuditLogItem: {
             /** @description The action code, for example `user.deactivated`. */
             action: string;
-            /** @description The typed "What changed" lines of an expense or category entry; empty for every other entry (D-27). */
+            /** @description The typed "What changed" lines of an expense, order or list entry; empty for every other entry (D-27, D-31). */
             changes: components["schemas"]["AuditChangeLine"][];
             /** @description The stored detail; null when none. */
             detail: null | string;
@@ -998,6 +1878,9 @@ export interface components {
              * @description When it happened, in UTC.
              */
             occurredAt: string;
+            /** @description The number of the order an order or order child entry is about; null for every other entry. */
+            orderNumber: null | string;
+            orderSnapshot: null | components["schemas"]["AuditOrderSnapshot"];
             /** @description The correlation id, to find the request's log lines. */
             reference: string;
             snapshot: null | components["schemas"]["AuditExpenseSnapshot"];
@@ -1022,6 +1905,28 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description The facts of an order as a deleted, restored or permanently deleted entry saw it. It stays readable after the order row is gone (ORD-16, D-29). */
+        AuditOrderSnapshot: {
+            /**
+             * Format: double
+             * @description What was still owed.
+             */
+            balance: number | string;
+            /** @description The order number, such as `ORD-2026-0148`. */
+            number: string;
+            /**
+             * Format: double
+             * @description The money paid in, before refunds.
+             */
+            paid: number | string;
+            /** @description The status key: `pending`, `mockup`, `production`, `ready`, `delivered`, `completed` or `cancelled`. */
+            status: string;
+            /**
+             * Format: double
+             * @description The order total.
+             */
+            total: number | string;
+        };
         /** @description One person an audit filter can offer. */
         AuditPerson: {
             /** @description True when the account was deleted (D-47: shown as former staff). */
@@ -1033,6 +1938,15 @@ export interface components {
             id: string;
             /** @description First and last name. */
             name: string;
+        };
+        /**
+         * @description The Change Status action on a saved order (ORD-17). It carries no version: the move is judged on the latest state. Any other
+         *     member in the body, such as a forged `changedBy`, is ignored: who moved the order and when come from the token and the
+         *     clock (SEC-08).
+         */
+        ChangeOrderStatusRequest: {
+            /** @description The status key: pending, mockup, production, ready, delivered, completed or cancelled. */
+            status: null | string;
         };
         /** @description The My Profile password form: the current password and the new one (PROF-03). */
         ChangePasswordRequest: {
@@ -1203,6 +2117,38 @@ export interface components {
             tone: null | string;
         };
         /**
+         * @description The New Order form (ORD-03). Any other member in the body, such as a forged `createdById`, `number` or `totals`, is
+         *     ignored: who recorded the order, its number and its money figures come from the token, the clock and the server (SEC-08, ORD-20).
+         */
+        CreateOrderRequest: {
+            /** @description The address. */
+            address: null | string;
+            /** @description The contact number. */
+            contactNumber: null | string;
+            /** @description The customer's name. */
+            customerName: null | string;
+            /** @description The discounts, none to 20; saved in the same transaction as the order. */
+            discounts?: null | components["schemas"]["OrderDiscountRequest"][];
+            /** @description The day it is due, `yyyy-MM-dd`. */
+            dueDate: null | string;
+            /** @description The email address. */
+            email: null | string;
+            /** @description The order expenses, none to 100, each with who paid it; saved in the same transaction as the order. */
+            expenses?: null | components["schemas"]["OrderExpenseRequest"][];
+            /** @description The lines, one to 100. */
+            items: null | components["schemas"]["OrderItemRequest"][];
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the order was taken, `yyyy-MM-dd`. */
+            orderDate: null | string;
+            /** @description The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts. */
+            payments?: null | components["schemas"]["OrderPaymentRequest"][];
+            /** @description The status to start in: pending, mockup, production, ready or delivered; pending when not sent. */
+            status: null | string;
+            /** @description The team or club name. */
+            teamName: null | string;
+        };
+        /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
          *     body, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).
          */
@@ -1275,6 +2221,63 @@ export interface components {
             /**
              * Format: int32
              * @description How many deleted expenses match, across all pages.
+             */
+            total: number | string;
+        };
+        /** @description One deleted order in the deleted list (D-28). It carries no contact details, address or notes. */
+        DeletedOrderListItem: {
+            /**
+             * Format: double
+             * @description The balance in pesos.
+             */
+            balance: number | string;
+            /** @description The customer's name. */
+            customerName: string;
+            /**
+             * Format: date-time
+             * @description When it was deleted.
+             */
+            deletedAt: string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
+            id: string;
+            /** @description The order number. */
+            number: string;
+            /**
+             * Format: double
+             * @description What was paid in pesos.
+             */
+            paid: number | string;
+            /** @description The status key the order had when it was deleted. */
+            status: string;
+            /** @description The team or club name; null when none. */
+            teamName: null | string;
+            /**
+             * Format: double
+             * @description The order total in pesos.
+             */
+            total: number | string;
+        };
+        /** @description One page of the deleted list (D-28). */
+        DeletedOrderListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["DeletedOrderListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many deleted orders there are, across all pages.
              */
             total: number | string;
         };
@@ -1398,6 +2401,561 @@ export interface components {
             /**
              * Format: double
              * @description The sum of the month's expenses by expense date; 0.00 when none.
+             */
+            total: number | string;
+        };
+        /** @description One order with its items, history, totals and who recorded and last changed it (ORD-03). */
+        OrderDetailResponse: {
+            /** @description The address; null when none. */
+            address: null | string;
+            /** @description The contact number. */
+            contactNumber: null | string;
+            /** @description The customer's name. */
+            customerName: string;
+            /** @description The discounts, in the order they were added. */
+            discounts: components["schemas"]["OrderDiscountResponse"][];
+            /**
+             * Format: date
+             * @description The day it is due.
+             */
+            dueDate: null | string;
+            /** @description The email address; null when none. */
+            email: null | string;
+            /** @description The order expenses, oldest expense date first. */
+            expenses: components["schemas"]["OrderExpenseResponse"][];
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
+            id: string;
+            /** @description The lines, in order. */
+            items: components["schemas"]["OrderItemResponse"][];
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The notes; null when none. */
+            notes: null | string;
+            /** @description The order number, `ORD-{YYYY}-{NNNN}`. */
+            number: string;
+            /**
+             * Format: date
+             * @description The day the order was taken.
+             */
+            orderDate: string;
+            /** @description The payments, oldest payment date first. */
+            payments: components["schemas"]["OrderPaymentResponse"][];
+            /**
+             * Format: date-time
+             * @description When it was created.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The refunds, oldest refund date first. */
+            refunds: components["schemas"]["OrderRefundResponse"][];
+            /** @description The status key: pending, mockup, production, ready, delivered, completed or cancelled. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status last changed.
+             */
+            statusChangedAt: string;
+            /** @description The status history, oldest first. */
+            statusHistory: components["schemas"]["OrderStatusChangeResponse"][];
+            /** @description The team name; null when none. */
+            teamName: null | string;
+            /** @description The money figures. */
+            totals: components["schemas"]["OrderTotalsResponse"];
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
+        /** @description One discount of the New Order form (D-15, D-24, ORD-05). */
+        OrderDiscountRequest: {
+            /** @description The kind: `fixed` or `percentage`. */
+            kind: null | string;
+            /** @description Why the discount is given. */
+            reason: null | string;
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: null | number | string;
+        };
+        /** @description One discount of an order (D-15, ORD-05). */
+        OrderDiscountResponse: {
+            /**
+             * Format: uuid
+             * @description The discount id.
+             */
+            id: string;
+            /** @description The kind key: fixed or percentage. */
+            kind: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description Why the discount was given. */
+            reason: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: number | string;
+        };
+        /** @description One order expense of the New Order form (ORD-03, ORD-05, ORD-23). */
+        OrderExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short description. */
+            description: null | string;
+            /** @description The day of the expense, `yyyy-MM-dd`. */
+            expenseDate: null | string;
+            /**
+             * Format: uuid
+             * @description The order expense category.
+             */
+            orderExpenseCategoryId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+        };
+        /** @description One order expense (ORD-05, ORD-23). Paid by is who spent the money; recorded by is who typed the expense in. */
+        OrderExpenseResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /** @description The order expense category, with its tone and whether it is retired. */
+            category: components["schemas"]["OrderListRef"];
+            /** @description The description; null when none. */
+            description: null | string;
+            /**
+             * Format: date
+             * @description The day of the expense.
+             */
+            expenseDate: string;
+            /**
+             * Format: uuid
+             * @description The expense id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The staff member who paid; the name is kept for a deleted person. */
+            paidBy: components["schemas"]["ActorRef"];
+            /** @description True while the payer can still be chosen (ORD-23, D-32). */
+            paidByActive: boolean;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+        };
+        /** @description One line of the New Order form (ORD-13). */
+        OrderItemRequest: {
+            /** @description What the line is. */
+            description: null | string;
+            /**
+             * Format: uuid
+             * @description The product type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: null | number | string;
+            /** @description The size or variant. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: null | number | string;
+        };
+        /** @description One line of an order. */
+        OrderItemResponse: {
+            /** @description What the line is. */
+            description: string;
+            /**
+             * Format: uuid
+             * @description The item id.
+             */
+            id: string;
+            /**
+             * Format: double
+             * @description The quantity times the unit price.
+             */
+            lineTotal: number | string;
+            /** @description The product type. */
+            productType: components["schemas"]["OrderListRef"];
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: number | string;
+            /** @description The size or variant; null when none. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: number | string;
+        };
+        /** @description One order in the list (ORD-01). It carries the stored money figures and no contact details, address or notes. */
+        OrderListEntry: {
+            /**
+             * Format: double
+             * @description The balance in pesos.
+             */
+            balance: number | string;
+            /**
+             * Format: double
+             * @description What the shop owes the customer in pesos.
+             */
+            customerCredit: number | string;
+            /** @description The customer's name. */
+            customerName: string;
+            /**
+             * Format: double
+             * @description The discounts total in pesos.
+             */
+            discount: number | string;
+            /**
+             * Format: date
+             * @description The day it is due; null for an imported order that had none.
+             */
+            dueDate: null | string;
+            /** @description True when the order is paid in full. */
+            fullyPaid: boolean;
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
+            id: string;
+            /** @description The order number. */
+            number: string;
+            /**
+             * Format: date
+             * @description The day the order was taken.
+             */
+            orderDate: string;
+            /**
+             * Format: double
+             * @description What was paid in pesos.
+             */
+            paid: number | string;
+            /**
+             * Format: double
+             * @description What was handed back in pesos.
+             */
+            refunded: number | string;
+            /** @description The status key. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status last changed.
+             */
+            statusChangedAt: string;
+            /**
+             * Format: double
+             * @description The items total in pesos.
+             */
+            subtotal: number | string;
+            /** @description The team or club name; null when none. */
+            teamName: null | string;
+            /**
+             * Format: double
+             * @description The order total in pesos.
+             */
+            total: number | string;
+        };
+        /** @description One order list entry with its usage count, who recorded and last changed it, and the version a save must send back (D-19, SEC-07). */
+        OrderListEntryDetailResponse: {
+            /**
+             * Format: uuid
+             * @description The entry id.
+             */
+            id: string;
+            /** @description True only for the protected order expense Others. */
+            isOthers: boolean;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until a change.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The display name. */
+            name: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description `active` or `retired`. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
+            /**
+             * Format: int32
+             * @description How many rows use the entry, soft-deleted orders included; an entry with none can be deleted.
+             */
+            useCount: number | string;
+            /** @description The base64 of the eight-byte row version a save must send back. */
+            version: string;
+        };
+        /**
+         * @description The add and edit forms of an order list entry (D-19, SEC-07). Any other member in the body is ignored: who added or changed the
+         *     entry and when come from the token and the clock (SEC-08).
+         */
+        OrderListEntryRequest: {
+            /** @description The name; required after trimming, at most 40 characters, unique in its list ignoring letter case. The order expense Others keeps its name. */
+            name: null | string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: null | string;
+            /** @description The base64 of the eight-byte row version the edit form was opened with; required when editing, ignored when adding. */
+            version: null | string;
+        };
+        /** @description One entry in an order list that pickers and filters read (D-16, D-17, D-18, D-19). */
+        OrderListItem: {
+            /**
+             * Format: uuid
+             * @description The entry id.
+             */
+            id: string;
+            /** @description True only for the protected Others entry of the order expense categories. */
+            isOthers: boolean;
+            /** @description The display name. */
+            name: string;
+            /** @description `active`, or `retired` so a picker can hide it while a filter keeps it. */
+            status: string;
+            /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
+            tone: string;
+            /**
+             * Format: int32
+             * @description How many rows use the entry (order items, payments or order expenses by list), soft-deleted orders included; an entry with none can be deleted.
+             */
+            useCount: number | string;
+        };
+        /** @description An order list entry an item points at: its name and badge tone, and whether it is retired (D-18). */
+        OrderListRef: {
+            /**
+             * Format: uuid
+             * @description The entry id.
+             */
+            id: string;
+            /** @description The display name. */
+            name: string;
+            /** @description True once the entry is retired. */
+            retired: boolean;
+            /** @description One of the six colour tones. */
+            tone: string;
+        };
+        /** @description One page of the order list (ORD-01). */
+        OrderListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["OrderListEntry"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many orders match, across all pages.
+             */
+            total: number | string;
+        };
+        /** @description One payment of the New Order form (ORD-03, ORD-05, ORD-22). */
+        OrderPaymentRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the money was received, `yyyy-MM-dd`. */
+            paymentDate: null | string;
+            /**
+             * Format: uuid
+             * @description The payment method.
+             */
+            paymentMethodId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who received the money.
+             */
+            receivedByUserId: null | string;
+            /** @description The reference, such as a transfer number. */
+            reference: null | string;
+        };
+        /** @description One payment of an order (ORD-05, ORD-22). Received by is who holds the money; recorded by is who typed the payment in. */
+        OrderPaymentResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /**
+             * Format: uuid
+             * @description The payment id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The payment method, with its tone and whether it is retired. */
+            method: components["schemas"]["OrderListRef"];
+            /** @description The notes; null when none. */
+            notes: null | string;
+            /**
+             * Format: date
+             * @description The day the money was received.
+             */
+            paymentDate: string;
+            /** @description The staff member who received the money; the name is kept for a deleted person. */
+            receivedBy: components["schemas"]["ActorRef"];
+            /** @description True while the receiver can still be chosen (ORD-22, D-32). */
+            receivedByActive: boolean;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The reference, such as a transfer number; null when none. */
+            reference: null | string;
+        };
+        /** @description One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in. */
+        OrderRefundResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /**
+             * Format: uuid
+             * @description The refund id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description The short reason. */
+            reason: string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: date
+             * @description The day the money was handed back.
+             */
+            refundDate: string;
+            /** @description The staff member who handed the money back; the name is kept for a deleted person. */
+            refundedBy: components["schemas"]["ActorRef"];
+            /** @description True while the refunder can still be chosen (D-07, D-32). */
+            refundedByActive: boolean;
+        };
+        /** @description One row of the status history (ORD-16, D-06). */
+        OrderStatusChangeResponse: {
+            /**
+             * Format: date-time
+             * @description When it moved.
+             */
+            changedAt: string;
+            changedBy: null | components["schemas"]["ActorRef"];
+            /** @description The status the order left; null for the first row. */
+            from: null | string;
+            /** @description The status the order entered. */
+            to: string;
+        };
+        /**
+         * @description The money figures of an order, read straight from the stored snapshot (ORD-20). Subtotal is before discount, total is after
+         *     discount, balance is total minus paid plus refunded, and customerCredit is what the shop owes the customer.
+         */
+        OrderTotalsResponse: {
+            /**
+             * Format: double
+             * @description The total minus paid plus refunded.
+             */
+            balance: number | string;
+            /**
+             * Format: double
+             * @description What the shop owes the customer; 0.00 when nothing.
+             */
+            customerCredit: number | string;
+            /**
+             * Format: double
+             * @description The sum of the discounts.
+             */
+            discount: number | string;
+            /**
+             * Format: double
+             * @description The sum of the order expenses.
+             */
+            expenses: number | string;
+            /** @description True when the subtotal is above zero and the balance is zero or less. */
+            fullyPaid: boolean;
+            /**
+             * Format: double
+             * @description The sum of the payments.
+             */
+            paid: number | string;
+            /**
+             * Format: double
+             * @description The profit.
+             */
+            profit: number | string;
+            /**
+             * Format: double
+             * @description The sum of the refunds.
+             */
+            refunded: number | string;
+            /**
+             * Format: double
+             * @description The sum of the line totals.
+             */
+            subtotal: number | string;
+            /**
+             * Format: double
+             * @description The subtotal minus the discount.
              */
             total: number | string;
         };
@@ -1656,6 +3214,158 @@ export interface components {
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
             tone: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Order details form (ORD-05, SEC-07). It carries the version the form was opened with. Any other member in the body,
+         *     such as a forged `createdById`, `updatedById`, `number`, `status` or `totals`, is ignored: who changed the
+         *     order and when come from the token and the clock (SEC-08), and the number, status and money figures are not editable here.
+         */
+        UpdateOrderDetailsRequest: {
+            /** @description The address. */
+            address: null | string;
+            /** @description The contact number. */
+            contactNumber: null | string;
+            /** @description The customer's name. */
+            customerName: null | string;
+            /** @description The day it is due, `yyyy-MM-dd`. */
+            dueDate: null | string;
+            /** @description The email address. */
+            email: null | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the order was taken, `yyyy-MM-dd`. */
+            orderDate: null | string;
+            /** @description The team or club name. */
+            teamName: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Discount form on a saved order (D-15, ORD-05). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `updatedById`, is ignored: who changed the discount and when come from the token and the
+         *     clock (SEC-08).
+         */
+        UpdateOrderDiscountRequest: {
+            /** @description The kind: `fixed` or `percentage`. */
+            kind: null | string;
+            /** @description Why the discount is given. */
+            reason: null | string;
+            /**
+             * Format: double
+             * @description The peso amount (fixed) or the percent (percentage).
+             */
+            value: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Expense form on a saved order (ORD-05, ORD-23). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `updatedById`, is ignored: who changed the expense and when come from the token and the clock
+         *     (SEC-08). Who paid is a separate choice, `paidByUserId`.
+         */
+        UpdateOrderExpenseRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short description. */
+            description: null | string;
+            /** @description The day of the expense, `yyyy-MM-dd`. */
+            expenseDate: null | string;
+            /**
+             * Format: uuid
+             * @description The order expense category.
+             */
+            orderExpenseCategoryId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who paid.
+             */
+            paidByUserId: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Item form on a saved order (ORD-05, ORD-13). It carries the order's version as the form was opened. Any other member in
+         *     the body, such as a forged `updatedById` or `lineTotal`, is ignored: who changed the item and when come from the token
+         *     and the clock (SEC-08), and the line total is worked out by the server.
+         */
+        UpdateOrderItemRequest: {
+            /** @description What the line is. */
+            description: null | string;
+            /**
+             * Format: uuid
+             * @description The product type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: int32
+             * @description How many.
+             */
+            quantity: null | number | string;
+            /** @description The size or variant. */
+            sizeVariant: null | string;
+            /**
+             * Format: double
+             * @description The price of one, in pesos.
+             */
+            unitPrice: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Payment form on a saved order (ORD-05, ORD-22). It carries the order's version as the form was opened. Any other member
+         *     in the body, such as a forged `updatedById`, is ignored: who changed the payment and when come from the token and the clock
+         *     (SEC-08). Who received the money is a separate choice, `receivedByUserId`.
+         */
+        UpdateOrderPaymentRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Free notes. */
+            notes: null | string;
+            /** @description The day the money was received, `yyyy-MM-dd`. */
+            paymentDate: null | string;
+            /**
+             * Format: uuid
+             * @description The payment method.
+             */
+            paymentMethodId: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who received the money.
+             */
+            receivedByUserId: null | string;
+            /** @description The reference, such as a transfer number. */
+            reference: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The Edit Refund form on a saved order (ORD-18, D-07, D-35). It carries the order's version as the form was opened. Any other
+         *     member in the body, such as a forged `updatedById`, is ignored: who changed the refund and when come from the token and the
+         *     clock (SEC-08). Who handed the money back is a separate choice, `refundedByUserId`.
+         */
+        UpdateOrderRefundRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description A short reason, 1 to 200 characters. */
+            reason: null | string;
+            /** @description The day the money was handed back, `yyyy-MM-dd`. */
+            refundDate: null | string;
+            /**
+             * Format: uuid
+             * @description The staff member who handed the money back.
+             */
+            refundedByUserId: null | string;
+            /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
         /** @description The profile name form: the names and the edit version the form was opened with (SEC-07). */
@@ -3362,6 +5072,2823 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListOrderExpenseCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivateOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetireOrderExpenseCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order expense category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListOrders: {
+        parameters: {
+            query?: {
+                /** @description Search text for the order number, customer name, team or contact number; up to 100 characters. */
+                q?: string;
+                /** @description `active` (the default), `all`, or one of pending, mockup, production, ready, delivered, completed or cancelled. */
+                status?: string;
+                /** @description The first order date as `yyyy-MM-dd`. */
+                from?: string;
+                /** @description The last order date as `yyyy-MM-dd`; not before `from`. */
+                to?: string;
+                /** @description A product type id; keeps orders with at least one item of that type. */
+                productType?: string;
+                /** @description True keeps only orders whose balance is above 0.00. */
+                hasBalance?: boolean;
+                /** @description `due` (the default), `newest`, `balance` or `total`; the order id breaks every tie. */
+                sort?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateOrderRequest"];
+                "application/json": null | components["schemas"]["CreateOrderRequest"];
+                "text/json": null | components["schemas"]["CreateOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListDeletedOrders: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedOrderListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderDetails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderDetailsRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderDetailsRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderDetailsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PermanentlyDeleteOrder: {
+        parameters: {
+            query?: {
+                /** @description The order number, typed exactly. */
+                confirm?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RestoreOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChangeOrderStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ChangeOrderStatusRequest"];
+                "application/json": null | components["schemas"]["ChangeOrderStatusRequest"];
+                "text/json": null | components["schemas"]["ChangeOrderStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderDiscount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderDiscountRequest"];
+                "application/json": null | components["schemas"]["AddOrderDiscountRequest"];
+                "text/json": null | components["schemas"]["AddOrderDiscountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderDiscount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The discount id. */
+                discountId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderDiscountRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderDiscountRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderDiscountRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderDiscount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The discount id. */
+                discountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderExpenseRequest"];
+                "application/json": null | components["schemas"]["AddOrderExpenseRequest"];
+                "text/json": null | components["schemas"]["AddOrderExpenseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The expense id. */
+                expenseId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderExpenseRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderExpenseRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderExpenseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The expense id. */
+                expenseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderItemRequest"];
+                "application/json": null | components["schemas"]["AddOrderItemRequest"];
+                "text/json": null | components["schemas"]["AddOrderItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The item id. */
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderItemRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderItemRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderItemRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The item id. */
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderPaymentRequest"];
+                "application/json": null | components["schemas"]["AddOrderPaymentRequest"];
+                "text/json": null | components["schemas"]["AddOrderPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The payment id. */
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderPaymentRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderPaymentRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The payment id. */
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddOrderRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddOrderRefundRequest"];
+                "application/json": null | components["schemas"]["AddOrderRefundRequest"];
+                "text/json": null | components["schemas"]["AddOrderRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOrderRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The refund id. */
+                refundId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOrderRefundRequest"];
+                "application/json": null | components["schemas"]["UpdateOrderRefundRequest"];
+                "text/json": null | components["schemas"]["UpdateOrderRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The refund id. */
+                refundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListPaymentMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreatePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdatePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeletePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivatePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetirePaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListProductTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListItem"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["OrderListEntryRequest"];
+                "application/json": null | components["schemas"]["OrderListEntryRequest"];
+                "text/json": null | components["schemas"]["OrderListEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderListEntryDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivateProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RetireProductType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product type id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

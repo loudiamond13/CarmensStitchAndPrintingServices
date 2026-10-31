@@ -39,7 +39,7 @@ public sealed record AuditActorFilter(Guid? UserId);
 /// <param name="EndUtcExclusive">The first instant left out.</param>
 /// <param name="Actor">Keep only what this person (or the system) did; null for everyone. A person's own self-service steps count as theirs.</param>
 /// <param name="Action">Keep only this action code; null for all.</param>
-/// <param name="Target">Keep only entries about this person, including events of their sessions; null for all.</param>
+/// <param name="Target">Keep only entries about this person, including events of their sessions, the events of an expense they paid, and the order payment, refund, expense and permanent delete entries whose detail names them as receiver, refunder or payer (D-48); null for all.</param>
 /// <param name="Page">The page number, from 1.</param>
 /// <param name="PageSize">Entries per page, from 1 to 100.</param>
 public sealed record AuditLogQuery(
@@ -50,14 +50,16 @@ public sealed record AuditLogQuery(
 /// <param name="OccurredAt">When it happened, in UTC.</param>
 /// <param name="Actor">The signed-in person who caused it; null when there was none.</param>
 /// <param name="Action">The action code.</param>
-/// <param name="TargetType">The kind of thing acted on, <c>User</c>, <c>UserSession</c>, <c>CompanyExpense</c> or <c>ExpenseCategory</c>; null when none.</param>
-/// <param name="Target">The person acted on: the user, or the owner of the session; null when there is none.</param>
+/// <param name="TargetType">The kind of thing acted on, <c>User</c>, <c>UserSession</c>, <c>CompanyExpense</c>, <c>ExpenseCategory</c>, <c>Order</c>, <c>ProductType</c>, <c>PaymentMethod</c> or <c>OrderExpenseCategory</c>; null when none.</param>
+/// <param name="Target">The person acted on: the user, or the owner of the session; for an expense entry, its payer when the detail names one; null when there is none.</param>
 /// <param name="Detail">The stored fixed-word detail; null when none.</param>
 /// <param name="IpPrefix">The stored /24 or /48 prefix; null when unknown.</param>
 /// <param name="Device">The stored browser family; null when unknown.</param>
 /// <param name="Reference">The correlation id of the request.</param>
-/// <param name="Changes">The typed lines read from the detail of an expense or category entry; empty for every other entry.</param>
+/// <param name="Changes">The typed lines read from the detail of an expense, order or list entry; empty for every other entry.</param>
 /// <param name="Snapshot">The expense facts read from the detail of an added, deleted, restored or permanently deleted expense; null otherwise.</param>
+/// <param name="OrderSnapshot">The order facts read from the detail of a deleted, restored or permanently deleted order; null otherwise.</param>
+/// <param name="OrderNumber">The number of the order an order entry is about; null for every other entry.</param>
 public sealed record AuditLogEntryView(
     long Id,
     DateTimeOffset OccurredAt,
@@ -70,7 +72,9 @@ public sealed record AuditLogEntryView(
     string? Device,
     string Reference,
     IReadOnlyList<AuditChangeLine> Changes,
-    AuditExpenseSnapshot? Snapshot);
+    AuditExpenseSnapshot? Snapshot,
+    AuditOrderSnapshot? OrderSnapshot = null,
+    string? OrderNumber = null);
 
 /// <summary>One page of audit entries and the number in the range.</summary>
 /// <param name="Items">The entries of the page.</param>

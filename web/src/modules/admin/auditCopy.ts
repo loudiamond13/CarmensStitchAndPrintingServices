@@ -8,13 +8,15 @@ import type { components } from '@/types/api.generated';
 import { formatPeso } from '@/utils/csps';
 import { formatCalendarDate } from '@/utils/format';
 
-/** The groups of the Action select, in the order the UI-SPEC lists them (A1; the two expense groups are Phase 6). */
+/** The groups of the Action select, in the order the UI-SPEC lists them (A1; the two expense groups are Phase 6, the two order groups Phase 7). */
 export const AUDIT_GROUPS = [
   'Sign-in and security',
   'Staff accounts',
   'Profile changes',
   'Company expenses',
   'Expense categories',
+  'Orders',
+  'Order lists',
 ] as const;
 export type AuditGroup = (typeof AUDIT_GROUPS)[number];
 
@@ -30,6 +32,8 @@ const STAFF = AUDIT_GROUPS[1];
 const PROFILE = AUDIT_GROUPS[2];
 const EXPENSES = AUDIT_GROUPS[3];
 const CATEGORIES = AUDIT_GROUPS[4];
+const ORDERS = AUDIT_GROUPS[5];
+const ORDER_LISTS = AUDIT_GROUPS[6];
 
 /** Every action code with its plain-English label and group, in the order the select lists them. */
 export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
@@ -82,12 +86,62 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'expense-category.retired', label: 'Category retired', group: CATEGORIES },
   { code: 'expense-category.reactivated', label: 'Category back in use', group: CATEGORIES },
   { code: 'expense-category.deleted', label: 'Category deleted', group: CATEGORIES },
+  { code: 'order.created', label: 'Order created', group: ORDERS },
+  { code: 'order.changed', label: 'Order changed', group: ORDERS },
+  { code: 'order.status-changed', label: 'Order status changed', group: ORDERS },
+  { code: 'order.reopened', label: 'Order reopened', group: ORDERS },
+  { code: 'order.deleted', label: 'Order deleted', group: ORDERS },
+  { code: 'order.restored', label: 'Order restored', group: ORDERS },
+  { code: 'order.permanently-deleted', label: 'Order permanently deleted', group: ORDERS },
+  { code: 'order-item.added', label: 'Order item added', group: ORDERS },
+  { code: 'order-item.changed', label: 'Order item changed', group: ORDERS },
+  { code: 'order-item.removed', label: 'Order item removed', group: ORDERS },
+  { code: 'order-payment.added', label: 'Order payment added', group: ORDERS },
+  { code: 'order-payment.changed', label: 'Order payment changed', group: ORDERS },
+  { code: 'order-payment.receiver-changed', label: 'Order payment receiver changed', group: ORDERS },
+  { code: 'order-payment.removed', label: 'Order payment removed', group: ORDERS },
+  { code: 'order-refund.added', label: 'Order refund added', group: ORDERS },
+  { code: 'order-refund.changed', label: 'Order refund changed', group: ORDERS },
+  { code: 'order-refund.refunder-changed', label: 'Order refunder changed', group: ORDERS },
+  { code: 'order-refund.removed', label: 'Order refund removed', group: ORDERS },
+  { code: 'order-discount.added', label: 'Order discount added', group: ORDERS },
+  { code: 'order-discount.changed', label: 'Order discount changed', group: ORDERS },
+  { code: 'order-discount.removed', label: 'Order discount removed', group: ORDERS },
+  { code: 'order-expense.added', label: 'Order expense added', group: ORDERS },
+  { code: 'order-expense.changed', label: 'Order expense changed', group: ORDERS },
+  { code: 'order-expense.payer-changed', label: 'Order expense payer changed', group: ORDERS },
+  { code: 'order-expense.removed', label: 'Order expense removed', group: ORDERS },
+  { code: 'product-type.added', label: 'Product type added', group: ORDER_LISTS },
+  { code: 'product-type.renamed', label: 'Product type renamed', group: ORDER_LISTS },
+  { code: 'product-type.recolored', label: 'Product type color changed', group: ORDER_LISTS },
+  { code: 'product-type.retired', label: 'Product type retired', group: ORDER_LISTS },
+  { code: 'product-type.reactivated', label: 'Product type back in use', group: ORDER_LISTS },
+  { code: 'product-type.deleted', label: 'Product type deleted', group: ORDER_LISTS },
+  { code: 'payment-method.added', label: 'Payment method added', group: ORDER_LISTS },
+  { code: 'payment-method.renamed', label: 'Payment method renamed', group: ORDER_LISTS },
+  { code: 'payment-method.recolored', label: 'Payment method color changed', group: ORDER_LISTS },
+  { code: 'payment-method.retired', label: 'Payment method retired', group: ORDER_LISTS },
+  { code: 'payment-method.reactivated', label: 'Payment method back in use', group: ORDER_LISTS },
+  { code: 'payment-method.deleted', label: 'Payment method deleted', group: ORDER_LISTS },
+  { code: 'order-expense-category.added', label: 'Order expense category added', group: ORDER_LISTS },
+  { code: 'order-expense-category.renamed', label: 'Order expense category renamed', group: ORDER_LISTS },
+  { code: 'order-expense-category.recolored', label: 'Order expense category color changed', group: ORDER_LISTS },
+  { code: 'order-expense-category.retired', label: 'Order expense category retired', group: ORDER_LISTS },
+  { code: 'order-expense-category.reactivated', label: 'Order expense category back in use', group: ORDER_LISTS },
+  { code: 'order-expense-category.deleted', label: 'Order expense category deleted', group: ORDER_LISTS },
 ];
 
 /** The codes the Action filter accepts in the URL. */
 export const AUDIT_ACTION_CODES: readonly string[] = AUDIT_ACTIONS.map((action) => action.code);
 
 const LABELS: ReadonlyMap<string, string> = new Map(AUDIT_ACTIONS.map((action) => [action.code, action.label]));
+
+const GROUP_OF: ReadonlyMap<string, AuditGroup> = new Map(AUDIT_ACTIONS.map((action) => [action.code, action.group]));
+
+/** The group an action belongs to, or null for a code the viewer does not know. */
+export function auditActionGroup(code: string): AuditGroup | null {
+  return GROUP_OF.get(code) ?? null;
+}
 
 /** The plain-English label of an action, or the key itself when the viewer does not know it (a newer server). */
 export function auditActionLabel(code: string): string {
@@ -199,10 +253,52 @@ export function describeAuditDetail(action: string, detail: string | null): stri
 
 type AuditChangeLine = components['schemas']['AuditChangeLine'];
 type AuditExpenseSnapshot = components['schemas']['AuditExpenseSnapshot'];
+type AuditOrderSnapshot = components['schemas']['AuditOrderSnapshot'];
 type AuditPerson = components['schemas']['ActorRef'];
+
+/** What a change to a field the viewer does not know reads as. Its name and values are never shown (D-84). */
+const OTHER_DETAIL_CHANGED = 'Other detail changed';
 
 /** What a category reads as once it has been deleted. */
 const DELETED_CATEGORY = 'a deleted category';
+
+/** The seven order statuses the API sends as keys (D-01). */
+const ORDER_STATUS_LABEL: ReadonlyMap<string, string> = new Map([
+  ['pending', 'Pending'],
+  ['mockup', 'Mockup'],
+  ['production', 'In Production'],
+  ['ready', 'Ready'],
+  ['delivered', 'Delivered'],
+  ['completed', 'Completed'],
+  ['cancelled', 'Cancelled'],
+]);
+
+const DISCOUNT_KIND_LABEL: ReadonlyMap<string, string> = new Map([
+  ['fixed', 'Fixed amount'],
+  ['percentage', 'Percentage'],
+]);
+
+/** The text fields a line can name. Only the fact that one changed is ever said, never its text (05 D-40). */
+const TEXT_FIELD_SENTENCES: ReadonlyMap<string, string> = new Map([
+  ['customerName', 'Customer name changed'],
+  ['teamName', 'Team name changed'],
+  ['contactNumber', 'Contact number changed'],
+  ['email', 'Email changed'],
+  ['address', 'Address changed'],
+  ['notes', 'Notes changed'],
+  ['description', 'Description changed'],
+  ['sizeVariant', 'Size or variant changed'],
+  ['reference', 'Reference changed'],
+  ['reason', 'Reason changed'],
+]);
+
+/** The entries whose lines state each value as it was added or removed, so they have no old value. */
+const STATED_VALUE_ACTION = /^(?:order\.created|order-(?:item|payment|refund|discount|expense)\.(?:added|removed))$/u;
+
+/** True when the lines of an action state each value as it is, instead of old and new. */
+export function isStatedValueAction(action: string): boolean {
+  return STATED_VALUE_ACTION.test(action);
+}
 
 /** A person's name, then " (former staff)" for an account that was deleted. */
 function personText(person: AuditPerson): string {
@@ -223,39 +319,110 @@ function pair(label: string, from: string | null, to: string): string {
   return from === null ? `${label}: ${to}` : `${label}: ${from} to ${to}`;
 }
 
+/** The line for a value that cannot be read: it says the field changed and never shows the stored value. */
+function changedOnly(label: string): string {
+  return `${label} changed`;
+}
+
 /**
- * One typed change line as a fixed sentence (D-27, UI-SPEC A1): amounts in pesos, dates in the Manila style, categories and
- * payers by name. A description or notes change says only that it changed, because their text is never stored in the log
- * (05 D-40). A value the viewer cannot read gives null and the line is left out.
+ * A line with a value on each side. A stated value (an added or removed entry) needs only the new side; a change needs both. A
+ * value the formatter cannot read gives "<Label> changed".
  */
-export function describeAuditChange(line: AuditChangeLine): string | null {
+function valuePair(
+  label: string,
+  line: AuditChangeLine,
+  stated: boolean,
+  format: (value: string) => string | null,
+): string {
+  const to = line.to === null ? null : format(line.to);
+  if (to === null) return changedOnly(label);
+  if (stated) return pair(label, null, to);
+  const from = line.from === null ? null : format(line.from);
+  return from === null ? changedOnly(label) : pair(label, from, to);
+}
+
+/** A line whose sides are list entry names; a side with no name is an entry that has been deleted. */
+function namePair(label: string, deleted: string, line: AuditChangeLine, stated: boolean): string {
+  const to = line.to ?? deleted;
+  return stated ? pair(label, null, to) : pair(label, line.from ?? deleted, to);
+}
+
+/** A line whose sides are people. A stated value needs only the new person; a change needs both, else `fallback` is the line. */
+function personPair(label: string, fallback: string, line: AuditChangeLine, stated: boolean): string {
+  if (line.toPerson === null) return fallback;
+  if (stated) return pair(label, null, personText(line.toPerson));
+  return line.fromPerson === null ? fallback : pair(label, personText(line.fromPerson), personText(line.toPerson));
+}
+
+/** What the empty side of a change reads as (the same words as the hidden text of EmptyValue). */
+const NOT_SET = 'Not set';
+
+const NUMBER_TEXT = /^\d+$/u;
+const DISCOUNT_VALUE_TEXT = /^-?\d+(?:\.\d+)?%?$/u;
+
+function dateText(value: string): string | null {
+  return formatCalendarDate(value);
+}
+
+/** A discount value: "5%" for a percentage (the server ends it with a percent sign), pesos otherwise. */
+function discountValueText(value: string): string | null {
+  if (!DISCOUNT_VALUE_TEXT.test(value)) return null;
+  return value.endsWith('%') ? `${String(Number(value.slice(0, -1)))}%` : formatPeso(value);
+}
+
+/**
+ * One typed change line as a fixed sentence (D-27, D-31, UI-SPEC A1): amounts in pesos, dates in the Manila style, list entries and
+ * people by name. A text field says only that it changed, because its text is never stored in the log (05 D-40). With `stated`, the
+ * line gives a value as it was added or removed (see isStatedValueAction), so it has no old value. A value the viewer cannot read
+ * gives "<Field> changed", and a field the viewer does not know gives "Other detail changed" (D-84).
+ */
+export function describeAuditChange(line: AuditChangeLine, stated = false): string {
   switch (line.field) {
     case 'amount':
-      return line.from === null || line.to === null ? null : pair('Amount', formatPeso(line.from), formatPeso(line.to));
-    case 'date': {
-      const from = line.from === null ? null : formatCalendarDate(line.from);
-      const to = line.to === null ? null : formatCalendarDate(line.to);
-      return from === null || to === null ? null : pair('Date', from, to);
+      return valuePair('Amount', line, stated, formatPeso);
+    case 'unitPrice':
+      return valuePair('Unit price', line, stated, formatPeso);
+    case 'date':
+      return valuePair('Date', line, stated, dateText);
+    case 'orderDate':
+      return valuePair('Order date', line, stated, dateText);
+    case 'dueDate': {
+      // An imported order may have had no due date, so the first one is a change from nothing (D-49d).
+      if (!stated && line.from === null && line.to !== null) {
+        const to = dateText(line.to);
+        return to === null ? changedOnly('Due date') : pair('Due date', NOT_SET, to);
+      }
+      return valuePair('Due date', line, stated, dateText);
     }
+    case 'quantity':
+      return valuePair('Quantity', line, stated, (value) => (NUMBER_TEXT.test(value) ? value : null));
+    case 'status':
+      return valuePair('Status', line, stated, (value) => ORDER_STATUS_LABEL.get(value) ?? null);
+    case 'kind':
+      return valuePair('Discount type', line, stated, (value) => DISCOUNT_KIND_LABEL.get(value) ?? null);
+    case 'value':
+      return valuePair('Discount value', line, stated, discountValueText);
     case 'category':
-      return pair('Category', categoryText(line.from), categoryText(line.to));
+      return namePair('Category', DELETED_CATEGORY, line, stated);
+    case 'method':
+      return namePair('Payment method', 'a deleted payment method', line, stated);
+    case 'productType':
+      return namePair('Product type', 'a deleted product type', line, stated);
     case 'payer':
-      return line.fromPerson === null || line.toPerson === null
-        ? null
-        : pair('Paid by', personText(line.fromPerson), personText(line.toPerson));
-    case 'description':
-      return 'Description changed';
-    case 'notes':
-      return 'Notes changed';
+      return personPair('Paid by', 'Payer changed', line, stated);
+    case 'receiver':
+      return personPair('Received by', 'Receiver changed', line, stated);
+    case 'refunder':
+      return personPair('Refunded by', 'Refunder changed', line, stated);
     case 'name':
-      return line.to === null ? null : pair('Name', line.from, line.to);
+      return line.to === null ? changedOnly('Name') : pair('Name', line.from, line.to);
     case 'tone': {
       const to = toneText(line.to);
       const from = line.from === null ? null : toneText(line.from);
-      return to === null || (line.from !== null && from === null) ? null : pair('Color', from, to);
+      return to === null || (line.from !== null && from === null) ? changedOnly('Color') : pair('Color', from, to);
     }
     default:
-      return null;
+      return TEXT_FIELD_SENTENCES.get(line.field) ?? OTHER_DETAIL_CHANGED;
   }
 }
 
@@ -269,6 +436,17 @@ export function describeAuditSnapshot(snapshot: AuditExpenseSnapshot): string {
   ]
     .filter((part): part is string => part !== null)
     .join(' · ');
+}
+
+/** "ORD-2026-0148, Cancelled, total ₱21,327.50, paid ₱12,000.00, balance ₱9,327.50": the facts of an order an entry names (ORD-16). */
+export function describeAuditOrderSnapshot(snapshot: AuditOrderSnapshot): string {
+  return [
+    snapshot.number,
+    ORDER_STATUS_LABEL.get(snapshot.status) ?? snapshot.status,
+    `total ${formatPeso(snapshot.total)}`,
+    `paid ${formatPeso(snapshot.paid)}`,
+    `balance ${formatPeso(snapshot.balance)}`,
+  ].join(', ');
 }
 
 /** One "What changed" sentence: the action and the stored word that give it. */
@@ -315,8 +493,8 @@ export const AUDIT_COPY = {
   title: 'Audit Log',
   badge: 'Manager only',
   subline:
-    'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
-  columns: { when: 'When', doneBy: 'Done by', action: 'Action', doneTo: 'Done to', actions: 'Actions' },
+    'Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
+  columns: { when: 'When', doneBy: 'Done by', action: 'Action', doneTo: 'Done to', order: 'Order', actions: 'Actions' },
   /** Done by for a failed sign-in with no matching account. */
   unknownAccount: 'Unknown account',
   toggle: {
@@ -325,6 +503,7 @@ export const AUDIT_COPY = {
   },
   detail: {
     whatChanged: 'What changed',
+    order: 'Order',
     ipAddress: 'IP address',
     device: 'Device',
     reference: 'Reference',
@@ -345,6 +524,8 @@ export const AUDIT_COPY = {
     to: 'To',
     doneBy: 'Done by',
     anyone: 'Anyone',
+    group: 'Group',
+    allGroups: 'All groups',
     action: 'Action',
     allActions: 'All actions',
     doneTo: 'Done to',

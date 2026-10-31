@@ -30,8 +30,10 @@ public sealed record DoneBy(string Kind, ActorRef? Person);
 /// <param name="IpPrefix">The client network, /24 or /48; null when unknown.</param>
 /// <param name="Device">The browser family; null when unknown.</param>
 /// <param name="Reference">The correlation id, to find the request's log lines.</param>
-/// <param name="Changes">The typed "What changed" lines of an expense or category entry; empty for every other entry (D-27).</param>
+/// <param name="Changes">The typed "What changed" lines of an expense, order or list entry; empty for every other entry (D-27, D-31).</param>
 /// <param name="Snapshot">The facts of an added, deleted, restored or permanently deleted expense; null otherwise (D-27).</param>
+/// <param name="OrderSnapshot">The facts of a deleted, restored or permanently deleted order, readable after the order is gone; null otherwise (ORD-16).</param>
+/// <param name="OrderNumber">The number of the order an order or order child entry is about; null for every other entry.</param>
 public sealed record AuditLogItem(
     long Id,
     DateTimeOffset OccurredAt,
@@ -43,7 +45,9 @@ public sealed record AuditLogItem(
     string? Device,
     string Reference,
     IReadOnlyList<AuditChangeLine> Changes,
-    AuditExpenseSnapshot? Snapshot);
+    AuditExpenseSnapshot? Snapshot,
+    AuditOrderSnapshot? OrderSnapshot,
+    string? OrderNumber);
 
 /// <summary>One page of the audit log, newest first (AUDIT-02).</summary>
 /// <param name="Items">The entries of this page.</param>

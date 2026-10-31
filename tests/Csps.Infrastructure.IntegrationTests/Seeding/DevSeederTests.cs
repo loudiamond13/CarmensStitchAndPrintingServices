@@ -122,6 +122,16 @@ public sealed class DevSeederTests(CspsDatabase database) : IClassFixture<CspsDa
         }
     }
 
+    [Fact]
+    public void TheOrdersStepRunsAfterTheCompanyExpensesStepWithItsOwnOrder()
+    {
+        DevSeedSteps.All.Select(step => step.Order).ShouldBeUnique();
+        var orders = DevSeedSteps.All.OfType<OrdersSeedStep>().ShouldHaveSingleItem();
+        var expenses = DevSeedSteps.All.OfType<CompanyExpensesSeedStep>().ShouldHaveSingleItem();
+        orders.Order.ShouldBeGreaterThan(expenses.Order);
+        orders.Name.ShouldBe("Orders");
+    }
+
     private async Task<IReadOnlyList<SeedStepResult>> RunSeedAsync()
     {
         var context = database.CreateContext();

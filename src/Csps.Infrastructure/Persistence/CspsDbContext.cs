@@ -2,6 +2,8 @@ using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Domain.Expenses;
 using Csps.Domain.Identity;
+using Csps.Domain.OrderLists;
+using Csps.Domain.Orders;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
@@ -51,10 +53,25 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The company expense categories, ten of them seeded by the migration (D-08, D-09).</summary>
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
 
+    /// <summary>The product types orders point at, six of them seeded by the migration (D-18, D-19).</summary>
+    public DbSet<ProductType> ProductTypes => Set<ProductType>();
+
+    /// <summary>The payment methods payments point at, five of them seeded by the migration (D-16, D-19).</summary>
+    public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
+
+    /// <summary>The order expense categories order expenses point at, six of them seeded by the migration (D-17, D-19).</summary>
+    public DbSet<OrderExpenseCategory> OrderExpenseCategories => Set<OrderExpenseCategory>();
+
+    /// <summary>The orders; soft-deleted orders are hidden by the named <c>SoftDelete</c> query filter (ORD-03, D-26). Items and status history are reached through the order.</summary>
+    public DbSet<Order> Orders => Set<Order>();
+
+    /// <summary>The last order number given out in each business year (ORD-14, D-23).</summary>
+    public DbSet<OrderNumberCounter> OrderNumberCounters => Set<OrderNumberCounter>();
+
     /// <summary>The company expenses; soft-deleted rows are hidden by the named <c>SoftDelete</c> query filter (CEXP-02, D-01).</summary>
     public DbSet<CompanyExpense> CompanyExpenses => Set<CompanyExpense>();
 
-    /// <summary>The database lock rows: 65 standing locks and short-lived idempotency claims (D-50).</summary>
+    /// <summary>The database lock rows: 66 standing locks and short-lived idempotency claims (D-50).</summary>
     public DbSet<DatabaseLock> DatabaseLocks => Set<DatabaseLock>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>

@@ -3,6 +3,8 @@ using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
+using Csps.Domain.Identity;
+using Csps.Domain.OrderLists;
 using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +20,12 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
 {
     private const string UserTarget = "User";
     private const string SessionTarget = "UserSession";
+    private const string OrderTarget = "Order";
+    private const string SoftDeleteFilter = "SoftDelete";
     private const string ExpenseActionPrefix = "company-expense.";
+    private const string OrderPaymentActionPrefix = "order-payment.";
+    private const string OrderRefundActionPrefix = "order-refund.";
+    private const string OrderExpenseActionPrefix = "order-expense.";
 
     public async Task<AuditLogPage> ListAsync(AuditLogQuery query, CancellationToken cancellationToken)
     {
@@ -83,6 +90,30 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
                 .ToDictionaryAsync(category => category.Id, category => category.Name, cancellationToken)
                 .ConfigureAwait(false);
 
+        // The order list entries the lines name, retired ones included, one lookup per list that is named at all.
+        var lists = new AuditListNames(
+            await NamesAsync(context.ProductTypes, [.. parsed.SelectMany(changes => changes.ProductTypeIds()).Distinct()], cancellationToken).ConfigureAwait(false),
+            await NamesAsync(context.PaymentMethods, [.. parsed.SelectMany(changes => changes.PaymentMethodIds()).Distinct()], cancellationToken).ConfigureAwait(false),
+            await NamesAsync(context.OrderExpenseCategories, [.. parsed.SelectMany(changes => changes.OrderCategoryIds()).Distinct()], cancellationToken).ConfigureAwait(false));
+
+        // An order entry names its order; the order is looked up once for the page, deleted orders included. A row that is gone leaves
+        // the number the entry's own detail holds.
+        var orderIds = rows
+            .Where(row => row.TargetType == OrderTarget)
+            .Select(row => ParseId(row.TargetId))
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+        var orderNumbers = orderIds.Count == 0
+            ? []
+            : await context.Orders
+                .AsNoTracking()
+                .IgnoreQueryFilters([SoftDeleteFilter])
+                .Where(order => orderIds.Contains(order.Id))
+                .Select(order => new { order.Id, order.Number })
+                .ToDictionaryAsync(order => order.Id, order => order.Number, cancellationToken)
+                .ConfigureAwait(false);
+
         var personIds = rows
             .SelectMany(row => new[] { row.ActorUserId, TargetUser(row.TargetType, row.TargetId) })
             .OfType<Guid>()
@@ -107,7 +138,10 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
         [
             .. rows.Select((row, index) =>
             {
-                var (changes, snapshot) = AuditChangeLines.Resolve(parsed[index], categories, PersonOf);
+                var (changes, snapshot) = AuditChangeLines.Resolve(parsed[index], categories, PersonOf, lists);
+                var orderNumber = row.TargetType != OrderTarget
+                    ? null
+                    : ParseId(row.TargetId) is { } orderId && orderNumbers.TryGetValue(orderId, out var stored) ? stored : parsed[index].OrderNumber;
                 return new AuditLogEntryView(
                     row.Id,
                     row.OccurredAtUtc,
@@ -120,7 +154,9 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
                     row.UserAgentFamily,
                     row.CorrelationId,
                     changes,
-                    snapshot);
+                    snapshot,
+                    parsed[index].OrderSnapshot,
+                    orderNumber);
             }),
         ];
         return new AuditLogPage(items, total);
@@ -129,8 +165,10 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
     public async Task<IReadOnlyList<AuditPerson>> ListPeopleAsync(CancellationToken cancellationToken)
     {
         // Current staff first, then former staff; each group by name. Only names and ids leave the database.
+        // D-37: the Legacy / unassigned holder is not someone to filter by.
         var rows = await context.Users
             .AsNoTracking()
+            .Where(user => user.Id != LegacyHolder.Id)
             .OrderBy(user => user.DeletedAtUtc != null)
             .ThenBy(user => user.FirstName)
             .ThenBy(user => user.LastName)
@@ -140,6 +178,19 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
             .ConfigureAwait(false);
         return [.. rows.Select(row => new AuditPerson(row.Id, $"{row.FirstName} {row.LastName}", row.Former))];
     }
+
+    // The current names of the listed entries; no query at all when none is named.
+    private static async Task<IReadOnlyDictionary<Guid, string>> NamesAsync<TEntry>(
+        IQueryable<TEntry> entries, List<Guid> ids, CancellationToken cancellationToken)
+        where TEntry : OrderListEntry =>
+        ids.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await entries
+                .AsNoTracking()
+                .Where(entry => ids.Contains(entry.Id))
+                .Select(entry => new { entry.Id, entry.Name })
+                .ToDictionaryAsync(entry => entry.Id, entry => entry.Name, cancellationToken)
+                .ConfigureAwait(false);
 
     // Applies the range and the three filters in SQL, before any paging.
     private async Task<IQueryable<AuditEntry>> FilterAsync(AuditLogQuery query, CancellationToken cancellationToken)
@@ -161,12 +212,17 @@ internal sealed class AuditLogReader(CspsDbContext context) : IAuditLogReader
             var targetKey = AuditKey.Of(target);
             var targetSessions = await SessionKeysAsync(target, cancellationToken).ConfigureAwait(false);
 
-            // An expense event is about its payer: the detail names the payer's id, as the current payer or as the old or new one.
+            // An expense event is about its payer, and an order payment, refund, expense or permanent delete about its receiver, refunder
+            // or payer: the detail names that person's id, as the current, old or new one or in the delete's people lists.
             var payerPattern = LikePattern.Contains(targetKey);
             matches = matches.Where(entry =>
                 (entry.TargetType == UserTarget && entry.TargetId == targetKey)
                 || (entry.TargetType == SessionTarget && entry.TargetId != null && targetSessions.Contains(entry.TargetId))
-                || (entry.Action.StartsWith(ExpenseActionPrefix)
+                || ((entry.Action.StartsWith(ExpenseActionPrefix)
+                        || entry.Action.StartsWith(OrderPaymentActionPrefix)
+                        || entry.Action.StartsWith(OrderRefundActionPrefix)
+                        || entry.Action.StartsWith(OrderExpenseActionPrefix)
+                        || entry.Action == AuditActions.OrderPermanentlyDeleted)
                     && entry.Detail != null
                     && EF.Functions.Like(entry.Detail, payerPattern, LikePattern.EscapeCharacter)));
         }

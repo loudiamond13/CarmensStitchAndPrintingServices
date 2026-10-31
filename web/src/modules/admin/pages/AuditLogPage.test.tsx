@@ -35,6 +35,8 @@ function entry(id: number, overrides: Partial<AuditLogItem> = {}): AuditLogItem 
     reference: `ref-${String(id)}`,
     changes: [],
     snapshot: null,
+    orderSnapshot: null,
+    orderNumber: null,
     ...overrides,
   };
 }
@@ -180,7 +182,7 @@ describe('A1 the header', () => {
     expect(screen.getByText('Manager only')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Every sign-in, security, staff account and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
+        'Every sign-in, security, staff account, order and expense change, newest first. Times are Manila time. Entries are kept for 8 months.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /export|download/i })).toBeNull();
@@ -198,7 +200,7 @@ describe('A1 the header', () => {
     await openPage();
 
     const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
-    expect(headers).toEqual(['When', 'Done by', 'Action', 'Done to', 'Actions']);
+    expect(headers).toEqual(['When', 'Done by', 'Action', 'Done to', 'Order', 'Actions']);
     expect(tokens(screen.getByText('Actions').className)).toEqual(expect.arrayContaining(tokens(srOnlyClasses)));
   });
 });
@@ -971,6 +973,212 @@ describe('A1 accessibility', () => {
     const user = userEvent.setup();
     const { container } = await openPage();
     await user.click(screen.getByRole('button', { name: /^Show details for Role changed/ }));
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+const ORDER_ITEMS: AuditLogItem[] = [
+  entry(32, {
+    action: 'order-payment.receiver-changed',
+    doneTo: null,
+    detail: `payment=x;receiver=${CARMEN.id}>${PAOLO.id}`,
+    orderNumber: 'ORD-2026-0148',
+    changes: [{ field: 'receiver', from: null, to: null, fromPerson: CARMEN, toPerson: PAOLO }],
+  }),
+  entry(31, {
+    action: 'order.permanently-deleted',
+    doneTo: null,
+    detail: 'number=ORD-2026-0150;status=cancelled;total=100.00;paid=0.00;balance=100.00',
+    orderNumber: 'ORD-2026-0150',
+    orderSnapshot: { number: 'ORD-2026-0150', status: 'cancelled', total: 100, paid: 0, balance: 100 },
+  }),
+  entry(30, { action: 'order-item.added', doneTo: null, detail: null, orderNumber: null }),
+];
+
+describe('A1 order entries (D-31)', () => {
+  it('shows the order number in Order and keeps Done to for people (D-79)', async () => {
+    backend(ORDER_ITEMS);
+    await openPage();
+
+    const receiver = rowOf('Order payment receiver changed');
+    expect(cellOf(receiver, 'Order')).toHaveTextContent('ORD-2026-0148');
+    expect(cellOf(receiver, 'Done to')).not.toHaveTextContent('ORD-');
+    expect(within(cellOf(receiver, 'Done to')).getByText('Not set')).toBeInTheDocument();
+    expect(cellOf(receiver, 'Done to').querySelector('svg')).not.toBeNull();
+    expect(cellOf(rowOf('Order permanently deleted'), 'Order')).toHaveTextContent('ORD-2026-0150');
+    const unknown = cellOf(rowOf('Order item added'), 'Order');
+    expect(within(unknown).getByText('Not set')).toBeInTheDocument();
+    expect(unknown.querySelector('svg')).not.toBeNull();
+  });
+
+  it('keeps a person in Done to and shows the empty-value icon in Order for an entry that is not about an order', async () => {
+    backend();
+    await openPage();
+
+    const row = rowOf('Role changed');
+    expect(cellOf(row, 'Done to')).toHaveTextContent('Paolo Garcia');
+    expect(within(cellOf(row, 'Order')).getByText('Not set')).toBeInTheDocument();
+  });
+
+  it('gives every data row an Order cell that names itself on a phone card', async () => {
+    backend([...ORDER_ITEMS, ...ITEMS]);
+    await openPage();
+
+    const rows = screen.getAllByRole('row').filter((row) => row.querySelector('td[data-label="Action"]') !== null);
+    expect(rows.length).toBeGreaterThan(3);
+    for (const row of rows) {
+      expect(cellOf(row, 'Order')).toBeInTheDocument();
+    }
+  });
+
+  it('reads who received a payment before and after, and the snapshot of a deleted order, with no axe violations', async () => {
+    vi.useRealTimers();
+    backend(ORDER_ITEMS);
+    const user = userEvent.setup();
+    const { container } = await openPage();
+
+    await user.click(screen.getByRole('button', { name: /^Show details for Order payment receiver changed/ }));
+    await user.click(screen.getByRole('button', { name: /^Show details for Order permanently deleted/ }));
+
+    expect(screen.getByText('Received by: Carmen Reyes to Paolo Garcia')).toBeInTheDocument();
+    expect(
+      screen.getByText('ORD-2026-0150, Cancelled, total ₱100.00, paid ₱0.00, balance ₱100.00'),
+    ).toBeInTheDocument();
+    expect(container).not.toHaveTextContent('receiver=');
+    await expectNoAxeViolations(container);
+  });
+});
+
+const GROUP_NAMES = [
+  'Sign-in and security',
+  'Staff accounts',
+  'Profile changes',
+  'Company expenses',
+  'Expense categories',
+  'Orders',
+  'Order lists',
+];
+
+function optionTexts(select: HTMLElement): (string | null)[] {
+  return [...within(select).getAllByRole('option')].map((option) => option.textContent);
+}
+
+describe('A1 the Group select (D-80)', () => {
+  it('sits before Action, lists All groups then the seven groups, and starts at All groups', async () => {
+    backend();
+    await openPage();
+
+    const group = screen.getByLabelText('Group');
+    expect(optionTexts(group)).toEqual(['All groups', ...GROUP_NAMES]);
+    expect(group).toHaveValue('');
+    expect(
+      group.compareDocumentPosition(screen.getByLabelText('Action')) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('shortens the Action list to the group, with no URL change and no group in the request', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('', onUrlUpdate);
+    const before = calls.length;
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'Company expenses');
+
+    const action = screen.getByLabelText('Action');
+    expect(optionTexts(action)).toEqual([
+      'All actions',
+      'Expense added',
+      'Expense changed',
+      'Expense payer changed',
+      'Expense deleted',
+      'Expense restored',
+      'Expense permanently deleted',
+    ]);
+    expect(
+      within(action)
+        .getAllByRole('group')
+        .map((item) => item.getAttribute('label')),
+    ).toEqual(['Company expenses']);
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(before);
+    expect(calls.every((call) => !call.searchParams.has('group'))).toBe(true);
+
+    await user.selectOptions(action, 'Expense added');
+    await waitFor(() => {
+      expect(lastQuery(calls)).toMatchObject({ action: 'company-expense.added' });
+    });
+    expect(calls.every((call) => !call.searchParams.has('group'))).toBe(true);
+  });
+
+  it('keeps the chosen action when the picked group holds it', async () => {
+    backend();
+    const user = userEvent.setup();
+    await openPage('?action=user.deactivated');
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'Staff accounts');
+
+    expect(screen.getByLabelText('Action')).toHaveValue('user.deactivated');
+    expect(screen.getByText('Action: User deactivated')).toBeInTheDocument();
+  });
+
+  it('clears the chosen action when the picked group does not hold it', async () => {
+    const { calls } = backend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('?action=user.deactivated', onUrlUpdate);
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'Orders');
+
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('');
+    });
+    expect(screen.queryByText('Action: User deactivated')).toBeNull();
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.has('action')).toBe(false);
+    });
+    const action = screen.getByLabelText('Action');
+    expect(action).toHaveValue('');
+    const texts = optionTexts(action);
+    expect(texts).toContain('Order created');
+    expect(texts).toContain('Order payment receiver changed');
+    expect(texts).not.toContain('User deactivated');
+  });
+
+  it('keeps the action and lists every group again when All groups is picked', async () => {
+    backend();
+    const user = userEvent.setup();
+    await openPage('?action=user.deactivated');
+    await user.selectOptions(screen.getByLabelText('Group'), 'Staff accounts');
+
+    await user.selectOptions(screen.getByLabelText('Group'), 'All groups');
+
+    const action = screen.getByLabelText('Action');
+    expect(action).toHaveValue('user.deactivated');
+    expect(within(action).getAllByRole('group')).toHaveLength(GROUP_NAMES.length);
+  });
+
+  it('puts Group back to All groups with Clear Filters', async () => {
+    backend([]);
+    const user = userEvent.setup();
+    renderPage('?action=user.deleted');
+    expect(await screen.findByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Group'), 'Staff accounts');
+
+    await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Group')).toHaveValue('');
+    });
+  });
+
+  it('has no axe violations with a group picked and the shorter Action list', async () => {
+    vi.useRealTimers();
+    backend();
+    const user = userEvent.setup();
+    const { container } = await openPage();
+    await user.selectOptions(screen.getByLabelText('Group'), 'Orders');
 
     await expectNoAxeViolations(container);
   });

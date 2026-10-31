@@ -5,6 +5,7 @@
 //     name and worked out against the business today, read once when the page opens; the query keys on the resolved business
 //     days and on the settled values. Done by and Done to hold user ids; their names come from the people list (D-26).
 //   - The open rows are component state only: they are not in the URL (D-27).
+//   - The Group select is page state that only shortens the Action list (D-80): it is not in the URL and not in the request.
 //   - The route's loader (requireManager) keeps an Admin out; the API answers 403 for a role lost mid-session, and the page
 //     then shows the "You don't have access to this" banner instead of the table.
 //   - With no entries in the default 7 days and no filter the page offers "Show Everything Kept" (range=all); any other empty
@@ -35,7 +36,14 @@ import { Badge } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { businessToday } from '@/lib/url-state/parsers';
-import { AUDIT_ACTIONS, AUDIT_COPY, auditActionLabel } from '@/modules/admin/auditCopy';
+import {
+  AUDIT_ACTIONS,
+  AUDIT_COPY,
+  AUDIT_GROUPS,
+  auditActionGroup,
+  auditActionLabel,
+  type AuditGroup,
+} from '@/modules/admin/auditCopy';
 import { AUDIT_RANGES, DEFAULT_AUDIT_RANGE, resolveAuditRange, type AuditRange } from '@/modules/admin/auditRange';
 import { auditTitleRowClasses } from '@/modules/admin/components/audit.recipe';
 import { AuditCustomRange } from '@/modules/admin/components/AuditCustomRange';
@@ -52,11 +60,17 @@ const COPY = AUDIT_COPY;
 const HEADING_ID = 'audit-results';
 
 const RANGE_OPTIONS = AUDIT_RANGES.map((value) => ({ value, label: COPY.ranges[value] }));
+const GROUP_OPTIONS: readonly string[] = AUDIT_GROUPS;
 const ACTION_OPTIONS: SelectOption[] = AUDIT_ACTIONS.map((action) => ({
   value: action.code,
   label: action.label,
   group: action.group,
 }));
+
+/** The group a Group select value names, or null for All groups. */
+function asGroup(value: string): AuditGroup | null {
+  return AUDIT_GROUPS.find((group) => group === value) ?? null;
+}
 
 function asRange(value: string): AuditRange {
   return AUDIT_RANGES.find((range) => range === value) ?? DEFAULT_AUDIT_RANGE;
@@ -108,6 +122,7 @@ function columnsFor(
       header: COPY.columns.doneTo,
       cell: (item) => (item.doneTo === null ? null : <ActorName actor={item.doneTo} />),
     },
+    { key: 'order', header: COPY.columns.order, cell: (item) => item.orderNumber },
     {
       key: 'actions',
       header: COPY.columns.actions,
@@ -152,6 +167,8 @@ export function AuditLogRoute() {
   const people = useAuditPeopleQuery();
   // The rows whose detail is open: page state only, never in the URL (D-27).
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  // The Group select only shortens the Action list (D-80): page state, never in the URL or the request.
+  const [pickedGroup, setPickedGroup] = useState<AuditGroup | null>(null);
 
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
@@ -196,6 +213,15 @@ export function AuditLogRoute() {
     return loadingPeople ? COPY.toolbar.loadingStaff : COPY.unknownPerson;
   };
 
+  // An action set from outside the Group select (a link) shows its own group, so the Action select never lacks its value.
+  const actionGroup = values.action === null ? null : auditActionGroup(values.action);
+  const shownGroup =
+    actionGroup !== null && pickedGroup !== null && actionGroup !== pickedGroup ? actionGroup : pickedGroup;
+  const actionOptions =
+    shownGroup === null
+      ? ACTION_OPTIONS
+      : ACTION_OPTIONS.filter((option) => typeof option !== 'string' && option.group === shownGroup);
+
   const forbidden = isHttpError(query.error) && query.error.status === 403;
   const denied = forbidden ? describeHttpError(query.error) : null;
   const rangeChanged = values.range !== DEFAULT_AUDIT_RANGE;
@@ -210,6 +236,7 @@ export function AuditLogRoute() {
     ].filter((part): part is string => part !== null),
   );
   const clearFilters = (): void => {
+    setPickedGroup(null);
     set.setFilters({ range: null, from: null, to: null, actor: null, action: null, target: null });
   };
 
@@ -260,9 +287,22 @@ export function AuditLogRoute() {
               }}
             />
             <Select
+              label={COPY.toolbar.group}
+              placeholder={COPY.toolbar.allGroups}
+              options={GROUP_OPTIONS}
+              value={shownGroup ?? ''}
+              onChange={(event) => {
+                const group = asGroup(event.target.value);
+                setPickedGroup(group);
+                if (group !== null && values.action !== null && actionGroup !== group) {
+                  set.setFilter('action', null);
+                }
+              }}
+            />
+            <Select
               label={COPY.toolbar.action}
               placeholder={COPY.toolbar.allActions}
-              options={ACTION_OPTIONS}
+              options={actionOptions}
               value={values.action ?? ''}
               onChange={(event) => {
                 set.setFilter('action', event.target.value === '' ? null : event.target.value);

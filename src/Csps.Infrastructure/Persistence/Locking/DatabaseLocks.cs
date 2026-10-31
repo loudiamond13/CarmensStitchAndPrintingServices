@@ -13,6 +13,9 @@ internal static class DatabaseLocks
     /// <summary>The lock that serializes every change to the Manager roster.</summary>
     public const string ActiveManagers = "active-managers";
 
+    /// <summary>The lock that serializes every order number allocation (ORD-14, D-23).</summary>
+    public const string OrderNumbers = "order-numbers";
+
     /// <summary>How many fixed per-person lock rows exist.</summary>
     public const int AccountStripeCount = 64;
 
@@ -21,10 +24,11 @@ internal static class DatabaseLocks
 
     private const string AccountPrefix = "account-token:";
 
-    /// <summary>Gets every standing lock name: the roster lock, then the 64 account locks in order.</summary>
+    /// <summary>Gets every standing lock name: the roster lock, the order number lock, then the 64 account locks in order.</summary>
     public static IReadOnlyList<string> StandingNames { get; } =
     [
         ActiveManagers,
+        OrderNumbers,
         .. Enumerable.Range(0, AccountStripeCount).Select(index => AccountPrefix + index.ToString("D2", CultureInfo.InvariantCulture)),
     ];
 

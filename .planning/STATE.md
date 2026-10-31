@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 7
-current_phase_name: Order Domain & API
+current_phase: 8
+current_phase_name: Order Screens
 status: planning
-stopped_at: Phase 06 shipped as PR
-last_updated: "2026-10-28T07:23:03.976Z"
-last_activity: 2026-10-26
-last_activity_desc: Phase 06 shipped as PR
-state_head: abe815b07f042b8ebbd58e691aa8228c2db64df0
+stopped_at: Phase 07.1 complete, ready to plan Phase 8
+last_updated: "2026-10-29T18:24:26.000Z"
+last_activity: 2026-10-29
+last_activity_desc: Phases 7 and 7.1 shipped as PR #17, awaiting owner merge
+state_head: 94f06f7ff6e552c3694e21df0000586d9841b4ca
 progress:
-  total_phases: 17
-  completed_phases: 6
-  total_plans: 187
-  completed_plans: 187
-  percent: 35
+  total_phases: 18
+  completed_phases: 7
+  total_plans: 219
+  completed_plans: 219
+  percent: 41
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-28T07:30:00-05:00"
+updated: "2026-10-29T13:24:51-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-26)
+See: .planning/PROJECT.md (updated 2026-10-29)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 7 — Order Domain & API
+**Current focus:** Phase 07.1 — Legacy Fit Check (read-only)
 
 ## Current Position
 
-Phase: 7 — Order Domain & API
+Phase: 8 — Order Screens
 Plan: Not started
-Status: Ready to plan (Phase 06 shipped as PR #11, awaiting merge)
-Last activity: 2026-10-28 - Completed quick task 261028-2e4: chip overflow, CSPS_E2E reset (D-77), long names in phone cards and dropdowns
+Status: Ready to plan (Phases 7 and 7.1 shipped as PR #17, awaiting owner merge)
+Last activity: 2026-10-29: Phases 7 and 7.1 shipped as PR #17
 
-Progress: [████░░░░░░] 35%
+Progress: [████░░░░░░] 41%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 187
+- Total plans completed: 219
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -53,6 +53,8 @@ Progress: [████░░░░░░] 35%
 | 4 | 35 | - | - |
 | 5 | 52 | - | - |
 | 06 | 21 | - | - |
+| 7 | 20 | - | - |
+| 07.1 | 12 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -245,6 +247,38 @@ Progress: [████░░░░░░] 35%
 | Phase 06 P19 | 56 min | 2 tasks | 7 files |
 | Phase 06 P20 | 38 min | 3 tasks | 20 files |
 | Phase 06 P21 | 52 min | 4 tasks | 26 files |
+| Phase 07 P01 | 36 min | 3 tasks | 41 files |
+| Phase 07 P02 | 5min | 2 tasks | 4 files |
+| Phase 07 P03 | 4min | 2 tasks | 5 files |
+| Phase 07 P04 | 30min | 3 tasks | 6 files |
+| Phase 07 P05 | 39 min | 3 tasks | 56 files |
+| Phase 07 P06 | 20 min | 2 tasks | 4 files |
+| Phase 07 P07 | 25 min | 3 tasks | 17 files |
+| Phase 07 P08 | 35 min | 2 tasks | 14 files |
+| Phase 07 P09 | 53 min | 3 tasks | 28 files |
+| Phase 07 P10 | 45 min | 3 tasks | 48 files |
+| Phase 07 P11 | 55 min | 3 tasks | 50 files |
+| Phase 07 P12 | 35 min | 3 tasks | 50 files |
+| Phase 07 P13 | 45 min | 3 tasks | 21 files |
+| Phase 07 P14 | 50 min | 3 tasks | 48 files |
+| Phase 07 P15 | 45 min | 3 tasks | 27 files |
+| Phase 07 P16 | 40 min | 3 tasks | 30 files |
+| Phase 07 P17 | 39 min | 3 tasks | 41 files |
+| Phase 07 P18 | 35 min | 3 tasks | 22 files |
+| Phase 07 P19 | 41 min | 3 tasks | 18 files |
+| Phase 07 P20 | 35 min | 2 tasks | 10 files |
+| Phase 07.1 P01 | 25 min | 2 tasks | 28 files |
+| Phase 07.1 P02 | 26 min | 3 tasks | 14 files |
+| Phase 07.1 P03 | 20 min | 3 tasks | 13 files |
+| Phase 07.1 P04 | 22 min | 3 tasks | 12 files |
+| Phase 07.1 P05 | 9 min | 2 tasks | 9 files |
+| Phase 07.1 P06 | 19 min | 3 tasks | 9 files |
+| Phase 07.1 P07 | 20 min | 2 tasks | 7 files |
+| Phase 07.1 P08 | 25 min | 2 tasks | 8 files |
+| Phase 07.1 P09 | 26 min | 3 tasks | 11 files |
+| Phase 07.1 P10 | 35 min | 2 tasks | 5 files |
+| Phase 07.1 P11 | 15 min | 2 tasks | 6 files |
+| Phase 07.1 P12 | 5 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -671,6 +705,97 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Ship 06]: Definition of Done on PR #14 (quick 261026-ooe) ticked by the owner's instruction (2026-10-27); no reviewer requested.
 - [Quick 261027-t3j]: Definition of Done on PR #15 (D-63 picker look) ticked by the owner's instruction (2026-10-28), including the two items left to their judgment (no screenshots attached; Lighthouse not run).
 - [Ship 06]: Definition of Done on PR #11 ticked by the owner's instruction (2026-10-26); no reviewer requested. (the retry retakes it); NoInlineSqlTests allows no file; the crash window (ClaimLease 2 minutes) is parked in the Owner backlog
+- [Phase 07]: 07-01: AddOrderLists is one migration (20261028141016) creating ProductTypes, PaymentMethods and OrderExpenseCategories with 17 literal-id seed rows; each list is its own table with no discriminator
+- [Phase 07]: 07-01: audit catalog grows 49 to 92 with 43 Phase 7 codes; order and child events share the viewer group Orders, list events the group Order lists; details documented in docs/operations/audit-log.md
+- [Phase 07]: 07-02: Balance = Total - Paid + Refunded; CustomerCredit = max(-Balance, 0) written as 0.00 (D-12, D-13). Cancelled order Profit = (Paid - Refunded) - Expenses (D-36, D-10). Golden vectors stay v2; v3 bump is a Phase 8 follow-up.
+- [Phase 07]: 07-03: OrderStatusRules.Check orders its rules as undefined-throws, same-status NoChange, locked source reopens or is refused with orders.reopen-first, then the Completed zero-balance gate
+- [Phase 07]: 07-04: D-39 approve-all; requirement and roadmap wording applied, Phase 7.1 Legacy Fit Check inserted; refunds on a soft-deleted order vs money on hand left open (Owner backlog)
+- [Phase 07]: 07-05: Order.Create(NewOrder, callerId, now) has no today parameter; plans 07-10 and 07-11 re-add the business today when payments and discounts need it
+- [Phase 07]: 07-05: migration is 20261028152204_AddOrders (four tables, lock row order-numbers, 66 standing locks); children bind through scalar EF constructors so Domain stays at 100% coverage
+- [Phase 07]: 07-05: IOrderReader returns OrderDetailResponse directly; CreateOrderRequest.Items has non-null element type and a null JSON element is refused on items[n]
+- [Phase 07]: 07-06: OrderNumberAllocator has an internal constructor taking the lock wait (public one keeps the 10 s default); order number race, New Year, rollback and busy-lock proofs are characterization tests, the 07-05 allocator needed no fix
+- [Phase 07]: 07-07: Order.UpdateDetails takes no today parameter and the due date change is its own DueDateChange record (ValueChange cannot hold a nullable day); a stale version or lost race is 409 edit.stale with no retry; an unchanged save keeps the version and writes no audit entry.
+- [Phase 07]: 07-08: AddLegacyHolder migration id is the generated 20261028165341 (the plan placeholder sorted before AddOrders); IsActive=false is listed by hand in the InsertData because EF leaves a false value out when the column default is true
+- [Phase 07]: 07-08: UserAccounts.FindUserAsync is the single door that hides the Legacy holder from sign-in and every user action; person-name lookups are not filtered so legacy money still shows Legacy / unassigned
+- [Phase 07]: 07-09: lock the order row first in every child write (OrderChildWrite -> IOrders.LockAsync) — IOrders.LockAsync takes the order row before any child row is written: without it two same-version idempotent child POSTs deadlock (EF saves OrderItems before Orders) and the caller gets 500; with it the loser gets 409 edit.stale and has written nothing. Later child plans (payments, discounts, expenses, refunds) inherit it through OrderChildWrite.
+- [Phase 07]: 07-09: item Position only orders lines; a removal leaves a gap and a new item goes after the highest — No renumbering, so a removal never touches or stamps the other items rows.
+- [Phase 07]: 07-09: child change callbacks return Result<OrderChildAudit?>; null means a no-op that saves, records and locks nothing — Keeps the no-op version-unchanged rule while giving every child write one place for lock, audit and save.
+- [Phase 07]: 07-10: the discount cap (discounts not above the subtotal) is one OrderMath check in the domain, run before anything is assigned; discount forms get 400 on value, the create body 400 on discounts, item edits and removals 422 orders.discount-above-subtotal
+- [Phase 07]: 07-10: OrderDiscounts carries a Position column (like OrderItems) so discounts keep the order given; no database-level subtotal check was added because it would change Orders and could fail legacy rows (owner choice pending)
+- [Phase 07]: 07-11: A payment is at most the balance; an edit may lower freely and raise up to balance plus its old amount; other changes after payment show a customer credit (D-11, D-12)
+- [Phase 07]: 07-11: A saved retired payment method or ineligible receiver may stay on an edit; a new or changed one is checked (D-16, ORD-22)
+- [Phase 07]: 07-11: OrderStore.FindAsync re-reads the row version after its split read, so an order read across another save is 409 edit.stale, not a verdict on mixed data
+- [Phase 07]: 07-11: OrderPayments has a Position column like OrderDiscounts, so create-body paths payments[i].x match the stored order
+- [Phase 07]: 07-12: OrderExpenses has a Position column like items, discounts and payments, so create-body paths expenses[i].x match the stored order
+- [Phase 07]: 07-12: order expenses reuse the Phase 6 company-expense words; the changed audit entry shows the payer as it now is and a new payer writes its own order-expense.payer-changed entry
+- [Phase 07]: 07-13: the end-state lock lives in the aggregate (Order.EnsureEditable in all 13 mutators), so it runs before the order's own rules; form field errors stay 400 first
+- [Phase 07]: 07-13: the status move is single-click (no version) over OrderChildWrite.AttemptAsync with ConflictRetry, judged on the balance read inside the save
+- [Phase 07]: 07-14: the refund exception to the end-state lock is a separate EnsureRefundEditable (only Completed is locked) used by the three refund methods; every other mutator keeps EnsureEditable
+- [Phase 07]: 07-14: the refund not-allowed rule (only a Cancelled order or one with a credit) is judged on add only; an existing refund can be lowered or removed on an active order
+- [Phase 07]: 07-15: delete, restore and permanent delete read the order with the delete filter lifted where needed, record their audit entry before the save, and answer 409 edit.stale after two lost races
+- [Phase 07]: 07-15: order.permanently-deleted lists people once, in the order first recorded, and cuts the longest list with +N to fit the 400 character audit limit (owner may rule on widening the column)
+- [Phase 07]: 07-16: the order list sort 'newest' is latest order date, then latest recorded, then id (imported orders all share one recorded time); owner may rule otherwise
+- [Phase 07]: 07-16: the order list reads the clock from TimeProvider, not the business calendar, so it stays at exactly two SQL commands
+- [Phase 07]: 07-16: ORD-01 and ORD-02 stay unmarked in REQUIREMENTS.md (plan scope note keeps them with Phase 8); ORD-20 waits for 07-20
+- [Phase 07]: 07-16: the wire row of the order list is OrderListEntry because OrderListItem already names the product type list entry
+- [Phase 07]: 07-17: a new name for the order expense Others answers 422 order-expense-categories.protected as the plan says (Phase 6 answered 400 on name); awaiting owner confirmation.
+- [Phase 07]: 07-17: useCount is on the staff list items (Admin included) and the Manager entry detail, soft-deleted orders counted; an entry with 0 can be deleted.
+- [Phase 07]: Import (07-18): Strict import rules equal the create path; the Check* overloads take OrderImportRules, so each relaxation is one named test in the existing rule and words
+- [Phase 07]: Import (07-18): IgnoreAmountCaps also lifts the quantity range to 0 or more (the database checks quantity >= 0); a negative quantity or price is never stored
+- [Phase 07]: Import (07-18): the legacy number must be plain ASCII (varchar column, zero loss); imported refunds skip the refund eligibility and cap rules; contact number characters, email shape and due-before-order-date have no relaxation (open for Phase 7.1)
+- [Phase 07]: 07-19: a percentage discount value is sent as text ending in % on each side, so a kind change reads correctly in one value line
+- [Phase 07]: 07-19: order audit entries carry orderNumber and the Done to column shows it; the API doneTo stays null and the Done to filter still searches only company-expense entries
+- [Phase 07]: 07-20: the orders seed gives each order one status-history row at 09:00 Manila on its order date; receivers and payers are the active payers or the Legacy holder; the testing route POST /api/testing/orders is Debug and Testing only
+- [Phase 07 UAT]: D-78 (owner, 2026-10-29, APX-IN-04, option 1 of 2): a list create, retire, reactivate or delete that loses its race twice keeps answering the shared `auth.session-busy` code ("Something changed at the same time. Try again."), the same as Phase 6. No list-specific busy code.
+- [Phase 07 UI review]: D-79 (owner, 2026-10-29, UI-REVIEW fix 1): the Audit Log table gets its own "Order" column for the order number. "Done to" holds people only. Each column shows `EmptyValue` when it has no value.
+- [Phase 07 UI review]: D-80 (owner, 2026-10-29, UI-REVIEW fix 2): the Audit Log filters get a "Group" select (the AUDIT_GROUPS list) that only shortens the Action select, in the browser. No server change: the log still filters by one action code.
+- [Phase 07 UI review]: D-81 (owner, 2026-10-29, UI-REVIEW fix 3): a change line whose values cannot be read shows "<Field> changed" (for example "Amount changed") with no values, instead of being dropped.
+- [Phase 07 UI review]: D-82 (owner, 2026-10-29, UI-REVIEW fix 3): order sub-entry action labels name the order: "Order item added", "Order payment added", "Order refund added", "Order discount added", and the same for changed, removed and the receiver or refunder changes.
+- [Phase 07 UI review]: D-83 (owner, 2026-10-29, quick 261029-87p open items 1 and 2): keep the Audit Log copy as built: "Payer changed", "Receiver changed", "Refunder changed" for unreadable person lines, and "Group" and "All groups" for the Group select. A change line for a field the screen does not know about stays left out (no generic sentence), because the screen and the API ship together.
+- [Phase 07 UI review]: D-84 (owner, 2026-10-29, replaces the unknown-field part of D-83): a change line for a field the screen does not know about reads "Other detail changed", with no field name or values, and shows once per entry however many unknown fields there are. The rest of D-83 (the copy) stands.
+- [Phase 07.1 execute]: D-85 (owner, 2026-10-29; PR part corrected the same day by 07.1 D-20): Phase 7.1 runs on its own branch `gsd/phase-07.1-legacy-fit-check-read-only`, cut from the unshipped Phase 7 branch tip (`gsd/phase-07-order-domain-api`), not from main, because it builds on the Phase 7 order code. Phase 7 and 7.1 ship together in one PR from this branch (07.1 D-13, D-15, D-20).
+- [Phase 07.1 execute]: D-86 (owner, 2026-10-29, plan 07.1-02 follow-up): named exception to the no-raw-SQL rule: `ReadOnlyGuardTests` in `tests/Csps.LegacyFitCheck.Tests` keep their `ExecuteSqlRaw`, `FromSqlRaw` and `SqlQueryRaw` calls. They run only against the throwaway fake restore and exist to prove the read-only guard refuses raw SQL. The tool itself holds none, and `ToolSourceRulesTests` keeps it that way.
+- [Phase 07.1 execute]: D-87 (owner, 2026-10-29, plan 07.1-08 follow-up): legacy `Expenses` rows with `isCompanyExpenses` false and no `OrderId` are counted, not ignored. The fit check reports them as a new finding (for example `expense.unplaced`, kind CannotMap), counts only with no values, so the real run shows how many exist. Built in plan 07.1-09 alongside the report split.
+- [Phase 07.1 execute]: 07.1 D-17 to D-20 (owner, 2026-10-29): real fit-check run approved (Claude runs it); summary self-check stays strict; expenses pointing at a missing order are counted too; the joint PR opens from the 7.1 branch. Full text in 07.1-CONTEXT.md.
+- [Phase 07.1 execute]: D-88 (owner, 2026-10-29, follows D-76): `ExpenseListTimingTests` fails locally even run alone (five years, last page, size 100: p95 359.3 ms against 300 ms; Phase 6 measured 197.8 ms). Phase 7.1 changed nothing under src except one InternalsVisibleTo line. Investigate the five-year last-page query as its own task; the joint Phase 7 and 7.1 PR waits for the result. Also recorded: `LastManagerGuardTests.TwoManagersDeactivatingEachOtherTogetherLeaveExactlyOneActiveEveryTime` failed once in the full local run and passed alone (flake, recorded, not hidden).
+- [Phase 07.1]: Fit check tool gets InternalsVisibleTo on Csps.Infrastructure to register the internal CspsUnitOfWork; no new public DI surface
+- [Phase 07.1]: Fit check tests run in CI step 3 integration tests (full mode, container SQL) because they need a real SQL Server
+- [Phase 07.1]: 07.1-02: read window is one never-committed ReadCommitted transaction; write evidence (tables, rows, index updates) must match before and after or the run fails. The transaction also keeps one connection open, because auto-close resets index counters.
+- [Phase 07.1]: 07.1-02: LegacySource allows the restore on LocalDB only; CSPS_Test_{guid} fakes also on loopback containers; refusal text is fixed and never repeats the connection string.
+- [Phase 07.1]: 07.1-03: columns the tool reads but CSPS has no place for (IsDone, DiscountedBy) are not mapped (CannotMap); creator and date-stamp columns are not read (NotChecked). Missing is judged for mapped columns only.
+- [Phase 07.1]: 07.1-03: legacy AspNetUsers and AspNetRoles ids are modelled as nvarchar(450) strings (Identity v2 default); first confirmed by the real run in 07.1-10.
+- [Phase 07.1]: 07.1-04: a blank order type word is CannotMap list.name-blank and the order is not imported
+- [Phase 07.1]: 07.1-04: payments and order expenses stay on the Legacy holder (LegacyHolderUsed person.legacy-holder) until plan 05 matches people
+- [Phase 07.1]: 07.1-05: only the legacy role Admin maps to pseudonymous trial staff; Company, Employee, Manager and no role use the Legacy holder (person.role-no-match). Open for the owner: whether legacy Manager should map to CSPS Manager once the real counts are known.
+- [Phase 07.1]: 07.1-05: every holder use is UnmatchedPerson plus LegacyHolderUsed person.legacy-holder per payment receiver and order expense payer; the trial staff placeholder password hash is AAAA so verification fails instead of throwing
+- [Phase 07.1]: 07.1-06: a RuleBreak finding's rule key is the field path without indexes plus the rule message; the real path (with the child's index) is in Path; all probe findings use RecordKind.Order and the order key, so counts are orders
+- [Phase 07.1]: 07.1-06: refunds are probed like other children (Rule 2); the 3 handler flags are not probed (AllowRetiredListEntries and AllowInactivePeople have no count yet: open gap for 07.1-09/10)
+- [Phase 07.1]: 07.1-06: a discount above the subtotal also shows AllowOverpaid (negative balance); recorded as an open note for the D-10 session, not filtered
+- [Phase 07.1]: 07.1-07: trial import success key is trial.imported; year counters are one Info trial.counter-lifted per year with the value only in Detail; trial database removal is confirmed by name after the drop in finally
+- [Phase 07.1]: ExpenseRule findings use the rule key '{field}: {Phase 6 message}' with the field as the path; plan 09 groups company expense findings by it
+- [Phase 07.1]: Plan 07.1-09: the full findings file is written before the summary self-check and stays when the self-check refuses; a refusal exits 1 with fixed text and writes no summary
+- [Phase 07.1]: Plan 07.1-09: D-87 built as rule key expense.unplaced (CannotMap, RecordKind.UnplacedExpense), counts only; summary line 'Expenses with no order and not marked as company expenses (counted only, not judged)'
+- [Phase 07.1]: D-22 (owner, 2026-10-29): counts-only summary published as shown in `07.1-FINDINGS.md` (one-way, public repo)
+- [Phase 07.1]: D-23 (owner, 2026-10-29): Group 1 keep the probe, no Domain change
+- [Phase 07.1]: D-24 (owner, 2026-10-29): Group 2 read stored times as UTC and show in Manila time
+- [Phase 07.1]: D-25 (owner, 2026-10-29): Group 3 keep `ORD-{year}-{legacy id}` for the check; final scheme in Phase 15
+- [Phase 07.1]: D-26 (owner, 2026-10-29): Group 4 keep legacy table and column names in committed docs
+- [Phase 07.1]: D-27 (owner, 2026-10-29): Group 5 / 07 D-40: discount cap stays in domain and validators only; no schema change
+- [Phase 07.1]: D-28 (owner, 2026-10-29): Group 6 / 07 D-47: closed with no relaxation
+- [Phase 07.1]: D-29 (owner, 2026-10-29): Group 7 orders with no order number: map in Phase 15 with the built number
+- [Phase 07.1]: D-30 (owner, 2026-10-29): Group 8 product type 'Garments' has no match: decide in Phase 15 with the real product list (map to an existing type or add it as a new type)
+- [Phase 07.1]: D-31 (owner, 2026-10-29): Group 9 payments with no payment method: map in Phase 15 (placeholder method or new list entry, with owner approval then)
+- [Phase 07.1]: D-32 (owner, 2026-10-29): Group 10 payer text stays in the payment notes
+- [Phase 07.1]: D-33 (owner, 2026-10-29): Group 11 map legacy Manager to CSPS Manager in Phase 15 (mapping ruling, not an import relaxation); provisional rule is legacy Admin and Manager map to staff; tool code unchanged
+- [Phase 07.1]: D-34 (owner, 2026-10-29): Group 12 expenses with no category: map to `Others`, classify later in Phase 15 or 16
+- [Phase 07.1]: D-35 (owner, 2026-10-29): Group 13 deleted payments (3): keep as notes in Phase 15
+- [Phase 07.1]: D-36 (owner, 2026-10-29): Group 14 discount giver (52 discounts): keep as a note in Phase 15
+- [Phase 07.1]: D-37 (owner, 2026-10-29): Group 15 orders with no status history: accept, the tool writes one row
+- [Phase 07.1]: D-38 (owner, 2026-10-29): Group 16 items with a done flag (2): accept as dropped with a reconciliation note
+- [Phase 07.1]: D-39 (owner, 2026-10-29): Group 17 unmapped columns: decide each in Phase 15 when the schema document is written
+- [Phase 07.1]: D-40 (owner, 2026-10-29): Group 18 discount above subtotal also shows `AllowOverpaid`: leave as is
+- [Phase 07.1]: D-41 (owner, 2026-10-29): Group 20 keep the two relaxations already relied on (missing contact number, missing due date) for the Phase 16 import
+- [Phase 07.1]: D-42 (owner, 2026-10-29): no new import relaxation approved; plan 07.1-12's relaxation list is empty. Groups 19, 21, 22 noted, nothing to rule
 
 ### Pending Todos
 
@@ -699,6 +824,19 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 - [ ] **Phase 17 legacy import carry-forward (plan 06-20, D-49):** imported staff must get the first sign-in mark (`EmailConfirmed`) set, or they cannot be chosen as Paid by. Recorded in `docs/api/company-expenses.md`; add it to the Phase 17 plan.
 - [x] **Ruled D-76 (owner, 2026-10-27): option 1, keep 300 ms and re-run alone first; one CI flake recorded.** **Phase 6 speed check in CI (A-06-03, PERF-04, D-28):** the five-year speed test passes on this machine with room (worst case 197.8 ms against the 300 ms limit). It cannot be confirmed here that it also passes on the CI runner with the SQL container. After the first CI run of this branch, check the printed numbers. If the margin is thin or the test flakes, pick one. (1) Recommended: keep 300 ms and re-run alone first, as the runbook says. (2) Allow a CI-only margin; this is your call and nothing has been changed. Where it changes: `ExpenseListTimingTests.cs` (one constant). See `docs/operations/list-performance.md`.
 - [ ] **Phase 6 duplicate-request guard after a crash (06-21, D-50):** the rebuilt guard marks a request key as 'in progress' in the database while it runs. If the app stops in the middle of a request (for example the host restarts it), a retry with the same key answers 'This request is already being processed' for up to 2 minutes, then works again. The old lock was freed at once. Nothing is saved twice or lost either way. Pick one. (1) Recommended: keep 2 minutes (built). (2) A shorter time, for example 30 seconds: a retry works sooner, but a request slower than that could start twice. Where the app stores the answer (for example adding an expense), the database still lets only one of them save and the other one shows an error. For the profile actions that keep a change without storing an answer (a wrong password that counts toward the lock, or a spent email-change link), both may apply. Where it changes: `IdempotencyGate.ClaimLease` (one constant).
+- [ ] **Open: refunds on a soft-deleted order and money on hand (owner, 2026-10-28, 07-04, D-39):** no ruling says whether a refund on a soft-deleted order still counts toward the payer's money on hand (MONEY-01). The owner left it open, so MONEY-01 says nothing about it. Rule it when the money-on-hand reports are planned (Phase 10), before that report is built.
+- [x] **Ruled D-45 (owner, 2026-10-28): keep newest, drop both indexes (done), wording approved.** **Order list choices (plan 07-16, nothing blocks on these):** (1) `newest` sort: built as latest order date first, then latest recorded; the other choice is latest recorded first (recommended: keep the order date, because imported orders are all recorded at the same instant). (2) `IX_Orders_CreatedAtUtc` is created as the plan said but no sort uses it today (recommended: drop it in a small migration unless a recorded-time sort is wanted). (3) `IX_OrderItems_ProductTypeId` is now covered by the new `IX_OrderItems_ProductTypeId_OrderId` (recommended: keep it until a later cleanup, since a drop is a one-way door). (4) Wording to approve: "Choose a sort order." for an unknown sort.
+
+Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing here was auto-approved):
+
+- [x] **UAT walked (owner, 2026-10-29): 2 passed, 3 deferred (tests 1, 4, 5), 0 issues.** **Phase 7 sign-off (07-UAT.md):** the verifier passed all 7 must-haves with no gaps; the status is `human_needed` only for the items below. Run `/gsd-verify-work 7` to walk them and mark the phase complete. The phase is not marked complete until you do.
+- [ ] **Your check of two logic changes from the code review (07-REVIEW-DISPOSITION.md):** (1) DOM-WR-04, D-49b: edits now re-check only the fields they change (`LegacyEditFilter.cs` and the six edit handlers); the D-05 lock and the totals caps (overpayment, discount cap, refunds above payments) still run on every edit. (2) APO-WR-01, commit `529510b1`: a deadlock inside the duplicate-request guard's transaction now answers 409 "busy" instead of 500, and is not retried. Confirm both, or ask for changes.
+- [ ] **Reminder after Phase 8 ships (owner, 2026-10-29, 07-UAT test 1 deferred):** remind the owner to read the DOM-WR-04 code: `LegacyEditFilter.cs`, the six `UpdateOrder*Handler.cs` files and the legacy edit checks in `Order.cs` (tests: `OrderLegacyEditTests`, `LegacyEditHandlerTests`). Also ask them to confirm that a legacy order with no due date still needs one on edit, unlike a missing contact number. Raise this at the start of the first session after Phase 8 is complete.
+- [x] **Ruled D-78 (owner, 2026-10-29): option 1, keep `auth.session-busy`.** **List writes busy code (APX-IN-04):** a list create, retire, reactivate or delete that loses a race twice answers the shared `auth.session-busy` code (Phase 6 does the same). Pick one. (1) Recommended: keep it. (2) Give order lists their own busy code.
+- [ ] **Confirmed for the Phase 8 UI review (owner, 2026-10-29, 07-UAT test 4).** **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
+- [x] **Ruled 07.1 D-22 to D-42 (owner, 2026-10-29): publish as shown; every group answered, all recommendations accepted (Group 8 decide in Phase 15, Group 11 map Manager to CSPS Manager); no new relaxation. Still open: delete the refused run's full list by hand.** **Phase 7.1 rulings session (plan 07.1-11, owner, 2026-10-29):** the real fit-check run is done (07.1 D-17, D-21): the restore was proven unchanged and the trial database removed. A plain-words briefing with options for every finding group is in `_local/legacy-fit-check/briefing-20261029-162702.md` (private, never committed). Read it and rule on each group. Also delete the first, refused run's full list `_local/legacy-fit-check/findings-20261029-161931.md` by hand (it was never opened).
+- [ ] **Phase 7.1 hand-off to reviews and joint ship (plan 07.1-12, 2026-10-29):** execution is complete; no import relaxation was built (07.1 D-42). Run in this order: (1) `/gsd-code-review 07.1`; (2) `/gsd-secure-phase 07.1` (07.1 D-14: check the restore is only read, nothing writes outside the trial database, and no personal data reaches git or logs; no UI review, because there are no screens); (3) `/gsd-verify-work 07.1`; (4) `/gsd-ship` for the joint Phase 7 and 7.1 PR, opened from `gsd/phase-07.1-legacy-fit-check-read-only` (07.1 D-13, D-20; STATE D-85). Merge only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's word. The ROADMAP goal already names the company expenses (07.1 D-16); nothing changed there.
+- [ ] **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
 
 ### Blockers/Concerns
 
@@ -750,6 +888,7 @@ Owner backlog (away mode, parked 2026-10-25 during Phase 6 planning and executio
 | 30 | D-75: two-Manager demotion race test accepts the sign-out path, guard path still required | 2026-10-26 | 11edfd4e | — |
 | 261027-t3j | Restyle shared Select and DateInput, remove the written-out date (D-63) | 2026-10-27 | df81a9e6 | [261027-t3j-restyle-shared-select-and-dateinput-remo](./quick/261027-t3j-restyle-shared-select-and-dateinput-remo/) |
 | 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
+| 261029-87p | Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82) | 2026-10-29 | 0f4c00c5 | [261029-87p-fix-phase-7-ui-review-findings-in-the-au](./quick/261029-87p-fix-phase-7-ui-review-findings-in-the-au/) |
 
 ## Deferred Items
 
@@ -761,6 +900,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-26T03:25:42.992Z
-Stopped at: Phase 06 complete, ready to plan Phase 7
+Last session: 2026-10-29T17:05:48.481Z
+Stopped at: Phase 07.1 complete, ready to plan Phase 8
 Resume file: None

@@ -1,6 +1,7 @@
 // Touch-target size in the browser (WR-20, CLAUDE.md 44 px rule). The phone menu button, the sidebar toggle, the
-// filter-chip clear and the row actions keep their drawn size (D-31 O-8) and answer a tap anywhere in an invisible
-// 44 x 44 px square centred on them; row actions sit 8 px apart so those squares never overlap (D-51). The probes ask the
+// filter-chip clear and the row actions answer a tap anywhere in an invisible
+// 44 x 44 px square centred on them. The filter-chip clear is drawn 24 px (D-98); the others keep their drawn size
+// (D-31 O-8). Row actions sit 8 px apart so those squares never overlap (D-51). The probes ask the
 // browser what is under a point, so they measure what a tap would actually hit.
 import type { APIRequestContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
@@ -250,7 +251,7 @@ for (const size of [
 ] as const) {
   const at = `${String(size.width)} px`;
 
-  test(`@target-size at ${at} each filter chip clear answers a tap anywhere in a 44 px square and is still drawn 22 px`, async ({
+  test(`@target-size at ${at} each filter chip clear answers a tap anywhere in a 44 px square and is drawn 24 px`, async ({
     page,
     request,
     guard,
@@ -259,7 +260,7 @@ for (const size of [
     guard.expectStatus('/api/v1/auth/refresh', 401);
     await openUsersWithChips(page, request, size);
 
-    await expectTapAreas(page, CHIP_CLEAR, 22, 2);
+    await expectTapAreas(page, CHIP_CLEAR, 24, 2);
   });
 
   test(`@target-size at ${at} each row action answers a tap anywhere in a 44 px square, is drawn 36 px and sits 8 px from the next`, async ({

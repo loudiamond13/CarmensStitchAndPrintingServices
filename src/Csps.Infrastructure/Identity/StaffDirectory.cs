@@ -1,6 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Application.Staff;
+using Csps.Domain.Identity;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,9 +12,10 @@ internal sealed class StaffDirectory(CspsDbContext context) : IStaffDirectory
 {
     public async Task<IReadOnlyList<StaffMember>> ListActiveStaffAsync(CancellationToken cancellationToken)
     {
-        // D-32, D-49: set up = a password and the first sign-in mark; keep in step with the payer state below, CompanyExpenseReader and the dev seed.
+        // D-37: the holder is excluded by id as well as by the role filter. D-32, D-49: set up = a password and the first sign-in mark; keep in step with the payer state below, CompanyExpenseReader and the dev seed.
         var rows = await context.Users
             .AsNoTracking()
+            .Where(user => user.Id != LegacyHolder.Id)
             .Where(user => user.IsActive && user.ManagerLockedAtUtc == null && user.DeletedAtUtc == null
                 && user.PasswordHash != null && user.EmailConfirmed)
             .Where(user => context.UserRoles.Any(link => link.UserId == user.Id && context.Roles.Any(role =>

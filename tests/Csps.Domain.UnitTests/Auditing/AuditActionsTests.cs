@@ -9,9 +9,9 @@ public sealed class AuditActionsTests
     private static readonly DateTimeOffset Now = new(2026, 10, 14, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void CatalogHoldsTheAuthProfileUserAndPhaseSixCodes()
+    public void CatalogHoldsTheAuthProfileUserPhaseSixAndPhaseSevenCodes()
     {
-        AuditActions.All.Count.ShouldBe(49);
+        AuditActions.All.Count.ShouldBe(92);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -122,7 +122,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void ThePhaseSixCodesComeAfterThePhaseFiveCodes()
     {
-        AuditActions.All.Skip(37).ShouldBe(
+        AuditActions.All.Skip(37).Take(12).ShouldBe(
         [
             "company-expense.added",
             "company-expense.changed",
@@ -137,6 +137,86 @@ public sealed class AuditActionsTests
             "expense-category.reactivated",
             "expense-category.deleted",
         ]);
+    }
+
+    // The 43 Phase 7 codes (D-31), in catalog order: the constant name and its text.
+    private static readonly (string Constant, string Code)[] PhaseSeven =
+    [
+        ("OrderCreated", "order.created"),
+        ("OrderChanged", "order.changed"),
+        ("OrderStatusChanged", "order.status-changed"),
+        ("OrderReopened", "order.reopened"),
+        ("OrderDeleted", "order.deleted"),
+        ("OrderRestored", "order.restored"),
+        ("OrderPermanentlyDeleted", "order.permanently-deleted"),
+        ("OrderItemAdded", "order-item.added"),
+        ("OrderItemChanged", "order-item.changed"),
+        ("OrderItemRemoved", "order-item.removed"),
+        ("OrderPaymentAdded", "order-payment.added"),
+        ("OrderPaymentChanged", "order-payment.changed"),
+        ("OrderPaymentReceiverChanged", "order-payment.receiver-changed"),
+        ("OrderPaymentRemoved", "order-payment.removed"),
+        ("OrderRefundAdded", "order-refund.added"),
+        ("OrderRefundChanged", "order-refund.changed"),
+        ("OrderRefundRefunderChanged", "order-refund.refunder-changed"),
+        ("OrderRefundRemoved", "order-refund.removed"),
+        ("OrderDiscountAdded", "order-discount.added"),
+        ("OrderDiscountChanged", "order-discount.changed"),
+        ("OrderDiscountRemoved", "order-discount.removed"),
+        ("OrderExpenseAdded", "order-expense.added"),
+        ("OrderExpenseChanged", "order-expense.changed"),
+        ("OrderExpensePayerChanged", "order-expense.payer-changed"),
+        ("OrderExpenseRemoved", "order-expense.removed"),
+        ("ProductTypeAdded", "product-type.added"),
+        ("ProductTypeRenamed", "product-type.renamed"),
+        ("ProductTypeRecolored", "product-type.recolored"),
+        ("ProductTypeRetired", "product-type.retired"),
+        ("ProductTypeReactivated", "product-type.reactivated"),
+        ("ProductTypeDeleted", "product-type.deleted"),
+        ("PaymentMethodAdded", "payment-method.added"),
+        ("PaymentMethodRenamed", "payment-method.renamed"),
+        ("PaymentMethodRecolored", "payment-method.recolored"),
+        ("PaymentMethodRetired", "payment-method.retired"),
+        ("PaymentMethodReactivated", "payment-method.reactivated"),
+        ("PaymentMethodDeleted", "payment-method.deleted"),
+        ("OrderExpenseCategoryAdded", "order-expense-category.added"),
+        ("OrderExpenseCategoryRenamed", "order-expense-category.renamed"),
+        ("OrderExpenseCategoryRecolored", "order-expense-category.recolored"),
+        ("OrderExpenseCategoryRetired", "order-expense-category.retired"),
+        ("OrderExpenseCategoryReactivated", "order-expense-category.reactivated"),
+        ("OrderExpenseCategoryDeleted", "order-expense-category.deleted"),
+    ];
+
+    public static TheoryData<string, string> PhaseSevenCodes
+    {
+        get
+        {
+            var data = new TheoryData<string, string>();
+            foreach (var (constant, code) in PhaseSeven)
+            {
+                data.Add(constant, code);
+            }
+
+            return data;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(PhaseSevenCodes))]
+    public void ThePhaseSevenCodesAreInTheCatalogAndAcceptedByAuditEntry(string constantName, string code)
+    {
+        var field = typeof(AuditActions).GetField(constantName).ShouldNotBeNull();
+
+        ((string)field.GetRawConstantValue()!).ShouldBe(code);
+        AuditActions.All.ShouldContain(code);
+        AuditEntry.Create(Now, null, code, null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null).Action.ShouldBe(code);
+    }
+
+    [Fact]
+    public void ThePhaseSevenCodesComeAfterThePhaseSixCodesInThisOrder()
+    {
+        PhaseSeven.Length.ShouldBe(43);
+        AuditActions.All.Skip(49).ShouldBe(PhaseSeven.Select(entry => entry.Code));
     }
 
     [Fact]
