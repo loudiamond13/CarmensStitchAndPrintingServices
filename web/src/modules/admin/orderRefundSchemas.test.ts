@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   blankOrderRefund,
+  isOverRefundCap,
   orderRefundSchema,
   refundCapKind,
   type OrderRefundFormInput,
@@ -153,5 +154,27 @@ describe('refundCapKind', () => {
   it('is cancelled for a Cancelled order and credit for any other', () => {
     expect(refundCapKind({ status: 'cancelled' })).toBe('cancelled');
     expect(refundCapKind({ status: 'ready' })).toBe('credit');
+  });
+});
+
+describe('isOverRefundCap', () => {
+  it('is true for a well-formed amount above the cap', () => {
+    expect(isOverRefundCap('1000.01', '1000.00')).toBe(true);
+    expect(isOverRefundCap('1600', '1500.00')).toBe(true);
+    expect(isOverRefundCap('1.00', '0.00')).toBe(true);
+  });
+
+  it('is false for an amount within the cap, at the cap or empty', () => {
+    expect(isOverRefundCap('1000.00', '1000.00')).toBe(false);
+    expect(isOverRefundCap('1.00', '1000.00')).toBe(false);
+    expect(isOverRefundCap('', '1000.00')).toBe(false);
+    expect(isOverRefundCap('.', '1000.00')).toBe(false);
+  });
+
+  it('is false when another rule fails first: three decimals, out of range, not an amount', () => {
+    expect(isOverRefundCap('2000.005', '1000.00')).toBe(false);
+    expect(isOverRefundCap('0', '1000.00')).toBe(false);
+    expect(isOverRefundCap('1000000.01', '2000000.00')).toBe(false);
+    expect(isOverRefundCap('abc', '1000.00')).toBe(false);
   });
 });

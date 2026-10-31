@@ -1,5 +1,5 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { focusManager, QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +42,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  focusManager.setFocused(undefined);
   queryClient.clear();
   clearSession();
 });
@@ -51,10 +52,25 @@ interface RenderOptions {
   prefillAmount?: string;
   onClose?: () => void;
   onSaved?: (order: unknown) => void;
+  /** How long ago the page read the held order, in ms. Over a second, a check that fails reads the order again (D-95). */
+  heldAge?: number;
+  /** The order the page holds when it is not the one the window opened with (another person changed it since). */
+  held?: OrderDetailFixture;
 }
 
-function renderModal({ order = creditOrder, prefillAmount, onClose = vi.fn(), onSaved = vi.fn() }: RenderOptions = {}) {
-  queryClient.setQueryData(orderKey(order.id), order);
+function hold(order: OrderDetailFixture, heldAge: number): void {
+  queryClient.setQueryData(orderKey(order.id), order, heldAge === 0 ? undefined : { updatedAt: Date.now() - heldAge });
+}
+
+function renderModal({
+  order = creditOrder,
+  prefillAmount,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+  heldAge = 0,
+  held = order,
+}: RenderOptions = {}) {
+  hold(held, heldAge);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -281,6 +297,170 @@ describe('add mode saving (ORD-18 idempotency)', () => {
   });
 });
 
+// ---- The check reads the order again when the held figures refuse (D-95; plan 08-28) ----
+
+const HELD_FOR = 5_000;
+/** The order after another person recorded 500.00 more in payments: the customer credit is 1,500.00 and the row version moved on. */
+const MORE_CREDIT = buildOrderDetail({
+  ...creditOrder,
+  version: NEW_VERSION,
+  payments: [orderPayment('2026-10-01', CASH, 9500)],
+  totals: { ...creditOrder.totals, paid: 9500, customerCredit: 1500 },
+});
+
+async function typeAmountAndReason(user: ReturnType<typeof userEvent.setup>, amount: string): Promise<void> {
+  await ready();
+  await user.type(amountBox(), amount);
+  await user.type(reasonBox(), 'Customer changed the order');
+}
+
+function regainFocus(): void {
+  act(() => {
+    focusManager.setFocused(false);
+  });
+  act(() => {
+    focusManager.setFocused(true);
+  });
+}
+
+describe('add mode reads the order again when the held figures refuse the amount (D-95)', () => {
+  it('reads once, then sends an amount the old credit refused, still with the opened version', async () => {
+    const backend = useOrderHandlers({ detail: MORE_CREDIT, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { onClose } = renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndReason(user, '1200.00');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toEqual([creditOrder.id]);
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.body).toMatchObject({ amount: 1200, version: ORDER_VERSION });
+  });
+
+  it('answers 409 with the banner and Load Latest when someone else changed the order meanwhile', async () => {
+    const backend = useOrderHandlers({ detail: MORE_CREDIT, reply: () => problemResponse(409, 'edit.stale') });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndReason(user, '1200.00');
+
+    await user.click(saveButton());
+
+    expect(await screen.findByRole('button', { name: 'Load Latest' })).toBeInTheDocument();
+    expect((backend.writes[0]?.body as { version: string }).version).toBe(ORDER_VERSION);
+  });
+
+  it('refuses an amount above the current credit in the words naming the current figure, and sends nothing', async () => {
+    const backend = useOrderHandlers({ detail: MORE_CREDIT });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndReason(user, '1600.00');
+
+    await user.click(saveButton());
+
+    expect(
+      await screen.findByText('This is more than the customer credit. Enter ₱1,500.00 or less.'),
+    ).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+    expect(backend.reads).toHaveLength(1);
+  });
+
+  it('keeps the held figures in the words when the read fails', async () => {
+    const backend = useOrderHandlers({ detail: () => new HttpResponse(null, { status: 500 }) });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndReason(user, '1200.00');
+
+    await user.click(saveButton());
+
+    expect(
+      await screen.findByText('This is more than the customer credit. Enter ₱1,000.00 or less.'),
+    ).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+    expect(backend.reads.length).toBeGreaterThan(0);
+  });
+
+  it('sends no read for an amount the held figures already allow', async () => {
+    const backend = useOrderHandlers({ detail: MORE_CREDIT, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { onClose } = renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndReason(user, '400');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toEqual([]);
+  });
+
+  it('caps by what was paid and not yet refunded when the order was Cancelled by someone else', async () => {
+    const cancelled = buildOrderDetail({
+      ...MORE_CREDIT,
+      status: 'cancelled',
+      totals: { ...MORE_CREDIT.totals, paid: 9000, refunded: 500, customerCredit: 0 },
+    });
+    const backend = useOrderHandlers({ detail: cancelled });
+    const user = userEvent.setup();
+    renderModal({ heldAge: HELD_FOR });
+    await typeAmountAndReason(user, '9000.00');
+
+    await user.click(saveButton());
+
+    expect(
+      await screen.findByText('This is more than was paid and not yet refunded. Enter ₱8,500.00 or less.'),
+    ).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+  });
+});
+
+describe('add mode follows the order while it is open (D-95)', () => {
+  it('reads the order when the tab regains focus and shows the current credit, with focus left where it was', async () => {
+    const backend = useOrderHandlers({ detail: MORE_CREDIT });
+    renderModal();
+    await ready();
+    expect(dateBox()).toHaveFocus();
+
+    regainFocus();
+
+    expect(await screen.findByText('You can refund up to ₱1,500.00.')).toBeInTheDocument();
+    expect(backend.reads).toEqual([creditOrder.id]);
+    expect(dateBox()).toHaveFocus();
+  });
+
+  it('still sends the opened version after a focus read', async () => {
+    const backend = useOrderHandlers({ detail: MORE_CREDIT, reply: () => HttpResponse.json(answerWith()) });
+    const user = userEvent.setup();
+    const { onClose } = renderModal();
+    await ready();
+    regainFocus();
+    await screen.findByText('You can refund up to ₱1,500.00.');
+    await user.type(amountBox(), '1200.00');
+    await user.type(reasonBox(), 'Customer changed the order');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toHaveLength(1);
+    expect(backend.writes[0]?.body).toMatchObject({ amount: 1200, version: ORDER_VERSION });
+  });
+
+  it('keeps the Record Refund prefill in Amount after a focus read', async () => {
+    useOrderHandlers({ detail: MORE_CREDIT });
+    renderModal({ prefillAmount: '1000.00' });
+    await ready();
+
+    regainFocus();
+
+    await screen.findByText('You can refund up to ₱1,500.00.');
+    expect(amountBox()).toHaveValue('1000.00');
+  });
+});
+
 // ---- Edit mode (ORD-18, D-10, D-58, 07 D-09, 07 D-35) ----
 
 const GONE_ID = '00000000-0000-4000-8000-0000000000d1';
@@ -303,8 +483,10 @@ function renderEdit({
   refundId = REFUND_ID,
   onClose = vi.fn(),
   onSaved = vi.fn(),
+  heldAge = 0,
+  held = order,
 }: RenderOptions & { refundId?: string } = {}) {
-  queryClient.setQueryData(orderKey(order.id), order);
+  hold(held, heldAge);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -361,6 +543,49 @@ describe('edit mode opening', () => {
       await screen.findByText('This is more than was paid and not yet refunded. Enter ₱12,000.00 or less.'),
     ).toBeInTheDocument();
     expect(backend.writes).toEqual([]);
+  });
+
+  it('takes the cap from the current order and its copy of the refund when another person changed the refund', async () => {
+    const changed = orderRefund('2026-10-05', 800, 'Order shrank', { id: REFUND_ID, refundedBy: ORDER_STAFF_TWO });
+    const current = buildOrderDetail({
+      ...CANCELLED,
+      refunds: [changed],
+      version: NEW_VERSION,
+      totals: { ...CANCELLED.totals, paid: 12500, refunded: 800 },
+    });
+    const backend = useOrderHandlers({ detail: current });
+    const user = userEvent.setup();
+    renderEdit({ held: current, heldAge: HELD_FOR });
+    await ready();
+
+    expect(screen.getByText('You can refund up to ₱12,500.00.')).toBeInTheDocument();
+    await user.clear(amountBox());
+    await user.type(amountBox(), '12500.01');
+    await user.click(saveButton());
+
+    expect(
+      await screen.findByText('This is more than was paid and not yet refunded. Enter ₱12,500.00 or less.'),
+    ).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+  });
+
+  it('uses the opened figures for the cap when the current order no longer holds the refund, and a save answers 404', async () => {
+    const current = buildOrderDetail({
+      ...CANCELLED,
+      refunds: [],
+      version: NEW_VERSION,
+      totals: { ...CANCELLED.totals, paid: 10000, refunded: 0 },
+    });
+    useOrderHandlers({ detail: current, reply: () => problemResponse(404, 'orders.refund-not-found') });
+    const user = userEvent.setup();
+    renderEdit({ held: current, heldAge: HELD_FOR });
+    await ready();
+
+    expect(screen.getByText('You can refund up to ₱12,000.00.')).toBeInTheDocument();
+    await user.type(reasonBox(), 'x');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This refund was removed.')).toBeInTheDocument();
   });
 
   it('keeps a refunder who was deactivated selected as "{name} (inactive)"', async () => {
