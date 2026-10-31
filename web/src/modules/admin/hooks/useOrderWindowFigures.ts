@@ -41,6 +41,8 @@ export function useOrderWindowFigures(opened: OrderDetailResponse): OrderWindowF
   const held = useQuery({
     queryKey: orderKey(opened.id),
     queryFn: ({ signal }) => ordersService.get(opened.id, signal),
+    // An open window reads on every focus, even while the page's data counts as fresh; the page keeps its own setting.
+    refetchOnWindowFocus: 'always',
   });
   return {
     current: held.data ?? opened,

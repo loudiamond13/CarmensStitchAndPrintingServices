@@ -144,7 +144,16 @@ function PaymentForm({ open, order, paymentId: editedId, onClose, onSaved }: Pay
     payment: editedId === null ? null : (order.payments.find((candidate) => candidate.id === editedId) ?? null),
   }));
   const figures = useOrderWindowFigures(opened.order);
-  const capFor = (current: OrderDetailResponse): string => paymentCap(current, opened.payment?.amount);
+  // The most that may be paid by `current`'s figures. An edit adds that order's copy of the payment; when it no longer holds the
+  // payment, the opened figures stand and a save answers 404.
+  const capFor = (current: OrderDetailResponse): string => {
+    if (opened.payment === null) {
+      return paymentCap(current);
+    }
+    const savedId = opened.payment.id;
+    const copy = current.payments.find((candidate) => candidate.id === savedId);
+    return copy === undefined ? paymentCap(opened.order, opened.payment.amount) : paymentCap(current, copy.amount);
+  };
   const cap = capFor(figures.current);
   const {
     control,
