@@ -63,7 +63,7 @@ blocked: 0
 - gap_id: G-08-5
   truth: "Owner rulings D-94 to D-96 hold: discount amounts come from the server, money caps check against current figures, and Mark Completed reads current figures."
   status: resolved
-  resolved_by: 08-29-PLAN
+  resolved_by: 08-29-PLAN.md
   resolved_at: 2026-10-30
   reason: "User reported: chose the recommended fixes for WR-01, WR-02 and WR-05 (D-94 to D-96)."
   severity: major
