@@ -8,7 +8,7 @@ import { ToastProvider } from '@/components/feedback';
 import { StatusBadge } from '@/components/status';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { OrderStatusMenu } from '@/modules/admin/components/OrderStatusMenu';
-import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
+import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { canEditOrder } from '@/modules/admin/orderRules';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
@@ -636,6 +636,74 @@ describe('Mark Completed follows the current figures (D-96, WR-05)', () => {
     expect(await screen.findByText('Order completed')).toBeVisible();
     expect(backend.writes).toHaveLength(1);
     expect(backend.writes[0]?.body).toEqual({ status: 'completed' });
+  });
+
+  it('disables Mark Completed, with its reason, when the answer brings a new balance, and focus stays on the item', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    useOrderHandlers({
+      detail: inTurn(
+        settledBalance,
+        gate.then(() => owedBalance),
+      ),
+    });
+    const { user } = renderMenu(settledBalance);
+    (await trigger()).focus();
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    const item = screen.getByRole('menuitem', { name: 'Mark Completed' });
+    expect(item).toHaveFocus();
+    expect(item).not.toHaveAttribute('aria-disabled');
+
+    release();
+
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: /^Mark Completed/ })).toHaveAttribute('aria-disabled', 'true');
+    });
+    expect(screen.getByText(OWED_REASON)).toBeVisible();
+    expect(screen.getByRole('menuitem', { name: /^Mark Completed/ })).toHaveFocus();
+  });
+
+  it('keeps the menu working on the held figures when the open read fails, with no toast', async () => {
+    const backend = useOrderHandlers({
+      detail: inTurn(owedBalance, new HttpResponse(null, { status: 500 })),
+      reply: () => HttpResponse.json(completedAfterMove),
+    });
+    const { user } = renderMenu(owedBalance);
+
+    await user.click(await trigger());
+
+    await waitFor(() => {
+      expect(backend.reads.length).toBeGreaterThanOrEqual(2);
+    });
+    await waitFor(() => {
+      expect(queryClient.getQueryState(orderKey(owedBalance.id))?.fetchStatus).toBe('idle');
+    });
+    expect(screen.getByRole('menu')).toBeVisible();
+    expect(screen.getByRole('menuitem', { name: /^Mark Completed/ })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText(OWED_REASON)).toBeVisible();
+    expect(screen.getByRole('menuitem', { name: 'Move to Delivered' })).toBeVisible();
+    expect(screen.getByText('Ready')).toBeVisible();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText("Couldn't change the status")).toBeNull();
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Delivered' }));
+    await waitFor(() => {
+      expect(backend.writes).toHaveLength(1);
+    });
+  });
+
+  it('has no axe violations on the open menu after the answer lands', async () => {
+    const backend = useOrderHandlers({ detail: inTurn(owedBalance, settledBalance) });
+    const { user, container } = renderMenu(owedBalance);
+
+    await user.click(await trigger());
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'Mark Completed' })).not.toHaveAttribute('aria-disabled');
+    });
+
+    expect(backend.reads).toHaveLength(2);
+    await expectNoAxeViolations(container);
   });
 });
 
