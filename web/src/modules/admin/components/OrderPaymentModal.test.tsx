@@ -1,5 +1,5 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { focusManager, QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,6 +41,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  focusManager.setFocused(undefined);
   queryClient.clear();
   clearSession();
 });
@@ -51,14 +52,22 @@ interface RenderOptions {
   onSaved?: (order: unknown) => void;
   /** How long ago the page read the held order, in ms. Over a second, a check that fails reads the order again (D-95). */
   heldAge?: number;
+  /** The order the page holds when it is not the one the window opened with (another person changed it since). */
+  held?: OrderDetailFixture;
 }
 
 function hold(order: OrderDetailFixture, heldAge: number): void {
   queryClient.setQueryData(orderKey(order.id), order, heldAge === 0 ? undefined : { updatedAt: Date.now() - heldAge });
 }
 
-function renderModal({ order = order0148, onClose = vi.fn(), onSaved = vi.fn(), heldAge = 0 }: RenderOptions = {}) {
-  hold(order, heldAge);
+function renderModal({
+  order = order0148,
+  onClose = vi.fn(),
+  onSaved = vi.fn(),
+  heldAge = 0,
+  held = order,
+}: RenderOptions = {}) {
+  hold(held, heldAge);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -437,6 +446,49 @@ describe('add mode reads the order again when the held figures refuse the amount
   });
 });
 
+describe('add mode follows the order while it is open (D-95)', () => {
+  function regainFocus(): void {
+    act(() => {
+      focusManager.setFocused(false);
+    });
+    act(() => {
+      focusManager.setFocused(true);
+    });
+  }
+
+  it('reads the order when the tab regains focus and shows the current balance, with focus left where it was', async () => {
+    const backend = useOrderHandlers({ detail: NEWER });
+    renderModal();
+    await ready();
+    expect(dateBox()).toHaveFocus();
+
+    regainFocus();
+
+    expect(await screen.findByText('Balance due: ₱11,327.50')).toBeInTheDocument();
+    expect(backend.reads).toEqual([order0148.id]);
+    expect(dateBox()).toHaveFocus();
+  });
+
+  it('still sends the opened version after a focus read', async () => {
+    const backend = useOrderHandlers({ detail: NEWER });
+    const user = userEvent.setup();
+    const { onClose } = renderModal();
+    await ready();
+    regainFocus();
+    await screen.findByText('Balance due: ₱11,327.50');
+    await user.type(amountBox(), '10000.00');
+    await user.selectOptions(methodBox(), 'GCash');
+
+    await user.click(saveButton());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(backend.reads).toHaveLength(1);
+    expect(backend.writes[0]?.body).toMatchObject({ amount: 10000, version: ORDER_VERSION });
+  });
+});
+
 // ---- Edit mode (ORD-08, ORD-22, D-44, D-58, UIC-29, UIC-44) ----
 
 const CASH_REF = { id: CASH_ID, name: 'Cash', tone: 'success', retired: false };
@@ -459,8 +511,10 @@ function renderEdit({
   paymentId = SAVED.id,
   onClose = vi.fn(),
   onSaved = vi.fn(),
+  heldAge = 0,
+  held = order,
 }: RenderOptions & { paymentId?: string } = {}) {
-  queryClient.setQueryData(orderKey(order.id), order);
+  hold(held, heldAge);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -517,6 +571,45 @@ describe('edit mode opening', () => {
 
     expect(await screen.findByText('This is more than the balance. Enter ₱11,327.50 or less.')).toBeInTheDocument();
     expect(backend.writes).toEqual([]);
+  });
+
+  it('takes the cap from the current order and its copy of the payment when another person changed the payment', async () => {
+    const changed = orderPayment('2026-10-03', CASH_REF, 3000, { id: SAVED.id, receivedBy: ORDER_STAFF_TWO });
+    const current = buildOrderDetail({
+      payments: [FIRST, changed],
+      version: NEW_VERSION,
+      totals: { ...order0148.totals, paid: 13000, balance: 8000 },
+    });
+    const backend = useOrderHandlers({ detail: current });
+    const user = userEvent.setup();
+    renderEdit({ held: current, heldAge: HELD_FOR });
+    await ready();
+
+    expect(screen.getByText('Balance due: ₱11,000.00')).toBeInTheDocument();
+    await user.clear(amountBox());
+    await user.type(amountBox(), '11000.01');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This is more than the balance. Enter ₱11,000.00 or less.')).toBeInTheDocument();
+    expect(backend.writes).toEqual([]);
+  });
+
+  it('uses the opened figures for the cap when the current order no longer holds the payment, and a save answers 404', async () => {
+    const current = buildOrderDetail({
+      payments: [FIRST],
+      version: NEW_VERSION,
+      totals: { ...order0148.totals, paid: 10000, balance: 5000 },
+    });
+    useOrderHandlers({ detail: current, reply: () => problemResponse(404, 'orders.payment-not-found') });
+    const user = userEvent.setup();
+    renderEdit({ held: current, heldAge: HELD_FOR });
+    await ready();
+
+    expect(screen.getByText('Balance due: ₱11,327.50')).toBeInTheDocument();
+    await user.type(referenceBox(), 'x');
+    await user.click(saveButton());
+
+    expect(await screen.findByText('This payment was removed.')).toBeInTheDocument();
   });
 
   it('keeps a receiver who was deactivated selected as "{name} (inactive)"', async () => {
