@@ -1,13 +1,22 @@
 ---
 phase: 08-order-screens
 created: 2026-10-30T15:10:00-05:00
-updated: 2026-10-30T15:10:00-05:00
-verified: 2026-10-30T20:10:00Z
+updated: 2026-10-30T21:07:00-05:00
+verified: 2026-10-31T02:07:00Z
 status: human_needed
-score: 5/5 roadmap success criteria verified
+score: 8/8 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
-re_verification: false
+re_verification:
+  previous_status: human_needed
+  previous_score: 5/5 roadmap success criteria verified
+  trigger: "UAT gap G-08-5 (owner rulings D-94 to D-97), closed by plans 08-25 to 08-29"
+  gaps_closed:
+    - "WR-01 / D-94: the server sends each discount Amount and the Discounts tab shows it with no browser money math"
+    - "WR-02 / D-95: payment, refund and discount windows (and the payment delete check) refresh the order and check again before refusing a cap"
+    - "WR-05 / D-96: the status menu reads the order again every time it opens"
+  gaps_remaining: []
+  regressions: []
 covered_files:
   - ".planning/phases/08-order-screens/08-01-PLAN.md"
   - ".planning/phases/08-order-screens/08-01-SUMMARY.md"
@@ -57,127 +66,162 @@ covered_files:
   - ".planning/phases/08-order-screens/08-23-SUMMARY.md"
   - ".planning/phases/08-order-screens/08-24-PLAN.md"
   - ".planning/phases/08-order-screens/08-24-SUMMARY.md"
+  - ".planning/phases/08-order-screens/08-25-PLAN.md"
+  - ".planning/phases/08-order-screens/08-25-SUMMARY.md"
+  - ".planning/phases/08-order-screens/08-26-PLAN.md"
+  - ".planning/phases/08-order-screens/08-26-SUMMARY.md"
+  - ".planning/phases/08-order-screens/08-27-PLAN.md"
+  - ".planning/phases/08-order-screens/08-27-SUMMARY.md"
+  - ".planning/phases/08-order-screens/08-28-PLAN.md"
+  - ".planning/phases/08-order-screens/08-28-SUMMARY.md"
+  - ".planning/phases/08-order-screens/08-29-PLAN.md"
+  - ".planning/phases/08-order-screens/08-29-SUMMARY.md"
+  - "src/Csps.Application/Orders/OrderDetailResponse.cs"
+  - "src/Csps.Domain/Orders/OrderMath.cs"
   - "src/Csps.Infrastructure/Orders/OrderReader.cs"
   - "src/Csps.Server/Controllers/OrdersController.cs"
+  - "tools/openapi-gen/openapi.v1.json"
+  - "web/e2e/order-deleted-view.spec.ts"
+  - "web/e2e/order-two-staff.spec.ts"
   - "web/src/components/money/OrderTotals.tsx"
   - "web/src/modules/admin/components/DeleteOrderDialog.tsx"
+  - "web/src/modules/admin/components/OrderDiscountModal.tsx"
+  - "web/src/modules/admin/components/OrderDiscountsTab.tsx"
+  - "web/src/modules/admin/components/OrderPaymentModal.tsx"
+  - "web/src/modules/admin/components/OrderPaymentsTab.tsx"
+  - "web/src/modules/admin/components/OrderRefundModal.tsx"
+  - "web/src/modules/admin/components/OrderStatusMenu.tsx"
   - "web/src/modules/admin/components/PurgeOrderDialog.tsx"
+  - "web/src/modules/admin/hooks/useOrderWindowFigures.ts"
   - "web/src/modules/admin/hooks/useOrdersListParams.ts"
   - "web/src/modules/admin/hooks/useOrdersView.ts"
   - "web/src/modules/admin/hooks/useUnsavedChangesGuard.ts"
+  - "web/src/modules/admin/orderDiscountSchemas.ts"
+  - "web/src/modules/admin/orderPaymentSchemas.ts"
+  - "web/src/modules/admin/orderRefundSchemas.ts"
   - "web/src/modules/admin/pages/DeletedOrderPage.tsx"
   - "web/src/modules/admin/pages/DeletedOrdersPage.tsx"
   - "web/src/modules/admin/pages/OrderFormPage.tsx"
   - "web/src/modules/admin/pages/OrderPage.tsx"
   - "web/src/modules/admin/pages/OrdersPage.tsx"
+  - "web/src/test/orderFixtures.ts"
+  - "web/src/types/api.generated.ts"
   - "web/src/utils/dueFlag.ts"
-covered_digest: "v3:sha256:8803083131e4949d59854d1205d915ed7f77227a54f5f34cc5f8d689075bb09d"
+covered_digest: "v3:sha256:6f6c94bf8d58ddcabbc936653fcd59ce69ca2b67c83c5b82e5d5d14db4569e31"
+advisory:
+  - finding: "Discount window still works out money in the browser: otherDiscountsTotal and the Computed amount preview use browser math (discountAmount), not the server's per-discount amount"
+    category: other
+    reason: "D-94 covered the Discounts tab only; 08-29 recorded this in 08-REVIEW-DISPOSITION under WR-01. The server still decides and refuses an over-cap discount. otherDiscountsTotal could read each other discount's server amount; the preview of an unsaved discount has to be worked out before the server sees it."
+    evidence_status: "read in orderDiscountSchemas.ts:125-138 and OrderDiscountModal.tsx:149-153"
+  - finding: "Unexplained one-off chromium timeout in @orders-refunds (Manager works the refunds of a cancelled order), logged in deferred-items 'From plan 08-29'"
+    category: other
+    reason: "Passed alone three times and in two later full order runs (95 passed each); no trace was kept, so the cause is unknown. It may be a race around the refund window's over-cap read (08-28). I did not re-run e2e, so I can neither reproduce nor clear it."
+    evidence_status: "none provided beyond the summary's own account"
 human_verification:
-  - test: "Browser leave prompt on a dirty form (ORD-15, manual row in 08-VALIDATION)"
-    expected: "On New Order and Edit Order, change a field, then reload or close the tab: the browser asks to confirm. A clean or saved form never asks."
-    why_human: "The browser owns this dialog. A test can only prove that the page asks for the prompt (it does), not that the browser shows it."
-  - test: "UIC-71 screenshot review (run `npm --prefix web run review`)"
-    expected: "Orders, New Order, Order detail and Deleted Orders look right in Blush and Espresso at 390, 820 and 1440 px. Look hard at the four overflow fixes from 08-24: header subline, balance figure, order card title, card footer buttons wrapping at about 222 px."
-    why_human: "08-UI-REVIEW was a static code audit with no screenshots (17/24). Visuals, colour and spacing are unseen."
-  - test: "SPEC-GAP copy review (about 25 strings in ordersCopy, orderPageCopy, orderFormCopy, orderWindowsCopy, orderPaymentCopy, orderDiscountCopy, orderRefundCopy, deletedOrdersCopy, orderListsCopy)"
-    expected: "Owner accepts or rewrites each sentence. Flag first: the admin not-found wording, the No-matches line, 'Product: Loading...', '7 fields need attention' on an untouched form, 'Balance now' after a refund on a Cancelled order."
-    why_human: "Wording and tone are the owner's call; the UI spec has no text for these."
-  - test: "Owner rulings parked in deferred-items (Delivered badge tone, Grid/Table switch keeping the page, off-spec font sizes 17/18/24/28 px, chip Clear buttons under 44 px)"
-    expected: "A decision on each. The chip Clear buttons (about 22 px) fail axe target-size on the pixel project in @orders-filters, so that one is a real quality-bar failure until ruled."
-    why_human: "Each changes the look or an owner rule."
-  - test: "Code review findings WR-01, WR-02, WR-05 and the WR-03 follow-up (08-REVIEW-DISPOSITION, deferred-items 'From the end-of-phase code review')"
-    expected: "Owner picks an option for each. WR-01: server sends each discount amount (recommended) or keep browser math. WR-02 and WR-05: refresh figures when a window or the status menu opens (recommended), or let the server decide."
-    why_human: "Each changes behavior, the API or the OR-3 rule."
-  - test: "DOM-WR-04 reminder carried from Phase 7: read LegacyEditFilter.cs and the six UpdateOrder*Handler.cs files"
-    expected: "Unchanged legacy values do not block an edit; changed fields are fully checked."
-    why_human: "Loosens validation on the money path; flagged for a human read in 07-VERIFICATION and STATE.md."
+  - test: "O1, end-of-phase owner check from 08-29-SUMMARY (two real browsers, two real staff, one test order)"
+    expected: "(1) A opens Add Payment, B removes a payment, A types an amount the old balance refused and saves: it goes through if the server allows it, a stale version shows the conflict banner with Load Latest and the typed values kept. (2) With Add Payment open, B changes the balance, A returns to the tab: the Balance due hint follows without pressing Save. (3) B records the last payment, A opens Change Status: Mark Completed is enabled with no reason line, and completes the order. (4) On an order with a percent discount, the Discounts tab Amount column shows the peso figures, they add up to the Total discount footer, and they move when an item changes."
+    why_human: "The automated journeys use one machine and made-up staff. Only a person on two devices proves the real focus and tab behavior. The owner's rule is that no human gate is auto-approved."
 ---
 
 # Phase 8: Order Screens Verification Report
 
-*Created: 2026-10-30T15:10:00-05:00 · Updated: 2026-10-30T15:10:00-05:00*
+*Created: 2026-10-30T15:10:00-05:00 · Updated: 2026-10-30T21:07:00-05:00*
 
 **Phase Goal:** Staff can run every order day to day in the portal. They can find an order, create one, work its detail page (items, payments, discounts, expenses, totals and estimated profit) and delete it safely.
-**Verified:** 2026-10-30T20:10:00Z
+**Verified:** 2026-10-31T02:07:00Z
 **Status:** human_needed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, after gap closure G-08-5 (plans 08-25 to 08-29)
 
 ## Result in plain words
 
-The goal is met in the code. I read the pages, hooks and server pieces behind each roadmap success criterion, and I ran the key tests myself. All five criteria hold. I found no missing, stubbed or unwired piece, and no debt marker.
+Gap G-08-5 is closed in the code. I read the new server, hook, modal and menu code and ran the tests behind it myself. The three owner-ruled fixes are all there and they work: the server sends each discount amount (D-94), the money windows read the order again before they refuse an amount (D-95), and the status menu reads the order every time it opens (D-96). I found no missing, stubbed or unwired piece and no debt marker. The five original roadmap criteria still hold; I re-ran their test files.
 
-The status is `human_needed`, not `passed`, for three reasons:
+The status stays `human_needed` for one reason: the owner's end-of-phase check O1 (two real browsers, two real staff) has not been done, and the owner's rule is that no human gate is auto-approved. The other owner items from the first report were passed or ruled in UAT (tests 1 to 4 and 6), so only O1 remains.
 
-1. Owner-only checks are still pending: the browser leave prompt, the screenshot review (UIC-71) and the SPEC-GAP copy review. I did not mark any of them passed.
-2. Seven code review findings and several UI rulings wait on the owner (listed below). Three of the review findings (WR-01, WR-02, WR-05) touch the Core Value rule "the client never computes totals" or the OR-3 rule, so they are real decisions.
-3. The full end-to-end run was not green (46 of 1428 failed). One failure is on a Phase 8 screen and is a real quality-bar miss: the filter chip Clear buttons are about 22 px and fail axe `target-size` in `@orders-filters` on the pixel project. The other failures fail the same way before Phase 8 started, or passed on re-run.
+I did not re-run the Playwright suite or the full .NET and web suites. The e2e and full-gate numbers below are the executor's own, from 08-29-SUMMARY, and are marked as not re-run.
 
-If the owner wants the 44 px touch target and zero axe violations enforced strictly on Orders, the chip Clear item becomes a gap and the status becomes `gaps_found`. I kept it as an open owner call because 08-24 logged it as one, the same class of failure exists before Phase 8 (`@long-text four-chip toolbars`), and it breaks none of the five roadmap criteria.
+## Gap G-08-5: is it closed
+
+| Ruling | What it demanded | Evidence in the code | Status |
+|--------|------------------|----------------------|--------|
+| D-94 (WR-01) | Server sends each discount `Amount`; Discounts tab shows it and does no money math | `OrderMath.DiscountAmount` is public and null-checked (`OrderMath.cs:108`); `Compute` uses the same rule (`:70`). `OrderDiscountResponse` has `Amount` (`OrderDetailResponse.cs:51`). `OrderReader.cs:516-520` fills it from `order.Subtotal`. `api.generated.ts:2520-2525` carries `amount`. `OrderDiscountsTab.tsx` cell is `formatPeso(negateMoney(discount.amount))`; the footer is `order.totals.discount`. | VERIFIED |
+| D-95 (WR-02) | Windows keep the instant cap check, refresh on focus and on a failed cap check, then check again | `useOrderWindowFigures.ts`: `refetchOnWindowFocus: 'always'` on the window's own observer; `useReadOrderNow` reads once through `queryClient.query` with a 1 s stale time and returns null on failure; `freshCapResolver` checks held figures, and only when a cap error shows does it read and check again. Used by `OrderPaymentModal.tsx:146,165`, `OrderRefundModal.tsx:147,168`, `OrderDiscountModal.tsx:143,163`. Each window keeps `opened.order` for the version a save sends, so the server's 409 and Load Latest still guard. `OrderPaymentsTab.tsx` `confirmDelete` reads the order once more before it shows the below-refunds sentence. | VERIFIED |
+| D-96 (WR-05) | Refetch the order when the status menu opens | `OrderStatusMenu.tsx:122-125`: `openMenu` sets the state and calls `void refetchOrder(order.id)`; click, Enter, Space and the arrow keys all go through it (`:149`, `:182`). | VERIFIED |
+
+Also checked: D-97 (leave IN-08 and the Orders list business day as built) needed no code and none changed. Nothing was added or bumped in packages, the schema or triggers.
 
 ## Goal Achievement
 
-### Observable Truths (ROADMAP success criteria, with the 2026-10-29 notes applied)
+### Observable Truths
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | Find orders: grid or table with a persisted choice; search by number, customer, team, phone; filter by status (default Active + recent), date range, product type, has balance; sort and page; overdue and days-left flags from Manila "today"; "Fully Paid" when Total > 0 and Balance <= 0 | VERIFIED | `OrdersPage.tsx` renders `OrderCard` grid or `OrdersTable` from `useOrdersQuery`. `useOrdersListParams.ts` keeps page, size, `q`, status, dates, from/to, productType, hasBalance, sort and view in the URL (status default `active`, sort default `due`). `ordersService.list` sends all of them. `OrderReader.cs:90-93` searches Number, CustomerName, TeamName and ContactNumber with an escaped LIKE. `dueFlag.ts` takes `today` as input (no device clock; `orders-boundaries.node.test.ts` forbids it in order screens). Fully Paid comes from the server field (`Order.FullyPaid`, `OrderDetailResponse.cs:151`) and is shown by `OrderTotals`, `OrderBalanceStrip` and `OrdersTable`. I ran `OrdersPage.test.tsx`, `useOrdersView.test.tsx`, `DueFlag.test.tsx` (green) and server `ListOrdersEndpointTests` (green). |
-| 2 | Create through the UI-spec flow; leaving a create or edit form with unsaved changes asks "Discard changes?" | VERIFIED | Routes `orders/new` and `orders/:id/edit` both load `OrderFormPage`, which calls `ordersService.create` (with an Idempotency-Key) and `updateDetails` (with the opened version). `useUnsavedChangesGuard` holds in-app moves with `useBlocker` and asks the browser for its prompt with `useBeforeUnload`; `orderFormCopy.ts:87` holds the title "Discard changes?"; the dialog is wired at `OrderFormPage.tsx:364` and `:612`. I ran `OrderFormPage.test.tsx` (including the dirty-only `beforeunload` test, the pending-save case and the save/409 cases) and `useUnsavedChangesGuard.test.tsx`: green. The browser's own dialog is a manual check (human item 1). |
-| 3 | Detail page: customer card, live OrderTotals, tabbed Items/Payments/Discounts/Expenses with counts and add/edit/delete modals; figures from the server after each save; a 409 explains itself, keeps input and offers a reload; Received by and Paid by pickers; Recorded by / Last changed by | VERIFIED | `OrderPage.tsx` mounts `OrderHeader`, `OrderCustomerCard`, `OrderTotals`, the tab card (tab kept in the URL) and the four tab components, each with its own add/edit modal (`OrderItemModal`, `OrderPaymentModal`, `OrderDiscountModal`, `OrderExpenseModal`, plus `OrderRefundModal`). `useApplyOrder` sets the server answer and computes nothing (T-08-20). `useOrderChildSave.ts:118` turns a 409 `EDIT_STALE` into a conflict banner that keeps typed values and offers Load Latest. `PaidBySelect` takes the "Received by" and "Paid by" labels. `RecordMeta` is in the header, all five modals and the edit aside (grep). I ran `OrderPage.test.tsx` and `OrderFormPage.test.tsx` (conflict banner keeps values, Load Latest replaces values and version): green. Exception, see WARNING W1: the per-row discount amount is browser math (WR-01); the totals are the server's. |
-| 4 | Internal figures: staff see Order Expenses and Estimated Profit on the detail page; neither appears outside the staff portal | VERIFIED | The only users of the words and fields are `OrderTotals.tsx` (panel variant only, `showInternal = variant === 'panel' && expenses/profit defined`), `OrderExpenseModal`, `OrderExpensesTab`, `OrderPage` and `orderExpensesService`. The card variant used by the list shows Total only. `orders-boundaries.node.test.ts` (ran, 10 tests green) fails the build if `modules/public` or `PublicLayout` names the internal figures. No quote or public server response carries them (grep of `src`). |
-| 5 | Safe delete (as superseded by 07 D-26 to D-28 and 08 D-21 to D-24): a soft delete with a Yes/Cancel confirm that names the child counts; only a Manager's permanent delete requires typing the order number and removes the order and children in one transaction | VERIFIED | `DeleteOrderDialog.tsx` builds "Its 3 items, 2 payments ... are hidden ... A Manager can restore it." from the page's arrays, then calls `ordersService.remove`. `PurgeOrderDialog.tsx` is a `ConfirmDialog` with `confirmText={number}`, a counts box and the typed-number rule. The server refuses a wrong number (`PermanentlyDeleteOrderHandler.cs:49`, `ConfirmMismatch`) and removes the order in one `SaveChangesAsync`. Routes `orders/deleted` and `orders/deleted/:id` use `requireManagerLoader` (Admin goes back to Orders); the API refuses Admin with 403 (`OrdersController.cs:223-224`, authorization matrix). I ran `DeleteOrderDialog.test.tsx`, `PurgeOrderDialog.test.tsx`, `DeletedOrdersPage.test.tsx` (green) and server `OrderDeletionTests` (green, 60 of 60 with the list tests). |
+| 1 | Find orders: grid or table with a persisted choice; search; filters; sort and page; overdue and days-left from Manila "today"; "Fully Paid" | VERIFIED (regression check) | `OrdersPage.test.tsx` green in this run (part of 6 files, 266 tests). Code unchanged by 08-25 to 08-29 (diff of `OrdersPage`, `useOrdersView`, `useOrdersListParams`, `dueFlag` empty over `5f8ae2f7..HEAD`). |
+| 2 | Create through the UI-spec flow; "Discard changes?" on a dirty form | VERIFIED (regression check) | `OrderFormPage.test.tsx` green in this run. Owner passed the browser prompt in UAT test 1. |
+| 3 | Detail page: customer card, live totals, tabs with add/edit/delete modals, figures from the server, 409 handling, pickers, Recorded by | VERIFIED | `OrderPage.test.tsx` green. The Discounts tab now shows server amounts (G-08-5 D-94 above), which removes the earlier W1 warning for the tab column. The 409 path is kept and tested: "answers 409 with the banner and Load Latest when someone else changed the order meanwhile" passes in `OrderRefundModal.test.tsx`; the payment equivalent is in `OrderPaymentModal.test.tsx`. |
+| 4 | Staff see Order Expenses and Estimated Profit on the detail page; neither appears outside the staff portal | VERIFIED (regression check) | `src/test/orders-boundaries.node.test.ts`: 10 tests green in this run. |
+| 5 | Safe delete: soft delete with a Yes/Cancel confirm naming child counts; Manager-only permanent delete with typed number | VERIFIED (regression check) | `DeleteOrderDialog.test.tsx`, `PurgeOrderDialog.test.tsx`, `DeletedOrdersPage.test.tsx` green in this run. |
+| 6 | G-08-5 D-94: each discount's amount comes from the server and the rows add up to the total | VERIFIED | Server: `OrderMathTests` 31 of 31 and `OrderDiscountsEndpointTests` 18 of 18 passed in this run; the class holds `AFivePercentDiscountAnswerAndReadCarryTheServerAmount`, `AFixedDiscountAfterItCarriesItsOwnAmountAndTheAmountsAddUpToTheDiscountTotal`, `AnItemChangeMovesAPercentageDiscountAmountToTheNewSubtotal` and `AManagersDeletedOrderReadCarriesTheSameDiscountAmounts`. Web: `OrderDiscountsTab.test.tsx` green. |
+| 7 | G-08-5 D-95: a window refuses a cap only after reading current figures; the opened version still goes to the server | VERIFIED | `useOrderWindowFigures.test.tsx`, `OrderPaymentModal.test.tsx`, `OrderRefundModal.test.tsx`, `OrderDiscountModal.test.tsx`, `OrderPaymentsTab.test.tsx` and the three schema tests: 10 files, 308 tests passed in this run. These include "reads once, then sends an amount the old credit refused, still with the opened version", "sends no read for an amount the held figures already allow", "keeps the held figures in the words when the read fails" and "still sends the opened version after a focus read". |
+| 8 | G-08-5 D-96: opening the status menu reads the order, and Mark Completed follows the current figures | VERIFIED | `OrderStatusMenu.test.tsx` passed in the same run, including "reads the order once more when the menu opens with %s, and enables Mark Completed", "disables Mark Completed, with its reason, when the answer brings a new balance, and focus stays on the item" and "sends the move to completed once a payment from another session settled the balance". |
 
-**Score:** 5/5 roadmap success criteria verified. 0 present but behavior-unverified: every state-change truth (409 keeps input, dirty-only prompt, view matrix, role gates, typed-number confirm) has a named passing behavioral test that I ran.
+**Score:** 8/8 must-haves verified (5 roadmap criteria plus the three G-08-5 rulings). 0 present but behavior-unverified: each state-change truth has a named passing test that I ran. The two-staff end-to-end behavior against a real server has an e2e spec (below) that I read but did not run; it is covered by the human item O1.
 
 ### Deferred Items
 
-None. No gap was moved to a later phase. Phase 9 (images) is not claimed by any Phase 8 truth: the detail page shows "Image uploads are coming soon." by owner ruling D-27.
+None. No gap was moved to a later phase.
 
-### Required Artifacts
+### Advisory (New Scope, Unevidenced)
+
+| # | Finding | Category | Why Advisory |
+|---|---------|----------|--------------|
+| 1 | The discount window still works out money in the browser (`otherDiscountsTotal`, the Computed amount preview). D-94 scoped only the Discounts tab column; 08-29 recorded this under WR-01 in `08-REVIEW-DISPOSITION.md`. | other | Disclosed and ruled in scope; the server still refuses an over-cap discount. Suggested follow-up: have `otherDiscountsTotal` add the server `amount` of the other discounts. |
+| 2 | Unexplained one-off chromium timeout in `@orders-refunds` ("a Manager works the refunds of a cancelled order without reopening it"), 120 s waiting on Save Refund. | other | Passed alone three times and in two later full order runs (95 passed each). No trace kept. I did not run e2e, so it is neither reproduced nor cleared. It sits in the refund window's over-cap read added by 08-28, so it deserves one traced re-run before ship. |
+
+### Required Artifacts (gap closure)
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `web/src/modules/admin/pages/OrdersPage.tsx` (376 lines) | List with grid/table, toolbar, chips, paging | VERIFIED | Real queries, skeleton, error and empty states. |
-| `web/src/modules/admin/pages/OrderPage.tsx` (328), `OrderFormPage.tsx` (711) | Detail and create/edit form | VERIFIED | Wired to services and modals. |
-| `web/src/modules/admin/pages/DeletedOrdersPage.tsx`, `DeletedOrderPage.tsx` | Manager-only deleted list and read-only view with Restore and permanent delete | VERIFIED | Behind `requireManagerLoader`. |
-| `web/src/modules/admin/components/` (38 Phase 8 order files, each with a test) | Header, tabs, modals, status menu, dialogs, aside | VERIFIED | Imported and used by the pages (grep of imports). |
-| `web/src/modules/admin/hooks/useOrdersView.ts`, `useOrdersListParams.ts`, `useUnsavedChangesGuard.ts` | View choice, URL state, leave guard | VERIFIED | Read in full. |
-| `web/src/modules/admin/services/orders*Service.ts` (orders, items, payments, discounts, expenses, refunds, deleted, lists) | Per-module API calls (OR-5) | VERIFIED | Built over `apiClient`; none touches `fetch`. |
-| `src/Csps.Infrastructure/Orders/OrderReader.cs`, `src/Csps.Application/Orders/ListOrdersHandler.cs`, `GetDeletedOrderHandler.cs`, `src/Csps.Server/Controllers/OrdersController.cs` | List rows with piece count and list-wide counts, deleted read, Manager gate | VERIFIED | `OrderReaderQueryCountTests`, `OrderListTimingTests`, `OrderDeletionTests`, `ListOrdersEndpointTests` green per the orchestrator; the last two I re-ran. |
-| `TestingOrdersController.cs` | E2E seed, Debug only | VERIFIED | Inside `#if CSPS_TESTING`; `ReleaseHasNoEmailSinkTests` covers the Release scan. |
+| `src/Csps.Domain/Orders/OrderMath.cs` | Public null-checked `DiscountAmount` used by `Compute` | VERIFIED | Lines 70 and 108; fails loudly on an unknown kind. |
+| `src/Csps.Application/Orders/OrderDetailResponse.cs`, `src/Csps.Infrastructure/Orders/OrderReader.cs` | `Amount` on every discount in every order answer | VERIFIED | Built in one place (`OrderReader.cs:516`), which every order answer goes through. |
+| `tools/openapi-gen/openapi.v1.json`, `web/src/types/api.generated.ts` | Snapshot and types carry `amount` | VERIFIED | `api.generated.ts:2525`. 08-29 reports the types check green (not re-run). |
+| `web/src/modules/admin/hooks/useOrderWindowFigures.ts` | Shared read-and-recheck hook and resolver | VERIFIED | 76 lines, used by three modals and the payments tab. |
+| `OrderPaymentModal`, `OrderRefundModal`, `OrderDiscountModal`, `OrderPaymentsTab`, `OrderStatusMenu` | Windows and menu on current figures | VERIFIED | Imported and used; tests pass. |
+| `web/e2e/order-two-staff.spec.ts` | Three two-staff journeys | VERIFIED (read, not run) | Three `@orders-two-staff` tests; a second `browser.newContext` closed in a `finally` (line 34). |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `routes.tsx` | the five order pages | lazy routes, static `new` and `deleted` before `:id` | WIRED | Lines 90-111, 174-184. |
-| `OrdersPage` | API list | `useOrdersQuery` then `ordersService.list` | WIRED | All filters in the query. |
-| `OrdersPage` | view choice | `useOrdersView` (URL, then localStorage, then grid) | WIRED | Only the toggle writes. |
-| `OrderPage` | child modals | tab components then modal components then child services | WIRED | Each modal sends the opened version (T-08-26). |
-| `OrderHeader` | status menu and Delete dialog | `OrderStatusMenu`, `DeleteOrderDialog` | WIRED | |
-| `OrderFormPage` | leave guard | `useUnsavedChangesGuard` at two call sites | WIRED | `allowLeave()` before the post-save move. |
-| `DeletedOrderPage` | Restore and permanent delete | `deletedOrdersService.restore` / `purge`, `PurgeOrderDialog` | WIRED | |
-| Write success | page figures | `useApplyOrder` sets the server answer | WIRED | The client computes no total. |
+| `OrderReader` | `OrderMath.DiscountAmount` | direct call over `order.Subtotal` | WIRED | Same rule that writes the stored total. |
+| `OrderDiscountsTab` | server `amount` | `discount.amount` | WIRED | No browser rule left in the tab. |
+| Three money windows | `useOrderWindowFigures` / `freshCapResolver` | imports and `useForm` resolver | WIRED | Each also keeps `opened.order` for the save version. |
+| `OrderPaymentsTab.confirmDelete` | `useReadOrderNow` | read before the below-refunds sentence | WIRED | |
+| `OrderStatusMenu.openMenu` | `useRefetchOrder` | `void refetchOrder(order.id)` | WIRED | Every open path. |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data | Source | Real data | Status |
 |----------|------|--------|-----------|--------|
-| Orders cards and table | rows, list-wide counts, business today | `GET /orders` then `OrderReader` projection (3 commands, `OrderListQueryCountTests`) | Yes | FLOWING |
-| Detail totals panel | subtotal, discount, total, paid, refunded, balance, credit, expenses, profit, fullyPaid | `OrderDetailResponse` from `Order.Recalculate` | Yes | FLOWING |
-| Discounts tab row amount | per-row peso amount | browser `discountAmount` over server subtotal | Computed in the browser | WARNING W1 (WR-01), the footer total is the server's |
-| Deleted orders list and view | rows, child counts | `OrderReader` with soft-delete filter lifted, Manager only | Yes | FLOWING |
+| Discounts tab Amount column | `discount.amount` | `OrderReader` over the stored subtotal (`OrderMath`) | Yes | FLOWING |
+| Money window cap and hint | `figures.current` | page cache, refreshed by focus and by a failed cap check | Yes | FLOWING |
+| Status menu Mark Completed state | `order.totals.balance` | page cache, refreshed on open | Yes | FLOWING |
+| Discount window "others" total and preview | browser `discountAmount` | the held order's kind, value and subtotal | Browser math by design (advisory 1) | OK, advisory |
 
-### Behavioral Spot-Checks (run by this verifier on 2026-10-30)
+### Behavioral Spot-Checks (run by this verifier on 2026-10-30, after a clear preflight)
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| View choice matrix, due flags, leave guard, internal-figure boundary, no long dash | `npm --prefix web run test -- --run` on `useOrdersView`, `DueFlag`, `useUnsavedChangesGuard`, `orders-boundaries.node`, `no-long-dash.node` | 5 files, 65 tests passed | PASS |
-| List, detail, form, delete and purge dialogs, deleted list | same runner on `OrdersPage`, `OrderPage`, `OrderFormPage`, `DeleteOrderDialog`, `PurgeOrderDialog`, `DeletedOrdersPage` | 6 files, 266 tests passed | PASS |
-| Server list and delete rules | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*ListOrdersEndpointTests" --filter-class "*OrderDeletionTests"` (after the preflight: ports free, no other project's tests running) | total 60, failed 0 | PASS |
-| Debt markers in the Phase 8 diff (`61c6beb4..HEAD`, src, tests, tools, web/src, web/e2e) | grep added lines for `TBD`, `FIXME`, `XXX`, `TODO`, `HACK`, `PLACEHOLDER` | none | PASS |
-| No trigger or inline SQL, no package or migration change | grep of the diff for `CREATE TRIGGER`, `FromSql`, `ExecuteSql`, `SqlQuery`; `git diff --stat` on `package.json`, lockfile, `Directory.Packages.props`; migration file names | nothing found | PASS |
+| Gap-closure web tests (tab, three windows, payments tab, status menu, window hook, three schemas) | `npm --prefix web run test -- --run` on the 10 files | Test Files 10 passed, Tests 308 passed | PASS |
+| Original truths regression (list, detail, form, delete and purge dialogs, deleted list) | same runner on 6 page and dialog test files | Test Files 6 passed, Tests 266 passed | PASS |
+| Boundary and no-long-dash guards | same runner on `src/test/orders-boundaries.node.test.ts`, `src/test/no-long-dash.node.test.ts` | 2 files, 11 tests passed | PASS |
+| Server discount rule | `dotnet test --project tests/Csps.Domain.UnitTests --filter-class "*OrderMathTests"` (`CSPS_TEST_SQL=localdb` for the process) | total 31, failed 0 | PASS |
+| Server discount answers | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OrderDiscountsEndpointTests"` | total 18, failed 0 | PASS |
+| Debt markers, inline SQL, triggers in the gap-closure diff (`5f8ae2f7..HEAD`, src, tests, tools, web/src, web/e2e) | grep of added lines for `TBD`, `FIXME`, `XXX`, `TODO`, `HACK`, `PLACEHOLDER`, `CREATE TRIGGER`, `FromSql`, `ExecuteSql`, `SqlQuery` | nothing found | PASS |
+| No package change | `git diff --stat 5f8ae2f7..HEAD` on `web/package.json`, lockfile, `Directory.Packages.props` | empty | PASS |
+| All seven plan commits exist | `git cat-file -t` on the seven hashes named in the summaries | seven `commit` | PASS |
 
-Taken from the orchestrator's run on the current HEAD (not re-run by me): `dotnet build Csps.slnx` 0 warnings; `dotnet test --solution Csps.slnx` 6226 total, 0 failed, 2 skipped; web typecheck, lint, prettier clean; vitest 268 files, 7498 tests; `npm --prefix web run verify` exit 0, branches 90.74 percent; chromium order e2e 21 passed after the review fixes; 08-24 `@orders-journeys` 25 of 25 across 5 projects and `@orders-sweep` green.
+Taken from 08-29-SUMMARY and not re-run by me: `dotnet build Csps.slnx` 0 warnings; `dotnet test --solution Csps.slnx` total 6235, failed 0, skipped 2; coverage gate passed (Domain 100 percent line and branch, Application 99.1 percent line); OpenAPI types check match; `npm --prefix web run verify` exit 0 (7567 tests, branches 90.81 percent, bundles inside budget); order e2e set third full run 95 passed; `@orders-two-staff` alone 15 of 15 twice.
 
 ### Probe Execution
 
@@ -185,58 +229,49 @@ Step 7c: SKIPPED. No Phase 8 plan declares a probe script.
 
 ### Requirements Coverage
 
-All nine IDs in the ROADMAP appear in at least one PLAN frontmatter, are `[x]` in REQUIREMENTS.md and read "Phase 8 | Complete" in the traceability table. No other ID in REQUIREMENTS.md maps to Phase 8, so there are no orphans. (ORD-03, ORD-08, ORD-22 and ORD-23 stay mapped to Phase 7; Phase 8 delivers their UI per the ROADMAP note.)
+All nine phase IDs appear in at least one PLAN frontmatter, are `[x]` in REQUIREMENTS.md and read "Phase 8 | Complete" in the traceability table (lines 407 to 425). Plans 08-25 to 08-29 declare `requirements: [ORD-07]`. No other ID in REQUIREMENTS.md maps to Phase 8, so there are no orphans.
 
-| Requirement | Source Plans | Description | Status | Evidence |
-|-------------|--------------|-------------|--------|----------|
-| ORD-01 | 08-01, 08-06, 08-12, 08-24 and others | Paginated list, grid or table, figures, lazy thumbnail, no N+1 | SATISFIED | `OrdersPage`, `OrdersTable`, `OrderCard`; `OrderReaderQueryCountTests`; `OrderListTimingTests` |
-| ORD-02 | 08-09 and others | Search, filters, sort, server paging, state in the URL | SATISFIED | `useOrdersListParams`, `OrdersToolbar`, `OrderReader.cs:90-93` |
-| ORD-06 | 08-03, 08-20, 08-22, 08-23 and others | Soft delete for both roles; Manager-only restore and permanent delete with typed number | SATISFIED | `DeleteOrderDialog`, `PurgeOrderDialog`, `OrderDeletionTests`, authorization matrix row |
-| ORD-07 | most plans | Detail page: tabs with counts, modals, totals, customer card, tab in URL | SATISFIED | `OrderPage` and tab/modal components. Gallery shows "coming soon" by D-27 (Phase 9 owns uploads). |
-| ORD-10 | 08-11 | View choice persists, URL then localStorage then grid | SATISFIED | `useOrdersView.ts`; 23-test matrix green |
-| ORD-11 | 08-04 and others | Overdue and days-left from Manila "today" | SATISFIED | `dueFlag.ts`, `DueFlag.test.tsx` (20 green) |
-| ORD-12 | 08-12 and others | Fully Paid when Total > 0 and Balance <= 0 | SATISFIED | Server `FullyPaid`; `OrderTotals`, `OrdersTable`, `OrderBalanceStrip`. Fixture 0151 is proved by unit tests; the e2e seeds an equivalent paid-in-full order instead (deferred-items 08-24 item 5). |
-| ORD-15 | 08-13 and others | "Discard changes?" on a dirty create or edit form | SATISFIED | `useUnsavedChangesGuard`; browser prompt is manual (human item 1) |
-| ORD-19 | 08-12, 08-24 and others | Order Expenses and Estimated Profit, staff only | SATISFIED | `OrderTotals` panel variant; `orders-boundaries.node.test.ts` |
+| Requirement | Source Plans | Status | Evidence |
+|-------------|--------------|--------|----------|
+| ORD-01 | 08-01, 08-06, 08-12, 08-24 and others | SATISFIED | Unchanged since the first report; `OrdersPage.test.tsx` green again. |
+| ORD-02 | 08-09 and others | SATISFIED | Same. |
+| ORD-06 | 08-03, 08-20, 08-22, 08-23 and others | SATISFIED | Delete and purge dialog tests green again; 08-29 fixed a racy wait in the deleted-view e2e (test-only). |
+| ORD-07 | most plans, including 08-25 to 08-29 | SATISFIED | Detail page, tabs and modals; G-08-5 fixes verified above. Owner check O1 pending. |
+| ORD-10 | 08-11 | SATISFIED | `useOrdersView` unchanged. |
+| ORD-11 | 08-04 and others | SATISFIED | `dueFlag.ts` unchanged. |
+| ORD-12 | 08-12 and others | SATISFIED | Server `FullyPaid` unchanged. |
+| ORD-15 | 08-13 and others | SATISFIED | `OrderFormPage.test.tsx` green; owner passed the browser prompt in UAT test 1. |
+| ORD-19 | 08-12, 08-24 and others | SATISFIED | `orders-boundaries.node.test.ts` green. |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| Phase 8 diff | n/a | `TBD`, `FIXME`, `XXX`, `TODO`, `HACK`, `PLACEHOLDER` added | none found | Clean |
-| Phase 8 diff | n/a | inline SQL, `CREATE TRIGGER` | none found | OR-7 and the no-inline-SQL rule hold |
-| `OrderFormPage.tsx` | 711 lines | oversize file, double cast (IN-04) | Info | Deferred refactor, no behavior change |
-| `orderForm.recipe.ts`, `orderPage.recipe.ts`, `orders.recipe.ts` | n/a | font sizes 17, 18, 24, 28 px outside the UI spec | Warning | Owner call (08-UI-REVIEW fix 1) |
+| Gap-closure diff | n/a | debt markers, inline SQL, triggers | none found | Clean |
+| `orderDiscountSchemas.ts` | 125-138 | browser discount math for the other discounts | Info (advisory 1) | Disclosed under WR-01; server remains final check |
+| `OrderFormPage.tsx` | 711 lines | oversize file (IN-04) | Info | Deferred refactor, no behavior change |
 
-### Code review findings
+### Code review findings: final outcome
 
-`08-REVIEW.md` has 13 findings (0 critical, 5 warning, 8 info). `08-REVIEW-DISPOSITION.md` gives each one an outcome: 6 fixed (WR-03, WR-04, IN-01, IN-05, IN-06, IN-07), 7 deferred (WR-01, WR-02, WR-05, IN-02, IN-03, IN-04, IN-08 skipped), 0 accepted. Nothing was dropped silently. The fixes have a red and a green commit; I did not re-check each hash. HEAD builds and the post-fix suites are green per the orchestrator.
+`08-REVIEW-DISPOSITION.md` now reads fixed 9, deferred 3 (IN-02, IN-03, IN-04), accepted 1 (IN-08, D-97). WR-01, WR-02 and WR-05 are fixed; WR-03's follow-up is left as built (D-97). Nothing is dropped silently.
 
-Warnings that matter for sign-off:
+### Other owner items from the first report
 
-- **W1 (WR-01).** Each discount's peso amount on the Discounts tab is worked out in the browser; the server sends only kind and value. The footer total and every order total are the server's, so no total is wrong. It still pulls against "the client never computes totals". Recommended fix: the server sends each amount.
-- **W2 (WR-02, WR-05).** Payment, refund and discount caps, and the Mark Completed button, check the page's last answer. After another staff member's change, a valid action can be refused in the browser, and Load Latest does not appear for the refused case. Recommended fix: refresh the figures when the window or menu opens.
-
-Neither breaks a roadmap criterion: the server stays the final check and a 409 is handled. Both need an owner choice.
+All resolved in `08-UAT.md`: browser leave prompt passed (1), screenshot review passed (2), SPEC-GAP copy accepted (3), UI rulings D-90 to D-93 recorded (4, including the chip Clear buttons staying 22 px and the owner accepting the axe `target-size` failures), DOM-WR-04 read passed (6). Note: `08-UAT.md` still lists gap G-08-5 with `status: failed`. It should be marked closed once the owner passes O1.
 
 ### Human Verification Required
 
-See the `human_verification` list in the frontmatter. In short:
+**1. O1: two browsers, two staff, one test order**
 
-1. **Browser leave prompt** on a dirty New Order or Edit Order form. The page asks for it (tested); only a person can see the browser show it.
-2. **Screenshot review (UIC-71)**: `npm --prefix web run review`, Blush and Espresso, 390, 820 and 1440 px. No screenshot of these screens has been looked at by anyone.
-3. **SPEC-GAP copy review** of about 25 strings.
-4. **Owner rulings**: Delivered badge tone, Grid/Table keeping the page, off-spec font sizes, chip Clear buttons (22 px, fails axe `target-size` in `@orders-filters` on pixel).
-5. **Code review decisions**: WR-01, WR-02, WR-05, WR-03 follow-up, IN-08.
-6. **DOM-WR-04 read** of `LegacyEditFilter.cs` and the six update handlers (carried from Phase 7).
+**Test:** Sign in as two staff in two browsers on one test order. (a) Open Add Payment in the first; in the second, delete a payment; in the first, type an amount the old balance refused and save. (b) With Add Payment open, change the balance in the other browser and return to the first tab. (c) Have the second browser record the last payment, then in the first open Change Status. (d) On an order with a percent discount, read the Discounts tab.
+**Expected:** (a) The save goes through if the server allows it; a stale version shows the conflict banner with Load Latest and keeps what was typed. (b) The Balance due hint follows without pressing Save. (c) Mark Completed is enabled with no reason line, and completes the order. (d) Peso amounts show, add up to the Total discount footer, and move when an item changes.
+**Why human:** The automated journeys use one machine and made-up staff. The owner's rule: no human gate is auto-approved.
 
 ### Gaps Summary
 
-No gap against the five roadmap success criteria or the nine requirement IDs. The open items are owner decisions and manual checks, plus one real quality-bar miss (chip Clear buttons under 44 px) that the owner has not ruled on.
-
-Full e2e state, for the record: first run 1428 passed, 46 failed, 50 skipped. Fourteen of the failures fail the same way at `5118c182`, before plan 08-24 (`@dialog-fit`, `@long-text four-chip toolbars`, `@shell` pinning on firefox and iphone). The dialog-fit cause (a 559 px dialog against a 553 px allowance) is not investigated. The rest passed on re-run, except `@orders-filters` on pixel. Until those are triaged, "the whole e2e suite is green" cannot be claimed for this phase.
+No gap. G-08-5 is closed in the code and in the tests I ran. The remaining items are the owner's O1 check, one traced re-run of the intermittent `@orders-refunds` chromium test before ship (advisory), and an optional follow-up to make `otherDiscountsTotal` use the server amounts (advisory).
 
 ---
 
-_Verified: 2026-10-30T20:10:00Z_
+_Verified: 2026-10-31T02:07:00Z_
 _Verifier: Claude (gsd-verifier)_
