@@ -16,9 +16,12 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { inStrictMode } from '@/test/strictMode';
 import {
   buildOrderDetail,
+  CASH,
   creditOrder,
+  GCASH,
   order0148,
   order0151,
+  orderPayment,
   useOrderHandlers,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
@@ -513,6 +516,126 @@ describe('Mark Completed (D-14, D-47, UIC-38)', () => {
 
     expect(await screen.findByText(detail)).toBeVisible();
     expect(screen.queryByText('Order completed')).toBeNull();
+  });
+});
+
+// The order held by the page and the one the server holds later (D-96). Every figure is written out.
+const owedBalance: OrderDetailFixture = buildOrderDetail({
+  ...order0151,
+  payments: [orderPayment('2026-09-30', GCASH, 12000), orderPayment('2026-10-05', CASH, 10140)],
+  totals: {
+    subtotal: 23000,
+    discount: 500,
+    total: 22500,
+    paid: 22140,
+    refunded: 0,
+    balance: 360,
+    customerCredit: 0,
+    fullyPaid: false,
+    expenses: 9300,
+    profit: 13200,
+  },
+});
+
+const settledBalance: OrderDetailFixture = buildOrderDetail({
+  ...order0151,
+  totals: {
+    subtotal: 23000,
+    discount: 500,
+    total: 22500,
+    paid: 22500,
+    refunded: 0,
+    balance: 0,
+    customerCredit: 0,
+    fullyPaid: true,
+    expenses: 9300,
+    profit: 13200,
+  },
+});
+
+/** A detail answer: the first read gets `first`, every read after it gets `later`. */
+function inTurn(
+  first: OrderDetailFixture,
+  later: OrderDetailFixture | Response | Promise<OrderDetailFixture | Response>,
+) {
+  let reads = 0;
+  return () => {
+    reads += 1;
+    return reads === 1 ? first : later;
+  };
+}
+
+const OWED_REASON = 'Balance must be ₱0.00 to complete.';
+
+describe('Mark Completed follows the current figures (D-96, WR-05)', () => {
+  const openers: [string, (user: ReturnType<typeof userEvent.setup>) => Promise<void>][] = [
+    ['a click', async (user) => user.click(await trigger())],
+    [
+      'Enter',
+      async (user) => {
+        (await trigger()).focus();
+        await user.keyboard('{Enter}');
+      },
+    ],
+    [
+      'Space',
+      async (user) => {
+        (await trigger()).focus();
+        await user.keyboard(' ');
+      },
+    ],
+    [
+      'ArrowDown',
+      async (user) => {
+        (await trigger()).focus();
+        await user.keyboard('{ArrowDown}');
+      },
+    ],
+    [
+      'ArrowUp',
+      async (user) => {
+        (await trigger()).focus();
+        await user.keyboard('{ArrowUp}');
+      },
+    ],
+  ];
+
+  it.each(openers)(
+    'reads the order once more when the menu opens with %s, and enables Mark Completed',
+    async (_, open) => {
+      const backend = useOrderHandlers({
+        detail: inTurn(owedBalance, settledBalance),
+        reply: () => HttpResponse.json(completedAfterMove),
+      });
+      const { user } = renderMenu(owedBalance);
+      await trigger();
+      expect(backend.reads).toHaveLength(1);
+
+      await open(user);
+
+      await waitFor(() => {
+        expect(backend.reads).toHaveLength(2);
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('menuitem', { name: 'Mark Completed' })).not.toHaveAttribute('aria-disabled');
+      });
+      expect(screen.queryByText(OWED_REASON)).toBeNull();
+    },
+  );
+
+  it('sends the move to completed once a payment from another session settled the balance', async () => {
+    const backend = useOrderHandlers({
+      detail: inTurn(owedBalance, settledBalance),
+      reply: () => HttpResponse.json(completedAfterMove),
+    });
+    const { user } = renderMenu(owedBalance);
+    await user.click(await trigger());
+
+    await user.click(await screen.findByRole('menuitem', { name: 'Mark Completed' }));
+
+    expect(await screen.findByText('Order completed')).toBeVisible();
+    expect(backend.writes).toHaveLength(1);
+    expect(backend.writes[0]?.body).toEqual({ status: 'completed' });
   });
 });
 
