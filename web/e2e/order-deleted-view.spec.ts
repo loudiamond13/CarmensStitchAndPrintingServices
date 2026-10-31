@@ -128,6 +128,8 @@ test('@orders-deleted-view a Manager deletes a deleted order for good from its p
   await expect(page).toHaveURL(/\/admin\/orders\/deleted$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Deleted Orders' })).toBeVisible();
   await expect(page.getByText('Order permanently deleted')).toBeVisible();
+  // The toast's message is the number, so wait for it to go (it dismisses itself) before looking for a row with the number.
+  await expect(page.getByText('Order permanently deleted')).toBeHidden({ timeout: 15_000 });
   await expect(page.getByText(number)).toHaveCount(0);
 });
 
