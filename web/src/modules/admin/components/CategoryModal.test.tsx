@@ -13,7 +13,17 @@ import {
   RENT,
   updateCategoryBackend,
 } from '@/test/expenseFixtures';
+import { LIST_SETTINGS } from '@/modules/admin/listSettingsConfigs';
 import { expectNoAxeViolations } from '@/test/axe';
+import {
+  BASKETBALL_ID,
+  createEntryBackend,
+  entryDetail,
+  entryDetailBackend,
+  ORDER_OTHERS_ID,
+  updateEntryBackend,
+  type OrderListRoute,
+} from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { CategoryModal } from './CategoryModal';
 
@@ -441,5 +451,207 @@ describe('S2 edit mode', () => {
     await loaded();
 
     await expectNoAxeViolations(screen.getByRole('dialog', { name: 'Edit Category' }));
+  });
+});
+
+// The same modal serves the three order lists through the list config (plan 08-08, D-31, D-32).
+describe.each([
+  {
+    list: 'product-types',
+    addTitle: 'Add Product Type',
+    editTitle: 'Edit Product Type',
+    save: 'Save Product Type',
+    description: 'Staff pick from this list for each order item.',
+    required: 'Enter a product type name.',
+  },
+  {
+    list: 'payment-methods',
+    addTitle: 'Add Payment Method',
+    editTitle: 'Edit Payment Method',
+    save: 'Save Payment Method',
+    description: 'Staff pick from this list when they record a payment.',
+    required: 'Enter a payment method name.',
+  },
+  {
+    list: 'order-expense-categories',
+    addTitle: 'Add Category',
+    editTitle: 'Edit Category',
+    save: 'Save Category',
+    description: 'Staff pick from this list when they record a cost for an order.',
+    required: 'Enter a category name.',
+  },
+] as const)('S2 order list modal: $list', ({ list, addTitle, editTitle, save, description, required }) => {
+  const route: OrderListRoute = list;
+  const config = LIST_SETTINGS[list];
+  const DUPLICATE = 'That name is already used. Choose another one.';
+
+  function renderListAdd(handlers: Handlers = {}) {
+    const onClose = handlers.onClose ?? vi.fn();
+    const onSaved = handlers.onSaved ?? vi.fn();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CategoryModal mode="add" config={config} onClose={onClose} onSaved={onSaved} />
+      </QueryClientProvider>,
+    );
+    return { onClose, onSaved };
+  }
+
+  function renderListEdit(handlers: Handlers = {}, entryId = BASKETBALL_ID) {
+    const onClose = handlers.onClose ?? vi.fn();
+    const onSaved = handlers.onSaved ?? vi.fn();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CategoryModal mode="edit" config={config} categoryId={entryId} onClose={onClose} onSaved={onSaved} />
+      </QueryClientProvider>,
+    );
+    return { onClose, onSaved };
+  }
+
+  it('opens as its own add dialog with its description and Save label', () => {
+    renderListAdd();
+
+    const dialog = screen.getByRole('dialog', { name: addTitle });
+    expect(within(dialog).getByText(description)).toBeVisible();
+    expect(nameInput()).toHaveFocus();
+    expect(radio('Taupe')).toBeChecked();
+    expect(within(dialog).getByRole('button', { name: save })).toBeVisible();
+  });
+
+  it('shows the list noun in the required message and sends nothing for an empty name', async () => {
+    const sent = createEntryBackend(route);
+    const user = userEvent.setup();
+    const { onSaved } = renderListAdd();
+
+    await user.click(screen.getByRole('button', { name: save }));
+
+    expect(await screen.findByText(required)).toBeVisible();
+    expect(nameInput()).toHaveAttribute('aria-invalid', 'true');
+    expect(sent.bodies).toHaveLength(0);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('stops typing at 40 characters', async () => {
+    const user = userEvent.setup();
+    renderListAdd();
+
+    await user.type(nameInput(), 'x'.repeat(41));
+
+    expect(nameInput()).toHaveAttribute('maxlength', '40');
+    expect(nameInput()).toHaveValue('x'.repeat(40));
+  });
+
+  it('posts the trimmed name and the chosen color to its own route with one Idempotency-Key', async () => {
+    const sent = createEntryBackend(route);
+    const user = userEvent.setup();
+    const { onSaved, onClose } = renderListAdd();
+
+    await user.type(nameInput(), '  Hoodie  ');
+    await user.click(radio('Blue'));
+    await user.click(screen.getByRole('button', { name: save }));
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(sent.bodies).toEqual([{ name: 'Hoodie', tone: 'info' }]);
+    expect(sent.keys[0]).toMatch(/\S+/);
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ name: 'Hoodie' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the server duplicate-name message under Name and keeps what was typed', async () => {
+    createEntryBackend(route, () => problem(400, { errors: { name: [DUPLICATE] } }));
+    const user = userEvent.setup();
+    renderListAdd();
+
+    await user.type(nameInput(), 'Cash');
+    await user.click(screen.getByRole('button', { name: save }));
+
+    expect(await screen.findByText(DUPLICATE)).toBeVisible();
+    expect(nameInput()).toHaveValue('Cash');
+  });
+
+  it('opens the edit dialog on the saved entry and sends the row version it opened with', async () => {
+    entryDetailBackend(route, entryDetail({ version: 'AAAAAAAAB9E=' }));
+    const sent = updateEntryBackend(route);
+    const user = userEvent.setup();
+    const { onSaved } = renderListEdit();
+    await loaded();
+
+    expect(screen.getByRole('dialog', { name: editTitle })).toBeVisible();
+    await user.clear(nameInput());
+    await user.type(nameInput(), 'Hoodie');
+    await user.click(radio('Plum'));
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(sent.ids).toEqual([BASKETBALL_ID]);
+    expect(sent.bodies).toEqual([{ name: 'Hoodie', tone: 'mockup', version: 'AAAAAAAAB9E=' }]);
+    expect(sent.keys[0]).toBeNull();
+  });
+
+  it('keeps the typed name on a 409 and shows the conflict banner', async () => {
+    entryDetailBackend(route);
+    updateEntryBackend(route, () => problem(409, { code: 'edit.stale', detail: 'This was changed by someone else.' }));
+    const user = userEvent.setup();
+    renderListEdit();
+    await loaded();
+
+    await user.clear(nameInput());
+    await user.type(nameInput(), 'Hoodie');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('This was changed by someone else.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Load Latest' })).toHaveFocus();
+    expect(nameInput()).toHaveValue('Hoodie');
+  });
+
+  it('has no axe violations in add mode', async () => {
+    renderListAdd();
+
+    await expectNoAxeViolations(screen.getByRole('dialog', { name: addTitle }));
+  });
+
+  it('has no axe violations in edit mode', async () => {
+    entryDetailBackend(route);
+    renderListEdit();
+    await loaded();
+
+    await expectNoAxeViolations(screen.getByRole('dialog', { name: editTitle }));
+  });
+});
+
+describe('S2 order expense Others (plan 08-08)', () => {
+  it('keeps its name read-only with the hint and lets the color change', async () => {
+    entryDetailBackend(
+      'order-expense-categories',
+      entryDetail({ id: ORDER_OTHERS_ID, name: 'Others', tone: 'neutral', isOthers: true }),
+    );
+    const sent = updateEntryBackend('order-expense-categories');
+    const user = userEvent.setup();
+    const onSaved = vi.fn();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CategoryModal
+          mode="edit"
+          config={LIST_SETTINGS['order-expense-categories']}
+          categoryId={ORDER_OTHERS_ID}
+          onClose={vi.fn()}
+          onSaved={onSaved}
+        />
+      </QueryClientProvider>,
+    );
+    await loaded();
+
+    expect(nameInput()).toHaveAttribute('readonly');
+    expect(screen.getByText("The Others name can't change, so it always sorts last.")).toBeVisible();
+    await user.click(radio('Green'));
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+    expect(sent.bodies).toEqual([{ name: 'Others', tone: 'success', version: 'AAAAAAAAB9E=' }]);
   });
 });

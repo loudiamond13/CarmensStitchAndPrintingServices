@@ -8,13 +8,20 @@ import { Skeleton } from '@/components/feedback';
 import { cardClasses } from '@/components/money';
 import { skeletonCardBodyClasses, skeletonCardClasses, skeletonTextClasses } from './states.recipe';
 
-/** Three text lines, 14px high at 100%, 90% and 60%, 8px apart. */
-export function SkeletonText() {
+const TEXT_LINE_WIDTHS = ['100%', '90%', '60%'] as const;
+
+export interface SkeletonTextProps {
+  /** How many lines: three by default, or one for a single line such as a page subline. */
+  lines?: 1 | 2 | 3 | undefined;
+}
+
+/** Text lines, 14px high at 100%, 90% and 60%, 8px apart (three by default). */
+export function SkeletonText({ lines = 3 }: SkeletonTextProps) {
   return (
     <div className={skeletonTextClasses} aria-hidden="true">
-      <Skeleton width="100%" height={14} />
-      <Skeleton width="90%" height={14} />
-      <Skeleton width="60%" height={14} />
+      {TEXT_LINE_WIDTHS.slice(0, lines).map((width) => (
+        <Skeleton key={width} width={width} height={14} />
+      ))}
     </div>
   );
 }

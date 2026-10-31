@@ -190,6 +190,105 @@ public sealed class OrderDeletionTests(CspsDatabase database) : IClassFixture<Cs
     }
 
     [Fact]
+    public async Task AManagerReadsADeletedOrderWithEveryRowItsTotalsAndWhoDeletedIt()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await CancelledWithRefundAsync(client, admin, manager, today);
+        var id = order.GetProperty("id").GetGuid();
+        using (var deleted = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var response = await OrderFixtures.GetDeletedAsync(client, manager.AccessToken, id);
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+        using var document = JsonDocument.Parse(text);
+        var body = document.RootElement;
+        body.GetProperty("deletedAt").GetDateTimeOffset().ShouldBeGreaterThan(TimeProvider.System.GetUtcNow().AddMinutes(-5));
+        body.GetProperty("deletedBy").GetProperty("id").GetGuid().ShouldBe(admin.UserId);
+        var read = body.GetProperty("order");
+        read.GetProperty("id").GetGuid().ShouldBe(id);
+        read.GetProperty("number").GetString().ShouldBe(order.GetProperty("number").GetString());
+        read.GetProperty("status").GetString().ShouldBe("cancelled");
+        read.GetProperty("today").GetString().ShouldBe(OrderFixtures.Date(today));
+        read.GetProperty("items").GetArrayLength().ShouldBe(5);
+        read.GetProperty("discounts").GetArrayLength().ShouldBe(1);
+        read.GetProperty("payments").GetArrayLength().ShouldBe(2);
+        read.GetProperty("refunds").GetArrayLength().ShouldBe(1);
+        read.GetProperty("expenses").GetArrayLength().ShouldBe(3);
+        read.GetProperty("statusHistory").GetArrayLength().ShouldBe(2);
+        var totals = read.GetProperty("totals");
+        totals.GetProperty("total").GetDecimal().ShouldBe(21327.50m);
+        totals.GetProperty("paid").GetDecimal().ShouldBe(12000.00m);
+        totals.GetProperty("refunded").GetDecimal().ShouldBe(3000.00m);
+        (await ChildRowCountsAsync(id)).ShouldBe(new ChildRows(1, 5, 1, 2, 3, 1, 2));
+    }
+
+    [Fact]
+    public async Task ALiveOrderAnUnknownIdAndARestoredOrderAreEachA404ForTheDeletedRead()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.Ord0148FullBody(today, admin.UserId, manager.UserId));
+        var id = order.GetProperty("id").GetGuid();
+
+        using var live = await OrderFixtures.GetDeletedAsync(client, manager.AccessToken, id);
+        using var unknown = await OrderFixtures.GetDeletedAsync(client, manager.AccessToken, Guid.NewGuid());
+        using var deleted = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id);
+        using var whileDeleted = await OrderFixtures.GetDeletedAsync(client, manager.AccessToken, id);
+        using var restore = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id);
+        using var afterRestore = await OrderFixtures.GetDeletedAsync(client, manager.AccessToken, id);
+
+        live.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(live, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.not-found");
+        unknown.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        whileDeleted.StatusCode.ShouldBe(HttpStatusCode.OK);
+        restore.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        afterRestore.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(afterRestore, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.not-found");
+    }
+
+    [Fact]
+    public async Task AnAdminAndAnAnonymousCallerCannotReadADeletedOrderAndGetNoOrderData()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var order = await CancelledWithRefundAsync(client, admin, manager, today);
+        var id = order.GetProperty("id").GetGuid();
+        using (var deleted = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var asAdmin = await OrderFixtures.GetDeletedAsync(client, admin.AccessToken, id);
+        using var anonymous = await OrderFixtures.GetDeletedAsync(client, accessToken: null, id);
+
+        asAdmin.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        foreach (var response in new[] { asAdmin, anonymous })
+        {
+            var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            foreach (var secret in new[] { order.GetProperty("number").GetString()!, "Juan", "Dela Cruz", "Ballers", "0917", "juan.dc", "Brgy", "Private reason", "totals", "items" })
+            {
+                text.ShouldNotContain(secret, Case.Insensitive);
+            }
+        }
+    }
+
+    [Fact]
     public async Task EveryRouteForADeletedOrderAnswers404OrdersNotFound()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

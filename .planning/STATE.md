@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 8
-current_phase_name: Order Screens
+current_phase: 9
+current_phase_name: Order Images & Maintenance Jobs
 status: planning
-stopped_at: Phase 07.1 complete, ready to plan Phase 8
-last_updated: "2026-10-29T18:24:26.000Z"
-last_activity: 2026-10-29
-last_activity_desc: Phases 7 and 7.1 shipped as PR #17, awaiting owner merge
-state_head: 94f06f7ff6e552c3694e21df0000586d9841b4ca
+stopped_at: Phase 08 complete, ready to plan Phase 9
+last_updated: "2026-10-31T11:45:48.000Z"
+last_activity: 2026-10-31
+last_activity_desc: Phase 7 PR #17 merged; Phase 8 re-verified and shipped for merge
+state_head: fd4ab2c2d083f67d5817b1e4160e0766d9dc53ca
 progress:
   total_phases: 18
-  completed_phases: 7
-  total_plans: 219
-  completed_plans: 219
-  percent: 41
+  completed_phases: 8
+  total_plans: 248
+  completed_plans: 248
+  percent: 47
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-29T13:24:51-05:00"
+updated: "2026-10-31T06:45:48-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-29)
+See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 07.1 — Legacy Fit Check (read-only)
+**Current focus:** Phase 9 - Order Images & Maintenance Jobs
 
 ## Current Position
 
-Phase: 8 — Order Screens
+Phase: 9 — Order Images & Maintenance Jobs
 Plan: Not started
-Status: Ready to plan (Phases 7 and 7.1 shipped as PR #17, awaiting owner merge)
-Last activity: 2026-10-29: Phases 7 and 7.1 shipped as PR #17
+Status: Ready to plan (Phase 8 shipped against main after #17 merged)
+Last activity: 2026-10-31 - PR #17 merged; Phase 8 rebased onto main, re-verified 8/8 and shipped
 
-Progress: [████░░░░░░] 41%
+Progress: [█████░░░░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 219
+- Total plans completed: 248
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -55,6 +55,7 @@ Progress: [████░░░░░░] 41%
 | 06 | 21 | - | - |
 | 7 | 20 | - | - |
 | 07.1 | 12 | - | - |
+| 08 | 29 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -279,6 +280,35 @@ Progress: [████░░░░░░] 41%
 | Phase 07.1 P10 | 35 min | 2 tasks | 5 files |
 | Phase 07.1 P11 | 15 min | 2 tasks | 6 files |
 | Phase 07.1 P12 | 5 min | 2 tasks | 3 files |
+| Phase 08 P01 | 35 min | 2 tasks | 26 files |
+| Phase 08 P02 | 27 min | 3 tasks | 17 files |
+| Phase 08 P03 | 13 min | 3 tasks | 7 files |
+| Phase 08 P04 | 20 min | 3 tasks | 13 files |
+| Phase 08 P05 | 9 min | 2 tasks | 6 files |
+| Phase 08 P06 | 76 min | 3 tasks | 23 files |
+| Phase 08 P07 | 60 min | 2 tasks | 14 files |
+| Phase 08 P08 | 72 min | 3 tasks | 22 files |
+| Phase 08 P09 | 47 min | 3 tasks | 21 files |
+| Phase 08 P10 | 23 min | 3 tasks | 18 files |
+| Phase 08 P11 | 38 min | 3 tasks | 13 files |
+| Phase 08 P12 | 25 min | 3 tasks | 18 files |
+| Phase 08 P13 | 52 min | 3 tasks | 19 files |
+| Phase 08 P14 | 50 min | 3 tasks | 17 files |
+| Phase 08 P15 | 41 min | 3 tasks | 16 files |
+| Phase 08 P16 | 45 min | 3 tasks | 11 files |
+| Phase 08 P17 | 35min | 2 tasks | 11 files |
+| Phase 08 P18 | 28 min | 2 tasks | 11 files |
+| Phase 08 P19 | 42 min | 3 tasks | 13 files |
+| Phase 08 P20 | 34 min | 3 tasks | 23 files |
+| Phase 08 P21 | 44 min | 3 tasks | 21 files |
+| Phase 08 P22 | 25 min | 2 tasks | 7 files |
+| Phase 08 P23 | 22 min | 2 tasks | 9 files |
+| Phase 08 P24 | 5h 35m | 3 tasks | 35 files |
+| Phase 08 P25 | 26 min | 3 tasks | 15 files |
+| Phase 08 P26 | 25 min | 3 tasks | 8 files |
+| Phase 08 P27 | 17 min | 2 tasks | 2 files |
+| Phase 08 P28 | 20 min | 2 tasks | 8 files |
+| Phase 08 P29 | 55 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -796,6 +826,61 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 07.1]: D-40 (owner, 2026-10-29): Group 18 discount above subtotal also shows `AllowOverpaid`: leave as is
 - [Phase 07.1]: D-41 (owner, 2026-10-29): Group 20 keep the two relaxations already relied on (missing contact number, missing due date) for the Phase 16 import
 - [Phase 07.1]: D-42 (owner, 2026-10-29): no new import relaxation approved; plan 07.1-12's relaxation list is empty. Groups 19, 21, 22 noted, nothing to rule
+- [Phase 08]: ListOrdersHandler takes IBusinessCalendar instead of TimeProvider and reads the clock once for the recent window and today (D-59)
+- [Phase 08]: OrderReader stamps Today after the detail read loop so every order answer carries the business date with no handler change
+- [Phase 08]: List-wide counts use one GroupBy-on-constant LINQ command with the five active statuses listed by name (D-41, D-60: list is 3 fixed commands)
+- [Phase 08]: 08-02: OrderTotals and OrderCard parity scenarios run implementation-only (parity false) because the frozen design cannot show the owner's new money rows, balance states and card actions
+- [Phase 08]: 08-02: the credit block is info-soft on the panel and neutral with a Credit badge on the card; the create-form preview turns an overpayment into a credit
+- [Phase 08]: 08-03: ConfirmDialog describeFailure keeps title-and-body and also accepts a sentence or null; no existing caller changed
+- [Phase 08]: 08-03: jsdom scrollIntoView no-op lives once in web/src/test/setup.ts
+- [Phase 08]: 08-04: ListEntrySelect reads its query hook from a list config map; ExpenseCategorySelect is a thin wrapper
+- [Phase 08]: dueFlagState never throws: an unreadable due date has no flag, an unreadable today keeps the date; unknown statuses show the date only (08-05)
+- [Phase 08]: 08-06: order fixtures are full order answers; the list row is derived with listEntryOf(), pieces being the sum of item quantities
+- [Phase 08]: 08-06: the orders grid uses pg-lt-xl for 3 columns and important pg-tablet and pg-phone rules for 2 and 1, because Tailwind emits the wider rule last; a node test reads the generated CSS
+- [Phase 08]: 08-06: /admin/orders left ADMIN_PAGES in sweep.ts (sweeps open pages unsigned); plan 08-24 adds the order pages with a sign-in step
+- [Phase 08]: 08-07: deleted read is the live detail read in a deleted mode (SoftDelete lifted on the order and each child query); a restore between reads answers 404
+- [Phase 08 execute]: D-89 (owner, 2026-10-29, 08-06 deferred item 2): route `AdminNotFoundPage` as a splat under the admin layout so an unknown `/admin/...` address shows the in-shell "Page not found" screen; keep the file. Built as a follow-up task after wave 2.
+- [Phase 08]: 08-08: Settings list tabs run on one config-driven ListSettingsSection; CategoryModal takes an optional list config — One card serves all four lists; the Phase 6 words and tests stay the default config
+- [Phase 08]: Orders list search and filters (q, status, dates, from, to, productType, hasBalance, sort) live in the URL; status and sort are always sent to the API
+- [Phase 08]: Order date presets 30d, 90d and month come from the server business today and the list request waits for it; a stray from or to beside no custom range is dropped with one replace
+- [Phase 08]: 08-10: the order query key is ['order', id] with the default cache time, so useBusinessToday reads the order's today from the cache
+- [Phase 08]: 08-10: canComplete judges the figures only (balance exactly 0.00 and no customer credit); an overpaid order with fullyPaid true cannot complete
+- [Phase 08]: 08-10: the order page back link accepts only a literal /admin/orders path from navigation state (safeReturnUrl plus prefix check), else /admin/orders (T-08-18)
+- [Phase 08]: 08-11: The Grid and Table switch keeps the current page; only a filter change goes back to page 1 (RESEARCH A4, logged for owner review).
+- [Phase 08]: 08-11: useOrdersView takes the list values and setters so the page runs useOrdersListParams once; only the toggle writes the URL and localStorage, and pressing the shown view writes nothing.
+- [Phase 08]: 08-12: The order page tab panels are titled Payments, Discounts, Expenses and Refunds (UI-SPEC names no h3 titles); a discount row amount is the csps.ts preview and the footer is the server total
+- [Phase 08]: 08-12: The phone balance card also says Not collected for a Cancelled order with money unpaid (D-45), SPEC-GAP for owner review; the side column follows the tab card on phones and sits above it on tablets
+- [Phase 08]: 08-13: the item grid follows the Items card width (container variants it-md, it-lg, it-lt-lg), not the page width, because the card sits beside the aside and is too narrow for seven columns at the spec page widths — Owner review in deferred-items.md (From plan 08-13)
+- [Phase 08]: 08-13: useUnsavedChangesGuard returns allowLeave and dialog; allowLeave is called before navigating after a save, and the sign-in page is never held — Plan 08-15 reuses it unchanged
+- [Phase 08]: 08-14: order windows share OrderWindow and useOrderChildSave; a window sends the version it opened with inside its submission data, so Load Latest starts a new submission
+- [Phase 08]: 08-14: focus after a window closes is set by name (Add Item, the row Edit or Delete, else the tab heading) because Safari does not focus a button on click
+- [Phase 08]: [08-15] The Edit Order form always rereads the order on open (refetchOnMount always) and keeps the order it opened with; a save sends that version, and a later focus refetch never changes it
+- [Phase 08]: [08-15] A locked order (Completed or Cancelled) shows OrderLockedBanner with Back to Order instead of the Edit Order form, also after a 422 orders.locked on save; the banner action is a slot for Reopen Order (08-19)
+- [Phase 08]: [08-15] updateOrderDetailsSchema is a constant (no today argument): no server rule depends on today and orderDetailsSchema already requires the due date
+- [Phase 08]: 08-16: the payments-below-refunds check runs when Delete Payment is pressed and sends nothing; Edit and Delete stay on a fully paid order while Add Payment is hidden (D-48); a save that settles the order sends focus to the tab heading
+- [Phase 08]: 08-17: the discount cap is the server items total minus the other discounts, each rounded to the centavo; an edit leaves out its own saved amount
+- [Phase 08]: 08-17: switching the discount Type clears Value in add and edit; a percent Value takes digits and one point only (SPEC-GAP, owner review)
+- [Phase 08]: 08-18: the order expense window uses the server's field names and the PaidBySelect defaults; Description is optional and sent as null when empty; Edit and Delete stay on any editable order.
+- [Phase 08]: 08-19: a status move is keyed by order id plus status through useOrderAction; only a 422 shows server text in the failure toast; the page carries out focus after a complete, cancel or reopen by element id
+- [Phase 08]: 08-20: Restore reuses useOrderAction with a second type parameter for its 204 answer
+- [Phase 08]: 08-20: ConfirmDialog gets optional countsLoading, countsLoadingLabel and confirmDisabled props for the permanent-delete skeleton box (UIC-16)
+- [Phase 08]: 08-20: Permanent delete sends the order number as confirm; a 404 on the counts read or the delete means already gone (info toast, lists read again)
+- [Phase 08]: 08-21: Add Refund and the cap sentence follow the cap (above 0.00, not Completed); refund Edit and Delete follow the status, so a Cancelled order at cap 0.00 keeps its row actions
+- [Phase 08]: 08-21: Record Refund focus returns by id: saved goes to the Totals heading, dismissed goes back to the Record Refund button (OrderTotals recordRefundId)
+- [Phase 08]: 08-22: the Delete Order dialog finds its way back with backTarget(location.state), so OrderPage.tsx stays untouched — Same function as the back link (D-51); the page file belongs to another plan in the wave
+- [Phase 08]: 08-23: the deleted order view builds its own header and renders every part readOnly; a 404 on Restore shows the not-in-Deleted-Orders page with no toast (owner review in deferred-items.md)
+- [Phase 08]: 08-24: a fix for a sweep finding lives in the shared recipe that owns the look, with a red recipe or component test first (header subline, balance figure, order card text, card footer buttons)
+- [Phase 08]: 08-24: web branch coverage is held over 90 percent with one StrictMode render test per large screen (src/test/strictMode.ts), because the React Compiler's cached branch only runs on a second render
+- [Phase 08]: 08-24: the full npm run e2e still fails 14 tests that fail the same way at 5118c182 (dialog-fit 1274x585, dialog-scrollbars, long-text four-chip, shell 1440x900) plus orders-filters on pixel with the same chip-button cause; recorded for the owner, not fixed here
+- [Phase 08]: 08-25: the order answer carries each discount's server Amount (OrderMath.DiscountAmount, D-94); the Discounts tab renders it with no browser money math
+- [Phase 08]: 08-26: D-95 applied to the payment window and delete check: a focus or failed cap check reads the order once, the check runs on current figures, the save keeps the opened version (queryClient.query used as fetchQuery is deprecated)
+- [Phase 08]: 08-27: D-96 applied. OrderStatusMenu.openMenu reads the order again (not awaited) on every open path, so Mark Completed follows current figures; the server's 422 stays the gate.
+- [Phase 08]: 08-28: D-95 applied to the refund and discount windows with 08-26's hook unchanged; the instant cap check stays, a focus or failed check reads the order, the save keeps the opened version
+- [Phase 08]: 08-29: the @orders-two-staff journeys prove D-95 and D-96 end to end with two staff in two browser contexts; D-94 scoped only the Discounts tab amount column, so otherDiscountsTotal and the discount window preview still add up in the browser (recorded in 08-REVIEW-DISPOSITION.md)
+- [Phase 08]: UAT rulings D-90 to D-97 (owner, 2026-10-30). The server sends each discount amount; payment, refund and discount windows re-read the order before refusing a cap; the status menu re-reads the order on open.
+- [Quick 261031-3oo]: D-98 (owner, 2026-10-31): the filter chip Clear button is 24 px, not 22 px. It amends O-8 for this one button (the other O-8 controls keep their sizes) and supersedes D-93; at 24 px axe target-size passes on size alone near the phone tab bar and in four-chip toolbars. The D-71 e2e check is unchanged.
+- [Ship 08]: D-99 (owner, 2026-10-31): Phase 8 ships only after the Phase 7 PR (#17) is green and merged, then straight against main (no stacked PR). To make #17 pass, the owner approved copying the D-98 commits onto the Phase 7.1 branch, renaming the six `07-D48` commit scopes to `07-d48` (history rewrite, same code) and force-pushing that branch with a lease. Backups: `backup/phase-07.1-pre-scope-fix-20261031`, `backup/phase-08-pre-scope-fix-20261031` (local only). The Phase 8 branch got the same rename locally and still sits on the renamed 7.1.
+- [Ship 08]: D-100 (owner, 2026-10-31): "create pr for phase 8 then merge it". PR #17 merged through Merge-PullRequest.ps1. Phase 8 was rebased onto main (backup `backup/phase-08-pre-rebase-20261031`, local only; the two duplicate D-98 commits dropped as already upstream), re-verified 8/8, and its PR Definition of Done is ticked from the Phase 8 records on that instruction. The regression gate is left to CI `gate (full)` on the shared machine.
 
 ### Pending Todos
 
@@ -836,7 +921,11 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [ ] **Confirmed for the Phase 8 UI review (owner, 2026-10-29, 07-UAT test 4).** **Audit lines for orders (APX-IN-01, for the Phase 8 UI review):** an "expense changed", "payment changed" or "refund changed" line does not show the current payer, receiver or refunder, and "order created" does not show the total, though the server stores them. Decide in the Phase 8 UI review.
 - [x] **Ruled 07.1 D-22 to D-42 (owner, 2026-10-29): publish as shown; every group answered, all recommendations accepted (Group 8 decide in Phase 15, Group 11 map Manager to CSPS Manager); no new relaxation. Still open: delete the refused run's full list by hand.** **Phase 7.1 rulings session (plan 07.1-11, owner, 2026-10-29):** the real fit-check run is done (07.1 D-17, D-21): the restore was proven unchanged and the trial database removed. A plain-words briefing with options for every finding group is in `_local/legacy-fit-check/briefing-20261029-162702.md` (private, never committed). Read it and rule on each group. Also delete the first, refused run's full list `_local/legacy-fit-check/findings-20261029-161931.md` by hand (it was never opened).
 - [ ] **Phase 7.1 hand-off to reviews and joint ship (plan 07.1-12, 2026-10-29):** execution is complete; no import relaxation was built (07.1 D-42). Run in this order: (1) `/gsd-code-review 07.1`; (2) `/gsd-secure-phase 07.1` (07.1 D-14: check the restore is only read, nothing writes outside the trial database, and no personal data reaches git or logs; no UI review, because there are no screens); (3) `/gsd-verify-work 07.1`; (4) `/gsd-ship` for the joint Phase 7 and 7.1 PR, opened from `gsd/phase-07.1-legacy-fit-check-read-only` (07.1 D-13, D-20; STATE D-85). Merge only through `tools/scripts/Merge-PullRequest.ps1`, and only on the owner's word. The ROADMAP goal already names the company expenses (07.1 D-16); nothing changed there.
-- [ ] **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
+- [x] **Ruled 08 D-25 (owner, 2026-10-29): set back to Pending until the Phase 8 screens ship (done).** **REQUIREMENTS.md ORD-06 row:** it reads "Phase 8 | Complete" (07-15 delivered the API), while ORD-01 and ORD-02 read "Phase 8 | Pending". Say whether to keep it Complete or set it to Pending until the Phase 8 screen.
+
+Phase 8 ship backlog (away mode, parked 2026-10-31; nothing here was auto-approved):
+
+- [ ] **Rare 500 when two creates use the same email at once (Phase 5 code, seen on PR #19 CI, 2026-10-31):** `CreateUserEndpointTests.TwoCreatesWithTheSameEmailSentTogetherGiveOneAccountAndOneEmailFieldErrorEveryTime` got `[Created, InternalServerError]` instead of `[Created, BadRequest]` in round 18 of 20 on CI (head d4ca4f11, CI run 41196802048). It passed the branch's first CI run and 3 runs alone on LocalDB (20 rounds each). Phase 8 does not touch user creation. The CI log does not show the server exception. `UserAccounts.CreateAsync` maps a unique-index violation (2601/2627) and Identity duplicate errors to "email in use", so the 500 is likely another path, for example a deadlock (1205) on the insert or a violation in the temporary-password path. A real user could see "Something went wrong" instead of "Another account already uses this email." Suggested: a `/gsd-debug` session that logs the exception in the test host and maps the race to the email field error. Recorded as a CI flake; the failed job was re-run, not hidden.
 
 ### Blockers/Concerns
 
@@ -850,6 +939,8 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [Phase 7]: All order rulings must close before the first test: OD-3 to OD-7, C-1, C-3, C-13, C-14, C-15/C-24, C-37 to C-39, C-42 to C-44.
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
+- Resolved (2026-10-31, PR #19): chip Clear buttons draw at 24 px (D-98). The Delete Order dialog height (559 px where @dialog-fit allows 553) came from the sixth refunds tile (08-02) wrapping the 5-column tally, not from #15 or #16; the desktop tally now has one column per tile and @dialog-fit passes on chromium, firefox and webkit. What the dialog shows is unchanged (six tiles, 08 UI-SPEC).
+- [Phase 8 → ship]: One unexplained 120 s chromium timeout in `@orders-refunds` (Save Refund, over-cap read from 08-28). It passed alone 3 times and in 2 later full runs; owner chose to close the phase without a traced re-run (2026-10-31). Re-run it traced if it shows up again.
 
 ### Quick Tasks Completed
 
@@ -889,6 +980,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 | 261027-t3j | Restyle shared Select and DateInput, remove the written-out date (D-63) | 2026-10-27 | df81a9e6 | [261027-t3j-restyle-shared-select-and-dateinput-remo](./quick/261027-t3j-restyle-shared-select-and-dateinput-remo/) |
 | 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
 | 261029-87p | Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82) | 2026-10-29 | 0f4c00c5 | [261029-87p-fix-phase-7-ui-review-findings-in-the-au](./quick/261029-87p-fix-phase-7-ui-review-findings-in-the-au/) |
+| 261031-3oo | Filter chip Clear button drawn 24 px (D-98, supersedes D-93) | 2026-10-31 | fd4ab2c2 | [261031-3oo-make-the-filter-chip-clear-button-24-px-](./quick/261031-3oo-make-the-filter-chip-clear-button-24-px-/) |
 
 ## Deferred Items
 
@@ -900,6 +992,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T17:05:48.481Z
-Stopped at: Phase 07.1 complete, ready to plan Phase 8
+Last session: 2026-10-31T00:30:00-05:00
+Stopped at: Phase 08 complete, ready to plan Phase 9
 Resume file: None

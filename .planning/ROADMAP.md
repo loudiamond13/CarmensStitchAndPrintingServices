@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-29T07:40:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-31T00:30:00-05:00*
 
 ## Overview
 
@@ -60,7 +60,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Profile & User Management** - Own profile, email change, password and theme; Manager-only roster with guard rules and the audit-log viewer (completed 2026-10-19)
 - [x] **Phase 6: Company Expenses** - Pattern-proving CRUD slice with filters, period totals, Manila-month KPIs and query-count guards (completed 2026-10-26)
 - [x] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests (completed 2026-10-29)
-- [ ] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete
+- [x] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete (completed 2026-10-31)
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
 - [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers
 - [ ] **Phase 11: Public Site & Content Management** - Home/Products/Gallery/Contact from database content, OG/JSON-LD in server HTML, Manager content editing
@@ -905,6 +905,8 @@ Plans:
   4. **Internal figures.** Staff see Order Expenses and Estimated Profit on the detail page. Neither appears anywhere outside the staff portal.
   5. **Safe delete.** Deleting an order shows its child counts and requires typing the order number. The order and all its children are then removed in one transaction, under the OD-5 and OD-6 rulings.
 
+*Notes (owner decisions, Phase 8 discuss 2026-10-29; the criteria text above is unchanged):* criterion 5 is superseded by 07 D-26 to D-28 and 08 D-21 to D-24: a normal delete is a soft delete with a Yes/Cancel confirm that shows the child counts; only a Manager's permanent delete, from the Deleted orders page, requires typing the order number and removes the rows in one transaction. Criterion 3's label for the payment receiver is "Received by" (OD-20, 08 D-09). See `phases/08-order-screens/08-CONTEXT.md`.
+
 **Owner decisions to close at discuss step:**
 - **C-13** on-screen labels for Total, Discount and Balance
 - **C-18** where Estimated Profit appears
@@ -914,7 +916,53 @@ Plans:
 
 **Research flag:** Standard patterns, once Phase 7 is settled.
 
-**Plans**: TBD
+**Plans**: 29/29 plans complete in 8 waves (planned 2026-10-29; each plan leads with an end-to-end tracer task; TDD)
+
+**Wave 1**
+- [x] 08-01-PLAN.md — Order list and detail contracts: pieces, list-wide counts in 3 fixed commands, server today, item attribution (ORD-01, ORD-07, ORD-11; D-40, D-41, D-44, D-59, D-60)
+- [x] 08-02-PLAN.md — Order money panel, card and the Delivered status (ORD-01, ORD-12, ORD-19; D-01 to D-08, D-45)
+- [x] 08-03-PLAN.md — Dialog words, tab keep-in-view and the people picker (ORD-07, ORD-15; D-09 to D-11, D-34, D-57, D-58)
+- [x] 08-04-PLAN.md — The three order lists in pickers (ORD-02, ORD-07; D-32)
+- [x] 08-05-PLAN.md — Due dates and overdue flags from the server today (ORD-11; D-36 to D-38, D-59)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 08-06-PLAN.md — The Orders list shows real orders; /admin lands on Orders (ORD-01, ORD-11, ORD-12, ORD-19; D-41, D-61)
+- [x] 08-07-PLAN.md — A Manager can read a deleted order (ORD-06; D-24)
+- [x] 08-08-PLAN.md — Settings tabs for the order lists (ORD-07; D-31, D-32)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 08-09-PLAN.md — Search, filter and sort orders; topbar search (ORD-02; D-42, D-43, D-53)
+- [x] 08-10-PLAN.md — Open an order: header, totals with profit, items (ORD-07, ORD-11, ORD-19; D-06, D-08, D-51)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 08-11-PLAN.md — Orders as a table, and the view choice that sticks (ORD-01, ORD-10, ORD-12)
+- [x] 08-12-PLAN.md — The rest of the order page: tabs, customer card, history, phone balance card (ORD-07; D-12, D-13, D-17, D-33, D-50)
+- [x] 08-13-PLAN.md — Create an order, with the unsaved-changes guard (ORD-15, ORD-07; D-27, D-30, D-49)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 08-14-PLAN.md — Work the items of an order; the shared window frame (ORD-07; D-05, D-44, D-48, D-58)
+- [x] 08-15-PLAN.md — Edit an order's details (ORD-15, ORD-07; D-28, D-38, D-46)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 08-16-PLAN.md — Record payments with Received by (ORD-07; D-09, D-11, D-29, D-48)
+- [x] 08-17-PLAN.md — Give and change discounts (ORD-07)
+- [x] 08-18-PLAN.md — Record what an order cost, with Paid by (ORD-07, ORD-19)
+- [x] 08-19-PLAN.md — Move, complete, cancel and reopen an order (ORD-07; D-14 to D-16, D-18, D-20, D-47)
+- [x] 08-20-PLAN.md — Deleted Orders: restore and delete for good (ORD-06; D-23, D-52)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 08-21-PLAN.md — Hand money back with refunds; testing seed refunds (ORD-07, ORD-12; D-10, D-19, D-62)
+- [x] 08-22-PLAN.md — Delete an order safely (ORD-06; D-21, D-22, D-39)
+- [x] 08-23-PLAN.md — Look inside a deleted order before restoring it (ORD-06, ORD-07; D-24)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 08-24-PLAN.md — Prove the whole phase and hand it to the owner (all nine requirements; D-25, D-26, D-56)
+- [x] 08-25-PLAN.md — Gap G-08-5: the server sends each discount's amount (ORD-07; D-94)
+- [x] 08-26-PLAN.md — Gap G-08-5: payment window checks caps against current figures (ORD-07; D-95)
+- [x] 08-27-PLAN.md — Gap G-08-5: the status menu reads the order again when it opens (ORD-07; D-96)
+- [x] 08-28-PLAN.md — Gap G-08-5: refund and discount windows check caps against current figures (ORD-07; D-95)
+- [x] 08-29-PLAN.md — Gap G-08-5: two-staff e2e and final gates (ORD-07; D-94 to D-97)
+
 **UI hint**: yes
 
 ### Phase 9: Order Images & Maintenance Jobs
@@ -1308,7 +1356,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 5. Profile & User Management | 52/52 | Complete    | 2026-10-19 |
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
-| 8. Order Screens | 0/TBD | Not started | - |
+| 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 0/TBD | Not started | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |

@@ -28,6 +28,9 @@ function renderSelect(
     onChange?: (id: string) => void;
     error?: string;
     savedPayer?: { id: string; name: string; formerStaff: boolean };
+    label?: string;
+    name?: string;
+    hint?: string;
   } = {},
 ) {
   return render(
@@ -38,6 +41,9 @@ function renderSelect(
         currentUser={ME}
         error={props.error}
         savedPayer={props.savedPayer ?? null}
+        {...(props.label === undefined ? {} : { label: props.label })}
+        {...(props.name === undefined ? {} : { name: props.name })}
+        {...(props.hint === undefined ? {} : { hint: props.hint })}
       />
     </QueryClientProvider>,
   );
@@ -61,6 +67,33 @@ describe('PaidBySelect', () => {
     expect(optionTexts(select)).toEqual(['Carmen Reyes (you)', 'Liza Mercado', 'Paolo Garcia']);
     expect(select).toHaveValue(ME_ID);
     expect(screen.getByText('The staff member whose money paid for this.')).toBeInTheDocument();
+  });
+
+  it('takes its label, field name and hint from props, so the order windows can say Received by (D-09, D-10, D-11)', async () => {
+    staffBackend();
+    renderSelect({ label: 'Received by', name: 'receivedByUserId', hint: 'The staff member who took the money.' });
+
+    const select = screen.getByRole('combobox', { name: /^Received by/ });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(select).toHaveAttribute('name', 'receivedByUserId');
+    expect(screen.getByText('The staff member who took the money.')).toBeInTheDocument();
+    expect(screen.queryByText('The staff member whose money paid for this.')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /^Paid by/ })).toBeNull();
+    expect(optionTexts(select)).toEqual(['Carmen Reyes (you)', 'Liza Mercado', 'Paolo Garcia']);
+    expect(select).toHaveValue(ME_ID);
+  });
+
+  it('keeps Paid by and paidByUserId when no label or name is given', async () => {
+    staffBackend();
+    renderSelect();
+
+    const select = screen.getByRole('combobox', { name: /^Paid by/ });
+    await waitFor(() => {
+      expect(select).toBeEnabled();
+    });
+    expect(select).toHaveAttribute('name', 'paidByUserId');
   });
 
   it('offers only the people the staff lookup returns (never the company or anyone else)', async () => {

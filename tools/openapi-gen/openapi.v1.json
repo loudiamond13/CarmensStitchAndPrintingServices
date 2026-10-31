@@ -1371,6 +1371,37 @@
         ],
         "type": "object"
       },
+      "DeletedOrderDetailResponse": {
+        "description": "A deleted order with every child row, read-only, for a Manager (D-24).",
+        "properties": {
+          "deletedAt": {
+            "description": "When it was deleted.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted it; null reads as System."
+              }
+            ]
+          },
+          "order": {
+            "$ref": "#/components/schemas/OrderDetailResponse",
+            "description": "The order with its items, discounts, payments, refunds, expenses, status history, totals and the business today."
+          }
+        },
+        "required": [
+          "order",
+          "deletedAt",
+          "deletedBy"
+        ],
+        "type": "object"
+      },
       "DeletedOrderListItem": {
         "description": "One deleted order in the deleted list (D-28). It carries no contact details, address or notes.",
         "properties": {
@@ -1956,6 +1987,11 @@
               "string"
             ]
           },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
           "totals": {
             "$ref": "#/components/schemas/OrderTotalsResponse",
             "description": "The money figures."
@@ -1989,7 +2025,8 @@
           "recordedAt",
           "lastChangedBy",
           "lastChangedAt",
-          "version"
+          "version",
+          "today"
         ],
         "type": "object"
       },
@@ -2031,6 +2068,15 @@
       "OrderDiscountResponse": {
         "description": "One discount of an order (D-15, ORD-05).",
         "properties": {
+          "amount": {
+            "description": "The pesos the discount comes to, worked out by the server over the stored subtotal (D-94).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
           "id": {
             "description": "The discount id.",
             "format": "uuid",
@@ -2093,6 +2139,7 @@
           "id",
           "kind",
           "value",
+          "amount",
           "reason",
           "recordedBy",
           "recordedAt",
@@ -2313,6 +2360,25 @@
             "format": "uuid",
             "type": "string"
           },
+          "lastChangedAt": {
+            "description": "When it was last changed; null until an edit.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed it; null until an edit."
+              }
+            ]
+          },
           "lineTotal": {
             "description": "The quantity times the unit price.",
             "format": "double",
@@ -2333,6 +2399,22 @@
             "type": [
               "integer",
               "string"
+            ]
+          },
+          "recordedAt": {
+            "description": "When it was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who added it; null reads as System."
+              }
             ]
           },
           "sizeVariant": {
@@ -2359,7 +2441,11 @@
           "sizeVariant",
           "quantity",
           "unitPrice",
-          "lineTotal"
+          "lineTotal",
+          "recordedBy",
+          "recordedAt",
+          "lastChangedBy",
+          "lastChangedAt"
         ],
         "type": "object"
       },
@@ -2432,6 +2518,15 @@
               "string"
             ]
           },
+          "pieces": {
+            "description": "How many pieces: the sum of the item quantities.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
           "refunded": {
             "description": "What was handed back in pesos.",
             "format": "double",
@@ -2492,7 +2587,8 @@
           "refunded",
           "balance",
           "customerCredit",
-          "fullyPaid"
+          "fullyPaid",
+          "pieces"
         ],
         "type": "object"
       },
@@ -2692,6 +2788,24 @@
       "OrderListResponse": {
         "description": "One page of the order list (ORD-01).",
         "properties": {
+          "activeOrders": {
+            "description": "Orders that are not deleted and are Pending to Delivered, whatever the filters.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "allOrders": {
+            "description": "Every order that is not deleted, whatever the filters.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
           "items": {
             "description": "The rows of this page.",
             "items": {
@@ -2717,6 +2831,11 @@
               "string"
             ]
           },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          },
           "total": {
             "description": "How many orders match, across all pages.",
             "format": "int32",
@@ -2731,7 +2850,10 @@
           "items",
           "total",
           "page",
-          "pageSize"
+          "pageSize",
+          "allOrders",
+          "activeOrders",
+          "today"
         ],
         "type": "object"
       },
@@ -7569,6 +7691,69 @@
           }
         },
         "summary": "Lists the deleted orders, Managers only, most recently deleted first and then by id. Each row has the number, customer, team,\nstatus, total, paid and balance, and who deleted it and when. The total covers every page.",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/v1/orders/deleted/{id}": {
+      "get": {
+        "operationId": "GetDeletedOrder",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedOrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "A Manager reads a deleted order, read-only, before restoring or deleting it for good.",
         "tags": [
           "Orders"
         ]

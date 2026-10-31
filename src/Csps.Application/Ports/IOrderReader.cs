@@ -13,6 +13,12 @@ public interface IOrderReader
     /// <returns>The order, or null when none exists or it was deleted.</returns>
     Task<OrderDetailResponse?> GetDetailAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Reads one soft-deleted order with every child row and who deleted it (D-24).</summary>
+    /// <param name="id">The order id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The deleted order, or null when none exists or it is not deleted (a live order is never read here).</returns>
+    Task<DeletedOrderDetailResponse?> GetDeletedDetailAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>
     /// Reads one page of soft-deleted orders, most recently deleted first and then by id, and the count over every page, in two SQL
     /// commands whatever the page size (D-28, PERF-04). Live orders are never listed.
@@ -24,14 +30,14 @@ public interface IOrderReader
     Task<DeletedOrderPage> ListDeletedAsync(int page, int pageSize, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Reads one page of live orders that match the query, in the query's order, and the count over every page, in two SQL commands
-    /// whatever the page size (ORD-01, ORD-02, PERF-04). Every figure is a stored column; nothing is computed here. Deleted orders
-    /// are never listed or counted.
+    /// Reads one page of live orders that match the query, in the query's order, the count over every page, and the two list-wide
+    /// counts (all orders, active orders) that ignore every filter, in three SQL commands whatever the page size (ORD-01, ORD-02,
+    /// PERF-04, D-60). Every figure is a stored column or a sum of item quantities. Deleted orders are never listed or counted.
     /// </summary>
     /// <param name="query">The filters, sort and page.</param>
     /// <param name="now">The current instant, which sets the recent window of the active scope.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>The rows of the page and the total count.</returns>
+    /// <returns>The rows of the page, the total count and the two list-wide counts.</returns>
     Task<OrderListPage> ListAsync(OrderListQuery query, DateTimeOffset now, CancellationToken cancellationToken);
 }
 
@@ -104,6 +110,7 @@ public sealed record OrderListQuery(
 /// <param name="Balance">The balance.</param>
 /// <param name="CustomerCredit">What the shop owes the customer.</param>
 /// <param name="FullyPaid">True when the order is paid in full.</param>
+/// <param name="Pieces">How many pieces: the sum of the item quantities.</param>
 public sealed record OrderListRow(
     Guid Id,
     string Number,
@@ -120,12 +127,15 @@ public sealed record OrderListRow(
     decimal Refunded,
     decimal Balance,
     decimal CustomerCredit,
-    bool FullyPaid);
+    bool FullyPaid,
+    int Pieces);
 
 /// <summary>One page of the order list.</summary>
 /// <param name="Items">The rows of this page.</param>
 /// <param name="Total">How many orders match, across all pages.</param>
-public sealed record OrderListPage(IReadOnlyList<OrderListRow> Items, int Total);
+/// <param name="AllOrders">Every order that is not deleted, whatever the filters.</param>
+/// <param name="ActiveOrders">Orders that are not deleted and are Pending to Delivered, whatever the filters.</param>
+public sealed record OrderListPage(IReadOnlyList<OrderListRow> Items, int Total, int AllOrders, int ActiveOrders);
 
 /// <summary>One row of the deleted-order list as the read port returns it. It carries no contact details, address or notes.</summary>
 /// <param name="Id">The order id.</param>

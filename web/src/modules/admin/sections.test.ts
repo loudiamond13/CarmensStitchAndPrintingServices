@@ -29,6 +29,11 @@ describe('adminNavItemForPath', () => {
     expect(adminNavItemForPath('/admin/expenses/other')).toBeUndefined();
   });
 
+  it('finds the Orders item for /admin/orders/deleted, so the sidebar and tab bar keep it current (plan 08-20)', () => {
+    expect(adminNavItemForPath('/admin/orders/deleted')?.id).toBe('orders');
+    expect(adminNavItemForPath('/admin/orders/deleted/')?.id).toBe('orders');
+  });
+
   it('returns undefined for a path that is no section', () => {
     expect(adminNavItemForPath('/admin/nowhere')).toBeUndefined();
     expect(adminNavItemForPath('/dev/components')).toBeUndefined();

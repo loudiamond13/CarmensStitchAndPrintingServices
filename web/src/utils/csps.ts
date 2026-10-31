@@ -10,7 +10,7 @@ import { formatBusinessDate, formatCalendarDate, formatCount } from './format';
 
 /* ───────────── domain types ───────────── */
 
-export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'mockup' | 'production' | 'ready' | 'delivered' | 'completed' | 'cancelled';
 export type ProductType =
   'Basketball Jersey' | 'Volleyball Jersey' | 'Moto Riding Jersey' | 'Long Sleeves' | 'Polo Shirt' | 'Custom Design';
 export type PaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'Bank Transfer';
@@ -98,11 +98,30 @@ export interface Totals {
   profit: number;
   fullyPaid: boolean;
 }
+/** A server money value: the API sends decimals as a number or as text, and screens pass it on untouched. */
+export type MoneyValue = number | string;
+/**
+ * The server's figures for one order (list row or detail), shown as they come: no browser arithmetic. `expenses` and
+ * `profit` exist on the order page only; the list never carries them (D-06).
+ */
+export interface OrderFigures {
+  subtotal: MoneyValue;
+  discount: MoneyValue;
+  total: MoneyValue;
+  paid: MoneyValue;
+  refunded: MoneyValue;
+  balance: MoneyValue;
+  customerCredit: MoneyValue;
+  fullyPaid: boolean;
+  expenses?: MoneyValue;
+  profit?: MoneyValue;
+}
 export interface CascadeCounts {
   items?: number;
   payments?: number;
   discounts?: number;
   expenses?: number;
+  refunds?: number;
   images?: number;
 }
 
@@ -125,15 +144,17 @@ export const ORDER_EXPENSE_CATEGORIES: OrderExpenseCategory[] = [
   'Delivery',
   'Others',
 ];
+// SPEC-DEVIATION: 07 D-01 (owner). Delivered is the seventh status, between Ready and Completed, and counts as active.
 export const ORDER_STATUSES: Record<OrderStatus, string> = {
   pending: 'Pending',
   mockup: 'Mockup',
   production: 'In Production',
   ready: 'Ready',
+  delivered: 'Delivered',
   completed: 'Completed',
   cancelled: 'Cancelled',
 };
-export const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'mockup', 'production', 'ready'];
+export const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'mockup', 'production', 'ready', 'delivered'];
 
 /* ───────────── formatting ───────────── */
 
@@ -281,16 +302,28 @@ export function orderTotals(order: Partial<Order> | null | undefined): Totals {
   };
 }
 
+/* Sign checks on server money go through whole centavos, so no float compare decides a balance state. */
+
+/** True when the value is at least one centavo above zero (half a centavo rounds up, as the server does). */
+export const isPositiveMoney = (value: MoneyValue | null | undefined): boolean => toCentavos(value) > 0n;
+
+/** True when the value is at least one centavo below zero. */
+export const isNegativeMoney = (value: MoneyValue | null | undefined): boolean => toCentavos(value) < 0n;
+
+/** The value with its sign flipped, as exact decimal text ("-1122.50"); zero stays "0.00". formatPeso reads it as it is. */
+export const negateMoney = (value: MoneyValue | null | undefined): string => centavosText(-toCentavos(value));
+
 // SPEC-DEVIATION: lint array-type (readonly T[] instead of ReadonlyArray<T>). Same type.
 export const CASCADE_LABELS: readonly (readonly [keyof CascadeCounts, string])[] = [
   ['items', 'item'],
   ['payments', 'payment'],
   ['discounts', 'discount'],
   ['expenses', 'expense'],
+  ['refunds', 'refund'],
   ['images', 'image'],
 ];
 
-/** "This will also delete 5 items, 2 payments, 1 discount, 3 expenses, and 4 images." ('' when all zero) */
+/** "This will also delete 5 items, 2 payments, 1 discount, 3 expenses, 2 refunds, and 4 images." ('' when all zero) */
 export function cascadeSentence(counts: CascadeCounts = {}): string {
   const parts = CASCADE_LABELS.map(([k, one]) => [counts[k] ?? 0, one] as const)
     .filter(([n]) => n > 0)

@@ -7,7 +7,7 @@ import { tw } from '@/ui/tw';
 export type MoneySize = 'sm' | 'md' | 'lg';
 export type MoneyTone = 'success' | 'warning' | 'danger' | 'muted';
 export type TotalsVariant = 'card' | 'panel';
-export type BalanceState = 'due' | 'paid';
+export type BalanceState = 'due' | 'paid' | 'credit' | 'neutral';
 export type DeltaDirection = 'up' | 'down';
 
 /** `.csp-card`: the `--surface` card with a 1px `--line` border, radius 12 and `--shadow-1`. */
@@ -126,28 +126,42 @@ export const totalsFigureClasses = tw('m-0 font-semibold tabular-nums');
 /** `.csp-totals-row .is-neg`: a negative profit in `--danger`. */
 export const totalsNegativeClasses = tw('text-danger');
 
-/** `.csp-balance` padding: 12px by 16px, and 16px all round inside the panel. */
+/**
+ * `.csp-balance` padding: 12px by 16px, and 16px all round inside the panel. It wraps: the credit block holds a line and a button under
+ * the overline and figure (D-02, D-19), and a huge figure drops under the overline instead of widening the page (UIC-65).
+ */
 export const balanceClasses = {
-  card: tw('flex items-center justify-between gap-3 rounded-sm px-4 py-3'),
-  panel: tw('flex items-center justify-between gap-3 rounded-sm p-4'),
+  card: tw('flex flex-wrap items-center justify-between gap-3 rounded-sm px-4 py-3'),
+  panel: tw('flex flex-wrap items-center justify-between gap-3 rounded-sm p-4'),
 } as const satisfies Record<TotalsVariant, string>;
 
-/** `.csp-balance.is-due` / `.is-paid`: the warning-soft or success-soft ground. */
+/**
+ * `.csp-balance.is-due` / `.is-paid`: the warning-soft or success-soft ground. SPEC-DEVIATION: D-02, D-04, D-45: a
+ * customer credit sits on the info-soft ground (the order page) and the card's credit and a Cancelled order's Not
+ * collected block on the neutral `--surface-2` ground.
+ */
 export const balanceToneClasses = {
   due: tw('bg-warning-soft'),
   paid: tw('bg-success-soft'),
+  credit: tw('bg-info-soft'),
+  neutral: tw('bg-surface-2'),
 } as const satisfies Record<BalanceState, string>;
 
 /** `.csp-balance.is-due .csp-overline` / `.is-paid .csp-overline`: the overline in the state's colour. */
 export const balanceOverlineClasses = {
   due: clsx(overlineType, tw('text-warning')),
   paid: clsx(overlineType, tw('text-success')),
+  credit: clsx(overlineType, tw('text-info')),
+  neutral: clsx(overlineType, tw('text-ink-muted')),
 } as const satisfies Record<BalanceState, string>;
+
+/** The credit block's line "Paid over the total. Record a refund to clear it.": 12px/16px, on its own row. */
+export const balanceLineClasses = tw('m-0 basis-full text-[12px] leading-4 text-ink');
 
 /** `.csp-balance-value`: the big balance figure in `--ink`, 28px (`.csp-totals-panel` 40px), line height 1. */
 export const balanceValueClasses = {
-  card: tw('font-display text-[28px] leading-[1] font-bold text-ink tabular-nums'),
-  panel: tw('font-display text-[40px] leading-[1] font-bold text-ink tabular-nums'),
+  card: tw('min-w-0 font-display text-[28px] leading-[1] font-bold wrap-anywhere text-ink tabular-nums'),
+  panel: tw('min-w-0 font-display text-[40px] leading-[1] font-bold wrap-anywhere text-ink tabular-nums'),
 } as const satisfies Record<TotalsVariant, string>;
 
 /** `.csp-balance-paid`: the green "Fully Paid" with its check icon, display 22px, upper case, .02em tracking. */

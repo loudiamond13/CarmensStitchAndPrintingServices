@@ -3,7 +3,7 @@
 // last name). While the lookup loads it is disabled and reads "Loading staff…"; when it fails the field says so and stays
 // disabled. The hint "The staff member whose money paid for this." gives way to a given error. An edit passes the saved payer:
 // one the lookup no longer holds stays listed and selected as "{name} (inactive)", or "{name} (former staff)" when the account
-// was deleted (OQ-7), so the form can be saved without changing who paid. Phase 7 reuses it (ORD-22, ORD-23).
+// was deleted (OQ-7), so the form can be saved without changing who paid. Phase 7 reuses it (ORD-22, ORD-23), and the order money windows reuse it with their own label, name and hint (Phase 8).
 import { Select } from '@/components/forms';
 import { EXPENSES_COPY } from '@/modules/admin/expensesCopy';
 import { useStaffLookupQuery } from '@/modules/admin/hooks/useStaffLookupQuery';
@@ -20,9 +20,24 @@ export interface PaidBySelectProps {
   savedPayer?: { id: string; name: string; formerStaff: boolean } | null | undefined;
   /** A validation or server message; it replaces the hint. */
   error?: string | undefined;
+  /** The field's label. Default "Paid by"; the order money windows pass "Received by" or "Refunded by". */
+  label?: string;
+  /** The submitted field name. Default "paidByUserId". */
+  name?: string;
+  /** The line under the field. Default the expense hint. */
+  hint?: string;
 }
 
-export function PaidBySelect({ value, onChange, currentUser, savedPayer, error }: PaidBySelectProps) {
+export function PaidBySelect({
+  value,
+  onChange,
+  currentUser,
+  savedPayer,
+  error,
+  label = COPY.label,
+  name = 'paidByUserId',
+  hint = COPY.hint,
+}: PaidBySelectProps) {
   const staff = useStaffLookupQuery();
   const loading = staff.isPending;
   const failed = staff.isError;
@@ -46,8 +61,8 @@ export function PaidBySelect({ value, onChange, currentUser, savedPayer, error }
 
   return (
     <Select
-      label={COPY.label}
-      name="paidByUserId"
+      label={label}
+      name={name}
       required
       placeholder={loading ? COPY.loading : ''}
       disabled={loading || failed}
@@ -57,7 +72,7 @@ export function PaidBySelect({ value, onChange, currentUser, savedPayer, error }
         onChange(event.target.value);
       }}
       error={error ?? (failed ? COPY.loadFailed : '')}
-      hint={COPY.hint}
+      hint={hint}
     />
   );
 }

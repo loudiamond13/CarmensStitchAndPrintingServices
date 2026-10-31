@@ -17,6 +17,7 @@ namespace Csps.Server.Controllers;
 /// <param name="changeStatus">The change-status handler.</param>
 /// <param name="delete">The soft-delete handler (both roles).</param>
 /// <param name="listDeleted">The deleted-order list handler (Managers only).</param>
+/// <param name="getDeleted">The deleted-order read handler (Managers only).</param>
 /// <param name="restore">The restore handler (Managers only).</param>
 /// <param name="permanentlyDelete">The permanent-delete handler (Managers only).</param>
 [ApiController]
@@ -24,7 +25,7 @@ namespace Csps.Server.Controllers;
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandler list, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus, DeleteOrderHandler delete, ListDeletedOrdersHandler listDeleted, RestoreOrderHandler restore, PermanentlyDeleteOrderHandler permanentlyDelete) : ControllerBase
+public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandler list, GetOrderHandler get, UpdateOrderDetailsHandler updateDetails, ChangeOrderStatusHandler changeStatus, DeleteOrderHandler delete, ListDeletedOrdersHandler listDeleted, GetDeletedOrderHandler getDeleted, RestoreOrderHandler restore, PermanentlyDeleteOrderHandler permanentlyDelete) : ControllerBase
 {
     /// <summary>
     /// Lists orders for both roles, with the stored money figures, never any contact details. By default it keeps the orders in play:
@@ -213,6 +214,23 @@ public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandle
     {
         var result = await listDeleted.HandleAsync(new ListDeletedOrdersRequest(page, pageSize), cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static orders => TypedResults.Ok(orders));
+    }
+
+    /// <summary>A Manager reads a deleted order, read-only, before restoring or deleting it for good.</summary>
+    /// <param name="id">The order id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the deleted order and who deleted it and when, 401 without a valid token, 403 for an Admin, or 404 when no deleted order has that id.</returns>
+    [HttpGet("deleted/{id:guid}")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("GetDeletedOrder")]
+    [ProducesResponseType<DeletedOrderDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetDeleted(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await getDeleted.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
     }
 
     /// <summary>

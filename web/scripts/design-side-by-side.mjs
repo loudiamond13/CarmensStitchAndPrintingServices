@@ -76,6 +76,7 @@ export const PAIRINGS = Object.freeze([
     title: 'Admin: Orders',
     design: 'admin',
     themes: BOTH,
+    signedIn: true,
     boards: { 390: 'Orders — mobile', 820: 'Orders — tablet', 1440: 'Orders — grid/table toggle, delete works' },
   },
   {

@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  ACTIVE_STATUSES,
   cascadeSentence,
   discountAmount,
   formatDate,
   formatPeso,
+  isNegativeMoney,
+  isPositiveMoney,
+  negateMoney,
   orderNumber,
+  ORDER_STATUSES,
   orderTotals,
   passwordStrength,
   round2, // SPEC-DEVIATION: D-09 rounding tests below (not in App. D.2)
@@ -230,5 +235,73 @@ describe('App. D.1 characterization', () => {
   it('pads the order sequence to four digits', () => {
     expect(orderNumber(2026, 7)).toBe('ORD-2026-0007');
     expect(orderNumber(2026, 12345)).toBe('ORD-2026-12345');
+  });
+});
+
+// Plan 08-02: server money values (number or decimal string) are judged by the centavo, never by a float compare.
+describe('server money helpers (ORD-01 precision)', () => {
+  it.for([
+    ['0.01', true],
+    [0.01, true],
+    ['0.00', false],
+    [0, false],
+    ['-0.01', false],
+    ['0.004', false],
+    ['0.005', true],
+    ['99999999.99', true],
+    [null, false],
+    [undefined, false],
+  ] as const)('isPositiveMoney(%j) is %s', ([value, expected]) => {
+    expect(isPositiveMoney(value)).toBe(expected);
+  });
+
+  it.for([
+    ['-0.01', true],
+    [-0.01, true],
+    ['0.00', false],
+    ['-0.004', false],
+    ['-0.005', true],
+    ['1200.00', false],
+    [null, false],
+  ] as const)('isNegativeMoney(%j) is %s', ([value, expected]) => {
+    expect(isNegativeMoney(value)).toBe(expected);
+  });
+
+  it('negates a figure through its centavos as exact decimal text, with no minus on zero', () => {
+    expect(negateMoney('1122.50')).toBe('-1122.50');
+    expect(negateMoney(99999999.99)).toBe('-99999999.99');
+    expect(negateMoney('-12.30')).toBe('12.30');
+    expect(negateMoney('0.00')).toBe('0.00');
+    expect(negateMoney(0)).toBe('0.00');
+    expect(formatPeso(negateMoney('1122.50'))).toBe('−₱1,122.50');
+    expect(formatPeso(negateMoney('0.00'))).toBe('₱0.00');
+  });
+});
+
+// Plan 08-02: Delivered is the seventh status (07 D-01) and refunds join the delete counts.
+describe('Delivered and refunds (plan 08-02)', () => {
+  it('lists seven statuses in order, Delivered between Ready and Completed', () => {
+    expect(Object.values(ORDER_STATUSES)).toEqual([
+      'Pending',
+      'Mockup',
+      'In Production',
+      'Ready',
+      'Delivered',
+      'Completed',
+      'Cancelled',
+    ]);
+    expect(Object.keys(ORDER_STATUSES)).toContain('delivered');
+  });
+
+  it('counts five active statuses, Delivered included', () => {
+    expect(ACTIVE_STATUSES).toEqual(['pending', 'mockup', 'production', 'ready', 'delivered']);
+  });
+
+  it('counts refunds after expenses and before images in the delete sentence', () => {
+    expect(cascadeSentence({ items: 5, payments: 2, discounts: 1, expenses: 3, refunds: 2, images: 4 })).toBe(
+      'This will also delete 5 items, 2 payments, 1 discount, 3 expenses, 2 refunds, and 4 images.',
+    );
+    expect(cascadeSentence({ refunds: 1 })).toBe('This will also delete 1 refund.');
+    expect(cascadeSentence({ refunds: 1200, images: 1 })).toBe('This will also delete 1,200 refunds, and 1 image.');
   });
 });

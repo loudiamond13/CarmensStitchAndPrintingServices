@@ -20,6 +20,11 @@
 @custom-variant vp-lt-md (@media (max-width: 767px));
 @custom-variant vp-xs (@media (max-width: 420px));
 @custom-variant no-hover (@media (hover: none));
+/* The order form's Items card is a container named items (plan 08-13): its rows follow the card's own width, which the page width
+   cannot tell (the card sits beside a 320px aside). it-lt-lg is the exact complement of it-lg. */
+@custom-variant it-md (@container items (min-width: 560px));
+@custom-variant it-lg (@container items (min-width: 900px));
+@custom-variant it-lt-lg (@container items (width < 900px));
 
 @theme {
   /* No Tailwind default palette, radius, shadow, size, font or weight (spec §0 rule 1). */

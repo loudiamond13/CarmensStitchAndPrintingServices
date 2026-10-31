@@ -220,7 +220,7 @@ test('@expenses-sweep the Add Expense, Edit Expense and Add Category dialogs scr
     await expect(edit).toBeHidden();
 
     // Add Category, with its six colour rows.
-    await openPage(page, '/admin/settings', 'Settings');
+    await openPage(page, '/admin/settings?tab=expense-categories', 'Settings');
     await press(page, page.getByRole('button', { name: 'Add Category' }));
     const category = page.getByRole('dialog', { name: 'Add Category' });
     await expect(category).toBeVisible();

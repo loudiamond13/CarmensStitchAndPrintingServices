@@ -61,6 +61,74 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task EachRowCarriesItsPiecesAsTheSumOfItsItemQuantities()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.NewOrderAsync(
+            "Forty Pieces",
+            items: [OrderFixtures.Item(OrderFixtures.BasketballId, "Jersey top", null, 25, 650.00m), OrderFixtures.Item(OrderFixtures.BasketballId, "Jersey shorts", null, 15, 300.00m)]);
+        await rig.NewOrderAsync("One Piece", items: [OrderFixtures.Item(OrderFixtures.PoloId, "Coach polo", "L", 1, 550.00m)]);
+
+        var page = await rig.ReadAsync();
+
+        var pieces = page.GetProperty("items").EnumerateArray().ToDictionary(item => item.GetProperty("customerName").GetString()!, item => item.GetProperty("pieces").GetInt32());
+        pieces["Forty Pieces"].ShouldBe(40);
+        pieces["One Piece"].ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("status=all")]
+    [InlineData("status=completed")]
+    [InlineData("q=nobody%20has%20this%20name")]
+    [InlineData("hasBalance=true&from=2000-01-01&to=2100-01-01")]
+    public async Task TheListWideCountsIgnoreTheFiltersAndNeverCountADeletedOrder(string query)
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.NewOrderAsync("Pending Pat");
+        var delivered = await rig.NewOrderAsync("Delivered Dan");
+        await rig.MoveAsync(delivered, "delivered");
+        await rig.NewOrderAsync("Pending Pia");
+        var completed = await rig.NewOrderAsync("Completed Cy", free: true);
+        await rig.MoveAsync(completed, "completed");
+        var gone = await rig.NewOrderAsync("Deleted Dina");
+        using var deleted = await OrderFixtures.DeleteAsync(rig.Client, rig.Admin.AccessToken, gone.GetProperty("id").GetGuid());
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        var page = await rig.ReadAsync(query);
+
+        page.GetProperty("allOrders").GetInt32().ShouldBe(4);
+        page.GetProperty("activeOrders").GetInt32().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task TheListCarriesTheBusinessToday()
+    {
+        await using var rig = await Rig.StartAsync(database);
+
+        var page = await rig.ReadAsync();
+
+        page.GetProperty("today").GetString().ShouldBe(OrderFixtures.Date(rig.Today));
+    }
+
+    [Fact]
+    public async Task OrdersWithTheSameDueDateComeBackInIdOrder()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        var due = rig.Today.AddDays(9);
+        for (var index = 0; index < 4; index++)
+        {
+            await rig.NewOrderAsync($"Same Due {index}", due: due);
+        }
+
+        var page = await rig.ReadAsync("sort=due");
+
+        await using var context = database.CreateContext();
+        var expected = await context.Orders.AsNoTracking().OrderBy(order => order.Id).Select(order => order.Id).ToListAsync(TestContext.Current.CancellationToken);
+        Ids(page).ShouldBe(expected);
+    }
+
+    [Fact]
     public async Task AnAnonymousCallerIsRefused()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

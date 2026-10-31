@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T09:33:00-05:00
-updated: 2026-10-28T21:00:00-05:00
+updated: 2026-10-29T16:30:00-05:00
 ---
 
 # Runbook: how fast the lists are, and how to check it
@@ -44,14 +44,14 @@ In CI the test runs inside the full integration test step (`3 integration tests`
 
 ## The order list (`GET /api/v1/orders`)
 
-The order list has the same two rules: a fixed number of SQL commands and a p95 under 300 ms (PERF-04, ORD-01, ORD-02).
+The order list has the same two rules: a fixed number of SQL commands and a p95 under 300 ms (PERF-04, ORD-01, ORD-02). The limit stays 300 ms; the command count rose from 2 to 3 for the list-wide counts and nothing else.
 
-- **Fixed number of SQL commands.** The list runs 2 commands whatever the page size, filter or sort: one for the count over every page, one for the page. Every figure on a row is a stored column of the order, so no row costs a query and the reader adds nothing up.
+- **Fixed number of SQL commands.** The list runs 3 commands whatever the page size, filter or sort (D-60, owner, 2026-10-29): one for the count over every page, one for the page, and one for the two list-wide counts (all orders, active orders) that ignore every filter. Every money figure on a row is a stored column of the order. The piece count of a row is a sum inside the page command, so no row costs a query.
 - **Speed.** The p95 of the list is under 300 ms on about five years of fake orders.
 
 | Test | What it proves | Where it runs |
 | --- | --- | --- |
-| `OrderReaderQueryCountTests` (Infrastructure integration tests) | Exactly 2 commands for page sizes 1, 20 and 100 with no filter and with each filter and sort, an empty result included, and an order is listed once however many matching items it has | Locally and in CI |
+| `OrderReaderQueryCountTests` (Infrastructure integration tests) | Exactly 3 commands for page sizes 1, 20 and 100 with no filter and with each filter and sort, an empty result included, and an order is listed once however many matching items it has | Locally and in CI |
 | `OrderListQueryCountTests` (Server integration tests) | The same count through the real endpoint | Locally and in CI |
 | `OrderListIndexesMigrationTests` (Infrastructure integration tests) | The list indexes exist, with their filters, keys, directions and covered columns | Locally and in CI |
 | `OrderListTimingTests` (Server integration tests) | The p95 limit on five years of fake data: the default list, a customer-name search, a product type filter, has-balance, a far page at size 100 and the newest, balance and total sorts | Locally and in CI |

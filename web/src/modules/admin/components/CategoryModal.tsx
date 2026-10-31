@@ -1,4 +1,5 @@
-// SPEC-GAP: S2 CategoryModal. S2 Category modal, add and edit modes (UI-SPEC "S2 Category modal"; D-08, D-12, D-13, OQ-6, OR-3, SEC-07; plan
+// SPEC-GAP: S2 CategoryModal. One modal for every Settings list (plan 08-08): a `config` names the list's words, schema and calls, and
+// defaults to the company expense categories. S2 Category modal, add and edit modes (UI-SPEC "S2 Category modal"; D-08, D-12, D-13, OQ-6, OR-3, SEC-07; plan
 // 06-17). A Name and a Badge color: six native radios, each named by a color word and described by a live CategoryBadge of the typed name
 // (or "Sample"), so color is never the only cue. Edit also shows RecordMeta. Every rule is checked in the browser first
 // (categoryFormSchema); a rule only the server can check (a duplicate name, the Others rename) comes back under Name. A failure that
@@ -28,23 +29,10 @@ import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { expensesModalBodyClasses } from '@/modules/admin/components/expenses.recipe';
-import {
-  CATEGORY_NAME_MAX,
-  categoryFormSchema,
-  type CategoryFormInput,
-  type CategoryFormValues,
-} from '@/modules/admin/categorySchemas';
-import { useExpenseCategoryQuery } from '@/modules/admin/hooks/useExpenseCategoryQuery';
-import {
-  expenseCategoriesService,
-  type ExpenseCategoryDetailResponse,
-} from '@/modules/admin/services/expenseCategoriesService';
-import { SETTINGS_COPY } from '@/modules/admin/settingsCopy';
+import { CATEGORY_NAME_MAX, type CategoryFormInput, type CategoryFormValues } from '@/modules/admin/categorySchemas';
+import { useListEntryQuery } from '@/modules/admin/hooks/useListEntryQuery';
+import { LIST_SETTINGS, type ListEntryDetail, type ListSettingsConfig } from '@/modules/admin/listSettingsConfigs';
 import { describeHttpError, errorLine, type ErrorCopy } from '@/utils/describeHttpError';
-
-const ADD = SETTINGS_COPY.modal.add;
-const EDIT = SETTINGS_COPY.modal.edit;
-const FORM = SETTINGS_COPY.modal;
 
 const EDIT_STALE = 'edit.stale';
 /** The tone a new category starts with: Taupe. */
@@ -66,6 +54,8 @@ interface CategoryModalCommon {
   onClose: () => void;
   /** The category was saved. */
   onSaved: (category: SavedCategory) => void;
+  /** Which list the modal serves: its words, schema and calls. Default: the company expense categories (Phase 6). */
+  config?: ListSettingsConfig;
 }
 
 export interface AddCategoryModalProps extends CategoryModalCommon {
@@ -80,7 +70,11 @@ export interface EditCategoryModalProps extends CategoryModalCommon {
 
 export type CategoryModalProps = AddCategoryModalProps | EditCategoryModalProps;
 
-export function CategoryModal({ open = true, ...props }: CategoryModalProps) {
+export function CategoryModal({
+  open = true,
+  config = LIST_SETTINGS['expense-categories'],
+  ...props
+}: CategoryModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
   const [opens, setOpens] = useState(0);
   // A new open mounts a fresh form: adjusted while rendering, no effect needed.
@@ -97,6 +91,7 @@ export function CategoryModal({ open = true, ...props }: CategoryModalProps) {
   return (
     <CategoryForm
       key={`${props.mode}-${String(opens)}`}
+      config={config}
       mode={props.mode}
       categoryId={categoryId}
       open={open}
@@ -107,11 +102,12 @@ export function CategoryModal({ open = true, ...props }: CategoryModalProps) {
 }
 
 /** What the edit form shows for a saved category: every control is text. */
-function valuesOf(category: ExpenseCategoryDetailResponse): CategoryFormInput {
+function valuesOf(category: ListEntryDetail): CategoryFormInput {
   return { name: category.name, tone: category.tone };
 }
 
 interface CategoryFormProps {
+  config: ListSettingsConfig;
   mode: 'add' | 'edit';
   /** The category being edited; null in add mode. */
   categoryId: string | null;
@@ -120,14 +116,17 @@ interface CategoryFormProps {
   onSaved: (category: SavedCategory) => void;
 }
 
-function CategoryForm({ mode, categoryId, open, onClose, onSaved }: CategoryFormProps) {
+function CategoryForm({ config, mode, categoryId, open, onClose, onSaved }: CategoryFormProps) {
   const isEdit = mode === 'edit';
+  const FORM = config.words.modal;
+  const ADD = FORM.add;
+  const EDIT = FORM.edit;
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const saveRef = useRef<HTMLButtonElement>(null);
-  const query = useExpenseCategoryQuery(categoryId, open && isEdit);
+  const query = useListEntryQuery(config.list, categoryId, open && isEdit);
   // The category the form was filled from; the version a save sends is this one's, whatever a later refetch brings.
-  const [opened, setOpened] = useState<ExpenseCategoryDetailResponse | null>(null);
+  const [opened, setOpened] = useState<ListEntryDetail | null>(null);
   const fresh = isEdit && query.isSuccess && query.isFetchedAfterMount ? query.data : null;
   if (opened === null && fresh !== null) {
     setOpened(fresh);
@@ -140,7 +139,7 @@ function CategoryForm({ mode, categoryId, open, onClose, onSaved }: CategoryForm
   // The polite line read out after Load Latest.
   const [status, setStatus] = useState('');
   const { control, handleSubmit, setError, reset } = useForm<CategoryFormInput, unknown, CategoryFormValues>({
-    resolver: zodResolver(categoryFormSchema),
+    resolver: zodResolver(config.schema),
     mode: 'onBlur',
     defaultValues: { name: '', tone: DEFAULT_TONE },
     ...(opened === null ? {} : { values: valuesOf(opened) }),
@@ -215,12 +214,12 @@ function CategoryForm({ mode, categoryId, open, onClose, onSaved }: CategoryForm
   const submission = useSubmission<CategoryFormValues, SavedCategory>(
     (key, values) => {
       if (!isEdit) {
-        return expenseCategoriesService.create({ name: values.name, tone: values.tone }, key);
+        return config.service.create({ name: values.name, tone: values.tone }, key);
       }
       if (opened === null || categoryId === null) {
         return Promise.reject(new Error('The category is not loaded.'));
       }
-      return expenseCategoriesService.update(categoryId, {
+      return config.service.update(categoryId, {
         name: values.name,
         tone: values.tone,
         version: opened.version,

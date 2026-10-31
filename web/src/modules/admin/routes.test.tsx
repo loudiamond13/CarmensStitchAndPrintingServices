@@ -1,6 +1,7 @@
 // The guarded admin routes (AUTH-05, D-07, D-20 reversal; plan 04-25), over the app's real route objects with MSW
 // answering the API.
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -18,8 +19,11 @@ import {
   expenseList,
   expensesBackend,
 } from '@/test/expenseFixtures';
+import { deletedOrderItem, deletedOrderList, deletedOrdersBackend } from '@/test/deletedOrderFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
+import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
+import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -70,6 +74,7 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
 
   it('with a refresh cookie the shell shows the signed-in user instead of the dev placeholder', async () => {
     const probe = answerRefresh(sessionResponse());
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
@@ -92,6 +97,7 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
         },
       }),
     );
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
@@ -101,21 +107,15 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
   });
 
-  it('opening /admin with a session goes to Signed-in devices (D-43) until the dashboard exists', async () => {
+  it('opening /admin with a session goes to Orders (D-61) until the dashboard exists', async () => {
     answerRefresh(sessionResponse());
-    // The Sessions page loads its list after the redirect; answer it so the request never goes unhandled.
-    let listCalls = 0;
-    server.use(
-      http.get('*/api/v1/sessions', () => {
-        listCalls += 1;
-        return HttpResponse.json([]);
-      }),
-    );
+    // The Orders page loads its list after the redirect; answer it so the request never goes unhandled.
+    const backend = useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
-    await expect.poll(() => listCalls, { timeout: 5000 }).toBe(1);
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
+    await expect.poll(() => backend.lists.length, { timeout: 5000 }).toBe(1);
   });
 
   it('keeps the return path of a deep link with a query', async () => {
@@ -141,20 +141,15 @@ const adminSession = () =>
   });
 
 describe('Manager-only routes (USER-08)', () => {
-  /** The Signed-in devices list the index redirect lands on. */
-  function answerSessionsList(): void {
-    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
-  }
-
   it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
-    'an Admin who opens %s lands on /admin and then Signed-in devices',
+    'an Admin who opens %s lands on /admin and then Orders',
     async (path) => {
       answerRefresh(adminSession());
-      answerSessionsList();
+      useOrderHandlers();
       const router = createMemoryRouter(routes, { initialEntries: [path] });
       render(<RouterProvider router={router} />);
 
-      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
 
       await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
       expect(screen.queryByRole('link', { name: /^Users/ })).toBeNull();
@@ -250,6 +245,32 @@ describe('Manager-only routes (USER-08)', () => {
   });
 });
 
+describe('an unknown admin address (D-89)', () => {
+  it('shows the in-shell Page not found screen, not the public holding page', async () => {
+    answerRefresh(sessionResponse());
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/no-such-page'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/no-such-page');
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('heading', { level: 1, name: /New website/ })).toBeNull();
+    await waitFor(() => {
+      expect(document.title).toBe('Page not found · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('a visitor without a session goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/no-such-page'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/no-such-page')}`);
+  }, 15_000);
+});
+
 describe('Company Expenses for both roles (CEXP-01, D-25, T-06-18)', () => {
   it.each([
     ['Manager', () => sessionResponse()],
@@ -338,14 +359,97 @@ describe('Deleted Expenses for Managers (D-03, D-07, OQ-2; plan 06-16)', () => {
   }, 15_000);
 });
 
+describe('Deleted Orders for Managers (ORD-06, D-23; plan 08-20)', () => {
+  it('a Manager who opens /admin/orders/deleted stays and sees the page, with Orders the current item', async () => {
+    answerRefresh(sessionResponse());
+    deletedOrdersBackend({ list: deletedOrderList([deletedOrderItem(orderId(148))]) });
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Deleted Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Deleted orders' })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders/deleted');
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Orders']);
+    await waitFor(() => {
+      expect(document.title).toBe('Deleted Orders · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens /admin/orders/deleted is redirected to /admin/orders by the route loader', async () => {
+    answerRefresh(adminSession());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders');
+    expect(screen.queryByRole('heading', { level: 1, name: 'Deleted Orders' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Deleted Orders' })).toBeNull();
+  }, 30_000);
+
+  it('a visitor without a session opening /admin/orders/deleted goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/deleted'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/orders/deleted')}`);
+  }, 15_000);
+});
+
+describe('One deleted order for Managers (ORD-06, D-24; plan 08-23)', () => {
+  const address = `/admin/orders/deleted/${order0148.id}`;
+
+  it('a Manager who opens a deleted order stays and sees it read-only, titled "(deleted)"', async () => {
+    answerRefresh(sessionResponse());
+    deletedOrdersBackend({ list: deletedOrderList([]) });
+    const router = createMemoryRouter(routes, { initialEntries: [address] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Restore Order' })).toBeVisible();
+    expect(router.state.location.pathname).toBe(address);
+    await waitFor(() => {
+      expect(document.title).toBe('ORD-2026-0148 (deleted) · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens a deleted order is redirected to /admin/orders by the route loader', async () => {
+    answerRefresh(adminSession());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: [address] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/orders');
+    expect(screen.queryByRole('button', { name: 'Restore Order' })).toBeNull();
+  }, 30_000);
+
+  it('a visitor without a session goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: [address] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(address)}`);
+  }, 15_000);
+});
+
 describe('Settings for Managers (D-14, OQ-3; plan 06-17)', () => {
   it('a Manager who opens /admin/settings stays and sees the page, with Settings the one current item and no tab current', async () => {
     answerRefresh(sessionResponse());
     categoriesBackend();
+    listBackend('product-types', PRODUCT_TYPES);
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/settings'] });
     render(<RouterProvider router={router} />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Settings' }, { timeout: 10_000 })).toBeVisible();
+    // Settings opens on Product Types; the Phase 6 card is the Company Expense Categories tab (D-31, plan 08-08).
+    await userEvent.click(await screen.findByRole('tab', { name: 'Company Expense Categories' }));
     expect(await screen.findByRole('table', { name: 'Expense categories' })).toBeVisible();
     expect(router.state.location.pathname).toBe('/admin/settings');
     const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
@@ -391,13 +495,13 @@ describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
     });
   }, 30_000);
 
-  it('an Admin who opens /admin/components lands on /admin and then Signed-in devices, like /admin/users', async () => {
+  it('an Admin who opens /admin/components lands on /admin and then Orders, like /admin/users', async () => {
     answerRefresh(adminSession());
-    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/sessions');
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
 
     await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
     expect(screen.queryByRole('heading', { level: 1, name: /Component Showcase/ })).toBeNull();
@@ -465,13 +569,93 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.queryByText('Component Showcase')).toBeNull();
   });
 
-  it('the production /admin section routes are guarded and show the page-not-found screen inside the shell', async () => {
+  it('the production /admin/orders is the guarded real Orders page inside the shell', async () => {
     answerRefresh(sessionResponse());
+    useOrderHandlers();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByText('148 orders · 37 active', {}, { timeout: 10_000 })).toBeVisible();
     expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
+
+  it('with the dev routes added, /admin/orders is still the guarded real page: no preview shadows it (Pitfall 1)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/admin/orders'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText('148 orders · 37 active', {}, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
+
+  it('the production /admin/orders/:id is the guarded real order page inside the shell (ORD-07)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/orders/${order0148.id}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
+
+  it('the production /admin/orders/new is the guarded New Order form, and the static segment wins over :id (ORD-03)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/new'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'New Order' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('This order was not found or was deleted.')).toBeNull();
+  }, 30_000);
+
+  it('the production /admin/orders/:id/edit is the guarded Edit Order form inside the shell (ORD-15)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/orders/${order0148.id}/edit`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Edit Order' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('This order was not found or was deleted.')).toBeNull();
+  }, 30_000);
+
+  it('opening /admin/orders/new without a session lands on sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/orders/new'] });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/orders/new')}`);
+  });
+
+  it('with the dev routes added, /admin/orders/:id is still the guarded real order page (Pitfall 1)', async () => {
+    answerRefresh(sessionResponse());
+    useOrderHandlers();
+    const router = createMemoryRouter(devTree(), { initialEntries: [`/admin/orders/${order0148.id}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' }, { timeout: 10_000 })).toBeVisible();
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+  }, 30_000);
+
+  it('opening /admin/orders/:id without a session lands on sign-in with the return path (T-08-10)', async () => {
+    answerRefresh();
+    const path = `/admin/orders/${order0148.id}`;
+    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/login');
+    });
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
   });
 
   it('with the dev routes added, /admin/expenses is still the guarded real page: no preview shadows it (T-06-18)', async () => {
@@ -494,11 +678,11 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.getByText('Demo data')).toBeVisible();
     first.unmount();
 
-    const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin/orders'] });
+    const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
     render(<RouterProvider router={preview} />);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Orders' }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' }, { timeout: 5000 })).toBeVisible();
     expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeVisible();
-    expect(preview.state.location.pathname).toBe('/admin/orders');
+    expect(preview.state.location.pathname).toBe('/admin');
     expect(probe.count).toBe(0);
   });
 

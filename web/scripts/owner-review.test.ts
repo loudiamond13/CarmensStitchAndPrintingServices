@@ -82,10 +82,11 @@ describe('REVIEW_WIDTHS and REVIEW_TARGETS (D-23)', () => {
     expect(Object.isFrozen(REVIEW_TARGETS)).toBe(true);
   });
 
-  it('photographs the real Phase 5 and Phase 6 pages signed in, and the dev previews and showcase unsigned (plans 05-37, 06-19)', () => {
+  it('photographs the real Phase 5, 6 and 8 pages signed in, and the dev previews and showcase unsigned (plans 05-37, 06-19, 08-24)', () => {
     const signedIn = REVIEW_TARGETS.filter((target) => target.signedIn === true).map((target) => target.path);
 
     expect(signedIn).toEqual([
+      '/admin/orders',
       '/admin/expenses',
       '/admin/users',
       '/admin/profile',

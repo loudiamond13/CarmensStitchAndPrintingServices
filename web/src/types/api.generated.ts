@@ -656,6 +656,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/deleted/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A Manager reads a deleted order, read-only, before restoring or deleting it for good. */
+        get: operations["GetDeletedOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}": {
         parameters: {
             query?: never;
@@ -2224,6 +2241,17 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description A deleted order with every child row, read-only, for a Manager (D-24). */
+        DeletedOrderDetailResponse: {
+            /**
+             * Format: date-time
+             * @description When it was deleted.
+             */
+            deletedAt: string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description The order with its items, discounts, payments, refunds, expenses, status history, totals and the business today. */
+            order: components["schemas"]["OrderDetailResponse"];
+        };
         /** @description One deleted order in the deleted list (D-28). It carries no contact details, address or notes. */
         DeletedOrderListItem: {
             /**
@@ -2466,6 +2494,11 @@ export interface components {
             statusHistory: components["schemas"]["OrderStatusChangeResponse"][];
             /** @description The team name; null when none. */
             teamName: null | string;
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
             /** @description The money figures. */
             totals: components["schemas"]["OrderTotalsResponse"];
             /** @description The base64 of the eight-byte row version a save must send back. */
@@ -2485,6 +2518,11 @@ export interface components {
         };
         /** @description One discount of an order (D-15, ORD-05). */
         OrderDiscountResponse: {
+            /**
+             * Format: double
+             * @description The pesos the discount comes to, worked out by the server over the stored subtotal (D-94).
+             */
+            amount: number | string;
             /**
              * Format: uuid
              * @description The discount id.
@@ -2604,6 +2642,12 @@ export interface components {
              */
             id: string;
             /**
+             * Format: date-time
+             * @description When it was last changed; null until an edit.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /**
              * Format: double
              * @description The quantity times the unit price.
              */
@@ -2615,6 +2659,12 @@ export interface components {
              * @description How many.
              */
             quantity: number | string;
+            /**
+             * Format: date-time
+             * @description When it was added.
+             */
+            recordedAt: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
             /** @description The size or variant; null when none. */
             sizeVariant: null | string;
             /**
@@ -2666,6 +2716,11 @@ export interface components {
              * @description What was paid in pesos.
              */
             paid: number | string;
+            /**
+             * Format: int32
+             * @description How many pieces: the sum of the item quantities.
+             */
+            pieces: number | string;
             /**
              * Format: double
              * @description What was handed back in pesos.
@@ -2775,6 +2830,16 @@ export interface components {
         };
         /** @description One page of the order list (ORD-01). */
         OrderListResponse: {
+            /**
+             * Format: int32
+             * @description Orders that are not deleted and are Pending to Delivered, whatever the filters.
+             */
+            activeOrders: number | string;
+            /**
+             * Format: int32
+             * @description Every order that is not deleted, whatever the filters.
+             */
+            allOrders: number | string;
             /** @description The rows of this page. */
             items: components["schemas"]["OrderListEntry"][];
             /**
@@ -2787,6 +2852,11 @@ export interface components {
              * @description The page size asked for.
              */
             pageSize: number | string;
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
             /**
              * Format: int32
              * @description How many orders match, across all pages.
@@ -5647,6 +5717,56 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetDeletedOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedOrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

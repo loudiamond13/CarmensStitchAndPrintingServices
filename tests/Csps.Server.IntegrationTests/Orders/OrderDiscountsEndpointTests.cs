@@ -52,6 +52,98 @@ public sealed class OrderDiscountsEndpointTests(CspsDatabase database) : IClassF
     }
 
     [Fact]
+    public async Task AFivePercentDiscountAnswerAndReadCarryTheServerAmount()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+
+        var withPercent = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "percentage", 5m);
+
+        withPercent.GetProperty("discounts").EnumerateArray().ShouldHaveSingleItem().GetProperty("amount").GetDecimal().ShouldBe(1122.50m);
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, created.GetProperty("id").GetGuid());
+        read.GetProperty("discounts").EnumerateArray().ShouldHaveSingleItem().GetProperty("amount").GetDecimal().ShouldBe(1122.50m);
+    }
+
+    [Fact]
+    public async Task AFixedDiscountAfterItCarriesItsOwnAmountAndTheAmountsAddUpToTheDiscountTotal()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+        var id = created.GetProperty("id").GetGuid();
+        var withPercent = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "percentage", 5m);
+
+        var withBoth = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, withPercent, "fixed", 500m, "Loyal customer");
+        var amounts = withBoth.GetProperty("discounts").EnumerateArray().Select(static d => d.GetProperty("amount").GetDecimal()).ToList();
+        amounts.ShouldBe([1122.50m, 500.00m]);
+        amounts.Sum().ShouldBe(withBoth.GetProperty("totals").GetProperty("discount").GetDecimal());
+        withBoth.GetProperty("totals").GetProperty("discount").GetDecimal().ShouldBe(1622.50m);
+
+        var read = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        read.GetProperty("discounts").EnumerateArray().Select(static d => d.GetProperty("amount").GetDecimal()).ShouldBe([1122.50m, 500.00m]);
+    }
+
+    [Fact]
+    public async Task AnItemChangeMovesAPercentageDiscountAmountToTheNewSubtotal()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+        var id = created.GetProperty("id").GetGuid();
+        var itemId = created.GetProperty("items")[0].GetProperty("id").GetGuid();
+        var withDiscount = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "percentage", 5m);
+
+        // 20 jersey tops at 650.00 move the subtotal from 22,450.00 to 25,700.00; 5% of that is 1,285.00.
+        using var response = await OrderFixtures.PutItemAsync(
+            client,
+            manager.AccessToken,
+            id,
+            itemId,
+            OrderFixtures.ItemBody(OrderFixtures.BasketballId, withDiscount.GetProperty("version").GetString(), "Jersey top", "S-XL", 20, 650.00m));
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        var saved = document.RootElement;
+        saved.GetProperty("totals").GetProperty("subtotal").GetDecimal().ShouldBe(25700.00m);
+        saved.GetProperty("discounts").EnumerateArray().ShouldHaveSingleItem().GetProperty("amount").GetDecimal().ShouldBe(1285.00m);
+        saved.GetProperty("totals").GetProperty("discount").GetDecimal().ShouldBe(1285.00m);
+    }
+
+    [Fact]
+    public async Task AManagersDeletedOrderReadCarriesTheSameDiscountAmounts()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.Ord0148ItemsBody(today));
+        var id = created.GetProperty("id").GetGuid();
+        var withPercent = await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, created, "percentage", 5m);
+        await OrderFixtures.AddDiscountAndReadAsync(client, manager.AccessToken, withPercent, "fixed", 500m, "Loyal customer");
+        using (var deleted = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var response = await OrderFixtures.GetDeletedAsync(client, manager.AccessToken, id);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        var discounts = document.RootElement.GetProperty("order").GetProperty("discounts");
+        discounts.EnumerateArray().Select(static d => d.GetProperty("amount").GetDecimal()).ShouldBe([1122.50m, 500.00m]);
+    }
+
+    [Fact]
     public async Task AnonymousIsRefusedWith401()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

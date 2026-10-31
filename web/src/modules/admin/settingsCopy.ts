@@ -1,14 +1,73 @@
 // The words of Settings and the expense category list (UI-SPEC Copywriting Contract, S1 and S2; plan 06-17): one module, no wording
 // in JSX. Every string is SPEC-GAP wording the owner reviews (05 D-48). No long dash (OR-4).
+/** What one Settings list card says (S1, S2): every list has its own words for the same parts. */
+export interface ListSettingsWords {
+  card: { title: string; hint: string; add: string };
+  tableCaption: string;
+  /** The plural noun of the list ("Loading product types…", "Couldn't load product types."). */
+  things: string;
+  columns: { name: string; status: string; count: string; actions: string };
+  status: { active: string; retired: string };
+  othersSubline: string;
+  caption: string;
+  rowActions: {
+    edit: (name: string) => string;
+    retire: (name: string) => string;
+    useAgain: (name: string) => string;
+    remove: (name: string) => string;
+  };
+  retire: { toast: { title: string; message: (name: string) => string }; failed: (name: string) => string };
+  reactivate: { toast: { title: string; message: (name: string) => string }; failed: (name: string) => string };
+  remove: {
+    title: (name: string) => string;
+    message: string;
+    confirm: string;
+    pending: string;
+    toast: { title: string; message: (name: string) => string };
+    inUse: { title: (name: string) => string; body: string };
+  };
+  errors: { nameRequired: string; nameTooLong: string; toneRequired: string };
+  modal: {
+    add: {
+      title: string;
+      description: string;
+      save: string;
+      saving: string;
+      cancel: string;
+      toast: { title: string; message: (name: string) => string };
+    };
+    edit: {
+      title: string;
+      description: string;
+      save: string;
+      saving: string;
+      cancel: string;
+      things: string;
+      loadFailedThing: string;
+      toast: { title: string; message: (name: string) => string };
+      latestLoaded: string;
+    };
+    name: { label: string; othersHint: string };
+    color: { legend: string; sample: string };
+  };
+}
+
 export const SETTINGS_COPY = {
   /** The document title is "{title} · CSPS Admin". */
   documentTitle: 'Settings',
   title: 'Settings',
   badge: 'Manager only',
   subline: 'Lists and options the whole team uses.',
-  /** The Expense Categories card (D-14: Phase 11 may add more cards below it). */
+  /** The tab labels (D-31): the order lists first, then the company expense categories. */
+  tabs: {
+    'product-types': 'Product Types',
+    'payment-methods': 'Payment Methods',
+    'order-expense-categories': 'Order Expense Categories',
+    'expense-categories': 'Company Expense Categories',
+  },
+  /** The Company Expense Categories card (D-14: Phase 11 may add more cards below it; D-55 renamed it). */
   card: {
-    title: 'Expense Categories',
+    title: 'Company Expense Categories',
     hint: 'Staff pick one of these when they record a company expense.',
     add: 'Add Category',
   },
@@ -100,3 +159,14 @@ export const SETTINGS_COPY = {
     },
   },
 } as const;
+
+/** The company expense category card says what Phase 6 said, under the list-neutral column names. */
+export const COMPANY_SETTINGS_WORDS: ListSettingsWords = {
+  ...SETTINGS_COPY,
+  columns: {
+    name: SETTINGS_COPY.columns.category,
+    status: SETTINGS_COPY.columns.status,
+    count: SETTINGS_COPY.columns.expenses,
+    actions: SETTINGS_COPY.columns.actions,
+  },
+};

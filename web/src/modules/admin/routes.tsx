@@ -6,10 +6,10 @@
 //   - Below it, the lazy pathless UrlStateLayout (the one NuqsAdapter around `<Outlet/>`, WEB-10), so the admin lists of
 //     later phases keep their state in the URL. Its AdminRouteErrorBoundary shows the admin error screen inside the
 //     shell's `main` when a page crashes or a page chunk fails to load.
-//   - Until the dashboard exists (Phase 10) the index goes to Signed-in devices (D-43), and the sections whose screens
-//     come in Phases 7-9 show the page-not-found screen inside the shell.
+//   - Until the dashboard exists (Phase 10) the index goes to Orders (D-61).
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
+//   - An unknown `/admin/...` address is the splat route inside the shell (D-89), not the public holding page.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
 //   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the same
 //     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11), and
@@ -25,10 +25,6 @@ const devUser: LoaderFunction = async () => (await import('@/modules/admin/secti
 
 const previewPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AdminPreviewPage')).AdminPreviewRoute,
-}));
-
-const notFoundPage = /* @__PURE__ */ lazyRoute(async () => ({
-  Component: (await import('@/modules/admin/pages/AdminNotFoundPage')).AdminNotFoundPage,
 }));
 
 const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
@@ -91,8 +87,28 @@ const expensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ExpensesPage')).ExpensesRoute,
 }));
 
+const ordersPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/OrdersPage')).default,
+}));
+
+const orderPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/OrderPage')).default,
+}));
+
+const orderFormPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/OrderFormPage')).default,
+}));
+
 const deletedExpensesPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/DeletedExpensesPage')).DeletedExpensesRoute,
+}));
+
+const deletedOrdersPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/DeletedOrdersPage')).default,
+}));
+
+const deletedOrderPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/DeletedOrderPage')).default,
 }));
 
 const settingsPage = /* @__PURE__ */ lazyRoute(async () => ({
@@ -105,6 +121,10 @@ const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
 
 const showcasePage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ComponentShowcasePage')).ComponentShowcaseRoute,
+}));
+
+const notFoundPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/AdminNotFoundPage')).AdminNotFoundPage,
 }));
 
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
@@ -122,6 +142,10 @@ const requireManager: LoaderFunction = async (args) =>
 /** requireManagerLoader for Deleted Expenses: an Admin goes back to the expenses list, not to /admin (D-07). */
 const requireManagerOrExpenses: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireManagerLoader(args, '/admin/expenses');
+
+/** requireManagerLoader for Deleted Orders: an Admin goes back to the Orders list, not to /admin (D-23). */
+const requireManagerOrOrders: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).requireManagerLoader(args, '/admin/orders');
 
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
 const redirectIfSignedIn: LoaderFunction = async (args) =>
@@ -143,11 +167,21 @@ export const adminRoutes: RouteObject[] = [
             element: null,
             loader: () => {
               // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's redirect() is thrown by design.
-              throw redirect('/admin/sessions');
+              throw redirect('/admin/orders');
             },
           },
           { path: 'sessions', lazy: sessionsPage },
-          { path: 'orders', lazy: notFoundPage },
+          { path: 'orders', lazy: ordersPage },
+          // ORD-03: the New Order form. A static segment, so it wins over the dynamic orders/:id below.
+          { path: 'orders/new', lazy: orderFormPage },
+          // ORD-06, D-23: the Manager-only Deleted Orders page; an Admin is sent back to Orders by the loader. A static segment, so it wins over orders/:id below.
+          { path: 'orders/deleted', loader: requireManagerOrOrders, lazy: deletedOrdersPage },
+          // ORD-06, D-24: one deleted order, read-only, for Managers; an Admin is sent back to Orders by the loader.
+          { path: 'orders/deleted/:id', loader: requireManagerOrOrders, lazy: deletedOrderPage },
+          // ORD-07: one order. The static segments (orders/new, orders/deleted) win over this dynamic one.
+          { path: 'orders/:id', lazy: orderPage },
+          // ORD-15: Edit Order, the customer details, dates and notes of one order (D-28, D-46). The same lazy page as orders/new.
+          { path: 'orders/:id/edit', lazy: orderFormPage },
           { path: 'expenses', lazy: expensesPage },
           // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },
@@ -158,6 +192,8 @@ export const adminRoutes: RouteObject[] = [
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
           { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },
+          // D-89: any other /admin/... address shows the in-shell Page not found screen, behind the same sign-in guard.
+          { path: '*', lazy: notFoundPage },
         ],
       },
     ],
@@ -196,10 +232,7 @@ export const devRoutes: RouteObject[] = [
       {
         ErrorBoundary: AdminRouteErrorBoundary,
         lazy: urlStateLayout,
-        children: [
-          { index: true, lazy: previewPage },
-          { path: 'orders', lazy: previewPage },
-        ],
+        children: [{ index: true, lazy: previewPage }],
       },
     ],
   },

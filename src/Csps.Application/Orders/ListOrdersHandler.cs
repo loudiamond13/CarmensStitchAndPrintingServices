@@ -8,13 +8,13 @@ namespace Csps.Application.Orders;
 
 /// <summary>
 /// Use case: staff of either role list orders (ORD-01, ORD-02). The query is checked first and the port is never called for a bad
-/// one. Every figure comes from the stored totals; nothing is computed here. The clock comes from <see cref="TimeProvider"/> and not
-/// from the business calendar, so the list stays at two SQL commands.
+/// one. Every figure comes from the stored totals; nothing is computed here. The business calendar gives the clock for the recent
+/// window and the business today (D-59).
 /// </summary>
 public sealed class ListOrdersHandler(
     IOrderReader reader,
     IRequestContext requestContext,
-    TimeProvider time,
+    IBusinessCalendar calendar,
     IValidator<ListOrdersRequest> validator)
 {
     /// <summary>Lists one page of orders.</summary>
@@ -49,7 +49,8 @@ public sealed class ListOrdersHandler(
             sort,
             request.Page,
             request.PageSize);
-        var page = await reader.ListAsync(query, time.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
+        var page = await reader.ListAsync(query, clock.UtcNow, cancellationToken).ConfigureAwait(false);
         IReadOnlyList<OrderListEntry> items =
         [
             .. page.Items.Select(row => new OrderListEntry(
@@ -68,8 +69,9 @@ public sealed class ListOrdersHandler(
                 row.Refunded,
                 row.Balance,
                 row.CustomerCredit,
-                row.FullyPaid)),
+                row.FullyPaid,
+                row.Pieces)),
         ];
-        return Result.Success(new OrderListResponse(items, page.Total, request.Page, request.PageSize));
+        return Result.Success(new OrderListResponse(items, page.Total, request.Page, request.PageSize, page.AllOrders, page.ActiveOrders, clock.Today));
     }
 }

@@ -43,6 +43,7 @@ import {
 } from './showcase.recipe';
 import { Phase5Demos } from './Phase5Demos';
 import { Phase6Demos } from './Phase6Demos';
+import { Phase8Demos } from './Phase8Demos';
 import { SHOWCASE_COPY } from './showcaseCopy';
 import type { ShowcaseSectionId } from './showcaseSections';
 
@@ -426,4 +427,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
   auth: [{ id: 'showcase-session-toasts', Component: SessionToastTriggers }],
   staff: [{ id: 'showcase-staff-and-audit', Component: Phase5Demos, demo: true }],
   expenses: [{ id: 'showcase-company-expenses', Component: Phase6Demos, demo: true }],
+  orders: [{ id: 'showcase-orders', Component: Phase8Demos, demo: true }],
 };

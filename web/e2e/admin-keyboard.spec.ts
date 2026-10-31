@@ -99,7 +99,13 @@ test('@keyboard @admin the navigation drawer opens from the menu button, traps T
 
 test('@keyboard @admin following a link in the drawer goes there, closes the drawer and returns focus to the button', async ({
   page,
+  request,
+  guard,
 }) => {
+  test.setTimeout(90_000);
+  // Orders is the real signed-in page (plan 08-06): sign in first, then open the dev preview and follow its link.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
   await openAdminOnPhone(page);
   const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await menu.focus();

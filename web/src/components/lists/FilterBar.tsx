@@ -82,22 +82,24 @@ export function ResultBar({ count, thing, things, sortLabel, orderNote, children
 }
 
 export interface FilterChipProps {
-  /** The filter's name, like "Status". */
+  /** The filter's name, like "Status". With no `value` it is the whole chip text, like "Has a balance". */
   label: string;
-  /** The chosen value's label, like "Active + recent". */
-  value: string;
+  /** The chosen value's label, like "Active + recent". Leave it out for a filter that is simply on or off. */
+  value?: string | undefined;
+  /** Names the clear button ("Clear {clearName} filter") when the label is not the filter's name; defaults to `label`. */
+  clearName?: string | undefined;
   /** The list hook's setFilter(key, null): a replace that resets the page. */
   onClear: () => void;
 }
 
-export function FilterChip({ label, value, onClear }: FilterChipProps) {
+export function FilterChip({ label, value, clearName, onClear }: FilterChipProps) {
   return (
     <span className={filterChipClasses}>
-      <span className={filterChipLabelClasses}>{LISTS_COPY.chip(label, value)}</span>
+      <span className={filterChipLabelClasses}>{value === undefined ? label : LISTS_COPY.chip(label, value)}</span>
       <button
         type="button"
         className={clsx(filterChipClearClasses, targetAreaClasses)}
-        aria-label={LISTS_COPY.clearFilter(label)}
+        aria-label={LISTS_COPY.clearFilter(clearName ?? label)}
         onClick={onClear}
       >
         <Icon name="x" size={14} />

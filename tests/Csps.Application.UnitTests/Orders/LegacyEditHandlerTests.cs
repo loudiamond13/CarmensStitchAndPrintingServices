@@ -218,8 +218,8 @@ public sealed class LegacyEditHandlerTests
             "production",
             Now,
             order.Notes,
-            [.. order.Items.Select(item => new OrderItemResponse(item.Id, list with { Id = item.ProductTypeId }, item.Description, item.SizeVariant, item.Quantity, item.UnitPrice, item.LineTotal))],
-            [.. order.Discounts.Select(discount => new OrderDiscountResponse(discount.Id, DiscountKindNames.ToKey(discount.Kind), discount.Value, discount.Reason, null, Now, null, null))],
+            [.. order.Items.Select(item => new OrderItemResponse(item.Id, list with { Id = item.ProductTypeId }, item.Description, item.SizeVariant, item.Quantity, item.UnitPrice, item.LineTotal, person, Now, null, null))],
+            [.. order.Discounts.Select(discount => new OrderDiscountResponse(discount.Id, DiscountKindNames.ToKey(discount.Kind), discount.Value, 0m, discount.Reason, null, Now, null, null))],
             [.. order.Payments.Select(payment => new OrderPaymentResponse(payment.Id, payment.PaymentDate, payment.Amount, list with { Id = payment.PaymentMethodId }, payment.Reference, payment.Notes, person, true, null, Now, null, null))],
             [.. order.Refunds.Select(refund => new OrderRefundResponse(refund.Id, refund.RefundDate, refund.Amount, refund.Reason, person, true, null, Now, null, null))],
             [.. order.Expenses.Select(expense => new OrderExpenseResponse(expense.Id, expense.ExpenseDate, list with { Id = expense.OrderExpenseCategoryId }, expense.Description, expense.Amount, person, true, null, Now, null, null))],
@@ -229,7 +229,8 @@ public sealed class LegacyEditHandlerTests
             Now,
             null,
             null,
-            StoredVersionText);
+            StoredVersionText,
+            new DateOnly(2026, 10, 28));
     }
 
     private sealed class FixedCalendar : IBusinessCalendar

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.IntegrationTests.Orders;
 
-/// <summary>PERF-04, ORD-01, ORD-02: the order list runs exactly two SQL commands whatever the page size and whichever filter or sort is on.</summary>
+/// <summary>PERF-04, ORD-01, ORD-02: the order list runs exactly three SQL commands whatever the page size and whichever filter or sort is on.</summary>
 public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const int OrderCount = 150;
@@ -33,22 +33,23 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public async Task EveryFilterAndSortRunsExactlyTwoCommandsAtEveryPageSize(string filter, int pageSize)
+    public async Task EveryFilterAndSortRunsExactlyThreeCommandsAtEveryPageSize(string filter, int pageSize)
     {
         await SeedAsync();
         var counter = new CommandCounter();
         await using var context = database.CreateContext(counter);
 
         counter.Reset();
-        var page = await new OrderReader(context).ListAsync(QueryFor(filter, pageSize), Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor(filter, pageSize), Now, TestContext.Current.CancellationToken);
 
-        counter.Count.ShouldBe(2, string.Join(Environment.NewLine, counter.Commands));
+        // Count, page and the two list-wide counts: 3 fixed commands (D-60, owner, 2026-10-29).
+        counter.Count.ShouldBe(3, string.Join(Environment.NewLine, counter.Commands));
         page.Items.Count.ShouldBe(Math.Min(pageSize, page.Total));
         page.Total.ShouldBeGreaterThan(0);
     }
 
     [Fact]
-    public async Task AnEmptyResultStillRunsExactlyTwoCommands()
+    public async Task AnEmptyResultStillRunsExactlyThreeCommands()
     {
         await SeedAsync();
         var counter = new CommandCounter();
@@ -56,11 +57,51 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         var query = QueryFor("none", 20) with { Search = "nobody has this name" };
 
         counter.Reset();
-        var page = await new OrderReader(context).ListAsync(query, Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(query, Now, TestContext.Current.CancellationToken);
 
-        counter.Count.ShouldBe(2);
+        counter.Count.ShouldBe(3, string.Join(Environment.NewLine, counter.Commands));
         page.Items.ShouldBeEmpty();
         page.Total.ShouldBe(0);
+        page.AllOrders.ShouldBe(OrderCount);
+    }
+
+    [Theory]
+    [InlineData("none")]
+    [InlineData("search")]
+    [InlineData("status-one")]
+    [InlineData("everything")]
+    public async Task EveryRowCarriesItsPiecesAndTheListWideCountsIgnoreEveryFilter(string filter)
+    {
+        await SeedAsync();
+        await using var context = database.CreateContext();
+
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor(filter, 100), Now, TestContext.Current.CancellationToken);
+
+        page.AllOrders.ShouldBe(OrderCount);
+        page.ActiveOrders.ShouldBe(OrderCount);
+        page.Items.ShouldNotBeEmpty();
+        page.Items.ShouldAllBe(row => row.Pieces == 2 || row.Pieces == 4);
+    }
+
+    [Fact]
+    public async Task TheListWideCountsLeaveOutDeletedOrdersAndTheEndStatuses()
+    {
+        await SeedAsync();
+        await using (var edit = database.CreateContext())
+        {
+            var ids = await edit.Orders.OrderBy(order => order.Number).Select(order => order.Id).Take(5).ToListAsync(TestContext.Current.CancellationToken);
+            await edit.Orders.Where(order => order.Id == ids[0]).ExecuteUpdateAsync(set => set.SetProperty(order => order.DeletedAtUtc, Now), TestContext.Current.CancellationToken);
+            await edit.Orders.Where(order => order.Id == ids[1]).ExecuteUpdateAsync(set => set.SetProperty(order => order.Status, OrderStatus.Completed), TestContext.Current.CancellationToken);
+            await edit.Orders.Where(order => order.Id == ids[2]).ExecuteUpdateAsync(set => set.SetProperty(order => order.Status, OrderStatus.Cancelled), TestContext.Current.CancellationToken);
+            await edit.Orders.Where(order => order.Id == ids[3]).ExecuteUpdateAsync(set => set.SetProperty(order => order.Status, OrderStatus.Delivered), TestContext.Current.CancellationToken);
+            await edit.Orders.Where(order => order.Id == ids[4]).ExecuteUpdateAsync(set => set.SetProperty(order => order.Status, OrderStatus.Mockup), TestContext.Current.CancellationToken);
+        }
+
+        await using var context = database.CreateContext();
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor("status-one", 20), Now, TestContext.Current.CancellationToken);
+
+        page.AllOrders.ShouldBe(OrderCount - 1);
+        page.ActiveOrders.ShouldBe(OrderCount - 3);
     }
 
     [Fact]
@@ -69,7 +110,7 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         await SeedAsync();
         await using var context = database.CreateContext();
 
-        var page = await new OrderReader(context).ListAsync(QueryFor("product-type", 100), Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor("product-type", 100), Now, TestContext.Current.CancellationToken);
 
         page.Items.Select(row => row.Id).Distinct().Count().ShouldBe(page.Items.Count);
         page.Total.ShouldBe(OrderCount / 3 * 2);

@@ -1,6 +1,6 @@
 // ConfirmDialog (App. D.3 "Overlays", CSPS-UI-SPEC.md §6.5 and §9.3), converted to utilities (D-33) with the App. D.3
 // props and markup: a Modal with the danger icon tile, the message, the cascade box (the `cascadeSentence()` lead, the
-// five-tile tally with zero counts dimmed, and the cannot-be-undone warning), the optional type-to-confirm Field, and the
+// six-tile tally with zero counts dimmed, and the cannot-be-undone warning), the optional type-to-confirm Field, and the
 // Cancel and danger buttons. The danger button stays disabled until the trimmed text matches `confirmText` exactly.
 // The looks are in overlays.recipe.ts.
 //
@@ -11,8 +11,10 @@ import { CASCADE_LABELS, cascadeSentence, type CascadeCounts } from '@/utils/csp
 import { describeHttpError, type ErrorCopy } from '@/utils/describeHttpError';
 import { formatCount } from '@/utils/format';
 import { Button } from '@/components/actions';
-import { Icon } from '@/components/brand';
+import { Icon, type IconName } from '@/components/brand';
 import { Field, messageClasses } from '@/components/forms';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { SkeletonText } from '@/components/states';
 import { Modal } from './Modal';
 import {
   cascadeClasses,
@@ -33,9 +35,19 @@ export interface ConfirmDialogProps {
   title?: string;
   message?: ReactNode;
   counts?: CascadeCounts | undefined;
+  /** The counts are still being read: the cascade box shows a skeleton and the confirm stays disabled. */
+  countsLoading?: boolean;
+  /** The words a screen reader gets for the skeleton box. */
+  countsLoadingLabel?: string;
+  /** Keeps the confirm disabled for a reason the dialog cannot see (the counts could not be read). */
+  confirmDisabled?: boolean;
   /** Type-to-confirm text (e.g. the order number). */
   confirmText?: string | undefined;
   confirmLabel?: string;
+  /** The dismiss button's words and the Esc action's name. Default "Cancel". */
+  cancelLabel?: string;
+  /** The confirm button's icon. Default the trash. */
+  confirmIcon?: IconName;
   /** The confirm button's words while the action runs ("Deleting"); the confirm label stays when it is not set. */
   pendingLabel?: string;
   // SPEC-DEVIATION: WEB-06 / T-02-53. App. D.3 took `() => void`. The action may now return a promise: while it is
@@ -44,8 +56,8 @@ export interface ConfirmDialogProps {
   /** The confirmed action. Return its promise so the dialog can track the attempt. */
   onConfirm?: () => unknown;
   onCancel?: () => void;
-  /** Words for a failure the caller recognises; undefined leaves the line to describeHttpError. */
-  describeFailure?: (error: unknown) => ErrorCopy | undefined;
+  /** Words for a failure the caller recognises (a sentence, or title and body); null or undefined leaves the line to describeHttpError. */
+  describeFailure?: (error: unknown) => ErrorCopy | string | null | undefined;
   inline?: boolean;
   loading?: boolean;
 }
@@ -75,8 +87,13 @@ export function ConfirmDialog({
   title = 'Delete this?',
   message,
   counts,
+  countsLoading = false,
+  countsLoadingLabel = 'Loading',
+  confirmDisabled = false,
   confirmText,
   confirmLabel = 'Delete',
+  cancelLabel = 'Cancel',
+  confirmIcon = 'trash-2',
   pendingLabel,
   onConfirm,
   onCancel,
@@ -103,12 +120,13 @@ export function ConfirmDialog({
   }
 
   const hasConfirmText = confirmText !== undefined && confirmText !== '';
-  const ok = !hasConfirmText || typed.trim() === confirmText;
+  const ok = (!hasConfirmText || typed.trim() === confirmText) && !countsLoading && !confirmDisabled;
   const busy = loading || pending;
   const cascade = counts === undefined ? '' : cascadeSentence(counts);
 
   const fail = (error: unknown) => {
-    setFailure(describeFailure?.(error) ?? describeHttpError(error));
+    const words = describeFailure?.(error);
+    setFailure(typeof words === 'string' ? { title: words, body: '' } : (words ?? describeHttpError(error)));
     // The button leaves its pending state and takes focus back for a retry.
     confirmRef.current?.focus();
   };
@@ -168,9 +186,9 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="secondary" onClick={cancel} ref={cancelRef}>
-            Cancel
+            {cancelLabel}
           </Button>
-          <Button variant="danger" icon="trash-2" disabled={!ok} loading={busy} onClick={confirm} ref={confirmRef}>
+          <Button variant="danger" icon={confirmIcon} disabled={!ok} loading={busy} onClick={confirm} ref={confirmRef}>
             {pending && pendingLabel !== undefined ? pendingLabel : confirmLabel}
           </Button>
         </>
@@ -182,7 +200,13 @@ export function ConfirmDialog({
         </span>
         <div className={confirmColumnClasses}>
           {Boolean(message) && <p className={confirmMessageClasses}>{message}</p>}
-          {cascade !== '' && counts !== undefined && (
+          {countsLoading && (
+            <div className={cascadeClasses} role="status">
+              <SkeletonText lines={2} />
+              <span className={srOnlyClasses}>{countsLoadingLabel}</span>
+            </div>
+          )}
+          {!countsLoading && cascade !== '' && counts !== undefined && (
             <div className={cascadeClasses} role="alert">
               <p className={cascadeLeadClasses}>{cascade}</p>
               <ul className={cascadeListClasses}>

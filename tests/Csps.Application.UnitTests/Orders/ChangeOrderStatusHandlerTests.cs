@@ -293,7 +293,8 @@ public sealed class ChangeOrderStatusHandlerTests
             Now,
             null,
             null,
-            "AAAAAAAAH6Q=");
+            "AAAAAAAAH6Q=",
+            new DateOnly(2026, 10, 28));
     }
 
     private sealed class SaveAwareAudit(FakeUnitOfWork unit) : IAuditTrail

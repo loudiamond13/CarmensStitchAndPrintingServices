@@ -1,6 +1,6 @@
 // Shell geometry E2E (Phase 5 plan 01; D-01, D-02, D-03, D-04, D-05, D-36): the admin and public layouts fill the dynamic
 // viewport, the phone tab bar sits at the viewport bottom, the sidebar and top bar stay pinned, and no shell page
-// scrolls sideways. The short admin page is the dev preview /admin/orders and the long one is /dev/components: both
+// scrolls sideways. The short admin page is the dev preview /admin and the long one is /dev/components: both
 // render the real AdminLayout (the e2e bundle's dev routes use a placeholder user, so no sign-in is needed).
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
@@ -61,7 +61,7 @@ async function openAt(page: Page, path: string, width: number, height: number): 
   await page.evaluate('document.fonts.ready.then(() => true)');
 }
 
-const SHORT_ADMIN_PAGE = '/admin/orders';
+const SHORT_ADMIN_PAGE = '/admin';
 const LONG_ADMIN_PAGE = '/dev/components';
 
 const PHONES = [

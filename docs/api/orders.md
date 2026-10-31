@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-28T23:00:00-05:00
+updated: 2026-10-30T18:50:00-05:00
 ---
 
 # The orders API
@@ -49,6 +49,7 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `POST /orders/{id}/status` | Staff | `{ "status": "mockup" }` with an `Idempotency-Key` and no version | `200` the whole order; `400` on `status`; `404 orders.not-found`; `409 edit.stale` (two lost races); `422 orders.complete-balance-owed`, `orders.complete-credit` or `orders.reopen-first` |
 | `DELETE /orders/{id}` | Staff | none | `204`; `404 orders.not-found` (also for an order that is already deleted); `409 edit.stale` (two lost races) |
 | `GET /orders/deleted?page=&pageSize=` | Manager | none | `200` the deleted list; `400` for a bad page or page size; `403` for an Admin |
+| `GET /orders/deleted/{id}` | Manager | none | `200` the deleted order, read-only; `401`; `403` for an Admin; `404 orders.not-found` (also for an order that is not deleted) |
 | `POST /orders/{id}/restore` | Manager | none, with an `Idempotency-Key` | `204`; `403` for an Admin; `404 orders.not-found` (also for an order that is not deleted); `409 edit.stale` |
 | `DELETE /orders/{id}/permanent?confirm=` | Manager | none | `204`; `400` on `confirm`; `403` for an Admin; `404 orders.not-found`; `409 edit.stale` |
 
@@ -61,8 +62,8 @@ read every order. No answer is ever cached (`Cache-Control: no-store`).
 
 ## Listing and searching (`GET /api/v1/orders`) (ORD-01, ORD-02)
 
-Both roles may list. Every part of the query is optional. The answer is `{ items, total, page, pageSize }`, where `total` counts
-every page of the filter. Deleted orders never appear and never count. The order screens that use this list come in Phase 8.
+Both roles may list. Every part of the query is optional. The answer is `{ items, total, page, pageSize, allOrders, activeOrders, today }`,
+where `total` counts every page of the filter. Deleted orders never appear and never count. The order screens that use this list come in Phase 8.
 
 | Parameter | What it does | Default | Refused when |
 |---|---|---|---|
@@ -77,11 +78,15 @@ every page of the filter. Deleted orders never appear and never count. The order
 
 Each row has `id`, `number`, `customerName`, `teamName`, `orderDate`, `dueDate` (null when an imported order had none), `status`
 (the wire key), `statusChangedAt`, and the stored money figures `subtotal`, `discount`, `total`, `paid`, `refunded`, `balance`,
-`customerCredit` and `fullyPaid`. The server reads these figures from what it stored when the order last changed; the list works out
+`customerCredit` and `fullyPaid`, and `pieces`. The server reads the money figures from what it stored when the order last changed; the list works out
 no money. A row never carries contact details, the address or notes. For ORD-2026-0148 the figures are 22,450.00, 1,122.50,
 21,327.50, 12,000.00 and 9,327.50 for subtotal, discount, total, paid and balance.
 
-The list runs two SQL commands (the count and the page) whatever the page size, and answers under 300 ms at the 95th percentile on
+- `pieces` is how many pieces the order has: the sum of its item quantities (D-40). An order with items of 25 and 15 reads `40`.
+- `allOrders` is every order that is not deleted, and `activeOrders` is the part of those in Pending, Mockup, In Production, Ready or Delivered (D-41). Both ignore `q`, `status`, the dates, `productType` and `hasBalance`, so a screen can show "showing 5 of 40" whatever the filters are.
+- `today` is the business date from the shop's time zone (D-59), so the browser never reads the device clock for a due date.
+
+The list runs three SQL commands (the count, the page and the two list-wide counts) whatever the page size, filter or sort (D-60), and answers under 300 ms at the 95th percentile on
 about five years of orders. How that is proved is in [list-performance.md](../operations/list-performance.md).
 
 ## The order form (`POST /orders`)
@@ -226,6 +231,8 @@ new `version`.
   centavo, half away from zero. The discounts are added up and rounded, and `total` is `subtotal` minus that. Only `OrderMath`
   does this sum (ORD-20). The five items of ORD-2026-0148 (`22450.00`) with a 5% "Barangay league discount" give a discount of
   `1122.50`, a total of `21327.50` and a balance of `21327.50`.
+- **Each discount carries its `amount` (D-94).** Every discount in an answer has `amount`, the pesos it comes to. `OrderMath` works
+  it out over the stored subtotal with the same rounding, so the amounts add up to `discount`. The browser shows it and works out no money.
 - **The discounts never pass the items total (ORD-05).** After every discount add or edit, and after every item edit or removal,
   the discounts added up may not be more than the subtotal, so the total never goes below zero. A discount form that would break
   this is `400` on `value`: "The discounts would be more than the items total. Lower or remove a discount first." In the create
@@ -438,6 +445,7 @@ Who may do what:
 |--------|-------|---------|
 | Delete an order (`DELETE /orders/{id}`) | yes | yes |
 | See the deleted orders (`GET /orders/deleted`) | `403` | yes |
+| Open one deleted order (`GET /orders/deleted/{id}`) | `403` | yes |
 | Restore a deleted order (`POST /orders/{id}/restore`) | `403` | yes |
 | Delete for good (`DELETE /orders/{id}/permanent?confirm=`) | `403` | yes |
 
@@ -451,6 +459,11 @@ Who may do what:
   (the wire key it had), `total`, `paid`, `balance`, `deletedAt` and `deletedBy`, with `items`, `total` (the count over every page),
   `page` and `pageSize` around them. `pageSize` is 1 to 100 (20 when not sent) and `page` is 1 to 100000. It never shows contact
   details, the address or notes. It reads in two SQL commands whatever the page size.
+- **Read one deleted order (D-24).** `GET /orders/deleted/{id}` is read-only and for Managers. The answer holds `order`, `deletedAt` and
+  `deletedBy` (null reads as System). `order` has the same fields as `GET /orders/{id}`: every item, discount, payment, refund,
+  expense and status history row, the stored `totals` and `today`. A live order, an unknown id and an order restored by someone else a
+  moment before the read are all `404 orders.not-found`, so the route is never a second way to read a live order. Like the other
+  order answers it is sent with `Cache-Control: no-store`.
 - **Restore (D-28).** The order and everything inside it come back, with the same figures. Restoring an order that is not deleted is
   `404 orders.not-found` and writes nothing, so a repeated click never has a second effect. A retry with the same `Idempotency-Key`
   answers with the stored `204`.
@@ -471,8 +484,9 @@ Who may do what:
 {
   id, number, customerName, teamName, contactNumber, email, address,
   orderDate, dueDate, status, statusChangedAt, notes,
-  items: [ { id, productType: { id, name, tone, retired }, description, sizeVariant, quantity, unitPrice, lineTotal } ],
-  discounts: [ { id, kind, value, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
+  items: [ { id, productType: { id, name, tone, retired }, description, sizeVariant, quantity, unitPrice, lineTotal,
+             recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
+  discounts: [ { id, kind, value, amount, reason, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   payments: [ { id, paymentDate, amount, method: { id, name, tone, retired }, reference, notes,
                 receivedBy, receivedByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   refunds: [ { id, refundDate, amount, reason, refundedBy, refundedByActive,
@@ -481,7 +495,7 @@ Who may do what:
                 paidBy, paidByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   statusHistory: [ { from, to, changedBy, changedAt } ],
   totals: { subtotal, discount, total, paid, refunded, balance, customerCredit, expenses, profit, fullyPaid },
-  recordedBy, recordedAt, lastChangedBy, lastChangedAt, version
+  recordedBy, recordedAt, lastChangedBy, lastChangedAt, version, today
 }
 ```
 
@@ -495,6 +509,11 @@ Who may do what:
   subtotal of `22450.00`.
 - `recordedBy` is the staff member who created the order, `null` reads as **System**; `lastChangedBy` and `lastChangedAt` are
   `null` until a change. A person whose account was deleted keeps their name with `formerStaff: true`.
+- Each item has `recordedBy`, `recordedAt`, `lastChangedBy` and `lastChangedAt` like a discount does (D-44): who added the line and when,
+  and who last edited it and when (both `null` until an edit). They come from the token and the server clock; any such member in an
+  item request body is ignored (SEC-08).
+- `today` is the business date from the shop's time zone (D-59). Every order answer carries it (create, read, details, items, discounts,
+  payments, refunds, expenses and status), so the browser never reads the device clock for a due date.
 - `productType.retired` is true when a Manager later retired the type; old orders keep showing it.
 - `version` is the base64 of the eight-byte row version a later save must send back.
 
