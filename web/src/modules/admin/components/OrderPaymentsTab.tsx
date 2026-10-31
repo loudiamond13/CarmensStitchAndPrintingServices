@@ -20,6 +20,7 @@ import {
 import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
 import { orderSavedMessage } from '@/modules/admin/hooks/useOrderChildSave';
+import { useReadOrderNow } from '@/modules/admin/hooks/useOrderWindowFigures';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
 import { ORDER_PAYMENT_COPY } from '@/modules/admin/orderPaymentCopy';
@@ -177,6 +178,7 @@ function EditablePayments({ order }: { order: OrderDetailResponse }) {
   const toast = useToast();
   const applyOrder = useApplyOrder();
   const refetchOrder = useRefetchOrder();
+  const readOrderNow = useReadOrderNow();
   // Where focus goes once a window has closed. Safari does not focus a button on a click, so the window's own return to its
   // trigger has nothing to go back to; the trigger is named here instead.
   const returnFocus = useRef<(() => void) | null>(null);
@@ -224,10 +226,14 @@ function EditablePayments({ order }: { order: OrderDetailResponse }) {
     },
   );
 
-  // The browser says it first and sends nothing; the server still checks (a preview from its own paid and refunded figures).
-  const confirmDelete = (payment: OrderPayment): unknown => {
+  // A preview from the server's paid and refunded figures: when the held ones refuse, the order is read once more first (D-95). The server still checks.
+  const confirmDelete = async (payment: OrderPayment): Promise<unknown> => {
     if (wouldLeavePaymentsBelowRefunds(order, payment)) {
-      throw new PaymentBelowRefundsError(PAYMENT.errors.belowRefunds);
+      const fresh = await readOrderNow(order.id);
+      const current = fresh?.payments.find((candidate) => candidate.id === payment.id);
+      if (fresh === null || (current !== undefined && wouldLeavePaymentsBelowRefunds(fresh, current))) {
+        throw new PaymentBelowRefundsError(PAYMENT.errors.belowRefunds);
+      }
     }
     return removal.submit(payment);
   };
