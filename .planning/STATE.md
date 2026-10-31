@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: Order Screens
 status: executing
-stopped_at: Completed 08-25-PLAN.md
-last_updated: "2026-10-31T00:04:59.217Z"
+stopped_at: Completed 08-26-PLAN.md
+last_updated: "2026-10-31T00:31:08.417Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 08 execution started
-state_head: 3e20d1f0ffcbdfbf3667e6dd1dee68f37bab6586
+state_head: 2c22c6e8c9706906191116d9ae945e3af12a1135
 progress:
   total_phases: 18
   completed_phases: 7
   total_plans: 248
-  completed_plans: 244
+  completed_plans: 245
   percent: 39
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-30T13:30:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 08 (Order Screens) — EXECUTING
-Plan: 2 of 29
+Plan: 3 of 29
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 08 execution started
 
@@ -304,6 +304,7 @@ Progress: [████░░░░░░] 39%
 | Phase 08 P23 | 22 min | 2 tasks | 9 files |
 | Phase 08 P24 | 5h 35m | 3 tasks | 35 files |
 | Phase 08 P25 | 26 min | 3 tasks | 15 files |
+| Phase 08 P26 | 25 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -868,6 +869,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-24: web branch coverage is held over 90 percent with one StrictMode render test per large screen (src/test/strictMode.ts), because the React Compiler's cached branch only runs on a second render
 - [Phase 08]: 08-24: the full npm run e2e still fails 14 tests that fail the same way at 5118c182 (dialog-fit 1274x585, dialog-scrollbars, long-text four-chip, shell 1440x900) plus orders-filters on pixel with the same chip-button cause; recorded for the owner, not fixed here
 - [Phase 08]: 08-25: the order answer carries each discount's server Amount (OrderMath.DiscountAmount, D-94); the Discounts tab renders it with no browser money math
+- [Phase 08]: 08-26: D-95 applied to the payment window and delete check: a focus or failed cap check reads the order once, the check runs on current figures, the save keeps the opened version (queryClient.query used as fetchQuery is deprecated)
 
 ### Pending Todos
 
@@ -973,6 +975,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T00:04:57.836Z
-Stopped at: Completed 08-25-PLAN.md
+Last session: 2026-10-31T00:31:07.041Z
+Stopped at: Completed 08-26-PLAN.md
 Resume file: None
