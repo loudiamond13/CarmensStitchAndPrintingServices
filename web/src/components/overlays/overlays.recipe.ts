@@ -154,12 +154,13 @@ export const cascadeClasses = tw('rounded-sm border border-dashed border-danger 
 export const cascadeLeadClasses = tw('m-0 text-[14px] leading-5 font-button text-ink');
 
 /**
- * `.csp-cascade-list`: the five-tile tally, three columns on phone pages (App. C `repeat(3, minmax(0, 1fr))`). App. B's
+ * `.csp-cascade-list`: the six-tile tally (08 UI-SPEC: refunds joined), one row of six on desktop so the dialog keeps
+ * its D-42 fit, three columns on phone pages (App. C `repeat(3, minmax(0, 1fr))`). App. B's
  * own `@media (max-width: 420px) { repeat(3, 1fr) }` is not transcribed: inside the page root it never decides the
  * result, because the page root is then at most 420px wide too, and App. C's phone rule comes later in the cascade.
  */
 export const cascadeListClasses = tw(
-  'm-0 grid list-none grid-cols-[repeat(5,1fr)] gap-2 p-0 pg-phone:grid-cols-[repeat(3,minmax(0,1fr))]',
+  'm-0 grid list-none grid-cols-[repeat(6,minmax(0,1fr))] gap-2 p-0 pg-phone:grid-cols-[repeat(3,minmax(0,1fr))]',
 );
 
 /** `.csp-cascade-list li`: one tile, 11px/14px 600 uppercase `--ink-muted` on `--surface-3`. */

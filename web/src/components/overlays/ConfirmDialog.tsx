@@ -1,6 +1,6 @@
 // ConfirmDialog (App. D.3 "Overlays", CSPS-UI-SPEC.md §6.5 and §9.3), converted to utilities (D-33) with the App. D.3
 // props and markup: a Modal with the danger icon tile, the message, the cascade box (the `cascadeSentence()` lead, the
-// five-tile tally with zero counts dimmed, and the cannot-be-undone warning), the optional type-to-confirm Field, and the
+// six-tile tally with zero counts dimmed, and the cannot-be-undone warning), the optional type-to-confirm Field, and the
 // Cancel and danger buttons. The danger button stays disabled until the trimmed text matches `confirmText` exactly.
 // The looks are in overlays.recipe.ts.
 //
