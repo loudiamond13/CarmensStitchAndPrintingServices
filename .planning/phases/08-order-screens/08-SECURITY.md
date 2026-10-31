@@ -7,18 +7,18 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-10-30T13:55:00-05:00"
-updated: "2026-10-30T13:55:00-05:00"
+updated: "2026-10-31T02:35:00-05:00"
 ---
 
 # Phase 08: Security
 
-*Created: 2026-10-30T13:55:00-05:00 · Updated: 2026-10-30T13:55:00-05:00*
+*Created: 2026-10-30T13:55:00-05:00 · Updated: 2026-10-31T02:35:00-05:00*
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
 
-The register comes from the `<threat_model>` blocks of plans 08-01 to 08-24: 70 rows, which are 46 unique threats (T-08-01 to T-08-46) plus T-08-SC repeated in every plan. The 23 `## Threat Flags` sections say "None" or map to existing ids (08-17 has no such section; its threat T-08-33 is verified in code). One `gsd-security-auditor` run (ASVS level 1, static inspection, no tests run by the auditor) checked each mitigation at its file and line and returned SECURED with 0 open threats.
+The register comes from the `<threat_model>` blocks of plans 08-01 to 08-29: 82 rows, which are 53 unique threats (T-08-01 to T-08-53) plus T-08-SC repeated in every plan. The 28 `## Threat Flags` sections say "None" or map to existing ids (08-17 has no such section; its threat T-08-33 is verified in code). The first `gsd-security-auditor` run (2026-10-30) covered plans 08-01 to 08-24. A second run (2026-10-31) covered the gap plans 08-25 to 08-29 (G-08-5) and re-checked the earlier threats whose files changed since commit 8e870bfe. Both runs were ASVS level 1, static inspection, no tests run by the auditor, and both returned SECURED with 0 open threats.
 
-Severity mix over the 70 rows: 33 high, 23 medium, 14 low. Dispositions: 70 mitigate, 0 accept, 0 transfer.
+Severity mix over the 82 rows: 40 high, 24 medium, 18 low. Dispositions: 81 mitigate, 1 accept (T-08-47), 0 transfer.
 
 ---
 
@@ -32,6 +32,8 @@ Severity mix over the 70 rows: 33 high, 23 medium, 14 low. Dispositions: 70 miti
 | URL and localStorage to the order screens | Query keys, return URLs and the view choice are untrusted input | 08-09, 08-11, 08-15 |
 | Admin module to the public module | Internal figures (order expenses, estimated profit) never reach public code | 08-12, 08-24 |
 | Testing seed route | Exists only in Debug builds (`CSPS_TESTING`) | 08-21 |
+| Order window refresh to the save | A refresh of the figures must never change the version a save sends | 08-26 to 08-28 |
+| Two staff sessions in e2e | Two signed-in contexts against `CSPS_E2E` only | 08-29 |
 
 ---
 
@@ -67,7 +69,7 @@ Severity mix over the 70 rows: 33 high, 23 medium, 14 low. Dispositions: 70 miti
 | T-08-26 | high | closed | `OrderItemModal.tsx:69-77,134,228` and the other child modals send the opened version |
 | T-08-27 | medium | closed | `useOrderChildSave.ts:136`; `OrderItemModal.test.tsx:253` |
 | T-08-28 | low | closed | `OrderItemModal.tsx:69-77,258-260`; `OrderAttributionTests.cs:114-143` |
-| T-08-29 | high | closed | `OrderFormPage.tsx:397,485-486`; `OrderFormPage.test.tsx:796` |
+| T-08-29 | high | closed | `OrderFormPage.tsx:398,486`; `OrderFormPage.test.tsx:796` |
 | T-08-30 | low | closed | `OrderFormPage.tsx:87,458,557` (locked banner) |
 | T-08-31 | high | closed | `OrderPaymentModal.tsx:143,151,199-201,222`; `orderPaymentSchemas.ts:98-99`; server cap T-07-28 |
 | T-08-32 | medium | closed | `OrderPaymentModal.tsx:70-79,336`; `PaidBySelect.tsx:41-45` |
@@ -76,16 +78,23 @@ Severity mix over the 70 rows: 33 high, 23 medium, 14 low. Dispositions: 70 miti
 | T-08-35 | medium | closed | `OrderStatusMenu.tsx:102-103,128-130`; `orderStatus.ts:12-14`; `CancelOrderDialog.tsx:35-43` |
 | T-08-36 | low | closed | `OrderStatusHistory.tsx:44-49`; server T-07-37 |
 | T-08-37 | high | closed | `routes.tsx:178`; `guard.ts` `requireManagerLoader`; `orders-deleted.spec.ts:138-153` |
-| T-08-38 | high | closed | `PurgeOrderDialog.tsx:82-83,106-123`; `PermanentlyDeleteOrderHandler.cs:52-55`; `PurgeOrderDialog.test.tsx:166-191` |
+| T-08-38 | high | closed | `PurgeOrderDialog.tsx:61,82-83,122-126`; `ConfirmDialog.tsx:122-123`; `PermanentlyDeleteOrderHandler.cs:52-55`; `PurgeOrderDialog.test.tsx:166-191` |
 | T-08-39 | low | closed | `DeletedOrdersPage.tsx:204-205`; `deletedOrdersService.ts:50` |
 | T-08-40 | high | closed | `orderRefundSchemas.ts:36-76`; `OrderRefundModal.tsx:143,151,224`; `Order.cs:1052,1114,1221` |
 | T-08-41 | medium | closed | `TestingOrdersController.cs` inside `#if CSPS_TESTING`; `Csps.Server.csproj:4-6`; `ReleaseHasNoEmailSinkTests.cs:24-77` |
 | T-08-42 | low | closed | `DeleteOrderDialog.tsx:19-37,60-70`; `DeleteOrderHandler.cs:51` (audit) |
 | T-08-43 | high | closed | `routes.tsx:180`; `OrdersController.cs:223-224`; `order-deleted-view.spec.ts:134` |
 | T-08-44 | medium | closed | `DeletedOrderPage.tsx:111-119,276` (all tabs read-only); `OrderDeletionTests.cs:291-` (server refuses child writes) |
-| T-08-45 | high | closed | `orders-boundaries.node.test.ts:31,66-70`; `orders-journeys.spec.ts:461-509` |
-| T-08-46 | medium | closed | `orders-boundaries.node.test.ts:33,73-82`; `e2e/fixtures.ts:52-57,174-180` (CSP listener) |
-| T-08-SC | high | closed | No change to `web/package.json`, the lockfile, `Directory.Packages.props`, any `.csproj` or tool manifest since 61c6beb4 |
+| T-08-45 | high | closed | `orders-boundaries.node.test.ts:98,108,151-163`; `orders-journeys.spec.ts:461-509` |
+| T-08-46 | medium | closed | `orders-boundaries.node.test.ts:100,115-117,166-180`; `e2e/fixtures.ts:52-57,174-180` (CSP listener) |
+| T-08-47 | low | closed (accepted) | `OrderReader.cs:520` derives `Amount` from kind, value and stored subtotal only; `OrdersController.cs:25,27` (Staff, `NoStore`); `AuthorizationMatrix.cs:215,219,244,246` unchanged. See the Accepted Risks Log |
+| T-08-48 | medium | closed | `OrderMath.cs:70,102-120` (one `DiscountAmount` rule); `OrderReader.cs:520`; `OrderDiscountsEndpointTests.cs:71-90` (amounts sum to `totals.discount`); `OrderMathTests.cs:210-239` |
+| T-08-49 | high | closed | `OrderPaymentModal.tsx:142,240` (opened version frozen; `setOpened` only on Load Latest `:201,208`); `useOrderWindowFigures.ts:48`; `OrderPaymentModal.test.tsx:356-381,472-488` |
+| T-08-50 | low | closed | `useOrderWindowFigures.ts:10,17-22,41-46,64-68` (shared reads under 1 s, one read on a cap failure); `useOrderWindowFigures.test.tsx:100,115,157,169`; the read is the Staff-only `GET /orders/{id}` (`OrdersController.cs:25,102`) |
+| T-08-51 | low | closed | `OrderStatusMenu.tsx:121-125,149,182` (read on every open); `OrderStatusMenu.test.tsx:603-694`; server `OrderStatusRules.cs:93-103`, `Order.cs:1164` |
+| T-08-52 | high | closed | `OrderRefundModal.tsx:143,248` and `OrderDiscountModal.tsx:139,247` (opened version frozen); `OrderRefundModal.test.tsx:327-352,433-449,697-734`; `OrderDiscountModal.test.tsx:445-473,536-552,817-850`; server `Order.cs:669-671,724-726,1052,1114,1221-1231` |
+| T-08-53 | low | closed | `order-two-staff.spec.ts:78-86,141-143,185-187` (made-up names), `:127-129,171-173,227-229` (second context closed in `finally`); `scripts/e2e.mjs:39,80` (`CSPS_E2E` only); gitleaks: no leaks |
+| T-08-SC | high | closed | No change to `web/package.json`, the lockfile, `Directory.Packages.props`, any `.csproj`, `global.json`, `nuget.config` or tool manifest since 61c6beb4 (re-checked against 8e870bfe on 2026-10-31) |
 
 *Status: open · closed. File paths are under `src/`, `tests/` or `web/` as the summaries list them.*
 
@@ -93,7 +102,9 @@ Severity mix over the 70 rows: 33 high, 23 medium, 14 low. Dispositions: 70 miti
 
 ## Accepted Risks Log
 
-No threat has disposition `accept`, and this audit accepted none.
+| Threat ID | Severity | Risk | Why it is accepted | Accepted in |
+|---|---|---|---|---|
+| T-08-47 | low | The order answer now carries each discount's peso `amount` | The figure comes only from the discount kind and value and the stored subtotal, which staff already see. No new route. Order reads keep the Staff and Manager policies and the existing matrix rows. | Plan 08-25 threat model, under owner ruling D-94 |
 
 *Accepted risks do not resurface in future audit runs.*
 
@@ -103,6 +114,8 @@ No threat has disposition `accept`, and this audit accepted none.
 
 - **Server refusal text:** `CancelOrderDialog.tsx:39-40` and `useOrderChildSave.ts` show the server's 422 `detail` sentence. T-08-35 declares this, and the sentences are fixed domain text. The shared `ConfirmDialog` fallback never shows raw server text (T-08-05).
 - **Proven only by a run:** the p95 timing test (T-08-03) and the Release build scan (T-08-41). Both passed in 08-24's `dotnet test --solution Csps.slnx` run (6224 passed, 0 failed, 2 skipped).
+- **No rate limit on order reads (T-08-50):** plan 08-26 says the extra reads sit "behind the current auth and rate limits", but no rate limiter covers `GET /orders/{id}`. Limits cover only sign-in, password, invite and refresh (`RateLimitingRegistration.cs:53-100`). T-08-50 is closed on the client-side read sharing plus Staff auth, not on a rate limit.
+- **Discount preview math (WR-01):** the Discounts tab shows the server's amounts (D-94), but `otherDiscountsTotal` and the discount window preview still add in the browser. The server's items-total check (`Order.cs:669-671,724-726`) still decides, so this is not a threat.
 - **Phase 7.1 project files:** against the main merge base, three `.csproj` files differ with `InternalsVisibleTo` and `ProjectReference` lines only. They predate Phase 8 and add no package.
 
 ---
@@ -112,14 +125,15 @@ No threat has disposition `accept`, and this audit accepted none.
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-10-30 | 70 rows (46 unique plus T-08-SC) | 70 | 0 | gsd-security-auditor (ASVS L1, static) |
+| 2026-10-31 | 82 rows (53 unique plus T-08-SC); delta 08-25 to 08-29 plus 8 regression re-checks | 82 | 0 | gsd-security-auditor (ASVS L1, static) |
 
 ---
 
 ## Sign-Off
 
 - [x] All threats have a disposition
-- [x] Accepted risks documented (none)
+- [x] Accepted risks documented (T-08-47)
 - [x] `threats_open: 0` confirmed
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified 2026-10-30 by the automated audit. Owner review is part of the phase sign-off.
+**Approval:** verified 2026-10-30 and re-verified 2026-10-31 by the automated audit. Owner review is part of the phase sign-off.
