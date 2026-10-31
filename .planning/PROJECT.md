@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-29T14:08:00-05:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-10-31T00:30:00-05:00*
 
 ## What This Is
 
@@ -49,11 +49,12 @@ All existing production data is migrated in without loss. The API is client-agno
 
 - ✓ **Order domain and API (screens come in Phase 8):** order aggregate with items, discounts, payments (Received by), refunds, order expenses (Paid by) and status rules; server-computed totals matching the 220 golden vectors; per-year numbers under a lock; rowversion 409s; soft delete, Manager restore and permanent delete; list search, filter and sort; Manager-editable product types, payment methods and expense categories; legacy holder and legacy import path; every change audited without customer text (ORD-01..09, ORD-21..23 API side) - Phase 7 (2026-10-29: UAT 2 passed, 3 deferred to Phases 8 and 10, threats_open 0 of 61, 5,915 tests, rulings D-78)
 
+- ✓ **Order screens:** Orders list with grid or table, URL search, filters, sort and paging, overdue and days-left from Manila today; New and Edit Order with a leave prompt on a dirty form; order detail page with customer card, live server totals, estimated profit (staff only), tabs and modals for items, payments, refunds, discounts and order expenses, 409 conflict banner with Load Latest; soft delete, Manager restore and typed-number permanent delete (ORD-01..ORD-11, ORD-15, ORD-21..23 screens) - Phase 8 (2026-10-31: UAT 7 checks, O1 two-staff check passed, gap G-08-5 closed by 08-25 to 08-29, threats_open 0, verification 8/8, rulings D-90 to D-97)
+
 ### Active
 
 Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.md` §6, and REQUIREMENTS.md expands them.
 
-- [ ] **Orders:** aggregate with items, payments, discount(s), order expenses; create, edit, delete; preview list with totals; search, filter, sort; concurrency (ORD-01..09)
 - [ ] **Order images:** Cloudinary signed server-side upload, a per-order limit, cover image, reorder, alt text, lazy responsive delivery, cleanup job (ORD-04, PRD §10)
 - [ ] **Admin dashboard:** KPIs, income vs expenses chart, orders by status, recent orders (UI-SPEC §8.3)
 - [ ] **Staff money (owner addition, 2026-10-07):** every payment names the staff member who received it ("Received by", the owner's "PaidTo"), and every company and order expense names the staff member who paid it ("Paid by"); each staff member has a server-computed money on hand (payments received + transfers in − transfers out − expenses paid); staff can transfer money to coworkers. An Admin sees only their own money and a Manager sees everyone's; only a Manager can delete a transfer, and every delete is audited (ORD-22, ORD-23, CEXP-05, MONEY-01..08, MIG-09, MIG-10; open rulings OD-15..OD-18, OD-20, OD-21). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover it yet and need a later update
@@ -163,6 +164,7 @@ None of it is product code. Phase 1 replaces it with the PRD §3.1 layout (`Csps
 | URL query-string state with nuqs (owner, 2026-10-07): (1) list and page view state (filters, search, sort, page, page size, tab, view mode) lives in the URL query string through nuqs 2.10.1 (MIT, free), approved after a check for security advisories, deprecation and the 14-day cool-down; switching to any newer version, such as a stable 2.10.2, needs the owner's approval at the Phase 2 install; (2) free-text search goes in the URL too, chosen over the privacy-conservative default of keeping it out, with mitigations: no query string in analytics, Core Web Vitals, client error reports or server logs, the strict Referrer-Policy, a 100-character server cap and no tokens or secrets in URLs; (3) the public gallery keeps its category filter in the URL as well, about 5.6 KB gz within the 150 KB public budget (WEB-10, ORD-10, GAL-01, ANL-05, SEC-03) | The owner asked for query-string URLs using nuqs. URL state lets Back, refresh, bookmarks and shared links reopen the same list view. Usage rules in WEB-10 avoid three known nuqs bugs (#1567, #1563, #1245), and ORD-10's saved view becomes the fallback when the URL has no valid view | ✓ Owner decided (2026-10-07) |
 | **Prime Directive 1 override** (owner, 2026-10-15): CSPS deploys to the live site and replaces the legacy app in Phase 3; the legacy site and database are retired then, not at the end of the project. There is no staging site (Basic plan, Phase 1 D-11) | The owner chose to surrender the legacy site now, accepting that staff have no order screens until the order phases ship. Legacy data is kept unchanged in a verified `.bak` (receipt confirmed before the delete) and imported in Phases 16 and 17. Until the owner accepts CSPS live, the legacy rollback kit (site files plus the `.bak`) can put the legacy site back | ✓ Owner decided (2026-10-15) |
 | Phase 6 owner rulings at UAT (2026-10-26, 06 D-54 to D-62): all UI-SPEC defaults confirmed; wording approved; expense notes readable by all staff; the live p95 check after release is a backlog follow-up, not a gate; every count uses the en-PH thousands format app-wide; required selects show the " *" mark; native date boxes show the friendly date beside them | Owner review of the review pack, UAT and the UI audit. Keeps the shipped screens consistent with the en-PH format rules and the spec | ✓ Owner decided (2026-10-26) |
+| Phase 8 owner rulings at UAT (2026-10-30, 08 D-90 to D-97): Delivered badge stays orange; Grid/Table keeps the page; 17/18/24/28 px figure sizes join the spec; chip Clear buttons stay 22 px (owner accepts the axe target-size failures); the server sends each discount amount; money windows re-read the order before refusing a cap; the status menu re-reads the order on open; IN-08 and WR-03 left as built | The owner reviewed the parked UI items and the end-of-phase code review in UAT tests 4 and 5. Server-sent amounts and fresh reads keep the browser from showing stale money (Core Value) | ✓ Owner decided (2026-10-30) |
 
 ## Open Owner Decisions (PRD §21: MUST be asked at the relevant phase's discuss step, never assumed)
 
@@ -237,4 +239,4 @@ This document evolves at phase transitions and milestone boundaries.
 5. Update Context with current state
 
 ---
-*Last updated: 2026-10-29T05:45:00-05:00 after Phase 7 verification and transition*
+*Last updated: 2026-10-31T00:30:00-05:00 after Phase 8 verification and transition*

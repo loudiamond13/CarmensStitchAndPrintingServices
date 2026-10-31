@@ -1,45 +1,45 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 08
-current_phase_name: Order Screens
-status: executing
-stopped_at: Completed 08-29-PLAN.md
-last_updated: "2026-10-31T02:01:37.602Z"
-last_activity: 2026-10-30
-last_activity_desc: Phase 08 execution started
-state_head: fc854debd2e38103716a031210b99371b570c250
+current_phase: 9
+current_phase_name: Order Images & Maintenance Jobs
+status: planning
+stopped_at: Phase 08 complete, ready to plan Phase 9
+last_updated: "2026-10-31T07:26:39.810Z"
+last_activity: 2026-10-31
+last_activity_desc: Phase 08 complete, transitioned to Phase 9
+state_head: bc3c874ab54f2bdc592132fefc353e781d1d9d8b
 progress:
   total_phases: 18
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 248
   completed_plans: 248
-  percent: 39
+  percent: 47
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-10-30T13:30:00-05:00"
+updated: "2026-10-31T00:30:00-05:00"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-29)
+See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 08 — Order Screens
+**Current focus:** Phase 9 - Order Images & Maintenance Jobs
 
 ## Current Position
 
-Phase: 08 (Order Screens) — EXECUTING
-Plan: 29 of 29
-Status: Awaiting human verification (O1, /gsd-verify-work 08)
-Last activity: 2026-10-30 — G-08-5 gap plans 08-25 to 08-29 executed; re-verification human_needed
+Phase: 9 — Order Images & Maintenance Jobs
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-31 — Phase 08 complete, transitioned to Phase 9
 
-Progress: [████░░░░░░] 39%
+Progress: [█████░░░░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 219
+- Total plans completed: 248
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -55,6 +55,7 @@ Progress: [████░░░░░░] 39%
 | 06 | 21 | - | - |
 | 7 | 20 | - | - |
 | 07.1 | 12 | - | - |
+| 08 | 29 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -876,6 +877,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 08]: 08-27: D-96 applied. OrderStatusMenu.openMenu reads the order again (not awaited) on every open path, so Mark Completed follows current figures; the server's 422 stays the gate.
 - [Phase 08]: 08-28: D-95 applied to the refund and discount windows with 08-26's hook unchanged; the instant cap check stays, a focus or failed check reads the order, the save keeps the opened version
 - [Phase 08]: 08-29: the @orders-two-staff journeys prove D-95 and D-96 end to end with two staff in two browser contexts; D-94 scoped only the Discounts tab amount column, so otherDiscountsTotal and the discount window preview still add up in the browser (recorded in 08-REVIEW-DISPOSITION.md)
+- [Phase 08]: UAT rulings D-90 to D-97 (owner, 2026-10-30). The server sends each discount amount; payment, refund and discount windows re-read the order before refusing a cap; the status menu re-reads the order on open.
 
 ### Pending Todos
 
@@ -931,6 +933,7 @@ Phase 7 owner backlog (away mode, parked 2026-10-28 after verification; nothing 
 - [Phase 9]: Needs a Cloudinary account and credentials, and the OD-9 / C-26 delivery ruling.
 - [Phase 13]: The C-36 ruling may defer the whole phase to v2.
 - Owner decision: chip Clear buttons (22 px) fail axe target-size near the fixed phone tab bar, and the Delete Order dialog is 559 px high where @dialog-fit allows 553. Both fail before plan 08-24 (deferred-items 08-24 items 7 and 8).
+- [Phase 8 → ship]: One unexplained 120 s chromium timeout in `@orders-refunds` (Save Refund, over-cap read from 08-28). It passed alone 3 times and in 2 later full runs; owner chose to close the phase without a traced re-run (2026-10-31). Re-run it traced if it shows up again.
 
 ### Quick Tasks Completed
 
@@ -981,6 +984,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T02:01:36.228Z
-Stopped at: Completed 08-29-PLAN.md
+Last session: 2026-10-31T00:30:00-05:00
+Stopped at: Phase 08 complete, ready to plan Phase 9
 Resume file: None

@@ -41,7 +41,7 @@
     {
       "number": "8",
       "name": "Order Screens",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "9",
@@ -91,8 +91,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 08 of 18 · 39% · executing"
+    "label": "Advance to the next step (plan phase 9)",
+    "reason": "Phase 9 of 18 — needs a plan"
   },
-  "updated_at": "2026-10-31T02:01:22.941Z"
+  "updated_at": "2026-10-31T07:26:39.933Z"
 }
