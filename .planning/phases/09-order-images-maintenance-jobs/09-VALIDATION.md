@@ -5,7 +5,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: "2026-10-31T10:10:00-05:00"
-updated: "2026-10-31T18:55:00-05:00"
+updated: "2026-10-31T19:15:00-05:00"
 ---
 
 # Phase 9: Validation Strategy
@@ -45,7 +45,7 @@ Filled by the planner and executor from the plans. Each row maps a task to a req
 | 09-31-02 | 31 | 1 | CUT-01 | T-09-83, T-09-84 | Owner adds db_backupoperator and runs the probe from the PC; a blocked host stops the work (D-42, D-44, D-45) | manual (owner checkpoint) | `dotnet build tools/Csps.HostProbe --configuration Release` | yes | pending |
 | 09-31-03 | 31 | 1 | CUT-01 | T-09-83 | Probe facts recorded without paths or names; the cutover runbook lists the three roles, or Task 1 is reverted (D-44) | architecture | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HostingRecordTests" --filter-class "*CutoverRunbookTests" --filter-class "*NoInlineSqlTests"` | yes | pending |
 | 09-32-01 | 32 | 8 | JOB-01, CUT-01 | T-09-86, T-09-87 | Backup first in the run (Order 5); counts-only lines; red when not set up; off on Development and test hosts (D-39, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | no, the task creates them | pending |
-| 09-32-02 | 32 | 8 | JOB-01, CUT-01 | T-09-85, T-09-88, T-09-89 | 20-day gap; keep own newest 3; never touch foreign files; red on any failure while other jobs run (D-41, D-43, D-46, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | created in 09-32-01 | pending |
+| 09-32-02 | 32 | 8 | JOB-01, CUT-01 | T-09-85, T-09-88, T-09-89, T-09-91 | 20-day gap; one try a day through the `database-backup-attempt` claim (one write call per run, failure stays red); no line on repeat calls after a fresh backup; keep own newest 3; never touch foreign files; red on any failure while other jobs run (D-41, D-43, D-46, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests" --filter-class "*BackupAttemptLockTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | created in 09-32-01, except BackupAttemptLockTests (this task) | pending |
 | 09-32-03 | 32 | 8 | CUT-01 | T-09-87 | Runbook backup and restore sections, no path or name; UI-SPEC run-summary row | docs check | `grep -c "Maintenance__Backup__SqlServerFolder" docs/operations/maintenance.md` | yes | pending |
 
 *Status: pending, green, red, flaky*
