@@ -1,5 +1,5 @@
 # Phase 9: Order Images & Maintenance Jobs - Context
-*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T12:35:00-05:00*
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T19:00:00-05:00*
 
 **Gathered:** 2026-10-31
 **Status:** Ready for planning
@@ -55,6 +55,16 @@ The owner decisions the roadmap lists for this phase are closed here: OD-9 and C
 - **D-22:** **Failures:** each removal is retried with leases and growing waits within a run, and failures are logged. A removal still failing at the end of a run makes the endpoint report failure, so the GitHub run turns red and GitHub emails the owner. No new screen (owner, 2026-10-31).
 - **D-23:** **Stray files:** the sweep deletes Cloudinary files under its own environment's `…/orders/` folder that match no photo row and are **older than 2 days**. Each removal is logged, with a count in the run summary (owner, 2026-10-31).
 - **D-24:** **Usage report:** each run reports Cloudinary storage and monthly credits used in the run summary. **Above 80% of the free plan, the run turns red** (owner, 2026-10-31).
+- **D-39:** **Monthly database backup inside the maintenance run** (STATE D-102; owner, 2026-10-31). The hosting plan has no scheduled backups, so one more maintenance job has the SQL server write a `.bak` into the host's `db` folder. Only the trigger comes from GitHub; the file never goes through GitHub. The owner accepted that up to a month of orders could be lost between runs. Covers CUT-01's scheduled-backup item early. **Reversibility:** reversible.
+- **D-40:** **One approved SQL statement** (owner, 2026-10-31): `BACKUP DATABASE ... TO DISK` is a named exception to the no-inline-SQL rule, limited to the backup job's one file. It is built only from settings (database name and folder path), never from request input, and a test fails if raw SQL appears anywhere else in application code. **Reversibility:** reversible.
+- **D-41:** **Keep 3 monthly backups** (owner, 2026-10-31): after a successful backup, the job deletes the oldest of its own `.bak` files so at most 3 remain. It never touches files it did not write (for example the control panel's own backups). **Reversibility:** reversible, one setting.
+- **D-42:** **Probe the host first** (owner, 2026-10-31): the plan starts with a one-time check the owner runs on the host (HostProbe pattern) to prove the login can back up and the SQL server can write to the `db` folder path. If the host blocks it, the plan stops before the job is built. **Reversibility:** reversible.
+- **D-43:** **A failed backup turns the run red** (owner, 2026-10-31): it adds a failed line to the run summary, the other jobs still run, and GitHub sends its failure email. **Reversibility:** reversible.
+- **D-44:** **The site's login makes the backup** (BQ-2; owner, 2026-10-31): add `db_backupoperator` to the site's existing lower-rights login in the control panel. It can already read every row, so it only gains the right to make backups. The cutover runbook's "exactly `db_datareader` and `db_datawriter`" checks change to include `db_backupoperator`. **Reversibility:** reversible, untick the role.
+- **D-45:** **The host check runs from the owner's PC** (BQ-1; owner, 2026-10-31) against the host's SQL server with the site's login, like the bootstrap command. No site outage. **Reversibility:** reversible.
+- **D-46:** **At least 20 days between backups** (BQ-3; owner, 2026-10-31): repeat calls in one run and extra Run now presses do not write another backup inside 20 days, so the 3 kept files cover about 3 months. **Reversibility:** reversible, one setting.
+- **D-47:** **Two more red-run causes** (BQ-4; owner, 2026-10-31): old backups that could not be deleted, and the backup not yet set up on the host, both turn the run red. **Reversibility:** reversible.
+- **D-48:** **Split the backup work in two plans** (BQ-5; owner, 2026-10-31): 09-31 is only the host check and runs early, so the owner learns first whether the host allows backups; 09-32 builds the job later in the phase. **Reversibility:** reversible.
 
 ### UI contract rulings (UI-SPEC OQ-1 to OQ-7)
 - **D-25:** **Photos show as one compact photo list** on the order page and the order form: each photo is a small card with an 88px thumbnail, its description, "Make Cover" and four 44px buttons; 2 columns on wide screens, 1 on phones. No mosaic gallery (OQ-1 A; owner, 2026-10-31).

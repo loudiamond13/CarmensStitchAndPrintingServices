@@ -5,7 +5,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: "2026-10-31T10:10:00-05:00"
-updated: "2026-10-31T10:10:00-05:00"
+updated: "2026-10-31T18:55:00-05:00"
 ---
 
 # Phase 9: Validation Strategy
@@ -41,6 +41,12 @@ Filled by the planner and executor from the plans. Each row maps a task to a req
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
+| 09-31-01 | 31 | 1 | CUT-01, JOB-01 | T-09-81, T-09-82 | One parameterised BACKUP statement in one allowed file; the probe answers facts only (D-40, D-42) | integration, unit, architecture | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*SqlServerBackupStatementTests"`; `dotnet test --project tests/Csps.HostProbe.Tests --filter-class "*BackupCheckTests"`; `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*NoInlineSqlTests"` | no, the task creates them (NoInlineSqlTests exists) | pending |
+| 09-31-02 | 31 | 1 | CUT-01 | T-09-83, T-09-84 | Owner adds db_backupoperator and runs the probe from the PC; a blocked host stops the work (D-42, D-44, D-45) | manual (owner checkpoint) | `dotnet build tools/Csps.HostProbe --configuration Release` | yes | pending |
+| 09-31-03 | 31 | 1 | CUT-01 | T-09-83 | Probe facts recorded without paths or names; the cutover runbook lists the three roles, or Task 1 is reverted (D-44) | architecture | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HostingRecordTests" --filter-class "*CutoverRunbookTests" --filter-class "*NoInlineSqlTests"` | yes | pending |
+| 09-32-01 | 32 | 8 | JOB-01, CUT-01 | T-09-86, T-09-87 | Backup first in the run (Order 5); counts-only lines; red when not set up; off on Development and test hosts (D-39, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | no, the task creates them | pending |
+| 09-32-02 | 32 | 8 | JOB-01, CUT-01 | T-09-85, T-09-88, T-09-89 | 20-day gap; keep own newest 3; never touch foreign files; red on any failure while other jobs run (D-41, D-43, D-46, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | created in 09-32-01 | pending |
+| 09-32-03 | 32 | 8 | CUT-01 | T-09-87 | Runbook backup and restore sections, no path or name; UI-SPEC run-summary row | docs check | `grep -c "Maintenance__Backup__SqlServerFolder" docs/operations/maintenance.md` | yes | pending |
 
 *Status: pending, green, red, flaky*
 
@@ -62,6 +68,8 @@ Filled by the planner and executor from the plans. Each row maps a task to a req
 | Camera capture on a real Android phone and iPhone | IMG-05 | Needs a device camera; `Permissions-Policy: camera=()` behavior with `capture` is assumed | Open an order on each phone, tap "Take Photo", take a photo, confirm it uploads and shows |
 | Real HEIC upload | IMG-02, IMG-03 | Test fixtures are synthetic shells | Upload one real iPhone HEIC; confirm it shows and the delivered file has no GPS |
 | Live "Run now" of the maintenance workflow | JOB-01, JOB-02 | Needs the host key and GitHub secret | Trigger `workflow_dispatch`, confirm a green run with a counts-only summary |
+| Backup probe from the owner's PC (plan 09-31) | CUT-01 | Needs the site's connection string and the host's db folder, which only the owner holds (D-44, D-45) | Follow 09-31 Task 2: tick db_backupoperator, run `POST /probe/backup` on port 5116, check and delete the file in the file manager, paste the facts |
+| First real backup after the deploy (plan 09-32) | JOB-01, CUT-01 | Needs the host's db folder settings and the live site; proves the web app's own folder access (D-45) | Set `Maintenance__Backup__SqlServerFolder` and `Maintenance__Backup__AppFolder`, press Run now, confirm "Database backups written: 1" and a green run |
 
 ---
 
