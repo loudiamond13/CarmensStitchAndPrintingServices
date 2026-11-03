@@ -1,5 +1,6 @@
 using System.Net;
 using Csps.Server.IntegrationTests.RateLimiting;
+using Csps.Server.Security;
 using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Maintenance;
@@ -47,6 +48,26 @@ public sealed class MaintenanceKeySafetyTests(CspsDatabase database) : IClassFix
         }
 
         (await SendAsync(client, new string('w', 40), FirstAddress)).ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public void TheMaintenanceRuleDefaultsTo12CallsPer10Minutes()
+    {
+        var rule = MaintenanceRateLimit.Default();
+
+        (rule.PermitLimit, rule.Window).ShouldBe((12, TimeSpan.FromMinutes(10)));
+        MaintenanceRateLimit.Validate(rule).ShouldBeEmpty();
+        MaintenanceRateLimit.SectionName.ShouldBe("RateLimits:Maintenance");
+        RateLimitPolicies.Maintenance.ShouldBe("maintenance-run");
+    }
+
+    [Fact]
+    public void AnUnusableMaintenanceLimitIsNamedAndNeverEchoed()
+    {
+        var problems = MaintenanceRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
+
+        problems.ShouldBe(
+            ["RateLimits:Maintenance:PermitLimit must be at least 1.", "RateLimits:Maintenance:Window must be at least 6 seconds."]);
     }
 
     private static async Task<HttpStatusCode> SendAsync(HttpClient client, string key, string address)
