@@ -12,10 +12,15 @@ const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAI
 
 function photo(n: number, overrides: Partial<PhotoViewerPhoto> = {}): PhotoViewerPhoto {
   return {
-    id: `p${n}`,
-    alt: `Front mockup ${n}`,
-    viewer: { src: `${PIXEL}#${n}`, srcSet: `${PIXEL}#${n} 640w, ${PIXEL}#${n}b 960w`, width: 1200, height: 800 },
-    fullSize: `https://res.cloudinary.com/csps/image/upload/v1/orders/p${n}-full.jpg`,
+    id: `p${String(n)}`,
+    alt: `Front mockup ${String(n)}`,
+    viewer: {
+      src: `${PIXEL}#${String(n)}`,
+      srcSet: `${PIXEL}#${String(n)} 640w, ${PIXEL}#${String(n)}b 960w`,
+      width: 1200,
+      height: 800,
+    },
+    fullSize: `https://res.cloudinary.com/csps/image/upload/v1/orders/p${String(n)}-full.jpg`,
     ...overrides,
   };
 }

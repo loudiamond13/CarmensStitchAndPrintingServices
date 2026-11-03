@@ -35,6 +35,9 @@ export const lazyBoxClasses = tw('relative overflow-hidden');
 /** The image fills the box and is cropped to it. */
 export const lazyImageClasses = tw('block size-full object-cover');
 
+/** With `fit="contain"` the whole photo shows inside the box, uncropped. */
+export const lazyContainImageClasses = tw('block size-full object-contain');
+
 /** The loading Skeleton covers the whole box. */
 export const lazySkeletonClasses = tw('absolute inset-0');
 

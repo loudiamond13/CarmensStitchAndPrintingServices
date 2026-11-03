@@ -1,6 +1,7 @@
 // SPEC-GAP: LazyImage (UI-SPEC "SPEC-GAP Primitive Specs" → LazyImage; UI considerations empty, loading and error |
 // LazyImage; WEB-06, A11Y-01, PERF-02, T-02-63). A box with a reserved aspect ratio (`--ratio`, 4 / 3 by default like
-// MediaPlaceholder) and a cover-fit image, so the layout never shifts (CLS < 0.05). Until the load event a full-box
+// MediaPlaceholder) and a cover-fit image (or contain, so a whole photo shows uncropped), so the layout never shifts
+// (CLS < 0.05). srcSet and sizes let the browser pick the delivered size (IMG-04). Until the load event a full-box
 // radius-0 Skeleton covers the image; after an error MediaPlaceholder fills the box with no label chip, and the box
 // becomes an image named by the alt text (a decorative image, with an empty alt, is hidden instead). React escapes the
 // src attribute, and the CSP img-src allow-list (unchanged here) blocks any other host.
@@ -8,7 +9,13 @@ import clsx from 'clsx';
 import { useState } from 'react';
 import { MediaPlaceholder } from '@/components/brand';
 import { Skeleton } from '@/components/feedback';
-import { lazyBoxClasses, lazyFallbackClasses, lazyImageClasses, lazySkeletonClasses } from './states.recipe';
+import {
+  lazyBoxClasses,
+  lazyContainImageClasses,
+  lazyFallbackClasses,
+  lazyImageClasses,
+  lazySkeletonClasses,
+} from './states.recipe';
 
 export interface LazyImageProps {
   src: string;
@@ -19,6 +26,12 @@ export interface LazyImageProps {
   height: number;
   /** The box's CSS aspect ratio, like '1 / 1' (default '4 / 3'). */
   ratio?: string | undefined;
+  /** The delivered sizes the browser picks from, like '640w' candidates. */
+  srcSet?: string | undefined;
+  /** How wide the image shows, so the browser can pick from srcSet. */
+  sizes?: string | undefined;
+  /** 'cover' crops to the box (default); 'contain' shows the whole photo. */
+  fit?: 'cover' | 'contain' | undefined;
   /** The LCP image: loads eagerly with a high fetch priority. */
   priority?: boolean | undefined;
   /** Layout glue only, on the box. */
@@ -27,7 +40,18 @@ export interface LazyImageProps {
 
 type LoadState = 'loading' | 'loaded' | 'failed';
 
-export function LazyImage({ src, alt, width, height, ratio = '4 / 3', priority = false, className }: LazyImageProps) {
+export function LazyImage({
+  src,
+  alt,
+  width,
+  height,
+  ratio = '4 / 3',
+  priority = false,
+  srcSet,
+  sizes,
+  fit = 'cover',
+  className,
+}: LazyImageProps) {
   const [state, setState] = useState<LoadState>('loading');
   const [shownSrc, setShownSrc] = useState(src);
   // A new source starts over with the skeleton (reset during render, not in an effect).
@@ -49,8 +73,10 @@ export function LazyImage({ src, alt, width, height, ratio = '4 / 3', priority =
         <MediaPlaceholder label={false} ratio={ratio} className={lazyFallbackClasses} />
       ) : (
         <img
-          className={lazyImageClasses}
+          className={fit === 'contain' ? lazyContainImageClasses : lazyImageClasses}
           src={src}
+          srcSet={srcSet}
+          sizes={sizes}
           alt={alt}
           width={width}
           height={height}
