@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace Csps.Infrastructure.Images;
 
@@ -32,6 +33,7 @@ public static class ImagesRegistration
             .Bind(configuration.GetSection(ImageUploadSettings.SectionName))
             .Validate(settings => settings.Validate() is null, "The Images settings are not valid.")
             .ValidateOnStart();
+        services.AddSingleton(provider => provider.GetRequiredService<IOptions<ImageUploadSettings>>().Value);
 
         if (environment.IsEnvironment(TestingEnvironment))
         {

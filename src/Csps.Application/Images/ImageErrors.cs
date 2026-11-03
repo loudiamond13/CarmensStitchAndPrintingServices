@@ -11,6 +11,15 @@ public static class ImageErrors
     /// <summary>The machine code of a file that is not a photo we can use.</summary>
     public const string TypeCode = "images.type";
 
+    /// <summary>The machine code of a file over the byte limit.</summary>
+    public const string TooLargeCode = "images.too-large";
+
+    /// <summary>The machine code of a photo over the pixel or side limit.</summary>
+    public const string TooBigCode = "images.too-big";
+
+    /// <summary>The ending of the message for a photo over the pixel or side limit (D-34).</summary>
+    public const string TooBigSuffix = "Photos can be at most 25 megapixels.";
+
     /// <summary>The machine code of an upload with no file.</summary>
     public const string FileMissingCode = "images.file-missing";
 
@@ -49,6 +58,25 @@ public static class ImageErrors
         return Error.Validation(TypeCode, message, FieldErrors(message));
     }
 
+    /// <summary>Builds the error for a file over the byte limit.</summary>
+    /// <param name="fileName">The name the client sent; only shown in the message.</param>
+    /// <param name="maxBytes">The limit in bytes; shown as whole MB, or KB or bytes for a small configured limit.</param>
+    /// <returns>A validation error on the <c>file</c> field.</returns>
+    public static Error TooLarge(string? fileName, int maxBytes)
+    {
+        var message = $"{CleanName(fileName)} is over {SizeText(maxBytes)}. Choose a smaller photo.";
+        return Error.Validation(TooLargeCode, message, FieldErrors(message));
+    }
+
+    /// <summary>Builds the error for a photo with too many pixels or a side that is too long.</summary>
+    /// <param name="fileName">The name the client sent; only shown in the message.</param>
+    /// <returns>A validation error on the <c>file</c> field.</returns>
+    public static Error TooBig(string? fileName)
+    {
+        var message = $"{CleanName(fileName)} is too big. {TooBigSuffix}";
+        return Error.Validation(TooBigCode, message, FieldErrors(message));
+    }
+
     /// <summary>Cleans a client file name for a message: no folders, no control characters, at most 80 characters.</summary>
     /// <param name="fileName">The name as sent.</param>
     /// <returns>The cleaned name, or <c>This file</c> when nothing is left.</returns>
@@ -65,6 +93,13 @@ public static class ImageErrors
 
         return cleaned.Length == 0 ? "This file" : cleaned;
     }
+
+    private static string SizeText(int bytes) => bytes switch
+    {
+        >= 1_048_576 => $"{bytes / 1_048_576} MB",
+        >= 1024 => $"{bytes / 1024} KB",
+        _ => $"{bytes} bytes",
+    };
 
     private static Dictionary<string, string[]> FieldErrors(string message) => new() { [FileField] = [message] };
 }
