@@ -76,6 +76,9 @@ export const thumbButtonClasses = tw('block size-full cursor-pointer border-0 bg
 /** A draft or pending photo's `data:` preview fills the box. */
 export const thumbImageClasses = tw('block size-full object-cover');
 
+/** The Skeleton over the thumb box while a preview is being made. */
+export const thumbSkeletonClasses = tw('absolute inset-0');
+
 /** The chip-less placeholder fills the box. */
 export const thumbPlaceholderClasses = tw('size-full');
 
@@ -127,3 +130,24 @@ export const actionsRowIdleClasses = tw('min-h-9');
 
 /** One group of icon buttons, 8px apart. */
 export const actionsGroupClasses = tw('flex gap-2');
+
+/** The pick-error box: `--danger-soft` ground, a `--danger` icon, then one block per refused file. */
+export const pickErrorClasses = tw('flex items-start gap-2 rounded-sm bg-danger-soft px-4 py-2');
+
+/** The icon of the pick-error box, level with the first line. */
+export const pickErrorIconClasses = tw('flex h-5 shrink-0 items-center text-danger');
+
+/** The refused files and the count line, 8px apart. */
+export const pickErrorBodyClasses = tw('flex min-w-0 flex-1 flex-col gap-2');
+
+/** The list of refused files. */
+export const pickErrorListClasses = tw('m-0 flex list-none flex-col gap-2 p-0');
+
+/** A refused file's name: Label, wraps anywhere. */
+export const pickErrorNameClasses = tw('block text-[14px] leading-5 font-semibold wrap-anywhere text-ink');
+
+/** The reason, or the count line: Small. */
+export const pickErrorReasonClasses = tw('m-0 block text-[14px] leading-5 wrap-anywhere text-ink-muted');
+
+/** "No photos on this order.": Small, `--ink-muted`. */
+export const readonlyEmptyClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');

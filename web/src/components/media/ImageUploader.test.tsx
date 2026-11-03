@@ -481,8 +481,9 @@ describe('ImageUploader pick errors (UIC-34, UIC-40)', () => {
     const alert = screen.getByRole('alert');
     const lines = within(alert).getAllByRole('listitem');
     expect(lines).toHaveLength(2);
-    expect(within(lines[0] as HTMLElement).getByText('notes.pdf').className).toContain('wrap-anywhere');
-    expect(within(lines[1] as HTMLElement).getByText('huge.jpg is over 10 MB. Choose a smaller photo.')).toBeDefined();
+    const [first = alert, second = alert] = lines;
+    expect(within(first).getByText('notes.pdf').className).toContain('wrap-anywhere');
+    expect(within(second).getByText('huge.jpg is over 10 MB. Choose a smaller photo.')).toBeDefined();
   });
 
   it('wraps a long file name anywhere', () => {
@@ -614,7 +615,7 @@ describe('ImageUploader names and sizes (UIC-42, UIC-31)', () => {
 });
 
 describe('ImageUploader hover and touch (UIC-45)', () => {
-  const original = window.matchMedia;
+  const original = window.matchMedia.bind(window);
 
   afterEach(() => {
     Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: original });

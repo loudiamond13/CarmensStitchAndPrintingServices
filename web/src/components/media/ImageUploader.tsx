@@ -17,9 +17,10 @@
 // native listeners attached through a callback ref (React 19 ref cleanup), the same events and the same DOM.
 // SPEC-DEVIATION: D-33 the drag-over state is the `data-over` attribute the look reads, instead of the `is-over` class.
 // SPEC-DEVIATION: exactOptionalPropertyTypes; the optional props also accept an explicit undefined (same output).
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useImperativeHandle, useRef, useState, type ChangeEvent, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
+import { Note } from '@/components/states';
 import { MEDIA_COPY } from './copy';
 import {
   dropClasses,
@@ -27,6 +28,13 @@ import {
   dropTitleClasses,
   linkButtonClasses,
   photoListClasses,
+  pickErrorBodyClasses,
+  pickErrorClasses,
+  pickErrorIconClasses,
+  pickErrorListClasses,
+  pickErrorNameClasses,
+  pickErrorReasonClasses,
+  readonlyEmptyClasses,
   touchAddClasses,
   touchButtonClasses,
   touchHintClasses,
@@ -40,6 +48,17 @@ import type { PhotoTileModel } from './photoTile.types';
 export type PhotoSource = 'camera' | 'gallery' | 'drop';
 
 export type ImageUploaderMode = PhotoMode;
+
+/** A picked file the caller refused, with the plain-English reason. */
+export interface PickError {
+  fileName: string;
+  reason: string;
+}
+
+/** Lets the caller put focus on the first add control that shows ("browse" or "Choose Photos"). */
+export interface AddControlHandle {
+  focus: () => void;
+}
 
 export interface ImageUploaderProps {
   photos: readonly PhotoTileModel[];
@@ -61,6 +80,13 @@ export interface ImageUploaderProps {
   onRemove: (id: string) => void;
   onRetry: (id: string) => void;
   onOpen: (id: string) => void;
+  /** Shown in place of the add area when the photos reach `max`. */
+  limitNote?: ReactNode;
+  /** The files the last pick refused, one line each. */
+  pickErrors?: readonly PickError[] | undefined;
+  /** How many picked files were left out over the limit. */
+  leftOutCount?: number | undefined;
+  addControlRef?: Ref<AddControlHandle> | undefined;
 }
 
 const COPY = MEDIA_COPY.uploader;
@@ -79,12 +105,33 @@ export function ImageUploader({
   onRemove,
   onRetry,
   onOpen,
+  limitNote,
+  pickErrors = [],
+  leftOutCount = 0,
+  addControlRef,
 }: ImageUploaderProps) {
   const [over, setOver] = useState(false);
   const galleryRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const browseRef = useRef<HTMLButtonElement>(null);
+  const chooseRef = useRef<HTMLButtonElement>(null);
+  // The id of the tile being dragged, so a file drag over the drop zone and a tile drag never mix.
+  const dragFrom = useRef<string | null>(null);
   const positioned = photos.filter((photo) => photo.state === 'saved' || photo.state === 'draft');
   const hint = COPY.hint(maxMegabytes, photos.length, max);
+  const canAdd = mode !== 'readonly' && photos.length < max;
+  const atLimit = mode !== 'readonly' && photos.length >= max;
+  const canDrag = mode !== 'readonly' && !busy;
+
+  useImperativeHandle(addControlRef, () => ({
+    focus: () => {
+      if (!canAdd) return;
+      const shown = [chooseRef.current, browseRef.current].find(
+        (control) => (control?.getClientRects().length ?? 0) > 0,
+      );
+      (shown ?? browseRef.current)?.focus();
+    },
+  }));
 
   const pick = (source: PhotoSource) => (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -94,6 +141,7 @@ export function ImageUploader({
   const dropZoneRef = (zone: HTMLDivElement | null) => {
     if (zone === null) return;
     const onDragOver = (event: DragEvent) => {
+      if (dragFrom.current !== null) return;
       event.preventDefault();
       setOver(true);
     };
@@ -103,6 +151,7 @@ export function ImageUploader({
     const onDrop = (event: DragEvent) => {
       event.preventDefault();
       setOver(false);
+      if (dragFrom.current !== null) return;
       const files = Array.from(event.dataTransfer?.files ?? []);
       if (files.length > 0) onAddFiles(files, 'drop');
     };
@@ -116,72 +165,108 @@ export function ImageUploader({
     };
   };
 
+  const dropOn = (id: string) => {
+    const from = dragFrom.current;
+    dragFrom.current = null;
+    if (from === null || from === id) return;
+    const toIndex = positioned.findIndex((photo) => photo.id === id);
+    if (toIndex >= 0) onMove(from, toIndex);
+  };
+
   return (
     <div className={uploaderClasses}>
-      <div ref={dropZoneRef} className={dropClasses} data-over={over}>
-        <Icon name="cloud-upload" size={28} />
-        <p className={dropTitleClasses}>
-          {/* One text node, as in App. D.3: WebKit measures "…or" and " " as two runs 0.3px wider. */}
-          {COPY.dropTitle}
-          <button
-            type="button"
-            className={linkButtonClasses}
-            onClick={() => {
-              galleryRef.current?.click();
-            }}
-          >
-            {COPY.browse}
-          </button>
-        </p>
-        <p className={dropHintClasses}>{hint}</p>
-      </div>
-      <div className={touchAddClasses}>
-        <div className={touchRowClasses}>
-          <Button
-            variant="secondary"
-            icon="camera"
-            className={touchButtonClasses}
-            onClick={() => {
-              cameraRef.current?.click();
-            }}
-          >
-            {COPY.takePhoto}
-          </Button>
-          <Button
-            variant="secondary"
-            icon="image"
-            className={touchButtonClasses}
-            onClick={() => {
-              galleryRef.current?.click();
-            }}
-          >
-            {COPY.choosePhotos}
-          </Button>
+      {(pickErrors.length > 0 || leftOutCount > 0) && (
+        <div className={pickErrorClasses} role="alert">
+          <span className={pickErrorIconClasses}>
+            <Icon name="triangle-alert" size={16} />
+          </span>
+          <div className={pickErrorBodyClasses}>
+            {pickErrors.length > 0 && (
+              <ul className={pickErrorListClasses}>
+                {pickErrors.map((error, index) => (
+                  // A refused file has no id, and the same name can be refused twice.
+                  <li key={`${error.fileName}-${String(index)}`}>
+                    <span className={pickErrorNameClasses}>{error.fileName}</span>
+                    <span className={pickErrorReasonClasses}>{error.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {leftOutCount > 0 && <p className={pickErrorReasonClasses}>{COPY.leftOut(max, leftOutCount)}</p>}
+          </div>
         </div>
-        <p className={touchHintClasses}>{hint}</p>
-      </div>
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-        multiple
-        hidden
-        onChange={pick('gallery')}
-      />
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={pick('camera')} />
-      {photos.length > 0 && (
+      )}
+      {canAdd && (
+        <>
+          <div ref={dropZoneRef} className={dropClasses} data-over={over}>
+            <Icon name="cloud-upload" size={28} />
+            <p className={dropTitleClasses}>
+              {/* One text node, as in App. D.3: WebKit measures "…or" and " " as two runs 0.3px wider. */}
+              {COPY.dropTitle}
+              <button
+                ref={browseRef}
+                type="button"
+                className={linkButtonClasses}
+                onClick={() => {
+                  galleryRef.current?.click();
+                }}
+              >
+                {COPY.browse}
+              </button>
+            </p>
+            <p className={dropHintClasses}>{hint}</p>
+          </div>
+          <div className={touchAddClasses}>
+            <div className={touchRowClasses}>
+              <Button
+                variant="secondary"
+                icon="camera"
+                className={touchButtonClasses}
+                onClick={() => {
+                  cameraRef.current?.click();
+                }}
+              >
+                {COPY.takePhoto}
+              </Button>
+              <Button
+                ref={chooseRef}
+                variant="secondary"
+                icon="image"
+                className={touchButtonClasses}
+                onClick={() => {
+                  galleryRef.current?.click();
+                }}
+              >
+                {COPY.choosePhotos}
+              </Button>
+            </div>
+            <p className={touchHintClasses}>{hint}</p>
+          </div>
+          <input
+            ref={galleryRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            multiple
+            hidden
+            onChange={pick('gallery')}
+          />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={pick('camera')} />
+        </>
+      )}
+      {atLimit && limitNote != null && <Note icon="info">{limitNote}</Note>}
+      {photos.length > 0 ? (
         <ul className={photoListClasses} aria-label={COPY.listName}>
           {photos.map((photo) => {
-            const index = positioned.findIndex((candidate) => candidate.id === photo.id);
+            const holdsPosition = photo.state === 'saved' || photo.state === 'draft';
             return (
               <PhotoTile
                 key={photo.id}
                 photo={photo}
-                position={index + 1}
+                position={positioned.findIndex((candidate) => candidate.id === photo.id) + 1}
                 total={positioned.length}
                 mode={mode}
                 busy={busy}
-                canDrag={false}
+                canDrag={canDrag && holdsPosition}
                 onMove={onMove}
                 onMakeCover={onMakeCover}
                 onEditDescription={onEditDescription}
@@ -189,13 +274,19 @@ export function ImageUploader({
                 onRemove={onRemove}
                 onRetry={onRetry}
                 onOpen={onOpen}
-                onDragStart={() => undefined}
-                onDragEnd={() => undefined}
-                onDropOn={() => undefined}
+                onDragStart={(id) => {
+                  dragFrom.current = id;
+                }}
+                onDragEnd={() => {
+                  dragFrom.current = null;
+                }}
+                onDropOn={dropOn}
               />
             );
           })}
         </ul>
+      ) : (
+        mode === 'readonly' && <p className={readonlyEmptyClasses}>{COPY.readonlyEmpty}</p>
       )}
     </div>
   );

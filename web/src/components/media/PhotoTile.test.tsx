@@ -406,7 +406,7 @@ describe('PhotoTile drag (D-13 bonus)', () => {
 });
 
 describe('PhotoTile has no hover-only control (D-14, UIC-45)', () => {
-  const original = window.matchMedia;
+  const original = window.matchMedia.bind(window);
 
   afterEach(() => {
     Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: original });
