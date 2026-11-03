@@ -183,6 +183,9 @@ public static class AuditActions
     /// <summary>An order item was removed (D-31).</summary>
     public const string OrderItemRemoved = "order-item.removed";
 
+    /// <summary>A photo was added to an order; the detail names the order number and the photo's 1-based position, never its id or address (D-19).</summary>
+    public const string OrderImageAdded = "order-image.added";
+
     /// <summary>A payment was added to an order (D-31).</summary>
     public const string OrderPaymentAdded = "order-payment.added";
 

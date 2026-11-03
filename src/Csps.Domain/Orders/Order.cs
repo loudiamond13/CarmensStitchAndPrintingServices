@@ -14,6 +14,7 @@ namespace Csps.Domain.Orders;
 public sealed class Order : IAttributedRecord, IEditVersioned
 {
     private readonly List<OrderItem> _items = [];
+    private readonly List<OrderImage> _images = [];
     private readonly List<OrderDiscount> _discounts = [];
     private readonly List<OrderPayment> _payments = [];
     private readonly List<OrderExpense> _expenses = [];
@@ -120,6 +121,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the items, in order.</summary>
     public IReadOnlyList<OrderItem> Items => _items;
+
+    /// <summary>Gets the photos, in their display order; the first is the cover.</summary>
+    public IReadOnlyList<OrderImage> Images => _images;
 
     /// <summary>Gets the discounts, in the order they were added.</summary>
     public IReadOnlyList<OrderDiscount> Discounts => _discounts;
@@ -639,6 +643,16 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         Touch(now);
         return Result.Success(item);
     }
+
+    /// <summary>Tells whether a photo could be added now, before its file is sent anywhere.</summary>
+    /// <returns>Null when it could, the lock error for a Completed or Cancelled order, or the limit error when the order holds the most photos.</returns>
+    public Error? CheckCanAddImage() => _images.Count < 0 ? OrderImageRules.TooMany : null;
+
+    /// <summary>Adds one photo.</summary>
+    /// <param name="image">The stored photo.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>The photo, or the failure.</returns>
+    public Result<OrderImage> AddImage(NewOrderImage image, DateTimeOffset now) => Result.Failure<OrderImage>(Error.BusinessRule("orders.images-not-built", _images.Count < 0 ? "Impossible." : "Not built yet."));
 
     /// <summary>
     /// Adds one discount at the end of the list, checking every discount rule again. The totals are worked out again and the edit

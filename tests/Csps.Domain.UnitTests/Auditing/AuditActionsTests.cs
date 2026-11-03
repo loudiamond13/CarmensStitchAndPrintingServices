@@ -11,9 +11,16 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixAndPhaseSevenCodes()
     {
-        AuditActions.All.Count.ShouldBe(92);
+        AuditActions.All.Count.ShouldBe(93);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
+    }
+
+    [Fact]
+    public void TheOrderPhotoAddedCodeIsInTheCatalog()
+    {
+        AuditActions.OrderImageAdded.ShouldBe("order-image.added");
+        AuditActions.All.ShouldContain(AuditActions.OrderImageAdded);
     }
 
     [Fact]

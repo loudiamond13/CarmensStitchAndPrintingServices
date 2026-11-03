@@ -51,6 +51,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(order => order.RowVersion).IsRowVersion();
         builder.Ignore(order => order.Totals);
         builder.Ignore(order => order.IsDeleted);
+        builder.Ignore(order => order.Images);
 
         // D-26: every default query leaves out soft-deleted orders; the Deleted view and restore opt out by name.
         builder.HasQueryFilter("SoftDelete", order => order.DeletedAtUtc == null);
