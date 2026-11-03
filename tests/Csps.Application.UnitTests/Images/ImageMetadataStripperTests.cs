@@ -78,7 +78,7 @@ public sealed class ImageMetadataStripperTests
         var output = Strip(ImageKind.Png, input);
 
         PngChunks(output).Select(chunk => chunk.Type).ShouldBe(SyntheticImages.PngKeptTypes);
-        var inputChunks = PngChunks(input).ToDictionary(chunk => chunk.Type, chunk => chunk.Bytes);
+        var inputChunks = PngChunks(input).GroupBy(chunk => chunk.Type).ToDictionary(group => group.Key, group => group.First().Bytes);
         foreach (var kept in PngChunks(output))
         {
             kept.Bytes.ShouldBe(inputChunks[kept.Type], kept.Type);

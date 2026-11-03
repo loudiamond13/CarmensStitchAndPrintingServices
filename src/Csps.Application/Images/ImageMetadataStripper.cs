@@ -23,6 +23,8 @@ public static class ImageMetadataStripper
         var cleaned = kind switch
         {
             ImageKind.Jpeg => StripJpeg(bytes),
+            ImageKind.Png => StripPng(bytes),
+            ImageKind.WebP => StripWebP(bytes),
             _ => null,
         };
 
@@ -33,6 +35,109 @@ public static class ImageMetadataStripper
         }
 
         return Result.Success(cleaned);
+    }
+
+    // After the signature, whole chunks (length, type, data and checksum) are copied when they are on the keep list. Every other
+    // ancillary chunk goes (text, Exif, time and unknown ones), and so does everything after IEND. An unknown critical chunk or a file
+    // that never reaches IEND is refused.
+    private static byte[]? StripPng(ReadOnlySpan<byte> bytes)
+    {
+        const int SignatureSize = 8;
+        if (bytes.Length < SignatureSize || !bytes[..SignatureSize].SequenceEqual((ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))
+        {
+            return null;
+        }
+
+        var output = new byte[bytes.Length];
+        bytes[..SignatureSize].CopyTo(output);
+        var written = SignatureSize;
+        var chunks = new ChunkReader(bytes[SignatureSize..], ChunkLayout.Png);
+        while (chunks.Next(out var type, out _, out var start, out var length))
+        {
+            if (!IsType("IHDRPLTEIDATIENDtRNSgAMAcHRMsRGBiCCPsBITpHYs"u8, type))
+            {
+                // Bit 5 of the first letter is the "ancillary" bit: a critical chunk we do not know cannot be dropped.
+                if ((type[0] & 0x20) == 0)
+                {
+                    return null;
+                }
+
+                continue;
+            }
+
+            bytes.Slice(SignatureSize + start, length).CopyTo(output.AsSpan(written));
+            written += length;
+            if (type.SequenceEqual("IEND"u8))
+            {
+                Array.Resize(ref output, written);
+                return output;
+            }
+        }
+
+        return null;
+    }
+
+    // After the RIFF header, whole chunks are copied except EXIF and 'XMP '; the VP8X chunk loses its EXIF and XMP flags; every chunk
+    // is padded to an even length; the RIFF size is written again. Bytes after the RIFF size go. A chunk list that does not fill the
+    // RIFF size exactly is refused.
+    private static byte[]? StripWebP(ReadOnlySpan<byte> bytes)
+    {
+        const int HeaderSize = 12;
+        const byte ExifAndXmpFlags = 0x0C;
+        if (bytes.Length < HeaderSize || !bytes[..4].SequenceEqual("RIFF"u8) || !bytes.Slice(8, 4).SequenceEqual("WEBP"u8))
+        {
+            return null;
+        }
+
+        var end = 8L + System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(bytes[4..]);
+        if (end < HeaderSize || end > bytes.Length)
+        {
+            return null;
+        }
+
+        var output = new byte[(int)end + 1];
+        bytes[..HeaderSize].CopyTo(output);
+        var written = HeaderSize;
+        var chunks = new ChunkReader(bytes[HeaderSize..(int)end], ChunkLayout.WebP);
+        while (chunks.Next(out var type, out var payload, out var start, out _))
+        {
+            if (type.SequenceEqual("EXIF"u8) || type.SequenceEqual("XMP "u8))
+            {
+                continue;
+            }
+
+            var size = 8 + payload.Length;
+            bytes.Slice(HeaderSize + start, size).CopyTo(output.AsSpan(written));
+            if (type.SequenceEqual("VP8X"u8) && payload.Length > 0)
+            {
+                output[written + 8] &= unchecked((byte)~ExifAndXmpFlags);
+            }
+
+            written += size + (payload.Length & 1);
+        }
+
+        if (!chunks.AtEnd)
+        {
+            return null;
+        }
+
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(4), (uint)(written - 8));
+        Array.Resize(ref output, written);
+        return output;
+    }
+
+    // Whether a 4-letter type is in a list of 4-letter types written one after the other.
+    private static bool IsType(ReadOnlySpan<byte> list, ReadOnlySpan<byte> type)
+    {
+        for (var offset = 0; offset < list.Length; offset += 4)
+        {
+            if (list.Slice(offset, 4).SequenceEqual(type))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Walks the segments: APP0, an ICC profile (APP2) and APP14 stay with the tables, frame and scans; Exif, XMP, APP13, every other
