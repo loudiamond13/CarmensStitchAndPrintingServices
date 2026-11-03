@@ -390,6 +390,189 @@ public sealed class ImageMetadataStripperTests
         }
     }
 
+    [Fact]
+    public void AJpegWithoutApp0GetsTheOrientationBlockRightAfterSoi()
+    {
+        var output = Strip(ImageKind.Jpeg, SyntheticImages.Jpeg(640, 480, orientation: 6));
+
+        Markers(output).ShouldBe([0xE1, 0xDB, 0xC0, 0xDA]);
+        Segment(output, 0xE1).ShouldBe(MinimalExif(6));
+    }
+
+    [Fact]
+    public void AJpegWhoseExifComesAfterATableGetsTheOrientationBlockBeforeThatTable()
+    {
+        var input = JpegOf(Table(), SyntheticImages.JpegSegment(0xE1, MinimalExif(3)), Frame(), Scan(), EndOfImage);
+
+        var output = Strip(ImageKind.Jpeg, input);
+
+        Markers(output).ShouldBe([0xE1, 0xDB, 0xC0, 0xDA]);
+        ImageSniffer.Inspect(output).ShouldNotBeNull().Orientation.ShouldBe(3);
+    }
+
+    [Fact]
+    public void AnExifBlockAfterTheFrameHeaderIsDroppedAndTheOrientationStaysOne()
+    {
+        var input = JpegOf(Table(), Frame(), SyntheticImages.JpegSegment(0xE1, MinimalExif(6)), Scan(), EndOfImage);
+
+        var output = Strip(ImageKind.Jpeg, input);
+
+        Markers(output).ShouldBe([0xDB, 0xC0, 0xDA]);
+        ImageSniffer.Inspect(output).ShouldBe(ImageSniffer.Inspect(input));
+    }
+
+    [Fact]
+    public void AJpegWithTwoScansKeepsBothAndDropsACommentBetweenThem()
+    {
+        var input = JpegOf(Table(), SyntheticImages.JpegSegment(0xC2, Frame()[4..]), Scan(), SyntheticImages.JpegSegment(0xFE, [0x41]), SyntheticImages.JpegSegment(0xC4, new byte[17]), Scan(), EndOfImage);
+        var expected = JpegOf(Table(), SyntheticImages.JpegSegment(0xC2, Frame()[4..]), Scan(), SyntheticImages.JpegSegment(0xC4, new byte[17]), Scan(), EndOfImage);
+
+        Strip(ImageKind.Jpeg, input).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void FillBytesBeforeAMarkerAreDroppedAndTheScanIsKeptAsItIs()
+    {
+        var input = JpegOf([0xFF, 0xFF], Table(), Frame(), Scan(), [0xFF, 0xFF], EndOfImage);
+
+        Strip(ImageKind.Jpeg, input).ShouldBe(JpegOf(Table(), Frame(), Scan(), EndOfImage));
+    }
+
+    [Fact]
+    public void DamagedJpegsAreRefused()
+    {
+        byte[][] damaged =
+        [
+            [0xFF, 0xD8, 0x00, 0x00],
+            JpegOf([0x00], Table(), Frame(), Scan(), EndOfImage),
+            JpegOf([0xFF, 0xD0], Table(), Frame(), Scan(), EndOfImage),
+            JpegOf(Table(), Frame(), Scan()),
+            JpegOf(Table(), Frame(), SyntheticImages.JpegSegment(0xDA, [0x01]), [0x12, 0x34, 0xFF]),
+            JpegOf(Table(), Frame(), Scan(), [0xFF]),
+            JpegOf([0xFF, 0xE1, 0x00, 0x01], Table(), Frame(), Scan(), EndOfImage),
+            JpegOf([0xFF, 0xE1, 0x01, 0x00, 0x00], Table(), Frame(), Scan(), EndOfImage),
+            JpegOf(Table(), Frame(), Scan(), EndOfImage)[..5],
+            JpegOf([.. Enumerable.Range(0, 4100).SelectMany(_ => SyntheticImages.JpegSegment(0xFE, [0x41]))], Table(), Frame(), Scan(), EndOfImage),
+            JpegOf(Table(), Scan(), EndOfImage),
+        ];
+
+        foreach (var file in damaged)
+        {
+            ImageMetadataStripper.Strip(ImageKind.Jpeg, file).IsFailure.ShouldBeTrue(Convert.ToHexString(file[..Math.Min(file.Length, 12)]));
+        }
+    }
+
+    [Fact]
+    public void AFileOfTheWrongKindOrAnUnknownKindIsRefused()
+    {
+        ImageMetadataStripper.Strip(ImageKind.Jpeg, SyntheticImages.Png(8, 8)).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.WebP, SyntheticImages.Png(8, 8)).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.Heic, SyntheticImages.Jpeg(8, 8)).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.Png, [0x89, 0x50]).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.WebP, [.. "RIFF"u8, 0, 0, 0, 0, .. "WAVE"u8]).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.Jpeg, []).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip((ImageKind)99, SyntheticImages.Jpeg(8, 8)).IsFailure.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ADamagedHeicBoxStructureIsRefused()
+    {
+        var plain = SyntheticImages.HeicWithMetadata(4032, 3024);
+        byte[] ftyp = SyntheticImages.Ftyp("heic", "mif1");
+        byte[][] damaged =
+        [
+            [.. SyntheticImages.Box("free", [0x00]), .. plain],
+            [.. ftyp, .. SyntheticImages.Box("free", [0x00])],
+            [.. ftyp, .. SyntheticImages.Box("meta", [0x00])],
+            [.. ftyp, .. SyntheticImages.FullBox("meta", 0, 0, SyntheticImages.Iinf(SyntheticImages.Infe(2, "Exif")), SyntheticImages.Box("idat", [0x00]), SyntheticImages.Box("idat", [0x00]))],
+            [.. ftyp, .. SyntheticImages.FullBox("meta", 0, 0, SyntheticImages.Box("free", [0x00]), [0x01, 0x02])],
+            [.. ftyp, .. SyntheticImages.FullBox("meta", 0, 0, SyntheticImages.Box("iinf", [0x00, 0x00]))],
+            [.. ftyp, .. SyntheticImages.FullBox("meta", 0, 0, SyntheticImages.Iinf(SyntheticImages.Box("infe", [0x02, 0x00, 0x00, 0x00])))],
+            [.. ftyp, .. SyntheticImages.FullBox("meta", 0, 0, SyntheticImages.Iinf(SyntheticImages.Infe(2, "Exif")), SyntheticImages.Box("iloc", [0x00, 0x00, 0x00, 0x00, 0x44]))],
+        ];
+
+        foreach (var file in damaged)
+        {
+            ImageMetadataStripper.Strip(ImageKind.Heic, file).IsFailure.ShouldBeTrue(Convert.ToHexString(file[..Math.Min(file.Length, 40)]));
+        }
+    }
+
+    [Fact]
+    public void EveryCutOfEveryFixtureIsStrippedOrRefusedWithoutAnException()
+    {
+        foreach (var (kind, file) in Fixtures())
+        {
+            for (var length = 0; length <= file.Length; length++)
+            {
+                var cut = file.AsSpan(0, length).ToArray();
+
+                var result = ImageMetadataStripper.Strip(kind, cut);
+
+                if (result.IsSuccess)
+                {
+                    ImageSniffer.Inspect(result.Value).ShouldBe(ImageSniffer.Inspect(cut));
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void TwoThousandSeededDamagedFilesNeverThrowAndAnyAnswerReadsLikeTheFileDid()
+    {
+        var generator = new SeededBytes(0x5EED5);
+        var fixtures = Fixtures();
+        for (var round = 0; round < 2000; round++)
+        {
+            var (kind, original) = fixtures[round % fixtures.Count];
+            var file = (byte[])original.Clone();
+            for (var change = generator.Next(8) + 1; change > 0; change--)
+            {
+                file[generator.Next(file.Length)] = (byte)generator.Next(256);
+            }
+
+            var result = ImageMetadataStripper.Strip(kind, file);
+
+            if (result.IsSuccess)
+            {
+                ImageSniffer.Inspect(result.Value).ShouldBe(ImageSniffer.Inspect(file));
+            }
+        }
+    }
+
+    private static List<(ImageKind Kind, byte[] File)> Fixtures() =>
+    [
+        (ImageKind.Jpeg, SyntheticImages.JpegWithMetadata(640, 480, 6)),
+        (ImageKind.Png, SyntheticImages.PngWithMetadata(800, 600)),
+        (ImageKind.WebP, SyntheticImages.WebPWithMetadata(4000, 3000)),
+        (ImageKind.Heic, SyntheticImages.HeicWithMetadata(4032, 3024)),
+        (ImageKind.Heic, SyntheticImages.HeicWithMetadata(4032, 3024, useIdat: true)),
+    ];
+
+    private static byte[] EndOfImage => [0xFF, 0xD9];
+
+    private static byte[] Table() => SyntheticImages.JpegSegment(0xDB, [0x00, .. new byte[64]]);
+
+    private static byte[] Frame() => SyntheticImages.JpegSegment(0xC0, [0x08, 0x01, 0xE0, 0x02, 0x80, 0x01, 0x01, 0x11, 0x00]);
+
+    private static byte[] Scan() => [.. SyntheticImages.JpegSegment(0xDA, [0x01, 0x01, 0x00, 0x00, 0x3F, 0x00]), .. SyntheticImages.ScanData];
+
+    // SOI followed by the given pieces.
+    private static byte[] JpegOf(params byte[][] pieces) => [0xFF, 0xD8, .. pieces.SelectMany(piece => piece)];
+
+    // A small fixed-seed xorshift generator, so a failing input can be rebuilt exactly.
+    private sealed class SeededBytes(uint seed)
+    {
+        private uint _state = seed;
+
+        public int Next(int maxExclusive)
+        {
+            _state ^= _state << 13;
+            _state ^= _state >> 17;
+            _state ^= _state << 5;
+            return (int)(_state % (uint)maxExclusive);
+        }
+    }
+
     private static byte[] StandardIinf { get; } = SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1"), SyntheticImages.Infe(2, "Exif"), SyntheticImages.Infe(3, "mime", "application/rdf+xml"));
 
     private static byte[] StandardMdat { get; } = [.. SyntheticImages.HeicImageData, .. SyntheticImages.HeicExifItem, .. SyntheticImages.HeicXmpItem];
