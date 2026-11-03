@@ -56,6 +56,75 @@ public static class SyntheticImages
         return file.ToArray();
     }
 
+    /// <summary>The fake camera make written into the metadata variants.</summary>
+    public const string FakeMake = "TESTCAM";
+
+    /// <summary>The fake camera model written into the metadata variants.</summary>
+    public const string FakeModel = "TESTMODEL";
+
+    /// <summary>The fake camera serial number written into the metadata variants.</summary>
+    public const string FakeSerial = "SN-0000";
+
+    /// <summary>The fake date taken written into the metadata variants.</summary>
+    public const string FakeDateTaken = "2000:01:01 00:00:00";
+
+    /// <summary>The fake owner name written into the metadata variants.</summary>
+    public const string FakeOwner = "TESTOWNER";
+
+    /// <summary>Gets the ICC profile body the JPEG variants carry (the sign that a kept block survives).</summary>
+    public static byte[] IccBody { get; } = [0x10, 0x20, 0x30, 0x40, 0x50];
+
+    /// <summary>Gets the scan data of the JPEG variants: stuffed bytes, a restart marker and fill bytes, which a scan reader must keep as they are.</summary>
+    public static byte[] ScanData { get; } = [0x12, 0xFF, 0x00, 0x34, 0xFF, 0xD0, 0x56, 0xFF, 0xFF, 0xD1, 0x78];
+
+    /// <summary>Builds a JPEG the way a phone writes one: APP0, an Exif block with orientation, GPS (0 N 0 E), make, model, serial, date taken and owner, XMP, XMP extension, an ICC profile, APP13, a comment, APP14, tables, a frame, a scan, and after the first EOI a second picture with its own Exif block (as a multi-picture file does).</summary>
+    /// <param name="width">The stored width in pixels.</param>
+    /// <param name="height">The stored height in pixels.</param>
+    /// <param name="orientation">The Exif orientation, 1 to 8.</param>
+    /// <returns>The file bytes.</returns>
+    public static byte[] JpegWithMetadata(int width, int height, int orientation = 1)
+    {
+        var xmp = JpegSegment(0xE1, [.. "http://ns.adobe.com/xap/1.0/\0"u8, .. System.Text.Encoding.ASCII.GetBytes($"<x:xmpmeta serial=\"{FakeSerial}\"/>")]);
+        var xmpExtension = JpegSegment(0xE1, [.. "http://ns.adobe.com/xmp/extension/\0"u8, .. System.Text.Encoding.ASCII.GetBytes($"<rdf serial=\"{FakeSerial}\"/>")]);
+        var photoshop = JpegSegment(0xED, [.. "Photoshop 3.0\0"u8, .. "8BIM"u8, .. System.Text.Encoding.ASCII.GetBytes(FakeMake)]);
+        var comment = JpegSegment(0xFE, System.Text.Encoding.ASCII.GetBytes($"{FakeMake} {FakeSerial}"));
+        var secondPicture = new byte[] { 0xFF, 0xD8 }.Concat(JpegSegment(0xE1, RichExifBlock(1))).Concat([(byte)0xFF, (byte)0xD9]);
+        return
+        [
+            0xFF, 0xD8,
+            .. JpegSegment(0xE0, [.. "JFIF\0"u8, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00]),
+            .. JpegSegment(0xE1, RichExifBlock(orientation)),
+            .. xmp,
+            .. xmpExtension,
+            .. JpegSegment(0xE2, [.. "ICC_PROFILE\0"u8, 0x01, 0x01, .. IccBody]),
+            .. JpegSegment(0xE2, [.. "MPF\0"u8, .. System.Text.Encoding.ASCII.GetBytes(FakeSerial)]),
+            .. photoshop,
+            .. comment,
+            .. JpegSegment(0xEE, [.. "Adobe\0"u8, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x01]),
+            .. JpegSegment(0xDB, [0x00, .. new byte[64]]),
+            .. JpegSegment(0xC0, [0x08, (byte)(height >> 8), (byte)height, (byte)(width >> 8), (byte)width, 0x01, 0x01, 0x11, 0x00]),
+            .. JpegSegment(0xDA, [0x01, 0x01, 0x00, 0x00, 0x3F, 0x00]),
+            .. ScanData,
+            0xFF, 0xD9,
+            .. secondPicture,
+        ];
+    }
+
+    /// <summary>Builds one JPEG segment: FF, the marker, a big-endian length that counts itself, and the payload.</summary>
+    /// <param name="marker">The marker byte after FF.</param>
+    /// <param name="payload">The segment payload.</param>
+    /// <returns>The segment bytes.</returns>
+    public static byte[] JpegSegment(byte marker, byte[] payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        var segment = new byte[payload.Length + 4];
+        segment[0] = 0xFF;
+        segment[1] = marker;
+        BinaryPrimitives.WriteUInt16BigEndian(segment.AsSpan(2), (ushort)(payload.Length + 2));
+        payload.CopyTo(segment, 4);
+        return segment;
+    }
+
     /// <summary>Builds a PNG with the given size: the signature, an IHDR chunk, any extra chunks, one tiny IDAT chunk and IEND. Chunk checksums are left at zero because the sniffer never reads them.</summary>
     /// <param name="width">The stored width in pixels.</param>
     /// <param name="height">The stored height in pixels.</param>
@@ -319,6 +388,79 @@ public static class SyntheticImages
 
         return [.. "Exif\0\0"u8.ToArray(), .. tiff.ToArray()];
     }
+
+    // "Exif\0\0" and a little-endian TIFF with IFD0 (make, model, orientation, Exif and GPS pointers), an Exif IFD (date taken, owner,
+    // body serial) and a GPS IFD that says 0 N 0 E.
+    private static byte[] RichExifBlock(int orientation)
+    {
+        const int Ifd0Offset = 8;
+        var ifd0Size = TiffIfd(Ifd0Entries(orientation, 0, 0), 0).Length;
+        var exifOffset = Ifd0Offset + ifd0Size;
+        var exifIfd = TiffIfd(
+            [
+                new TiffEntry(0x9003, TiffAscii, FakeDateTaken.Length + 1, Ascii(FakeDateTaken)),
+                new TiffEntry(0xA430, TiffAscii, FakeOwner.Length + 1, Ascii(FakeOwner)),
+                new TiffEntry(0xA431, TiffAscii, FakeSerial.Length + 1, Ascii(FakeSerial)),
+            ],
+            exifOffset);
+        var gpsOffset = exifOffset + exifIfd.Length;
+        byte[] zeroRationals = [.. Enumerable.Range(0, 6).SelectMany(index => LittleEndian(index % 2 == 0 ? 0 : 1))];
+        var gpsIfd = TiffIfd(
+            [
+                new TiffEntry(1, TiffAscii, 2, Ascii("N")),
+                new TiffEntry(2, TiffRational, 3, zeroRationals),
+                new TiffEntry(3, TiffAscii, 2, Ascii("E")),
+                new TiffEntry(4, TiffRational, 3, zeroRationals),
+            ],
+            gpsOffset);
+        var ifd0 = TiffIfd(Ifd0Entries(orientation, exifOffset, gpsOffset), Ifd0Offset);
+        return [.. "Exif\0\0"u8, 0x49, 0x49, 0x2A, 0x00, .. LittleEndian(Ifd0Offset), .. ifd0, .. exifIfd, .. gpsIfd];
+    }
+
+    private static TiffEntry[] Ifd0Entries(int orientation, int exifOffset, int gpsOffset) =>
+    [
+        new TiffEntry(0x010F, TiffAscii, FakeMake.Length + 1, Ascii(FakeMake)),
+        new TiffEntry(0x0110, TiffAscii, FakeModel.Length + 1, Ascii(FakeModel)),
+        new TiffEntry(ExifOrientationTag, TiffShort, 1, [(byte)orientation, 0x00]),
+        new TiffEntry(0x8769, TiffLong, 1, LittleEndian(exifOffset)),
+        new TiffEntry(ExifGpsPointerTag, TiffLong, 1, LittleEndian(gpsOffset)),
+    ];
+
+    // One directory placed at the given offset of the TIFF block: the entry count, the entries (a value of up to 4 bytes sits inside
+    // its entry, a longer one right after the directory), and no next directory.
+    private static byte[] TiffIfd(TiffEntry[] entries, int offset)
+    {
+        var data = new List<byte>();
+        var directory = new List<byte> { (byte)entries.Length, (byte)(entries.Length >> 8) };
+        var dataStart = offset + 2 + (entries.Length * 12) + 4;
+        foreach (var entry in entries)
+        {
+            directory.AddRange([(byte)entry.Tag, (byte)(entry.Tag >> 8), (byte)entry.Type, (byte)(entry.Type >> 8)]);
+            directory.AddRange(LittleEndian(entry.Count));
+            if (entry.Value.Length <= 4)
+            {
+                directory.AddRange(entry.Value);
+                directory.AddRange(new byte[4 - entry.Value.Length]);
+                continue;
+            }
+
+            directory.AddRange(LittleEndian(dataStart + data.Count));
+            data.AddRange(entry.Value);
+            if (entry.Value.Length % 2 != 0)
+            {
+                data.Add(0);
+            }
+        }
+
+        directory.AddRange(LittleEndian(0));
+        return [.. directory, .. data];
+    }
+
+    private static byte[] Ascii(string text) => [.. System.Text.Encoding.ASCII.GetBytes(text), 0x00];
+
+    private static byte[] LittleEndian(int value) => [(byte)value, (byte)(value >> 8), (byte)(value >> 16), (byte)(value >> 24)];
+
+    private sealed record TiffEntry(int Tag, int Type, int Count, byte[] Value);
 
     private static void WriteEntry(MemoryStream stream, int tag, int type, int count, uint value)
     {
