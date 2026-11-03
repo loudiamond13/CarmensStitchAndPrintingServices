@@ -256,6 +256,9 @@ public static class AuthorizationMatrix
         // Removing a discount (ORD-05, D-15): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
         new("DELETE", "/api/v1/orders/{orderId:guid}/discounts/{discountId:guid}", "/api/v1/orders/5c9a2e68-1f47-4b03-8d6a-3b0e7f4c2a91/discounts/a3e6d0b5-7c28-4f19-9b4a-6d1c8e2f0a37", Anonymous: 401, Admin: 404, Manager: 404),
 
+        // The maintenance run (JOB-01) is anonymous but needs the X-Maintenance-Key header. The matrix sends none, so every caller meets the same 401.
+        new("POST", "/api/v1/maintenance/run", "/api/v1/maintenance/run", Anonymous: 401, Admin: 401, Manager: 401),
+
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),
@@ -287,6 +290,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/invite/accept",
             "POST /api/v1/profile/email-change/confirm",
             "POST /api/v1/profile/email-change/check",
+            "POST /api/v1/maintenance/run",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
