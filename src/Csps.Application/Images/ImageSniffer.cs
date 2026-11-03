@@ -19,8 +19,32 @@ public static class ImageSniffer
     /// <summary>Reads the format and size of a file.</summary>
     /// <param name="bytes">The whole file.</param>
     /// <returns>What the bytes say, or null when the file is not a photo this server accepts.</returns>
-    public static ImageFacts? Inspect(ReadOnlySpan<byte> bytes) =>
-        bytes is [0xFF, 0xD8, 0xFF, ..] ? InspectJpeg(bytes) : null;
+    public static ImageFacts? Inspect(ReadOnlySpan<byte> bytes) => bytes switch
+    {
+        [0xFF, 0xD8, 0xFF, ..] => InspectJpeg(bytes),
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..] => InspectPng(bytes),
+        _ => null,
+    };
+
+    // The signature is followed at once by the IHDR chunk: a length of 13, the type, then the width and height as 32-bit big-endian numbers.
+    private static ImageFacts? InspectPng(ReadOnlySpan<byte> bytes)
+    {
+        const int SignatureSize = 8;
+        const int HeaderDataSize = 13;
+        if (bytes.Length < SignatureSize + 8 + HeaderDataSize
+            || BinaryPrimitives.ReadUInt32BigEndian(bytes[SignatureSize..]) != HeaderDataSize
+            || !bytes.Slice(SignatureSize + 4, 4).SequenceEqual("IHDR"u8))
+        {
+            return null;
+        }
+
+        var width = BinaryPrimitives.ReadUInt32BigEndian(bytes[(SignatureSize + 8)..]);
+        var height = BinaryPrimitives.ReadUInt32BigEndian(bytes[(SignatureSize + 12)..]);
+        return IsPlausibleSide(width) && IsPlausibleSide(height) ? new ImageFacts(ImageKind.Png, (int)width, (int)height, 1) : null;
+    }
+
+    // A side of 0 is no picture, and the PNG format itself caps a side at 2^31 - 1.
+    private static bool IsPlausibleSide(uint side) => side is >= 1 and <= int.MaxValue;
 
     // Walks the segments up to the first frame header (SOF), which holds the size. The Exif block sits before it.
     private static ImageFacts? InspectJpeg(ReadOnlySpan<byte> bytes)
