@@ -23,6 +23,17 @@ internal static class ProbeKey
     public static bool IsConfigured([NotNullWhen(true)] string? configured) =>
         !string.IsNullOrWhiteSpace(configured) && configured.Length >= MinimumLength;
 
+    /// <summary>The status code that refuses a request (503 when no usable key is set, 401 on a wrong or missing key), or null to let it through.</summary>
+    public static int? DeniedStatusCode(string? provided, string? configured)
+    {
+        if (!IsConfigured(configured))
+        {
+            return StatusCodes.Status503ServiceUnavailable;
+        }
+
+        return Matches(provided, configured) ? null : StatusCodes.Status401Unauthorized;
+    }
+
     /// <summary>
     /// True only when a usable key is configured and <paramref name="provided"/> equals it. Both values are hashed
     /// with SHA-256 first, so the fixed-time comparison never leaks the key's length or a matching prefix.

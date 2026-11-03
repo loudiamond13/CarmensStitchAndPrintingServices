@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Csps.Infrastructure.Maintenance;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 
 namespace Csps.HostProbe.Tests;

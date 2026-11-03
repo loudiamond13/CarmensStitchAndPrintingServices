@@ -20,6 +20,9 @@
     <InternalsVisibleTo Include="Csps.EmailPreview" />
     <!-- The legacy fit check registers the internal unit of work for its trial import (07.1 D-07). -->
     <InternalsVisibleTo Include="Csps.LegacyFitCheck" />
+    <!-- The host probe runs the job's own backup statement (D-42), and its tests build the statement's outcome for a fake runner. -->
+    <InternalsVisibleTo Include="Csps.HostProbe" />
+    <InternalsVisibleTo Include="Csps.HostProbe.Tests" />
   </ItemGroup>
 
   <ItemGroup>
