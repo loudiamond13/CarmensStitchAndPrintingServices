@@ -20,7 +20,7 @@ public sealed record ImageNamedSize(string Name, string Transformation, ImageCro
 
 /// <summary>
 /// The only sizes a photo is delivered in (D-03, D-33). The account allows named transformations only (strict mode), so an
-/// address with any other size is refused and costs nothing. None uses <c>f_auto</c>, which a named size cannot hold.
+/// address with any other size is refused and costs nothing. Each names its format outright, because a named size cannot pick one automatically.
 /// The setup command creates these same names in the account.
 /// </summary>
 public static class ImageNamedSizes
