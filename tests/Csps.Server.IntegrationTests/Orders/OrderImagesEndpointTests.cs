@@ -202,6 +202,214 @@ public sealed class OrderImagesEndpointTests(CspsDatabase database) : IClassFixt
         schemas.GetProperty("IFormFile").GetProperty("format").GetString().ShouldBe("binary");
     }
 
+    [Fact]
+    public async Task TheFifthPhotoIsAcceptedAndTheSixthAnswers422WithNothingSentToStorage()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+
+        for (var number = 1; number <= 5; number++)
+        {
+            using var accepted = await UploadAsync(client, manager.AccessToken, id, Photo);
+            accepted.StatusCode.ShouldBe(HttpStatusCode.OK, $"photo {number}");
+        }
+
+        var uploadsBefore = storage.Uploads.Count(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal));
+        using var sixth = await UploadAsync(client, manager.AccessToken, id, Photo);
+
+        sixth.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(sixth, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("orders.images-full");
+        problem.GetProperty("detail").GetString().ShouldBe("This order already has 5 photos.");
+        uploadsBefore.ShouldBe(5);
+        storage.Uploads.Count(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal)).ShouldBe(5);
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().CountAsync(image => image.OrderId == id, TestContext.Current.CancellationToken)).ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task ACompletedOrderAnswers422LockedAndNothingIsSentToStorage()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
+        var id = paid.GetProperty("id").GetGuid();
+        await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "completed");
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+
+        using var response = await UploadAsync(client, manager.AccessToken, id, Photo);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.locked");
+        storage.Uploads.Where(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADeletedOrderAnswers404AndNothingIsSentToStorage()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var created = await CreateOrderAsync(factory, client, admin.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        using (var deleted = await OrderFixtures.DeleteAsync(client, admin.AccessToken, id))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+
+        using var response = await UploadAsync(client, admin.AccessToken, id, Photo);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.not-found");
+        storage.Uploads.Where(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AFileOneByteOverTheLimitAnswers400NamingTheFileAndIsNotSentToStorage()
+    {
+        var limit = Photo.Length;
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting("Images:MaxBytes", limit.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(baseFactory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+
+        using var exact = await UploadAsync(client, manager.AccessToken, id, Photo);
+        using var over = await UploadAsync(client, manager.AccessToken, id, [.. Photo, 0], fileName: "Team shirt.jpg");
+
+        exact.StatusCode.ShouldBe(HttpStatusCode.OK);
+        over.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(over, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("images.too-large");
+        var message = OrderFixtures.FieldErrors(problem, "file").Single();
+        message.ShouldStartWith("Team shirt.jpg is over ");
+        message.ShouldEndWith(". Choose a smaller photo.");
+        storage.Uploads.Count(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal)).ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(5001, 5000)]
+    [InlineData(6000, 5000)]
+    [InlineData(10001, 100)]
+    public async Task APhotoWithTooManyPixelsOrTooLongASideAnswers400AndIsNotSentToStorage(int width, int height)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+
+        using var response = await UploadAsync(client, manager.AccessToken, id, SyntheticImages.Jpeg(width, height), fileName: "Wide print.jpg");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("images.too-big");
+        OrderFixtures.FieldErrors(problem, "file").ShouldBe(["Wide print.jpg is too big. Photos can be at most 25 megapixels."]);
+        storage.Uploads.Where(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADescriptionOf200CharactersIsKeptAndOneOf201Answers400WithNothingSentToStorage()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+
+        using var fits = await UploadAsync(client, manager.AccessToken, id, Photo, description: new string('a', 200));
+        var uploadsAfterFit = storage.Uploads.Count;
+        using var tooLong = await UploadAsync(client, manager.AccessToken, id, Photo, description: new string('a', 201));
+
+        fits.StatusCode.ShouldBe(HttpStatusCode.OK);
+        tooLong.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(tooLong, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("orders.image-description-too-long");
+        OrderFixtures.FieldErrors(problem, "description").ShouldBe(["Keep the description to 200 characters or fewer."]);
+        storage.Uploads.Count.ShouldBe(uploadsAfterFit);
+    }
+
+    [Fact]
+    public async Task ADescriptionOfOnlySpacesIsStoredAsNone()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+
+        using var response = await UploadAsync(client, manager.AccessToken, id, Photo, description: "     ");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().AsNoTracking().SingleAsync(image => image.OrderId == id, TestContext.Current.CancellationToken)).Description.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task AFormWithOnlyADescriptionPartAnswers400FileMissing()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+        using var request = ApiRequests.Create(HttpMethod.Post, $"/api/v1/orders/{id:D}/images", manager.AccessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        request.Content = MultipartBodies.Content("csps-test-boundary-1", [MultipartPart.Text("description", "Only words")]);
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("images.file-missing");
+        storage.Uploads.Where(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        for (var number = 1; number <= 4; number++)
+        {
+            using var accepted = await UploadAsync(client, manager.AccessToken, id, Photo);
+            accepted.StatusCode.ShouldBe(HttpStatusCode.OK, $"photo {number}");
+        }
+
+        var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+            () => UploadAsync(client, manager.AccessToken, id, Photo),
+            () => UploadAsync(client, manager.AccessToken, id, Photo));
+        using (first)
+        using (second)
+        {
+            var statuses = new[] { first.StatusCode, second.StatusCode }.Order().ToArray();
+            statuses[0].ShouldBe(HttpStatusCode.OK);
+            statuses[1].ShouldBeOneOf(HttpStatusCode.Conflict, HttpStatusCode.UnprocessableEntity);
+        }
+
+        await using var context = database.CreateContext();
+        var rows = await context.Set<OrderImage>().AsNoTracking().Where(image => image.OrderId == id).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Count.ShouldBe(5);
+        rows.Select(row => row.Slot).Order().ShouldBe([0, 1, 2, 3, 4]);
+    }
+
     private static async Task<JsonElement> CreateOrderAsync(CspsApiFactory factory, HttpClient client, string accessToken)
     {
         var today = await OrderFixtures.TodayAsync(factory);
