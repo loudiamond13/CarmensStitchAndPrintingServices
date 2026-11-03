@@ -999,7 +999,7 @@ Plans:
 - eager variants
 - caching of signed URLs
 
-**Plans**: 9/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 12/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 09-01-PLAN.md — Upload one photo to an order through the API: OrderImage, 5-photo domain and database guard, random ids, 503 when unset (ORD-04, IMG-01, IMG-02, IMG-03; D-01, D-08, D-11, D-12, D-19)
@@ -1016,9 +1016,9 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 09-09-PLAN.md — Image rules endpoint, Testing image routes for e2e, upload contract docs (ORD-04, IMG-01, IMG-02; D-07, D-08, D-34)
-- [ ] 09-10-PLAN.md — Every photo type recognized, look-alikes and hostile files refused (IMG-02)
-- [ ] 09-11-PLAN.md — Maintenance lease, failure isolation and time budget (JOB-01; D-21, D-36)
-- [ ] 09-12-PLAN.md — Maintenance key rate limit, log masking and the runbook (JOB-01; D-21, D-36)
+- [x] 09-10-PLAN.md — Every photo type recognized, look-alikes and hostile files refused (IMG-02)
+- [x] 09-11-PLAN.md — Maintenance lease, failure isolation and time budget (JOB-01; D-21, D-36)
+- [x] 09-12-PLAN.md — Maintenance key rate limit, log masking and the runbook (JOB-01; D-21, D-36)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 09-13-PLAN.md — Orders list carries each order's cover and photo count in the same 3 commands (ORD-04, IMG-04; D-14)
@@ -1408,7 +1408,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
-| 9. Order Images & Maintenance Jobs | 9/32 | In Progress | - |
+| 9. Order Images & Maintenance Jobs | 12/32 | In Progress | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |

@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-09-PLAN.md
-last_updated: "2026-11-03T18:03:37.646Z"
+stopped_at: Completed 09-12-PLAN.md (wave 3 merged)
+last_updated: "2026-11-03T23:15:09.000Z"
 last_activity: 2026-11-03
-last_activity_desc: Phase 09 execution started
+last_activity_desc: Wave 3 (09-10, 09-11, 09-12) merged from parallel worktrees; post-merge gate green except known timing flakes
 state_head: 76d6eec4443b014efef8ad7e9d9b821e6f1cec64
 progress:
   total_phases: 18
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 10 of 32
+Plan: 13 of 32
 Status: Ready to execute
-Last activity: 2026-11-03 — Phase 09 execution started
+Last activity: 2026-11-03 — Wave 3 merged (09-10, 09-11, 09-12); 12 of 32 plans done, 09-31 parked
 
 Progress: [████░░░░░░] 44%
 
@@ -959,6 +959,10 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-06 wording and counting:** (1) The run line for a failed purge reads "Expired request keys removed" with the text "The expired request keys could not be removed." (the plan gave no text for a failure). Approve or change. (2) The "Expired request keys removed: {n}" count adds expired stored answers and expired in-progress claims into one number. Recommended: keep (both are request keys to you). The other choice is two separate lines. (3) Until plan 09-12, the maintenance endpoint has no rate limit on wrong keys; the 32 character minimum and the fixed-time compare are in place. Nothing needed from you; noted so it is not forgotten.
 - [ ] **09-07 non-Production hosts and the photo test route:** (1) The base settings now name the live photo folder (`Cloudinary:RootFolder` = `csps`) and Development names `csps-dev`. Any host that is neither Production nor Development (for example a future staging host) must set `Cloudinary__RootFolder=csps-dev`, or it refuses to start with a clear message. This is the folder guard you asked for (D-07); nothing needed now, but the cutover and runbook plans should carry the line. (2) The Testing photo addresses (`/api/testing/images/{id}?size=...`) have no route behind them yet, so no browser test can load a photo until a Testing-only route is added in a later plan. Recommended: add it with the plan that first needs a photo to render in Playwright. **Resolved by plan 09-09 (2026-11-03): the route now exists, nothing needed from you.**
 - [ ] **09-08 photo list looks and wording to confirm (UI-SPEC left these open):** (1) Move left, Move right and Edit description are drawn as outlined (secondary) icon buttons and Delete/Remove as the quiet red-on-hover (ghost-danger) button; the spec names only the 44 px size. Keep, or make the moves and edit quiet (ghost)? (2) On a phone the grip is not drawn at all (touch has no drag); the spec says the grip shows on hover devices only, so this follows it. (3) A read-only list (Completed or Cancelled order) shows row 1 only for saved photos, but a file that has not uploaded yet (waiting or failed) keeps its Remove button, because UI-SPEC P3 says a file that fails with the locked reason keeps only Remove. Keep, or hide it too? (4) The two touch buttons share one row only when the card is about 318 px or wider inside; below that "Choose Photos" wraps under "Take Photo" (UI-SPEC says one row; at 320 px the card is 248 px inside). Plan 09-30's 320 px screenshots show it; keep the wrap or shorten the labels? (5) The photo-list look is not covered by the look-equality parity matrix (parity false, D-25 and D-13/D-14), so only your screenshot review at 390, 820 and 1440 px (UI-SPEC Visual Review) confirms how it looks. (6) Two @a11y-rulings D-02 cases (webkit dark and iphone light, /dev/components) failed once in the full run with "h1 not found in 5 s" while the first-load showcase was slow; both passed alone. Recorded as a first-load timing flake, not chased.
+- [ ] **09-10 HEIC turn numbers (no action recommended):** the HEIC turn mapping follows the plan text (irot 1 read as Exif 6, irot 3 as Exif 8). Today only the width and height swap uses it, which is right either way. Nothing needed unless a later plan shows the number to users. Known limit: a file cut off after its header is accepted (only headers are read); Cloudinary is the second guard (plan 09-19).
+- [ ] **09-11 wording (low priority):** a maintenance job that throws shows "The job failed. Check the server log." with the job's technical name as its label (for example `purge-expired-records`). The plan gave no text, so this is the executor's wording (one constant, `MaintenanceErrors.JobFailedText`). Approve, or give friendlier words or labels.
+- [ ] **09-12 maintenance key, owner action later:** when the monthly workflow (D-21) is created by a later plan, check it sends the `MAINTENANCE_KEY` secret in the `X-Maintenance-Key` header, and set `MAINTENANCE_KEY` (GitHub secret) and `Maintenance__Key` (host app-pool variable) to the same value of at least 32 characters. Only you can set them. The runbook's job table (orders 20, 30, 40) is updated as the later job plans land (docs only). The runbook's 409 row was re-checked against 09-11's lease answer after the wave 3 merge and matches.
+- [ ] **Wave 3 tooling note (no action):** wave 3 ran in parallel worktrees. From a worktree the agent shell could not start PowerShell, so `preflight.ps1` did not run there; the agents used only in-process tests and `CSPS_Test_<guid>` databases. The orchestrator ran preflight from the main session before the post-merge test run (all ports free, no other project's test processes).
 
 ### Blockers/Concerns
 
