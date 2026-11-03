@@ -8,7 +8,7 @@ namespace Csps.Application.Images;
 /// block that holds nothing else. Every offset is checked against the length of the file and the walks are capped, so a damaged or
 /// hostile file is refused instead of causing an exception or a long loop. A file that cannot be cleaned is refused, never passed on.
 /// </summary>
-public static class ImageMetadataStripper
+public static partial class ImageMetadataStripper
 {
     private const int MaxSegments = 4096;
     private const int MinimalExifSize = 36;
@@ -25,6 +25,7 @@ public static class ImageMetadataStripper
             ImageKind.Jpeg => StripJpeg(bytes),
             ImageKind.Png => StripPng(bytes),
             ImageKind.WebP => StripWebP(bytes),
+            ImageKind.Heic => StripHeic(bytes),
             _ => null,
         };
 
