@@ -16,6 +16,7 @@ export type OrderDiscountFixture = Schemas['OrderDiscountResponse'];
 export type OrderPaymentFixture = Schemas['OrderPaymentResponse'];
 export type OrderExpenseFixture = Schemas['OrderExpenseResponse'];
 export type OrderRefundFixture = Schemas['OrderRefundResponse'];
+export type OrderImageFixture = Schemas['OrderImageResponse'];
 export type OrderTotalsFixture = Schemas['OrderTotalsResponse'];
 export type DeletedOrderListFixture = Schemas['DeletedOrderListResponse'];
 export type ListRefFixture = Schemas['OrderListRef'];
@@ -236,6 +237,34 @@ function totals(overrides: Partial<OrderTotalsFixture>): OrderTotalsFixture {
   };
 }
 
+/** A photo as the server answers it, with the Testing addresses; photo n sits at position n - 1. */
+export function orderImage(n: number, overrides: Partial<OrderImageFixture> = {}): OrderImageFixture {
+  const key = `photo${String(n).padStart(2, '0')}`;
+  const address = (size: string): string => `/api/testing/images/${key}?size=${size}`;
+  return {
+    id: `00000000-0000-4000-a000-${String(n).padStart(12, '0')}`,
+    position: n - 1,
+    description: null,
+    width: 4000,
+    height: 3000,
+    thumb: {
+      src: address('csps_sq_88'),
+      srcSet: `${address('csps_sq_88')} 1x, ${address('csps_sq_176')} 2x`,
+    },
+    viewer: {
+      src: address('csps_view_960'),
+      srcSet: [
+        `${address('csps_view_640')} 640w`,
+        `${address('csps_view_960')} 960w`,
+        `${address('csps_view_1280')} 1280w`,
+        `${address('csps_view_1600')} 1600w`,
+      ].join(', '),
+    },
+    fullSize: address('csps_full_2000'),
+    ...overrides,
+  };
+}
+
 /** One full order answer. The defaults are ORD-2026-0148; a test overrides what it needs. */
 export function buildOrderDetail(overrides: Partial<OrderDetailFixture> = {}): OrderDetailFixture {
   return {
@@ -273,6 +302,7 @@ export function buildOrderDetail(overrides: Partial<OrderDetailFixture> = {}): O
       orderExpense('2026-10-04', OUTSOURCING, 600, 'Embroidery, coach polos'),
     ],
     refunds: [],
+    images: [],
     totals: totals({
       subtotal: 22450,
       discount: 1122.5,

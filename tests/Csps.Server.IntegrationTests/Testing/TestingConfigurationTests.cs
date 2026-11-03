@@ -48,6 +48,8 @@ public sealed class TestingConfigurationTests
         {
             builder.UseEnvironment("Staging");
             builder.UseSetting(SwitchKey, "true");
+            // A host that is not Production must not use the live photo folder the base settings name.
+            builder.UseSetting("Cloudinary:RootFolder", "csps-dev");
         });
 
         UserSecretsIndex(Providers(factory)).ShouldBe(-1);

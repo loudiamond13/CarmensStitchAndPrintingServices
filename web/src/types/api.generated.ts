@@ -2428,6 +2428,13 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        /** @description An image address and its candidates for the browser's `srcset` (IMG-04). */
+        ImageSourceResponse: {
+            /** @description The address used when the browser cannot pick a candidate. */
+            src: string;
+            /** @description The candidates with their `w` or `x` descriptors, comma separated. */
+            srcSet: string;
+        };
         /** @description The answer to a usable invite link. */
         InviteLinkResponse: {
             /** @description The address of the account the invite belongs to, so the page can name it. */
@@ -2484,6 +2491,8 @@ export interface components {
              * @description The order id.
              */
             id: string;
+            /** @description The photos, in display order; empty when the order has none. */
+            images: components["schemas"]["OrderImageResponse"][];
             /** @description The lines, in order. */
             items: components["schemas"]["OrderItemResponse"][];
             /**
@@ -2637,6 +2646,37 @@ export interface components {
              */
             recordedAt: string;
             recordedBy: null | components["schemas"]["ActorRef"];
+        };
+        /** @description One photo of an order (ORD-04, IMG-04). The addresses are built when the order is read and are never stored. */
+        OrderImageResponse: {
+            /** @description The description; null when the default text applies. */
+            description: null | string;
+            /** @description The address of the 2000 px JPEG behind "Open Full Size". */
+            fullSize: string;
+            /**
+             * Format: int32
+             * @description The height in pixels, as the photo is shown upright.
+             */
+            height: number | string;
+            /**
+             * Format: uuid
+             * @description The photo id.
+             */
+            id: string;
+            /**
+             * Format: int32
+             * @description The display order from 0; the photo at 0 is the cover.
+             */
+            position: number | string;
+            /** @description The tile thumb, with a 2x candidate. */
+            thumb: components["schemas"]["ImageSourceResponse"];
+            /** @description The whole photo for the viewer, with width candidates. */
+            viewer: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The width in pixels, as the photo is shown upright.
+             */
+            width: number | string;
         };
         /** @description One line of the New Order form (ORD-13). */
         OrderItemRequest: {

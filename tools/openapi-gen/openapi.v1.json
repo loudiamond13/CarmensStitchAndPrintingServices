@@ -1768,6 +1768,24 @@
         "format": "binary",
         "type": "string"
       },
+      "ImageSourceResponse": {
+        "description": "An image address and its candidates for the browser's `srcset` (IMG-04).",
+        "properties": {
+          "src": {
+            "description": "The address used when the browser cannot pick a candidate.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The candidates with their `w` or `x` descriptors, comma separated.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "src",
+          "srcSet"
+        ],
+        "type": "object"
+      },
       "InviteLinkResponse": {
         "description": "The answer to a usable invite link.",
         "properties": {
@@ -1895,6 +1913,13 @@
             "description": "The order id.",
             "format": "uuid",
             "type": "string"
+          },
+          "images": {
+            "description": "The photos, in display order; empty when the order has none.",
+            "items": {
+              "$ref": "#/components/schemas/OrderImageResponse"
+            },
+            "type": "array"
           },
           "items": {
             "description": "The lines, in order.",
@@ -2024,6 +2049,7 @@
           "refunds",
           "expenses",
           "statusHistory",
+          "images",
           "totals",
           "recordedBy",
           "recordedAt",
@@ -2294,6 +2320,73 @@
           "recordedAt",
           "lastChangedBy",
           "lastChangedAt"
+        ],
+        "type": "object"
+      },
+      "OrderImageResponse": {
+        "description": "One photo of an order (ORD-04, IMG-04). The addresses are built when the order is read and are never stored.",
+        "properties": {
+          "description": {
+            "description": "The description; null when the default text applies.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fullSize": {
+            "description": "The address of the 2000 px JPEG behind \"Open Full Size\".",
+            "type": "string"
+          },
+          "height": {
+            "description": "The height in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "id": {
+            "description": "The photo id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "position": {
+            "description": "The display order from 0; the photo at 0 is the cover.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "thumb": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The tile thumb, with a 2x candidate."
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The whole photo for the viewer, with width candidates."
+          },
+          "width": {
+            "description": "The width in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "description",
+          "width",
+          "height",
+          "thumb",
+          "viewer",
+          "fullSize"
         ],
         "type": "object"
       },
