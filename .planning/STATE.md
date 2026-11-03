@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-04-PLAN.md
-last_updated: "2026-11-03T14:21:07.948Z"
+stopped_at: Completed 09-05-PLAN.md
+last_updated: "2026-11-03T15:01:14.801Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 09 execution started
-state_head: ada4b0d5abc29aaaa79584711693bba75350ded1
+state_head: 78e0b3c40a1aa7d183edb1e51b8b1b0eaecb62ed
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 252
+  completed_plans: 253
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-31T12:42:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 5 of 32
+Plan: 6 of 32
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 09 execution started
 
@@ -313,6 +313,7 @@ Progress: [████░░░░░░] 44%
 | Phase 09 P02 | 25min | 3 tasks | 8 files |
 | Phase 09 P03 | 15min | 2 tasks | 2 files |
 | Phase 09 P04 | 25min | 3 tasks | 12 files |
+| Phase 09 P05 | 35min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -893,6 +894,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: 09-02: fallback src is the 960 viewer and 640 card candidate; card width limited by its 16:10 crop; thumbs drop 2x when the shorter side is small; a host with no Cloudinary setting passes the folder guard
 - [Phase 09]: 09-03: image pixel and side limits are checked on the decoded photo before shrinking; an undecoded HEIC reports null width and height
 - [Phase 09]: 09-04: PhotoViewer chrome uses a data-theme=dark scope on the viewer root (no new custom property, base.css untouched); viewer.width and height optional for the 4 / 3 fallback
+- [Phase 09]: 09-05: The byte-limit message is built from the configured MaxBytes (10 MB at the default); the pixel message stays the fixed D-34 text
 
 ### Pending Todos
 
@@ -1004,6 +1006,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T14:21:06.545Z
-Stopped at: Completed 09-04-PLAN.md
+Last session: 2026-11-03T15:01:13.355Z
+Stopped at: Completed 09-05-PLAN.md
 Resume file: None
