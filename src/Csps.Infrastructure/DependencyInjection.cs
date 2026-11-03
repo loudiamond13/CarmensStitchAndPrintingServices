@@ -8,6 +8,7 @@ using Csps.Infrastructure.Health;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Images;
+using Csps.Infrastructure.Maintenance;
 using Csps.Infrastructure.Orders;
 using Csps.Infrastructure.Passwords;
 using Csps.Infrastructure.Persistence;
@@ -91,6 +92,7 @@ public static class DependencyInjection
         services.AddCspsIdempotency();
         services.AddCspsEmail(configuration, environment);
         services.AddCspsImages(configuration, environment);
+        services.AddCspsMaintenance();
         services.AddCspsPasswordChecks(environment);
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).
