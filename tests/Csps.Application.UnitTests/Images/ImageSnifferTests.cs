@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Diagnostics;
 using Csps.Application.Images;
 using Csps.Testing.Images;
 
@@ -435,6 +437,268 @@ public sealed class ImageSnifferTests
     }
 
     [Fact]
+    public void APngWhoseChunkLengthRunsPastTheEndGivesNoAnswer()
+    {
+        var chunk = SyntheticImages.PngChunk("tEXt", new byte[4]);
+        BinaryPrimitives.WriteUInt32BigEndian(chunk, 1_000_000);
+        var huge = SyntheticImages.PngChunk("tEXt", new byte[4]);
+        BinaryPrimitives.WriteUInt32BigEndian(huge, uint.MaxValue);
+
+        ImageSniffer.Inspect(SyntheticImages.Png(800, 600, chunk)).ShouldBeNull();
+        ImageSniffer.Inspect(SyntheticImages.Png(800, 600, huge)).ShouldBeNull();
+    }
+
+    [Fact]
+    public void APngWithNoImageDataOrCutShortInsideItGivesNoAnswer()
+    {
+        var whole = SyntheticImages.Png(800, 600);
+        var headerOnly = whole[..33];
+        byte[] noData = [.. headerOnly, .. SyntheticImages.PngChunk("IEND", [])];
+        var cutInsideData = SyntheticImages.Truncated(whole, whole.Length - 12 - 10);
+
+        ImageSniffer.Inspect(headerOnly).ShouldBeNull();
+        ImageSniffer.Inspect(noData).ShouldBeNull();
+        ImageSniffer.Inspect(cutInsideData).ShouldBeNull();
+        ImageSniffer.Inspect(whole).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void APngWithManyChunksBeforeItsDataIsReadUpToTheCapAndNoFurther()
+    {
+        var chunk = SyntheticImages.PngChunk("tEXt", new byte[4]);
+
+        ImageSniffer.Inspect(SyntheticImages.Png(800, 600, [.. Enumerable.Repeat(chunk, 400)])).ShouldNotBeNull();
+        ImageSniffer.Inspect(SyntheticImages.Png(800, 600, [.. Enumerable.Repeat(chunk, 600)])).ShouldBeNull();
+    }
+
+    [Fact]
+    public void AWebPWithManyChunksBeforeItsImageIsReadUpToTheCapAndNoFurther()
+    {
+        var chunk = SyntheticImages.WebPChunk("JUNK", new byte[4]);
+
+        ImageSniffer.Inspect(SyntheticImages.WebP(WebPKind.Extended, 640, 480, 0, [.. Enumerable.Repeat(chunk, 400)])).ShouldNotBeNull();
+        ImageSniffer.Inspect(SyntheticImages.WebP(WebPKind.Extended, 640, 480, 0, [.. Enumerable.Repeat(chunk, 600)])).ShouldBeNull();
+    }
+
+    [Fact]
+    public void AWebPChunkWithAHugeLengthGivesNoAnswer()
+    {
+        var file = SyntheticImages.WebP(WebPKind.Lossy, 640, 480);
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(16), uint.MaxValue);
+        var extended = SyntheticImages.WebP(WebPKind.Extended, 640, 480);
+        BinaryPrimitives.WriteUInt32LittleEndian(extended.AsSpan(30), uint.MaxValue);
+
+        ImageSniffer.Inspect(file).ShouldBeNull();
+        ImageSniffer.Inspect(extended).ShouldBeNull();
+    }
+
+    [Fact]
+    public void AHeicWithManyBoxesInAContainerIsReadUpToTheCapAndNoFurther()
+    {
+        var free = SyntheticImages.Box("free", [0x00]);
+        var pitm = SyntheticImages.FullBox("pitm", 0, 0, [0x00, 0x01]);
+        var iprp = SyntheticImages.Box("iprp", SyntheticImages.Box("ipco", Ispe(640, 480)), SyntheticImages.FullBox("ipma", 0, 0, U32(1), [0x00, 0x01, 0x01, 0x01]));
+
+        HeicFileOf([.. Enumerable.Repeat(free, 400), pitm, iprp]).ShouldNotBeNull();
+        HeicFileOf([.. Enumerable.Repeat(free, 600), pitm, iprp]).ShouldBeNull();
+    }
+
+    [Fact]
+    public void AHeicWithManyPropertiesBeforeTheSizeIsReadUpToTheCapAndNoFurther()
+    {
+        var free = SyntheticImages.Box("free", [0x00]);
+        var pitm = SyntheticImages.FullBox("pitm", 0, 0, [0x00, 0x01]);
+
+        byte[] Build(int before) => HeicFile(
+            pitm,
+            SyntheticImages.Box("ipco", [.. Enumerable.Repeat(free, before).SelectMany(box => box), .. Ispe(640, 480)]),
+            SyntheticImages.FullBox("ipma", 0, 1, U32(1), [0x00, 0x01, 0x01], [(byte)((before + 1) >> 8), (byte)(before + 1)]));
+
+        ImageSniffer.Inspect(Build(400)).ShouldNotBeNull();
+        ImageSniffer.Inspect(Build(600)).ShouldBeNull();
+    }
+
+    [Fact]
+    public void AHeicWithManyItemsBeforeThePrimaryOneIsReadUpToTheCapAndNoFurther()
+    {
+        byte[] Build(int others) => HeicFile(
+            SyntheticImages.FullBox("pitm", 0, 0, [0x00, 0x01]),
+            SyntheticImages.Box("ipco", Ispe(640, 480)),
+            SyntheticImages.FullBox("ipma", 0, 0, U32(others + 1), [.. Enumerable.Range(0, others).SelectMany(_ => new byte[] { 0x00, 0x02, 0x00 }), 0x00, 0x01, 0x01, 0x01]));
+
+        ImageSniffer.Inspect(Build(4000)).ShouldNotBeNull();
+        ImageSniffer.Inspect(Build(5000)).ShouldBeNull();
+    }
+
+    [Fact]
+    public void AHeicWithBoxesNestedFarPastTheDepthTheReaderFollowsGivesNoAnswer()
+    {
+        var nested = SyntheticImages.Box("free", [0x00]);
+        for (var depth = 0; depth < 200; depth++)
+        {
+            nested = SyntheticImages.FullBox("meta", 0, 0, nested);
+        }
+
+        ImageSniffer.Inspect([.. SyntheticImages.Ftyp("heic", "mif1"), .. nested]).ShouldBeNull();
+    }
+
+    [Fact]
+    public void ABoxWithAZeroTooSmallOrOutOfRangeSizeGivesNoAnswer()
+    {
+        var ftypLength = SyntheticImages.Ftyp("heic", "mif1").Length;
+        var whole = SyntheticImages.Heic(4032, 3024);
+
+        ImageSniffer.Inspect(WithSize(whole, 0, 0)).ShouldBeNull("ftyp size 0");
+        ImageSniffer.Inspect(WithSize(whole, 0, 7)).ShouldBeNull("ftyp size 7");
+        ImageSniffer.Inspect(WithSize(whole, 0, 4096)).ShouldBeNull("ftyp past the end");
+        ImageSniffer.Inspect(WithSize(whole, ftypLength, 0)).ShouldBeNull("meta size 0");
+        ImageSniffer.Inspect(WithSize(whole, ftypLength, 7)).ShouldBeNull("meta size 7");
+        ImageSniffer.Inspect(WithSize(whole, ftypLength, 3)).ShouldBeNull("meta size 3");
+        ImageSniffer.Inspect(WithSize(whole, ftypLength, 0x7FFFFFFF)).ShouldBeNull("meta past the end");
+        ImageSniffer.Inspect(WithSize(whole, ftypLength, uint.MaxValue)).ShouldBeNull("meta size 4 GB");
+        ImageSniffer.Inspect(WithSize(whole, ftypLength + 12, 0)).ShouldBeNull("first child size 0");
+        ImageSniffer.Inspect(WithSize(whole, ftypLength + 12, 5)).ShouldBeNull("first child size 5");
+    }
+
+    [Fact]
+    public void ABoxWithA64BitSizeThatIsHugeCutShortOrWrapsBackGivesNoAnswer()
+    {
+        var ftyp = SyntheticImages.Ftyp("heic", "mif1");
+        byte[] ShortWide(ulong size)
+        {
+            var wide = new byte[8];
+            BinaryPrimitives.WriteUInt64BigEndian(wide, size);
+            return [.. ftyp, 0x00, 0x00, 0x00, 0x01, .. "meta"u8, .. wide, 0, 0, 0, 0];
+        }
+
+        ImageSniffer.Inspect(ShortWide(8)).ShouldBeNull("size under the 16-byte header");
+        ImageSniffer.Inspect(ShortWide(ulong.MaxValue)).ShouldBeNull("size wraps back");
+        ImageSniffer.Inspect(ShortWide(0x1_0000_0000)).ShouldBeNull("size over 4 GB");
+        ImageSniffer.Inspect(ShortWide(5000)).ShouldBeNull("size past the end");
+        ImageSniffer.Inspect([.. ftyp, 0x00, 0x00, 0x00, 0x01, .. "meta"u8, 0, 0]).ShouldBeNull("64-bit size cut off");
+        ImageSniffer.Inspect(SyntheticImages.LoopingBox()).ShouldBeNull("looping box");
+    }
+
+    [Fact]
+    public void EveryCutOfAFileShorterThanItsHeaderGivesNoAnswerAndNeverThrows()
+    {
+        var png = SyntheticImages.Png(800, 600);
+        var heic = SyntheticImages.Heic(4032, 3024, 1);
+        var heicHeaderEnd = heic.Length - 12;
+
+        for (var length = 0; length < png.Length; length++)
+        {
+            ImageSniffer.Inspect(png.AsSpan(0, length)).ShouldBeNull($"png cut to {length}");
+        }
+
+        for (var length = 0; length < heicHeaderEnd; length++)
+        {
+            ImageSniffer.Inspect(SyntheticImages.Truncated(heic, length)).ShouldBeNull($"heic cut to {length}");
+        }
+
+        for (var length = heicHeaderEnd; length <= heic.Length; length++)
+        {
+            ImageSniffer.Inspect(SyntheticImages.Truncated(heic, length)).ShouldNotBeNull($"heic cut to {length}");
+        }
+    }
+
+    [Fact]
+    public void EveryHostileFileIsRefusedInUnderFiftyMilliseconds()
+    {
+        var chunk = SyntheticImages.PngChunk("tEXt", new byte[4]);
+        BinaryPrimitives.WriteUInt32BigEndian(chunk, 1_000_000);
+        var free = SyntheticImages.Box("free", [0x00]);
+        var nested = free;
+        for (var depth = 0; depth < 500; depth++)
+        {
+            nested = SyntheticImages.FullBox("meta", 0, 0, nested);
+        }
+
+        Dictionary<string, byte[]> hostile = new()
+        {
+            ["chunk past the end"] = SyntheticImages.Png(800, 600, chunk),
+            ["many png chunks"] = SyntheticImages.Png(800, 600, [.. Enumerable.Repeat(SyntheticImages.PngChunk("tEXt", []), 20_000)]),
+            ["many webp chunks"] = SyntheticImages.WebP(WebPKind.Extended, 640, 480, 0, [.. Enumerable.Repeat(SyntheticImages.WebPChunk("JUNK", []), 20_000)]),
+            ["many heic boxes"] = [.. SyntheticImages.Ftyp("heic"), .. SyntheticImages.FullBox("meta", 0, 0, [.. Enumerable.Repeat(free, 20_000).SelectMany(box => box)])],
+            ["deep nesting"] = [.. SyntheticImages.Ftyp("heic"), .. nested],
+            ["looping box"] = SyntheticImages.LoopingBox(),
+            ["huge ipma entry count"] = HeicFile(
+                SyntheticImages.FullBox("pitm", 0, 0, [0x00, 0x01]),
+                SyntheticImages.Box("ipco", Ispe(640, 480)),
+                SyntheticImages.FullBox("ipma", 0, 0, U32(int.MaxValue), new byte[60_000])),
+        };
+
+        ImageSniffer.Inspect(SyntheticImages.Png(800, 600)).ShouldNotBeNull();
+        ImageSniffer.Inspect(SyntheticImages.Heic(640, 480)).ShouldNotBeNull();
+        foreach (var (name, file) in hostile)
+        {
+            var watch = Stopwatch.StartNew();
+            var facts = ImageSniffer.Inspect(file);
+            watch.Stop();
+
+            facts.ShouldBeNull(name);
+            watch.ElapsedMilliseconds.ShouldBeLessThan(50, name);
+        }
+    }
+
+    [Fact]
+    public void TwoThousandSeededRandomInputsNeverThrow()
+    {
+        var generator = new SeededBytes(0xC0FFEE);
+        byte[][] starts =
+        [
+            [0xFF, 0xD8, 0xFF],
+            [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52],
+            [.. "RIFF"u8, 0x00, 0x10, 0x00, 0x00, .. "WEBP"u8],
+            [0x00, 0x00, 0x00, 0x18, .. "ftyp"u8, .. "heic"u8],
+        ];
+
+        for (var round = 0; round < 2000; round++)
+        {
+            var file = generator.Bytes(generator.Next(4097));
+            var start = round % 5 == 4 ? Array.Empty<byte>() : starts[round % 5];
+            start.AsSpan(0, Math.Min(start.Length, file.Length)).CopyTo(file);
+
+            var facts = ImageSniffer.Inspect(file);
+
+            if (facts is not null)
+            {
+                facts.Width.ShouldBeGreaterThan(0);
+                facts.Height.ShouldBeGreaterThan(0);
+            }
+        }
+    }
+
+    [Fact]
+    public void TwoThousandSeededDamagedPhotosNeverThrow()
+    {
+        var generator = new SeededBytes(0xBADF00D);
+        byte[][] samples =
+        [
+            Jpeg(640, 480, Exif(little: true, 6)),
+            SyntheticImages.Png(800, 600, SyntheticImages.PngChunk("tEXt", new byte[9])),
+            SyntheticImages.WebP(WebPKind.Lossy, 1024, 768),
+            SyntheticImages.WebP(WebPKind.Lossless, 300, 200),
+            SyntheticImages.WebP(WebPKind.Extended, 4000, 3000, 0x30, SyntheticImages.WebPChunk("ICCP", new byte[5])),
+            SyntheticImages.Heic(4032, 3024, 1, exifOrientation: 6),
+            SyntheticImages.Avif(),
+        ];
+
+        for (var round = 0; round < 2000; round++)
+        {
+            var file = (byte[])samples[round % samples.Length].Clone();
+            for (var change = generator.Next(8) + 1; change > 0; change--)
+            {
+                file[generator.Next(file.Length)] = (byte)generator.Next(256);
+            }
+
+            var cut = round % 3 == 0 ? file.AsSpan(0, generator.Next(file.Length + 1)) : file;
+
+            ImageSniffer.Inspect(cut)?.Width.ShouldBeGreaterThan(0);
+        }
+    }
+
+    [Fact]
     public void ADamagedJpegGivesNoAnswerAndNeverThrows()
     {
         var whole = Jpeg(640, 480);
@@ -492,6 +756,14 @@ public sealed class ImageSnifferTests
         Should.Throw<ArgumentOutOfRangeException>(() => ImageKinds.Key((ImageKind)99));
     }
 
+    // A copy of the file with the 32-bit size field of the box at the given offset replaced.
+    private static byte[] WithSize(byte[] file, int boxOffset, uint size)
+    {
+        var copy = (byte[])file.Clone();
+        BinaryPrimitives.WriteUInt32BigEndian(copy.AsSpan(boxOffset), size);
+        return copy;
+    }
+
     private static byte[] U32(int value) => [(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value];
 
     private static byte[] U64(int value) => [0, 0, 0, 0, .. U32(value)];
@@ -504,6 +776,31 @@ public sealed class ImageSnifferTests
 
     private static ImageFacts? HeicFileOf(params byte[][] metaChildren) =>
         ImageSniffer.Inspect([.. SyntheticImages.Ftyp("heic", "mif1"), .. SyntheticImages.FullBox("meta", 0, 0, metaChildren)]);
+
+    // A small fixed-seed xorshift generator, so a failing input can be rebuilt exactly.
+    private sealed class SeededBytes(uint seed)
+    {
+        private uint state = seed;
+
+        public int Next(int maxExclusive)
+        {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            return (int)(state % (uint)maxExclusive);
+        }
+
+        public byte[] Bytes(int length)
+        {
+            var bytes = new byte[length];
+            for (var index = 0; index < length; index++)
+            {
+                bytes[index] = (byte)Next(256);
+            }
+
+            return bytes;
+        }
+    }
 
     // SOI, an optional Exif segment, a quantization table, a baseline frame header, a tiny scan and EOI.
     private static byte[] Jpeg(int width, int height, byte[]? exif = null)
