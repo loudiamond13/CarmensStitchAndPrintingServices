@@ -339,6 +339,16 @@ describe('prepareImage', () => {
     expect(result).toMatchObject({ ok: true, preview: null, previewUnavailable: true });
   });
 
+  it('flags the preview as unavailable when making it throws', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 1000, height: 800 });
+    vi.spyOn(fake.parts, 'preview').mockImplementation(() => {
+      throw new Error('no canvas');
+    });
+    const result = await prepareImage(fileOf('a.jpg'), RULES, fake.parts);
+
+    expect(result).toMatchObject({ ok: true, preview: null, previewUnavailable: true });
+  });
+
   it('asks for a preview with a 176 px long side', async () => {
     const fake = fakeParts({ head: JPEG_HEAD, width: 4000, height: 3000 });
     const preview = vi.spyOn(fake.parts, 'preview');
