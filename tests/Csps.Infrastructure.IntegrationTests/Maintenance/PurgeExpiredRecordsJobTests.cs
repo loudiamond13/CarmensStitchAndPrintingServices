@@ -1,5 +1,8 @@
 using System.Data.Common;
+using System.Security.Cryptography;
 using Csps.Application.Maintenance;
+using Csps.Domain.Identity;
+using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Maintenance;
 using Csps.Infrastructure.Persistence;
@@ -16,9 +19,13 @@ namespace Csps.Infrastructure.IntegrationTests.Maintenance;
 public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string PurgeLabel = "Expired request keys removed";
+    private const string SessionsLabel = "Expired sign-in tokens removed";
 
     private static readonly DateTimeOffset Now = new(2026, 11, 3, 12, 0, 0, TimeSpan.Zero);
     private static readonly TimeSpan ClaimLease = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan SessionMargin = TimeSpan.FromDays(1);
+    private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(12);
+    private static readonly SessionSettings Sessions = new() { BrowserSessionLifetime = SessionLifetime };
 
     [Fact]
     public async Task ABigBacklogIsRemovedInBatchesOf500WhenTheBudgetAllows()
@@ -31,7 +38,7 @@ public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassF
         var report = await RunAsync(clock, counter);
 
         PurgeBatchSize.ShouldBe(500);
-        var line = report.Lines.ShouldHaveSingleItem();
+        var line = Line(report, PurgeLabel);
         line.Label.ShouldBe(PurgeLabel);
         line.Value.ShouldBe(1200);
         line.Failed.ShouldBeFalse();
@@ -51,7 +58,7 @@ public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassF
 
         var report = await RunAsync(clock, spendAfterFirstDelete, budget);
 
-        var line = report.Lines.ShouldHaveSingleItem();
+        var line = Line(report, PurgeLabel);
         line.Value.ShouldBe(500);
         line.Failed.ShouldBeFalse();
         report.More.ShouldBeTrue();
@@ -68,7 +75,7 @@ public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassF
 
         var report = await RunAsync(new FakeTimeProvider(Now));
 
-        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(700);
+        Line(report, PurgeLabel).Value.ShouldBe(700);
         report.More.ShouldBeFalse();
         (await CountRecordsAsync()).ShouldBe(0);
     }
@@ -82,7 +89,7 @@ public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassF
 
         var report = await RunAsync(new FakeTimeProvider(Now));
 
-        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(1);
+        Line(report, PurgeLabel).Value.ShouldBe(1);
         var left = await ReadRecordKeysAsync();
         left.ShouldContain(kept);
         left.ShouldNotContain(gone);
@@ -98,7 +105,7 @@ public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassF
 
         var report = await RunAsync(new FakeTimeProvider(Now));
 
-        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(2);
+        Line(report, PurgeLabel).Value.ShouldBe(2);
         (await ReadClaimNamesAsync()).Order().ToArray().ShouldBe(["idem:live", "idem:live-by-a-tick"]);
         (await CountStandingLocksAsync()).ShouldBe(standingBefore);
         standingBefore.ShouldBeGreaterThan(0);
@@ -114,16 +121,155 @@ public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassF
 
         var report = await RunAsync(new FakeTimeProvider(Now));
 
-        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(5);
+        Line(report, PurgeLabel).Value.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task ASessionEndedMoreThanADayAgoIsRemovedAndOneAtTheCutOffStays()
+    {
+        await database.ResetAsync();
+        var userId = await CreateUserAsync();
+        var gone = await StoreSessionAsync(userId, Now - SessionMargin - TimeSpan.FromSeconds(1));
+        var atCutOff = await StoreSessionAsync(userId, Now - SessionMargin);
+        var fresh = await StoreSessionAsync(userId, Now + TimeSpan.FromHours(1));
+
+        var report = await RunAsync(new FakeTimeProvider(Now));
+
+        var line = Line(report, SessionsLabel);
+        line.Value.ShouldBe(1);
+        line.Failed.ShouldBeFalse();
+        var left = await ReadSessionIdsAsync();
+        left.Order().ToArray().ShouldBe(new[] { atCutOff, fresh }.Order().ToArray());
+        left.ShouldNotContain(gone);
+    }
+
+    [Fact]
+    public async Task ARemovedSessionTakesAllItsRefreshTokensAndALiveSessionKeepsItsUsedOnes()
+    {
+        await database.ResetAsync();
+        var userId = await CreateUserAsync();
+        var ended = await StoreSessionAsync(userId, Now - TimeSpan.FromDays(3), rotations: 2);
+        var live = await StoreSessionAsync(userId, Now + TimeSpan.FromHours(1), rotations: 2);
+
+        var report = await RunAsync(new FakeTimeProvider(Now));
+
+        Line(report, SessionsLabel).Value.ShouldBe(1);
+        (await CountTokensAsync(ended)).ShouldBe(0);
+        (await CountTokensAsync(live)).ShouldBe(3);
+        (await CountConsumedTokensAsync(live)).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task ElevenHundredEndedSessionsAreRemovedInThreeBatches()
+    {
+        await database.ResetAsync();
+        var userId = await CreateUserAsync();
+        await StoreSessionsAsync(userId, 1100, Now - TimeSpan.FromDays(2));
+        var counter = new CommandCounter();
+
+        var report = await RunAsync(new FakeTimeProvider(Now), counter);
+
+        Line(report, SessionsLabel).Value.ShouldBe(1100);
+        report.More.ShouldBeFalse();
+        counter.Commands.Count(static command => command.Contains("DELETE", StringComparison.Ordinal) && command.Contains("UserSessions", StringComparison.Ordinal)).ShouldBe(3);
+        (await ReadSessionIdsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ASpentBudgetAfterTheFirstSessionBatchStopsWithMore()
+    {
+        await database.ResetAsync();
+        var userId = await CreateUserAsync();
+        await StoreSessionsAsync(userId, 1100, Now - TimeSpan.FromDays(2));
+        var clock = new FakeTimeProvider(Now);
+        var spend = new AdvanceAfterFirstDelete(clock, MaintenanceBudget.DefaultDuration, "UserSessions");
+
+        var report = await RunAsync(clock, spend, new MaintenanceBudget(clock));
+
+        Line(report, SessionsLabel).Value.ShouldBe(500);
+        report.More.ShouldBeTrue();
+        (await ReadSessionIdsAsync()).Count.ShouldBe(600);
     }
 
     private static int PurgeBatchSize => PurgeExpiredRecordsJob.BatchSize;
+
+    private static MaintenanceLine Line(MaintenanceJobReport report, string label) => report.Lines.Single(line => line.Label == label);
 
     private async Task<MaintenanceJobReport> RunAsync(FakeTimeProvider clock, IInterceptor? hook = null, MaintenanceBudget? budget = null)
     {
         await using var context = hook is null ? database.CreateContext() : database.CreateContext(hook);
         var job = new PurgeExpiredRecordsJob(context, clock, NullLogger<PurgeExpiredRecordsJob>.Instance);
         return await job.RunAsync(budget ?? new MaintenanceBudget(clock), TestContext.Current.CancellationToken);
+    }
+
+    private async Task<Guid> CreateUserAsync()
+    {
+        var id = Guid.NewGuid();
+        var email = $"staff.{id:N}@example.test";
+        await using var context = database.CreateContext();
+        context.Users.Add(new ApplicationUser
+        {
+            Id = id,
+            UserName = email,
+            NormalizedUserName = email.ToUpperInvariant(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            SecurityStamp = Guid.NewGuid().ToString("N"),
+            CreatedAtUtc = Now,
+        });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return id;
+    }
+
+    // A browser session lasts SessionLifetime from its start, so the start is set back to land on the wanted end.
+    // Each rotation uses the newest token and adds its child, so a session with n rotations holds n + 1 tokens.
+    private async Task<Guid> StoreSessionAsync(Guid userId, DateTimeOffset absoluteExpiresAt, int rotations = 0)
+    {
+        var start = absoluteExpiresAt - SessionLifetime;
+        var (session, first) = UserSession.Start(userId, persistent: false, "Test browser", RandomNumberGenerator.GetBytes(TokenHash.HashLength), start, Sessions);
+        var tokens = new List<RefreshToken> { first };
+        for (var index = 0; index < rotations; index++)
+        {
+            var result = session.Rotate(tokens[^1], tokens, RandomNumberGenerator.GetBytes(TokenHash.HashLength), start.AddMinutes(index + 1), Sessions);
+            tokens.Add(result.NewToken.ShouldNotBeNull());
+        }
+
+        await using var context = database.CreateContext();
+        context.Add(session);
+        context.AddRange(tokens);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return session.Id;
+    }
+
+    private async Task StoreSessionsAsync(Guid userId, int count, DateTimeOffset absoluteExpiresAt)
+    {
+        await using var context = database.CreateContext();
+        for (var index = 0; index < count; index++)
+        {
+            var (session, token) = UserSession.Start(userId, persistent: false, "Test browser", RandomNumberGenerator.GetBytes(TokenHash.HashLength), absoluteExpiresAt - SessionLifetime, Sessions);
+            context.Add(session);
+            context.Add(token);
+        }
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<IReadOnlyList<Guid>> ReadSessionIdsAsync()
+    {
+        await using var context = database.CreateContext();
+        return await context.UserSessions.AsNoTracking().Select(session => session.Id).ToListAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<int> CountTokensAsync(Guid sessionId)
+    {
+        await using var context = database.CreateContext();
+        return await context.RefreshTokens.CountAsync(token => token.SessionId == sessionId, TestContext.Current.CancellationToken);
+    }
+
+    private async Task<int> CountConsumedTokensAsync(Guid sessionId)
+    {
+        await using var context = database.CreateContext();
+        return await context.RefreshTokens.CountAsync(token => token.SessionId == sessionId && token.ConsumedAt != null, TestContext.Current.CancellationToken);
     }
 
     private async Task StoreRecordsAsync(int count, DateTimeOffset expiresAt)
@@ -194,15 +340,15 @@ public sealed class PurgeExpiredRecordsJobTests(CspsDatabase database) : IClassF
         return await context.Set<DatabaseLock>().CountAsync(claim => claim.ExpiresAtUtc == null, TestContext.Current.CancellationToken);
     }
 
-    // Moves the clock forward once the first delete of the idempotency records has run, as if that batch took the whole budget.
-    private sealed class AdvanceAfterFirstDelete(FakeTimeProvider clock, TimeSpan by) : DbCommandInterceptor
+    // Moves the clock forward once the first delete on the table has run, as if that batch took the whole budget.
+    private sealed class AdvanceAfterFirstDelete(FakeTimeProvider clock, TimeSpan by, string table = "IdempotencyRecords") : DbCommandInterceptor
     {
         private int _advanced;
 
         public override ValueTask<int> NonQueryExecutedAsync(
             DbCommand command, CommandExecutedEventData eventData, int result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("IdempotencyRecords", StringComparison.Ordinal) && Interlocked.Exchange(ref _advanced, 1) == 0)
+            if (command.CommandText.Contains("DELETE", StringComparison.Ordinal) && command.CommandText.Contains(table, StringComparison.Ordinal) && Interlocked.Exchange(ref _advanced, 1) == 0)
             {
                 clock.Advance(by);
             }
