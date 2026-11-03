@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import type { PhotoTileModel } from '@/components/media';
@@ -71,16 +71,17 @@ describe('PhotoTile saved photo (D-25)', () => {
   it('puts the D-05 reveal on the decorative grip only, and hides the grip where hover is none', () => {
     const { container } = renderTile();
     const tokens = (element: Element) =>
-      [...element.classList].filter((token) => /(^|:)opacity-/.test(token)).sort((a, b) => a.localeCompare(b));
+      [...element.classList].filter((token) => /(^|:)opacity-(0|100)$/.test(token)).sort((a, b) => a.localeCompare(b));
     const revealed = [...container.querySelectorAll('*')].filter((element) => tokens(element).length > 0);
     expect(revealed).toHaveLength(1);
-    expect(revealed[0]?.getAttribute('aria-hidden')).toBe('true');
-    expect(tokens(revealed[0] as Element)).toEqual([
+    const grip = revealed[0] ?? document.body;
+    expect(grip.getAttribute('aria-hidden')).toBe('true');
+    expect(tokens(grip)).toEqual([
       'group-focus-within/thumb:opacity-100',
       'group-hover/thumb:opacity-100',
       'opacity-0',
     ]);
-    expect(revealed[0]?.classList.contains('no-hover:hidden')).toBe(true);
+    expect(grip.classList.contains('no-hover:hidden')).toBe(true);
   });
 
   it('has no axe violations', async () => {

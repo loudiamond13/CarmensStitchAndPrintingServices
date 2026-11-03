@@ -1,23 +1,21 @@
-// The image uploader looks (App. B `/* ── Image uploader ── */` and `.csp-linkbtn`, CSPS-UI-SPEC.md §6.3) as complete
-// Tailwind tokens (D-33). Every string in this file is a class list (the class gate reads them all).
+// The photo list looks (App. B `/* ── Image uploader ── */` and `.csp-linkbtn`, CSPS-UI-SPEC.md §6.3, and Phase 9 UI-SPEC
+// P1) as complete Tailwind tokens (D-33). Every string in this file is a class list (the class gate reads them all).
 //
-// The thumb grip and actions reveal (owner ruling D-05: `opacity-0 group-hover/thumb:opacity-100
-// group-focus-within/thumb:opacity-100 no-hover:opacity-100`) is not in this file. The class gate allows those
-// opacity tokens only in src/components/media/ImageUploader* (web/scripts/class-gate.config.mjs, D-02), so the reveal list
-// sits in ImageUploader.tsx next to the grip and actions it hides; thumbGripClasses and thumbActionsClasses below hold
-// the rest of their looks.
+// The grip reveal (owner ruling D-05: `opacity-0 group-hover/thumb:opacity-100 group-focus-within/thumb:opacity-100`)
+// is not in this file. The class gate allows those opacity tokens only in src/components/media/PhotoTile*
+// (web/scripts/class-gate.config.mjs, D-02), so the reveal list sits in PhotoTile.tsx next to the grip it hides.
 import { tw } from '@/ui/tw';
 
-/** `.csp-uploader`: the drop zone above the thumbnail grid, 16px apart. */
+/** The uploader: the pick errors, the add area and the photo list, 16px apart. */
 export const uploaderClasses = tw('flex flex-col gap-4');
 
 /**
  * `.csp-drop` and `.csp-drop.is-over`: the dashed drop zone on `--surface-2` (2px `--line-strong`, 32px by 16px
  * padded, centred `--ink-muted` text). While files are dragged over it (`data-over="true"`) it takes the accent
- * border, wash and ink. Border colour and background change over .15s ease.
+ * border, wash and ink. It shows only on devices that hover (D-17); `no-hover:hidden` takes it away on touch.
  */
 export const dropClasses = tw(
-  'flex flex-col items-center gap-1 rounded-md border-2 border-dashed border-line-strong bg-surface-2 px-4 py-8 text-center text-ink-muted transition-[border-color,background-color] duration-150 ease-[ease] data-[over=true]:border-accent-line data-[over=true]:bg-accent-soft data-[over=true]:text-accent-ink',
+  'flex flex-col items-center gap-1 rounded-md border-2 border-dashed border-line-strong bg-surface-2 px-4 py-8 text-center text-ink-muted transition-[border-color,background-color] duration-150 ease-[ease] data-[over=true]:border-accent-line data-[over=true]:bg-accent-soft data-[over=true]:text-accent-ink no-hover:hidden',
 );
 
 /**
@@ -26,7 +24,7 @@ export const dropClasses = tw(
  */
 export const dropTitleClasses = tw('font-semibold text-ink');
 
-/** `.csp-drop-hint`: "JPG, PNG or WEBP · up to 10 MB each · {n}/{max}", 12px/16px. */
+/** `.csp-drop-hint`: "JPG, PNG, WEBP or HEIC · up to 10 MB each · {n}/5", 12px/16px. */
 export const dropHintClasses = tw('text-[12px] leading-4');
 
 /**
@@ -37,16 +35,34 @@ export const linkButtonClasses = tw(
   'cursor-pointer border-0 p-0 font-button text-link underline underline-offset-[3px]',
 );
 
-/** `.csp-thumbs`: the thumbnail grid, as many 104px-or-wider columns as fit, 12px apart. */
-export const thumbsClasses = tw('m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-3 p-0');
+/** The touch add area (D-17): hidden on devices that hover, a column of the button row and the hint where hover is none. */
+export const touchAddClasses = tw('hidden flex-col gap-2 no-hover:flex');
 
-/**
- * `.csp-thumb`: a square, clipped, rounded tile on `--surface-2` with the grab cursor. `group/thumb` lets the grip and
- * the actions follow the thumb's hover and focus within (D-05). Its ring is in thumbRingClasses.
- */
-export const thumbClasses = tw(
-  'group/thumb relative [aspect-ratio:1] cursor-grab overflow-hidden rounded-md bg-surface-2',
+/** "Take Photo" and "Choose Photos": one row; they wrap onto two rows when the card is too narrow for both. */
+export const touchRowClasses = tw('flex flex-wrap gap-2');
+
+/** Each touch button shares the row. */
+export const touchButtonClasses = tw('flex-1 basis-36');
+
+/** The hint under the touch buttons: Small, `--ink-muted`. */
+export const touchHintClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');
+
+/** The photo list: columns of at least 280px (one on phones), 16px apart. */
+export const photoListClasses = tw(
+  'm-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 p-0',
 );
+
+/** One photo tile: `--surface`, a 1px `--line`, radius-md, 8px padding, two rows 8px apart. */
+export const tileClasses = tw('group/thumb flex min-w-0 flex-col gap-2 rounded-md border border-line bg-surface p-2');
+
+/** A tile whose photo can be dragged (hover devices, live and draft). */
+export const tileDraggableClasses = tw('cursor-grab');
+
+/** Row 1: the thumb, then the info column, 8px apart. */
+export const tileRowClasses = tw('flex min-w-0 gap-2');
+
+/** The 88 by 88 thumb box, clipped and rounded. */
+export const thumbBoxClasses = tw('relative size-22 shrink-0 overflow-hidden rounded-sm bg-surface-2');
 
 /** `.csp-thumb` (a 1px inset `--line` ring) and `.csp-thumb.is-cover` (a 2px outer `--accent-line` ring). */
 export const thumbRingClasses = {
@@ -54,15 +70,14 @@ export const thumbRingClasses = {
   plain: tw('[box-shadow:inset_0_0_0_1px_var(--line)]'),
 } as const;
 
-/** `.csp-thumb img`: the photo fills the tile. */
-export const thumbImageClasses = tw('block h-full w-full object-cover');
+/** The saved photo's thumb button fills the box. */
+export const thumbButtonClasses = tw('block size-full cursor-pointer border-0 bg-transparent p-0');
 
-/**
- * `.csp-thumb .csp-media-ph` and `.csp-thumb .csp-media-ph-num`: the chip-less placeholder fills the tile, and its
- * outlined number is centred across (right 50%, then translate(50%, -50%)) instead of sitting at the right. The number
- * is the placeholder's only child here (the chip is off, `label={false}`).
- */
-export const thumbPlaceholderClasses = tw('h-full *:right-[50%] *:[transform:translate(50%,-50%)]');
+/** A draft or pending photo's `data:` preview fills the box. */
+export const thumbImageClasses = tw('block size-full object-cover');
+
+/** The chip-less placeholder fills the box. */
+export const thumbPlaceholderClasses = tw('size-full');
 
 /** `.csp-thumb-cover`: the orange "Cover" tag, 6px from the bottom left, 11px/16px 700 upper case, .08em tracking. */
 export const thumbCoverClasses = tw(
@@ -70,19 +85,45 @@ export const thumbCoverClasses = tw(
 );
 
 /**
- * `.csp-thumb-grip`: the drag grip, 4px from the left and 6px from the top in `--ink` with a 1px `--bg` drop shadow;
- * its opacity changes over .15s.
+ * `.csp-thumb-grip`: the decorative drag grip, 4px from the left and 6px from the top in `--ink` with a 1px `--bg` drop
+ * shadow; its opacity changes over .15s. It never takes a press, so the thumb under it stays pressable.
  */
 export const thumbGripClasses = tw(
-  'absolute top-1.5 left-1 text-ink [filter:drop-shadow(0_1px_1px_var(--bg))] transition-[opacity] duration-150 ease-[ease]',
+  'pointer-events-none absolute top-1.5 left-1 text-ink [filter:drop-shadow(0_1px_1px_var(--bg))] transition-[opacity] duration-150 ease-[ease]',
 );
 
-/** `.csp-thumb-actions`: the cover and remove buttons, 6px from the top right, 4px apart; opacity over .15s. */
-export const thumbActionsClasses = tw(
-  'absolute top-1.5 right-1.5 flex gap-1 transition-[opacity] duration-150 ease-[ease]',
-);
+/** The info column beside the thumb. */
+export const infoClasses = tw('flex min-w-0 flex-1 flex-col items-start gap-1');
 
-/** `.csp-thumb-btn`: a 28px square button on `--surface-3` with `--shadow-2`; on hover it turns `--danger`. */
-export const thumbButtonClasses = tw(
-  'grid size-7 cursor-pointer place-items-center rounded-[6px] border-0 bg-surface-3 text-ink [box-shadow:var(--shadow-2)] hover:bg-danger hover:text-on-danger',
-);
+/** "Photo {n} of {total}": Label, 14px 600. */
+export const positionLabelClasses = tw('text-[14px] leading-5 font-semibold text-ink');
+
+/** The description: Small, `--ink-muted`, two lines at most, a long word wraps anywhere. */
+export const descriptionClasses = tw('line-clamp-2 text-[14px] leading-5 wrap-anywhere text-ink-muted');
+
+/** "Make Cover" sits 4px below the description. */
+export const makeCoverClasses = tw('mt-1');
+
+/** A file name on a waiting, uploading or failed tile: Label, two lines at most. */
+export const fileNameClasses = tw('line-clamp-2 text-[14px] leading-5 font-semibold wrap-anywhere text-ink');
+
+/** The status line of a waiting, uploading or failed tile: Small, an icon then a word. */
+export const statusClasses = {
+  muted: tw('flex items-start gap-1 text-[14px] leading-5 wrap-anywhere text-ink-muted'),
+  danger: tw('flex items-start gap-1 text-[14px] leading-5 wrap-anywhere text-danger'),
+} as const;
+
+/** The icon of a status line, level with the first line of text. */
+export const statusIconClasses = tw('flex h-5 shrink-0 items-center');
+
+/** The status spinner; it stands still under reduced motion. */
+export const spinnerClasses = tw('animate-csp-spin motion-reduce:animate-none');
+
+/** Row 2: the move group on the left and the edit and remove group on the right. */
+export const actionsRowClasses = tw('flex flex-wrap items-center justify-between gap-2');
+
+/** Row 2 of an uploading tile has no buttons and keeps the height of a small button. */
+export const actionsRowIdleClasses = tw('min-h-9');
+
+/** One group of icon buttons, 8px apart. */
+export const actionsGroupClasses = tw('flex gap-2');

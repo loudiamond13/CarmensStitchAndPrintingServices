@@ -62,6 +62,14 @@ function input(container: HTMLElement, camera: boolean): HTMLInputElement {
   return found;
 }
 
+function dropZone(): HTMLElement {
+  const zone = screen.getByText(/Drag images here or/).closest<HTMLElement>('[data-over]');
+  if (zone === null) {
+    throw new Error('No drop zone.');
+  }
+  return zone;
+}
+
 const createObjectURL = vi.fn(() => 'blob:csps/never');
 
 beforeEach(() => {
@@ -162,19 +170,18 @@ describe('ImageUploader add area (D-17, D-08)', () => {
 
   it('shows the drop zone on devices that hover and hides it where hover is none', () => {
     render(<ImageUploader {...props()} />);
-    const title = screen.getByText(/Drag images here or/);
-    expect(title.textContent).toBe('Drag images here or browse');
-    const zone = title.parentElement;
-    expect(zone?.className).toContain('no-hover:hidden');
-    expect(zone?.getAttribute('data-over')).toBe('false');
+    expect(screen.getByText(/Drag images here or/).textContent).toBe('Drag images here or browse');
+    const zone = dropZone();
+    expect(zone.className).toContain('no-hover:hidden');
+    expect(zone.getAttribute('data-over')).toBe('false');
   });
 
   it('shows Take Photo and Choose Photos only where hover is none (D-17)', () => {
     render(<ImageUploader {...props()} />);
-    const row = screen.getByRole('button', { name: 'Take Photo' }).parentElement?.parentElement;
+    const takePhoto = screen.getByRole('button', { name: 'Take Photo' });
+    const row = takePhoto.closest('[class*="no-hover:flex"]');
     expect(row?.className).toContain('hidden');
-    expect(row?.className).toContain('no-hover:flex');
-    expect(within(row as HTMLElement).getByRole('button', { name: 'Choose Photos' })).toBeDefined();
+    expect(row).toBe(screen.getByRole('button', { name: 'Choose Photos' }).closest('[class*="no-hover:flex"]'));
   });
 
   it('gives Choose Photos an image-only list, many files and no capture', () => {
@@ -228,7 +235,7 @@ describe('ImageUploader add area (D-17, D-08)', () => {
   it('passes dropped files with "drop" and marks the zone while files are dragged over it', () => {
     const p = props();
     render(<ImageUploader {...p} />);
-    const zone = screen.getByText(/Drag images here or/).parentElement as HTMLElement;
+    const zone = dropZone();
     fireEvent.dragOver(zone);
     expect(zone.dataset.over).toBe('true');
     fireEvent.dragLeave(zone);
