@@ -199,6 +199,265 @@ public sealed class ImageMetadataStripperTests
         ImageMetadataStripper.Strip(ImageKind.WebP, trailingBytes).IsFailure.ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AHeicHasItsExifAndXmpPayloadsZeroedAndNoOtherByteChanged(bool useIdat)
+    {
+        var input = SyntheticImages.HeicWithMetadata(4032, 3024, rotation: 1, useIdat);
+
+        var output = Strip(ImageKind.Heic, input);
+
+        output.ShouldBe(Wiped(input));
+        output.Length.ShouldBe(input.Length);
+        Count(output, SyntheticImages.HeicImageData).ShouldBe(1);
+        AssertNoMetadata(output);
+        ImageSniffer.Inspect(output).ShouldBe(ImageSniffer.Inspect(input));
+        ImageSniffer.Inspect(output).ShouldNotBeNull().Orientation.ShouldBe(6);
+    }
+
+    [Fact]
+    public void TheHeicFixtureReallyHoldsTheMetadataItsPayloadsAreFoundIn()
+    {
+        var input = SyntheticImages.HeicWithMetadata(4032, 3024);
+
+        input.AsSpan().IndexOf(SyntheticImages.HeicExifItem).ShouldBeGreaterThan(0);
+        input.AsSpan().IndexOf(SyntheticImages.HeicXmpItem).ShouldBeGreaterThan(0);
+        Count(input, Encoding.ASCII.GetBytes(SyntheticImages.FakeSerial)).ShouldBe(2);
+        Count(input, GpsPointerTag).ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(0, 4, 4, 0, 0)]
+    [InlineData(0, 4, 4, 4, 0)]
+    [InlineData(1, 8, 8, 8, 0)]
+    [InlineData(1, 4, 4, 0, 4)]
+    [InlineData(2, 4, 4, 4, 0)]
+    [InlineData(2, 8, 4, 0, 8)]
+    public void AHeicIsCleanedWhateverTheWidthsOfItsLocationFields(int version, int offsetSize, int lengthSize, int baseOffsetSize, int indexSize)
+    {
+        var input = SyntheticImages.HeicWithLocations(
+            StandardIinf,
+            offsets => SyntheticImages.Iloc(version, offsetSize, lengthSize, baseOffsetSize, indexSize, Items(offsets, baseOffsetSize: baseOffsetSize)),
+            null,
+            StandardMdat);
+
+        Strip(ImageKind.Heic, input).ShouldBe(Wiped(input));
+    }
+
+    [Fact]
+    public void AHeicItemKeptInSeveralExtentsIsZeroedInAllOfThem()
+    {
+        var input = SyntheticImages.HeicWithLocations(
+            StandardIinf,
+            offsets =>
+            {
+                var exif = offsets.Mdat + SyntheticImages.HeicImageData.Length;
+                return SyntheticImages.Iloc(
+                    1,
+                    4,
+                    4,
+                    0,
+                    Image(offsets),
+                    new IlocItem(2, 0, 0, 0, [new IlocExtent(exif, 10), new IlocExtent(exif + 10, SyntheticImages.HeicExifItem.Length - 10)]),
+                    new IlocItem(3, 0, 0, 0, [new IlocExtent(exif + SyntheticImages.HeicExifItem.Length, SyntheticImages.HeicXmpItem.Length)]));
+            },
+            null,
+            StandardMdat);
+
+        Strip(ImageKind.Heic, input).ShouldBe(Wiped(input));
+    }
+
+    [Theory]
+    [InlineData(2, "application/rdf+xml")]
+    [InlineData(2, "APPLICATION/RDF+XML")]
+    [InlineData(3, "application/rdf+xml")]
+    public void AHeicXmpItemIsFoundByItsContentTypeInEveryItemInfoVersion(int version, string contentType)
+    {
+        var input = SyntheticImages.HeicWithLocations(
+            SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1", version: version), SyntheticImages.Infe(2, "Exif", version: version), SyntheticImages.Infe(3, "mime", contentType, version)),
+            offsets => SyntheticImages.Iloc(1, 4, 4, 0, Items(offsets)),
+            null,
+            StandardMdat);
+
+        Strip(ImageKind.Heic, input).ShouldBe(Wiped(input));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void AHeicXmpItemInAnOldItemInfoEntryIsFoundByItsContentTypeAndTheUntypedExifIsLeftAlone(int version)
+    {
+        var input = SyntheticImages.HeicWithLocations(
+            SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1", version: version), SyntheticImages.Infe(2, "Exif", version: version), SyntheticImages.Infe(3, "mime", "application/rdf+xml", version)),
+            offsets => SyntheticImages.Iloc(1, 4, 4, 0, Items(offsets)),
+            null,
+            StandardMdat);
+
+        var output = Strip(ImageKind.Heic, input);
+
+        output.AsSpan().IndexOf(SyntheticImages.HeicXmpItem).ShouldBe(-1);
+        output.AsSpan().IndexOf(SyntheticImages.HeicExifItem).ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public void AHeicMimeItemOfAnotherContentTypeIsNotTouched()
+    {
+        var input = SyntheticImages.HeicWithLocations(
+            SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1"), SyntheticImages.Infe(2, "mime", "text/plain"), SyntheticImages.Infe(3, "mime")),
+            offsets => SyntheticImages.Iloc(1, 4, 4, 0, Items(offsets)),
+            null,
+            StandardMdat);
+
+        Strip(ImageKind.Heic, input).ShouldBe(input);
+    }
+
+    [Fact]
+    public void AHeicWithMetadataItemsButNoLocationBoxHasNothingToWipe()
+    {
+        var input = SyntheticImages.Heic(4032, 3024, 1, exifOrientation: 6);
+
+        Strip(ImageKind.Heic, input).ShouldBe(input);
+        Strip(ImageKind.Heic, SyntheticImages.Heic(4032, 3024)).ShouldBe(SyntheticImages.Heic(4032, 3024));
+    }
+
+    [Fact]
+    public void AHeicMetadataItemWithNoLengthIsLeftAsItIs()
+    {
+        var input = SyntheticImages.HeicWithLocations(
+            StandardIinf,
+            offsets => SyntheticImages.Iloc(1, 4, 4, 0, Image(offsets), new IlocItem(2, 0, 0, 0, []), new IlocItem(3, 0, 0, 0, [new IlocExtent(offsets.Mdat, 0)])),
+            null,
+            StandardMdat);
+
+        Strip(ImageKind.Heic, input).ShouldBe(input);
+    }
+
+    [Theory]
+    [MemberData(nameof(RefusedHeicNames))]
+    public void AHeicWhoseMetadataCannotBeLocatedSafelyIsRefused(string name)
+    {
+        var result = ImageMetadataStripper.Strip(ImageKind.Heic, RefusedHeic(name), "iphone.heic");
+
+        result.IsFailure.ShouldBeTrue(name);
+        result.Error.Code.ShouldBe(ImageErrors.TypeCode, name);
+    }
+
+    public static TheoryData<string> RefusedHeicNames() =>
+    [
+        "item-offset-method",
+        "overlaps-the-image",
+        "outside-the-file",
+        "before-the-data",
+        "external-data",
+        "no-length-field",
+        "idat-missing",
+        "idat-too-short",
+        "iloc-version-three",
+        "odd-offset-size",
+        "iloc-cut-short",
+        "iloc-too-many-items",
+        "iloc-twice",
+        "huge-offset",
+        "too-many-extents",
+        "infe-without-name-end",
+        "infe-version-four",
+        "iinf-with-junk",
+        "iinf-twice",
+        "meta-cut-short",
+    ];
+
+    [Fact]
+    public void EveryFixtureIsIdempotent()
+    {
+        (ImageKind Kind, byte[] File)[] fixtures =
+        [
+            (ImageKind.Jpeg, SyntheticImages.JpegWithMetadata(640, 480, 6)),
+            (ImageKind.Jpeg, SyntheticImages.JpegWithMetadata(640, 480, 1)),
+            (ImageKind.Jpeg, SyntheticImages.Jpeg(640, 480, 8, withExif: true)),
+            (ImageKind.Png, SyntheticImages.PngWithMetadata(800, 600)),
+            (ImageKind.WebP, SyntheticImages.WebPWithMetadata(4000, 3000)),
+            (ImageKind.WebP, SyntheticImages.WebP(WebPKind.Lossless, 300, 200)),
+            (ImageKind.Heic, SyntheticImages.HeicWithMetadata(4032, 3024)),
+            (ImageKind.Heic, SyntheticImages.HeicWithMetadata(4032, 3024, useIdat: true)),
+            (ImageKind.Heic, SyntheticImages.Heic(4032, 3024, 1, exifOrientation: 6)),
+        ];
+
+        foreach (var (kind, file) in fixtures)
+        {
+            var once = Strip(kind, file);
+            Strip(kind, once).ShouldBe(once, kind.ToString());
+        }
+    }
+
+    private static byte[] StandardIinf { get; } = SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1"), SyntheticImages.Infe(2, "Exif"), SyntheticImages.Infe(3, "mime", "application/rdf+xml"));
+
+    private static byte[] StandardMdat { get; } = [.. SyntheticImages.HeicImageData, .. SyntheticImages.HeicExifItem, .. SyntheticImages.HeicXmpItem];
+
+    private static IlocItem Image(HeicOffsets offsets) => new(1, 0, 0, 0, [new IlocExtent(offsets.Mdat, SyntheticImages.HeicImageData.Length)]);
+
+    // The three items of the standard mdat; offsets are counted from the base offset when there is one.
+    private static IlocItem[] Items(HeicOffsets offsets, int baseOffsetSize = 0, int exifMethod = 0, int exifDataReference = 0, long? exifOffset = null, long? exifLength = null)
+    {
+        long baseOffset = baseOffsetSize > 0 ? offsets.Mdat : 0;
+        var exifAt = offsets.Mdat + SyntheticImages.HeicImageData.Length;
+        var xmpAt = exifAt + SyntheticImages.HeicExifItem.Length;
+        return
+        [
+            new IlocItem(1, 0, 0, baseOffset, [new IlocExtent(offsets.Mdat - baseOffset, SyntheticImages.HeicImageData.Length)]),
+            new IlocItem(2, exifMethod, exifDataReference, baseOffset, [new IlocExtent((exifOffset ?? exifAt) - baseOffset, exifLength ?? SyntheticImages.HeicExifItem.Length)]),
+            new IlocItem(3, 0, 0, baseOffset, [new IlocExtent(xmpAt - baseOffset, SyntheticImages.HeicXmpItem.Length)]),
+        ];
+    }
+
+    // The input with the Exif and XMP item payloads set to zero, found by their bytes.
+    private static byte[] Wiped(byte[] input)
+    {
+        var wiped = (byte[])input.Clone();
+        foreach (var item in new[] { SyntheticImages.HeicExifItem, SyntheticImages.HeicXmpItem })
+        {
+            var at = input.AsSpan().IndexOf(item);
+            at.ShouldBeGreaterThan(0);
+            wiped.AsSpan(at, item.Length).Clear();
+        }
+
+        return wiped;
+    }
+
+    private static byte[] RefusedHeic(string name)
+    {
+        byte[] Heic(Func<HeicOffsets, byte[]> iloc, byte[]? idat = null, byte[]? iinf = null) =>
+            SyntheticImages.HeicWithLocations(iinf ?? StandardIinf, iloc, idat, StandardMdat);
+
+        byte[] Standard(HeicOffsets offsets, int version = 1, int exifMethod = 0, int dataReference = 0, long? exifOffset = null, long? exifLength = null, int lengthSize = 4) =>
+            SyntheticImages.Iloc(version, 4, lengthSize, 0, Items(offsets, 0, exifMethod, dataReference, exifOffset, exifLength));
+
+        return name switch
+        {
+            "item-offset-method" => Heic(offsets => Standard(offsets, exifMethod: 2)),
+            "overlaps-the-image" => Heic(offsets => Standard(offsets, exifOffset: offsets.Mdat)),
+            "outside-the-file" => Heic(offsets => Standard(offsets, exifOffset: offsets.Mdat + 100_000)),
+            "before-the-data" => Heic(offsets => Standard(offsets, exifOffset: 0)),
+            "external-data" => Heic(offsets => Standard(offsets, dataReference: 1)),
+            "no-length-field" => Heic(offsets => Standard(offsets, lengthSize: 0)),
+            "idat-missing" => Heic(offsets => Standard(offsets, exifMethod: 1, exifOffset: 0)),
+            "idat-too-short" => Heic(offsets => Standard(offsets, exifMethod: 1, exifOffset: 0), idat: new byte[4]),
+            "iloc-version-three" => Heic(offsets => SyntheticImages.FullBox("iloc", 3, 0, [0x44, 0x00, 0x00, 0x00])),
+            "odd-offset-size" => Heic(offsets => SyntheticImages.FullBox("iloc", 1, 0, [0x34, 0x00, 0x00, 0x00])),
+            "iloc-cut-short" => Heic(offsets => SyntheticImages.FullBox("iloc", 1, 0, [0x44, 0x00, 0x00, 0x02])),
+            "iloc-too-many-items" => Heic(offsets => SyntheticImages.FullBox("iloc", 2, 0, [0x44, 0x00, 0xFF, 0xFF, 0xFF, 0xFF])),
+            "iloc-twice" => Heic(offsets => [.. Standard(offsets), .. Standard(offsets)]),
+            "huge-offset" => Heic(offsets => SyntheticImages.Iloc(1, 8, 4, 0, Image(offsets), new IlocItem(2, 0, 0, 0, [new IlocExtent(-1, 4)]))),
+            "too-many-extents" => Heic(offsets => SyntheticImages.Iloc(1, 4, 4, 0, new IlocItem(1, 0, 0, 0, [.. Enumerable.Repeat(new IlocExtent(offsets.Mdat, 0), 5000)]), new IlocItem(2, 0, 0, 0, [new IlocExtent(offsets.Mdat, 1)]))),
+            "infe-without-name-end" => Heic(offsets => Standard(offsets), iinf: SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1"), SyntheticImages.FullBox("infe", 2, 0, [0x00, 0x02, 0x00, 0x00], "Exif"u8.ToArray()))),
+            "infe-version-four" => Heic(offsets => Standard(offsets), iinf: SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1"), SyntheticImages.Infe(2, "Exif", version: 4))),
+            "iinf-with-junk" => Heic(offsets => Standard(offsets), iinf: SyntheticImages.FullBox("iinf", 0, 0, [0x00, 0x01], SyntheticImages.Infe(2, "Exif"), [0x01, 0x02, 0x03])),
+            "iinf-twice" => Heic(offsets => Standard(offsets), iinf: [.. StandardIinf, .. StandardIinf]),
+            "meta-cut-short" => SyntheticImages.Truncated(Heic(offsets => Standard(offsets)), 60),
+            _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown case."),
+        };
+    }
+
     [Fact]
     public void AFailureCarriesTheTypeCodeAndTheFileName()
     {

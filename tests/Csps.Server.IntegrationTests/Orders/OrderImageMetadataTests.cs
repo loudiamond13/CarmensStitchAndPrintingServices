@@ -86,6 +86,56 @@ public sealed class OrderImageMetadataTests(CspsDatabase database) : IClassFixtu
         row.Height.ShouldBe(3000);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnIphoneHeicReachesStorageWithItsExifAndXmpZeroedAndItsSizeAndTurnKept(bool useIdat)
+    {
+        var heic = SyntheticImages.HeicWithMetadata(4032, 3024, rotation: 1, useIdat);
+
+        var (stored, row) = await UploadAndReadAsync(heic, "IMG_0001.HEIC", "image/heic");
+
+        AssertClean(stored.Bytes.Span);
+        stored.Bytes.Length.ShouldBe(heic.Length);
+        stored.Bytes.Span.IndexOf(SyntheticImages.HeicImageData).ShouldBeGreaterThan(0);
+        ImageSniffer.Inspect(stored.Bytes.Span).ShouldBe(ImageSniffer.Inspect(heic));
+        row.Bytes.ShouldBe(heic.Length);
+        row.Format.ShouldBe("heic");
+        row.Width.ShouldBe(3024);
+        row.Height.ShouldBe(4032);
+    }
+
+    [Fact]
+    public async Task AHeicWhoseExifCannotBeLocatedIsRefusedWithTheTypeMessageAndNothingIsStored()
+    {
+        var refused = SyntheticImages.HeicWithLocations(
+            SyntheticImages.Iinf(SyntheticImages.Infe(1, "hvc1"), SyntheticImages.Infe(2, "Exif")),
+            offsets => SyntheticImages.Iloc(
+                1,
+                4,
+                4,
+                0,
+                new IlocItem(1, 0, 0, 0, [new IlocExtent(offsets.Mdat, SyntheticImages.HeicImageData.Length)]),
+                new IlocItem(2, 2, 0, 0, [new IlocExtent(0, 4)])),
+            null,
+            [.. SyntheticImages.HeicImageData, 0x00, 0x00, 0x00, 0x00]);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var id = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+
+        using var response = await UploadAsync(client, manager.AccessToken, id, refused, "IMG_0002.HEIC", "image/heic");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("images.type");
+        OrderFixtures.FieldErrors(problem, "file").ShouldBe(["IMG_0002.HEIC isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file."]);
+        storage.Uploads.Where(recorded => recorded.AssetFolder.Contains(id.ToString("D"), StringComparison.Ordinal)).ShouldBeEmpty();
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().CountAsync(image => image.OrderId == id, TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
     private static void AssertClean(ReadOnlySpan<byte> stored)
     {
         foreach (var text in MetadataTexts)

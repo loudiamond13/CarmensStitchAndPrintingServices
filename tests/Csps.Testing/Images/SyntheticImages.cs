@@ -396,8 +396,165 @@ public static class SyntheticImages
         return bytes;
     }
 
-    private static byte[] Infe(int itemId, string itemType) =>
-        FullBox("infe", 2, 0, [(byte)(itemId >> 8), (byte)itemId, 0x00, 0x00], System.Text.Encoding.ASCII.GetBytes(itemType), [0x00]);
+    /// <summary>Gets the fake image data of the item-based HEIC fixtures (never zero, so a wrong wipe shows).</summary>
+    public static byte[] HeicImageData { get; } = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE];
+
+    /// <summary>Gets the Exif item payload of the item-based HEIC fixtures: a four-byte header offset, then an Exif block with GPS, make, model and serial.</summary>
+    public static byte[] HeicExifItem { get; } = [0x00, 0x00, 0x00, 0x00, .. RichExifBlock(6)];
+
+    /// <summary>Gets the XMP item payload of the item-based HEIC fixtures.</summary>
+    public static byte[] HeicXmpItem { get; } = System.Text.Encoding.ASCII.GetBytes($"<x:xmpmeta serial=\"{FakeSerial}\"/>");
+
+    /// <summary>Builds a HEIC as an iPhone writes it: an image item (1), an Exif item (2) and an XMP mime item (3), located by an iloc box (version 1, file offsets or idat offsets).</summary>
+    /// <param name="width">The stored width in pixels.</param>
+    /// <param name="height">The stored height in pixels.</param>
+    /// <param name="rotation">The irot angle, 0 to 3 quarter turns; null writes no irot property.</param>
+    /// <param name="useIdat">True to keep the Exif and XMP payloads in an idat box inside meta (construction method 1) instead of in mdat (method 0).</param>
+    /// <returns>The file bytes.</returns>
+    public static byte[] HeicWithMetadata(int width, int height, int? rotation = 1, bool useIdat = false)
+    {
+        byte[] metadata = [.. HeicExifItem, .. HeicXmpItem];
+        return HeicWithLocations(
+            Iinf(Infe(1, "hvc1"), Infe(2, "Exif"), Infe(3, "mime", "application/rdf+xml")),
+            offsets =>
+            {
+                var method = useIdat ? 1 : 0;
+                var exifAt = useIdat ? 0 : offsets.Mdat + HeicImageData.Length;
+                return Iloc(
+                    1,
+                    4,
+                    4,
+                    0,
+                    new IlocItem(1, 0, 0, 0, [new IlocExtent(offsets.Mdat, HeicImageData.Length)]),
+                    new IlocItem(2, method, 0, 0, [new IlocExtent(exifAt, HeicExifItem.Length)]),
+                    new IlocItem(3, method, 0, 0, [new IlocExtent(exifAt + HeicExifItem.Length, HeicXmpItem.Length)]));
+            },
+            useIdat ? metadata : null,
+            useIdat ? HeicImageData : [.. HeicImageData, .. metadata],
+            width,
+            height,
+            rotation);
+    }
+
+    /// <summary>Builds a HEIC from the given item list, location box and data: ftyp, a meta box (hdlr, pitm for item 1, the item list, the location box, an optional idat, and the size and turn properties) and one mdat.</summary>
+    /// <param name="iinf">The item info box.</param>
+    /// <param name="iloc">Builds the location box from where the mdat and idat payloads start in the file (the box must have the same length whatever the offsets); an empty array writes none.</param>
+    /// <param name="idat">The idat payload; null writes no idat box.</param>
+    /// <param name="mdat">The mdat payload.</param>
+    /// <param name="width">The stored width in pixels.</param>
+    /// <param name="height">The stored height in pixels.</param>
+    /// <param name="rotation">The irot angle; null writes no irot property.</param>
+    /// <returns>The file bytes.</returns>
+    public static byte[] HeicWithLocations(byte[] iinf, Func<HeicOffsets, byte[]> iloc, byte[]? idat, byte[] mdat, int width = 4032, int height = 3024, int? rotation = null)
+    {
+        ArgumentNullException.ThrowIfNull(iinf);
+        ArgumentNullException.ThrowIfNull(iloc);
+        ArgumentNullException.ThrowIfNull(mdat);
+        var ftyp = Ftyp("heic", "mif1");
+        var hdlr = FullBox("hdlr", 0, 0, [0, 0, 0, 0, .. "pict"u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        var pitm = FullBox("pitm", 0, 0, [0x00, 0x01]);
+        var ispe = FullBox("ispe", 0, 0, UInt32Be(width), UInt32Be(height));
+        byte[][] properties = rotation is { } turns ? [ispe, Box("irot", [(byte)turns]), Box("hvcC", [0x01])] : [ispe, Box("hvcC", [0x01])];
+        var iprp = Box(
+            "iprp",
+            Box("ipco", [.. properties.SelectMany(property => property)]),
+            FullBox("ipma", 0, 0, UInt32Be(1), [0x00, 0x01, (byte)properties.Length, .. Enumerable.Range(1, properties.Length).Select(index => (byte)(index | 0x80))]));
+        var idatBox = idat is null ? [] : Box("idat", idat);
+
+        byte[] Meta(byte[] locations) => FullBox("meta", 0, 0, hdlr, pitm, iinf, locations, idatBox, iprp);
+
+        var measuring = iloc(new HeicOffsets(0, 0));
+        var idatOffset = ftyp.Length + 12 + hdlr.Length + pitm.Length + iinf.Length + measuring.Length + 8;
+        var offsets = new HeicOffsets(ftyp.Length + Meta(measuring).Length + 8, idatOffset);
+        return [.. ftyp, .. Meta(iloc(offsets)), .. Box("mdat", mdat)];
+    }
+
+    /// <summary>Builds an item info box (version 0, with a 16-bit entry count).</summary>
+    /// <param name="entries">The infe boxes.</param>
+    /// <returns>The box bytes.</returns>
+    public static byte[] Iinf(params byte[][] entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        return FullBox("iinf", 0, 0, [(byte)(entries.Length >> 8), (byte)entries.Length], [.. entries.SelectMany(entry => entry)]);
+    }
+
+    /// <summary>Builds one item info entry.</summary>
+    /// <param name="itemId">The item number.</param>
+    /// <param name="itemType">The four-letter item type (not written for versions 0 and 1, which have none).</param>
+    /// <param name="contentType">The content type of a mime item (for versions 0 and 1, of any item); null writes none.</param>
+    /// <param name="version">0 or 1 (no item type), 2 (16-bit item number) or 3 (32-bit item number).</param>
+    /// <returns>The box bytes.</returns>
+    public static byte[] Infe(int itemId, string itemType, string? contentType = null, int version = 2)
+    {
+        ArgumentNullException.ThrowIfNull(itemType);
+        byte[] name = [0x00];
+        byte[] content = contentType is null ? [] : [.. System.Text.Encoding.ASCII.GetBytes(contentType), 0x00];
+        byte[] type = System.Text.Encoding.ASCII.GetBytes(itemType);
+        return version switch
+        {
+            < 2 => FullBox("infe", version, 0, [(byte)(itemId >> 8), (byte)itemId, 0x00, 0x00], name, contentType is null ? [0x00] : content),
+            2 => FullBox("infe", 2, 0, [(byte)(itemId >> 8), (byte)itemId, 0x00, 0x00], type, name, content),
+            _ => FullBox("infe", version, 0, UInt32Be(itemId), [0x00, 0x00], type, name, content),
+        };
+    }
+
+    /// <summary>Builds an item location box.</summary>
+    /// <param name="version">0, 1 or 2.</param>
+    /// <param name="offsetSize">Bytes per extent offset: 0, 4 or 8.</param>
+    /// <param name="lengthSize">Bytes per extent length: 0, 4 or 8.</param>
+    /// <param name="baseOffsetSize">Bytes per base offset: 0, 4 or 8.</param>
+    /// <param name="items">The items.</param>
+    /// <returns>The box bytes.</returns>
+    public static byte[] Iloc(int version, int offsetSize, int lengthSize, int baseOffsetSize, params IlocItem[] items) =>
+        Iloc(version, offsetSize, lengthSize, baseOffsetSize, 0, items);
+
+    /// <summary>Builds an item location box whose extents also carry an extent index (versions 1 and 2).</summary>
+    /// <param name="version">0, 1 or 2.</param>
+    /// <param name="offsetSize">Bytes per extent offset: 0, 4 or 8.</param>
+    /// <param name="lengthSize">Bytes per extent length: 0, 4 or 8.</param>
+    /// <param name="baseOffsetSize">Bytes per base offset: 0, 4 or 8.</param>
+    /// <param name="indexSize">Bytes per extent index: 0, 4 or 8 (ignored for version 0).</param>
+    /// <param name="items">The items.</param>
+    /// <returns>The box bytes.</returns>
+    public static byte[] Iloc(int version, int offsetSize, int lengthSize, int baseOffsetSize, int indexSize, IlocItem[] items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var indexBytes = version == 0 ? 0 : indexSize;
+        var file = new List<byte> { (byte)((offsetSize << 4) | lengthSize), (byte)((baseOffsetSize << 4) | indexBytes) };
+        file.AddRange(version < 2 ? [(byte)(items.Length >> 8), (byte)items.Length] : UInt32Be(items.Length));
+        foreach (var item in items)
+        {
+            file.AddRange(version < 2 ? [(byte)(item.Id >> 8), (byte)item.Id] : UInt32Be(item.Id));
+            if (version >= 1)
+            {
+                file.AddRange([0x00, (byte)item.Method]);
+            }
+
+            file.AddRange([(byte)(item.DataReference >> 8), (byte)item.DataReference]);
+            file.AddRange(Number(item.BaseOffset, baseOffsetSize));
+            file.AddRange([(byte)(item.Extents.Count >> 8), (byte)item.Extents.Count]);
+            foreach (var extent in item.Extents)
+            {
+                file.AddRange(Number(0, indexBytes));
+                file.AddRange(Number(extent.Offset, offsetSize));
+                file.AddRange(Number(extent.Length, lengthSize));
+            }
+        }
+
+        return FullBox("iloc", version, 0, [.. file]);
+    }
+
+    private static byte[] Number(long value, int size)
+    {
+        if (size != 8)
+        {
+            return size == 0 ? [] : UInt32Be((int)value);
+        }
+
+        var wide = new byte[8];
+        BinaryPrimitives.WriteInt64BigEndian(wide, value);
+        return wide;
+    }
 
     private static byte[] LosslessHeader(int width, int height)
     {
@@ -555,6 +712,24 @@ public static class SyntheticImages
         stream.Write(buffer);
     }
 }
+
+/// <summary>One extent of an item: where its bytes start and how long they are.</summary>
+/// <param name="Offset">The offset, counted from the file start or the idat payload start, plus the item's base offset.</param>
+/// <param name="Length">The length in bytes.</param>
+public readonly record struct IlocExtent(long Offset, long Length);
+
+/// <summary>One item of an iloc box.</summary>
+/// <param name="Id">The item number.</param>
+/// <param name="Method">The construction method: 0 file offset, 1 idat offset, 2 item offset.</param>
+/// <param name="DataReference">The data reference index; 0 means this file.</param>
+/// <param name="BaseOffset">The base offset added to every extent offset.</param>
+/// <param name="Extents">The extents.</param>
+public sealed record IlocItem(int Id, int Method, int DataReference, long BaseOffset, IReadOnlyList<IlocExtent> Extents);
+
+/// <summary>Where the data boxes of a synthetic HEIC start in the file.</summary>
+/// <param name="Mdat">The start of the mdat payload.</param>
+/// <param name="Idat">The start of the idat payload (meaningless without an idat box).</param>
+public readonly record struct HeicOffsets(int Mdat, int Idat);
 
 /// <summary>Which header chunk a synthetic WebP carries.</summary>
 public enum WebPKind
