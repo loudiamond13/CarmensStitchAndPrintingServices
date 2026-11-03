@@ -17,7 +17,6 @@ public sealed class RunMaintenanceHandler(IEnumerable<IMaintenanceJob> jobs, Tim
     /// </returns>
     public async Task<Result<MaintenanceRunResponse>> HandleAsync(CancellationToken cancellationToken)
     {
-        _ = log;
         var holder = Guid.NewGuid();
         if (!await runLock.TryTakeAsync(holder, time.GetUtcNow(), cancellationToken).ConfigureAwait(false))
         {
@@ -32,9 +31,17 @@ public sealed class RunMaintenanceHandler(IEnumerable<IMaintenanceJob> jobs, Tim
 
             foreach (var job in jobs.OrderBy(static job => job.Order).ThenBy(static job => job.Name, StringComparer.Ordinal))
             {
-                var report = await job.RunAsync(budget, cancellationToken).ConfigureAwait(false);
-                lines.AddRange(report.Lines);
-                more |= report.More;
+                try
+                {
+                    var report = await job.RunAsync(budget, cancellationToken).ConfigureAwait(false);
+                    lines.AddRange(report.Lines);
+                    more |= report.More;
+                }
+                catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                    log.JobFailed(job.Name, exception);
+                    lines.Add(MaintenanceErrors.JobFailed(job.Name));
+                }
             }
 
             return Result.Success(new MaintenanceRunResponse(lines.TrueForAll(static line => !line.Failed), more, lines));
