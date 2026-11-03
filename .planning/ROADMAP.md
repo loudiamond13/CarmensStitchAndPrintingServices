@@ -999,7 +999,7 @@ Plans:
 - eager variants
 - caching of signed URLs
 
-**Plans**: 6/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 7/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 09-01-PLAN.md — Upload one photo to an order through the API: OrderImage, 5-photo domain and database guard, random ids, 503 when unset (ORD-04, IMG-01, IMG-02, IMG-03; D-01, D-08, D-11, D-12, D-19)
@@ -1011,7 +1011,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 09-05-PLAN.md — The 5-photo limit, closed orders and the size rules refused at the endpoint; uploads never touch disk (ORD-04, IMG-01, IMG-02; D-08, D-11, D-12, D-34)
 - [x] 09-06-PLAN.md — Maintenance endpoint, key check, runner and the request-key purge (JOB-01; D-21, D-36)
-- [ ] 09-07-PLAN.md — Photos come back in the order answer with sized addresses (IMG-04, ORD-04, IMG-03; D-04, D-07)
+- [x] 09-07-PLAN.md — Photos come back in the order answer with sized addresses (IMG-04, ORD-04, IMG-03; D-04, D-07)
 - [ ] 09-08-PLAN.md — The photo list component: phone and computer add, always-visible controls (ORD-04, IMG-05; D-13, D-14, D-17, D-25)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -1408,7 +1408,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
-| 9. Order Images & Maintenance Jobs | 6/32 | In Progress | - |
+| 9. Order Images & Maintenance Jobs | 7/32 | In Progress | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |

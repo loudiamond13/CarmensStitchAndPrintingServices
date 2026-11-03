@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-06-PLAN.md
-last_updated: "2026-11-03T15:35:20.430Z"
+stopped_at: Completed 09-07-PLAN.md
+last_updated: "2026-11-03T16:15:01.009Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 09 execution started
-state_head: 114f1d0b383073469df5303899cfa3876a0e2843
+state_head: 9e519671939776e47e313eae62bd9ed3740617d6
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 254
+  completed_plans: 255
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-03T09:40:00-06:00"
+updated: "2026-11-03T10:22:00-06:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 7 of 32
+Plan: 8 of 32
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 09 execution started
 
@@ -315,6 +315,7 @@ Progress: [████░░░░░░] 44%
 | Phase 09 P04 | 25min | 3 tasks | 12 files |
 | Phase 09 P05 | 35min | 2 tasks | 9 files |
 | Phase 09 P06 | 35 min | 2 tasks | 17 files |
+| Phase 09 P07 | 40min | 2 tasks | 27 files |
 
 ## Accumulated Context
 
@@ -897,6 +898,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: 09-04: PhotoViewer chrome uses a data-theme=dark scope on the viewer root (no new custom property, base.css untouched); viewer.width and height optional for the 4 / 3 fallback
 - [Phase 09]: 09-05: The byte-limit message is built from the configured MaxBytes (10 MB at the default); the pixel message stays the fixed D-34 text
 - [Phase 09]: 09-06: a refused maintenance call always answers 401 maintenance.key with one fixed message, whether the key is missing, wrong, short or unset
+- [Phase 09]: 09-07: ImageSourceResponse is its own record, same JSON as ImageSource; TestingImageDelivery keeps only the last public-id segment
 
 ### Pending Todos
 
@@ -951,6 +953,7 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-02 gap fills to confirm:** fallback `src` is the 960 candidate in the viewer, 640 on the card, else the largest; a card cover is capped by its 16:10 crop width (`min(width, 1.6 x height)`); square slots drop the 2x candidate when the shorter side is under the 2x box; a host with no Cloudinary settings still starts and uploads answer 503; three startup-log messages for a bad Cloudinary folder or cloud name.
 - [ ] **09-05 wording:** the "over 10 MB" message is built from the configured `MaxBytes` ("{file} is over 10 MB. Choose a smaller photo." at the default; a lowered setting shows KB or bytes). Keep, or always say "10 MB"?
 - [ ] **09-06 wording and counting:** (1) The run line for a failed purge reads "Expired request keys removed" with the text "The expired request keys could not be removed." (the plan gave no text for a failure). Approve or change. (2) The "Expired request keys removed: {n}" count adds expired stored answers and expired in-progress claims into one number. Recommended: keep (both are request keys to you). The other choice is two separate lines. (3) Until plan 09-12, the maintenance endpoint has no rate limit on wrong keys; the 32 character minimum and the fixed-time compare are in place. Nothing needed from you; noted so it is not forgotten.
+- [ ] **09-07 non-Production hosts and the photo test route:** (1) The base settings now name the live photo folder (`Cloudinary:RootFolder` = `csps`) and Development names `csps-dev`. Any host that is neither Production nor Development (for example a future staging host) must set `Cloudinary__RootFolder=csps-dev`, or it refuses to start with a clear message. This is the folder guard you asked for (D-07); nothing needed now, but the cutover and runbook plans should carry the line. (2) The Testing photo addresses (`/api/testing/images/{id}?size=...`) have no route behind them yet, so no browser test can load a photo until a Testing-only route is added in a later plan. Recommended: add it with the plan that first needs a photo to render in Playwright.
 
 ### Blockers/Concerns
 
@@ -1017,6 +1020,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T15:35:18.986Z
-Stopped at: Completed 09-06-PLAN.md
+Last session: 2026-11-03T16:14:59.569Z
+Stopped at: Completed 09-07-PLAN.md
 Resume file: None
