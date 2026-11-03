@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-11-03T13:11:57.903Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-11-03T13:33:19.912Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 09 execution started
-state_head: beca43338a4d4242f4a6e5a66915055056f06285
+state_head: dcb71b1fde8b4e4a0d2b27f11f21d64191354d69
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 249
+  completed_plans: 250
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-31T12:42:00-05:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 2 of 32
+Plan: 3 of 32
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 09 execution started
 
@@ -310,6 +310,7 @@ Progress: [████░░░░░░] 44%
 | Phase 08 P28 | 20 min | 2 tasks | 8 files |
 | Phase 08 P29 | 55 min | 2 tasks | 4 files |
 | Phase 09 P01 | 195min | 2 tasks | 46 files |
+| Phase 09 P02 | 25min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -887,6 +888,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: Public image ids are 128 random bits (26 base32 characters) under {root}/orders/{orderId}/, never built from the file name (09-01)
 - [Phase 09]: A use-case Unavailable error (503) keeps its own message and code; unexpected 5xx stay hidden (09-01)
 - [Phase 09]: The upload action carries no Consumes attribute; the OpenAPI document is made multipart by an operation transformer so the matrix can prove anonymous 401 (09-01)
+- [Phase 09]: 09-02: fallback src is the 960 viewer and 640 card candidate; card width limited by its 16:10 crop; thumbs drop 2x when the shorter side is small; a host with no Cloudinary setting passes the folder guard
 
 ### Pending Todos
 
@@ -998,6 +1000,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T13:11:56.484Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-11-03T13:33:18.486Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None
