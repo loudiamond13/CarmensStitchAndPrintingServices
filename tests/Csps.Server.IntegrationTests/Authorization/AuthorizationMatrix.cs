@@ -213,6 +213,8 @@ public static class AuthorizationMatrix
 
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
+        // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.
+        new("GET", "/api/v1/orders/image-rules", "/api/v1/orders/image-rules", Anonymous: 401, Admin: 200, Manager: 200),
         // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.
         new("POST", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 400, Manager: 400),
         // Reading one order (ORD-03): both roles. A fresh random id is no order, so both meet 404 orders.not-found.
