@@ -2,6 +2,7 @@ using Csps.Application.Ports;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Images;
 using Csps.Infrastructure.Orders;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +41,7 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         await using var context = database.CreateContext(counter);
 
         counter.Reset();
-        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor(filter, pageSize), Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListAsync(QueryFor(filter, pageSize), Now, TestContext.Current.CancellationToken);
 
         // Count, page and the two list-wide counts: 3 fixed commands (D-60, owner, 2026-10-29).
         counter.Count.ShouldBe(3, string.Join(Environment.NewLine, counter.Commands));
@@ -57,7 +58,7 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         var query = QueryFor("none", 20) with { Search = "nobody has this name" };
 
         counter.Reset();
-        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(query, Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListAsync(query, Now, TestContext.Current.CancellationToken);
 
         counter.Count.ShouldBe(3, string.Join(Environment.NewLine, counter.Commands));
         page.Items.ShouldBeEmpty();
@@ -75,7 +76,7 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         await SeedAsync();
         await using var context = database.CreateContext();
 
-        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor(filter, 100), Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListAsync(QueryFor(filter, 100), Now, TestContext.Current.CancellationToken);
 
         page.AllOrders.ShouldBe(OrderCount);
         page.ActiveOrders.ShouldBe(OrderCount);
@@ -98,7 +99,7 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         }
 
         await using var context = database.CreateContext();
-        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor("status-one", 20), Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListAsync(QueryFor("status-one", 20), Now, TestContext.Current.CancellationToken);
 
         page.AllOrders.ShouldBe(OrderCount - 1);
         page.ActiveOrders.ShouldBe(OrderCount - 3);
@@ -110,7 +111,7 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         await SeedAsync();
         await using var context = database.CreateContext();
 
-        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListAsync(QueryFor("product-type", 100), Now, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListAsync(QueryFor("product-type", 100), Now, TestContext.Current.CancellationToken);
 
         page.Items.Select(row => row.Id).Distinct().Count().ShouldBe(page.Items.Count);
         page.Total.ShouldBe(OrderCount / 3 * 2);

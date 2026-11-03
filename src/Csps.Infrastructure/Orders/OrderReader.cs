@@ -14,7 +14,7 @@ namespace Csps.Infrastructure.Orders;
 /// <see cref="IOrderReader"/> over EF: untracked reads. The order detail is one statement for the order and one for each child list and
 /// the history, then one that checks the row version has not moved. The business today is stamped from the calendar after the reads.
 /// </summary>
-internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calendar) : IOrderReader
+internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calendar, IImageDelivery imageDelivery) : IOrderReader
 {
     private const string SoftDeleteFilter = "SoftDelete";
     private const int DetailReadAttempts = 3;
@@ -276,6 +276,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         var paymentsSource = deleted ? context.Set<OrderPayment>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderPayment>().AsNoTracking();
         var refundsSource = deleted ? context.Set<OrderRefund>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderRefund>().AsNoTracking();
         var expensesSource = deleted ? context.Set<OrderExpense>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderExpense>().AsNoTracking();
+        var imagesSource = deleted ? context.Set<OrderImage>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderImage>().AsNoTracking();
         var changesSource = deleted ? context.Set<OrderStatusChange>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderStatusChange>().AsNoTracking();
         var header = await (
             from row in orders
@@ -480,6 +481,14 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // Photos in display order. The addresses are built here from the stored id and size and are never kept (IMG-04, D-01).
+        var imageRows = await imagesSource
+            .Where(image => image.OrderId == id)
+            .OrderBy(image => image.Position)
+            .ThenBy(image => image.Slot)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var order = header.Order;
         return new OrderDetailResponse(
             order.Id,
@@ -591,6 +600,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                         : null,
                     change.ChangedAtUtc)),
             ],
+            [.. imageRows.Select(ToResponse)],
             new OrderTotalsResponse(
                 order.Subtotal,
                 order.DiscountTotal,
@@ -612,5 +622,19 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             order.UpdatedAtUtc,
             RowVersions.ToText(order.RowVersion),
             default);
+    }
+
+    private OrderImageResponse ToResponse(OrderImage image)
+    {
+        var urls = imageDelivery.ForPhoto(image.PublicId, image.Width, image.Height);
+        return new OrderImageResponse(
+            image.Id,
+            image.Position,
+            image.Description,
+            image.Width,
+            image.Height,
+            new ImageSourceResponse(urls.Thumb.Src, urls.Thumb.SrcSet),
+            new ImageSourceResponse(urls.Viewer.Src, urls.Viewer.SrcSet),
+            urls.FullSize);
     }
 }

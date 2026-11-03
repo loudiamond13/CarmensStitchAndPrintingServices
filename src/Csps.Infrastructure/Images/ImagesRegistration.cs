@@ -14,9 +14,10 @@ public static class ImagesRegistration
     private const string TestingEnvironment = "Testing";
 
     /// <summary>
-    /// Adds the upload limits, validated when the host starts, and the image storage. The Testing environment gets the in-memory
-    /// storage (Debug builds only, D-07, QUAL-05); every other environment gets the storage that answers 503 until a real one is
-    /// set up, so a host without photo keys still starts (RESEARCH Pitfall 22).
+    /// Adds the upload limits, validated when the host starts, the image storage and the address builder. The Testing environment
+    /// gets the in-memory storage and same-origin addresses (Debug builds only, D-07, QUAL-05). Every other environment gets the
+    /// storage that answers 503 until a real one is set up, so a host without photo keys still starts (RESEARCH Pitfall 22), and
+    /// the Cloudinary address builder, whose root folder is checked against the environment before the host serves anything (D-07).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration.</param>
@@ -37,21 +38,32 @@ public static class ImagesRegistration
 
         if (environment.IsEnvironment(TestingEnvironment))
         {
-            AddTestingStorage(services);
+            AddTestingServices(services);
         }
         else
         {
             services.TryAddSingleton<IImageStorage, UnconfiguredImageStorage>();
+            AddCloudinaryDelivery(services, configuration, environment);
         }
 
         return services;
     }
 
-    private static void AddTestingStorage(IServiceCollection services)
+    private static void AddCloudinaryDelivery(IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
+    {
+        services.AddSingleton<IValidateOptions<CloudinarySettings>>(new CloudinarySettings.Validator(environment.EnvironmentName));
+        services.AddOptions<CloudinarySettings>()
+            .Bind(configuration.GetSection(CloudinarySettings.SectionName))
+            .ValidateOnStart();
+        services.TryAddSingleton<IImageDelivery, CloudinaryImageDelivery>();
+    }
+
+    private static void AddTestingServices(IServiceCollection services)
     {
 #if CSPS_TESTING
         services.TryAddSingleton<TestingImageStorage>();
         services.TryAddSingleton<IImageStorage>(provider => provider.GetRequiredService<TestingImageStorage>());
+        services.TryAddSingleton<IImageDelivery, TestingImageDelivery>();
 #else
         throw new InvalidOperationException(
             "The Testing environment needs a Debug build: the in-memory image storage is not in Release builds (QUAL-05).");

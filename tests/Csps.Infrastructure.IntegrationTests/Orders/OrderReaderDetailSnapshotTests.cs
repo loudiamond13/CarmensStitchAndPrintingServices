@@ -3,6 +3,7 @@ using Csps.Application.Common;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Images;
 using Csps.Infrastructure.Orders;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +28,7 @@ public sealed class OrderReaderDetailSnapshotTests(CspsDatabase database) : ICla
         var hook = new SaveDuringReadHook(database, id);
         await using var context = database.CreateContext(hook);
 
-        var view = await new OrderReader(context, new FixedBusinessCalendar(Now)).GetDetailAsync(id, TestContext.Current.CancellationToken);
+        var view = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).GetDetailAsync(id, TestContext.Current.CancellationToken);
 
         hook.Fired.ShouldBeTrue();
         var detail = view.ShouldNotBeNull();
@@ -45,10 +46,11 @@ public sealed class OrderReaderDetailSnapshotTests(CspsDatabase database) : ICla
         await using var context = database.CreateContext(counter);
 
         counter.Reset();
-        var view = await new OrderReader(context, new FixedBusinessCalendar(Now)).GetDetailAsync(id, TestContext.Current.CancellationToken);
+        var view = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).GetDetailAsync(id, TestContext.Current.CancellationToken);
 
         view.ShouldNotBeNull().CustomerName.ShouldBe("Juan Dela Cruz");
-        counter.Count.ShouldBe(8, string.Join(Environment.NewLine, counter.Commands));
+        // Header, seven lists (items to photos), then the version check.
+        counter.Count.ShouldBe(9, string.Join(Environment.NewLine, counter.Commands));
     }
 
     [Fact]
@@ -61,7 +63,7 @@ public sealed class OrderReaderDetailSnapshotTests(CspsDatabase database) : ICla
             .ExecuteUpdateAsync(set => set.SetProperty(item => item.CreatedById, (Guid?)staffId).SetProperty(item => item.CreatedAtUtc, Now), TestContext.Current.CancellationToken);
         var lateUtc = new DateTimeOffset(2026, 10, 28, 20, 0, 0, TimeSpan.Zero);
 
-        var view = await new OrderReader(context, new FixedBusinessCalendar(lateUtc)).GetDetailAsync(id, TestContext.Current.CancellationToken);
+        var view = await new OrderReader(context, new FixedBusinessCalendar(lateUtc), new TestingImageDelivery()).GetDetailAsync(id, TestContext.Current.CancellationToken);
 
         var detail = view.ShouldNotBeNull();
         detail.Today.ShouldBe(new DateOnly(2026, 10, 29));
