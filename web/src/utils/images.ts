@@ -126,3 +126,10 @@ export async function prepareImage(file: File, _rules: PrepareRules, parts: Brow
     bitmap.close();
   }
 }
+
+export const defaultBrowserImageParts: BrowserImageParts = {
+  readHead: () => Promise.resolve(new Uint8Array(0)),
+  decode: decodeUpright,
+  encode: () => Promise.resolve(null),
+  preview: () => null,
+};
