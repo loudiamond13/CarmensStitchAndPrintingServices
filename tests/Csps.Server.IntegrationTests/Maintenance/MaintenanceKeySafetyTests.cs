@@ -1,7 +1,11 @@
+using System.Globalization;
 using System.Net;
+using Csps.Server.IntegrationTests.Logging;
 using Csps.Server.IntegrationTests.RateLimiting;
 using Csps.Server.Security;
 using Csps.Testing;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
 
 namespace Csps.Server.IntegrationTests.Maintenance;
 
@@ -51,6 +55,41 @@ public sealed class MaintenanceKeySafetyTests(CspsDatabase database) : IClassFix
     }
 
     [Fact]
+    public async Task AKeyedRunLeavesNoLogEventThatHoldsTheKey()
+    {
+        await database.ResetAsync();
+        await using var factory = NewFactory();
+        using var client = factory.CreateClient();
+
+        (await SendAsync(client, TestKey, FirstAddress)).ShouldBe(HttpStatusCode.OK);
+
+        await LogEvents.RequestCompletionAsync(factory.Sink, RunPath, TestContext.Current.CancellationToken);
+        factory.Sink.Events.ShouldNotBeEmpty();
+        factory.Sink.Events.Select(Render).ShouldAllBe(static line => !line.Contains(TestKey, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AWrongKeyAnswers401WithoutEchoingTheSentValueOrLoggingIt()
+    {
+        await database.ResetAsync();
+        var sent = new string('q', 40);
+        await using var factory = NewFactory();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(RunPath, UriKind.Relative));
+        request.Headers.Add(KeyHeader, sent);
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        body.ShouldNotContain(sent);
+        body.ShouldNotContain(TestKey);
+        response.Headers.SelectMany(static header => header.Value).ShouldAllBe(static value => !value.Contains("qqqq", StringComparison.Ordinal));
+        await LogEvents.RequestCompletionAsync(factory.Sink, RunPath, TestContext.Current.CancellationToken);
+        factory.Sink.Events.Select(Render).ShouldAllBe(line => !line.Contains(sent, StringComparison.Ordinal) && !line.Contains(TestKey, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void TheMaintenanceRuleDefaultsTo12CallsPer10Minutes()
     {
         var rule = MaintenanceRateLimit.Default();
@@ -77,6 +116,14 @@ public sealed class MaintenanceKeySafetyTests(CspsDatabase database) : IClassFix
         request.Headers.Add(RemoteIpStartupFilter.HeaderName, address);
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
         return response.StatusCode;
+    }
+
+    // One event exactly as the log file writes it, with its properties.
+    private static string Render(LogEvent logEvent)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        new CompactJsonFormatter().Format(logEvent, writer);
+        return writer.ToString();
     }
 
     private RealLimitsFactory NewFactory() =>

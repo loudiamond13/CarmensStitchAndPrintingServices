@@ -54,6 +54,8 @@ public sealed class SensitiveDataMaskingTests
     [InlineData("ConcurrencyStamp")]
     [InlineData("UserKey")]
     [InlineData("SessionMac")]
+    [InlineData("MaintenanceKey")]
+    [InlineData("maintenancekey")]
     public void SecretNamesAreSensitive(string name) => SensitiveDataMasking.IsSensitive(name).ShouldBeTrue();
 
     [Theory]
@@ -110,6 +112,23 @@ public sealed class SensitiveDataMaskingTests
 
         var login = sink.Events.ShouldHaveSingleItem().Properties["Login"].ShouldBeOfType<StructureValue>();
         AssertMaskedLogin(login);
+    }
+
+    [Fact]
+    public void PolicyMasksAMaintenanceKeyProperty()
+    {
+        var sink = new CollectingSink();
+        using (var logger = new LoggerConfiguration().Destructure.With<SensitiveDataDestructuringPolicy>().WriteTo.Sink(sink).CreateLogger())
+        {
+            logger.Information("{@Settings}", new MaintenanceSettingsShape("on", SecretValue));
+        }
+
+        var logEvent = sink.Events.ShouldHaveSingleItem();
+        var settings = logEvent.Properties["Settings"].ShouldBeOfType<StructureValue>();
+        var properties = settings.Properties.ToDictionary(static p => p.Name, static p => ((ScalarValue)p.Value).Value, StringComparer.Ordinal);
+        properties["Mode"].ShouldBe("on");
+        properties["MaintenanceKey"].ShouldBe(SensitiveDataMasking.Mask);
+        Render(logEvent).ShouldNotContain(SecretValue);
     }
 
     [Fact]
@@ -234,6 +253,9 @@ public sealed class SensitiveDataMaskingTests
 
     /// <summary>The shape of an Identity user as it would be logged.</summary>
     private sealed record IdentityShapedUser(Guid Id, string Email, string PasswordHash, string SecurityStamp, string ConcurrencyStamp);
+
+    /// <summary>The shape of the maintenance settings as they could be logged.</summary>
+    private sealed record MaintenanceSettingsShape(string Mode, string MaintenanceKey);
 
     /// <summary>A nested object whose only property is a secret.</summary>
     private sealed record Credentials(string RefreshToken);
