@@ -3,8 +3,9 @@
 //   - D-02: no text-bearing element renders below opacity 1. The only allowed fade is a disabled control's (the
 //     `disabled:` / `aria-disabled:opacity-45` allow-list); everything else on the D-02 allow-list carries no text.
 //   - D-05: no element computes to opacity 0 or visibility hidden while it has keyboard focus, Tabbing through the whole
-//     page; the ImageUploader thumb grip and actions are hidden at rest only on devices that hover, appear on keyboard
-//     focus within the thumb, and always show on touch.
+//     page; the photo tile's decorative grip is the only thing hidden at rest, only on devices that hover, and it appears
+//     on keyboard focus within the tile (touch draws no grip). Make Cover, the move buttons, Edit description and Delete
+//     are always shown (Phase 9, D-13 and D-14).
 //   - D-03: current and selected items (site link, sidebar item, tab-bar item, selected tab) are weight 700, their
 //     inactive siblings 600.
 //   - D-BL-02: the current sidebar row hides its "Manager" tag; on other rows it shows at full opacity (FYI-01).
@@ -143,36 +144,70 @@ function required<T>(value: T | undefined, what: string): T {
   return value;
 }
 
-/** The ImageUploader thumb grip and action groups (the elements D-05 hides at rest on hover devices). */
-const READ_REVEALS = `(() => {
+/** The PhotoTile grips (the one element D-05 still hides at rest on hover devices): opacity and whether it is drawn. */
+const READ_GRIPS = `(() => {
   ${EFFECTIVE_OPACITY}
-  return [...document.querySelectorAll('[class*="group-focus-within/thumb:opacity-100"]')].map((element) => effectiveOpacity(element));
+  return [...document.querySelectorAll('[class*="group-focus-within/thumb:opacity-100"]')].map((element) => ({
+    opacity: effectiveOpacity(element),
+    drawn: element.getClientRects().length > 0,
+  }));
 })()`;
 
-test('@a11y-rulings D-05 the thumb grip and actions show on touch, and on keyboard focus within the thumb elsewhere', async ({
+/** Every button the "three photos" case offers that is not aria-disabled: its name, opacity and whether it is drawn. */
+const READ_PHOTO_CONTROLS = `(() => {
+  ${EFFECTIVE_OPACITY}
+  const root = document.querySelector('[data-case="uploader-with-images"]');
+  return [...root.querySelectorAll('li button:not([aria-disabled="true"])')].map((element) => ({
+    name: element.getAttribute('aria-label'),
+    opacity: effectiveOpacity(element),
+    drawn: element.getClientRects().length > 0,
+  }));
+})()`;
+
+interface GripReading {
+  readonly opacity: number;
+  readonly drawn: boolean;
+}
+
+interface ControlReading extends GripReading {
+  readonly name: string | null;
+}
+
+test('@a11y-rulings D-05 only the decorative grip is hidden at rest, and it shows on keyboard focus within the tile', async ({
   page,
 }, testInfo) => {
   await openPage(page, required(SHOWCASE_LIGHT, '/dev/components'));
-  const atRest = await page.evaluate<number[]>(READ_REVEALS);
-  expect(atRest.length).toBeGreaterThan(0);
+
+  // D-13 and D-14: Make Cover, the move buttons, Edit description and Delete are shown at full opacity at rest, on every device.
+  const controls = await page.evaluate<ControlReading[]>(READ_PHOTO_CONTROLS);
+  const names = controls.map((control) => control.name);
+  for (const name of [
+    'Make cover, photo 2',
+    'Move photo 2 left',
+    'Move photo 2 right',
+    'Edit description of photo 2',
+    'Delete photo 2',
+  ]) {
+    expect(names).toContain(name);
+  }
+  expect(controls.filter((control) => !control.drawn || control.opacity !== 1)).toEqual([]);
+
+  const grips = await page.evaluate<GripReading[]>(READ_GRIPS);
+  expect(grips.length).toBeGreaterThan(0);
 
   if (testInfo.project.use.hasTouch === true) {
-    // `hover: none`: always visible.
-    expect(atRest.every((opacity) => opacity === 1)).toBe(true);
+    // `hover: none`: touch has no drag, so the grip is not drawn at all.
+    expect(grips.every((grip) => !grip.drawn)).toBe(true);
     return;
   }
-  // A hover device: hidden at rest, shown while a control inside the thumb has keyboard focus.
-  expect(atRest.every((opacity) => opacity === 0)).toBe(true);
-  const remove = page
-    .locator('[data-case="uploader-with-images"]')
-    .getByRole('button', { name: /^Remove / })
-    .first();
-  await remove.focus();
+  // A hover device: hidden at rest, shown while a control inside the tile has keyboard focus.
+  expect(grips.every((grip) => grip.drawn && grip.opacity === 0)).toBe(true);
+  await page.locator('[data-case="uploader-with-images"]').getByRole('button', { name: 'Make cover, photo 2' }).focus();
   await settle(page);
   const focused = await page.evaluate<number[]>(`(() => {
     ${EFFECTIVE_OPACITY}
-    const thumb = document.activeElement.closest('li');
-    return [...thumb.querySelectorAll('[class*="group-focus-within/thumb:opacity-100"]')].map((element) => effectiveOpacity(element));
+    const tile = document.activeElement.closest('li');
+    return [...tile.querySelectorAll('[class*="group-focus-within/thumb:opacity-100"]')].map((element) => effectiveOpacity(element));
   })()`);
   expect(focused.length).toBeGreaterThan(0);
   expect(focused.every((opacity) => opacity === 1)).toBe(true);

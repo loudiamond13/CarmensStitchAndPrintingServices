@@ -1,6 +1,6 @@
 # Styling the web app: Tailwind utilities and the CSPS tokens
 
-*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-10-17T19:40:00-05:00*
+*Created: 2026-10-08T10:38:41-05:00 · Updated: 2026-11-03T10:50:00-06:00*
 
 This page explains how to style anything in `web/` (decision D-33, requirement WEB-02). It is written for every later phase. The short version: **all styling is Tailwind utility classes in the markup, built only from the CSPS tokens.** No hand-written CSS rules, no inline styles, and no colour or size picked by eye. Two automated gates enforce this, so a mistake fails the tests instead of quietly changing the look.
 
@@ -52,7 +52,7 @@ Rules from the UI spec that trip people up:
 - **Transitions always carry a duration and easing:** `transition-[background-color,border-color,color] duration-150 ease-[ease]`. A bare `transition` has zero duration under the cleared theme.
 - **State comes from the attribute that already states it:** `aria-selected:`, `aria-[current=page]:`, `aria-invalid:`, `aria-disabled:`, `data-*:`.
 - **Class names are complete literals.** `'bg-' + tone` or `` `bg-${tone}` `` produce no CSS, because Tailwind finds classes by reading the source text. Lint bans template literals and `+` inside `className`, `clsx(…)` and `tw(…)`. Use a map of full strings instead.
-- **No opacity on text (D-02).** Nothing that shows text may sit below opacity 1. Inactive or dimmed states use colour tokens (`bg-surface-2`, `text-ink-subtle`). The only opacity utilities allowed are `disabled:opacity-45` and `aria-disabled:opacity-45` (any file), and the ImageUploader thumb's `opacity-0` with its reveal variants `group-hover/thumb:opacity-100`, `group-focus-within/thumb:opacity-100` and `no-hover:opacity-100` (only in `src/components/media/ImageUploader*`). A new entry in that allow-list (`web/scripts/class-gate.config.mjs`) needs a decision ID in its comment.
+- **No opacity on text (D-02).** Nothing that shows text may sit below opacity 1. Inactive or dimmed states use colour tokens (`bg-surface-2`, `text-ink-subtle`). The only opacity utilities allowed are `disabled:opacity-45` and `aria-disabled:opacity-45` (any file), and the photo tile grip's `opacity-0` with its reveal variants `group-hover/thumb:opacity-100`, `group-focus-within/thumb:opacity-100` and `no-hover:opacity-100` (only in `src/components/media/ImageUploader*` and `src/components/media/PhotoTile*`; the tile's real buttons are never hidden, Phase 9 D-13 and D-14). A new entry in that allow-list (`web/scripts/class-gate.config.mjs`) needs a decision ID in its comment.
 
 ## 4. Recipes: shared looks as maps of complete tokens
 

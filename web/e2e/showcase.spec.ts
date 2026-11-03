@@ -172,25 +172,14 @@ test('@showcase the date box shows one calendar icon and passes a click on it to
   }
 });
 
-/** A 1×1 PNG, so the preview has pixels to decode. */
-const ONE_PIXEL_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-  'base64',
-);
-
-test('@showcase a picked image previews under the strict CSP (UI-CR-01)', async ({ page }) => {
+test('@showcase a draft photo previews from a data: address under the strict CSP (UI-CR-01)', async ({ page }) => {
   await openShowcase(page);
-  const uploader = page.locator('[data-case="uploader-empty"]');
-  await uploader.locator('input[type="file"]').setInputFiles({
-    name: 'pixel.png',
-    mimeType: 'image/png',
-    buffer: ONE_PIXEL_PNG,
-  });
-  const preview = uploader.getByRole('img', { name: 'pixel.png' });
+  // The draft case lists a draft photo whose preview is a small local PNG.
+  const preview = page.locator('[data-case="uploader-draft"] li img').first();
   await expect(preview).toBeVisible();
   // The browser decoded it: an image the CSP blocked would have no natural size (and the guard reports the violation).
-  const naturalWidth = `document.querySelector('[data-case="uploader-empty"] img[alt="pixel.png"]').naturalWidth`;
-  await expect.poll(() => page.evaluate<number>(naturalWidth)).toBe(1);
+  const naturalWidth = `document.querySelector('[data-case="uploader-draft"] li img').naturalWidth`;
+  await expect.poll(() => page.evaluate<number>(naturalWidth)).toBeGreaterThan(0);
   expect(await preview.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
 });
 
