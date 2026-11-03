@@ -17,6 +17,7 @@ export type OrderPaymentFixture = Schemas['OrderPaymentResponse'];
 export type OrderExpenseFixture = Schemas['OrderExpenseResponse'];
 export type OrderRefundFixture = Schemas['OrderRefundResponse'];
 export type OrderImageFixture = Schemas['OrderImageResponse'];
+export type ImageRulesFixture = Schemas['ImageRulesResponse'];
 export type OrderTotalsFixture = Schemas['OrderTotalsResponse'];
 export type DeletedOrderListFixture = Schemas['DeletedOrderListResponse'];
 export type ListRefFixture = Schemas['OrderListRef'];
@@ -264,6 +265,16 @@ export function orderImage(n: number, overrides: Partial<OrderImageFixture> = {}
     ...overrides,
   };
 }
+
+/** The photo rules the server answers today (GET /orders/image-rules). */
+export const IMAGE_RULES: ImageRulesFixture = {
+  maxPerOrder: 5,
+  maxBytes: 10_485_760,
+  maxPixels: 25_000_000,
+  maxSide: 10_000,
+  types: ['jpeg', 'png', 'webp', 'heic'],
+  descriptionMaxLength: 200,
+};
 
 /** One full order answer. The defaults are ORD-2026-0148; a test overrides what it needs. */
 export function buildOrderDetail(overrides: Partial<OrderDetailFixture> = {}): OrderDetailFixture {
@@ -630,6 +641,8 @@ export function useOrderHandlers(options: OrderHandlerOptions = {}): OrderBacken
       const body = await resolve(options.list ?? standardOrderList(), url);
       return body instanceof Response ? body : HttpResponse.json(body);
     }),
+    // Before the :id route, which would take "image-rules" for an order id.
+    http.get('*/api/v1/orders/image-rules', () => HttpResponse.json(IMAGE_RULES)),
     http.get('*/api/v1/orders/:id', async ({ params }) => {
       const id = String(params.id);
       backend.reads.push(id);

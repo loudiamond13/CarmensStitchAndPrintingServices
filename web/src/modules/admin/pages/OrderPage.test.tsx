@@ -193,12 +193,13 @@ describe('the totals panel (ORD-07, ORD-19, D-06, D-08)', () => {
   });
 });
 
-describe('the Images card (D-27)', () => {
-  it('says image uploads are coming soon', async () => {
+describe('the Images card (ORD-04, 08 D-27)', () => {
+  it('no longer says image uploads are coming soon, and offers the add area on an active order', async () => {
     renderOrder();
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Images' })).toBeVisible();
-    expect(screen.getByText('Image uploads are coming soon.')).toBeVisible();
+    expect(screen.queryByText('Image uploads are coming soon.')).not.toBeInTheDocument();
+    expect((await screen.findAllByText(/up to 10 MB each · 0\/5/)).length).toBeGreaterThan(0);
   });
 });
 
