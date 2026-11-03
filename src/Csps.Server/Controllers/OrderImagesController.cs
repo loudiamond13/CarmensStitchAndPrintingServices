@@ -36,7 +36,6 @@ public sealed class OrderImagesController(UploadOrderImageHandler upload) : Cont
     /// <returns>200 with the whole order, 400 when there is no file, the file is not a photo we can use or the description is too long, 401 without a valid token, 404 when the order does not exist or was deleted, 409 when two saves lost a race twice, 413 when the body is too large, 422 when the order already has 5 photos or is completed or cancelled (<c>orders.locked</c>), 429 when the caller must slow down, or 503 when photo storage is not set up.</returns>
     [HttpPost]
     [EndpointName("UploadOrderImage")]
-    [Consumes("multipart/form-data")]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageUploadLimits.BodyBytes, MemoryBufferThreshold = ImageUploadLimits.BodyBytes + 1)]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -49,7 +48,7 @@ public sealed class OrderImagesController(UploadOrderImageHandler upload) : Cont
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IResult> Upload(
         Guid orderId,
-        [FromForm] IFormFile? file,
+        IFormFile? file,
         [FromForm] string? description,
         CancellationToken cancellationToken)
     {

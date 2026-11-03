@@ -891,6 +891,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Uploads one photo to a saved order as a multipart form with the file in the `file` part and an optional `description`
+         *     part. The type is read from the first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a
+         *     file that is not a photo we can use answers 400 and is never sent to storage. The description is trimmed; an empty one, or the
+         *     default text, is kept as none, and one over 200 characters answers 400. An order holds at most 5 photos: a sixth answers 422
+         *     `orders.images-full`. A Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo is
+         *     stored under a random id the client never chooses. When photo storage is not set up the answer is 503
+         *     `images.not-configured`. A retry with the same `Idempotency-Key` and body answers with the stored answer and adds
+         *     nothing more. Who added the photo and when come from the token and the clock.
+         */
+        post: operations["UploadOrderImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/items": {
         parameters: {
             query?: never;
@@ -2400,6 +2426,8 @@ export interface components {
             /** @description The email address. */
             email: null | string;
         };
+        /** Format: binary */
+        IFormFile: string;
         /** @description The answer to a usable invite link. */
         InviteLinkResponse: {
             /** @description The address of the account the invite belongs to, so the page can name it. */
@@ -6569,6 +6597,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                } & {
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

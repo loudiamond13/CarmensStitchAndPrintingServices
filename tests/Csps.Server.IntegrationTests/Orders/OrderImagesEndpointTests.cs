@@ -186,6 +186,22 @@ public sealed class OrderImagesEndpointTests(CspsDatabase database) : IClassFixt
         problem.GetProperty("detail").GetString().ShouldBe("Photo uploads aren't set up yet.");
     }
 
+    [Fact]
+    public async Task TheContractDescribesTheUploadAsAMultipartFormWithABinaryFile()
+    {
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var development = baseFactory.WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Development));
+        using var client = development.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative), TestContext.Current.CancellationToken);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        var content = document.RootElement.GetProperty("paths").GetProperty("/api/v1/orders/{orderId}/images").GetProperty("post").GetProperty("requestBody").GetProperty("content");
+        content.EnumerateObject().Select(media => media.Name).ShouldBe(["multipart/form-data"]);
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        schemas.GetProperty("IFormFile").GetProperty("format").GetString().ShouldBe("binary");
+    }
+
     private static async Task<JsonElement> CreateOrderAsync(CspsApiFactory factory, HttpClient client, string accessToken)
     {
         var today = await OrderFixtures.TodayAsync(factory);

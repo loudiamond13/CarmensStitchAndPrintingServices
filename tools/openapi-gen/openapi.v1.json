@@ -1764,6 +1764,10 @@
         ],
         "type": "object"
       },
+      "IFormFile": {
+        "format": "binary",
+        "type": "string"
+      },
       "InviteLinkResponse": {
         "description": "The answer to a usable invite link.",
         "properties": {
@@ -8949,6 +8953,144 @@
         ]
       }
     },
+    "/api/v1/orders/{orderId}/images": {
+      "post": {
+        "operationId": "UploadOrderImage",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "allOf": [
+                  {
+                    "properties": {
+                      "file": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Uploads one photo to a saved order as a multipart form with the file in the `file` part and an optional `description`\npart. The type is read from the first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a\nfile that is not a photo we can use answers 400 and is never sent to storage. The description is trimmed; an empty one, or the\ndefault text, is kept as none, and one over 200 characters answers 400. An order holds at most 5 photos: a sixth answers 422\n`orders.images-full`. A Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo is\nstored under a random id the client never chooses. When photo storage is not set up the answer is 503\n`images.not-configured`. A retry with the same `Idempotency-Key` and body answers with the stored answer and adds\nnothing more. Who added the photo and when come from the token and the clock.",
+        "tags": [
+          "OrderImages"
+        ]
+      }
+    },
     "/api/v1/orders/{orderId}/items": {
       "post": {
         "operationId": "AddOrderItem",
@@ -12923,6 +13065,9 @@
     },
     {
       "name": "OrderExpenses"
+    },
+    {
+      "name": "OrderImages"
     },
     {
       "name": "OrderItems"

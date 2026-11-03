@@ -225,6 +225,8 @@ public static class AuthorizationMatrix
         new("PUT", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/7d3b9e25-1a64-4c80-b5f2-8e0c4a6d1b97/items/2f8a5c13-9e47-4d06-a1b3-6c0d7e4f9a28", Anonymous: 401, Admin: 400, Manager: 400),
         // Removing an item (ORD-05): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
         new("DELETE", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/1e6c4a82-3b95-4d07-8a1f-5d2e9b7c0a34/items/9c4e7a16-2d83-4b05-a6f1-3e8b0d5c2a79", Anonymous: 401, Admin: 404, Manager: 404),
+        // Uploading a photo with POST orders/{orderId}/images (ORD-04, D-19): both roles. The matrix sends an Idempotency-Key and no form body, so both meet 400 images.file-missing before the order is looked up.
+        new("POST", "/api/v1/orders/{orderId:guid}/images", "/api/v1/orders/6b1d8f40-2e75-4c93-a0b6-9d4e3a7c5f18/images", Anonymous: 401, Admin: 400, Manager: 400),
         // Adding a discount to a saved order (ORD-05, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("POST", "/api/v1/orders/{orderId:guid}/payments", "/api/v1/orders/9e4b1c73-2a58-4d06-b3f9-5c7a0e1d8f24/payments", Anonymous: 401, Admin: 400, Manager: 400),
         new("PUT", "/api/v1/orders/{orderId:guid}/payments/{paymentId:guid}", "/api/v1/orders/4a7c1e90-6b25-4d83-8f0a-2e5b9c3d7a16/payments/c8f2a05d-3e71-4b96-a4d0-1b7e6c9f2a53", Anonymous: 401, Admin: 400, Manager: 400),

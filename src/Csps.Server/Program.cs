@@ -68,8 +68,13 @@ builder.Services.AddCspsRateLimiting(builder.Configuration);
 // One handler per use case, no mediator (PRD section 3.3).
 builder.Services.AddCspsApplication();
 
-// Controllers (owner rule 2026-10-07). Model-state 400s are off: validation is FluentValidation in the handlers.
-var mvc = builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
+// Controllers (owner rule 2026-10-07). Model-state 400s are off: validation is FluentValidation in the handlers. A photo upload is not
+// matched by content type, so a request with no form body still reaches authorization (401) and the handler (400) instead of a 404.
+var mvc = builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+    options.SuppressConsumesConstraintForFormFileParameters = true;
+});
 
 #if CSPS_TESTING
 // Debug builds only: the Testing-only controllers exist in the Testing environment alone, and a Debug build never runs as
