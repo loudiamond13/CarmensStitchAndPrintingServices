@@ -150,18 +150,82 @@ public static class SyntheticImages
         return file.ToArray();
     }
 
-    /// <summary>Builds one PNG chunk: a big-endian length, the four-letter type, the data and a zero checksum.</summary>
+    /// <summary>Builds one PNG chunk: a big-endian length, the four-letter type, the data and a checksum (zero unless given; the readers never check it).</summary>
     /// <param name="type">The four-letter chunk type.</param>
     /// <param name="data">The chunk data.</param>
+    /// <param name="checksum">The four checksum bytes as a number.</param>
     /// <returns>The chunk bytes.</returns>
-    public static byte[] PngChunk(string type, byte[] data)
+    public static byte[] PngChunk(string type, byte[] data, uint checksum = 0)
     {
         ArgumentNullException.ThrowIfNull(data);
         var chunk = new byte[data.Length + 12];
         BinaryPrimitives.WriteUInt32BigEndian(chunk, (uint)data.Length);
         System.Text.Encoding.ASCII.GetBytes(type, chunk.AsSpan(4, 4));
         data.CopyTo(chunk, 8);
+        BinaryPrimitives.WriteUInt32BigEndian(chunk.AsSpan(chunk.Length - 4), checksum);
         return chunk;
+    }
+
+    /// <summary>The chunk types <see cref="PngWithMetadata"/> writes that a clean file keeps, in file order.</summary>
+    public static readonly string[] PngKeptTypes = ["IHDR", "gAMA", "cHRM", "sRGB", "iCCP", "sBIT", "pHYs", "PLTE", "tRNS", "IDAT", "IEND"];
+
+    /// <summary>Builds a PNG with the chunks a clean file keeps (each with a recognizable checksum) mixed with every kind of metadata chunk: eXIf, tEXt, zTXt, iTXt, tIME, an unknown private chunk, a text chunk after the image data, and bytes after IEND.</summary>
+    /// <param name="width">The stored width in pixels.</param>
+    /// <param name="height">The stored height in pixels.</param>
+    /// <returns>The file bytes.</returns>
+    public static byte[] PngWithMetadata(int width, int height)
+    {
+        byte[] Text(string text) => System.Text.Encoding.ASCII.GetBytes(text);
+        var file = Png(
+            width,
+            height,
+            PngChunk("gAMA", [0x00, 0x01, 0x86, 0xA0], 0xA1A1A1A1),
+            PngChunk("eXIf", RichExifBlock(6)[6..], 0xB2B2B2B2),
+            PngChunk("cHRM", new byte[32], 0xA2A2A2A2),
+            PngChunk("tEXt", Text($"Author\0{FakeOwner} {FakeSerial}"), 0xB3B3B3B3),
+            PngChunk("sRGB", [0x00], 0xA3A3A3A3),
+            PngChunk("zTXt", [.. Text("Comment\0"), 0x00, .. Text(FakeMake)], 0xB4B4B4B4),
+            PngChunk("iCCP", [.. Text("icc\0"), 0x00, .. IccBody], 0xA4A4A4A4),
+            PngChunk("iTXt", Text($"XML:com.adobe.xmp\0\0\0\0\0<x:xmpmeta serial=\"{FakeSerial}\"/>"), 0xB5B5B5B5),
+            PngChunk("sBIT", [0x08, 0x08, 0x08], 0xA5A5A5A5),
+            PngChunk("tIME", [0x07, 0xD0, 0x01, 0x01, 0x00, 0x00, 0x00], 0xB6B6B6B6),
+            PngChunk("pHYs", [0x00, 0x00, 0x0B, 0x13, 0x00, 0x00, 0x0B, 0x13, 0x01], 0xA6A6A6A6),
+            PngChunk("prVt", Text(FakeSerial), 0xB7B7B7B7),
+            PngChunk("PLTE", [0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF], 0xA7A7A7A7),
+            PngChunk("tRNS", [0x00, 0x80], 0xA8A8A8A8));
+        var endLength = PngChunk("IEND", []).Length;
+        return
+        [
+            .. file[..^endLength],
+            .. PngChunk("tEXt", Text($"Software\0{FakeModel}"), 0xB8B8B8B8),
+            .. file[^endLength..],
+            .. Text($"TRAILER {FakeSerial}"),
+        ];
+    }
+
+    /// <summary>Builds an extended WebP with an ICC profile and every kind of metadata chunk: an odd-length EXIF chunk and an 'XMP ' chunk before the image, another EXIF chunk after it, and the EXIF and XMP flags set.</summary>
+    /// <param name="width">The stored width in pixels.</param>
+    /// <param name="height">The stored height in pixels.</param>
+    /// <returns>The file bytes.</returns>
+    public static byte[] WebPWithMetadata(int width, int height)
+    {
+        byte[] exif = [.. "Exif\0\0"u8, .. System.Text.Encoding.ASCII.GetBytes(FakeSerial), 0x00];
+        byte[][] chunks =
+        [
+            WebPChunk("VP8X", ExtendedHeader(width, height, 0x3C)),
+            WebPChunk("ICCP", IccBody),
+            WebPChunk("EXIF", exif),
+            WebPChunk("XMP ", System.Text.Encoding.ASCII.GetBytes($"<x:xmpmeta serial=\"{FakeSerial}\"/>")),
+            WebPChunk("VP8 ", [0x50, 0x00, 0x00, 0x9D, 0x01, 0x2A, (byte)width, (byte)(width >> 8), (byte)height, (byte)(height >> 8), 0x00, 0x00]),
+            WebPChunk("EXIF", exif),
+        ];
+        var payload = chunks.SelectMany(chunk => chunk).ToArray();
+        var file = new byte[12 + payload.Length];
+        "RIFF"u8.CopyTo(file);
+        BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(4), (uint)(payload.Length + 4));
+        "WEBP"u8.CopyTo(file.AsSpan(8));
+        payload.CopyTo(file, 12);
+        return file;
     }
 
     /// <summary>Builds a small SVG document, which no photo check may accept.</summary>

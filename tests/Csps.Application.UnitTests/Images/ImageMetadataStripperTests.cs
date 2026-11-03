@@ -71,6 +71,135 @@ public sealed class ImageMetadataStripperTests
     }
 
     [Fact]
+    public void APngLosesItsTextExifTimeAndUnknownChunksAndAnythingAfterIend()
+    {
+        var input = SyntheticImages.PngWithMetadata(800, 600);
+
+        var output = Strip(ImageKind.Png, input);
+
+        PngChunks(output).Select(chunk => chunk.Type).ShouldBe(SyntheticImages.PngKeptTypes);
+        var inputChunks = PngChunks(input).ToDictionary(chunk => chunk.Type, chunk => chunk.Bytes);
+        foreach (var kept in PngChunks(output))
+        {
+            kept.Bytes.ShouldBe(inputChunks[kept.Type], kept.Type);
+        }
+
+        PngChunks(output)[1].Bytes[^4..].ShouldBe([0xA1, 0xA1, 0xA1, 0xA1]);
+        output.AsSpan(output.Length - 12).ToArray().ShouldBe(SyntheticImages.PngChunk("IEND", []));
+        AssertNoMetadata(output);
+        Count(output, "TRAILER"u8.ToArray()).ShouldBe(0);
+        ImageSniffer.Inspect(output).ShouldBe(ImageSniffer.Inspect(input));
+        Strip(ImageKind.Png, output).ShouldBe(output);
+    }
+
+    [Fact]
+    public void ThePngFixtureReallyCarriesEveryKindOfMetadata()
+    {
+        var types = PngChunks(SyntheticImages.PngWithMetadata(800, 600)).Select(chunk => chunk.Type).ToList();
+
+        types.ShouldContain("eXIf");
+        types.ShouldContain("tEXt");
+        types.ShouldContain("zTXt");
+        types.ShouldContain("iTXt");
+        types.ShouldContain("tIME");
+        types.ShouldContain("prVt");
+    }
+
+    [Fact]
+    public void APngWithNothingToRemoveComesBackByteForByte()
+    {
+        var input = SyntheticImages.Png(800, 600);
+
+        Strip(ImageKind.Png, input).ShouldBe(input);
+    }
+
+    [Fact]
+    public void APngWithAnUnknownCriticalChunkOrNoIendOrABrokenChunkIsRefused()
+    {
+        var whole = SyntheticImages.Png(800, 600, SyntheticImages.PngChunk("tEXt", new byte[4]));
+        var unknownCritical = SyntheticImages.Png(800, 600, SyntheticImages.PngChunk("ABCD", new byte[4]));
+        var noEnd = whole[..^12];
+        var brokenLength = (byte[])whole.Clone();
+        brokenLength[8 + 25 + 3] = 0xFF;
+
+        ImageMetadataStripper.Strip(ImageKind.Png, unknownCritical).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.Png, noEnd).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.Png, brokenLength).IsFailure.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AWebPLosesItsExifAndXmpChunksClearsTheirFlagsAndKeepsTheRest()
+    {
+        var input = SyntheticImages.WebPWithMetadata(4000, 3000);
+
+        var output = Strip(ImageKind.WebP, input);
+
+        WebPChunks(output).Select(chunk => chunk.Type).ShouldBe(["VP8X", "ICCP", "VP8 "]);
+        var inputChunks = WebPChunks(input);
+        WebPChunks(output)[1].Bytes.ShouldBe(inputChunks.Single(chunk => chunk.Type == "ICCP").Bytes);
+        WebPChunks(output)[2].Bytes.ShouldBe(inputChunks.Single(chunk => chunk.Type == "VP8 ").Bytes);
+        output[20].ShouldBe((byte)0x30);
+        BitConverter.ToUInt32(output, 4).ShouldBe((uint)(output.Length - 8));
+        (output.Length % 2).ShouldBe(0);
+        AssertNoMetadata(output);
+        ImageSniffer.Inspect(output).ShouldBe(ImageSniffer.Inspect(input));
+        Strip(ImageKind.WebP, output).ShouldBe(output);
+    }
+
+    [Fact]
+    public void TheWebPFixtureReallyCarriesBothMetadataChunksAndTheirFlags()
+    {
+        var input = SyntheticImages.WebPWithMetadata(4000, 3000);
+
+        WebPChunks(input).Select(chunk => chunk.Type).ShouldBe(["VP8X", "ICCP", "EXIF", "XMP ", "VP8 ", "EXIF"]);
+        input[20].ShouldBe((byte)0x3C);
+    }
+
+    [Theory]
+    [InlineData(WebPKind.Lossy)]
+    [InlineData(WebPKind.Lossless)]
+    [InlineData(WebPKind.Extended)]
+    public void AWebPWithNothingToRemoveComesBackByteForByte(WebPKind kind)
+    {
+        var input = SyntheticImages.WebP(kind, 1024, 768);
+
+        Strip(ImageKind.WebP, input).ShouldBe(input);
+    }
+
+    [Fact]
+    public void AWebPWithAnExifFlagButNoExifChunkStillHasTheFlagCleared()
+    {
+        var input = SyntheticImages.WebP(WebPKind.Extended, 1024, 768, flags: 0x08);
+
+        Strip(ImageKind.WebP, input)[20].ShouldBe((byte)0x00);
+    }
+
+    [Fact]
+    public void AWebPWithBytesAfterItsRiffSizeLosesThem()
+    {
+        var input = SyntheticImages.WebP(WebPKind.Lossy, 1024, 768);
+
+        Strip(ImageKind.WebP, [.. input, .. "TRAILER"u8]).ShouldBe(input);
+    }
+
+    [Fact]
+    public void AWebPWithABrokenChunkOrRiffSizeIsRefused()
+    {
+        var whole = SyntheticImages.WebP(WebPKind.Extended, 1024, 768);
+        var brokenChunk = (byte[])whole.Clone();
+        brokenChunk[16] = 0xFF;
+        var brokenRiff = (byte[])whole.Clone();
+        brokenRiff[4] = 0xFF;
+        var trailingBytes = SyntheticImages.WebP(WebPKind.Lossy, 1024, 768);
+        trailingBytes = [.. trailingBytes, 0x01, 0x02, 0x03];
+        BitConverter.TryWriteBytes(trailingBytes.AsSpan(4), (uint)(trailingBytes.Length - 8));
+
+        ImageMetadataStripper.Strip(ImageKind.WebP, brokenChunk).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.WebP, brokenRiff).IsFailure.ShouldBeTrue();
+        ImageMetadataStripper.Strip(ImageKind.WebP, trailingBytes).IsFailure.ShouldBeTrue();
+    }
+
+    [Fact]
     public void AFailureCarriesTheTypeCodeAndTheFileName()
     {
         var result = ImageMetadataStripper.Strip(ImageKind.Jpeg, [0xFF, 0xD8, 0xFF, 0xE1, 0x00], "phone.jpg");
@@ -138,6 +267,42 @@ public sealed class ImageMetadataStripperTests
         }
 
         throw new InvalidOperationException("No such segment.");
+    }
+
+    // Every PNG chunk after the signature, whole (length, type, data and checksum).
+    private static List<(string Type, byte[] Bytes)> PngChunks(byte[] file)
+    {
+        var chunks = new List<(string, byte[])>();
+        var position = 8;
+        while (position + 12 <= file.Length)
+        {
+            var length = (int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(file.AsSpan(position));
+            var type = Encoding.ASCII.GetString(file, position + 4, 4);
+            chunks.Add((type, file[position..(position + 12 + length)]));
+            position += 12 + length;
+            if (type == "IEND")
+            {
+                break;
+            }
+        }
+
+        return chunks;
+    }
+
+    // Every WebP chunk after the RIFF header, whole (type, length, data and pad byte).
+    private static List<(string Type, byte[] Bytes)> WebPChunks(byte[] file)
+    {
+        var chunks = new List<(string, byte[])>();
+        var position = 12;
+        while (position + 8 <= file.Length)
+        {
+            var length = (int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(position + 4));
+            var whole = 8 + length + (length % 2);
+            chunks.Add((Encoding.ASCII.GetString(file, position, 4), file[position..(position + whole)]));
+            position += whole;
+        }
+
+        return chunks;
     }
 
     private static int Count(byte[] file, byte[] pattern)

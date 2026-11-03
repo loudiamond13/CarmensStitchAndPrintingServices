@@ -49,6 +49,43 @@ public sealed class OrderImageMetadataTests(CspsDatabase database) : IClassFixtu
         row.Format.ShouldBe("jpg");
     }
 
+    [Fact]
+    public async Task APngWithTextAndExifChunksReachesStorageWithoutThemAndKeepsItsSize()
+    {
+        var mockup = SyntheticImages.PngWithMetadata(800, 600);
+
+        var (stored, row) = await UploadAndReadAsync(mockup, "mockup.png", "image/png");
+
+        AssertClean(stored.Bytes.Span);
+        ContainsBytes(stored.Bytes.Span, "TRAILER"u8).ShouldBeFalse();
+        ContainsBytes(stored.Bytes.Span, "eXIf"u8).ShouldBeFalse();
+        ContainsBytes(stored.Bytes.Span, "tEXt"u8).ShouldBeFalse();
+        ImageSniffer.Inspect(stored.Bytes.Span).ShouldBe(ImageSniffer.Inspect(mockup));
+        row.Bytes.ShouldBe(stored.Bytes.Length);
+        row.Bytes.ShouldBeLessThan(mockup.Length);
+        row.Format.ShouldBe("png");
+        row.Width.ShouldBe(800);
+        row.Height.ShouldBe(600);
+    }
+
+    [Fact]
+    public async Task AWebPWithExifAndXmpChunksReachesStorageWithoutThemAndKeepsItsSize()
+    {
+        var photo = SyntheticImages.WebPWithMetadata(4000, 3000);
+
+        var (stored, row) = await UploadAndReadAsync(photo, "shirt.webp", "image/webp");
+
+        AssertClean(stored.Bytes.Span);
+        ContainsBytes(stored.Bytes.Span, "EXIF"u8).ShouldBeFalse();
+        ContainsBytes(stored.Bytes.Span, "XMP "u8).ShouldBeFalse();
+        ImageSniffer.Inspect(stored.Bytes.Span).ShouldBe(ImageSniffer.Inspect(photo));
+        row.Bytes.ShouldBe(stored.Bytes.Length);
+        row.Bytes.ShouldBeLessThan(photo.Length);
+        row.Format.ShouldBe("webp");
+        row.Width.ShouldBe(4000);
+        row.Height.ShouldBe(3000);
+    }
+
     private static void AssertClean(ReadOnlySpan<byte> stored)
     {
         foreach (var text in MetadataTexts)
