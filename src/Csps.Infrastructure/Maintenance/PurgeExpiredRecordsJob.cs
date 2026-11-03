@@ -18,6 +18,8 @@ internal sealed partial class PurgeExpiredRecordsJob(CspsDbContext context, Time
 {
     internal const string RequestKeysLabel = "Expired request keys removed";
 
+    internal const int BatchSize = 500;
+
     /// <inheritdoc />
     public int Order => 10;
 
