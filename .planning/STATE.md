@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Phase 9 UI-SPEC approved
-last_updated: "2026-11-03T11:56:15.371Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-11-03T13:11:57.903Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 09 execution started
-state_head: 9dbc7e6deedcc7be56e1d56a505b551b8b1c6c92
+state_head: beca43338a4d4242f4a6e5a66915055056f06285
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 248
+  completed_plans: 249
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-10-31T12:42:00-05:00"
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 1 of 32
-Status: Executing Phase 09
+Plan: 2 of 32
+Status: Ready to execute
 Last activity: 2026-11-03 — Phase 09 execution started
 
 Progress: [████░░░░░░] 44%
@@ -309,6 +309,7 @@ Progress: [████░░░░░░] 44%
 | Phase 08 P27 | 17 min | 2 tasks | 2 files |
 | Phase 08 P28 | 20 min | 2 tasks | 8 files |
 | Phase 08 P29 | 55 min | 2 tasks | 4 files |
+| Phase 09 P01 | 195min | 2 tasks | 46 files |
 
 ## Accumulated Context
 
@@ -883,6 +884,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Ship 08]: D-100 (owner, 2026-10-31): "create pr for phase 8 then merge it". PR #17 merged through Merge-PullRequest.ps1. Phase 8 was rebased onto main (backup `backup/phase-08-pre-rebase-20261031`, local only; the two duplicate D-98 commits dropped as already upstream), re-verified 8/8, and its PR Definition of Done is ticked from the Phase 8 records on that instruction. The regression gate is left to CI `gate (full)` on the shared machine.
 - [Deps]: D-101 (owner, 2026-10-31): Dependabot PR #18 (25 npm updates) closed and its branch deleted: it bundled majors that clash with the pinned stack (typescript 7 in tools/openapi-gen vs openapi-typescript peer ^5, @babel/core 8 vs 7.29.x, @types/node 26 vs Node 24). Redo the patch and minor web updates in one checked quick task. PR #3 (coverlet.MTP 10.1.0, Scalar.AspNetCore 2.17.13, both past cool-down, no advisories) is fixed for merge: main merged in, registry and one lock file updated; merged on the owner's instruction through Merge-PullRequest.ps1 as b6007b96, branch deleted. Also fixed THIRD-PARTY-NOTICES.md and added a ticked Definition of Done to the PR body. Flake recorded: `LastManagerGuardTests.TwoManagersDeletingEachOtherTogetherLeaveExactlyOneActiveEveryTime` failed once in CI (run 19, 401 where 422 expected, the known WR-11 issue) and passed on a re-run of the failed job.
 - [Backups]: D-102 (owner, 2026-10-31): the SmarterASP.NET plan has no scheduled database backups, so CUT-01's scheduled backup becomes a job in the monthly maintenance run (D-21) behind the key-protected maintenance endpoint. The job has the SQL server write a `.bak` into the host's `db` folder; nothing goes through GitHub except the trigger. The owner chose monthly knowing up to a month of orders could be lost if the database is lost between runs. Follow-up rulings (owner, 2026-10-31): Phase 9 builds it as plan 09-31; the one `BACKUP DATABASE` statement is approved as the only inline SQL, limited to the backup job; keep 3 backups; a host probe runs first and the plan stops if the host blocks backups; a failed backup turns the run red. Details in 09-CONTEXT D-39 to D-43.
+- [Phase 09]: Public image ids are 128 random bits (26 base32 characters) under {root}/orders/{orderId}/, never built from the file name (09-01)
+- [Phase 09]: A use-case Unavailable error (503) keeps its own message and code; unexpected 5xx stay hidden (09-01)
+- [Phase 09]: The upload action carries no Consumes attribute; the OpenAPI document is made multipart by an operation transformer so the matrix can prove anonymous 401 (09-01)
 
 ### Pending Todos
 
@@ -994,6 +998,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T14:24:45.853Z
-Stopped at: Phase 9 UI-SPEC approved
-Resume file: .planning/phases/09-order-images-maintenance-jobs/09-UI-SPEC.md
+Last session: 2026-11-03T13:11:56.484Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: None
