@@ -46,6 +46,10 @@ public sealed class ErrorTests
         AssertSimple(Error.BusinessRule("payment.too-large", "That payment is more than the balance."), ErrorKind.BusinessRule, "payment.too-large", "That payment is more than the balance.");
 
     [Fact]
+    public void UnavailableSetsKindCodeAndMessage() =>
+        AssertSimple(Error.Unavailable("images.not-configured", "Photo uploads aren't set up yet."), ErrorKind.Unavailable, "images.not-configured", "Photo uploads aren't set up yet.");
+
+    [Fact]
     public void ForbiddenSetsKindCodeAndMessage() =>
         AssertSimple(Error.Forbidden("user.forbidden", "Only an Admin can do that."), ErrorKind.Forbidden, "user.forbidden", "Only an Admin can do that.");
 

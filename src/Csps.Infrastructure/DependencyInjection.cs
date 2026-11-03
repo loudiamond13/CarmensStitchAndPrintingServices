@@ -90,7 +90,7 @@ public static class DependencyInjection
         services.AddCspsOrders();
         services.AddCspsIdempotency();
         services.AddCspsEmail(configuration, environment);
-        services.AddCspsImages();
+        services.AddCspsImages(configuration, environment);
         services.AddCspsPasswordChecks(environment);
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).

@@ -68,6 +68,20 @@ public static class OrderAuditDetail
     /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>
     public static string ItemAdded(OrderItem item) => ItemSnapshot(item);
 
+    /// <summary>The detail of <c>order-image.added</c>: the order number and the photo's 1-based place, never its id, address or description (D-19).</summary>
+    /// <param name="order">The order the photo was added to.</param>
+    /// <param name="image">The photo that was added.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;position=1</c>.</returns>
+    public static string ImageAdded(Order order, OrderImage image)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(image);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("position", (image.Position + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
     /// <summary>The detail of <c>order-item.removed</c>: the item id, product type, quantity and unit price as they were.</summary>
     /// <param name="item">The item that was removed.</param>
     /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>

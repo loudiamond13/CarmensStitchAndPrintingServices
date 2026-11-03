@@ -55,6 +55,7 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
             : context.Orders.AsQueryable();
         var loaded = await query
             .Include(order => order.Items)
+            .Include(order => order.Images)
             .Include(order => order.Discounts)
             .Include(order => order.Payments)
             .Include(order => order.Expenses)

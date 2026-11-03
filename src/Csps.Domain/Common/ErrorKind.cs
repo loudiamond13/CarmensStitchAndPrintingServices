@@ -23,4 +23,7 @@ public enum ErrorKind
 
     /// <summary>The caller must slow down (429).</summary>
     TooManyRequests,
+
+    /// <summary>A part the use case depends on is not set up or not answering, and the caller may try again later (503).</summary>
+    Unavailable,
 }

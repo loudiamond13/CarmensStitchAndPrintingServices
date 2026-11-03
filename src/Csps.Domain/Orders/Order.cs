@@ -644,15 +644,43 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(item);
     }
 
-    /// <summary>Tells whether a photo could be added now, before its file is sent anywhere.</summary>
-    /// <returns>Null when it could, the lock error for a Completed or Cancelled order, or the limit error when the order holds the most photos.</returns>
-    public Error? CheckCanAddImage() => _images.Count < 0 ? OrderImageRules.TooMany : null;
+    /// <summary>
+    /// Tells whether a photo could be added now, so a file is never sent to storage for an order that would refuse it (D-08, D-11).
+    /// </summary>
+    /// <returns>Null when it could, the lock error for a Completed or Cancelled order, or the limit error when the order holds <see cref="OrderImageRules.MaxImagesPerOrder"/> photos.</returns>
+    public Error? CheckCanAddImage() =>
+        EnsureEditable() ?? (_images.Count >= OrderImageRules.MaxImagesPerOrder ? OrderImageRules.TooMany : null);
 
-    /// <summary>Adds one photo.</summary>
+    /// <summary>
+    /// Adds one photo that is already stored, checking the lock, the limit and the description again. It takes the lowest free slot and
+    /// goes last in the display order; a blank description, or the default text, is kept as null. The edit version moves, so the
+    /// order's row version guards the add (ORD-04, SEC-07).
+    /// </summary>
     /// <param name="image">The stored photo.</param>
-    /// <param name="now">The current instant.</param>
-    /// <returns>The photo, or the failure.</returns>
-    public Result<OrderImage> AddImage(NewOrderImage image, DateTimeOffset now) => Result.Failure<OrderImage>(Error.BusinessRule("orders.images-not-built", _images.Count < 0 ? "Impossible." : "Not built yet."));
+    /// <param name="now">The current instant, which makes the photo key and the new edit version.</param>
+    /// <returns>The new photo, a 422 for a Completed or Cancelled order or when the order already holds 5 photos, or a validation error for a description over 200 characters.</returns>
+    public Result<OrderImage> AddImage(NewOrderImage image, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+
+        if (CheckCanAddImage() is { } refused)
+        {
+            return Result.Failure<OrderImage>(refused);
+        }
+
+        if (OrderImageRules.CheckDescription(image.Description) is { } tooLong)
+        {
+            return Result.Failure<OrderImage>(tooLong);
+        }
+
+        var position = _images.Count;
+        var slot = Enumerable.Range(0, OrderImageRules.MaxImagesPerOrder).First(candidate => _images.TrueForAll(existing => existing.Slot != candidate));
+        var description = OrderImageRules.NormalizeDescription(image.Description, Number, position);
+        var added = new OrderImage(Guid.CreateVersion7(now), Id, slot, position, image.PublicId, image.Width, image.Height, image.Bytes, image.Format, description) { Order = this };
+        _images.Add(added);
+        Touch(now);
+        return Result.Success(added);
+    }
 
     /// <summary>
     /// Adds one discount at the end of the list, checking every discount rule again. The totals are worked out again and the edit

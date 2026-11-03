@@ -43,6 +43,17 @@ public static class OrderImageRules
     public static string DefaultDescription(string orderNumber, int position) =>
         string.Create(CultureInfo.InvariantCulture, $"Order {orderNumber} photo {position + 1}");
 
+    /// <summary>Cleans a description for storage: trimmed, and null when it is empty or equals the default text (D-12, D-30).</summary>
+    /// <param name="description">The description as typed; may be null.</param>
+    /// <param name="orderNumber">The order number.</param>
+    /// <param name="position">The photo's place in the order, from 0.</param>
+    /// <returns>The text to keep, or null.</returns>
+    public static string? NormalizeDescription(string? description, string orderNumber, int position)
+    {
+        var trimmed = description?.Trim();
+        return string.IsNullOrEmpty(trimmed) || string.Equals(trimmed, DefaultDescription(orderNumber, position), StringComparison.Ordinal) ? null : trimmed;
+    }
+
     /// <summary>Checks a description against the limit, after trimming.</summary>
     /// <param name="description">The description as typed; may be null.</param>
     /// <returns>Null when it fits, or the validation error.</returns>

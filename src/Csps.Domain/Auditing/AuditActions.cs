@@ -493,5 +493,6 @@ public static class AuditActions
         OrderExpenseCategoryRetired,
         OrderExpenseCategoryReactivated,
         OrderExpenseCategoryDeleted,
+        OrderImageAdded,
     ];
 }

@@ -223,7 +223,8 @@ public sealed class AuditActionsTests
     public void ThePhaseSevenCodesComeAfterThePhaseSixCodesInThisOrder()
     {
         PhaseSeven.Length.ShouldBe(43);
-        AuditActions.All.Skip(49).ShouldBe(PhaseSeven.Select(entry => entry.Code));
+        AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded]);
     }
 
     [Fact]

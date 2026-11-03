@@ -148,6 +148,25 @@ public sealed class OrderImagesEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
+    public async Task AStorageThatDoesNotTakeTheFileAnswers503AndSavesNoPhoto()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        factory.Services.GetRequiredService<TestingImageStorage>().FailNext(1);
+
+        using var response = await UploadAsync(client, manager.AccessToken, id, Photo);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("images.storage-failed");
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().CountAsync(image => image.OrderId == id, TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task AHostWithNoImageStorageStartsAnswersTheUploadWith503AndKeepsTheHealthCheckGreen()
     {
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);

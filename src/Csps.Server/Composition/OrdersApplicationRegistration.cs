@@ -44,6 +44,7 @@ public static class OrdersApplicationRegistration
         services.AddScoped<AddOrderItemHandler>();
         services.AddScoped<UpdateOrderItemHandler>();
         services.AddScoped<RemoveOrderItemHandler>();
+        services.AddScoped<UploadOrderImageHandler>();
         services.AddScoped<AddOrderDiscountHandler>();
         services.AddScoped<UpdateOrderDiscountHandler>();
         services.AddScoped<RemoveOrderDiscountHandler>();
