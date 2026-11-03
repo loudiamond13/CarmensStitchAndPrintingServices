@@ -50,13 +50,14 @@ public static class IdempotencyAllowList
         new("POST /api/v1/maintenance/run", "A scheduled machine call with no body; each run is guarded by a database lease, so a repeat is harmless.", Decision),
     ];
 
-    // The Testing-only staff, expense and order fixtures exist in Debug builds in the Testing environment only (QUAL-05).
+    // The Testing-only staff, expense, order and photo-failure fixtures exist in Debug builds in the Testing environment only (QUAL-05).
     private static IdempotencyExemption[] TestingEntries => BuildFlavor.HasTestingFeatures
         ?
         [
             new("POST /api/testing/staff", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/expenses", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/orders", "Testing-only test data, compiled out of Release.", Decision),
+            new("POST /api/testing/images/fail-next", "Testing-only test switch, compiled out of Release.", Decision),
         ]
         : [];
 }

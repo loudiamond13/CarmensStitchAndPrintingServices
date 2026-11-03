@@ -58,7 +58,7 @@ public static class AuthorizationMatrix
     ];
 
     // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
-    // POST /api/testing/staff, POST /api/testing/expenses and POST /api/testing/orders get no body here, so every caller meets the same 400.
+    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400.
     private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
         ?
         [
@@ -66,6 +66,8 @@ public static class AuthorizationMatrix
             new("POST", "/api/testing/staff", "/api/testing/staff", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/expenses", "/api/testing/expenses", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/orders", "/api/testing/orders", Anonymous: 400, Admin: 400, Manager: 400),
+            new("GET", "/api/testing/images/{id}", "/api/testing/images/unknown-photo", Anonymous: 404, Admin: 404, Manager: 404),
+            new("POST", "/api/testing/images/fail-next", "/api/testing/images/fail-next", Anonymous: 400, Admin: 400, Manager: 400),
         ]
         : [];
 
@@ -301,7 +303,7 @@ public static class AuthorizationMatrix
             "* /scalar/{**path}",
         }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
 
-    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders"] : [];
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>
