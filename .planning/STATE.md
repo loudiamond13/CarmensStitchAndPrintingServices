@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-08-PLAN.md
-last_updated: "2026-11-03T17:16:58.239Z"
+stopped_at: Completed 09-09-PLAN.md
+last_updated: "2026-11-03T18:03:37.646Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 09 execution started
-state_head: 26709b41179c7900ce1637569f28ff7299363cef
+state_head: 76d6eec4443b014efef8ad7e9d9b821e6f1cec64
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 256
+  completed_plans: 257
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-03T10:22:00-06:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 9 of 32
+Plan: 10 of 32
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 09 execution started
 
@@ -317,6 +317,7 @@ Progress: [████░░░░░░] 44%
 | Phase 09 P06 | 35 min | 2 tasks | 17 files |
 | Phase 09 P07 | 40min | 2 tasks | 27 files |
 | Phase 09 P08 | 58 min | 3 tasks | 14 files |
+| Phase 09 P09 | 70min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -901,6 +902,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: 09-06: a refused maintenance call always answers 401 maintenance.key with one fixed message, whether the key is missing, wrong, short or unset
 - [Phase 09]: 09-07: ImageSourceResponse is its own record, same JSON as ImageSource; TestingImageDelivery keeps only the last public-id segment
 - [Phase 09]: 09-08: the photo tile grip alone keeps the D-05 reveal (hover devices only); every real control is drawn at full opacity; readonly lists keep Remove on files not yet uploaded (UI-SPEC P3)
+- [Phase 09]: 09-09: fail-next takes a count from 0 to 50 and answers 204; the rules endpoint names types jpeg, png, webp, heic
 
 ### Pending Todos
 
@@ -955,7 +957,7 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-02 gap fills to confirm:** fallback `src` is the 960 candidate in the viewer, 640 on the card, else the largest; a card cover is capped by its 16:10 crop width (`min(width, 1.6 x height)`); square slots drop the 2x candidate when the shorter side is under the 2x box; a host with no Cloudinary settings still starts and uploads answer 503; three startup-log messages for a bad Cloudinary folder or cloud name.
 - [ ] **09-05 wording:** the "over 10 MB" message is built from the configured `MaxBytes` ("{file} is over 10 MB. Choose a smaller photo." at the default; a lowered setting shows KB or bytes). Keep, or always say "10 MB"?
 - [ ] **09-06 wording and counting:** (1) The run line for a failed purge reads "Expired request keys removed" with the text "The expired request keys could not be removed." (the plan gave no text for a failure). Approve or change. (2) The "Expired request keys removed: {n}" count adds expired stored answers and expired in-progress claims into one number. Recommended: keep (both are request keys to you). The other choice is two separate lines. (3) Until plan 09-12, the maintenance endpoint has no rate limit on wrong keys; the 32 character minimum and the fixed-time compare are in place. Nothing needed from you; noted so it is not forgotten.
-- [ ] **09-07 non-Production hosts and the photo test route:** (1) The base settings now name the live photo folder (`Cloudinary:RootFolder` = `csps`) and Development names `csps-dev`. Any host that is neither Production nor Development (for example a future staging host) must set `Cloudinary__RootFolder=csps-dev`, or it refuses to start with a clear message. This is the folder guard you asked for (D-07); nothing needed now, but the cutover and runbook plans should carry the line. (2) The Testing photo addresses (`/api/testing/images/{id}?size=...`) have no route behind them yet, so no browser test can load a photo until a Testing-only route is added in a later plan. Recommended: add it with the plan that first needs a photo to render in Playwright.
+- [ ] **09-07 non-Production hosts and the photo test route:** (1) The base settings now name the live photo folder (`Cloudinary:RootFolder` = `csps`) and Development names `csps-dev`. Any host that is neither Production nor Development (for example a future staging host) must set `Cloudinary__RootFolder=csps-dev`, or it refuses to start with a clear message. This is the folder guard you asked for (D-07); nothing needed now, but the cutover and runbook plans should carry the line. (2) The Testing photo addresses (`/api/testing/images/{id}?size=...`) have no route behind them yet, so no browser test can load a photo until a Testing-only route is added in a later plan. Recommended: add it with the plan that first needs a photo to render in Playwright. **Resolved by plan 09-09 (2026-11-03): the route now exists, nothing needed from you.**
 - [ ] **09-08 photo list looks and wording to confirm (UI-SPEC left these open):** (1) Move left, Move right and Edit description are drawn as outlined (secondary) icon buttons and Delete/Remove as the quiet red-on-hover (ghost-danger) button; the spec names only the 44 px size. Keep, or make the moves and edit quiet (ghost)? (2) On a phone the grip is not drawn at all (touch has no drag); the spec says the grip shows on hover devices only, so this follows it. (3) A read-only list (Completed or Cancelled order) shows row 1 only for saved photos, but a file that has not uploaded yet (waiting or failed) keeps its Remove button, because UI-SPEC P3 says a file that fails with the locked reason keeps only Remove. Keep, or hide it too? (4) The two touch buttons share one row only when the card is about 318 px or wider inside; below that "Choose Photos" wraps under "Take Photo" (UI-SPEC says one row; at 320 px the card is 248 px inside). Plan 09-30's 320 px screenshots show it; keep the wrap or shorten the labels? (5) The photo-list look is not covered by the look-equality parity matrix (parity false, D-25 and D-13/D-14), so only your screenshot review at 390, 820 and 1440 px (UI-SPEC Visual Review) confirms how it looks. (6) Two @a11y-rulings D-02 cases (webkit dark and iphone light, /dev/components) failed once in the full run with "h1 not found in 5 s" while the first-load showcase was slow; both passed alone. Recorded as a first-load timing flake, not chased.
 
 ### Blockers/Concerns
@@ -1023,6 +1025,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T17:16:56.820Z
-Stopped at: Completed 09-08-PLAN.md
+Last session: 2026-11-03T18:03:36.234Z
+Stopped at: Completed 09-09-PLAN.md
 Resume file: None
