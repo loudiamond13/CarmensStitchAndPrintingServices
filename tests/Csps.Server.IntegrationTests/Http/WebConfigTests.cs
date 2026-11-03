@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Xml.Linq;
-using Csps.Server.Http;
+using Csps.Application.Images;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -38,8 +38,8 @@ public sealed class WebConfigTests
 
         var ceiling = limits.Attribute("maxAllowedContentLength").ShouldNotBeNull().Value;
 
-        ceiling.ShouldBe("2097152");
-        long.Parse(ceiling, CultureInfo.InvariantCulture).ShouldBeGreaterThan(RequestBodyLimitMiddleware.MaxBytes);
+        ceiling.ShouldBe("11534336");
+        long.Parse(ceiling, CultureInfo.InvariantCulture).ShouldBeGreaterThan(ImageUploadLimits.BodyBytes);
     }
 
     [Fact]
