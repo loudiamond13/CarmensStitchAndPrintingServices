@@ -1,9 +1,12 @@
 using System.Buffers;
+using System.Security.Cryptography;
 using System.Text;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Idempotency;
 using Csps.Server.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 
 namespace Csps.Server.Security;
@@ -15,7 +18,8 @@ namespace Csps.Server.Security;
 /// 409. The answer is stored with the business change in one transaction and written to the client only after the
 /// commit. Only 2xx, 400, 404 and 422 are kept; anything else rolls back so the same key may run again, unless the
 /// endpoint calls <see cref="IdempotencyOutcome.KeepChanges"/>: then the change commits and the answer is still not stored.
-/// Multipart bodies will need part-wise hashing once uploads exist (deferred LIB-CR-02).
+/// A multipart body (a photo upload) is hashed part by part, never by its boundary, so "Try Again" with the same bytes is a repeat (LIB-CR-02).
+/// The body is buffered in memory only, up to the matched endpoint's own size limit (IMG-02).
 /// </summary>
 /// <param name="next">The next middleware.</param>
 /// <param name="clock">The UTC clock.</param>
@@ -44,6 +48,13 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
     private const string KeyMismatchMessage = "This request key was already used for something else. Reload and try again.";
     private const string InProgressMessage = "This request is already being processed. Wait a moment, then check the result.";
     private const string NoStore = "no-store";
+    private const string MultipartFormData = "multipart/form-data";
+    private const int ReadSize = 8192;
+    private const int MaxBoundaryLength = 128;
+    private const int MaxParts = 32;
+
+    // Mixed into a multipart hash, so it cannot equal the hash of a raw body.
+    private static readonly byte[] MultipartLabel = Encoding.UTF8.GetBytes("multipart/v1");
 
     /// <summary>Runs the request through the gate when it is a covered POST.</summary>
     /// <param name="context">The current HTTP context.</param>
@@ -130,20 +141,39 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
     // Null when the body is over the limit, counted here so the answer is a 413 and not the buffer's own exception.
     private async Task<byte[]?> HashRequestAsync(HttpContext context, CancellationToken cancellationToken)
     {
-        const int ReadSize = 8192;
         var request = context.Request;
 
         // The body is read here and again by the action, so it is buffered in memory only: the threshold is the endpoint's limit,
         // so nothing spills to a temp file (IMG-02). The buffer limit sits above the counted limit, so the count always trips first.
         var limit = RequestBodyLimitMiddleware.LimitFor(context);
         request.EnableBuffering((int)limit, limit + ReadSize);
-        using var hash = hasher.Create();
 
-        // Length-prefixed, so the target cannot blur into the body bytes that follow.
-        var target = Encoding.UTF8.GetBytes($"{request.Path}{request.QueryString}");
-        hash.AppendData(BitConverter.GetBytes(target.Length));
-        hash.AppendData(target);
+        // A multipart body is hashed part by part, so a retry with a new boundary is still the same request (LIB-CR-02).
+        // A body that does not parse as multipart is hashed raw below, and the action answers it as before.
+        if (TryGetBoundary(request.ContentType, out var boundary))
+        {
+            using var partsHash = StartHash(request);
+            var counted = new CountingReadStream(request.Body, limit);
+            var parsed = await HashMultipartAsync(counted, boundary, partsHash, cancellationToken).ConfigureAwait(false);
+            if (parsed)
+            {
+                // Counts anything after the final boundary too, so a long epilogue cannot slip past the limit.
+                await counted.CopyToAsync(Stream.Null, cancellationToken).ConfigureAwait(false);
+            }
 
+            if (counted.Exceeded)
+            {
+                return null;
+            }
+
+            request.Body.Position = 0;
+            if (parsed)
+            {
+                return partsHash.GetHashAndReset();
+            }
+        }
+
+        using var hash = StartHash(request);
         var buffer = ArrayPool<byte>.Shared.Rent(ReadSize);
         try
         {
@@ -167,6 +197,101 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
 
         request.Body.Position = 0;
         return hash.GetHashAndReset();
+    }
+
+    // Length-prefixed, so the target cannot blur into the body bytes that follow.
+    private IncrementalHash StartHash(HttpRequest request)
+    {
+        var hash = hasher.Create();
+        var target = Encoding.UTF8.GetBytes($"{request.Path}{request.QueryString}");
+        hash.AppendData(BitConverter.GetBytes(target.Length));
+        hash.AppendData(target);
+        return hash;
+    }
+
+    // The boundary must be present and short (T-09-30); anything else is not parsed as multipart.
+    private static bool TryGetBoundary(string? contentType, out string boundary)
+    {
+        boundary = string.Empty;
+        if (!MediaTypeHeaderValue.TryParse(contentType, out var parsed)
+            || !string.Equals(parsed.MediaType.Value, MultipartFormData, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var value = HeaderUtilities.RemoveQuotes(parsed.Boundary);
+        if (!value.HasValue || value.Length is 0 or > MaxBoundaryLength)
+        {
+            return false;
+        }
+
+        boundary = value.Value;
+        return true;
+    }
+
+    // Adds each part's name, file name, content type and bytes, never the boundary. A part's bytes are folded into a fixed-size digest
+    // and its length, so the layout stays unambiguous and the memory use constant. False when the body is not a usable multipart form.
+    private static async Task<bool> HashMultipartAsync(Stream body, string boundary, IncrementalHash hash, CancellationToken cancellationToken)
+    {
+        hash.AppendData(MultipartLabel);
+        var buffer = ArrayPool<byte>.Shared.Rent(ReadSize);
+        try
+        {
+            var reader = new MultipartReader(boundary, body);
+            var parts = 0;
+            MultipartSection? section;
+            while ((section = await reader.ReadNextSectionAsync(cancellationToken).ConfigureAwait(false)) is not null)
+            {
+                if (++parts > MaxParts || !ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var disposition))
+                {
+                    return false;
+                }
+
+                AppendField(hash, Unquoted(disposition.Name));
+                AppendField(hash, Unquoted(disposition.FileName));
+                AppendField(hash, Unquoted(disposition.FileNameStar));
+                AppendField(hash, section.ContentType);
+
+                using var content = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                long length = 0;
+                int read;
+                while ((read = await section.Body.ReadAsync(buffer.AsMemory(0, ReadSize), cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    content.AppendData(buffer, 0, read);
+                    length += read;
+                }
+
+                hash.AppendData(BitConverter.GetBytes(length));
+                hash.AppendData(content.GetHashAndReset());
+            }
+
+            hash.AppendData(BitConverter.GetBytes(parts));
+            return parts > 0;
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or ArgumentException)
+        {
+            return false;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private static string? Unquoted(StringSegment value) => value.HasValue ? HeaderUtilities.RemoveQuotes(value).Value : null;
+
+    // A missing value (-1) and an empty one (0) differ.
+    private static void AppendField(IncrementalHash hash, string? value)
+    {
+        if (value is null)
+        {
+            hash.AppendData(BitConverter.GetBytes(-1));
+            return;
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(value);
+        hash.AppendData(BitConverter.GetBytes(bytes.Length));
+        hash.AppendData(bytes);
     }
 
     private static async Task ReplayAsync(HttpContext context, StoredResponse stored)
@@ -259,6 +384,58 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
     {
         context.Response.Headers.CacheControl = NoStore;
         return TypedResults.Problem(CspsProblemDetails.Build(context, status, detail, code: code)).ExecuteAsync(context);
+    }
+
+    // Reads forward only and ends the stream when the body is longer than the limit, so the multipart reader stops and the caller answers 413.
+    private sealed class CountingReadStream(Stream inner, long limit) : Stream
+    {
+        private long _total;
+
+        public bool Exceeded { get; private set; }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => Count(inner.Read(buffer, offset, count));
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            Count(await inner.ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false));
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            Count(await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false));
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        private int Count(int read)
+        {
+            _total += read;
+            if (_total <= limit)
+            {
+                return read;
+            }
+
+            Exceeded = true;
+            return 0;
+        }
     }
 }
 
