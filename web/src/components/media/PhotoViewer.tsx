@@ -71,20 +71,24 @@ interface Anchor {
   /** The photo shown, by id, and its position. */
   id: string;
   index: number;
+  /** The `index` prop last seen, to tell the caller moving the photo from the list changing under it. */
+  prop: number;
 }
 
 export function PhotoViewer({ photos, index, onIndexChange, onClose, label, sizes }: PhotoViewerProps) {
   const ids = photos.map((photo) => photo.id).join('\n');
   const wanted = clamp(index, photos.length);
-  const [anchor, setAnchor] = useState<Anchor>({ ids, id: photos[wanted]?.id ?? '', index: wanted });
-  let current = wanted;
-  // The list changed: stay on the same photo by id, else on the old position, clamped (reset during render).
+  const [anchor, setAnchor] = useState<Anchor>({ ids, id: photos[wanted]?.id ?? '', index: wanted, prop: index });
+  let current = anchor.index;
   if (anchor.ids !== ids) {
+    // The list changed: stay on the same photo by id, else on the old position, clamped (reset during render).
     const at = photos.findIndex((photo) => photo.id === anchor.id);
     current = at >= 0 ? at : clamp(anchor.index, photos.length);
-    setAnchor({ ids, id: photos[current]?.id ?? anchor.id, index: current });
-  } else if (photos.length > 0 && (anchor.id !== photos[wanted]?.id || anchor.index !== wanted)) {
-    setAnchor({ ids, id: photos[wanted]?.id ?? anchor.id, index: wanted });
+    setAnchor({ ids, id: photos[current]?.id ?? anchor.id, index: current, prop: index });
+  } else if (anchor.prop !== index) {
+    // The caller moved to another photo.
+    current = wanted;
+    setAnchor({ ids, id: photos[wanted]?.id ?? anchor.id, index: wanted, prop: index });
   }
 
   const lastShownId = photos[current]?.id ?? anchor.id;
@@ -240,8 +244,7 @@ function ViewerDialog({ photos, current, onIndexChange, onClose, label, sizes }:
           {shown.fullSize !== undefined && (
             <a href={shown.fullSize} target="_blank" rel="noopener noreferrer" className={viewerFullSizeClasses}>
               <Icon name="arrow-up-right" size={18} />
-              {copy.openFullSize}
-              <span className={srOnlyClasses}>{copy.opensInNewTab}</span>
+              {copy.openFullSize} <span className={srOnlyClasses}>{copy.opensInNewTab}</span>
             </a>
           )}
         </div>

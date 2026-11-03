@@ -233,21 +233,21 @@ describe('PhotoViewer failed image', () => {
 describe('PhotoViewer live changes', () => {
   it('keeps the same photo by id when others come and go', () => {
     const { rerender } = render(<Harness start={1} />);
-    rerender(<Harness start={1} photos={[THREE[1] as PhotoViewerPhoto, THREE[2] as PhotoViewerPhoto]} />);
+    rerender(<Harness start={1} photos={[photo(2), photo(3)]} />);
     expect(within(dialog()).getByText('Photo 1 of 2')).toBeInTheDocument();
     expect(within(dialog()).getByRole('img', { name: 'Front mockup 2' })).toBeInTheDocument();
   });
 
   it('moves to the nearest position when the shown photo is gone', () => {
     const { rerender } = render(<Harness start={1} />);
-    rerender(<Harness start={1} photos={[THREE[0] as PhotoViewerPhoto, THREE[2] as PhotoViewerPhoto]} />);
+    rerender(<Harness start={1} photos={[photo(1), photo(3)]} />);
     expect(within(dialog()).getByText('Photo 2 of 2')).toBeInTheDocument();
     expect(within(dialog()).getByRole('img', { name: 'Front mockup 3' })).toBeInTheDocument();
   });
 
   it('clamps to the new last photo when the shown last photo is gone', () => {
     const { rerender } = render(<Harness start={2} />);
-    rerender(<Harness start={2} photos={[THREE[0] as PhotoViewerPhoto, THREE[1] as PhotoViewerPhoto]} />);
+    rerender(<Harness start={2} photos={[photo(1), photo(2)]} />);
     expect(within(dialog()).getByText('Photo 2 of 2')).toBeInTheDocument();
     expect(within(dialog()).getByRole('img', { name: 'Front mockup 2' })).toBeInTheDocument();
   });
@@ -371,5 +371,30 @@ describe('PhotoViewer page behind it', () => {
     expect(screen.getByRole('button', { name: 'Close viewer' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Close viewer' }));
     expect(trigger).toHaveFocus();
+  });
+});
+
+describe('PhotoViewer controlled index', () => {
+  it('clamps an index outside the list and tells the caller', () => {
+    const onIndexChange = vi.fn();
+    render(
+      <PhotoViewer
+        photos={THREE}
+        index={7}
+        onIndexChange={onIndexChange}
+        onClose={() => undefined}
+        label="Order photos"
+      />,
+    );
+    expect(within(dialog()).getByText('Photo 3 of 3')).toBeInTheDocument();
+    expect(onIndexChange).toHaveBeenCalledWith(2);
+  });
+
+  it('follows the caller moving to another photo', () => {
+    const props = { photos: THREE, onIndexChange: () => undefined, onClose: () => undefined, label: 'Order photos' };
+    const { rerender } = render(<PhotoViewer {...props} index={0} />);
+    rerender(<PhotoViewer {...props} index={2} />);
+    expect(within(dialog()).getByText('Photo 3 of 3')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Photo 3 of 3: Front mockup 3');
   });
 });

@@ -10,7 +10,7 @@ export const MEDIA_COPY = {
     previous: 'Previous image',
     next: 'Next image',
     openFullSize: 'Open Full Size',
-    opensInNewTab: ' (opens in a new tab)',
+    opensInNewTab: '(opens in a new tab)',
     /** The polite announcement on each change. */
     announce: (position: number, total: number, description: string): string =>
       `Photo ${String(position)} of ${String(total)}: ${description}`,
