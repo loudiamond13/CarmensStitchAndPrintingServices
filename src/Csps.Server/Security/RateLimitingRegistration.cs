@@ -21,7 +21,7 @@ public static class RateLimitingRegistration
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies. The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
+    /// Adds the six auth policies and the maintenance policy. The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
     /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -34,7 +34,9 @@ public static class RateLimitingRegistration
         ArgumentNullException.ThrowIfNull(configuration);
 
         var settings = configuration.GetSection(RateLimitSettings.SectionName).Get<RateLimitSettings>() ?? new RateLimitSettings();
-        var problems = settings.Validate();
+        var maintenance = MaintenanceRateLimit.Default();
+        configuration.GetSection(MaintenanceRateLimit.SectionName).Bind(maintenance);
+        var problems = settings.Validate().Concat(MaintenanceRateLimit.Validate(maintenance)).ToList();
         if (problems.Count > 0)
         {
             throw new InvalidOperationException(string.Join(" ", problems));
@@ -48,6 +50,7 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.Forgot] = settings.Forgot.Window,
             [RateLimitPolicies.Reset] = settings.Reset.Window,
             [RateLimitPolicies.Refresh] = settings.Refresh.Window,
+            [RateLimitPolicies.Maintenance] = maintenance.Window,
         };
 
         services.AddRateLimiter(options =>
@@ -60,6 +63,7 @@ public static class RateLimitingRegistration
             AddPolicy(options, RateLimitPolicies.Forgot, settings.Forgot);
             AddPolicy(options, RateLimitPolicies.Reset, settings.Reset);
             AddPolicy(options, RateLimitPolicies.Refresh, settings.Refresh);
+            AddPolicy(options, RateLimitPolicies.Maintenance, maintenance);
         });
         return services;
     }
