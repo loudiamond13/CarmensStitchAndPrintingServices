@@ -548,7 +548,7 @@ public static class ImageSniffer
     }
 
     // Finds the Orientation tag in the first Exif directory; null when the block is missing, damaged or holds a value outside 1 to 8.
-    private static int? ReadExifOrientation(ReadOnlySpan<byte> payload)
+    internal static int? ReadExifOrientation(ReadOnlySpan<byte> payload)
     {
         if (payload.Length < ExifHeader.Length + 8 || !payload[..ExifHeader.Length].SequenceEqual(ExifHeader))
         {
