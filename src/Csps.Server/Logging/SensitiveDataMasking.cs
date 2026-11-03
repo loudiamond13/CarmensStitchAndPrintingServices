@@ -43,6 +43,7 @@ public static class SensitiveDataMasking
         "SigningKey",
         "Secret",
         "Token",
+        "MaintenanceKey",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     private static readonly string[] Suffixes = ["Password", "Token", "Secret", "Hash", "Stamp", "Key", "Mac"];
