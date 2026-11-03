@@ -1,4 +1,5 @@
 using Csps.Application.Images;
+using Csps.Testing.Images;
 
 namespace Csps.Application.UnitTests.Images;
 
@@ -110,6 +111,61 @@ public sealed class ImageSnifferTests
         ImageSniffer.Inspect("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"u8).ShouldBeNull();
         ImageSniffer.Inspect([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]).ShouldBeNull();
         ImageSniffer.Inspect("GIF89a"u8).ShouldBeNull();
+    }
+
+    [Fact]
+    public void APngGivesItsKindAndStoredSize()
+    {
+        var facts = ImageSniffer.Inspect(SyntheticImages.Png(800, 600)).ShouldNotBeNull();
+
+        facts.Kind.ShouldBe(ImageKind.Png);
+        facts.Width.ShouldBe(800);
+        facts.Height.ShouldBe(600);
+        facts.Orientation.ShouldBe(1);
+        facts.UprightWidth.ShouldBe(800);
+        facts.UprightHeight.ShouldBe(600);
+    }
+
+    [Fact]
+    public void ABiggestPossiblePngSizeIsRead()
+    {
+        var facts = ImageSniffer.Inspect(SyntheticImages.Png(int.MaxValue, int.MaxValue)).ShouldNotBeNull();
+
+        facts.Width.ShouldBe(int.MaxValue);
+        facts.Height.ShouldBe(int.MaxValue);
+    }
+
+    [Fact]
+    public void APngWithAnEmptyOrOversizedSideGivesNoAnswer()
+    {
+        ImageSniffer.Inspect(SyntheticImages.Png(0, 600)).ShouldBeNull();
+        ImageSniffer.Inspect(SyntheticImages.Png(800, 0)).ShouldBeNull();
+        ImageSniffer.Inspect(SyntheticImages.Png(unchecked((int)0x80000000), 600)).ShouldBeNull();
+        ImageSniffer.Inspect(SyntheticImages.Png(800, unchecked((int)0x80000000))).ShouldBeNull();
+    }
+
+    [Fact]
+    public void APngWhoseFirstChunkIsNotAThirteenByteHeaderGivesNoAnswer()
+    {
+        var whole = SyntheticImages.Png(800, 600);
+        var notHeader = (byte[])whole.Clone();
+        notHeader[12] = (byte)'X';
+        var shortHeader = (byte[])whole.Clone();
+        shortHeader[11] = 12;
+
+        ImageSniffer.Inspect(notHeader).ShouldBeNull();
+        ImageSniffer.Inspect(shortHeader).ShouldBeNull();
+    }
+
+    [Fact]
+    public void APngCutShortInsideItsHeaderGivesNoAnswer()
+    {
+        var whole = SyntheticImages.Png(800, 600);
+
+        foreach (var length in new[] { 0, 7, 8, 12, 16, 28 })
+        {
+            ImageSniffer.Inspect(whole.AsSpan(0, length)).ShouldBeNull();
+        }
     }
 
     [Fact]
