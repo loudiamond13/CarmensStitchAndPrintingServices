@@ -2518,6 +2518,23 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description An order's cover photo in the list (ORD-04, IMG-04). The addresses are built when the list is read and are never stored. */
+        OrderCoverResponse: {
+            /** @description The 16:10 card cover, with width candidates. */
+            card: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The height in pixels, as the photo is shown upright.
+             */
+            height: number | string;
+            /** @description The 44 px table thumb, with a 2x candidate. */
+            table: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The width in pixels, as the photo is shown upright.
+             */
+            width: number | string;
+        };
         /** @description One order with its items, history, totals and who recorded and last changed it (ORD-03). */
         OrderDetailResponse: {
             /** @description The address; null when none. */
@@ -2799,6 +2816,7 @@ export interface components {
              * @description The balance in pesos.
              */
             balance: number | string;
+            cover: null | components["schemas"]["OrderCoverResponse"];
             /**
              * Format: double
              * @description What the shop owes the customer in pesos.
@@ -2823,6 +2841,11 @@ export interface components {
              * @description The order id.
              */
             id: string;
+            /**
+             * Format: int32
+             * @description How many photos the order has, 0 to 5.
+             */
+            imageCount: number | string;
             /** @description The order number. */
             number: string;
             /**

@@ -30,7 +30,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         var matches = Filter(context.Orders.AsNoTracking(), query, now);
 
         // Command 1: the count over every page. Command 2: the page, ending on the id so paging is stable. Command 3: the two
-        // list-wide counts, which ignore every filter (D-41, D-60). The piece count of a row is a correlated sum inside command 2.
+        // list-wide counts, which ignore every filter (D-41, D-60). The piece count, the photo count and the position 0 photo of a row are correlated subqueries inside command 2.
         var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
         var rows = await Sort(matches, query.Sort)
             .Select(order => new OrderListRow(
@@ -50,7 +50,11 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                 order.Balance,
                 order.CustomerCredit,
                 order.FullyPaid,
-                context.Set<OrderItem>().Where(item => item.OrderId == order.Id).Sum(item => item.Quantity)))
+                context.Set<OrderItem>().Where(item => item.OrderId == order.Id).Sum(item => item.Quantity),
+                context.Set<OrderImage>().Count(image => image.OrderId == order.Id),
+                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => image.PublicId).FirstOrDefault(),
+                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Width).FirstOrDefault(),
+                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Height).FirstOrDefault()))
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(cancellationToken)

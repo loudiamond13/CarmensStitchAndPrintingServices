@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-03T11:43:31-06:00
+updated: 2026-11-03T17:31:00-06:00
 ---
 
 # The orders API
@@ -85,11 +85,13 @@ no money. A row never carries contact details, the address or notes. For ORD-202
 21,327.50, 12,000.00 and 9,327.50 for subtotal, discount, total, paid and balance.
 
 - `pieces` is how many pieces the order has: the sum of its item quantities (D-40). An order with items of 25 and 15 reads `40`.
+- `imageCount` is how many photos the order has, from 0 to 5.
+- `cover` is the order's cover photo, the one at position 0, or `null` when the order has no photo. It holds `card` and `table`, each `{ src, srcSet }`, and the photo's upright `width` and `height`. The `card` is the 16:10 cover at 320 to 960 px wide, with width candidates in `srcSet`. The `table` is the 44 px thumb with a 2x candidate. No candidate is wider than the photo. The addresses are built when the list is read and are never stored. They appear only in this staff list, the order answer and the deleted-order read (D-01). The web app uses them as they are and never builds an address itself.
 - `allOrders` is every order that is not deleted, and `activeOrders` is the part of those in Pending, Mockup, In Production, Ready or Delivered (D-41). Both ignore `q`, `status`, the dates, `productType` and `hasBalance`, so a screen can show "showing 5 of 40" whatever the filters are.
 - `today` is the business date from the shop's time zone (D-59), so the browser never reads the device clock for a due date.
 
 The list runs three SQL commands (the count, the page and the two list-wide counts) whatever the page size, filter or sort (D-60), and answers under 300 ms at the 95th percentile on
-about five years of orders. How that is proved is in [list-performance.md](../operations/list-performance.md).
+about five years of orders. The photo count and the cover are read inside the page command, so photos add no command. How that is proved is in [list-performance.md](../operations/list-performance.md).
 
 ## The order form (`POST /orders`)
 

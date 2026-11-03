@@ -3,7 +3,7 @@
 // Names are made up. Every figure is written out (the same numbers the server would store), never worked out in a test.
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw';
-import { PRODUCT_TYPES } from '@/test/orderListFixtures';
+import { PRODUCT_TYPES, orderListCover } from '@/test/orderListFixtures';
 import type { components } from '@/types/api.generated';
 
 type Schemas = components['schemas'];
@@ -470,7 +470,7 @@ export const deliveredOrder: OrderDetailFixture = buildOrderDetail({
   totals: totals({ subtotal: 5000, total: 5000, paid: 2000, balance: 3000, profit: 5000 }),
 });
 
-/** The list row of an order: the figures the list stores, the pieces as the sum of the item quantities. */
+/** The list row of an order: the figures the list stores, the pieces as the sum of the item quantities, the photo count and the cover. */
 export function listEntryOf(order: OrderDetailFixture): OrderListEntryFixture {
   const t = order.totals;
   return {
@@ -491,6 +491,8 @@ export function listEntryOf(order: OrderDetailFixture): OrderListEntryFixture {
     balance: t.balance,
     customerCredit: t.customerCredit,
     fullyPaid: t.fullyPaid,
+    imageCount: order.images.length,
+    cover: order.images.length > 0 ? orderListCover(1) : null,
   };
 }
 

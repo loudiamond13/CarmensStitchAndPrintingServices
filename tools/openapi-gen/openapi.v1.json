@@ -1925,6 +1925,44 @@
         ],
         "type": "object"
       },
+      "OrderCoverResponse": {
+        "description": "An order's cover photo in the list (ORD-04, IMG-04). The addresses are built when the list is read and are never stored.",
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The 16:10 card cover, with width candidates."
+          },
+          "height": {
+            "description": "The height in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "table": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The 44 px table thumb, with a 2x candidate."
+          },
+          "width": {
+            "description": "The width in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "card",
+          "table",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
       "OrderDetailResponse": {
         "description": "One order with its items, history, totals and who recorded and last changed it (ORD-03).",
         "properties": {
@@ -2624,6 +2662,17 @@
               "string"
             ]
           },
+          "cover": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrderCoverResponse",
+                "description": "The cover photo (the one at position 0); null when the order has no photo."
+              }
+            ]
+          },
           "customerCredit": {
             "description": "What the shop owes the customer in pesos.",
             "format": "double",
@@ -2662,6 +2711,15 @@
             "description": "The order id.",
             "format": "uuid",
             "type": "string"
+          },
+          "imageCount": {
+            "description": "How many photos the order has, 0 to 5.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
           },
           "number": {
             "description": "The order number.",
@@ -2751,7 +2809,9 @@
           "balance",
           "customerCredit",
           "fullyPaid",
-          "pieces"
+          "pieces",
+          "imageCount",
+          "cover"
         ],
         "type": "object"
       },
