@@ -1,10 +1,13 @@
 using System.Net;
 using System.Text.Json;
+using Csps.Application.Maintenance;
 using Csps.Infrastructure.Idempotency;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Maintenance;
 
@@ -122,6 +125,31 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
         (await ReadRecordKeysAsync()).Count.ShouldBe(3);
     }
 
+    [Fact]
+    public async Task JobsRunByOrderWhateverTheirRegistrationOrder()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting(KeySetting, TestKey);
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddScoped<IMaintenanceJob>(static _ => new FakeJob(30, "fake-late", "Late job"));
+                services.AddScoped<IMaintenanceJob>(static _ => new FakeJob(5, "fake-early", "Early job"));
+            });
+        });
+        using var client = factory.CreateClient();
+
+        using var response = await RunAsync(client, TestKey);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        var labels = document.RootElement.GetProperty("lines").EnumerateArray().Select(static line => line.GetProperty("label").GetString()).ToList();
+        labels.ShouldBe(["Early job", PurgeLabel, "Late job"]);
+    }
+
     private static async Task ShouldBeRefusedAsync(HttpResponseMessage response)
     {
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -158,5 +186,15 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
     {
         await using var context = database.CreateContext();
         return await context.Set<IdempotencyRecord>().AsNoTracking().Select(record => record.Key).ToListAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class FakeJob(int order, string name, string label) : IMaintenanceJob
+    {
+        public int Order => order;
+
+        public string Name => name;
+
+        public Task<MaintenanceJobReport> RunAsync(MaintenanceBudget budget, CancellationToken cancellationToken) =>
+            Task.FromResult(new MaintenanceJobReport([new MaintenanceLine(label, 1, false, null)], false));
     }
 }
