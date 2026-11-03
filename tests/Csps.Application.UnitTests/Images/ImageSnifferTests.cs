@@ -586,10 +586,14 @@ public sealed class ImageSnifferTests
         var heic = SyntheticImages.Heic(4032, 3024, 1);
         var heicHeaderEnd = heic.Length - 12;
 
-        for (var length = 0; length < png.Length; length++)
+        var pngHeaderEnd = png.Length - 12;
+
+        for (var length = 0; length < pngHeaderEnd; length++)
         {
             ImageSniffer.Inspect(png.AsSpan(0, length)).ShouldBeNull($"png cut to {length}");
         }
+
+        ImageSniffer.Inspect(png.AsSpan(0, pngHeaderEnd)).ShouldNotBeNull();
 
         for (var length = 0; length < heicHeaderEnd; length++)
         {
@@ -780,14 +784,14 @@ public sealed class ImageSnifferTests
     // A small fixed-seed xorshift generator, so a failing input can be rebuilt exactly.
     private sealed class SeededBytes(uint seed)
     {
-        private uint state = seed;
+        private uint _state = seed;
 
         public int Next(int maxExclusive)
         {
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            return (int)(state % (uint)maxExclusive);
+            _state ^= _state << 13;
+            _state ^= _state >> 17;
+            _state ^= _state << 5;
+            return (int)(_state % (uint)maxExclusive);
         }
 
         public byte[] Bytes(int length)

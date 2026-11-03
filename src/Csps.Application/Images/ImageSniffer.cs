@@ -5,7 +5,8 @@ namespace Csps.Application.Images;
 /// <summary>
 /// Tells what a file is from its first bytes alone, without decoding it (IMG-02, T-09-01). The client's file name and content type are
 /// never used. It reads the format, the stored size and the Exif orientation, checks every offset against the length of the file and
-/// stops after a fixed number of segments, so a damaged or hostile file gives no answer instead of an exception or a long loop.
+/// stops after a fixed number of segments, chunks or boxes, so a damaged or hostile file gives no answer instead of an exception or a
+/// long loop. Only the header is read: no pixel is decoded and no native library is used.
 /// </summary>
 public static class ImageSniffer
 {
@@ -13,6 +14,8 @@ public static class ImageSniffer
     private const int WebPHeaderSize = 12;
     private const int WebPAnimationFlag = 0x02;
     private const int MaxAssociations = 255;
+    private const int MaxChunks = 512;
+    private const int MaxItemEntries = 4096;
     private const int ExifOrientationTag = 0x0112;
     private const int TiffShort = 3;
     private const int TiffEntrySize = 12;
@@ -31,21 +34,40 @@ public static class ImageSniffer
         _ => null,
     };
 
-    // The signature is followed at once by the IHDR chunk: a length of 13, the type, then the width and height as 32-bit big-endian numbers.
+    // After the signature comes the IHDR chunk (13 bytes: the width and height as 32-bit big-endian numbers), then more chunks. The
+    // file counts as a PNG only when every chunk up to the first IDAT (the image data) fits inside the file, so a cut-off or
+    // self-contradicting file gives no answer.
     private static ImageFacts? InspectPng(ReadOnlySpan<byte> bytes)
     {
         const int SignatureSize = 8;
         const int HeaderDataSize = 13;
-        if (bytes.Length < SignatureSize + 8 + HeaderDataSize
-            || BinaryPrimitives.ReadUInt32BigEndian(bytes[SignatureSize..]) != HeaderDataSize
-            || !bytes.Slice(SignatureSize + 4, 4).SequenceEqual("IHDR"u8))
+        var chunks = new ChunkReader(bytes[SignatureSize..], ChunkLayout.Png);
+        if (!chunks.Next(out var type, out var header) || !type.SequenceEqual("IHDR"u8) || header.Length != HeaderDataSize)
         {
             return null;
         }
 
-        var width = BinaryPrimitives.ReadUInt32BigEndian(bytes[(SignatureSize + 8)..]);
-        var height = BinaryPrimitives.ReadUInt32BigEndian(bytes[(SignatureSize + 12)..]);
-        return IsPlausibleSide(width) && IsPlausibleSide(height) ? new ImageFacts(ImageKind.Png, (int)width, (int)height, 1) : null;
+        var width = BinaryPrimitives.ReadUInt32BigEndian(header);
+        var height = BinaryPrimitives.ReadUInt32BigEndian(header[4..]);
+        if (!IsPlausibleSide(width) || !IsPlausibleSide(height))
+        {
+            return null;
+        }
+
+        while (chunks.Next(out type, out _))
+        {
+            if (type.SequenceEqual("IDAT"u8))
+            {
+                return new ImageFacts(ImageKind.Png, (int)width, (int)height, 1);
+            }
+
+            if (type.SequenceEqual("IEND"u8))
+            {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     // A side of 0 is no picture, and the PNG format itself caps a side at 2^31 - 1.
@@ -66,9 +88,8 @@ public static class ImageSniffer
             return null;
         }
 
-        var body = bytes[WebPHeaderSize..(int)end];
-        var position = 0;
-        if (!TryReadWebPChunk(body, ref position, out var type, out var data))
+        var chunks = new ChunkReader(bytes[WebPHeaderSize..(int)end], ChunkLayout.WebP);
+        if (!chunks.Next(out var type, out var data))
         {
             return null;
         }
@@ -83,30 +104,7 @@ public static class ImageSniffer
             return ReadWebPLossless(data);
         }
 
-        return type.SequenceEqual("VP8X"u8) ? ReadWebPExtended(data, body, position) : null;
-    }
-
-    private static bool TryReadWebPChunk(ReadOnlySpan<byte> body, ref int position, out ReadOnlySpan<byte> type, out ReadOnlySpan<byte> data)
-    {
-        type = default;
-        data = default;
-        if (body.Length - position < 8)
-        {
-            return false;
-        }
-
-        var size = BinaryPrimitives.ReadUInt32LittleEndian(body[(position + 4)..]);
-        if (size > body.Length - position - 8)
-        {
-            return false;
-        }
-
-        type = body.Slice(position, 4);
-        data = body.Slice(position + 8, (int)size);
-
-        // Chunks are padded to an even length.
-        position += 8 + (int)size + (int)(size & 1);
-        return true;
+        return type.SequenceEqual("VP8X"u8) ? ReadWebPExtended(data, ref chunks) : null;
     }
 
     // The frame tag is 3 bytes (bit 0 is 0 for a key frame), then the start code 9D 01 2A and two 14-bit sides.
@@ -135,7 +133,7 @@ public static class ImageSniffer
     }
 
     // The VP8X chunk holds flags, then the canvas width - 1 and height - 1 as 24-bit numbers. An ANIM or ANMF chunk also means animation.
-    private static ImageFacts? ReadWebPExtended(ReadOnlySpan<byte> data, ReadOnlySpan<byte> body, int position)
+    private static ImageFacts? ReadWebPExtended(ReadOnlySpan<byte> data, ref ChunkReader chunks)
     {
         if (data.Length < 10 || (data[0] & WebPAnimationFlag) != 0)
         {
@@ -144,7 +142,7 @@ public static class ImageSniffer
 
         var width = 1 + data[4] + (data[5] << 8) + (data[6] << 16);
         var height = 1 + data[7] + (data[8] << 8) + (data[9] << 16);
-        while (TryReadWebPChunk(body, ref position, out var type, out var chunk))
+        while (chunks.Next(out var type, out var chunk))
         {
             if (type.SequenceEqual("ANIM"u8) || type.SequenceEqual("ANMF"u8))
             {
@@ -166,7 +164,7 @@ public static class ImageSniffer
     // and its properties (iprp). The size comes from that item's ispe property and its turn from its irot property. Nothing is decoded.
     private static ImageFacts? InspectHeic(ReadOnlySpan<byte> bytes)
     {
-        var boxes = new BoxReader(bytes);
+        var boxes = new ChunkReader(bytes, ChunkLayout.Box);
         if (!boxes.Next(out var type, out var payload) || !type.SequenceEqual("ftyp"u8) || !IsHeicBrandList(payload))
         {
             return null;
@@ -225,7 +223,7 @@ public static class ImageSniffer
 
         ReadOnlySpan<byte> pitm = default;
         ReadOnlySpan<byte> iprp = default;
-        var children = new BoxReader(meta[4..]);
+        var children = new ChunkReader(meta[4..], ChunkLayout.Box);
         while ((pitm.IsEmpty || iprp.IsEmpty) && children.Next(out var type, out var payload))
         {
             if (type.SequenceEqual("pitm"u8))
@@ -245,7 +243,7 @@ public static class ImageSniffer
 
         ReadOnlySpan<byte> ipco = default;
         ReadOnlySpan<byte> ipma = default;
-        var properties = new BoxReader(iprp);
+        var properties = new ChunkReader(iprp, ChunkLayout.Box);
         while ((ipco.IsEmpty || ipma.IsEmpty) && properties.Next(out var type, out var payload))
         {
             if (type.SequenceEqual("ipco"u8))
@@ -300,7 +298,7 @@ public static class ImageSniffer
         var itemSize = ipma[0] == 0 ? 2 : 4;
         var entries = BinaryPrimitives.ReadUInt32BigEndian(ipma[4..]);
         var position = 8;
-        for (uint entry = 0; entry < entries; entry++)
+        for (uint entry = 0; entry < Math.Min(entries, MaxItemEntries); entry++)
         {
             if (position + itemSize + 1 > ipma.Length)
             {
@@ -342,7 +340,7 @@ public static class ImageSniffer
         uint width = 0;
         uint height = 0;
         var orientation = 1;
-        var properties = new BoxReader(ipco);
+        var properties = new ChunkReader(ipco, ChunkLayout.Box);
         for (var index = 1; properties.Next(out var type, out var payload); index++)
         {
             if (!associated.Contains(index))
@@ -364,55 +362,117 @@ public static class ImageSniffer
         return IsPlausibleSide(width) && IsPlausibleSide(height) ? new ImageFacts(ImageKind.Heic, (int)width, (int)height, orientation) : null;
     }
 
-    // Reads the boxes one after another in a span: a 32-bit size that covers the 8-byte header, a 4-letter type, then the payload.
-    // A size of 1 means a 64-bit size follows. A size of 0, less than the header, or past the end of the span ends the walk.
-    private ref struct BoxReader
+    // How the chunks or boxes of a format are laid out.
+    private enum ChunkLayout
     {
-        private readonly ReadOnlySpan<byte> data;
-        private int position;
+        // A 32-bit big-endian length, the 4-letter type, the data, then a 4-byte checksum.
+        Png,
 
-        public BoxReader(ReadOnlySpan<byte> data)
+        // The 4-letter type, a 32-bit little-endian length, the data, then one pad byte when the length is odd.
+        WebP,
+
+        // A 32-bit big-endian size that covers the 8-byte header, the 4-letter type, then the payload. A size of 1 means a 64-bit size
+        // follows; a size of 0 or less than the header is refused.
+        Box,
+    }
+
+    // The one bounded reader behind all the container formats. Every length is checked against what is left of the span, a length
+    // that is wrong in any way ends the walk, and the walk stops after MaxChunks entries, so a hostile file cannot cause a read past the
+    // end, a loop that does not advance, or a long scan.
+    private ref struct ChunkReader
+    {
+        private readonly ReadOnlySpan<byte> _data;
+        private readonly ChunkLayout _layout;
+        private int _position;
+        private int _count;
+
+        public ChunkReader(ReadOnlySpan<byte> data, ChunkLayout layout)
         {
-            this.data = data;
-            position = 0;
+            _data = data;
+            _layout = layout;
+            _position = 0;
+            _count = 0;
         }
 
         public bool Next(out ReadOnlySpan<byte> type, out ReadOnlySpan<byte> payload)
         {
             type = default;
             payload = default;
-            if (data.Length - position < 8)
+            if (_count >= MaxChunks || !TryMeasure(out var typeAt, out var payloadAt, out var payloadSize, out var total))
             {
                 return false;
             }
 
-            long size = BinaryPrimitives.ReadUInt32BigEndian(data[position..]);
-            var header = 8;
+            type = _data.Slice(_position + typeAt, 4);
+            payload = _data.Slice(_position + payloadAt, payloadSize);
+            _position += total;
+            _count++;
+            return true;
+        }
+
+        // Works out where the type and payload sit and how far the entry reaches, or fails when it does not fit in the span.
+        private readonly bool TryMeasure(out int typeAt, out int payloadAt, out int payloadSize, out int total)
+        {
+            typeAt = 4;
+            payloadAt = 8;
+            payloadSize = 0;
+            total = 0;
+            var left = _data.Length - _position;
+            switch (_layout)
+            {
+                case ChunkLayout.Png:
+                    if (left < 12 || BinaryPrimitives.ReadUInt32BigEndian(_data[_position..]) > left - 12)
+                    {
+                        return false;
+                    }
+
+                    payloadSize = (int)BinaryPrimitives.ReadUInt32BigEndian(_data[_position..]);
+                    total = payloadSize + 12;
+                    return true;
+                case ChunkLayout.WebP:
+                    if (left < 8 || BinaryPrimitives.ReadUInt32LittleEndian(_data[(_position + 4)..]) > left - 8)
+                    {
+                        return false;
+                    }
+
+                    typeAt = 0;
+                    payloadSize = (int)BinaryPrimitives.ReadUInt32LittleEndian(_data[(_position + 4)..]);
+                    total = 8 + payloadSize + (payloadSize & 1);
+                    return true;
+                default:
+                    return TryMeasureBox(left, out payloadAt, out payloadSize, out total);
+            }
+        }
+
+        private readonly bool TryMeasureBox(int left, out int payloadAt, out int payloadSize, out int total)
+        {
+            payloadAt = 8;
+            payloadSize = 0;
+            total = 0;
+            if (left < 8)
+            {
+                return false;
+            }
+
+            long size = BinaryPrimitives.ReadUInt32BigEndian(_data[_position..]);
             if (size == 1)
             {
-                if (data.Length - position < 16)
+                if (left < 16 || BinaryPrimitives.ReadUInt64BigEndian(_data[(_position + 8)..]) > int.MaxValue)
                 {
                     return false;
                 }
 
-                var wide = BinaryPrimitives.ReadUInt64BigEndian(data[(position + 8)..]);
-                if (wide > int.MaxValue)
-                {
-                    return false;
-                }
-
-                size = (long)wide;
-                header = 16;
+                size = (long)BinaryPrimitives.ReadUInt64BigEndian(_data[(_position + 8)..]);
+                payloadAt = 16;
             }
 
-            if (size < header || size > data.Length - position)
+            if (size < payloadAt || size > left)
             {
                 return false;
             }
 
-            type = data.Slice(position + 4, 4);
-            payload = data.Slice(position + header, (int)size - header);
-            position += (int)size;
+            payloadSize = (int)size - payloadAt;
+            total = (int)size;
             return true;
         }
     }
