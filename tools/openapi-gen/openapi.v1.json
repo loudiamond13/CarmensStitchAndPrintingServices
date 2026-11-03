@@ -1768,6 +1768,72 @@
         "format": "binary",
         "type": "string"
       },
+      "ImageRulesResponse": {
+        "description": "The photo rules the server enforces, for the browser to check before it sends a file (OR-3, IMG-02).",
+        "properties": {
+          "descriptionMaxLength": {
+            "description": "The longest description, in characters.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxBytes": {
+            "description": "The largest file, in bytes.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxPerOrder": {
+            "description": "The most photos one order holds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxPixels": {
+            "description": "The most pixels (width times height) a photo may have.",
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxSide": {
+            "description": "The longest side, in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "types": {
+            "description": "The accepted formats: `jpeg`, `png`, `webp` and `heic`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "maxPerOrder",
+          "maxBytes",
+          "maxPixels",
+          "maxSide",
+          "types",
+          "descriptionMaxLength"
+        ],
+        "type": "object"
+      },
       "ImageSourceResponse": {
         "description": "An image address and its candidates for the browser's `srcset` (IMG-04).",
         "properties": {
@@ -7856,6 +7922,37 @@
         ]
       }
     },
+    "/api/v1/orders/image-rules": {
+      "get": {
+        "operationId": "GetImageRules",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageRulesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the photo rules: `maxPerOrder` (5), `maxBytes`, `maxPixels`, `maxSide`, `types`\n(`jpeg`, `png`, `webp`, `heic`) and `descriptionMaxLength`. The upload enforces the same values, so a\nclient that checks them first sends no file the server would refuse for size or type.",
+        "tags": [
+          "OrderImageRules"
+        ]
+      }
+    },
     "/api/v1/orders/{id}": {
       "delete": {
         "operationId": "DeleteOrder",
@@ -13158,6 +13255,9 @@
     },
     {
       "name": "OrderExpenses"
+    },
+    {
+      "name": "OrderImageRules"
     },
     {
       "name": "OrderImages"

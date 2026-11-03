@@ -673,6 +673,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/image-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the photo rules: `maxPerOrder` (5), `maxBytes`, `maxPixels`, `maxSide`, `types`
+         *     (`jpeg`, `png`, `webp`, `heic`) and `descriptionMaxLength`. The upload enforces the same values, so a
+         *     client that checks them first sends no file the server would refuse for size or type.
+         */
+        get: operations["GetImageRules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}": {
         parameters: {
             query?: never;
@@ -2428,6 +2449,36 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        /** @description The photo rules the server enforces, for the browser to check before it sends a file (OR-3, IMG-02). */
+        ImageRulesResponse: {
+            /**
+             * Format: int32
+             * @description The longest description, in characters.
+             */
+            descriptionMaxLength: number | string;
+            /**
+             * Format: int32
+             * @description The largest file, in bytes.
+             */
+            maxBytes: number | string;
+            /**
+             * Format: int32
+             * @description The most photos one order holds.
+             */
+            maxPerOrder: number | string;
+            /**
+             * Format: int64
+             * @description The most pixels (width times height) a photo may have.
+             */
+            maxPixels: number | string;
+            /**
+             * Format: int32
+             * @description The longest side, in pixels.
+             */
+            maxSide: number | string;
+            /** @description The accepted formats: `jpeg`, `png`, `webp` and `heic`. */
+            types: string[];
+        };
         /** @description An image address and its candidates for the browser's `srcset` (IMG-04). */
         ImageSourceResponse: {
             /** @description The address used when the browser cannot pick a candidate. */
@@ -5835,6 +5886,35 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetImageRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageRulesResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
