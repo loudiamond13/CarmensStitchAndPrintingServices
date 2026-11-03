@@ -1,5 +1,6 @@
 using Csps.Application.Maintenance;
 using Csps.Domain.Identity;
+using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
@@ -9,7 +10,8 @@ using Microsoft.Extensions.Logging;
 namespace Csps.Infrastructure.Maintenance;
 
 /// <summary>
-/// Removes rows whose time has passed: request keys and idempotency claims (SEC-06), then ended sessions (JOB-01). Each rule has its own
+/// Removes rows whose time has passed: request keys and idempotency claims (SEC-06), ended sessions, 2FA challenges, account links and
+/// closed outbox emails (JOB-01, D-35). Each rule has its own
 /// safety margin so no row a live rule still reads is removed. A database failure in one rule is logged and reported as a failed line for
 /// that rule only; the other rules still run and the run never throws for it.
 /// </summary>
@@ -22,10 +24,25 @@ internal sealed partial class PurgeExpiredRecordsJob(CspsDbContext context, Time
 
     internal const string SessionsLabel = "Expired sign-in tokens removed";
 
+    internal const string ChallengesLabel = "Expired 2FA codes removed";
+
+    internal const string AccountLinksLabel = "Expired account links removed";
+
+    internal const string OutboxLabel = "Old sent emails removed";
+
     internal const int BatchSize = 500;
 
     /// <summary>A session is removed this long after its fixed end; it can never be used again before then.</summary>
     internal static readonly TimeSpan SessionMargin = TimeSpan.FromDays(1);
+
+    /// <summary>A 2FA challenge is removed this long after it expires; the send and failure windows are 1 hour.</summary>
+    internal static readonly TimeSpan ChallengeMargin = TimeSpan.FromDays(1);
+
+    /// <summary>A reset or invite link is removed this long after it expires, so "already used" and "expired" messages stay accurate.</summary>
+    internal static readonly TimeSpan AccountLinkMargin = TimeSpan.FromDays(7);
+
+    /// <summary>A sent, failed or expired email row is removed this long after it closed (D-35).</summary>
+    internal static readonly TimeSpan OutboxRetention = TimeSpan.FromDays(30);
 
     /// <inheritdoc />
     public int Order => 10;
@@ -56,6 +73,9 @@ internal sealed partial class PurgeExpiredRecordsJob(CspsDbContext context, Time
     private List<PurgeRule> Rules(DateTimeOffset now)
     {
         var sessionCutOff = now - SessionMargin;
+        var challengeCutOff = now - ChallengeMargin;
+        var linkCutOff = now - AccountLinkMargin;
+        var outboxCutOff = now - OutboxRetention;
         return
         [
             new PurgeRule(
@@ -81,6 +101,41 @@ internal sealed partial class PurgeExpiredRecordsJob(CspsDbContext context, Time
                     token => context.Set<UserSession>()
                         .Where(session => session.AbsoluteExpiresAt < sessionCutOff)
                         .OrderBy(session => session.AbsoluteExpiresAt)
+                        .Take(BatchSize)
+                        .ExecuteDeleteAsync(token),
+                ]),
+            new PurgeRule(
+                ChallengesLabel,
+                "The expired 2FA codes could not be removed.",
+                [
+                    // The codes of a challenge go with it through the database cascade.
+                    token => context.Set<TwoFactorChallenge>()
+                        .Where(challenge => challenge.ExpiresAt < challengeCutOff)
+                        .OrderBy(challenge => challenge.ExpiresAt)
+                        .Take(BatchSize)
+                        .ExecuteDeleteAsync(token),
+                ]),
+            new PurgeRule(
+                AccountLinksLabel,
+                "The expired account links could not be removed.",
+                [
+                    token => context.Set<AccountToken>()
+                        .Where(link => link.ExpiresAt < linkCutOff)
+                        .OrderBy(link => link.ExpiresAt)
+                        .Take(BatchSize)
+                        .ExecuteDeleteAsync(token),
+                ]),
+            new PurgeRule(
+                OutboxLabel,
+                "The old sent emails could not be removed.",
+                [
+                    // Closed means sent, failed or expired; every close time that is set must be past the cut-off, and open rows never match.
+                    token => context.Set<EmailOutboxMessage>()
+                        .Where(message => (message.SentAt != null || message.FailedAt != null || message.ExpiredAt != null)
+                            && (message.SentAt == null || message.SentAt < outboxCutOff)
+                            && (message.FailedAt == null || message.FailedAt < outboxCutOff)
+                            && (message.ExpiredAt == null || message.ExpiredAt < outboxCutOff))
+                        .OrderBy(message => message.CreatedAt)
                         .Take(BatchSize)
                         .ExecuteDeleteAsync(token),
                 ]),
