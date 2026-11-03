@@ -30,6 +30,7 @@ public sealed class OpenApiOrderWriteContractTests
         { "post", "/api/v1/orders/{orderId}/expenses" },
         { "put", "/api/v1/orders/{orderId}/refunds/{refundId}" },
         { "post", "/api/v1/orders/{orderId}/refunds" },
+        { "post", "/api/v1/orders/{orderId}/images" },
     };
 
     [Theory]
