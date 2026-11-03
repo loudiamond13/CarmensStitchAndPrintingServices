@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-10-28T22:00:00-05:00
+updated: 2026-11-03T11:43:31-06:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -187,6 +187,7 @@ transaction as the change.
 | `order-expense.changed` | An order expense is saved with different values | `Order` id | The same pairs, with `old>new` on the date, amount and category where they changed and the payer as it now is, then `fields=description` when the description changed (never its text) |
 | `order-expense.payer-changed` | An order expense is saved with a different payer | `Order` id | `expense=<expense id>;payer=<old id>><new id>` |
 | `order-expense.removed` | An order expense is removed | `Order` id | `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>` |
+| `order-image.added` | A photo is uploaded to an order | `Order` id | `number=<order number>;position=<n>` with `position` counting from 1 (never the photo's id, address, file name or description) |
 | `product-type.added`, `payment-method.added`, `order-expense-category.added` | A list entry is added | `ProductType`, `PaymentMethod` or `OrderExpenseCategory` id | `name=<encoded name>;tone=<tone>` |
 | `product-type.renamed`, `payment-method.renamed`, `order-expense-category.renamed` | A list entry is renamed | The entry id | `name=<old encoded>><new encoded>` |
 | `product-type.recolored`, `payment-method.recolored`, `order-expense-category.recolored` | A list entry changes tone | The entry id | `tone=<old>><new>` |
