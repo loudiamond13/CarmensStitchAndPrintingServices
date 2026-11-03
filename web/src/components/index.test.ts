@@ -79,6 +79,7 @@ const SPEC_GAP_COMPONENTS = [
   'ActorName',
   'RecordMeta',
   'DateInput',
+  'PhotoViewer',
 ] as const;
 
 const exports: Readonly<Record<string, unknown>> = ui;

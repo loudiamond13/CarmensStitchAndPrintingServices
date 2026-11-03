@@ -88,6 +88,33 @@ describe('LazyImage markup', () => {
   });
 });
 
+describe('LazyImage responsive delivery (IMG-04)', () => {
+  const SRC_SET = `${SRC}?w=640 640w, ${SRC}?w=960 960w`;
+  const SIZES = '(max-width: 639px) calc(100vw - 32px), 956px';
+
+  it('passes srcSet and sizes to the img', () => {
+    const { container } = render(image({ srcSet: SRC_SET, sizes: SIZES }));
+    expect(imgOf(container)).toHaveAttribute('srcset', SRC_SET);
+    expect(imgOf(container)).toHaveAttribute('sizes', SIZES);
+  });
+
+  it('leaves srcset and sizes off the img when they are not given', () => {
+    const { container } = render(image());
+    expect(imgOf(container)).not.toHaveAttribute('srcset');
+    expect(imgOf(container)).not.toHaveAttribute('sizes');
+  });
+
+  it('crops with cover by default and fits the whole photo with contain', () => {
+    const cover = render(image({ fit: 'cover' }));
+    expect(imgOf(cover.container)).toHaveClass('object-cover');
+    cover.unmount();
+    const { container } = render(image({ fit: 'contain' }));
+    expect(imgOf(container)).toHaveClass('object-contain');
+    expect(imgOf(container)).not.toHaveClass('object-cover');
+    expect(tokens(imgOf(container).className)).toEqual(tokens('block size-full object-contain'));
+  });
+});
+
 describe('LazyImage loading', () => {
   it('shows a full-box radius-0 Skeleton over the image until the load event, then only the image', () => {
     const { container } = render(image());
