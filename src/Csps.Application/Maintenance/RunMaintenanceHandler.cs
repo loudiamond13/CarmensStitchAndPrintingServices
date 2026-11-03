@@ -1,3 +1,4 @@
+using Csps.Application.Ports;
 using Csps.Domain.Common;
 
 namespace Csps.Application.Maintenance;
@@ -5,13 +6,17 @@ namespace Csps.Application.Maintenance;
 /// <summary>Use case: the keyed maintenance call runs every registered job in order and answers plain counts (JOB-01, D-36).</summary>
 /// <param name="jobs">Every registered job, in any order.</param>
 /// <param name="time">The clock for the pass budget.</param>
-public sealed class RunMaintenanceHandler(IEnumerable<IMaintenanceJob> jobs, TimeProvider time)
+/// <param name="runLock">The lease that lets one run work at a time.</param>
+/// <param name="log">Records a job that threw, on the server only.</param>
+public sealed class RunMaintenanceHandler(IEnumerable<IMaintenanceJob> jobs, TimeProvider time, IMaintenanceRunLock runLock, IMaintenanceJobLog log)
 {
     /// <summary>Runs the jobs by <see cref="IMaintenanceJob.Order"/>, then by name, whatever their registration order.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The lines of every job; ok when no line failed; more when any job has work left.</returns>
     public async Task<Result<MaintenanceRunResponse>> HandleAsync(CancellationToken cancellationToken)
     {
+        _ = runLock;
+        _ = log;
         var budget = new MaintenanceBudget(time);
         var lines = new List<MaintenanceLine>();
         var more = false;
