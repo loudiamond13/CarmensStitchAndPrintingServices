@@ -5,7 +5,8 @@ namespace Csps.Application.Maintenance;
 /// <param name="Value">The count, or null for a line with no number.</param>
 /// <param name="Failed">True when the work behind the line failed; the run is then not ok.</param>
 /// <param name="Text">An optional plain sentence for the line; never an id, an address, a cloud name or an error body.</param>
-public sealed record MaintenanceLine(string Label, long? Value, bool Failed, string? Text);
+/// <param name="Code">An optional machine code for a failed line, such as <c>maintenance.job-failed</c>; null for other lines.</param>
+public sealed record MaintenanceLine(string Label, long? Value, bool Failed, string? Text, string? Code = null);
 
 /// <summary>The answer to one keyed maintenance run (JOB-01).</summary>
 /// <param name="Ok">True when no line failed.</param>

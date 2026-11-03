@@ -1,4 +1,5 @@
 using Csps.Application.Maintenance;
+using Csps.Application.Ports;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Infrastructure.Maintenance;
@@ -13,6 +14,8 @@ public static class MaintenanceRegistration
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddScoped<IMaintenanceRunLock, MaintenanceRunLock>();
+        services.AddScoped<IMaintenanceJobLog, MaintenanceJobLog>();
         services.AddScoped<IMaintenanceJob, PurgeExpiredRecordsJob>();
         return services;
     }
