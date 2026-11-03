@@ -31,6 +31,7 @@ public sealed class OrderImageUploadLimitsTests(CspsDatabase database) : IClassF
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         storage.Uploads.Where(recorded => recorded.AssetFolder == $"csps-test/orders/{id:D}").ShouldHaveSingleItem().Length.ShouldBe(photo.Length);
+        factory.Sink.Events.Where(logged => logged.Level >= Serilog.Events.LogEventLevel.Warning && logged.Properties.TryGetValue("SourceContext", out var source) && source.ToString().Contains("RequestSizeLimitFilter", StringComparison.Ordinal)).ShouldBeEmpty();
     }
 
     [Fact]

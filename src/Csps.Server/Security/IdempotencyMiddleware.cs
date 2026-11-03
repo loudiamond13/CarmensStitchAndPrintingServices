@@ -68,7 +68,7 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
             return;
         }
 
-        var requestHash = await HashRequestAsync(context.Request, context.RequestAborted).ConfigureAwait(false);
+        var requestHash = await HashRequestAsync(context, context.RequestAborted).ConfigureAwait(false);
         if (requestHash is null)
         {
             // A chunked body has no declared length for the body-limit middleware to refuse; it is counted here.
@@ -128,13 +128,15 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
 
     // The keyed hash covers the concrete target (path and query) and the body, so one key cannot replay an answer for another resource.
     // Null when the body is over the limit, counted here so the answer is a 413 and not the buffer's own exception.
-    private async Task<byte[]?> HashRequestAsync(HttpRequest request, CancellationToken cancellationToken)
+    private async Task<byte[]?> HashRequestAsync(HttpContext context, CancellationToken cancellationToken)
     {
         const int ReadSize = 8192;
+        var request = context.Request;
 
-        // The body is read here and again by the action, so it is buffered in memory; the buffer limit sits above the
-        // counted limit, so the count always trips first.
-        request.EnableBuffering((int)RequestBodyLimitMiddleware.MaxBytes, RequestBodyLimitMiddleware.MaxBytes + ReadSize);
+        // The body is read here and again by the action, so it is buffered in memory only: the threshold is the endpoint's limit,
+        // so nothing spills to a temp file (IMG-02). The buffer limit sits above the counted limit, so the count always trips first.
+        var limit = RequestBodyLimitMiddleware.LimitFor(context);
+        request.EnableBuffering((int)limit, limit + ReadSize);
         using var hash = hasher.Create();
 
         // Length-prefixed, so the target cannot blur into the body bytes that follow.
@@ -150,7 +152,7 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, TimeProvider clo
             while ((read = await request.Body.ReadAsync(buffer.AsMemory(0, ReadSize), cancellationToken).ConfigureAwait(false)) > 0)
             {
                 total += read;
-                if (total > RequestBodyLimitMiddleware.MaxBytes)
+                if (total > limit)
                 {
                     return null;
                 }
