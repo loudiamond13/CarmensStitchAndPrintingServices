@@ -166,6 +166,80 @@ public sealed class OrderDeletionHandlerTests
         harness.Unit.Saves.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task PermanentEachPhotoIsQueuedForRemovalOnceWithTheOrderDeletedReasonBeforeTheRemove()
+    {
+        var harness = new Harness(photos: 3);
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Queue.Entries.Select(entry => entry.PublicId).ShouldBe(["csps-test/orders/photo-0", "csps-test/orders/photo-1", "csps-test/orders/photo-2"]);
+        harness.Queue.Entries.ShouldAllBe(entry => entry.Reason == ImageDeletionReason.OrderDeleted);
+        harness.Queue.Entries.ShouldAllBe(entry => !entry.RemovedBefore && entry.SavesBefore == 0);
+        harness.Queue.NowCalls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task PermanentAnOrderWithNoPhotosQueuesNothing()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Queue.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task PermanentASoftDeletedOrderStillQueuesItsPhotosBecauseThisIsTheFinalDelete()
+    {
+        var harness = new Harness(photos: 2);
+        harness.Order.SoftDelete(CallerId, Now).ShouldBeTrue();
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Queue.Entries.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task PermanentARefusedDeleteQueuesNothing()
+    {
+        var noCaller = new Harness(noCaller: true, photos: 2);
+        var unknown = new Harness(photos: 2);
+        var mismatch = new Harness(photos: 2);
+
+        await noCaller.Permanent.HandleAsync(noCaller.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+        await unknown.Permanent.HandleAsync(Guid.NewGuid(), "ORD-2026-0148", TestContext.Current.CancellationToken);
+        await mismatch.Permanent.HandleAsync(mismatch.Order.Id, "ORD-2026-0149", TestContext.Current.CancellationToken);
+
+        noCaller.Queue.Entries.ShouldBeEmpty();
+        unknown.Queue.Entries.ShouldBeEmpty();
+        mismatch.Queue.Entries.ShouldBeEmpty();
+    }
+
+    // Notes, for every entry, whether the remove and the save had already happened when it was queued.
+    private sealed class RecordingQueue(IOrders orders, FakeUnitOfWork unit) : IImageDeletionQueue
+    {
+        public List<(string PublicId, ImageDeletionReason Reason, bool RemovedBefore, int SavesBefore)> Entries { get; } = [];
+
+        public int NowCalls { get; private set; }
+
+        public void Enqueue(string publicId, ImageDeletionReason reason) =>
+            Entries.Add((
+                publicId,
+                reason,
+                orders.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IOrders.Remove)),
+                unit.Saves));
+
+        public Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken)
+        {
+            NowCalls++;
+            return Task.CompletedTask;
+        }
+    }
+
     // Notes, for every entry, whether the remove and the save had already happened when it was recorded.
     private sealed class OrderAudit(IOrders orders, FakeUnitOfWork unit) : IAuditTrail
     {
@@ -183,19 +257,25 @@ public sealed class OrderDeletionHandlerTests
 
     private sealed class Harness
     {
-        public Harness(bool noCaller = false)
+        public Harness(bool noCaller = false, int photos = 0)
         {
             var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
             var payments = new[] { new NewOrderPayment(Today, 4000.00m, Guid.NewGuid(), null, null, Receiver) };
             var details = new OrderDetails("Juan Dela Cruz", "Brgy. San Roque Ballers", "0917 123 4567", "juan.dc@example.com", "Brgy. San Roque", Today, Today.AddDays(14), "rush job");
             Order = Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Payments = payments }, CallerId, Now, Today).Value;
             Order.AssignNumber("ORD-2026-0148");
+            for (var index = 0; index < photos; index++)
+            {
+                Order.AddImage(new NewOrderImage($"csps-test/orders/photo-{index}", 640, 480, 1000, "jpg", null), Now).IsSuccess.ShouldBeTrue();
+            }
+
             Orders = Substitute.For<IOrders>();
             Orders.FindAsync(Order.Id, true, Arg.Any<CancellationToken>()).Returns(Task.FromResult<Order?>(Order));
             Audit = new OrderAudit(Orders, Unit);
+            Queue = new RecordingQueue(Orders, Unit);
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Permanent = new PermanentlyDeleteOrderHandler(Orders, Audit, Unit, request);
+            Permanent = new PermanentlyDeleteOrderHandler(Orders, Audit, Queue, Unit, request);
         }
 
         public Order Order { get; }
@@ -205,6 +285,8 @@ public sealed class OrderDeletionHandlerTests
         public FakeUnitOfWork Unit { get; } = new();
 
         public OrderAudit Audit { get; }
+
+        public RecordingQueue Queue { get; }
 
         public PermanentlyDeleteOrderHandler Permanent { get; }
     }
