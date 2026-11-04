@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-29-PLAN.md (wave 8 merged); next is wave 9 (09-30)
-last_updated: "2026-11-04T08:29:33.000Z"
+stopped_at: 09-30 at its owner checkpoint (Task 3, wave 9 merged); 09-31 and 09-32 parked
+last_updated: "2026-11-04T14:50:00.000Z"
 last_activity: 2026-11-04
-last_activity_desc: Wave 8 (09-29) merged; post-merge gate fully green; 09-32 waits on 09-31
-state_head: fce7cfb1
+last_activity_desc: Wave 9 (09-30 tasks 1 and 2) merged; Task 3 waits on the owner
+state_head: 2fb3f8ae
 progress:
   total_phases: 18
   completed_phases: 8
@@ -15,7 +15,7 @@ progress:
   completed_plans: 269
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-04T02:29:33-06:00"
+updated: "2026-11-04T08:50:00-06:00"
 ---
 
 # Project State
@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
 Plan: 30 of 32
-Status: Ready to execute
-Last activity: 2026-11-04 — Wave 8 merged (09-29); 29 of 32 plans done, 09-31 parked on host support, 09-32 waits on it
+Status: Waiting on the owner (09-30 Task 3 checkpoint)
+Last activity: 2026-11-04: Wave 9 merged (09-30 tasks 1 and 2); 29 of 32 plans complete, 09-30 waits on its owner checkpoint, 09-31 parked on host support, 09-32 waits on it
 
 Progress: [████░░░░░░] 44%
 
@@ -979,7 +979,7 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-20 audit choices:** (1) a move that changes the cover writes two audit rows, `moved` and `cover-changed`. Recommended: keep both. (2) The description change audit row holds the old and new text, the only order audit row with free text. Recommended: keep as planned, revisit if staff type customer details into descriptions.
 - [ ] **09-18 image sizes:** should 2x screens get finer srcset candidates (for example 720w)? Recommended: no, a few KB per cover costs less than more Cloudinary transformations.
 - [ ] **09-21 wording:** removing a draft photo is announced as "Photo deleted. N photos left." Recommended: add a "Photo removed." line in the wording pass. The F1 look check with 0, 1 and 5 drafts at 390, 820 and 1440 px in both themes and the real-phone camera pick are in plan 09-30.
-- [ ] **Unrun browser check (09-18):** the `@order-photos-list` Playwright spec is written, typechecked and listed but has never run (it resets the shared CSPS_E2E database). Run `npm --prefix web run e2e -- --grep @order-photos-list` after the preflight is clear, before or at 09-30.
+- [x] **Unrun browser check (09-18):** resolved 2026-11-04, 09-30 ran every `@order-photos` tag on five browser projects: 157 passed, 3 skipped, 0 failed. Was: the `@order-photos-list` Playwright spec is written, typechecked and listed but has never run (it resets the shared CSPS_E2E database). Run `npm --prefix web run e2e -- --grep @order-photos-list` after the preflight is clear, before or at 09-30.
 - [ ] **09-25 lock file (package rule):** `tools/Csps.CloudinarySetup/packages.lock.json` adds no package; it matches the BootstrapManager tool's lock (30 framework `Microsoft.*` entries more than Csps.Infrastructure's lock, and Newtonsoft.Json 13.0.3, the same item as the 09-19 row above). Every tool has this pattern. Recommended: accept it, and fix Newtonsoft.Json with the 09-19 choice.
 - [ ] **09-25 live Cloudinary answers not seen yet:** the setup command was never run against the real account. Three shapes are unconfirmed (the `info` answer, whether list names carry a `t_` prefix, the size detail request). If one differs, the command prints `different` or a fixed refusal and changes nothing. Plan 09-30: run `--check` first (`docs/operations/cloudinary-setup.md`).
 - [ ] **09-23 e2e photo upload limit lifted (FYI):** the Playwright test host now sets `RateLimits__Images__PermitLimit` to no limit, like the sign-in limits already were, because the photo journeys upload 45 photos from one address. Production keeps 30 per 10 minutes. Recommended: keep.
@@ -988,6 +988,11 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-27 photo description length (FYI, fixed):** zod 4.6.7 counts characters by code point, the server by UTF-16 unit, so an emoji-heavy description could pass the browser and fail the server. `descriptionSchema` now checks the UTF-16 length, as `profileSchemas.ts` does. Recommended: no action; check other `.max()` text rules in the wording pass.
 - [x] **09-27 Delete photo is enabled but does nothing until 09-29:** resolved 2026-11-04, 09-29 wired the delete with a confirm.
 - [ ] **09-28 removal job choices:** (1) it refuses any stored file outside `{root}/orders/`, records the row as `outside-folder`, turns the run red and removes nothing; (2) rows it claimed but did not reach (budget spent, keys refused, an error) are released for the next run; (3) a queue row whose file a photo still uses (soft-deleted orders included) is dropped and the file kept. Recommended: keep all three. Steps: `docs/operations/maintenance.md`.
+- [ ] **09-30 Task 3 owner checkpoint (blocking, never auto-approved):** set up the dev Cloudinary account and check real photos. Steps in `docs/operations/cloudinary-setup.md`, "Your one-time checks on the dev account": (1) put the cloud name, key and secret in dev user-secrets; (2) run `dotnet run --project tools/Csps.CloudinarySetup -- --check` (changes nothing) and note the last line; (3) run it without `--check`, then `--check` again: the last line must say `13 exist`, else stop; (4) in the Cloudinary console, Settings, Security, turn on strict transformations; (5) ask Claude to start the dev site, sign in, open a test order; (6) add a real JPEG with a location, check it is upright, open it and press "Open Full Size"; (7) add a real iPhone HEIC, check it is upright; (8) open each full-size file in a photo-info viewer: no GPS. Reply "done" with the count line, strict mode on or off, and for each photo: upright, GPS absent. If HEIC fails or GPS remains, open a gap plan against 09-15. Only after "done" is 09-30 marked complete.
+- [ ] **09-30 hung review run (needs your OK to stop):** `node scripts/owner-review.mjs` (PID 24068, started 08:18 by the 09-30 executor in its worktree) hangs and holds port 5199 (Csps.Server.exe 7900, headless Chromium), `web/.locks/e2e.lock` and the worktree `.claude/worktrees/agent-a39e8c58ff3c35856`. The permission system refused the executor's `taskkill`. Stop it with `taskkill /PID 24068 /T /F` before any e2e run, then remove the worktree. The hang (a photo wait with no time limit) is fixed in 50a4d30b.
+- [ ] **09-30 owner review pictures partly proven:** 20 pictures worked (Blush, 390 px) before the hang; 4 failed on a missing base address (fixed, not re-run); the other widths, Espresso, the 320 px viewer and the L1 grid and table never ran. Run `npm --prefix web run review` once from the main checkout after the hung run is stopped.
+- [ ] **09-30 full e2e not green:** one full `npm run e2e` at ed4b83b6: 1562 passed, 52 skipped, 85 failed (1.8 h); 59 passed when re-run alone. The rest were WebKit and iPhone showcase specs (h1 not found in 5 s); after the fixes about 10 to 15 of ~190 still fail under four WebKit workers, and 4 failed alone but passed with the Order photos section off. Choices: (a) re-run the full suite from the main checkout first, and if those still fail, move the Order photos showcase cases to their own dev route (recommended; changes the plan's file list); (b) accept as flaky. Other flakes seen (re-run alone before recording): dialog-fit, auth-must-change (firefox), orders-two-staff, audit-log, auth-overflow, orders-list, orders-view.
+- [ ] **09-30 edited earlier specs (test only):** the arrange, delete and list photo specs (09-18, 09-27, 09-29) now find the order by its number on the Orders list, because they failed in any run with many orders. Recommended: accept.
 
 ### Blockers/Concerns
 
@@ -1060,13 +1065,14 @@ Resume file: None
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 
-- Done: 09-01 to 09-29 (29 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
-- Next: wave 9 (09-30, up to its owner checkpoint). 09-32 waits on 09-31. `incomplete_plans` should list 09-30, 09-31 and 09-32.
+- Done: 09-01 to 09-29 (29 of 32), plus 09-30 tasks 1 and 2 (merged; Task 3 waits on the owner, partial SUMMARY committed). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
+- Next: the owner answers the 09-30 Task 3 checkpoint, then mark 09-30 complete. Stop the hung review run first (backlog). 09-32 waits on 09-31. `incomplete_plans` should list 09-30, 09-31 and 09-32.
 - 09-31 is parked on the SmarterASP.NET support reply (first backlog item). Do not re-run its Task 1. Skip 09-32 until the owner answers. If the answer is "blocked", revert 50cf165a, bd33861c, b923b06d and a6661d6d and do not run 09-32.
 - 09-30 has a blocking owner checkpoint: run it up to the checkpoint and park it; never auto-approve.
 - Parallel worktrees work: `.claude/settings.local.json` (local only, listed in `.git/info/exclude`) sets `worktree.baseRef` to `head`, so the base check passes on the unpushed branch. `.claude/worktrees/` is also in `.git/info/exclude`.
 - From a worktree the agent shell cannot start PowerShell, so executors check ports 5180, 5115, 7028 and 5199 with `netstat` and wait if busy; the orchestrator runs `preflight.ps1` from the main session before each post-merge test run.
 - Executors in fresh worktrees have no `web/node_modules`: they ran `npm ci --ignore-scripts` or linked the main copy. Before removing a worktree, check its `web/node_modules` is not a link into the main checkout. `worktree.cleanup-wave` could not remove one worktree whose `node_modules` was still there; its branch was merged and the folder was removed by hand.
+- Post-merge gate after wave 9 (09-30 tasks 1 and 2): build 0 warnings apart from the host probe lock (probe built in scratch: 26 of 26); format, typecheck, lint and Prettier clean; web 283 files, 8019 tests passed; .NET 7099 passed, 0 failed, 2 skipped. The e2e suite was not re-run here: the hung 09-30 review run still holds port 5199 (backlog).
 - Post-merge gate after wave 8: build 0 warnings apart from the host probe lock (probe built in scratch: 26 of 26); format, typecheck, lint and Prettier clean; web 282 files, 7988 tests passed; .NET 7099 passed, 0 failed, 2 skipped. 09-29 also made the permanent-delete dialog count the order's real photos.
 - Post-merge gate after wave 7: one compile fix (`245e3acc`: 09-26's new hand-written `IImageDeletionQueue` fake lacked the 5 members 09-28 added); build 0 warnings apart from the host probe lock again (probe built in scratch: 26 of 26); format, typecheck, lint and Prettier clean; web 282 files, 7974 tests passed; .NET 7099 passed, 0 failed, 2 skipped. For 09-29: `AuditActions.All` is 97; `OrderPhotosCard` `onDelete` is a no-op stub to wire; the web audit list mirrors 97 codes.
 - Post-merge gate after wave 6: restore 0 warnings; build 0 warnings, its only errors were the running `Csps.HostProbe.exe` locking `tools/Csps.HostProbe/bin` (that project and its tests built in a scratch folder: 0 warnings, 26 of 26 passed); dotnet format, web typecheck, lint and Prettier clean; web 282 files, 7940 tests passed; .NET 7014 passed, 0 failed, 2 skipped. No flake showed this time. The worktree with `web/node_modules` again needed removing by hand after its merge.
