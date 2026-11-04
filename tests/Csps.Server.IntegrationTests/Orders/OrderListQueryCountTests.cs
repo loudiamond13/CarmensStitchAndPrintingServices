@@ -1,6 +1,12 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using Csps.Application.Security;
 using Csps.Infrastructure.Persistence;
+using Csps.Server.IntegrationTests.Auth;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Csps.Testing.Images;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,6 +49,14 @@ public sealed class OrderListQueryCountTests(CspsDatabase database) : IClassFixt
             // Count, page and the two list-wide counts: 3 fixed commands (D-60, owner, 2026-10-29).
             measured.Count.ShouldBe(3, $"page size {pageSize}:\n{string.Join("\n", measured.Commands)}");
             measured.Result.GetProperty("items").GetArrayLength().ShouldBe(Math.Min(pageSize, RowCount));
+
+            // The photos are read in the same commands: a row with a photo has a cover, a row without has none.
+            var items = measured.Result.GetProperty("items").EnumerateArray().ToList();
+            items.ShouldAllBe(item => (item.GetProperty("imageCount").GetInt32() > 0) == (item.GetProperty("cover").ValueKind == JsonValueKind.Object));
+            if (pageSize == 100)
+            {
+                items.ShouldContain(item => item.GetProperty("imageCount").GetInt32() == 2);
+            }
         }
     }
 
@@ -105,8 +119,27 @@ public sealed class OrderListQueryCountTests(CspsDatabase database) : IClassFixt
                 var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
                 body["customerName"] = $"Juan Dela Cruz {index:000}";
                 body["dueDate"] = OrderFixtures.Date(today.AddDays(1 + (index % 20)));
-                await OrderFixtures.CreateAsync(Client, Token, body);
+                var created = await OrderFixtures.CreateAsync(Client, Token, body);
+
+                // Every fifth order gets one photo and every tenth a second one, so the page command reads covers and counts.
+                for (var photo = 0; photo < (index % 10 == 0 ? 2 : index % 5 == 0 ? 1 : 0); photo++)
+                {
+                    await UploadPhotoAsync(created.GetProperty("id").GetGuid());
+                }
             }
+        }
+
+        private async Task UploadPhotoAsync(Guid orderId)
+        {
+            using var request = ApiRequests.Create(HttpMethod.Post, $"/api/v1/orders/{orderId:D}/images", Token);
+            request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+            using var form = new MultipartFormDataContent();
+            var part = new ByteArrayContent(SyntheticImages.Jpeg(640, 480));
+            part.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            form.Add(part, "file", "photo.jpg");
+            request.Content = form;
+            using var response = await Client.SendAsync(request, TestContext.Current.CancellationToken);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
 
         public Task<MeasuredCommands<T>> CountAsync<T>(Func<Task<T>> request) => Counter.MeasureAsync(request);
