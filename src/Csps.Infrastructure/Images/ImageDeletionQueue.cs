@@ -48,6 +48,22 @@ internal sealed partial class ImageDeletionQueue(CspsDbContext context, IDbConte
         }
     }
 
+    /// <inheritdoc />
+    public Task EnqueueManyNowAsync(IReadOnlyCollection<string> publicIds, ImageDeletionReason reason, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<QueuedRemoval>> ClaimDueAsync(Guid holder, DateTimeOffset now, TimeSpan lease, int max, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<QueuedRemoval>>([]);
+
+    /// <inheritdoc />
+    public Task CompleteAsync(long id, Guid holder, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <inheritdoc />
+    public Task FailAsync(long id, Guid holder, string failureCode, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <inheritdoc />
+    public Task ReleaseAsync(IReadOnlyCollection<long> ids, Guid holder, CancellationToken cancellationToken) => Task.CompletedTask;
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "A stored photo file could not be queued for removal. Code {FailureCode}.")]
     private static partial void LogQueueWriteFailed(ILogger logger, string failureCode);
 }
