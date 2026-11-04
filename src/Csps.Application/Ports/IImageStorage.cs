@@ -57,7 +57,17 @@ public sealed record StoredImagePage(IReadOnlyList<StoredImageEntry> Entries, st
 /// <summary>How much of the free plan is used.</summary>
 /// <param name="StoragePercent">The share of the storage allowance used, from 0 to 100.</param>
 /// <param name="CreditsPercent">The share of this month's credits used, from 0 to 100.</param>
-public sealed record StorageUsage(double StoragePercent, double CreditsPercent);
+/// <param name="StorageBytes">The bytes stored.</param>
+/// <param name="CreditsUsed">The credits used this month.</param>
+/// <param name="CreditsLimit">The credits the plan gives each month.</param>
+/// <param name="ImageMaxBytes">The largest image file the plan accepts, in bytes; 0 when the storage did not say.</param>
+public sealed record StorageUsage(
+    double StoragePercent,
+    double CreditsPercent,
+    long StorageBytes = 0,
+    double CreditsUsed = 0,
+    double CreditsLimit = 0,
+    long ImageMaxBytes = 0);
 
 /// <summary>
 /// The place order photos are kept (IMG-01): the server uploads to it, removes from it, lists it and reads its usage. The Cloudinary
@@ -88,10 +98,12 @@ public interface IImageStorage
     /// <param name="cursor">The cursor of the page to read; null for the first.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>One page of files.</returns>
+    /// <exception cref="ImageStorageException">The storage could not be read.</exception>
     Task<StoredImagePage> ListAsync(string prefix, string? cursor, CancellationToken cancellationToken);
 
     /// <summary>Reads how much of the free plan is used.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The usage.</returns>
+    /// <exception cref="ImageStorageException">The storage could not be read.</exception>
     Task<StorageUsage> GetUsageAsync(CancellationToken cancellationToken);
 }

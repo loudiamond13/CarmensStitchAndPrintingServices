@@ -222,6 +222,11 @@
         "resolved": "1.0.0",
         "contentHash": "N4KeF3cpcm1PUHym1RmakkzfkEv3GRMyofVv40uXsQhCQeglr2OHNcUk2WOG51AKpGO8ynGpo9M/kFXSzghwug=="
       },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "13.0.3",
+        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+      },
       "Polly.Core": {
         "type": "Transitive",
         "resolved": "8.4.2",
@@ -291,6 +296,7 @@
       "csps.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "CloudinaryDotNet": "[1.29.3, )",
           "Csps.Application": "[1.0.0, )",
           "MailKit": "[4.18.1, )",
           "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore": "[10.0.13, )",
@@ -305,6 +311,15 @@
         "requested": "[2.7.0, )",
         "resolved": "2.7.0",
         "contentHash": "U+12df8UEWHgBi04YVf/Lgi2dy3SItlIYvHjjEVa/BngCQIzDCDRBk50DDByCfDvSbe5pRNFr3b7UrVK2kMcLw=="
+      },
+      "CloudinaryDotNet": {
+        "type": "CentralTransitive",
+        "requested": "[1.29.3, )",
+        "resolved": "1.29.3",
+        "contentHash": "C9UpTh7YoOrfeUXcdjnsEloTaWKTNeDgvMpWoGAOTkC6HOxPIbcQAiSGhoqPPT8scAKAFjrPzf89nyZkGvtoCg==",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3"
+        }
       },
       "FluentValidation": {
         "type": "CentralTransitive",

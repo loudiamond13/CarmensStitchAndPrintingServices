@@ -61,6 +61,11 @@
       "date": "2026-10-26",
       "by": "owner",
       "scope": "npm audit fixes for PR #11 (quick task 261026-au5; D-63, D-65, D-66). Exact versions approved: zod 4.6.7 as a dependency and as one top-level override that also covers chromium-bidi (D-65), vitest 5.0.4 and @vitest/coverage-v8 5.0.4 with the test-only packages they require (D-66), and the lockfile-only refreshes ip-address 10.7.4, undici 8.12.2 and 6.29.1, and fast-uri 3.1.9. undici and fast-uri skip the 14-day cool-down as security fixes (D-63). The lockfile-only packages are not pins, so they have no package entry. Accepted risk (D-65): chromium-bidi was written for zod 3, so on zod 4 a malformed command throws a TypeError instead of its own error; Lighthouse never loads chromium-bidi."
+    },
+    {
+      "date": "2026-10-31",
+      "by": "owner",
+      "scope": "Phase 9 package (D-37), approved before install: NuGet CloudinaryDotNet 1.29.3 (MIT, published 2026-08-16, past the 14-day cool-down, no known advisory). It is referenced by Csps.Infrastructure only and needs Newtonsoft.Json, which the project already ships. No other package is added."
     }
   ],
   "packages": [
@@ -75,6 +80,19 @@
       "legitimacy": "Well-known cryptography library; source github.com/bcgit/bc-csharp; advisories only affect versions below 2.3.1; no slop signal",
       "published": "2026-07-30",
       "adopted": "2026-10-14",
+      "coolDown": "aged"
+    },
+    {
+      "id": "CloudinaryDotNet",
+      "version": "1.29.3",
+      "kind": "nuget",
+      "scope": "runtime",
+      "purpose": "Cloudinary's official .NET library. Signs and sends order photo uploads from the server, removes photos with cache invalidation, lists a folder and reads the usage report (IMG-01, D-05, D-37). Referenced by Csps.Infrastructure only.",
+      "license": "MIT",
+      "publisher": "Cloudinary (nuget.org owner cloudinary), source github.com/cloudinary/CloudinaryDotNet",
+      "legitimacy": "About 8.1M downloads, official vendor SDK, versions 1.27.0 to 1.29.3 all MIT and none deprecated; no advisory on NuGet or GitHub; needs only Newtonsoft.Json; no slop signal",
+      "published": "2026-08-16",
+      "adopted": "2026-11-03",
       "coolDown": "aged"
     },
     {
