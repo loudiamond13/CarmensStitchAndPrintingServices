@@ -1087,3 +1087,41 @@ describe('photos picked on the form (ORD-04, D-09, D-10, D-28)', () => {
     expect(photoUploadQueue.snapshot(created.id).pending).toBe(0);
   });
 });
+
+describe('drafts and the Discard changes guard (ORD-15, D-09)', () => {
+  it('asks "Discard changes?" when leaving with one draft and nothing else typed', async () => {
+    useOrderHandlers();
+    const { user, container, router } = await openForm();
+    await pickPhotos(user, container, ['one.jpg']);
+
+    await user.click(screen.getByRole('link', { name: 'Orders' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Editing' }));
+    expect(router.state.location.pathname).toBe('/admin/orders/new');
+    expect(within(screen.getByRole('list', { name: 'Order photos' })).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('leaves without asking once the only draft is removed', async () => {
+    useOrderHandlers();
+    const { user, container } = await openForm();
+    await pickPhotos(user, container, ['one.jpg']);
+    await user.click(screen.getByRole('button', { name: 'Remove photo 1' }));
+
+    await user.click(screen.getByRole('link', { name: 'Orders' }));
+
+    expect(await screen.findByText('The orders list')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('reads Unsaved changes in the save bar once a draft is picked', async () => {
+    useOrderHandlers();
+    const { user, container } = await openForm();
+    expect(screen.queryByText('Unsaved changes')).toBeNull();
+
+    await pickPhotos(user, container, ['one.jpg']);
+
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
+  });
+});
