@@ -145,6 +145,21 @@ public sealed class UploadOrderImageCompensationTests
             Calls.Add((publicId, reason, cancellationToken.IsCancellationRequested));
             return _failure is null ? Task.CompletedTask : Task.FromException(_failure);
         }
+
+        public Task EnqueueManyNowAsync(IReadOnlyCollection<string> publicIds, ImageDeletionReason reason, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("An upload never queues in bulk.");
+
+        public Task<IReadOnlyList<QueuedRemoval>> ClaimDueAsync(Guid holder, DateTimeOffset now, TimeSpan lease, int max, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("Only the removal job claims rows.");
+
+        public Task CompleteAsync(long id, Guid holder, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("Only the removal job completes rows.");
+
+        public Task FailAsync(long id, Guid holder, string failureCode, DateTimeOffset now, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("Only the removal job fails rows.");
+
+        public Task ReleaseAsync(IReadOnlyCollection<long> ids, Guid holder, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("Only the removal job releases rows.");
     }
 
     private sealed class Harness
