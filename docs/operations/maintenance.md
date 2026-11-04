@@ -1,9 +1,9 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-03T17:30:00-06:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-03T20:46:00-06:00*
 
-The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). A scheduled GitHub
-Actions workflow (added by a later plan) makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
+The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). The GitHub
+Actions workflow `.github/workflows/maintenance.yml` makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
 it is not part of the public API description.
 
 The call is protected by a secret key. This page says where the key lives and how to change it. It never shows a key,
@@ -42,6 +42,62 @@ The request keys and the claims share one line, so five lines come back in all. 
 (D-35). The 7 day account-link margin is open for the owner to review.
 
 Each run has a time budget of 90 seconds. A job that runs out of time stops cleanly and says there is more to do.
+
+## The monthly schedule and Run now
+
+The workflow is called **Maintenance** (job `monthly maintenance`). It has two triggers and no others.
+
+| Trigger | When | Notes |
+|---|---|---|
+| Schedule | Cron `17 19 1 * *`: 19:17 UTC on the 1st of each month, which is 03:17 on the 2nd in Manila | The minute is off the top of the hour, when GitHub is busiest |
+| Run now | Whenever the owner presses it | Actions tab, **Maintenance**, **Run workflow**, or `gh workflow run maintenance.yml --ref main` |
+
+Pressing Run now twice does not run two calls together. The second waits for the first (the workflow's `maintenance` queue), and a running call is never cancelled.
+
+### What the workflow needs in GitHub
+
+Both are set once by the owner, in the GitHub repository under Settings, Secrets and variables, Actions:
+
+1. The repository **secret** `MAINTENANCE_KEY`. It holds the same value as the host's `Maintenance__Key` (see "The key" below). Paste it from the password manager. Never type it into a chat, a commit or an issue.
+2. The repository **variable** `SITE_ORIGIN`. The Deploy workflow already uses it. It must be the live site's `https` address with no path, for example `https://example.test`. The script refuses anything else before it sends the key.
+
+The workflow uses a repository secret, not the `production` environment. An environment with a required reviewer would hold every monthly run until someone approved it.
+
+### What the workflow does
+
+`web/scripts/maintenance.mjs` posts to `{SITE_ORIGIN}/api/v1/maintenance/run` with the key in the `X-Maintenance-Key` header.
+
+- When the answer says `more`, it calls again, up to 10 calls in all. If there is still more after 10 calls, the run turns red.
+- When the site answers 409 (another run is going), it waits 60 seconds and tries again, up to 4 retries.
+- It follows no redirect, so the key can never travel to another address.
+- It exits with code 1 when any line failed, on a 401, a 429, any other error, a network failure, or an answer it cannot read.
+
+### Things to know about GitHub schedules
+
+- GitHub runs a schedule only from the default branch (`main`). The first monthly run happens only after this workflow is merged to `main`. Until then use Run now from `main`.
+- A scheduled run can be delayed. GitHub says the start can slip by minutes in busy hours, and sometimes a run is skipped. If the 2nd of the month passes with no run, press Run now.
+- In a public repository GitHub switches scheduled workflows off after 60 days with no repository activity (no commits, pull requests or issues). A month is shorter than that, but a quiet repository can still hit it. GitHub usually sends an email when it happens, but do not rely on that. To turn it back on: Actions tab, pick **Maintenance**, press **Enable workflow**, then press Run now to catch up. Once a quarter, look at the Actions tab and check that last month's run is there.
+
+### What a red run means
+
+The run page shows a red cross and GitHub emails the owner (D-22). GitHub sends a scheduled run's failure email to the person who last changed the workflow's `cron` line, so keep Actions emails switched on in that person's GitHub notification settings. There is no screen in the site for this.
+
+Open the run, then the **Summary**. It lists one line per result, for example `- Expired request keys removed: 2`, then a closing sentence: "All maintenance jobs finished." or "Some maintenance jobs failed. See the lines above." The script's own fixed sentences mean:
+
+| Line in the summary | What it means | What to do |
+|---|---|---|
+| The maintenance key was refused. | The site answered 401 | Check that `MAINTENANCE_KEY` in GitHub and `Maintenance__Key` on the host are the same value |
+| Another maintenance run was still going after 5 tries. | The site answered 409 five times in a row | Wait 10 minutes and press Run now |
+| The site refused the call because there were too many calls (HTTP 429). Wait and run it again. | The per-address limit was reached | Wait 10 minutes and press Run now |
+| The site answered with an error (HTTP 500). | The site is down or failed. The number is the status | Check the site and the host log, then press Run now |
+| The site could not be reached. | A network or address problem | Check `SITE_ORIGIN` and that the site is up, then press Run now |
+| The site gave an answer this script could not read. | The reply did not have the expected shape | Check the server version and the host log |
+| SITE_ORIGIN must be an https address with no path, such as https://example.test. | The variable is missing or wrong. Nothing was sent | Fix the variable |
+| MAINTENANCE_KEY is not set correctly. | The secret is missing or holds spaces or line breaks. Nothing was sent | Fix the secret |
+| Stopped after 10 calls with work still left. Run it again. | A long backlog | Press Run now again. Each run carries on from where the last stopped |
+| A job line such as "The job failed. Check the server log." | One job threw an error. The others still ran | Read the host log, fix the cause, press Run now |
+
+The summary and the run log are public, because the repository is public. They hold only the labels above, numbers and these fixed sentences. They never hold the key, the raw answer, an error body, an id or an address (D-36).
 
 ## The call
 

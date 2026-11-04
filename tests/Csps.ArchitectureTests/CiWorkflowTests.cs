@@ -772,7 +772,8 @@ public sealed partial class CiWorkflowTests
         return gate;
     }
 
-    private static bool IsTheMaintenanceKeyLine(string path, string line) => false;
+    private static bool IsTheMaintenanceKeyLine(string path, string line) =>
+        path == MaintenancePath && line.Trim() == MaintenanceKeyLine;
 
     private static bool IsApprovedPin(string value)
     {
