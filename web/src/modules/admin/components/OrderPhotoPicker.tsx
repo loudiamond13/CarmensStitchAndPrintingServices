@@ -47,25 +47,47 @@ export interface OrderPhotoPickerHandle {
   settled: () => Promise<void>;
 }
 
+/**
+ * The drafts of one form. `drafts` is what the screen draws; `read` is always the latest list, even between renders, so a pick
+ * that runs across several awaits and the description window never work from a stale list. Every change goes through `update`.
+ */
+export interface DraftStore {
+  readonly drafts: readonly DraftPhoto[];
+  read: () => readonly DraftPhoto[];
+  update: (change: (current: readonly DraftPhoto[]) => DraftPhoto[]) => void;
+}
+
+export function useDraftPhotos(initial: readonly DraftPhoto[] = []): DraftStore {
+  const [drafts, setDrafts] = useState<readonly DraftPhoto[]>(initial);
+  const latest = useRef<readonly DraftPhoto[]>(drafts);
+  return {
+    drafts,
+    read: () => latest.current,
+    update: (change) => {
+      const next = change(latest.current);
+      latest.current = next;
+      setDrafts(next);
+    },
+  };
+}
+
 export interface OrderPhotoPickerProps {
-  value: readonly DraftPhoto[];
-  onChange: (next: DraftPhoto[]) => void;
+  store: DraftStore;
   /** The edit-description press on a draft; the page opens the window. */
   onEditDescription?: ((id: string) => void) | undefined;
   handleRef?: Ref<OrderPhotoPickerHandle> | undefined;
 }
 
 export interface DraftDescriptionWindowProps {
-  drafts: readonly DraftPhoto[];
+  store: DraftStore;
   /** The draft being described; null keeps the window shut. */
   editingId: string | null;
-  onChange: (next: DraftPhoto[]) => void;
   onClose: () => void;
 }
 
 /** Stand-in so the description tests fail on their assertions (plan 09-21, RED). */
-export function DraftDescriptionWindow(_props: DraftDescriptionWindowProps) {
-  return null;
+export function DraftDescriptionWindow(props: DraftDescriptionWindowProps) {
+  return props.editingId === null ? null : null;
 }
 
 /** A file that was accepted for a place and is still being prepared: its tile shows a Skeleton. */
@@ -98,7 +120,8 @@ function pendingTile(pending: PendingDraft, position: number): PhotoTileModel {
 /** Where focus goes once the list has changed: a named control, or the add area. */
 type FocusTarget = { readonly label: string } | 'add';
 
-export function OrderPhotoPicker({ value, onChange, onEditDescription, handleRef }: OrderPhotoPickerProps) {
+export function OrderPhotoPicker({ store, onEditDescription, handleRef }: OrderPhotoPickerProps) {
+  const value = store.drafts;
   const queryClient = useQueryClient();
   const rulesState = useImageRulesQuery();
   const rules = rulesState.data === undefined ? null : toImageRules(rulesState.data);
@@ -112,8 +135,7 @@ export function OrderPhotoPicker({ value, onChange, onEditDescription, handleRef
   const bodyRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<AddControlHandle>(null);
 
-  // The lists as the last change left them, so a pick that waits on an earlier one adds to the right list.
-  const latest = useRef<readonly DraftPhoto[]>(value);
+  // The places held for photos still being prepared, as the last change left them.
   const pendingNow = useRef<readonly PendingDraft[]>([]);
   const picking = useRef<Promise<void>>(Promise.resolve());
   const focusTarget = useRef<FocusTarget | null>(null);
@@ -133,11 +155,6 @@ export function OrderPhotoPicker({ value, onChange, onEditDescription, handleRef
     }
     bodyRef.current?.querySelector<HTMLElement>(`[aria-label="${target.label}"]`)?.focus();
   }, [focusTick]);
-
-  const emit = (next: DraftPhoto[]): void => {
-    latest.current = next;
-    onChange(next);
-  };
 
   const setPendingNow = (next: readonly PendingDraft[]): void => {
     pendingNow.current = next;
@@ -163,7 +180,7 @@ export function OrderPhotoPicker({ value, onChange, onEditDescription, handleRef
     const refused: PickError[] = [];
     let leftOutCount = 0;
     for (const file of files) {
-      if (latest.current.length + pendingNow.current.length >= current.maxPerOrder) {
+      if (store.read().length + pendingNow.current.length >= current.maxPerOrder) {
         leftOutCount += 1;
         continue;
       }
@@ -193,17 +210,15 @@ export function OrderPhotoPicker({ value, onChange, onEditDescription, handleRef
         refused.push({ fileName, reason: issue });
         continue;
       }
-      emit([
-        ...latest.current,
-        {
-          id: place.id,
-          blob: prepared.file,
-          name: prepared.name,
-          preview: prepared.preview,
-          previewUnavailable: prepared.previewUnavailable,
-          description: '',
-        },
-      ]);
+      const draft: DraftPhoto = {
+        id: place.id,
+        blob: prepared.file,
+        name: prepared.name,
+        preview: prepared.preview,
+        previewUnavailable: prepared.previewUnavailable,
+        description: '',
+      };
+      store.update((list) => [...list, draft]);
     }
     setPickErrors(refused);
     setLeftOut(leftOutCount);
@@ -215,14 +230,14 @@ export function OrderPhotoPicker({ value, onChange, onEditDescription, handleRef
 
   /** Moves the draft to the 0-based place `toIndex`; place 1 is the cover. */
   const move = (id: string, toIndex: number): void => {
-    const list = latest.current;
+    const list = store.read();
     const from = list.findIndex((draft) => draft.id === id);
     const draft = list[from];
     const to = Math.min(Math.max(toIndex, 0), list.length - 1);
     if (draft === undefined || to === from) return;
     const next = list.filter((candidate) => candidate.id !== id);
     next.splice(to, 0, draft);
-    emit(next);
+    store.update(() => next);
     setAnnouncement(to === 0 ? COPY.announce.movedCover(next.length) : COPY.announce.moved(to + 1, next.length));
   };
 
@@ -232,9 +247,10 @@ export function OrderPhotoPicker({ value, onChange, onEditDescription, handleRef
   };
 
   const remove = (id: string): void => {
-    const next = latest.current.filter((draft) => draft.id !== id);
-    if (next.length === latest.current.length) return;
-    emit(next);
+    const list = store.read();
+    const next = list.filter((draft) => draft.id !== id);
+    if (next.length === list.length) return;
+    store.update(() => next);
     setAnnouncement(COPY.announce.deleted(next.length));
     moveFocusTo('add');
   };

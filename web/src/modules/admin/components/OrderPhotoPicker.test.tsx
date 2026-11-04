@@ -4,7 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
-import { DraftDescriptionWindow, OrderPhotoPicker, type DraftPhoto } from '@/modules/admin/components/OrderPhotoPicker';
+import {
+  DraftDescriptionWindow,
+  OrderPhotoPicker,
+  useDraftPhotos,
+  type DraftPhoto,
+} from '@/modules/admin/components/OrderPhotoPicker';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
@@ -59,11 +64,11 @@ function pickedImage(name: string): File {
 }
 
 function Harness({ initial = [] }: { initial?: readonly DraftPhoto[] }) {
-  const [drafts, setDrafts] = useState<readonly DraftPhoto[]>(initial);
+  const store = useDraftPhotos(initial);
   return (
     <>
-      <OrderPhotoPicker value={drafts} onChange={setDrafts} />
-      <output data-testid="count">{drafts.map((draft) => draft.name).join(',')}</output>
+      <OrderPhotoPicker store={store} />
+      <output data-testid="count">{store.drafts.map((draft) => draft.name).join(',')}</output>
     </>
   );
 }
@@ -180,13 +185,13 @@ describe('arranging drafts (D-08, D-09, UIC-5)', () => {
   it('the Edit description press tells the page which draft was meant', async () => {
     const user = userEvent.setup();
     const edited = vi.fn();
+    function Page() {
+      const store = useDraftPhotos([draftOf('one.jpg'), draftOf('two.jpg')]);
+      return <OrderPhotoPicker store={store} onEditDescription={edited} />;
+    }
     render(
       <QueryClientProvider client={queryClient}>
-        <OrderPhotoPicker
-          value={[draftOf('one.jpg'), draftOf('two.jpg')]}
-          onChange={vi.fn()}
-          onEditDescription={edited}
-        />
+        <Page />
       </QueryClientProvider>,
     );
 
@@ -282,15 +287,14 @@ describe('a photo being prepared and a refused file (UIC-8, OR-3)', () => {
 
 /** The picker with its description window, as the New Order form draws them (the window sits outside the form). */
 function DescribeHarness({ initial }: { initial: readonly DraftPhoto[] }) {
-  const [drafts, setDrafts] = useState<readonly DraftPhoto[]>(initial);
+  const store = useDraftPhotos(initial);
   const [editing, setEditing] = useState<string | null>(null);
   return (
     <>
-      <OrderPhotoPicker value={drafts} onChange={setDrafts} onEditDescription={setEditing} />
+      <OrderPhotoPicker store={store} onEditDescription={setEditing} />
       <DraftDescriptionWindow
-        drafts={drafts}
+        store={store}
         editingId={editing}
-        onChange={setDrafts}
         onClose={() => {
           setEditing(null);
         }}

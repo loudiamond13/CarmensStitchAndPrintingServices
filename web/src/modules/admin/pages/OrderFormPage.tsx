@@ -35,7 +35,7 @@ import {
 import { OrderEditAside } from '@/modules/admin/components/OrderEditAside';
 import {
   OrderPhotoPicker,
-  type DraftPhoto,
+  useDraftPhotos,
   type OrderPhotoPickerHandle,
 } from '@/modules/admin/components/OrderPhotoPicker';
 import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner';
@@ -180,14 +180,9 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   const backTo = backTarget(location.state);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [focusTick, setFocusTick] = useState(0);
-  // The photos picked for the new order. The ref holds the latest list for the save, which runs after awaits.
-  const [drafts, setDrafts] = useState<readonly DraftPhoto[]>([]);
-  const draftsRef = useRef<readonly DraftPhoto[]>(drafts);
+  // The photos picked for the new order; the store's latest list is what the save hands on, after its awaits.
+  const drafts = useDraftPhotos();
   const pickerRef = useRef<OrderPhotoPickerHandle>(null);
-  const changeDrafts = (next: readonly DraftPhoto[]): void => {
-    draftsRef.current = next;
-    setDrafts(next);
-  };
 
   const {
     control,
@@ -215,7 +210,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   // The shared cards read only the detail fields, which this form holds with the same names and types. Control is invariant in its
   // field values, so the wider control is narrowed here, once.
   const detailsControl = control as unknown as OrderDetailsControl;
-  const hasChanges = isDirty || drafts.length > 0;
+  const hasChanges = isDirty || drafts.drafts.length > 0;
   const guard = useUnsavedChangesGuard({ isDirty: hasChanges });
   const [orderDate, dueDate, status] = useWatch({ control, name: ['orderDate', 'dueDate', 'status'] });
   const preview = useItemsPreview(control);
@@ -283,7 +278,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
         // The order exists, so its photos go to its queue in their draft order, keyed by the new id (T-09-50, D-28).
         photoUploadQueue.enqueue(
           order.id,
-          draftsRef.current.map((draft) => ({
+          drafts.read().map((draft) => ({
             blob: draft.blob,
             name: draft.name,
             description: draft.description,
@@ -385,7 +380,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
                 <p className={orderFormCardHintClasses}>{PHOTOS.hints.draft}</p>
               </div>
             </div>
-            <OrderPhotoPicker value={drafts} onChange={changeDrafts} handleRef={pickerRef} />
+            <OrderPhotoPicker store={drafts} handleRef={pickerRef} />
           </section>
           <OrderItemsEditor control={control} rootError={itemsError} />
           <OrderFormSaveBar
