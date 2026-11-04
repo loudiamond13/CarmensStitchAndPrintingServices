@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-12-PLAN.md (wave 3 merged)
-last_updated: "2026-11-03T23:15:09.000Z"
+stopped_at: Completed 09-17-PLAN.md (wave 4 merged); next is wave 5 (09-18)
+last_updated: "2026-11-04T01:22:20.000Z"
 last_activity: 2026-11-03
-last_activity_desc: Wave 3 (09-10, 09-11, 09-12) merged from parallel worktrees; post-merge gate green except known timing flakes
+last_activity_desc: Wave 4 (09-13 to 09-17) merged from parallel worktrees; post-merge gate fully green
 state_head: 76d6eec4443b014efef8ad7e9d9b821e6f1cec64
 progress:
   total_phases: 18
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 13 of 32
+Plan: 18 of 32
 Status: Ready to execute
-Last activity: 2026-11-03 — Wave 3 merged (09-10, 09-11, 09-12); 12 of 32 plans done, 09-31 parked
+Last activity: 2026-11-03 — Wave 4 merged (09-13 to 09-17); 17 of 32 plans done, 09-31 parked
 
 Progress: [████░░░░░░] 44%
 
@@ -963,6 +963,15 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-11 wording (low priority):** a maintenance job that throws shows "The job failed. Check the server log." with the job's technical name as its label (for example `purge-expired-records`). The plan gave no text, so this is the executor's wording (one constant, `MaintenanceErrors.JobFailedText`). Approve, or give friendlier words or labels.
 - [ ] **09-12 maintenance key, owner action later:** when the monthly workflow (D-21) is created by a later plan, check it sends the `MAINTENANCE_KEY` secret in the `X-Maintenance-Key` header, and set `MAINTENANCE_KEY` (GitHub secret) and `Maintenance__Key` (host app-pool variable) to the same value of at least 32 characters. Only you can set them. The runbook's job table (orders 20, 30, 40) is updated as the later job plans land (docs only). The runbook's 409 row was re-checked against 09-11's lease answer after the wave 3 merge and matches.
 - [ ] **Wave 3 tooling note (no action):** wave 3 ran in parallel worktrees. From a worktree the agent shell could not start PowerShell, so `preflight.ps1` did not run there; the agents used only in-process tests and `CSPS_Test_<guid>` databases. The orchestrator ran preflight from the main session before the post-merge test run (all ports free, no other project's test processes).
+- [ ] **09-14 UPLOAD DEADLOCK, decision needed (real defect, not caused by 09-14):** two uploads to different orders that save at the same moment deadlock in SQL Server and one answers 500 (3 of 3 in the test). Both transactions hold their own new `PK_OrderImages` row and the photo read in `OrderReader.ReadDetailOnceAsync` scans the near-empty table for the other's row. Options: (a) **recommended first:** retry the upload once on deadlock error 1205 (application code only; the same idempotency key keeps one photo per save); (b) turn on read-committed snapshot (a host database setting); (c) change the photo read or its index. The concurrency test releases held uploads one at a time until this is decided.
+- [ ] **09-14 upload limits and wording:** the upload 429 says "Too many uploads right now. Wait a minute, then try again." (executor's wording; UI-SPEC said "server only"). Limits: 30 uploads per 10 minutes per address, 2 at once app-wide with 4 queued, then 429 (`Retry-After: 60` when the queue is full). The rate limiter runs before sign-in (existing SEC-03 order), so a signed-out caller can briefly take an upload slot; accepted for now, listed for `/gsd-secure-phase 9`. When the upload UI plans land, check "Try Again" sends the same `Idempotency-Key` and file and shows the server's own 429 text.
+- [ ] **09-15 real-phone checks for 09-30:** (A1) a real iPhone HEIC whose Exif/XMP items were zero-filled still decodes and shows upright at Cloudinary; fallbacks are renaming the item type or refusing HEIC (your call). (UIC-48) a real rotated, not-downscaled phone photo shows upright.
+- [ ] **09-15 owner calls, recommended accept:** (1) cut-off files (JPEG without its end marker, PNG without IEND, WebP shorter than its RIFF size) are now refused with the type message; if real photos get refused, the loosest safe change is to accept a JPEG that only lacks its final end marker. (2) Android Ultra HDR photos lose their HDR gain map and animated PNGs become stills (both follow D-02).
+- [ ] **09-13 info only:** the order-list customer-name search is the case most sensitive to machine load (a text scan run twice per request). Quiet run p95 186 ms; one busy-machine run read 316 ms against the 300 ms limit. The limit was not loosened. If it keeps failing, changing how search works is your decision (see `docs/operations/list-performance.md`).
+- [ ] **09-16 wording (recommended keep):** the singular leave-dialog line "1 photo hasn't uploaded yet. If you leave now, it's lost.", "Couldn't check this photo. Check your connection, then try again." and "The server didn't accept this photo." The pixel limit shows the server's "Photos can be at most 25 megapixels." where UI-SPEC says "pixels wide or tall"; recommended keep the server sentence.
+- [ ] **09-16 do not ship between 09-16 and 09-23:** saved photos show disabled move, make-cover, edit, delete and viewer controls until plan 09-23 wires them. Picking, Try Again and Remove work.
+- [ ] **09-16 real-phone check (end of phase):** "Take Photo" opens the camera, and a 12 MP photo uploads and shows its thumb. Note for later plans: wrap uploads that use the shared fail-next switch in `withPhotoHost` (`web/e2e/photo-host-lock.ts`, documented in `docs/web/e2e.md`).
+- [ ] **09-17 retention margin to review:** expired invite and reset links are removed 7 days after they expire (SPEC-GAP; one constant, `PurgeExpiredRecordsJob.AccountLinkMargin`). Sessions and 2FA challenges use 1 day, outbox emails 30 days after they close (D-35, settled). Low priority: the failed-line sentences for the new rules are the executor's wording (for example "The expired sign-in tokens could not be removed."). The Phase 5 deferred item IN-08 (outbox purge) is marked delivered.
 
 ### Blockers/Concerns
 
@@ -1029,6 +1038,19 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T18:03:36.234Z
-Stopped at: Completed 09-09-PLAN.md
+Last session: 2026-11-03T19:30:00-06:00
+Stopped at: Wave 4 merged and recorded (09-13 to 09-17). Owner asked to stop after wave 4 and continue in a new session.
 Resume file: None
+
+Handoff for the next `/gsd-execute-phase 9` run (2026-11-03):
+
+- Done: 09-01 to 09-17 (17 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
+- Next: wave 5 (09-18 to 09-22), then waves 6 to 9. Run it as usual; `incomplete_plans` should list 09-18 to 09-30, 09-31 and 09-32.
+- 09-31 is parked at its owner checkpoint (Task 1 committed a6661d6d, b923b06d; see the first backlog item). Do not re-run its Task 1. 09-32 depends on 09-31's answer: skip it until the owner answers. If the answer is "blocked", revert b923b06d then a6661d6d and do not run 09-32.
+- 09-30 has a blocking owner checkpoint: run it up to the checkpoint and park it; never auto-approve.
+- Parallel worktrees work: `.claude/settings.local.json` (local only, listed in `.git/info/exclude`) sets `worktree.baseRef` to `head`, so the base check passes on the unpushed branch. `.claude/worktrees/` is also in `.git/info/exclude`.
+- From a worktree the agent shell cannot start PowerShell, so executors check ports 5180, 5115, 7028 and 5199 with `netstat` and wait if busy; the orchestrator runs `preflight.ps1` from the main session before each post-merge test run.
+- Post-merge gate after wave 4: build 0 warnings; all .NET tests 6808 passed, 0 failed, 2 skipped; web 278 files, 7814 tests passed; typecheck and lint clean.
+- Code review is deferred to the end-of-phase verify step (code review gate) for all waves.
+- 09-19 installs CloudinaryDotNet 1.29.3 (D-37, approved). If 09-31's work stays, also regenerate `tools/Csps.HostProbe/packages.lock.json` and `tests/Csps.HostProbe.Tests/packages.lock.json`.
+- Known timing flakes: `OrderListTimingTests` and `ExpenseListTimingTests` fail under load; re-run alone before recording.
