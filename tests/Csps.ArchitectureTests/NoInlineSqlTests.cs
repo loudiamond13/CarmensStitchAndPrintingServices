@@ -11,7 +11,7 @@ public sealed partial class NoInlineSqlTests
 {
     private const string BackupFile = "Csps.Infrastructure/Maintenance/SqlServerBackupStatement.cs";
 
-    // The one file the owner approved by name (D-40, D-50): the monthly backup statement. Nothing else may hold raw SQL.
+    // The one file the owner approved by name (D-40, D-49): the backup statement and its read-only folder question. Nothing else may hold raw SQL.
     private static readonly string[] AllowedFiles = [BackupFile];
 
     private static readonly string[] SqlKeywords =
@@ -74,7 +74,7 @@ public sealed partial class NoInlineSqlTests
         AllowedFiles.ShouldBe([BackupFile], "The owner approved this one file by name (D-40). Rebuild any other code with EF's own API.");
 
     [Fact]
-    public void TheBackupFileHoldsExactlyTheOneApprovedStatement()
+    public void TheBackupFileHoldsExactlyTheTwoApprovedStatements()
     {
         var text = File.ReadAllText(RepoRoot.PathOf("src/" + BackupFile));
         var literals = StringLiterals(text).ToList();
@@ -83,7 +83,13 @@ public sealed partial class NoInlineSqlTests
         backupLiterals.Count.ShouldBe(1);
         backupLiterals[0].ShouldBe("BACKUP DATABASE @database TO DISK = @path WITH COPY_ONLY, CHECKSUM, FORMAT, INIT");
 
-        var others = literals.Where(literal => !literal.Contains("BACKUP DATABASE", StringComparison.Ordinal));
+        // D-49: the one read-only question the probe asks before a backup is tried.
+        var folderLiterals = literals.Where(literal => literal.Contains("SERVERPROPERTY", StringComparison.Ordinal)).ToList();
+        folderLiterals.Count.ShouldBe(1);
+        folderLiterals[0].ShouldBe("SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(260))");
+
+        var others = literals.Where(literal =>
+            !literal.Contains("BACKUP DATABASE", StringComparison.Ordinal) && !literal.Contains("SERVERPROPERTY", StringComparison.Ordinal));
         others.Where(NamesAnSqlKeyword).ShouldBeEmpty("No other literal in the backup file may name an SQL keyword.");
         string[] interpolated = ["$\"", "$@\"", "@$\""];
         interpolated.Where(marker => text.Contains(marker, StringComparison.Ordinal)).ShouldBeEmpty("No interpolated strings: the SQL text is never built from values.");

@@ -195,5 +195,37 @@ public sealed class SqlServerBackupStatementTests : IDisposable
         TimeProvider.System.GetElapsedTime(started).ShouldBeLessThan(TimeSpan.FromSeconds(1));
     }
 
+    [Fact]
+    public async Task TheServerReportsItsDefaultBackupFolderReadOnly()
+    {
+        var database = await CspsDatabase.CreateAsync();
+        await using (database)
+        {
+            var outcome = await SqlServerBackupStatement.ReadDefaultBackupFolderAsync(
+                database.ConnectionString, Budget, TestContext.Current.CancellationToken);
+
+            outcome.SqlErrorNumbers.ShouldBeEmpty();
+            outcome.Folder.ShouldNotBeNullOrWhiteSpace();
+        }
+    }
+
+    [Fact]
+    public async Task AnUnreachableServerGivesErrorNumbersAndNoFolder()
+    {
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = "probe.test.invalid",
+            IntegratedSecurity = true,
+            InitialCatalog = "csps_x",
+            ConnectTimeout = 1,
+        };
+
+        var outcome = await SqlServerBackupStatement.ReadDefaultBackupFolderAsync(
+            builder.ConnectionString, Budget, TestContext.Current.CancellationToken);
+
+        outcome.Folder.ShouldBeNull();
+        outcome.SqlErrorNumbers.ShouldNotBeEmpty();
+    }
+
     private string FolderFor(SqlServerInstance instance) => instance.Backend == SqlBackend.LocalDb ? _localFolder : ContainerFolder;
 }
