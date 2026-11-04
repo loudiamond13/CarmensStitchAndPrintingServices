@@ -60,6 +60,8 @@ const DISPLAY_MEGABYTES = 10;
 
 export interface OrderPhotosCardProps {
   order: OrderDetailResponse;
+  /** Forces the read-only card whatever the status: the Manager's deleted-order view (D-20). */
+  readOnly?: boolean;
 }
 
 type OrderImage = OrderDetailResponse['images'][number];
@@ -109,14 +111,15 @@ function queuedTile(item: QueueItem): PhotoTileModel {
   };
 }
 
-export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
+export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProps) {
   const queryClient = useQueryClient();
-  const rulesState = useImageRulesQuery();
+  // Completed and Cancelled orders lock the card (D-11); the deleted view is always locked (D-20). Picking needs the rules.
+  const locked = readOnly || isLocked(order);
+  const rulesState = useImageRulesQuery(!locked);
   const queue = usePhotoUploadQueue(order.id);
   const rules = rulesState.data === undefined ? null : toImageRules(rulesState.data);
   const max = rules?.maxPerOrder ?? DISPLAY_MAX;
   const megabytes = rules === null ? DISPLAY_MEGABYTES : Number((rules.maxBytes / BYTES_PER_MEGABYTE).toFixed(1));
-  const locked = isLocked(order);
   const [pickErrors, setPickErrors] = useState<readonly PickError[]>([]);
   const [leftOut, setLeftOut] = useState(0);
   const photos = [...savedTiles(order), ...queue.items.map(queuedTile)];

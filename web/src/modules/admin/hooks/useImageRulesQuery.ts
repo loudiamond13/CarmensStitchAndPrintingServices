@@ -12,6 +12,7 @@ export const imageRulesQuery = queryOptions({
   staleTime: ONE_HOUR_MS,
 });
 
-export function useImageRulesQuery() {
-  return useQuery(imageRulesQuery);
+/** `enabled` false skips the read (a read-only card never picks a file); rules already read still answer. */
+export function useImageRulesQuery(enabled = true) {
+  return useQuery({ ...imageRulesQuery, enabled });
 }

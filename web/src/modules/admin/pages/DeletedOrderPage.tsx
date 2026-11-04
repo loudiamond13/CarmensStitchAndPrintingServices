@@ -1,7 +1,8 @@
 // X2 Deleted order, read-only, /admin/orders/deleted/:id (ORD-06, ORD-07, D-24, D-57; plan 08-23). The order page's layout and data
 // with every write removed: a header with no menu or actions, a banner saying who deleted the order and when, and the only two
 // things a Manager can do, Restore Order and Delete Order Permanently. The tabs, the totals panel (Order Expenses and Estimated
-// Profit included), the customer card and the status history all render `readOnly`; the totals panel gets no Record Refund.
+// Profit included), the customer card, the status history and the Images card (a soft delete keeps the photos, which open in the
+// viewer) all render `readOnly`; the totals panel gets no Record Refund.
 //   - The order is the server's deleted read (`GET /orders/deleted/{id}`); the tab is the URL `tab` parameter, as on the order page.
 //   - The route's loader sends an Admin to /admin/orders; the API answers 403 for a role lost mid-session and the page then shows
 //     the access banner.
@@ -36,18 +37,14 @@ import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
 import { OrderNoticeBanner } from '@/modules/admin/components/OrderNoticeBanner';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
+import { OrderPhotosCard } from '@/modules/admin/components/OrderPhotosCard';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
 import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistory';
 import { PurgeOrderDialog } from '@/modules/admin/components/PurgeOrderDialog';
 import {
   orderBackRowClasses,
   orderCardClasses,
-  orderCardHeadClasses,
-  orderCardHintClasses,
-  orderCardTitleClasses,
   orderDetailClasses,
-  orderImagesBodyClasses,
-  orderImageTileClasses,
   orderMainClasses,
   orderNumberClasses,
   orderPageClasses,
@@ -118,27 +115,6 @@ function TabBody({ tab, order }: { tab: OrderTab; order: OrderDetailResponse }) 
     case 'refunds':
       return <OrderRefundsTab order={order} readOnly />;
   }
-}
-
-function ImagesCard() {
-  return (
-    <section className={orderCardClasses} aria-labelledby="order-images">
-      <div className={orderCardHeadClasses}>
-        <div>
-          <h2 id="order-images" className={orderCardTitleClasses}>
-            {PAGE.images.title}
-          </h2>
-          <p className={orderCardHintClasses}>{PAGE.images.hint}</p>
-        </div>
-      </div>
-      <div className={orderImagesBodyClasses}>
-        <span className={orderImageTileClasses}>
-          <Icon name="image" size={24} />
-        </span>
-        <p>{PAGE.images.soon}</p>
-      </div>
-    </section>
-  );
 }
 
 /** The first-load placeholder: the header lines, the tab table and the totals card, in the places the real ones land. */
@@ -254,7 +230,7 @@ function DeletedOrderBody({ deleted, restoring, onRestore, onPurge, purgeRef }: 
       <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>
-          <ImagesCard />
+          <OrderPhotosCard order={order} readOnly />
           <section className={orderCardClasses}>
             <div className={orderTabsRowClasses}>
               <Tabs idBase={ID_BASE} items={tabItems(order, refundsShown)} value={active} onChange={setTab} />
