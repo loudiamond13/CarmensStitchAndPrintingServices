@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Application.Maintenance;
+using Csps.Application.Ports;
+using Csps.Infrastructure.Images;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Persistence.Locking;
 using Csps.Server.IntegrationTests.Http;
@@ -21,6 +23,7 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
     private const string WrongKeyMessage = "The maintenance key is missing or wrong.";
     private const string PurgeLabel = "Expired request keys removed";
     private const string LeaseName = "maintenance-run";
+    private const string OverEightyText = "Over 80% of the free Cloudinary plan. Check usage before it runs out.";
 
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(20);
 
@@ -139,7 +142,7 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
             builder.UseSetting(KeySetting, TestKey);
             builder.ConfigureTestServices(services =>
             {
-                services.AddScoped<IMaintenanceJob>(static _ => new FakeJob(30, "fake-late", "Late job"));
+                services.AddScoped<IMaintenanceJob>(static _ => new FakeJob(45, "fake-late", "Late job"));
                 services.AddScoped<IMaintenanceJob>(static _ => new FakeJob(5, "fake-early", "Early job"));
             });
         });
@@ -155,6 +158,48 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
         labels[^1].ShouldBe("Late job");
         labels[1].ShouldBe(PurgeLabel);
         labels.Count.ShouldBeGreaterThan(3);
+    }
+
+    [Fact]
+    public async Task NinetyPercentOfTheFreePlanMakesTheRunNotOkAndSaysSo()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey));
+        factory.Services.GetRequiredService<TestingImageStorage>().Usage = new StorageUsage(10, 90, 1_610_612_736, 22.5, 25);
+        using var client = factory.CreateClient();
+
+        using var response = await RunAsync(client, TestKey);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        document.RootElement.GetProperty("ok").GetBoolean().ShouldBeFalse();
+        var lines = document.RootElement.GetProperty("lines").EnumerateArray().ToList();
+        lines.Single(line => line.GetProperty("failed").GetBoolean()).GetProperty("text").GetString().ShouldBe(OverEightyText);
+        lines.Single(line => line.GetProperty("label").GetString() == "Cloudinary storage used").GetProperty("text").GetString().ShouldBe("1.50 GB");
+        lines.Single(line => line.GetProperty("label").GetString() == "Cloudinary credits this month").GetProperty("text").GetString().ShouldBe("22.5 of 25 (90%)");
+    }
+
+    [Fact]
+    public async Task TenPercentOfTheFreePlanLeavesTheRunOkWithTheUsageLines()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey));
+        factory.Services.GetRequiredService<TestingImageStorage>().Usage = new StorageUsage(5, 10, 536_870_912, 2.5, 25);
+        using var client = factory.CreateClient();
+
+        using var response = await RunAsync(client, TestKey);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        document.RootElement.GetProperty("ok").GetBoolean().ShouldBeTrue();
+        var lines = document.RootElement.GetProperty("lines").EnumerateArray().ToList();
+        lines.ShouldAllBe(line => !line.GetProperty("failed").GetBoolean());
+        lines.Single(line => line.GetProperty("label").GetString() == "Cloudinary storage used").GetProperty("text").GetString().ShouldBe("0.50 GB");
+        lines.Single(line => line.GetProperty("label").GetString() == "Cloudinary credits this month").GetProperty("text").GetString().ShouldBe("2.5 of 25 (10%)");
     }
 
     [Fact]
