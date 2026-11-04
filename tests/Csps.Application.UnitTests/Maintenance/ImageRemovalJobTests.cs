@@ -149,6 +149,19 @@ public sealed class ImageRemovalJobTests
     }
 
     [Fact]
+    public async Task ARefusalWithNoCodeIsRecordedUnderTheNameOfItsStatus()
+    {
+        var harness = new Harness();
+        var row = harness.Queue.Add(PublicId(1));
+        harness.Storage.Script(new ImageRemovalOutcome(ImageRemovalStatus.Rejected));
+
+        await harness.RunAsync();
+
+        row.LastFailureCode.ShouldBe("rejected");
+        harness.Log.Received(1).RemovalFailed(row.Id, "rejected");
+    }
+
+    [Fact]
     public async Task ANotFoundAnswerDeletesTheRowAndCountsAsRemoved()
     {
         var harness = new Harness();

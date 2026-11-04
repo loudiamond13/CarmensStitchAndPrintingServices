@@ -1,5 +1,7 @@
 using Csps.Application.Ports;
+using Csps.Domain.Orders;
 using Csps.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Images;
 
@@ -10,14 +12,55 @@ namespace Csps.Infrastructure.Images;
 /// <param name="context">The database context.</param>
 internal sealed class ImageInventory(CspsDbContext context) : IImageInventory
 {
+    private const string SoftDeleteFilter = "SoftDelete";
+
     /// <inheritdoc />
-    public Task<IReadOnlySet<string>> KnownAsync(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken)
+    public async Task<IReadOnlySet<string>> KnownAsync(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken)
     {
-        _ = context;
-        return Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        var known = await PhotoIdsAsync(publicIds, cancellationToken).ConfigureAwait(false);
+        var wanted = Wanted(publicIds);
+        if (wanted.Count == 0)
+        {
+            return known;
+        }
+
+        var queued = await context.Set<ImageDeletion>()
+            .AsNoTracking()
+            .Where(row => wanted.Contains(row.PublicId))
+            .Select(row => row.PublicId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        known.UnionWith(queued);
+        return known;
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlySet<string>> NamedByPhotosAsync(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    public async Task<IReadOnlySet<string>> NamedByPhotosAsync(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken) =>
+        await PhotoIdsAsync(publicIds, cancellationToken).ConfigureAwait(false);
+
+    private static List<string> Wanted(IReadOnlyCollection<string> publicIds)
+    {
+        ArgumentNullException.ThrowIfNull(publicIds);
+        return [.. publicIds.Distinct(StringComparer.Ordinal)];
+    }
+
+    private async Task<HashSet<string>> PhotoIdsAsync(IReadOnlyCollection<string> publicIds, CancellationToken cancellationToken)
+    {
+        var wanted = Wanted(publicIds);
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (wanted.Count == 0)
+        {
+            return found;
+        }
+
+        var photos = await context.Set<OrderImage>()
+            .IgnoreQueryFilters([SoftDeleteFilter])
+            .AsNoTracking()
+            .Where(image => wanted.Contains(image.PublicId))
+            .Select(image => image.PublicId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        found.UnionWith(photos);
+        return found;
+    }
 }

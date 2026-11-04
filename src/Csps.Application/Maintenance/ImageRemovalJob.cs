@@ -21,6 +21,9 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
     /// <summary>The label of the count of removals that still fail.</summary>
     public const string FailingLabel = "Photo removals still failing";
 
+    /// <summary>The label of the count of queue rows dropped because a photo row still names the file.</summary>
+    public const string DroppedLabel = "Queued removals dropped (photo still in use)";
+
     /// <summary>The text of the line for removals that still fail.</summary>
     public const string FailingText = "The rows stay queued. The server log has the codes.";
 
@@ -48,6 +51,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
     private enum Step
     {
         Removed,
+        Dropped,
         Failed,
         KeysRefused,
     }
@@ -62,7 +66,6 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
     public async Task<MaintenanceJobReport> RunAsync(MaintenanceBudget budget, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(budget);
-        _ = inventory;
 
         if (!storage.IsConfigured)
         {
@@ -75,6 +78,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
         var held = new HashSet<long>();
         long removed = 0;
         long failing = 0;
+        long dropped = 0;
         var more = false;
         var keysRefused = false;
 
@@ -90,6 +94,9 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
 
                 var claimed = await queue.ClaimDueAsync(holder, startedAt, Lease, ClaimSize, cancellationToken).ConfigureAwait(false);
                 held.UnionWith(claimed.Select(static row => row.Id));
+                IReadOnlySet<string> inUse = claimed.Count == 0
+                    ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    : await inventory.NamedByPhotosAsync([.. claimed.Select(static row => row.PublicId)], cancellationToken).ConfigureAwait(false);
                 foreach (var row in claimed)
                 {
                     if (budget.IsSpent)
@@ -98,7 +105,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
                         break;
                     }
 
-                    var step = await RemoveRowAsync(row, holder, folder, startedAt, cancellationToken).ConfigureAwait(false);
+                    var step = await RemoveRowAsync(row, inUse.Contains(row.PublicId), holder, folder, startedAt, cancellationToken).ConfigureAwait(false);
                     if (step == Step.KeysRefused)
                     {
                         keysRefused = true;
@@ -106,13 +113,17 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
                     }
 
                     held.Remove(row.Id);
-                    if (step == Step.Removed)
+                    switch (step)
                     {
-                        removed++;
-                    }
-                    else
-                    {
-                        failing++;
+                        case Step.Removed:
+                            removed++;
+                            break;
+                        case Step.Dropped:
+                            dropped++;
+                            break;
+                        default:
+                            failing++;
+                            break;
                     }
                 }
 
@@ -132,6 +143,11 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
         }
 
         var lines = new List<MaintenanceLine> { new(RemovedLabel, removed, false, null) };
+        if (dropped > 0)
+        {
+            lines.Add(new MaintenanceLine(DroppedLabel, dropped, false, null));
+        }
+
         if (failing > 0)
         {
             lines.Add(new MaintenanceLine(FailingLabel, failing, true, FailingText));
@@ -145,8 +161,15 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
         return new MaintenanceJobReport(lines, more);
     }
 
-    private async Task<Step> RemoveRowAsync(QueuedRemoval row, Guid holder, string folder, DateTimeOffset startedAt, CancellationToken cancellationToken)
+    private async Task<Step> RemoveRowAsync(QueuedRemoval row, bool namedByPhoto, Guid holder, string folder, DateTimeOffset startedAt, CancellationToken cancellationToken)
     {
+        // A lost reply after a save that did succeed can leave an UploadUndone row for a live photo. The file stays; only the row goes.
+        if (namedByPhoto)
+        {
+            await queue.CompleteAsync(row.Id, holder, cancellationToken).ConfigureAwait(false);
+            return Step.Dropped;
+        }
+
         // A file outside this environment's own orders folder is never removed, whatever the row says (D-07).
         if (!row.PublicId.StartsWith(folder, StringComparison.Ordinal))
         {

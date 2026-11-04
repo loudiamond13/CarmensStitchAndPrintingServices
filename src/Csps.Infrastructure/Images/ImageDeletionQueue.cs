@@ -26,17 +26,28 @@ internal sealed partial class ImageDeletionQueue(CspsDbContext context, IDbConte
         context.Set<ImageDeletion>().Add(ImageDeletion.Queue(publicId, PrivateDelivery, reason, time.GetUtcNow()));
 
     /// <inheritdoc />
-    public async Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken)
+    public Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken) =>
+        EnqueueManyNowAsync([publicId], reason, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task EnqueueManyNowAsync(IReadOnlyCollection<string> publicIds, ImageDeletionReason reason, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(publicIds);
+        if (publicIds.Count == 0)
+        {
+            return;
+        }
+
         try
         {
-            var row = ImageDeletion.Queue(publicId, PrivateDelivery, reason, time.GetUtcNow());
+            var now = time.GetUtcNow();
+            var rows = publicIds.Select(publicId => ImageDeletion.Queue(publicId, PrivateDelivery, reason, now)).ToList();
             using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             limit.CancelAfter(WriteTimeout);
             var own = await contexts.CreateDbContextAsync(limit.Token).ConfigureAwait(false);
             await using (own.ConfigureAwait(false))
             {
-                own.Set<ImageDeletion>().Add(row);
+                own.Set<ImageDeletion>().AddRange(rows);
                 await own.SaveChangesAsync(limit.Token).ConfigureAwait(false);
             }
         }
@@ -47,9 +58,6 @@ internal sealed partial class ImageDeletionQueue(CspsDbContext context, IDbConte
             throw;
         }
     }
-
-    /// <inheritdoc />
-    public Task EnqueueManyNowAsync(IReadOnlyCollection<string> publicIds, ImageDeletionReason reason, CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<QueuedRemoval>> ClaimDueAsync(Guid holder, DateTimeOffset now, TimeSpan lease, int max, CancellationToken cancellationToken)
