@@ -1096,3 +1096,208 @@ describe('describing a saved photo (D-12, D-15, D-30, UIC-5, UIC-11)', () => {
     expect(screen.queryByText('Saved')).not.toBeInTheDocument();
   });
 });
+
+/** A delete that stays pending until `release` is called, and answers with `answer`. */
+function heldDelete(answer: OrderDetailFixture) {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const remove = vi.spyOn(orderPhotosService, 'remove').mockImplementation(async () => {
+    await gate;
+    return answer;
+  });
+  return { release, remove };
+}
+
+const deleteDialogName = (position: number): string => `Delete photo ${String(position)}?`;
+
+describe('deleting a photo (D-15, D-11, UIC-18, UIC-36, UIC-41)', () => {
+  it('asks first with Cancel focused, sends one DELETE for the confirmed photo, focuses the next photo, shows Saved and announces how many are left', async () => {
+    const remove = vi
+      .spyOn(orderPhotosService, 'remove')
+      .mockResolvedValue(namedPhotos(['Front', 'Sleeve'], { version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 2' }));
+
+    const dialog = await screen.findByRole('dialog', { name: deleteDialogName(2) });
+    expect(
+      within(dialog).getByText(`It's removed from ${order0148.number} right away. This can't be undone.`),
+    ).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(remove).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Photo' }));
+
+    await waitFor(() => {
+      expect(shownDescriptions()).toEqual(['Front', 'Sleeve']);
+    });
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith(order0148.id, orderImage(FIVE.indexOf('Back') + 1).id);
+    expect(screen.queryByRole('dialog', { name: deleteDialogName(2) })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(thumbOf(2, 2, 'Sleeve')).toHaveFocus();
+    });
+    expect(screen.getByText('Photo deleted. 2 photos left.')).toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeVisible();
+  });
+
+  it('focuses the previous photo when the last one in the row is deleted', async () => {
+    vi.spyOn(orderPhotosService, 'remove').mockResolvedValue(namedPhotos(['Front', 'Back'], { version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 3' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Photo' }));
+
+    await waitFor(() => {
+      expect(thumbOf(2, 2, 'Back')).toHaveFocus();
+    });
+  });
+
+  it('says 1 photo left in the singular', async () => {
+    vi.spyOn(orderPhotosService, 'remove').mockResolvedValue(namedPhotos(['Front'], { version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front', 'Back']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 2' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Photo' }));
+
+    expect(await screen.findByText('Photo deleted. 1 photo left.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(thumbOf(1, 1, 'Front')).toHaveFocus();
+    });
+  });
+
+  it('sends one DELETE for a double press, with Deleting on the button while it runs, and the controls are aria-disabled meanwhile', async () => {
+    const { release, remove } = heldDelete(namedPhotos(['Back', 'Sleeve'], { version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Delete photo 1' }));
+    const dialog = await screen.findByRole('dialog', { name: deleteDialogName(1) });
+
+    await user.dblClick(within(dialog).getByRole('button', { name: 'Delete Photo' }));
+
+    expect(await within(dialog).findByRole('button', { name: 'Deleting' })).toBeInTheDocument();
+    expect(remove).toHaveBeenCalledTimes(1);
+    for (const control of savedPhotoControls()) {
+      expect(control).toHaveAttribute('aria-disabled', 'true');
+    }
+    release();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: deleteDialogName(1) })).not.toBeInTheDocument();
+    });
+  });
+
+  it('puts focus on the first add control and says No photos left when the last photo is deleted (last photo)', async () => {
+    vi.spyOn(orderPhotosService, 'remove').mockResolvedValue(buildOrderDetail({ images: [], version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 1' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Photo' }));
+
+    expect(await screen.findByText('Photo deleted. No photos left.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'browse' })).toHaveFocus();
+    });
+    expect(screen.queryByRole('list', { name: 'Order photos' })).not.toBeInTheDocument();
+  });
+
+  it("Cancel sends nothing, closes the dialog and puts focus back on that photo's Delete control", async () => {
+    const remove = vi.spyOn(orderPhotosService, 'remove');
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Delete photo 2' }));
+    const dialog = await screen.findByRole('dialog', { name: deleteDialogName(2) });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: deleteDialogName(2) })).not.toBeInTheDocument();
+    });
+    expect(remove).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Delete photo 2' })).toHaveFocus();
+    expect(shownDescriptions()).toEqual(['Front', 'Back', 'Sleeve']);
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+  });
+
+  it('closes the dialog, reloads the photos and announces That photo was already deleted. on a 404 (already deleted, UIC-18)', async () => {
+    const remove = vi
+      .spyOn(orderPhotosService, 'remove')
+      .mockRejectedValue(problem(404, 'orders.not-found', 'Photo not found.'));
+    useOrderHandlers({ detail: namedPhotos(['Front', 'Sleeve'], { version: NEXT_VERSION }) });
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 2' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Photo' }));
+
+    expect(await screen.findByText('That photo was already deleted.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(shownDescriptions()).toEqual(['Front', 'Sleeve']);
+    });
+    expect(screen.queryByRole('dialog', { name: deleteDialogName(2) })).not.toBeInTheDocument();
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+    expect(screen.queryByText('Photo deleted. 2 photos left.')).not.toBeInTheDocument();
+  });
+
+  it('keeps the dialog open with a role=alert line and no Saved on a server failure', async () => {
+    const remove = vi.spyOn(orderPhotosService, 'remove').mockRejectedValue(new HttpError({ kind: 'network' }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 2' }));
+    const dialog = await screen.findByRole('dialog', { name: deleteDialogName(2) });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Photo' }));
+
+    const line = await within(dialog).findByRole('alert');
+    expect(line).toHaveTextContent("Couldn't reach the server. Check your internet connection and try again.");
+    expect(screen.getByRole('dialog', { name: deleteDialogName(2) })).toBeVisible();
+    expect(shownDescriptions()).toEqual(['Front', 'Back', 'Sleeve']);
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the server sentence in the dialog on a 422 orders.locked and turns the card read-only', async () => {
+    const message = 'This order is completed. Reopen it to make changes.';
+    vi.spyOn(orderPhotosService, 'remove').mockRejectedValue(problem(422, 'orders.locked', message));
+    useOrderHandlers({ detail: namedPhotos(['Front', 'Back', 'Sleeve'], { status: 'completed' }) });
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 2' }));
+    const dialog = await screen.findByRole('dialog', { name: deleteDialogName(2) });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Photo' }));
+
+    expect(await within(dialog).findByText(message)).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Move photo/ })).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows a long order number in the message and has no axe violations', async () => {
+    const number = `ORD-2026-${'A'.repeat(60)}`;
+    renderCard(namedPhotos(['Front', 'Back'], { number }));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Delete photo 1' }));
+
+    const dialog = await screen.findByRole('dialog', { name: deleteDialogName(1) });
+    expect(within(dialog).getByText(`It's removed from ${number} right away. This can't be undone.`)).toBeVisible();
+    await expectNoAxeViolations(dialog);
+  });
+});
