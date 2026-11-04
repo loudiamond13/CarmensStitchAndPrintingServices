@@ -11,7 +11,7 @@ internal static class CloudinaryResults
     public const string TransientCode = "transient";
 
     /// <summary>The failure code of keys that Cloudinary does not accept; trying again will not help.</summary>
-    public const string UnauthorizedCode = "unauthorized";
+    public const string UnauthorizedCode = ImageFailureCodes.Unauthorized;
 
     /// <summary>The failure code of any other refusal; trying again will not help.</summary>
     public const string RefusedCode = "refused";
