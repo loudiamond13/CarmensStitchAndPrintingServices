@@ -24,8 +24,12 @@ public sealed class UploadOrderImageHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IImageStorage storage,
+    IImageDeletionQueue imageDeletions,
     ImageUploadSettings settings)
 {
+    // Compile shell for the red tests: the queue is not used yet.
+    private readonly IImageDeletionQueue _imageDeletions = imageDeletions;
+
     /// <summary>Uploads the photo.</summary>
     /// <param name="orderId">The order to add the photo to.</param>
     /// <param name="request">The file and the optional description.</param>

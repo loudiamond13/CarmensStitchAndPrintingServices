@@ -1,6 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Csps.Infrastructure.Images;
 
@@ -11,7 +12,8 @@ namespace Csps.Infrastructure.Images;
 /// <param name="context">The scoped database context.</param>
 /// <param name="contexts">Makes the short-lived context of <see cref="EnqueueNowAsync"/>.</param>
 /// <param name="time">The clock.</param>
-internal sealed class ImageDeletionQueue(CspsDbContext context, IDbContextFactory<CspsDbContext> contexts, TimeProvider time) : IImageDeletionQueue
+/// <param name="log">Receives the failure code of a queue write that could not be saved.</param>
+internal sealed class ImageDeletionQueue(CspsDbContext context, IDbContextFactory<CspsDbContext> contexts, TimeProvider time, ILogger<ImageDeletionQueue> log) : IImageDeletionQueue
 {
     private const string PrivateDelivery = "private";
 
@@ -23,7 +25,7 @@ internal sealed class ImageDeletionQueue(CspsDbContext context, IDbContextFactor
     public Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken)
     {
         // Compile shell until the own-context write is tested (Task 2).
-        _ = (contexts, publicId, reason, cancellationToken);
+        _ = (contexts, log, publicId, reason, cancellationToken);
         return Task.CompletedTask;
     }
 }

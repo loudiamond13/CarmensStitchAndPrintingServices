@@ -113,6 +113,44 @@ public sealed class OrderImageDeletionQueueTests(CspsDatabase database) : IClass
         (await PhotoIdsAsync(id)).Count.ShouldBe(2);
     }
 
+    [Fact]
+    public async Task AnUploadFinishingAfterTheOrderWasCancelledAnswers422LeavesNoPhotoAndQueuesOneUploadUndoneRow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, manager.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var id = created.GetProperty("id").GetGuid();
+
+        storage.HoldUploads();
+        var upload = Task.Run(() => UploadAsync(client, manager.AccessToken, id), TestContext.Current.CancellationToken);
+        await WaitForAsync(() => storage.Uploads.Count == 1);
+        using var cancelled = await OrderFixtures.ChangeStatusAsync(client, manager.AccessToken, id, OrderFixtures.StatusBody("cancelled"));
+        cancelled.StatusCode.ShouldBe(HttpStatusCode.OK, await cancelled.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        storage.Release();
+        using var answer = await upload.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, await answer.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await PhotoIdsAsync(id)).ShouldBeEmpty();
+        var uploadedId = storage.Uploads.ShouldHaveSingleItem().PublicId;
+        var row = (await QueueRowsAsync([uploadedId])).ShouldHaveSingleItem();
+        row.Reason.ShouldBe(ImageDeletionReason.UploadUndone);
+        row.Attempts.ShouldBe(0);
+        storage.Removals.ShouldBeEmpty();
+    }
+
+    private static async Task WaitForAsync(Func<bool> condition)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        while (!condition())
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(25), timeout.Token);
+        }
+    }
+
     private static async Task<(Guid Id, string Number)> CreateOrderWithPhotosAsync(CspsApiFactory factory, HttpClient client, string accessToken, int photos)
     {
         var today = await OrderFixtures.TodayAsync(factory);
