@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-22-PLAN.md (wave 5 merged); next is wave 6 (09-23)
-last_updated: "2026-11-04T05:10:00.000Z"
-last_activity: 2026-11-03
-last_activity_desc: Wave 5 (09-18 to 09-22) merged from parallel worktrees; post-merge gate green except the known expense timing test (D-103)
-state_head: 0ff68f52
+stopped_at: Completed 09-25-PLAN.md (wave 6 merged); next is wave 7 (09-26)
+last_updated: "2026-11-04T06:26:39.000Z"
+last_activity: 2026-11-04
+last_activity_desc: Wave 6 (09-23 to 09-25) merged from parallel worktrees; post-merge gate fully green
+state_head: 5ad509e5
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 262
+  completed_plans: 265
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-03T23:10:00-06:00"
+updated: "2026-11-04T00:26:39-06:00"
 ---
 
 # Project State
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 23 of 32
+Plan: 26 of 32
 Status: Ready to execute
-Last activity: 2026-11-03 — Wave 5 merged (09-18 to 09-22); 22 of 32 plans done, 09-31 parked on host support
+Last activity: 2026-11-04 — Wave 6 merged (09-23 to 09-25); 25 of 32 plans done, 09-31 parked on host support
 
 Progress: [████░░░░░░] 44%
 
@@ -980,6 +980,11 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-18 image sizes:** should 2x screens get finer srcset candidates (for example 720w)? Recommended: no, a few KB per cover costs less than more Cloudinary transformations.
 - [ ] **09-21 wording:** removing a draft photo is announced as "Photo deleted. N photos left." Recommended: add a "Photo removed." line in the wording pass. The F1 look check with 0, 1 and 5 drafts at 390, 820 and 1440 px in both themes and the real-phone camera pick are in plan 09-30.
 - [ ] **Unrun browser check (09-18):** the `@order-photos-list` Playwright spec is written, typechecked and listed but has never run (it resets the shared CSPS_E2E database). Run `npm --prefix web run e2e -- --grep @order-photos-list` after the preflight is clear, before or at 09-30.
+- [ ] **09-25 lock file (package rule):** `tools/Csps.CloudinarySetup/packages.lock.json` adds no package; it matches the BootstrapManager tool's lock (30 framework `Microsoft.*` entries more than Csps.Infrastructure's lock, and Newtonsoft.Json 13.0.3, the same item as the 09-19 row above). Every tool has this pattern. Recommended: accept it, and fix Newtonsoft.Json with the 09-19 choice.
+- [ ] **09-25 live Cloudinary answers not seen yet:** the setup command was never run against the real account. Three shapes are unconfirmed (the `info` answer, whether list names carry a `t_` prefix, the size detail request). If one differs, the command prints `different` or a fixed refusal and changes nothing. Plan 09-30: run `--check` first (`docs/operations/cloudinary-setup.md`).
+- [ ] **09-23 e2e photo upload limit lifted (FYI):** the Playwright test host now sets `RateLimits__Images__PermitLimit` to no limit, like the sign-in limits already were, because the photo journeys upload 45 photos from one address. Production keeps 30 per 10 minutes. Recommended: keep.
+- [ ] **09-24 commit trailer (FYI):** its 4 commits carry `Co-Authored-By: Claude Sonnet 5.5` (the model the executor ran on) instead of the Opus line in the dispatch. Recommended: leave as is, it is accurate.
+- [ ] **Running host probe locks a build file:** `Csps.HostProbe.exe` (started outside this session, listening on 5116 and 7029) kept `tools/Csps.HostProbe/bin` locked, so the wave 6 build could not copy into that one folder. The probe and its tests were built into a scratch folder instead: 0 warnings, 26 of 26 passed. Close the probe when you no longer need it, so the full build passes in place.
 
 ### Blockers/Concerns
 
@@ -1046,21 +1051,23 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T23:10:00-06:00
-Stopped at: Wave 5 merged and recorded (09-18 to 09-22). Owner asked to stop after wave 5.
+Last session: 2026-11-04T00:26:39-06:00
+Stopped at: Wave 6 merged and recorded (09-23 to 09-25).
 Resume file: None
 
-Handoff for the next `/gsd-execute-phase 9` run (2026-11-03):
+Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 
-- Done: 09-01 to 09-22 (22 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
-- Next: wave 6 (09-23, 09-24, 09-25), then waves 7 to 9. `incomplete_plans` should list 09-23 to 09-30, 09-31 and 09-32.
+- Done: 09-01 to 09-25 (25 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
+- Next: wave 7 (09-26, 09-27, 09-28), then waves 8 and 9. `incomplete_plans` should list 09-26 to 09-30, 09-31 and 09-32.
 - 09-31 is parked on the SmarterASP.NET support reply (first backlog item). Do not re-run its Task 1. Skip 09-32 until the owner answers. If the answer is "blocked", revert 50cf165a, bd33861c, b923b06d and a6661d6d and do not run 09-32.
 - 09-30 has a blocking owner checkpoint: run it up to the checkpoint and park it; never auto-approve.
 - Parallel worktrees work: `.claude/settings.local.json` (local only, listed in `.git/info/exclude`) sets `worktree.baseRef` to `head`, so the base check passes on the unpushed branch. `.claude/worktrees/` is also in `.git/info/exclude`.
 - From a worktree the agent shell cannot start PowerShell, so executors check ports 5180, 5115, 7028 and 5199 with `netstat` and wait if busy; the orchestrator runs `preflight.ps1` from the main session before each post-merge test run.
 - Executors in fresh worktrees have no `web/node_modules`: they ran `npm ci --ignore-scripts` or linked the main copy. Before removing a worktree, check its `web/node_modules` is not a link into the main checkout. `worktree.cleanup-wave` could not remove one worktree whose `node_modules` was still there; its branch was merged and the folder was removed by hand.
+- Post-merge gate after wave 6: restore 0 warnings; build 0 warnings, its only errors were the running `Csps.HostProbe.exe` locking `tools/Csps.HostProbe/bin` (that project and its tests built in a scratch folder: 0 warnings, 26 of 26 passed); dotnet format, web typecheck, lint and Prettier clean; web 282 files, 7940 tests passed; .NET 7014 passed, 0 failed, 2 skipped. No flake showed this time. The worktree with `web/node_modules` again needed removing by hand after its merge.
 - Post-merge gate after wave 5: restore and build 0 warnings; dotnet format, web typecheck, lint and Prettier clean; web 282 files, 7922 tests passed; .NET 6946 passed, 2 failed, 2 skipped in the full run. LegacyFitCheck passed alone (275, load flake); `ExpenseListTimingTests` failed again alone (known, D-103). The Server integration re-run alone: 2010 of 2011 passed.
+- Wave 7 notes from wave 6: 09-28's removal job must skip a queue row whose public id an `OrderImages` row still names (soft-deleted orders included), because an UploadUndone row can follow a lost reply after a good save (09-24). 09-26, 09-27 and 09-29 touch `OrderPhotosCard`: it now has viewer state, a `readOnly` prop, and the test `Harness` and `renderCard` take `readOnly` (09-23). `MaintenanceEndpointTests` has a fake late job at order 45, after the usage job at 40 (09-25).
 - Wave 6 notes from wave 5: 09-25 and 09-28 should catch the new `ImageStorageException` (thrown by a failed `ListAsync` or `GetUsageAsync`); 09-28 should check the removal `FailureCode` "unauthorized" (`CloudinaryResults.UnauthorizedCode`), because the port has no Unauthorized status. `AuditActions.All` is at 96 entries after 09-20; 09-26 adds more, so update the catalog count test.
-- Re-run `tools/scripts/New-ThirdPartyNotices.ps1` once to confirm THIRD-PARTY-NOTICES.md is unchanged (09-19 wrote the CloudinaryDotNet row by hand because PowerShell was not available in its worktree).
+- Done 2026-11-04: `tools/scripts/New-ThirdPartyNotices.ps1` re-run from the main session; the license gate passed and THIRD-PARTY-NOTICES.md is unchanged (the 09-19 hand-written CloudinaryDotNet row was right).
 - Code review is deferred to the end-of-phase verify step (code review gate) for all waves.
 - Known timing flakes: `OrderListTimingTests` and `ExpenseListTimingTests` fail under load; re-run alone before recording. Also flaky under load in web tests: `OrderFormPage` "cannot be left through the dialog while a save is pending" and some modal tests; each passes alone.
