@@ -73,6 +73,218 @@ public sealed class OrderImageArrangeEndpointTests(CspsDatabase database) : ICla
         rows.Select(row => row.Id).ShouldBe([photos["B"], photos["A"], photos["C"]]);
     }
 
+    [Fact]
+    public async Task MovingTheCoverAwayFromTheFrontWritesMovedAndCoverChangedNamingTheNewCover()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await OrderWithThreePhotosAsync(factory, client, admin.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString();
+        var photos = PhotosByDescription(order);
+
+        using var response = await PutPositionAsync(client, admin.AccessToken, id, photos["A"], 2, order.GetProperty("version").GetString());
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        DescriptionsInOrder(document.RootElement).ShouldBe(["B", "C", "A"]);
+        var entries = await ImageAuditAsync(id);
+        entries.ShouldBe([("order-image.moved", $"number={number};from=1;to=3"), ("order-image.cover-changed", $"number={number};cover=2")], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task MovingAMiddlePhotoLeavesTheCoverAloneAndWritesOnlyMoved()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString();
+
+        using var response = await PutPositionAsync(client, manager.AccessToken, id, PhotosByDescription(order)["B"], 2, order.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ImageAuditAsync(id)).ShouldBe([("order-image.moved", $"number={number};from=2;to=3")]);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    [InlineData(-1)]
+    public async Task APlaceAtOrAboveThePhotoCountOrBelowZeroAnswers400OnThePositionField(int place)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+
+        using var response = await PutPositionAsync(client, manager.AccessToken, id, PhotosByDescription(order)["A"], place, order.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "position").ShouldBe([OrderImageRules.PositionOutOfRangeMessage]);
+        (await ImageAuditAsync(id)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AMissingVersionOrPositionAnswers400OnThoseFields()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+
+        using var response = await PutPositionAsync(client, manager.AccessToken, id, PhotosByDescription(order)["A"], null, null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.ErrorFields(await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).Order().ShouldBe(["position", "version"]);
+    }
+
+    [Fact]
+    public async Task MovingAPhotoToThePlaceItHasAnswers200WithTheSameVersionAndWritesNoAuditRow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var photos = PhotosByDescription(order);
+        var version = order.GetProperty("version").GetString();
+        var auditBefore = (await ImageAuditAsync(id)).Count;
+
+        using var middle = await PutPositionAsync(client, manager.AccessToken, id, photos["B"], 1, version);
+        using var cover = await PutPositionAsync(client, manager.AccessToken, id, photos["A"], 0, version);
+
+        middle.StatusCode.ShouldBe(HttpStatusCode.OK);
+        cover.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var middleDocument = JsonDocument.Parse(await middle.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        using var coverDocument = JsonDocument.Parse(await cover.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        middleDocument.RootElement.GetProperty("version").GetString().ShouldBe(version);
+        coverDocument.RootElement.GetProperty("version").GetString().ShouldBe(version);
+        DescriptionsInOrder(coverDocument.RootElement).ShouldBe(["A", "B", "C"]);
+        (await ImageAuditAsync(id)).Count.ShouldBe(auditBefore);
+    }
+
+    [Fact]
+    public async Task APhotoOfAnotherOrderOrAnUnknownPhotoAnswers404AndChangesNothing()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var other = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var version = order.GetProperty("version").GetString();
+
+        using var foreign = await PutPositionAsync(client, manager.AccessToken, id, PhotosByDescription(other)["B"], 0, version);
+        using var unknown = await PutPositionAsync(client, manager.AccessToken, id, Guid.NewGuid(), 0, version);
+
+        foreach (var response in new[] { foreign, unknown })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("code").GetString().ShouldBe("orders.image-not-found");
+            problem.GetProperty("detail").GetString().ShouldBe("This photo is no longer on this order.");
+        }
+
+        (await ImageAuditAsync(id)).ShouldBeEmpty();
+        (await ImageAuditAsync(other.GetProperty("id").GetGuid())).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUnknownOrderAnswers404OrdersNotFound()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+
+        using var response = await PutPositionAsync(client, manager.AccessToken, Guid.NewGuid(), PhotosByDescription(order)["A"], 0, order.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.not-found");
+    }
+
+    [Fact]
+    public async Task ACancelledOrderAnswers422LockedOnAMoveAndTheOrderOfThePhotosStays()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "cancelled");
+
+        using var response = await PutPositionAsync(client, manager.AccessToken, id, PhotosByDescription(order)["C"], 0, cancelled.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.locked");
+        await using var context = database.CreateContext();
+        var rows = await context.Set<OrderImage>().AsNoTracking().Where(row => row.OrderId == id).OrderBy(row => row.Position).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Description).ShouldBe(["A", "B", "C"]);
+    }
+
+    [Fact]
+    public async Task ACompletedOrderAnswers422LockedOnAMove()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
+        var id = paid.GetProperty("id").GetGuid();
+        var withPhotos = await AddThreePhotosAsync(client, manager.AccessToken, id);
+        var completed = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "completed");
+
+        using var response = await PutPositionAsync(client, manager.AccessToken, id, PhotosByDescription(withPhotos)["B"], 0, completed.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.locked");
+    }
+
+    [Fact]
+    public async Task TwoMovesSentTogetherWithOneVersionGiveOneOkAndOneStaleAndLeaveWholePlaces()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var photos = PhotosByDescription(order);
+        var version = order.GetProperty("version").GetString();
+
+        var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+            () => PutPositionAsync(client, manager.AccessToken, id, photos["B"], 0, version),
+            () => PutPositionAsync(client, manager.AccessToken, id, photos["C"], 0, version));
+        using (first)
+        using (second)
+        {
+            new[] { first.StatusCode, second.StatusCode }.Order().ShouldBe([HttpStatusCode.OK, HttpStatusCode.Conflict]);
+        }
+
+        await using var context = database.CreateContext();
+        var rows = await context.Set<OrderImage>().AsNoTracking().Where(row => row.OrderId == id).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Position).Order().ShouldBe([0, 1, 2]);
+        rows.Select(row => row.Slot).Order().ShouldBe([0, 1, 2]);
+        (await ImageAuditAsync(id)).Count(entry => entry.Action == "order-image.moved").ShouldBe(1);
+    }
+
+    private async Task<List<(string Action, string? Detail)>> ImageAuditAsync(Guid orderId)
+    {
+        await using var context = database.CreateContext();
+        var rows = await context.AuditLog.AsNoTracking()
+            .Where(entry => entry.TargetId == orderId.ToString("D") && entry.Action.StartsWith("order-image.") && entry.Action != "order-image.added")
+            .Select(entry => new { entry.Action, entry.Detail })
+            .ToListAsync(TestContext.Current.CancellationToken);
+        return [.. rows.Select(row => (row.Action, row.Detail))];
+    }
+
     private static string[] DescriptionsInOrder(JsonElement order) =>
         [.. order.GetProperty("images").EnumerateArray().Select(image => image.GetProperty("description").GetString()!)];
 
@@ -83,8 +295,12 @@ public sealed class OrderImageArrangeEndpointTests(CspsDatabase database) : ICla
     {
         var today = await OrderFixtures.TodayAsync(factory);
         var created = await OrderFixtures.CreateAsync(client, accessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
-        var id = created.GetProperty("id").GetGuid();
-        JsonElement latest = created;
+        return await AddThreePhotosAsync(client, accessToken, created.GetProperty("id").GetGuid());
+    }
+
+    private static async Task<JsonElement> AddThreePhotosAsync(HttpClient client, string accessToken, Guid id)
+    {
+        JsonElement latest = default;
         foreach (var (name, width, height) in new[] { ("A", 640, 480), ("B", 800, 600), ("C", 320, 240) })
         {
             using var response = await UploadAsync(client, accessToken, id, SyntheticImages.Jpeg(width, height), name);

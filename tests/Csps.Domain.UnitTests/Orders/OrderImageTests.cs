@@ -189,12 +189,117 @@ public sealed class OrderImageTests
         PhotoIdsInOrder(order).ShouldBe(["id0", "id2", "id1", "id3"]);
     }
 
+    [Fact]
+    public void EveryMoveOfEveryPhotoAmongOneToFivePhotosKeepsThePlacesWholeAndTheOthersInOrder()
+    {
+        for (var count = 1; count <= OrderImageRules.MaxImagesPerOrder; count++)
+        {
+            for (var from = 0; from < count; from++)
+            {
+                for (var to = 0; to < count; to++)
+                {
+                    var order = OrderWithPhotos(count);
+                    var before = PhotoIdsInOrder(order);
+                    var moving = order.Images.Single(image => image.Position == from);
+                    var slots = order.Images.ToDictionary(image => image.Id, image => image.Slot);
+
+                    var moved = order.MoveImage(moving.Id, to, Later.AddHours(1));
+
+                    var label = $"{count} photos, {from} to {to}";
+                    moved.IsSuccess.ShouldBeTrue(label);
+                    order.Images.Select(image => image.Position).Order().ShouldBe(Enumerable.Range(0, count), false, label);
+                    moving.Position.ShouldBe(to, label);
+                    var expected = before.ToList();
+                    expected.RemoveAt(from);
+                    expected.Insert(to, before[from]);
+                    PhotoIdsInOrder(order).ShouldBe(expected, false, label);
+                    order.Images.ShouldAllBe(image => image.Slot == slots[image.Id], label);
+                    (moved.Value is null).ShouldBe(from == to, label);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void MovingAPhotoToThePlaceItHasChangesNothingAndKeepsTheEditVersion()
+    {
+        var order = OrderWithPhotos(3);
+        var editVersion = order.EditVersion;
+
+        var moved = order.MoveImage(order.Images[1].Id, 1, Later.AddHours(1));
+
+        moved.IsSuccess.ShouldBeTrue();
+        moved.Value.ShouldBeNull();
+        order.EditVersion.ShouldBe(editVersion);
+        PhotoIdsInOrder(order).ShouldBe(["id0", "id1", "id2"]);
+    }
+
+    [Fact]
+    public void MakingTheCoverTheCoverChangesNothing()
+    {
+        var order = OrderWithPhotos(2);
+        var editVersion = order.EditVersion;
+
+        order.MoveImage(order.Images[0].Id, 0, Later.AddHours(1)).Value.ShouldBeNull();
+
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(3)]
+    [InlineData(5)]
+    public void APlaceBelowZeroOrAtOrAboveThePhotoCountIsRefusedOnThePositionField(int place)
+    {
+        var order = OrderWithPhotos(3);
+        var editVersion = order.EditVersion;
+
+        var refused = order.MoveImage(order.Images[0].Id, place, Later.AddHours(1));
+
+        refused.Error.Kind.ShouldBe(ErrorKind.Validation);
+        refused.Error.Message.ShouldBe(OrderRules.InvalidMessage);
+        refused.Error.FieldErrors.ShouldNotBeNull()["position"].ShouldBe([OrderImageRules.PositionOutOfRangeMessage]);
+        PhotoIdsInOrder(order).ShouldBe(["id0", "id1", "id2"]);
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
+    [Fact]
+    public void APhotoThatIsNotOnTheOrderAnswersNotFoundWithThePlainMessage()
+    {
+        var order = OrderWithPhotos(2);
+        var editVersion = order.EditVersion;
+
+        var refused = order.MoveImage(Guid.NewGuid(), 0, Later.AddHours(1));
+
+        refused.Error.Kind.ShouldBe(ErrorKind.NotFound);
+        refused.Error.Code.ShouldBe("orders.image-not-found");
+        refused.Error.Message.ShouldBe("This photo is no longer on this order.");
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
+    [Theory]
+    [InlineData(OrderStatus.Completed)]
+    [InlineData(OrderStatus.Cancelled)]
+    public void AClosedOrderRefusesAMoveAsLockedAndNothingChanges(OrderStatus status)
+    {
+        var order = OrderWithPhotos(3, unitPrice: 0m);
+        order.ChangeStatus(status, Guid.NewGuid(), Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+        var editVersion = order.EditVersion;
+
+        var refused = order.MoveImage(order.Images[2].Id, 0, Later.AddHours(2));
+
+        refused.Error.Code.ShouldBe(OrderRules.LockedCode);
+        refused.Error.Message.ShouldBe(OrderRules.Locked(status));
+        PhotoIdsInOrder(order).ShouldBe(["id0", "id1", "id2"]);
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
     private static string[] PhotoIdsInOrder(Order order) =>
         [.. order.Images.OrderBy(image => image.Position).Select(image => image.PublicId.Split('/')[^1])];
 
-    private static Order OrderWithPhotos(int count)
+    private static Order OrderWithPhotos(int count, decimal unitPrice = 650.00m)
     {
-        var order = OpenOrder();
+        var order = OrderWith(unitPrice);
         for (var index = 0; index < count; index++)
         {
             order.AddImage(Photo($"csps/orders/x/id{index}"), Later.AddMinutes(index)).IsSuccess.ShouldBeTrue();
