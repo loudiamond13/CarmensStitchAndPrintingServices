@@ -235,6 +235,8 @@ public static class AuthorizationMatrix
         new("PUT", "/api/v1/orders/{orderId:guid}/images/{imageId:guid}/position", "/api/v1/orders/3c9e5b71-8a24-4d60-b1f7-0e6a2d4c8b95/images/a5d1e703-6b48-4c92-8f0a-7e3b9c1d2f64/position", Anonymous: 401, Admin: 400, Manager: 400),
         // Describing a photo (ORD-04, D-12): both roles. The matrix sends no body, so both meet 400 on the version before the order is looked up.
         new("PUT", "/api/v1/orders/{orderId:guid}/images/{imageId:guid}", "/api/v1/orders/8e2a6d14-5c97-4b30-a1f8-3d7b0c9e4a62/images/c3f7a915-2d68-4e01-b4a0-9e5d1b7c8f23", Anonymous: 401, Admin: 400, Manager: 400),
+        // Deleting a photo (ORD-04, JOB-02, D-19): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
+        new("DELETE", "/api/v1/orders/{orderId:guid}/images/{imageId:guid}", "/api/v1/orders/2d7f4b95-6e13-4a80-9c2b-8f1a5e3d0b67/images/e6a0c3d8-1b94-4f27-a5d3-7c2e9b4f1a05", Anonymous: 401, Admin: 404, Manager: 404),
         // Adding a discount to a saved order (ORD-05, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("POST", "/api/v1/orders/{orderId:guid}/payments", "/api/v1/orders/9e4b1c73-2a58-4d06-b3f9-5c7a0e1d8f24/payments", Anonymous: 401, Admin: 400, Manager: 400),
         new("PUT", "/api/v1/orders/{orderId:guid}/payments/{paymentId:guid}", "/api/v1/orders/4a7c1e90-6b25-4d83-8f0a-2e5b9c3d7a16/payments/c8f2a05d-3e71-4b96-a4d0-1b7e6c9f2a53", Anonymous: 401, Admin: 400, Manager: 400),
