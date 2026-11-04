@@ -4392,19 +4392,33 @@ async function seedPhase9(browser, request, origin, seed) {
   return { orders: { none, one, three, five, completed, deleted, shapes: viewer }, samples };
 }
 
-/** A page script that waits until every image on the page has loaded or failed. */
-const PHOTOS_LOADED = `Promise.all(Array.from(document.images, (image) => image.complete ? true : new Promise((resolve) => {
-  image.addEventListener('load', () => resolve(true));
-  image.addEventListener('error', () => resolve(true));
-}))).then(() => true)`;
+/**
+ * A page script that brings every image into view in turn (photos load lazily), then waits until each has loaded or failed, for at
+ * most 8 seconds in all, so a photo that never loads cannot hold the run.
+ */
+const PHOTOS_LOADED = `(async () => {
+  const images = Array.from(document.images);
+  for (const image of images) {
+    image.scrollIntoView({ block: 'center' });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  window.scrollTo(0, 0);
+  const loaded = Promise.all(images.map((image) => image.complete ? true : new Promise((resolve) => {
+    image.addEventListener('load', () => resolve(true));
+    image.addEventListener('error', () => resolve(true));
+  })));
+  await Promise.race([loaded, new Promise((resolve) => setTimeout(() => resolve(true), 8000))]);
+  return true;
+})()`;
 
 /**
  * A fresh access token for the person signed in on this page, from the refresh cookie.
  * @param {Page} page
+ * @param {string} origin
  * @returns {Promise<string>}
  */
-async function pageToken(page) {
-  const response = await page.request.post('/api/v1/auth/refresh', { headers: { 'X-CSPS-CSRF': '1' } });
+async function pageToken(page, origin) {
+  const response = await page.request.post(`${origin}/api/v1/auth/refresh`, { headers: { 'X-CSPS-CSRF': '1' } });
   /** @type {unknown} */
   const body = response.ok() ? await response.json() : null;
   const token = isRecord(body) && typeof body.accessToken === 'string' ? body.accessToken : null;
@@ -4423,7 +4437,7 @@ async function pageToken(page) {
  */
 async function ownOrder(c, label, count) {
   const made = await makeOrder(c.request, c.seed.tag, label);
-  await addPhotos(c.request, await pageToken(c.page), made.id, c.nine.samples.slice(0, count));
+  await addPhotos(c.request, await pageToken(c.page, c.origin), made.id, c.nine.samples.slice(0, count));
   return made;
 }
 
@@ -4653,7 +4667,7 @@ const PHASE9_CAPTURES = Object.freeze({
     const dialog = c.page.getByRole('dialog', { name: 'Edit Description' });
     await dialog.waitFor();
     // A coworker describes photo 2 while the window is open, so the window holds an older version of the order.
-    const token = await pageToken(c.page);
+    const token = await pageToken(c.page, c.origin);
     const current = await callApi(c.request, token, 'GET', `/api/v1/orders/${made.id}`);
     /** @type {unknown[]} */
     const images = isRecord(current) && Array.isArray(current.images) ? current.images : [];
