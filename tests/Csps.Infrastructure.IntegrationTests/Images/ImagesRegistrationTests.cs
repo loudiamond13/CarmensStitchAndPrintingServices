@@ -86,6 +86,52 @@ public sealed class ImagesRegistrationTests
         }
     }
 
+    [Fact]
+    public void ADevelopmentHostWithTheCloudNameKeyAndSecretUsesTheCloudinaryStorage()
+    {
+        using var provider = Build(Environments.Development, FakeKeys());
+
+        provider.GetRequiredService<IImageStorage>().ShouldBeOfType<CloudinaryImageStorage>().IsConfigured.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("Cloudinary:CloudName")]
+    [InlineData("Cloudinary:ApiKey")]
+    [InlineData("Cloudinary:ApiSecret")]
+    public void AHostMissingAnyOneOfTheThreeKeysUsesTheStorageThatAnswers503(string missing)
+    {
+        var keys = FakeKeys();
+        keys[missing] = string.Empty;
+        using var provider = Build(Environments.Development, keys);
+
+        provider.GetRequiredService<IImageStorage>().ShouldBeOfType<UnconfiguredImageStorage>().IsConfigured.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void AHostWithNoKeysAtAllStillStartsAndUsesTheStorageThatAnswers503()
+    {
+        using var provider = Build(Environments.Production);
+
+        provider.GetRequiredService<IStartupValidator>().Validate();
+        provider.GetRequiredService<IImageStorage>().ShouldBeOfType<UnconfiguredImageStorage>();
+    }
+
+    [Fact]
+    public void TheCloudinaryHttpClientIsRegisteredByNameAndTheStorageTakesItsRootFolderFromTheSettings()
+    {
+        using var provider = Build(Environments.Development, FakeKeys());
+
+        provider.GetRequiredService<IHttpClientFactory>().CreateClient(CloudinaryImageStorage.HttpClientName).ShouldNotBeNull();
+        provider.GetRequiredService<IImageStorage>().RootFolder.ShouldBe("csps-dev");
+    }
+
+    private static Dictionary<string, string?> FakeKeys() => new()
+    {
+        ["Cloudinary:CloudName"] = "demo-cloud",
+        ["Cloudinary:ApiKey"] = "000000000000000",
+        ["Cloudinary:ApiSecret"] = "test-secret-not-real",
+    };
+
     private sealed class TestEnvironment(string name) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = name;
