@@ -5,8 +5,10 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersTable } from '@/modules/admin/components/OrdersTable';
 import { expectNoAxeViolations } from '@/test/axe';
+import { orderListCover } from '@/test/orderListFixtures';
 import { inStrictMode } from '@/test/strictMode';
 import {
+  buildOrderListEntry,
   cancelledOrderWithRefunds,
   completedOrder,
   creditOrder,
@@ -80,6 +82,41 @@ describe('the columns (UI-SPEC "Table view")', () => {
     const link = within(cellOf('ORD-2026-0148', 'Order')).getByRole('link', { name: 'ORD-2026-0148' });
     expect(link).toHaveAttribute('href', `/admin/orders/${order0148.id}`);
     expect(within(cellOf('ORD-2026-0148', 'Order')).queryByRole('img')).toBeNull();
+  });
+
+  it('shows the cover as a 44 by 44 lazy thumb with the table srcSet, decorative (ORD-04, IMG-04)', () => {
+    const cover = orderListCover(2);
+    const entry = buildOrderListEntry({ cover, imageCount: 1 });
+    renderTable({ rows: [entry] });
+    const cell = cellOf(entry.number, 'Order');
+    const image = cell.querySelector('img');
+
+    expect(image?.getAttribute('src')).toBe(cover.table.src);
+    expect(image?.getAttribute('srcset')).toBe(cover.table.srcSet);
+    expect(image?.hasAttribute('sizes')).toBe(false);
+    expect(image?.getAttribute('alt')).toBe('');
+    expect(image?.getAttribute('width')).toBe('44');
+    expect(image?.getAttribute('height')).toBe('44');
+    expect(image?.getAttribute('loading')).toBe('lazy');
+    expect(image?.parentElement?.style.getPropertyValue('--ratio')).toBe('1 / 1');
+    expect(within(cell).queryByRole('img')).toBeNull();
+  });
+
+  it('keeps the thumb skeleton until the cover has loaded (UIC-6)', () => {
+    const entry = buildOrderListEntry({ cover: orderListCover(2), imageCount: 1 });
+    renderTable({ rows: [entry] });
+    const image = cellOf(entry.number, 'Order').querySelector('img');
+
+    expect(image?.parentElement?.children).toHaveLength(2);
+    fireEvent.load(image as HTMLImageElement);
+    expect(image?.parentElement?.children).toHaveLength(1);
+  });
+
+  it('shows the label-free placeholder and no image for an order without a cover (UIC-4)', () => {
+    renderTable();
+
+    expect(cellOf('ORD-2026-0148', 'Order').querySelector('img')).toBeNull();
+    expect(cellOf('ORD-2026-0148', 'Order').querySelector('[aria-hidden="true"]')).not.toBeNull();
   });
 
   it('opens the order through onOpen on a plain click and leaves a modified click to the link', async () => {

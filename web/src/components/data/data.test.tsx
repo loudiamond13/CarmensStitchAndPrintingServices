@@ -13,7 +13,9 @@ import {
 import { ORDER_0148, ORDER_0151 } from '@/dev/scenarios/groups/money';
 import type { ScenarioNode, ScenarioProps } from '@/dev/scenarios/types';
 import { formatPeso, orderTotals, type Order } from '@/utils/csps';
+import { CARD_SIZES } from '@/modules/admin/imageSlots';
 import { expectNoAxeViolations } from '@/test/axe';
+import { orderListCover } from '@/test/orderListFixtures';
 import { DataTable, OrderCard, WALK_IN_CUSTOMER, type DataTableColumn, type OrderCardOrder } from '@/components/data';
 import { skeletonClasses } from '@/components/feedback/feedback.recipe';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
@@ -79,6 +81,8 @@ function renderCase(id: string) {
 const row0148: OrderCardOrder = CARD_0148 as unknown as OrderCardOrder;
 const row0151: OrderCardOrder = CARD_0151 as unknown as OrderCardOrder;
 const row0153: OrderCardOrder = CARD_0153 as unknown as OrderCardOrder;
+const COVER = orderListCover(1);
+const COVER_IMAGE = { src: COVER.card.src, srcSet: COVER.card.srcSet, width: 4000, height: 3000 };
 
 const creditRow: OrderCardOrder = { ...row0151, balance: '0.00', customerCredit: '1000.00', fullyPaid: false };
 const cancelledRow: OrderCardOrder = {
@@ -238,19 +242,46 @@ describe('OrderCard (list contract, D-04, D-22, D-27, D-40, D-46, D-57)', () => 
     expect(screen.queryByText('Due Oct 14, 2026')).toBeNull();
   });
 
-  it('shows a cover image with an empty alt, the name with its image count, and a count chip (Phase 9 cover)', () => {
-    const { container } = render(
-      <OrderCard order={row0148} cover={{ src: '/media/front.png', name: 'front.png', count: 1200 }} />,
-    );
+  it('shows the cover through LazyImage with the server srcSet and the card sizes, decorative, in the 16:10 box (ORD-04, IMG-04)', () => {
+    const { container } = render(<OrderCard order={row0148} cover={{ image: COVER_IMAGE, count: 1200 }} />);
     const image = container.querySelector('img');
 
-    expect(image?.getAttribute('src')).toBe('/media/front.png');
+    expect(image?.getAttribute('src')).toBe(COVER_IMAGE.src);
+    expect(image?.getAttribute('srcset')).toBe(COVER_IMAGE.srcSet);
+    expect(image?.getAttribute('sizes')).toBe(CARD_SIZES);
     expect(image?.getAttribute('alt')).toBe('');
-    expect(classTokens(image)).toEqual(tokens(orderImageClasses));
-    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 1,200 images' });
-    expect(media.textContent).toContain('1,200');
-    expect(classTokens(within(media).getByText('1,200'))).toEqual(tokens(orderCountClasses));
+    expect(image?.getAttribute('width')).toBe('4000');
+    expect(image?.getAttribute('height')).toBe('3000');
+    expect(image?.getAttribute('loading')).toBe('lazy');
+    const box = image?.parentElement;
+    expect(box?.style.getPropertyValue('--ratio')).toBe('16 / 10');
+    expect(classTokens(box)).toEqual(expect.arrayContaining(tokens(orderImageClasses)));
+    expect(box?.parentElement).toBe(screen.getByRole('button', { name: /^View order ORD-2026-0148/ }));
     expect(screen.queryByRole('img', { name: /no image yet/ })).toBeNull();
+  });
+
+  it('keeps the skeleton over the cover until it has loaded (UIC-6)', () => {
+    const { container } = render(<OrderCard order={row0148} cover={{ image: COVER_IMAGE, count: 2 }} />);
+    const image = container.querySelector('img');
+    const box = image?.parentElement;
+
+    expect(box?.children).toHaveLength(2);
+    fireEvent.load(image as HTMLImageElement);
+    expect(box?.children).toHaveLength(1);
+  });
+
+  it('names the cover button with the image count and shows the chip for more than one photo (UIC-26, UIC-37)', () => {
+    render(<OrderCard order={row0148} cover={{ image: COVER_IMAGE, count: 3 }} />);
+    const media = screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 3 images' });
+
+    expect(classTokens(within(media).getByText('3'))).toEqual(tokens(orderCountClasses));
+  });
+
+  it('shows no chip and a plain name for a single photo (UIC-37)', () => {
+    const { container } = render(<OrderCard order={row0148} cover={{ image: COVER_IMAGE, count: 1 }} />);
+
+    expect([...container.querySelectorAll('span')].some((span) => hasClasses(span, orderCountClasses))).toBe(false);
+    expect(screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production' })).toBeTruthy();
   });
 
   it('draws a cover placeholder with its file name and number, and no count chip for one image', () => {
