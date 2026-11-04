@@ -16,6 +16,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import {
   buildOrderDetail,
+  ORDER_VERSION,
   order0148,
   orderImage,
   useOrderHandlers,
@@ -679,5 +680,67 @@ describe('read-only photos (D-11, D-20, UIC-2, UIC-25)', () => {
     renderCard(buildOrderDetail({ images: [] }), true);
 
     expect(await screen.findByText('No photos on this order.')).toBeVisible();
+  });
+});
+
+/** The version the server hands back after a change; the next change must send it. */
+const NEXT_VERSION = 'AAAAAAAAB9I=';
+const AFTER_SECOND = 'AAAAAAAAB9M=';
+
+/** The ids of the photos in the order the tiles show them (the thumb names carry the description). */
+function shownDescriptions(): string[] {
+  return screen
+    .getAllByRole('button', { name: /^Open photo/ })
+    .map((thumb) => (thumb.getAttribute('aria-label') ?? '').replace(/^Open photo \d+ of \d+: /, ''));
+}
+
+describe('moving a photo with the buttons (D-13, D-15, UIC-10, UIC-43)', () => {
+  it('sends one move with the order version, reorders the tiles when the server answers, keeps focus on the pressed control, says Saved and announces it', async () => {
+    const photo = (name: (typeof FIVE)[number]): string => orderImage(FIVE.indexOf(name) + 1).id;
+    const move = vi
+      .spyOn(orderPhotosService, 'move')
+      .mockResolvedValue(namedPhotos(['Back', 'Front', 'Sleeve'], { version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Move photo 1 right' }));
+
+    await waitFor(() => {
+      expect(shownDescriptions()).toEqual(['Back', 'Front', 'Sleeve']);
+    });
+    expect(move).toHaveBeenCalledTimes(1);
+    expect(move).toHaveBeenCalledWith(order0148.id, photo('Front'), 1, ORDER_VERSION);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Move photo 2 right' })).toHaveFocus();
+    });
+    expect(screen.getByText('Moved to position 2 of 3.')).toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeVisible();
+  });
+
+  it('sends the version of the latest answer with the next move', async () => {
+    const move = vi
+      .spyOn(orderPhotosService, 'move')
+      .mockResolvedValueOnce(namedPhotos(['Back', 'Front', 'Sleeve'], { version: NEXT_VERSION }))
+      .mockResolvedValueOnce(namedPhotos(['Back', 'Sleeve', 'Front'], { version: AFTER_SECOND }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Move photo 1 right' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Move photo 2 right' })).toHaveFocus();
+    });
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(shownDescriptions()).toEqual(['Back', 'Sleeve', 'Front']);
+    });
+    expect(move).toHaveBeenCalledTimes(2);
+    expect(move.mock.calls[1]?.slice(2)).toEqual([2, NEXT_VERSION]);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Move photo 3 left' })).toHaveFocus();
+    });
+    expect(screen.getByText('Moved to position 3 of 3.')).toBeInTheDocument();
   });
 });
