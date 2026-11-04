@@ -69,6 +69,13 @@ describe('softDeleteSentence (D-21, UIC-51)', () => {
     expect(softDeleteSentence({ items: 0, payments: 0, discounts: 0, expenses: 0, refunds: 0 })).toBe(`It is ${TAIL}`);
   });
 
+  it('leaves photos out of the sentence, because a soft delete keeps them (D-20)', () => {
+    expect(softDeleteSentence({ items: 2, payments: 0, discounts: 0, expenses: 0, images: 4 })).toBe(
+      `Its 2 items are ${TAIL}`,
+    );
+    expect(softDeleteSentence({ items: 0, payments: 0, discounts: 0, expenses: 0, images: 4 })).toBe(`It is ${TAIL}`);
+  });
+
   it('writes 1,234 items with the en-PH thousands separator', () => {
     expect(softDeleteSentence({ items: 1234, payments: 0, discounts: 0, expenses: 0 })).toBe(
       `Its 1,234 items are ${TAIL}`,
