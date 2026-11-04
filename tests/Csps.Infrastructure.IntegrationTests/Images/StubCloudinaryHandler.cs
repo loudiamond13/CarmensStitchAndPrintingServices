@@ -49,7 +49,7 @@ internal sealed partial class StubCloudinaryHandler : HttpMessageHandler
             var contentType = request.Content.Headers.ContentType?.ToString() ?? string.Empty;
             if (contentType.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase))
             {
-                ReadMultipart(body, fields);
+                ReadMultipart(body, request.Content.Headers.ContentType!.Parameters.First(p => p.Name == "boundary").Value!.Trim('"'), fields);
             }
             else
             {
@@ -66,13 +66,28 @@ internal sealed partial class StubCloudinaryHandler : HttpMessageHandler
         return reply();
     }
 
-    private static void ReadMultipart(string body, Dictionary<string, string> fields)
+    private static void ReadMultipart(string body, string boundary, Dictionary<string, string> fields)
     {
-        foreach (Match part in MultipartField().Matches(body))
+        foreach (var part in body.Split("--" + boundary, StringSplitOptions.RemoveEmptyEntries))
         {
-            var name = part.Groups["name"].Value;
-            var value = part.Groups["value"].Value;
-            fields[name] = part.Groups["file"].Success ? $"{value.Length} bytes" : value;
+            var split = part.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+            if (split < 0)
+            {
+                continue;
+            }
+
+            var headers = part[..split];
+            var value = part[(split + 4)..];
+            if (value.EndsWith("\r\n", StringComparison.Ordinal))
+            {
+                value = value[..^2];
+            }
+
+            var name = PartName().Match(headers);
+            if (name.Success)
+            {
+                fields[name.Groups["name"].Value] = name.Groups["name"].Value == "file" ? $"{value.Length} bytes" : value;
+            }
         }
     }
 
@@ -87,8 +102,8 @@ internal sealed partial class StubCloudinaryHandler : HttpMessageHandler
         }
     }
 
-    [GeneratedRegex("""Content-Disposition: form-data; name="(?<name>[^"]*)"(?<file>; filename="[^"]*")?[^\r\n]*\r\n(?:Content-Type:[^\r\n]*\r\n)?\r\n(?<value>.*?)\r\n--""", RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-    private static partial Regex MultipartField();
+    [GeneratedRegex("""Content-Disposition:[^\r\n]*?\bname="?(?<name>[^";\r\n]+)"?""", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex PartName();
 }
 
 /// <summary>An <see cref="IHttpClientFactory"/> that hands out clients over one handler.</summary>

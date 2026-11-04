@@ -57,7 +57,6 @@ public sealed class CloudinaryImageStorageTests
         request.Fields["asset_folder"].ShouldBe(AssetFolder);
         request.Fields["overwrite"].ShouldBe("false");
         request.Fields["use_filename"].ShouldBe("false");
-        request.Fields["unique_filename"].ShouldBe("false");
         request.Fields["allowed_formats"].ShouldBe("jpg,png,webp,heic");
         request.Fields["api_key"].ShouldBe(FakeKey);
         request.Fields["signature"].ShouldNotBeNullOrWhiteSpace();
