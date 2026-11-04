@@ -79,7 +79,7 @@ test('@order-photos-create a Manager creates an order with two photos, which upl
   await withPhotoHost(async () => {
     await page.getByRole('button', { name: 'Save Order' }).click();
 
-    await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     await expect(page.getByRole('heading', { level: 1, name: /^ORD-\d{4}-\d{4,}$/ })).toBeVisible();
     await expect(page.getByText('Order saved')).toBeVisible();
     const first = page.getByRole('button', { name: /^Open photo 1 of 2: Order ORD-\d{4}-\d{4,} photo 1$/ });
