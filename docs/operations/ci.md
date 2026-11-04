@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-10-31T03:53:54-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-03T20:48:00-06:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
@@ -55,7 +55,7 @@ Two free GitHub checks run besides the gate (owner approval 2026-10-16, recorded
 
 ## What the CI database is
 
-Stage 5 starts a SQL Server container on the runner, reachable only from that runner (`127.0.0.1`). Its administrator password is made up fresh in every run, hidden from the logs, and thrown away with the runner. CI never connects to the hosted database and holds no production secret.
+Stage 5 starts a SQL Server container on the runner, reachable only from that runner (`127.0.0.1`). Its administrator password is made up fresh in every run, hidden from the logs, and thrown away with the runner. CI never connects to the hosted database and holds no production secret. The only workflows that hold a secret are Deploy and the monthly Maintenance run (see [Maintenance](#maintenance-maintenanceyml)).
 
 ## How to read a failed run
 
@@ -129,6 +129,7 @@ A workflow is one file under `.github/workflows`. A job is one box on a run page
 | `codeql.yml` | CodeQL | Pull requests to `main`, every push to `main`, Sundays 19:23 UTC | `analyze (csharp)`, `analyze (javascript-typescript)` | Both |
 | `hygiene.yml` | Hygiene | Pull requests to `main`, every push to `main` | `secret scan`, `commit messages`, `actionlint`, `zizmor`, `dependency review` | All five |
 | `deploy.yml` | Deploy | Only when the owner presses Run workflow on `main` | `deploy` | No |
+| `maintenance.yml` | Maintenance | The 1st of each month at 19:17 UTC (03:17 on the 2nd in Manila), and the Run workflow button | `monthly maintenance` | No |
 | `dependabot.yml` | None: this is not a workflow. It is the settings file of GitHub's update bot | Once a month | None. The bot opens pull requests, and those face the same checks as any other | No |
 
 The required checks are listed in [the rules](branch-rules.md#the-rules-github-enforces-on-main).
@@ -141,6 +142,7 @@ Rules every workflow follows:
 - Event text (a pull request title, a commit id) reaches scripts only through environment variables, never pasted into a script.
 - There is no path filter, so a check always reports.
 - Runners are `ubuntu-24.04`, except Deploy, which uses `windows-2025`.
+- Secrets appear only in `deploy.yml` and, as the one line `MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}`, in `maintenance.yml`. A secret anywhere else fails `CiWorkflowTests`.
 - No workflow merges anything. Merges go only through `tools/scripts/Merge-PullRequest.ps1`, on the owner's instruction ([How to merge](branch-rules.md#how-to-merge)).
 
 `CiWorkflowTests`, which run inside `3 architecture tests`, check these rules on every pull request.
@@ -180,7 +182,7 @@ One job whose name carries the mode. It sets `DOTNET_NOLOGO` and `DOTNET_CLI_TEL
 | `2 format check` | All modes | Fails when `dotnet format` would change any file | Run `dotnet format Csps.slnx` and commit the result |
 | `3 unit tests` | All modes | Domain, Application and HostProbe unit tests | Run `dotnet test --project tests/Csps.Domain.UnitTests` (or the other two projects) |
 | `3 integration tests` | Full only | Infrastructure and Server integration tests, plus the legacy fit check tests (`tests/Csps.LegacyFitCheck.Tests`, made-up rows in throwaway databases only). With `CSPS_TEST_SQL=container` the tests start their own throwaway SQL Server 2025 container on the runner (through Testcontainers), from a fixed image version | Run the same projects on your machine (they use LocalDB there). A container download or start-up problem, which is not a test failure, may be re-run once |
-| `3 architecture tests` | All modes | The layer rules, plus the tests that read repository files: `CiWorkflowTests`, `HygieneWorkflowTests`, `SecurityWorkflowTests`, `DeployWorkflowTests`, `DependencyRegistryTests`, `HostingRecordTests` and `RepoRulesTests` | Run `dotnet test --project tests/Csps.ArchitectureTests`. The message names the file and the rule |
+| `3 architecture tests` | All modes | The layer rules, plus the tests that read repository files: `CiWorkflowTests`, `HygieneWorkflowTests`, `SecurityWorkflowTests`, `DeployWorkflowTests`, `MaintenanceWorkflowTests`, `DependencyRegistryTests`, `HostingRecordTests` and `RepoRulesTests` | Run `dotnet test --project tests/Csps.ArchitectureTests`. The message names the file and the rule |
 | `4 web typecheck` | All modes | TypeScript type check | `npm --prefix web run typecheck` |
 | `4 web lint` | All modes | ESLint with zero warnings allowed | `npm --prefix web run lint` |
 | `4 web prettier` | All modes | Fails when Prettier would change any file | `npm --prefix web run format`, then commit |
@@ -332,6 +334,26 @@ Inputs:
 | `deploy` | Runs `web/scripts/deploy.mjs`. The inputs and these secrets reach it only through environment variables: `WEBDEPLOY_SERVER`, `WEBDEPLOY_SITE`, `WEBDEPLOY_USERNAME`, `WEBDEPLOY_PASSWORD`, `WEBDEPLOY_CERT_SHA256` and `HOSTPROBE_KEY`, plus the variable `SITE_ORIGIN`. The script checks the commit id | The log says what stopped it. Follow [How to deploy](deploy.md#how-to-deploy) and, if the site is left offline, [Recover with the online action](deploy.md#recover-with-the-online-action) |
 
 More in the runbook: [Secrets and variables](deploy.md#secrets-and-variables), [Dry run first](deploy.md#dry-run-first), [What the automatic rollback does](deploy.md#what-the-automatic-rollback-does) and [Who can deploy](deploy.md#who-can-deploy).
+
+### Maintenance (`maintenance.yml`)
+
+Maintenance calls the site's maintenance endpoint once a month, and whenever the owner presses **Run workflow** ("Run now"). The hosting plan has no scheduler, so GitHub is the scheduler (JOB-01, 01 D-10, D-21). The runbook is [maintenance.md](maintenance.md): this section only describes the file.
+
+- **Runs when:** the cron `17 19 1 * *` fires (19:17 UTC on the 1st, which is 03:17 on the 2nd in Manila), or someone presses **Run workflow**. There is no other trigger. GitHub runs schedules only from `main`, may delay them, and switches them off after 60 days without repository activity ([the runbook](maintenance.md#things-to-know-about-github-schedules) says how to turn them back on).
+- **Permissions:** none at the top and none on the job. The run only calls the site.
+- **Concurrency:** `maintenance`. Two runs never overlap, and a running one is never cancelled.
+- **Runner and time limit:** `ubuntu-24.04`, 20 minutes.
+- **Environment:** none, on purpose. A production environment with a required reviewer would hold every monthly run for approval.
+- **Secrets:** the one repository secret `MAINTENANCE_KEY`, plus the variable `SITE_ORIGIN` that Deploy also uses. Both reach the script only through environment variables.
+- **Required on `main`:** no. A red run blocks no pull request. It emails the owner (D-22).
+
+#### `monthly maintenance`
+
+| Step | What it does and checks | If it fails |
+|---|---|---|
+| `checkout` | Fetches the repository, without keeping the token | A GitHub outage. Re-run the job |
+| `setup node` | Installs Node 24.21.0. The script uses only Node's built-in parts, so nothing else is installed | A GitHub outage. Re-run the job |
+| `run maintenance` | Runs `web/scripts/maintenance.mjs`. It calls the endpoint (again while the answer says there is more, up to 10 calls), writes plain counts to the run summary and exits 1 when anything failed. The log and the summary never show the key or the raw answer | Open the run summary. [What a red run means](maintenance.md#what-a-red-run-means) explains each line |
 
 ### Dependabot (`dependabot.yml`)
 
