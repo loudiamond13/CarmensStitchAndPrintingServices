@@ -3,9 +3,10 @@
 // Moving, covering, describing and deleting a saved photo, and the viewer, arrive with plan 09-23: until then those controls stay
 // disabled.
 import { useQueryClient } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
 import { Icon } from '@/components/brand';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { ImageUploader, type PhotoTileModel } from '@/components/media';
+import { ImageUploader, type PhotoTileModel, type PickError } from '@/components/media';
 import {
   orderPhotosBodyClasses,
   orderPhotosSpinnerClasses,
@@ -18,12 +19,24 @@ import {
   orderCardTitleClasses,
 } from '@/modules/admin/components/orderPage.recipe';
 import { imageRulesQuery, useImageRulesQuery } from '@/modules/admin/hooks/useImageRulesQuery';
-import { usePhotoUploadQueue, type QueueItem } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
+import {
+  photoUploadQueue,
+  usePhotoUploadQueue,
+  type PreparedUpload,
+  type QueueItem,
+} from '@/modules/admin/hooks/usePhotoUploadQueue';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
-import { toImageRules } from '@/modules/admin/orderPhotosSchemas';
+import {
+  cleanFileName,
+  pickFailureMessage,
+  pickIssue,
+  toImageRules,
+  type ImageRules,
+} from '@/modules/admin/orderPhotosSchemas';
 import { isLocked } from '@/modules/admin/orderRules';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
-import { prepareImage } from '@/utils/images';
+import { prepareImage, type PrepareResult } from '@/utils/images';
 
 const COPY = ORDER_PHOTOS_COPY;
 const TITLE_ID = 'order-images';
@@ -67,24 +80,73 @@ export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
   const max = rules?.maxPerOrder ?? DISPLAY_MAX;
   const megabytes = rules === null ? DISPLAY_MEGABYTES : Number((rules.maxBytes / BYTES_PER_MEGABYTE).toFixed(1));
   const locked = isLocked(order);
+  const [pickErrors, setPickErrors] = useState<readonly PickError[]>([]);
+  const [leftOut, setLeftOut] = useState(0);
   const photos = [...savedTiles(order), ...queue.items.map(queuedTile)];
 
-  const addFiles = async (files: File[]): Promise<void> => {
-    const current = toImageRules(await queryClient.query(imageRulesQuery));
-    const ready = [];
-    for (const file of files) {
-      const prepared = await prepareImage(file, current);
-      if (prepared.ok) {
-        ready.push({
-          blob: prepared.file,
-          name: prepared.name,
-          description: '',
-          preview: prepared.preview,
-          previewUnavailable: prepared.previewUnavailable,
-        });
-      }
+  // One pick at a time, so a second pick counts the files the first one queued.
+  const picking = useRef<Promise<void>>(Promise.resolve());
+
+  const runPick = async (files: File[]): Promise<void> => {
+    let current: ImageRules;
+    try {
+      current = toImageRules(await queryClient.query(imageRulesQuery));
+    } catch {
+      setPickErrors(
+        files.map((file) => ({ fileName: cleanFileName(file.name), reason: COPY.reasons.rulesUnavailable })),
+      );
+      setLeftOut(0);
+      return;
     }
+    const saved =
+      queryClient.getQueryData<OrderDetailResponse>(orderKey(order.id))?.images.length ?? order.images.length;
+    let room = Math.max(0, current.maxPerOrder - saved - photoUploadQueue.snapshot(order.id).pending);
+    const ready: PreparedUpload[] = [];
+    const refused: PickError[] = [];
+    let leftOutCount = 0;
+    for (const file of files) {
+      if (room <= 0) {
+        leftOutCount += 1;
+        continue;
+      }
+      const fileName = cleanFileName(file.name);
+      let prepared: PrepareResult;
+      try {
+        prepared = await prepareImage(file, current);
+      } catch {
+        prepared = { ok: false, reason: 'unreadable' };
+      }
+      if (!prepared.ok) {
+        refused.push({ fileName, reason: pickFailureMessage(prepared.reason, file.name, current) });
+        continue;
+      }
+      const issue = pickIssue(current, {
+        name: file.name,
+        type: prepared.type,
+        bytes: prepared.file.size,
+        width: prepared.width,
+        height: prepared.height,
+      });
+      if (issue !== null) {
+        refused.push({ fileName, reason: issue });
+        continue;
+      }
+      ready.push({
+        blob: prepared.file,
+        name: prepared.name,
+        description: '',
+        preview: prepared.preview,
+        previewUnavailable: prepared.previewUnavailable,
+      });
+      room -= 1;
+    }
+    setPickErrors(refused);
+    setLeftOut(leftOutCount);
     queue.enqueue(ready);
+  };
+
+  const addFiles = (files: File[]): void => {
+    picking.current = picking.current.then(() => runPick(files));
   };
 
   return (
@@ -113,9 +175,9 @@ export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
           mode={locked ? 'readonly' : 'live'}
           busy
           limitNote={COPY.limit.live(max)}
-          onAddFiles={(files) => {
-            void addFiles(files);
-          }}
+          pickErrors={pickErrors}
+          leftOutCount={leftOut}
+          onAddFiles={addFiles}
           onMove={() => undefined}
           onMakeCover={() => undefined}
           onEditDescription={() => undefined}

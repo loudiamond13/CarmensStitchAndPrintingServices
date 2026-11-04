@@ -82,4 +82,38 @@ test('@order-photos-upload a Manager picks a photo and sees it saved with a thum
   await expect(saved).toBeVisible();
   await expect.poll(() => thumbWidth(page, 1)).toBeGreaterThan(0);
   await expect(page.getByText('front.jpg')).toBeHidden();
+  await expect(page.getByText('Photos added', { exact: true })).toBeVisible();
+  await expect(page.getByText(`1 photo added to ${number}.`)).toBeVisible();
+});
+
+test('@order-photos-upload three picked photos upload in order and show as three saved photos', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(180_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const { id, number } = await seedOrder(request);
+  await signInAs(page, request, manager);
+  await page.goto(`/admin/orders/${id}`);
+  await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible();
+
+  await page
+    .locator('input[type="file"][multiple]')
+    .setInputFiles([
+      await drawJpeg(page, 'one.jpg', 10),
+      await drawJpeg(page, 'two.jpg', 120),
+      await drawJpeg(page, 'three.jpg', 240),
+    ]);
+
+  await expect(page.getByText('Photos added', { exact: true })).toBeVisible();
+  await expect(page.getByText(`3 photos added to ${number}.`)).toBeVisible();
+  for (const position of [1, 2, 3]) {
+    const name = `Open photo ${String(position)} of 3: Order ${number} photo ${String(position)}`;
+    await expect(page.getByRole('button', { name })).toBeVisible();
+    await expect.poll(() => thumbWidth(page, position)).toBeGreaterThan(0);
+  }
+  await expect(page.getByText('3/5').first()).toBeAttached();
+  await expect(page.getByText(/Uploading photo/)).toBeHidden();
 });

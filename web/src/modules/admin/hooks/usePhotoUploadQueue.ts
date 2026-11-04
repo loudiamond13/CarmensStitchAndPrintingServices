@@ -1,9 +1,13 @@
 // The upload queue of one order's photos (ORD-04, IMG-01, D-10, D-31). Picked photos wait here in memory, per order id, and
 // upload one at a time, each under its own Idempotency-Key. Nothing is written to browser storage (a shared shop phone must not
 // show another order's photos); the queue is dropped when the Images card leaves the page.
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore } from 'react';
+import { useToast } from '@/components/feedback';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
 import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
+import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 
@@ -90,6 +94,8 @@ interface Entry {
   snapshot: QueueSnapshot;
 }
 
+const ANNOUNCE = ORDER_PHOTOS_COPY.announce;
+
 const EMPTY: QueueSnapshot = { items: [], progress: null, pending: 0, failed: 0, batchTotal: 0, announcement: '' };
 
 const entries = new Map<string, Entry>();
@@ -127,6 +133,29 @@ function failureOf(error: unknown): UploadFailure {
   return { reason: error instanceof Error ? error.message : '', retryable: false };
 }
 
+/** Counts the files of the batch that are done (saved or failed) and the files the batch holds. */
+function batchCounts(entry: Entry): { settled: number; total: number; failed: number } {
+  const failed = entry.items.filter((item) => item.state === 'failed').length;
+  return { settled: entry.saved + failed, total: entry.saved + entry.items.length, failed };
+}
+
+/** What the screen reader hears when the queue goes quiet: all uploaded, or how many did not. */
+function finish(entry: Entry): void {
+  const { total, failed } = batchCounts(entry);
+  if (entry.items.length === 0) {
+    const count = entry.saved;
+    entry.saved = 0;
+    entry.announcement = ANNOUNCE.allUploaded;
+    publish(entry);
+    entry.deps.onBatchDone(count);
+    return;
+  }
+  if (failed > 0) {
+    entry.announcement = ANNOUNCE.someFailed(failed, total);
+    publish(entry);
+  }
+}
+
 async function pump(orderId: string, entry: Entry): Promise<void> {
   if (entry.running) return;
   entry.running = true;
@@ -139,20 +168,27 @@ async function pump(orderId: string, entry: Entry): Promise<void> {
       item.failure = null;
       entry.controller = new AbortController();
       publish(entry);
+      let answer: OrderDetailResponse | null = null;
       try {
-        const order = await entry.deps.upload(
+        answer = await entry.deps.upload(
           orderId,
           { blob: item.blob, name: item.name, description: item.description, key: item.key },
           entry.controller.signal,
         );
-        if (isGone(entry)) return;
-        entry.items = entry.items.filter((candidate) => candidate !== item);
-        entry.saved += 1;
-        entry.deps.onSaved(order);
       } catch (error) {
         if (isGone(entry)) return;
         item.state = 'failed';
         item.failure = failureOf(error);
+      }
+      if (isGone(entry)) return;
+      if (answer !== null) {
+        entry.items = entry.items.filter((candidate) => candidate !== item);
+        entry.saved += 1;
+        const { settled, total } = batchCounts(entry);
+        if (entry.items.some((candidate) => candidate.state === 'waiting')) {
+          entry.announcement = ANNOUNCE.uploaded(settled, total);
+        }
+        entry.deps.onSaved(answer);
       }
       publish(entry);
     }
@@ -160,10 +196,7 @@ async function pump(orderId: string, entry: Entry): Promise<void> {
     entry.running = false;
     entry.controller = null;
   }
-  if (entry.items.length === 0) {
-    entry.saved = 0;
-    publish(entry);
-  }
+  finish(entry);
 }
 
 function entryOf(orderId: string, deps: UploadDeps): Entry {
@@ -246,10 +279,12 @@ export const photoUploadQueue = {
     shown.set(orderId, (shown.get(orderId) ?? 0) + 1);
     return () => {
       shown.set(orderId, (shown.get(orderId) ?? 1) - 1);
+      // Only the queue that was there when the screen left is dropped, not one made since.
+      const leaving = entries.get(orderId);
       window.setTimeout(() => {
         if ((shown.get(orderId) ?? 0) <= 0) {
           shown.delete(orderId);
-          photoUploadQueue.clear(orderId);
+          if (entries.get(orderId) === leaving) photoUploadQueue.clear(orderId);
         }
       }, 0);
     };
@@ -265,6 +300,8 @@ export interface PhotoUploadQueueApi extends QueueSnapshot {
 /** The order's queue for the Images card: its snapshot and the actions, with the request and the order cache wired in. */
 export function usePhotoUploadQueue(orderId: string): PhotoUploadQueueApi {
   const applyOrder = useApplyOrder();
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const snapshot = useSyncExternalStore(
     photoUploadQueue.subscribe,
     () => photoUploadQueue.snapshot(orderId),
@@ -276,7 +313,14 @@ export function usePhotoUploadQueue(orderId: string): PhotoUploadQueueApi {
       orderPhotosService.upload(id, item.blob, item.name, item.description, item.key, signal),
     onSaved: applyOrder,
     onLocked: () => undefined,
-    onBatchDone: () => undefined,
+    onBatchDone: (count) => {
+      const number = queryClient.getQueryData<OrderDetailResponse>(orderKey(orderId))?.number ?? '';
+      toast.show({
+        tone: 'success',
+        title: ORDER_PHOTOS_COPY.toasts.added.title,
+        message: ORDER_PHOTOS_COPY.toasts.added.message(count, number),
+      });
+    },
   };
   return {
     ...snapshot,

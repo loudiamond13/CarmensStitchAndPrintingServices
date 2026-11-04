@@ -5,7 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
 import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
-import { photoUploadQueue, usePhotoUploadQueue, type PreparedUpload } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import {
+  photoUploadQueue,
+  usePhotoUploadQueue,
+  type PreparedUpload,
+  type UploadDeps,
+} from '@/modules/admin/hooks/usePhotoUploadQueue';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { buildOrderDetail, order0148, orderImage, type OrderDetailFixture } from '@/test/orderFixtures';
 
