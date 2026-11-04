@@ -30,6 +30,7 @@ public sealed class SolutionLayoutTests
         "tools/Csps.EmailPreview/Csps.EmailPreview.csproj",
         "tools/Csps.HostProbe/Csps.HostProbe.csproj",
         "tools/Csps.LegacyFitCheck/Csps.LegacyFitCheck.csproj",
+        "tools/Csps.CloudinarySetup/Csps.CloudinarySetup.csproj",
     ];
 
     [Fact]
