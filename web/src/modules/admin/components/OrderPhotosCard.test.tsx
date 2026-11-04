@@ -8,6 +8,7 @@ import { HttpError } from '@/core/api/errors';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { OrderPhotosCard } from '@/modules/admin/components/OrderPhotosCard';
 import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
+import { VIEWER_SIZES } from '@/modules/admin/imageSlots';
 import { photoUploadQueue } from '@/modules/admin/hooks/usePhotoUploadQueue';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
@@ -58,17 +59,17 @@ function readyFile(file: File): PrepareResult {
   };
 }
 
-function Harness() {
+function Harness({ readOnly }: { readOnly: boolean }) {
   const query = useOrderQuery(order0148.id);
-  return query.data === undefined ? null : <OrderPhotosCard order={query.data} />;
+  return query.data === undefined ? null : <OrderPhotosCard order={query.data} readOnly={readOnly} />;
 }
 
-function renderCard(order: OrderDetailFixture = order0148) {
+function renderCard(order: OrderDetailFixture = order0148, readOnly = false) {
   queryClient.setQueryData(orderKey(order0148.id), order);
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <Harness />
+        <Harness readOnly={readOnly} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -436,5 +437,247 @@ describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
       expect(within(tile).getByRole('button', { name: `Remove ${name}` })).toBeVisible();
       expect(within(tile).queryByRole('button', { name: /^Try again/ })).not.toBeInTheDocument();
     }
+  });
+});
+
+const FIVE = ['Front', 'Back', 'Sleeve', 'Collar', 'Number'] as const;
+
+/**
+ * An order whose photos carry their own descriptions, so a test can tell which photo the viewer shows. A name from FIVE keeps
+ * the id of its place in FIVE, so a shorter list is the same photos with some deleted.
+ */
+function namedPhotos(names: readonly string[], overrides: Partial<OrderDetailFixture> = {}): OrderDetailFixture {
+  return buildOrderDetail({
+    images: names.map((name, index) => {
+      const known = (FIVE as readonly string[]).indexOf(name);
+      return orderImage((known >= 0 ? known : index) + 1, { description: name, position: index });
+    }),
+    ...overrides,
+  });
+}
+
+function thumbOf(position: number, total: number, description: string): HTMLElement {
+  return screen.getByRole('button', { name: `Open photo ${String(position)} of ${String(total)}: ${description}` });
+}
+
+function setOrder(order: OrderDetailFixture): void {
+  act(() => {
+    queryClient.setQueryData(orderKey(order0148.id), order);
+  });
+}
+
+describe('the photo viewer (D-16, D-04, D-27, UIC-25, UIC-44)', () => {
+  it('opens at the photo pressed with the viewer srcSet and the viewer sizes', async () => {
+    const { container } = renderCard(namedPhotos(FIVE));
+    await screen.findByRole('list', { name: 'Order photos' });
+
+    await userEvent.setup().click(thumbOf(2, 5, 'Back'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+    expect(within(dialog).getByText('Photo 2 of 5')).toBeVisible();
+    const image = within(dialog).getByRole('img', { name: 'Back' });
+    expect(image).toHaveAttribute('sizes', VIEWER_SIZES);
+    expect(image.getAttribute('srcset')).toContain('/api/testing/images/photo02?size=csps_view_1600 1600w');
+    await expectNoAxeViolations(container);
+  });
+
+  it('uses the default description as the alt text of a photo with none', async () => {
+    renderCard(orderWithPhotos(3));
+    await screen.findByRole('list', { name: 'Order photos' });
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Open photo 3 of 3: Order ORD-2026-0148 photo 3' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+    expect(within(dialog).getByRole('img', { name: 'Order ORD-2026-0148 photo 3' })).toBeInTheDocument();
+  });
+
+  it('offers Open Full Size as a link to the full-size address in a new tab', async () => {
+    renderCard(namedPhotos(FIVE));
+    await screen.findByRole('list', { name: 'Order photos' });
+
+    await userEvent.setup().click(thumbOf(3, 5, 'Sleeve'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+    const link = within(dialog).getByRole('link', { name: /Open Full Size/ });
+    expect(link).toHaveAttribute('href', '/api/testing/images/photo03?size=csps_full_2000');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('steps with the arrows and on Esc puts focus on the thumb of the photo shown last', async () => {
+    renderCard(namedPhotos(FIVE));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(thumbOf(2, 5, 'Back'));
+    const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+    expect(within(dialog).getByText('Photo 4 of 5')).toBeVisible();
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(thumbOf(4, 5, 'Collar')).toHaveFocus();
+  });
+
+  it('wraps from the last photo to the first and back', async () => {
+    renderCard(namedPhotos(FIVE));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(thumbOf(5, 5, 'Number'));
+    const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+    await user.keyboard('{ArrowRight}');
+    expect(within(dialog).getByText('Photo 1 of 5')).toBeVisible();
+    await user.keyboard('{ArrowLeft}');
+    expect(within(dialog).getByText('Photo 5 of 5')).toBeVisible();
+  });
+
+  it('returns focus to the thumb of the photo shown last when Close viewer is pressed', async () => {
+    renderCard(namedPhotos(FIVE));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(thumbOf(1, 5, 'Front'));
+    await user.click(await screen.findByRole('button', { name: 'Next image' }));
+    await user.click(screen.getByRole('button', { name: 'Close viewer' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(thumbOf(2, 5, 'Back')).toHaveFocus();
+  });
+
+  it('gives a waiting file no open button', async () => {
+    prepareEveryFile();
+    vi.spyOn(orderPhotosService, 'upload').mockImplementation(() => new Promise(() => undefined));
+    const { container } = renderCard(namedPhotos(['Front', 'Back']));
+    await screen.findByRole('list', { name: 'Order photos' });
+
+    await userEvent.setup().upload(galleryInput(container), pickedImage('queued.jpg'));
+
+    const tile = await waitFor(() => tileOf('queued.jpg'));
+    expect(within(tile).queryByRole('button', { name: /^Open photo/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Open photo/ })).toHaveLength(2);
+  });
+
+  it('keeps the same photo when the photos reload without another one, and the nearest when it is gone', async () => {
+    renderCard(namedPhotos(FIVE));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+    await user.click(thumbOf(4, 5, 'Collar'));
+    const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+
+    // Photo 2 is deleted elsewhere: the viewer stays on Collar, now photo 3 of 4.
+    setOrder(namedPhotos(['Front', 'Sleeve', 'Collar', 'Number']));
+    await waitFor(() => {
+      expect(within(dialog).getByText('Photo 3 of 4')).toBeVisible();
+    });
+    expect(within(dialog).getByRole('img', { name: 'Collar' })).toBeInTheDocument();
+
+    // Collar itself is deleted: the viewer shows the photo now at that place.
+    setOrder(namedPhotos(['Front', 'Sleeve', 'Number']));
+    await waitFor(() => {
+      expect(within(dialog).getByRole('img', { name: 'Number' })).toBeInTheDocument();
+    });
+    expect(within(dialog).getByText('Photo 3 of 3')).toBeVisible();
+  });
+
+  it('closes when no photos are left and puts focus on the card heading', async () => {
+    renderCard(namedPhotos(['Front', 'Back']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    await userEvent.setup().click(thumbOf(1, 2, 'Front'));
+    await screen.findByRole('dialog', { name: 'Order photos' });
+
+    setOrder(buildOrderDetail({ images: [] }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'Images' })).toHaveFocus();
+    });
+  });
+});
+
+/** Nothing on the card changes a photo or adds one. */
+function expectNoWriteControls(): void {
+  for (const name of ['browse', 'Choose Photos', 'Take Photo']) {
+    expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+  }
+  expect(screen.queryByRole('button', { name: /^(Move photo|Edit description|Delete photo)/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^Make cover/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/the most it can have/)).not.toBeInTheDocument();
+  for (const tile of within(screen.getByRole('list', { name: 'Order photos' })).getAllByRole('listitem')) {
+    expect(tile).not.toHaveAttribute('draggable');
+    expect(within(tile).getAllByRole('button')).toHaveLength(1);
+  }
+}
+
+describe('read-only photos (D-11, D-20, UIC-2, UIC-25)', () => {
+  it.each(['completed', 'cancelled'])(
+    'shows the photos of a %s order with no add area, limit note, second row, drag or Make Cover, and the thumbs open the viewer',
+    async (status) => {
+      const { container } = renderCard(namedPhotos(FIVE, { status }));
+      await screen.findByRole('list', { name: 'Order photos' });
+
+      expectNoWriteControls();
+      await expectNoAxeViolations(container);
+      const user = userEvent.setup();
+      await user.click(thumbOf(3, 5, 'Sleeve'));
+      const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+      expect(within(dialog).getByText('Photo 3 of 5')).toBeVisible();
+      expect(within(dialog).getByRole('link', { name: /Open Full Size/ })).toHaveAttribute('target', '_blank');
+      await user.keyboard('{Escape}');
+      await waitFor(() => {
+        expect(thumbOf(3, 5, 'Sleeve')).toHaveFocus();
+      });
+    },
+  );
+
+  it('brings the controls back when the order is reopened', async () => {
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve'], { status: 'completed' }));
+    await screen.findByRole('list', { name: 'Order photos' });
+    expect(screen.queryByRole('button', { name: 'browse' })).not.toBeInTheDocument();
+
+    setOrder(namedPhotos(['Front', 'Back', 'Sleeve'], { status: 'production' }));
+
+    expect(await screen.findByRole('button', { name: 'browse' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Make cover, photo 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete photo 1' })).toBeInTheDocument();
+  });
+
+  it('says No photos on this order. for a cancelled order with none', async () => {
+    renderCard(buildOrderDetail({ status: 'cancelled', images: [] }));
+
+    expect(await screen.findByText('No photos on this order.')).toBeVisible();
+    expect(screen.queryByRole('list', { name: 'Order photos' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'browse' })).not.toBeInTheDocument();
+  });
+
+  it('is read-only on a live order when the page forces it (the deleted order view), and does not read the photo rules', async () => {
+    let ruleReads = 0;
+    server.use(
+      http.get('*/api/v1/orders/image-rules', () => {
+        ruleReads += 1;
+        return HttpResponse.json({});
+      }),
+    );
+    renderCard(namedPhotos(['Front', 'Back']), true);
+    await screen.findByRole('list', { name: 'Order photos' });
+
+    expectNoWriteControls();
+    await userEvent.setup().click(thumbOf(2, 2, 'Back'));
+    expect(await screen.findByRole('dialog', { name: 'Order photos' })).toBeVisible();
+    expect(ruleReads).toBe(0);
+  });
+
+  it('says No photos on this order. when the page forces read-only on an order with none', async () => {
+    renderCard(buildOrderDetail({ images: [] }), true);
+
+    expect(await screen.findByText('No photos on this order.')).toBeVisible();
   });
 });
