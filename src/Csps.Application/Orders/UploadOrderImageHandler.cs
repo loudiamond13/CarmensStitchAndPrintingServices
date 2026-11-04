@@ -14,7 +14,8 @@ namespace Csps.Application.Orders;
 /// room, and the description must fit (404 or 422), then the file is read by its first bytes and held to the size limits (400), its location and camera data
 /// is removed (400 when that cannot be done, D-02), and only then is it sent to the storage under a random id (D-01). The photo row is saved through the order's row lock with one <c>order-image.added</c> entry
 /// that names the order number and the photo's place, never its id or address (D-19). A save that loses a race is read again and
-/// decided again once. The client file name and content type never shape the stored id.
+/// decided again once. When the photo row cannot be saved after the file reached storage, the file is queued for removal as
+/// <c>UploadUndone</c> on its own short context (JOB-02). The client file name and content type never shape the stored id.
 /// </summary>
 public sealed class UploadOrderImageHandler(
     IOrders orders,
@@ -27,9 +28,6 @@ public sealed class UploadOrderImageHandler(
     IImageDeletionQueue imageDeletions,
     ImageUploadSettings settings)
 {
-    // Compile shell for the red tests: the queue is not used yet.
-    private readonly IImageDeletionQueue _imageDeletions = imageDeletions;
-
     /// <summary>Uploads the photo.</summary>
     /// <param name="orderId">The order to add the photo to.</param>
     /// <param name="request">The file and the optional description.</param>
@@ -92,26 +90,68 @@ public sealed class UploadOrderImageHandler(
             return Result.Failure<OrderDetailResponse>(ImageErrors.StorageFailed);
         }
 
-        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        var photo = new NewOrderImage(publicId, facts.UprightWidth, facts.UprightHeight, clean.Length, ImageKinds.Key(facts.Kind), request.Description);
-        var outcome = await ConflictRetry.RunAsync(
-            () => OrderChildWrite.AttemptAsync(
-                orders,
-                audit,
-                unitOfWork,
-                orderId,
-                version: null,
-                (order, _) =>
-                {
-                    var added = order.AddImage(photo, clock.UtcNow);
-                    return Task.FromResult(added.IsFailure
-                        ? Result.Failure<OrderChildAudit?>(added.Error)
-                        : Result.Success<OrderChildAudit?>(new OrderChildAudit(AuditActions.OrderImageAdded, OrderAuditDetail.ImageAdded(order, added.Value))));
-                },
-                cancellationToken),
-            Result.Failure<bool>(EditErrors.Stale)).ConfigureAwait(false);
+        var outcome = await SavePhotoAsync(orderId, publicId, facts, clean.Length, request.Description, cancellationToken).ConfigureAwait(false);
         return outcome.IsFailure
             ? Result.Failure<OrderDetailResponse>(outcome.Error)
             : await OrderChildWrite.ReadAsync(reader, orderId, cancellationToken).ConfigureAwait(false);
+    }
+
+    // The file is already in storage here. Whatever stops the photo row from being saved, the file is queued for removal on its own
+    // context, with a token that cannot be cancelled so a dropped request still queues it (IMG-01). A failed queue write never hides the
+    // original answer; the 2 day stray sweep is the backstop.
+    private async Task<Result<bool>> SavePhotoAsync(
+        Guid orderId,
+        string publicId,
+        ImageFacts facts,
+        int storedBytes,
+        string? description,
+        CancellationToken cancellationToken)
+    {
+        Result<bool> outcome;
+        try
+        {
+            var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
+            var photo = new NewOrderImage(publicId, facts.UprightWidth, facts.UprightHeight, storedBytes, ImageKinds.Key(facts.Kind), description);
+            outcome = await ConflictRetry.RunAsync(
+                () => OrderChildWrite.AttemptAsync(
+                    orders,
+                    audit,
+                    unitOfWork,
+                    orderId,
+                    version: null,
+                    (order, _) =>
+                    {
+                        var added = order.AddImage(photo, clock.UtcNow);
+                        return Task.FromResult(added.IsFailure
+                            ? Result.Failure<OrderChildAudit?>(added.Error)
+                            : Result.Success<OrderChildAudit?>(new OrderChildAudit(AuditActions.OrderImageAdded, OrderAuditDetail.ImageAdded(order, added.Value))));
+                    },
+                    cancellationToken),
+                Result.Failure<bool>(EditErrors.Stale)).ConfigureAwait(false);
+        }
+        catch
+        {
+            await UndoUploadAsync(publicId).ConfigureAwait(false);
+            throw;
+        }
+
+        if (outcome.IsFailure)
+        {
+            await UndoUploadAsync(publicId).ConfigureAwait(false);
+        }
+
+        return outcome;
+    }
+
+    private async Task UndoUploadAsync(string publicId)
+    {
+        try
+        {
+            await imageDeletions.EnqueueNowAsync(publicId, ImageDeletionReason.UploadUndone, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // The queue write logs its own failure code; the stray sweep removes the file later.
+        }
     }
 }
