@@ -122,3 +122,34 @@ test('@order-photos-arrange with the keyboard only, Move photo 1 right swaps the
   await expect(page.getByRole('button', { name: 'Move photo 2 right' })).toBeFocused();
   await expect(page.getByText('Saved', { exact: true })).toBeVisible();
 });
+
+/** The photo's key in a Testing image address: the part that names the photo, whatever the size. */
+function photoKey(source: string | null | undefined): string {
+  const key = /\/api\/testing\/images\/([^?]+)/.exec(source ?? '')?.[1];
+  if (key === undefined) throw new Error(`No photo key in ${source ?? 'a missing address'}`);
+  return key;
+}
+
+test('@order-photos-arrange Make Cover on photo 3 makes it the cover here and on the Orders list, and focus goes to its Edit description', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const { number } = await orderWithPhotos(page, request, 3);
+  const before = await thumbSources(page);
+  const key = photoKey(before[2]);
+
+  await page.getByRole('button', { name: 'Make cover, photo 3' }).click();
+
+  await expect.poll(() => thumbSources(page)).toEqual([before[2], before[0], before[1]]);
+  await expect(tiles(page).nth(0).getByText('Cover', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit description of photo 1' })).toBeFocused();
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+
+  await page.goto('/admin/orders?view=grid');
+  const card = page.getByRole('article').filter({ hasText: number });
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('img').first()).toHaveAttribute('src', new RegExp(key));
+});

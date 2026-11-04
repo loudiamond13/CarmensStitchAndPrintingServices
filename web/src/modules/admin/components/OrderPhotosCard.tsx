@@ -6,6 +6,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Icon } from '@/components/brand';
+import { useToast } from '@/components/feedback';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import {
   ImageUploader,
@@ -32,7 +33,8 @@ import {
   orderCardHintClasses,
   orderCardTitleClasses,
 } from '@/modules/admin/components/orderPage.recipe';
-import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { isHttpError } from '@/core/api/errors';
+import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
 import { imageRulesQuery, useImageRulesQuery } from '@/modules/admin/hooks/useImageRulesQuery';
 import { VIEWER_SIZES } from '@/modules/admin/imageSlots';
@@ -54,6 +56,7 @@ import {
 import { isLocked } from '@/modules/admin/orderRules';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
+import { describeHttpError, errorLine } from '@/utils/describeHttpError';
 import { prepareImage, type PrepareResult } from '@/utils/images';
 
 const COPY = ORDER_PHOTOS_COPY;
@@ -87,6 +90,9 @@ interface FocusPlan {
   readonly id: string;
   readonly control: FocusControl;
 }
+
+/** The statuses whose own sentence the server writes for staff (a lock, a photo that is gone, a refused value). */
+const SERVER_WORDS: ReadonlySet<number> = new Set([400, 404, 422]);
 
 /** How long "Saved" stays on the status line (D-15). */
 const SAVED_MS = 4000;
@@ -191,6 +197,8 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
   }, [viewerIndex]);
 
   const applyOrder = useApplyOrder();
+  const refetchOrder = useRefetchOrder();
+  const toast = useToast();
   // The small "Saved" line of the card head (cleared after 4 seconds or at the next change) and the spoken line.
   const [saved, setSaved] = useState(false);
   const [announcement, setAnnouncement] = useState('');
@@ -223,6 +231,27 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
       setSaved(true);
       focusPlan.current = target.control === null ? null : { ids, id: target.id, control: target.control };
     },
+    (error) => {
+      if (isHttpError(error) && error.kind === 'http' && error.status === 409) {
+        // Someone else changed the order: the latest photos are shown, and nothing is retried on its own (D-15).
+        void refetchOrder(order.id);
+        toast.show({ tone: 'info', title: COPY.toasts.reloaded.title, message: COPY.toasts.reloaded.message });
+        headingRef.current?.focus();
+        return;
+      }
+      const refused = isHttpError(error) && error.kind === 'http' && SERVER_WORDS.has(error.status);
+      if (refused) {
+        // A lock or a photo that is gone: the page is out of date as well as refused.
+        void refetchOrder(order.id);
+      }
+      const copy = describeHttpError(error);
+      const detail = refused ? error.problem?.detail : undefined;
+      toast.show({
+        tone: 'danger',
+        title: COPY.toasts.changeFailed.title,
+        message: detail ?? (copy === null ? '' : errorLine(copy)),
+      });
+    },
   );
   // Saved photos can change only while no change is saving and nothing is uploading (UI-SPEC busy rule).
   const busy = moving.pending || queue.items.some((item) => item.state === 'waiting' || item.state === 'uploading');
@@ -248,6 +277,9 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
   };
   const onMove = (id: string, toIndex: number): void => {
     move(id, toIndex, null);
+  };
+  const onMakeCover = (id: string): void => {
+    move(id, 0, 'cover');
   };
 
   // Once the answer is on screen, focus goes back to the pressed control on the moved photo. When that control is disabled at an
@@ -393,7 +425,7 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
           leftOutCount={leftOut}
           onAddFiles={addFiles}
           onMove={onMove}
-          onMakeCover={() => undefined}
+          onMakeCover={onMakeCover}
           onEditDescription={() => undefined}
           onDelete={() => undefined}
           onRemove={queue.remove}

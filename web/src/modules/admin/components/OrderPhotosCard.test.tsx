@@ -751,16 +751,16 @@ function savedPhotoControls(): HTMLElement[] {
 }
 
 /** A move that stays pending until `release` is called, and answers with `answer`. */
-function heldMove(answer: OrderDetailFixture): { release: () => void } {
+function heldMove(answer: OrderDetailFixture) {
   let release: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  vi.spyOn(orderPhotosService, 'move').mockImplementation(async () => {
+  const move = vi.spyOn(orderPhotosService, 'move').mockImplementation(async () => {
     await gate;
     return answer;
   });
-  return { release };
+  return { release, move };
 }
 
 describe('Make Cover and drag (D-13, D-14, UIC-35)', () => {
@@ -824,7 +824,7 @@ describe('Make Cover and drag (D-13, D-14, UIC-35)', () => {
 
 describe('the busy rule (UIC-10, WEB-09)', () => {
   it('while a move is pending every saved-photo control is aria-disabled with focus kept, drag is off, and a second press sends nothing', async () => {
-    const { release } = heldMove(namedPhotos(['Back', 'Front', 'Sleeve'], { version: NEXT_VERSION }));
+    const { release, move } = heldMove(namedPhotos(['Back', 'Front', 'Sleeve'], { version: NEXT_VERSION }));
     renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
     const list = await screen.findByRole('list', { name: 'Order photos' });
     const user = userEvent.setup();
@@ -840,7 +840,6 @@ describe('the busy rule (UIC-10, WEB-09)', () => {
     for (const tile of within(list).getAllByRole('listitem')) {
       expect(tile).not.toHaveAttribute('draggable');
     }
-    const move = vi.mocked(orderPhotosService.move);
     await user.click(screen.getByRole('button', { name: 'Move photo 2 right' }));
     await user.click(screen.getByRole('button', { name: 'Make cover, photo 3' }));
     expect(move).toHaveBeenCalledTimes(1);
