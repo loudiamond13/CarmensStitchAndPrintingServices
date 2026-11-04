@@ -1,7 +1,8 @@
 // The Images card of the order page, O1 (ORD-04, IMG-05; UI-SPEC P1 and P3). Picked photos are prepared in the browser, queued in
 // memory and uploaded one at a time; a saved photo shows the thumb the server delivers. Every figure and address is the server's.
-// A saved photo's thumb opens the viewer (D-16); closing it puts focus on the thumb of the photo shown last. Moving, covering,
-// describing and deleting a saved photo arrive in later plans: until then those controls stay disabled.
+// A saved photo's thumb opens the viewer (D-16); closing it puts focus on the thumb of the photo shown last. Moving a photo saves at
+// once (D-13, D-15): the buttons and the drag send the same request, the page takes the server's answer, and the card says
+// "Saved" and announces the new place. Describing and deleting a saved photo arrive in later plans.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Icon } from '@/components/brand';
@@ -21,6 +22,7 @@ import {
   orderPhotosBannerTextClasses,
   orderPhotosBannerTitleClasses,
   orderPhotosBodyClasses,
+  orderPhotosSavedIconClasses,
   orderPhotosSpinnerClasses,
   orderPhotosStatusClasses,
 } from '@/modules/admin/components/orderPhotos.recipe';
@@ -30,6 +32,8 @@ import {
   orderCardHintClasses,
   orderCardTitleClasses,
 } from '@/modules/admin/components/orderPage.recipe';
+import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
 import { imageRulesQuery, useImageRulesQuery } from '@/modules/admin/hooks/useImageRulesQuery';
 import { VIEWER_SIZES } from '@/modules/admin/imageSlots';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
@@ -48,6 +52,7 @@ import {
   type ImageRules,
 } from '@/modules/admin/orderPhotosSchemas';
 import { isLocked } from '@/modules/admin/orderRules';
+import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { prepareImage, type PrepareResult } from '@/utils/images';
 
@@ -65,6 +70,26 @@ export interface OrderPhotosCardProps {
 }
 
 type OrderImage = OrderDetailResponse['images'][number];
+
+/** The control to put focus on once a change is shown: the pressed move button, or Edit description after Make Cover. */
+type FocusControl = 'left' | 'right' | 'cover';
+
+/** One move (a button, Make Cover or a drag): the photo, the 0-based place it goes to and the control that asked. */
+interface MoveTarget {
+  readonly id: string;
+  readonly toIndex: number;
+  readonly control: FocusControl | null;
+}
+
+/** What waits for the answer to be on screen before focus moves: the photo order the answer has, and where focus goes. */
+interface FocusPlan {
+  readonly ids: readonly string[];
+  readonly id: string;
+  readonly control: FocusControl;
+}
+
+/** How long "Saved" stays on the status line (D-15). */
+const SAVED_MS = 4000;
 
 /** The saved photos in display order, each with its description (the stored one, else the default for its position). */
 function orderedImages(order: OrderDetailResponse): { image: OrderImage; description: string }[] {
@@ -165,6 +190,95 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
     }
   }, [viewerIndex]);
 
+  const applyOrder = useApplyOrder();
+  // The small "Saved" line of the card head (cleared after 4 seconds or at the next change) and the spoken line.
+  const [saved, setSaved] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const focusPlan = useRef<FocusPlan | null>(null);
+  useEffect(() => {
+    if (!saved) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setSaved(false);
+    }, SAVED_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [saved]);
+
+  // A change is based on the latest answer the page holds, so a coworker's write that landed since the render is not undone.
+  const latestVersion = (): string =>
+    queryClient.getQueryData<OrderDetailResponse>(orderKey(order.id))?.version ?? order.version;
+
+  const moving = useOrderAction<MoveTarget>(
+    (_key, target) => orderPhotosService.move(order.id, target.id, target.toIndex, latestVersion()),
+    (answer, target) => {
+      applyOrder(answer);
+      const ids = orderedImages(answer).map(({ image }) => image.id);
+      const position = ids.indexOf(target.id) + 1;
+      setAnnouncement(
+        position === 1 ? COPY.announce.movedCover(ids.length) : COPY.announce.moved(position, ids.length),
+      );
+      setSaved(true);
+      focusPlan.current = target.control === null ? null : { ids, id: target.id, control: target.control };
+    },
+  );
+  // Saved photos can change only while no change is saving and nothing is uploading (UI-SPEC busy rule).
+  const busy = moving.pending || queue.items.some((item) => item.state === 'waiting' || item.state === 'uploading');
+
+  // Which move control has focus now: the answer puts focus back on it, on the moved photo. A drag leaves focus alone.
+  const pressedControl = (position: number): FocusControl | null => {
+    const label = document.activeElement?.getAttribute('aria-label');
+    if (label === MEDIA_COPY.tile.moveLeft(position)) return 'left';
+    if (label === MEDIA_COPY.tile.moveRight(position)) return 'right';
+    return null;
+  };
+
+  const move = (id: string, toIndex: number, control: FocusControl | null): void => {
+    const places = orderedImages(order);
+    const from = places.findIndex(({ image }) => image.id === id);
+    if (busy || from < 0 || toIndex < 0 || toIndex >= places.length || toIndex === from) {
+      return;
+    }
+    setAnnouncement('');
+    setSaved(false);
+    focusPlan.current = null;
+    void moving.submit({ id, toIndex, control: control ?? pressedControl(from + 1) });
+  };
+  const onMove = (id: string, toIndex: number): void => {
+    move(id, toIndex, null);
+  };
+
+  // Once the answer is on screen, focus goes back to the pressed control on the moved photo. When that control is disabled at an
+  // end of the list, the photo's other move button takes it.
+  const focusMoved = useEffectEvent((): void => {
+    const plan = focusPlan.current;
+    if (plan === null) {
+      return;
+    }
+    const ids = orderedImages(order).map(({ image }) => image.id);
+    if (ids.join() !== plan.ids.join()) {
+      return;
+    }
+    focusPlan.current = null;
+    const position = ids.indexOf(plan.id) + 1;
+    const tile = MEDIA_COPY.tile;
+    let name = tile.editDescription(position);
+    if (plan.control === 'left') {
+      name = position === 1 ? tile.moveRight(position) : tile.moveLeft(position);
+    } else if (plan.control === 'right') {
+      name = position === ids.length ? tile.moveLeft(position) : tile.moveRight(position);
+    }
+    const control = [...(bodyRef.current?.querySelectorAll<HTMLElement>('button[aria-label]') ?? [])].find(
+      (button) => button.getAttribute('aria-label') === name,
+    );
+    control?.focus();
+  });
+  useEffect(() => {
+    focusMoved();
+  }, [order]);
+
   // One pick at a time, so a second pick counts the files the first one queued.
   const picking = useRef<Promise<void>>(Promise.resolve());
 
@@ -246,6 +360,14 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
               {COPY.status.uploading(queue.progress.index, queue.progress.total)}
             </>
           )}
+          {queue.progress === null && saved && (
+            <>
+              <span className={orderPhotosSavedIconClasses}>
+                <Icon name="check" size={14} />
+              </span>
+              {COPY.status.saved}
+            </>
+          )}
         </div>
       </div>
       <div ref={bodyRef} className={orderPhotosBodyClasses}>
@@ -265,12 +387,12 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
           max={max}
           maxMegabytes={megabytes}
           mode={locked ? 'readonly' : 'live'}
-          busy
+          busy={busy}
           limitNote={COPY.limit.live(max)}
           pickErrors={pickErrors}
           leftOutCount={leftOut}
           onAddFiles={addFiles}
-          onMove={() => undefined}
+          onMove={onMove}
           onMakeCover={() => undefined}
           onEditDescription={() => undefined}
           onDelete={() => undefined}
@@ -280,6 +402,9 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
         />
         <div aria-live="polite" className={srOnlyClasses}>
           {queue.announcement}
+        </div>
+        <div aria-live="polite" className={srOnlyClasses}>
+          {announcement}
         </div>
       </div>
       {viewerIndex !== null && (

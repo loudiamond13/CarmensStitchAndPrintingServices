@@ -25,7 +25,22 @@ export interface OrderPhotosService {
     idempotencyKey: string,
     signal?: AbortSignal,
   ): Promise<OrderDetailResponse>;
+  /**
+   * `PUT /api/v1/orders/{orderId}/images/{imageId}/position`: moves one photo to the 0-based `position` (0 is the cover, so Make
+   * Cover is a move to 0) and answers the whole order. The body carries the order `version` the change is based on. A form save
+   * is never retried, so it sends no Idempotency-Key. `409 edit.stale`, `404`, `422 orders.locked`.
+   */
+  move(
+    orderId: string,
+    imageId: string,
+    position: number,
+    version: string,
+    signal?: AbortSignal,
+  ): Promise<OrderDetailResponse>;
 }
+
+const imagePath = (orderId: string, imageId: string): string =>
+  `/orders/${encodeURIComponent(orderId)}/images/${encodeURIComponent(imageId)}`;
 
 export function createOrderPhotosService(client: HttpClient): OrderPhotosService {
   return {
@@ -40,6 +55,8 @@ export function createOrderPhotosService(client: HttpClient): OrderPhotosService
         timeoutMs: UPLOAD_TIMEOUT_MS,
       });
     },
+    move: (orderId, imageId, position, version, signal) =>
+      client.put<OrderDetailResponse>(`${imagePath(orderId, imageId)}/position`, { position, version }, { signal }),
   };
 }
 
