@@ -198,6 +198,7 @@ public sealed class SqlServerBackupStatementTests : IDisposable
     [Fact]
     public async Task TheServerReportsItsDefaultBackupFolderReadOnly()
     {
+        var instance = await SqlServerInstance.GetSharedAsync();
         var database = await CspsDatabase.CreateAsync();
         await using (database)
         {
@@ -205,7 +206,16 @@ public sealed class SqlServerBackupStatementTests : IDisposable
                 database.ConnectionString, Budget, TestContext.Current.CancellationToken);
 
             outcome.SqlErrorNumbers.ShouldBeEmpty();
-            outcome.Folder.ShouldNotBeNullOrWhiteSpace();
+
+            // LocalDB keeps no default backup folder, so it answers null; a full SQL Server names one.
+            if (instance.Backend == SqlBackend.LocalDb)
+            {
+                outcome.Folder.ShouldBeNull();
+            }
+            else
+            {
+                outcome.Folder.ShouldNotBeNullOrWhiteSpace();
+            }
         }
     }
 

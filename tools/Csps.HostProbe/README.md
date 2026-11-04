@@ -1,5 +1,5 @@
 # Csps.HostProbe: one-time host check (FND-13)
-*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-11-03T08:40:00-05:00*
+*Created: 2026-10-07T11:15:24-05:00 · Updated: 2026-11-03T22:05:00-06:00*
 
 This is a tiny, throwaway web app. It reports the facts about the SmarterASP.NET server that only the server itself
 can show: the exact .NET version, whether the site runs inside IIS ("in-process"), how visitor addresses reach the
@@ -174,6 +174,34 @@ SQL error numbers in plain words:
 - `3013`: the backup stopped (it follows another error).
 - `-2`: it timed out.
 - `18456` or `4060`: the login or the database in the connection string is wrong.
+
+### When the answer is 3201: ask the SQL server for its backup folder (D-49)
+
+The database runs on its own server, which may see the disk differently from the website. This read-only question asks
+that server where it puts backups. It changes nothing.
+
+1. Start the probe as in step 3 above. Only the connection string and the key are needed for this question.
+2. In a second window:
+
+   ```powershell
+   curl.exe -s -X POST -w "\nHTTP %{http_code}\n" -H "X-Probe-Key: <your-probe-key>" http://localhost:5116/probe/backup-folder
+   ```
+
+3. Read `defaultBackupFolder`. **This answer shows a path, so do not paste it into chat.** Keep the path in your password
+   manager.
+4. Restart the probe with `HostProbe__Backup__SqlServerFolder` set to that path and run the backup check again (step 4).
+   If the file appears there, check in the file manager where it is: it must be a folder you can reach and outside `www`.
+
+Reading the answer:
+
+| Field | Meaning |
+| ----- | ------- |
+| `defaultBackupFolder` | The server's own backup folder. `null` means the server keeps none or would not say. |
+| `missingSettings` | The connection string is not set. The probe asked nothing. |
+| `sqlErrorNumbers` | The SQL error numbers, as above. |
+| `errorType` | The kind of error, if the probe itself failed (never its message). |
+
+When you report back, say only whether a folder came back and whether the backup then worked.
 
 ## Reading the certificate attempts (`certificateRoundTrips`)
 

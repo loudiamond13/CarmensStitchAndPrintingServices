@@ -1,5 +1,5 @@
 # Phase 9: Order Images & Maintenance Jobs - Context
-*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-10-31T19:00:00-05:00*
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-11-03T22:05:00-06:00*
 
 **Gathered:** 2026-10-31
 **Status:** Ready for planning
@@ -65,6 +65,7 @@ The owner decisions the roadmap lists for this phase are closed here: OD-9 and C
 - **D-46:** **At least 20 days between backups** (BQ-3; owner, 2026-10-31): repeat calls in one run and extra Run now presses do not write another backup inside 20 days, so the 3 kept files cover about 3 months. **Reversibility:** reversible, one setting.
 - **D-47:** **Two more red-run causes** (BQ-4; owner, 2026-10-31): old backups that could not be deleted, and the backup not yet set up on the host, both turn the run red. **Reversibility:** reversible.
 - **D-48:** **Split the backup work in two plans** (BQ-5; owner, 2026-10-31): 09-31 is only the host check and runs early, so the owner learns first whether the host allows backups; 09-32 builds the job later in the phase. **Reversibility:** reversible.
+- **D-49:** **One read-only question for the host probe** (owner, 2026-11-03): after two backup checks answered SQL error 3201, the probe may ask the SQL server for its own default backup folder with `SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(260))`. It is the second named exception to the no-inline-SQL rule, in the same approved file as the D-40 statement, and runs only from the probe's `POST /probe/backup-folder`. The answer holds a path, so the owner keeps it out of chat. **Reversibility:** reversible, remove the endpoint and the statement.
 
 ### UI contract rulings (UI-SPEC OQ-1 to OQ-7)
 - **D-25:** **Photos show as one compact photo list** on the order page and the order form: each photo is a small card with an 88px thumbnail, its description, "Make Cover" and four 44px buttons; 2 columns on wide screens, 1 on phones. No mosaic gallery (OQ-1 A; owner, 2026-10-31).

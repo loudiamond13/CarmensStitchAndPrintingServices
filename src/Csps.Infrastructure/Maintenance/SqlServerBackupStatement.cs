@@ -19,14 +19,21 @@ internal sealed record BackupStatementOutcome(
     IReadOnlyList<int> SqlErrorNumbers,
     TimeSpan Elapsed);
 
+/// <summary>The SQL server's own default backup folder, or the SQL error numbers when it could not be read (D-49).</summary>
+/// <param name="Folder">The folder as the SQL server sees it; null when it is not set or could not be read.</param>
+/// <param name="SqlErrorNumbers">The SQL error numbers the server returned, without repeats.</param>
+internal sealed record DefaultBackupFolderOutcome(string? Folder, IReadOnlyList<int> SqlErrorNumbers);
+
 /// <summary>
 /// The one raw SQL statement the site may run (D-40): a COPY_ONLY database backup for the monthly job and the host probe.
+/// The host probe may also ask one read-only question, the server's default backup folder (D-49).
 /// The database name (from the opened connection) and the full path (from settings) go in as parameters, never as SQL text,
 /// and the connection never joins an ambient transaction because a backup cannot run inside one.
 /// </summary>
 internal static partial class SqlServerBackupStatement
 {
     private const string Statement = "BACKUP DATABASE @database TO DISK = @path WITH COPY_ONLY, CHECKSUM, FORMAT, INIT";
+    private const string DefaultFolderQuestion = "SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(260))";
     private const int MaxFolderLength = 200;
     private const int MaxDatabaseNameLength = 128;
     private const int TimeoutErrorNumber = -2;
@@ -95,6 +102,42 @@ internal static partial class SqlServerBackupStatement
             {
                 var numbers = ErrorNumbers(error);
                 return new BackupStatementOutcome(false, null, numbers.Contains(TimeoutErrorNumber), numbers, time.GetElapsedTime(started));
+            }
+        }
+    }
+
+    /// <summary>Asks the server for its default backup folder. Read-only; a SQL error is reported, any other failure is thrown.</summary>
+    /// <param name="connectionString">The site's connection.</param>
+    /// <param name="timeout">How long the server may take.</param>
+    /// <param name="cancellationToken">Cancels the question.</param>
+    /// <returns>The folder, or the error numbers.</returns>
+    public static async Task<DefaultBackupFolderOutcome> ReadDefaultBackupFolderAsync(
+        string connectionString,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+
+        var builder = new SqlConnectionStringBuilder(connectionString) { Enlist = false };
+        var connection = new SqlConnection(builder.ConnectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            try
+            {
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                var command = connection.CreateCommand();
+                await using (command.ConfigureAwait(false))
+                {
+                    command.CommandText = DefaultFolderQuestion;
+                    command.CommandTimeout = Math.Max(1, (int)Math.Ceiling(timeout.TotalSeconds));
+                    var value = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                    var folder = value as string;
+                    return new DefaultBackupFolderOutcome(string.IsNullOrWhiteSpace(folder) ? null : folder, []);
+                }
+            }
+            catch (SqlException error)
+            {
+                return new DefaultBackupFolderOutcome(null, ErrorNumbers(error));
             }
         }
     }
