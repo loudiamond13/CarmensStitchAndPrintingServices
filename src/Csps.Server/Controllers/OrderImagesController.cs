@@ -5,6 +5,7 @@ using Csps.Server.Http;
 using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace Csps.Server.Controllers;
@@ -14,12 +15,13 @@ namespace Csps.Server.Controllers;
 /// image storage through the server only, never straight from the browser, and are held in memory, never on disk. Never cached.
 /// </summary>
 /// <param name="upload">The upload-a-photo handler.</param>
+/// <param name="move">The move-a-photo handler.</param>
 [ApiController]
 [Route("api/v1/orders/{orderId:guid}/images")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrderImagesController(UploadOrderImageHandler upload) : ControllerBase
+public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOrderImageHandler move) : ControllerBase
 {
     /// <summary>
     /// Uploads one photo to a saved order as a multipart form with the file in the <c>file</c> part and an optional <c>description</c>
@@ -65,6 +67,37 @@ public sealed class OrderImagesController(UploadOrderImageHandler upload) : Cont
 
         var request = new UploadOrderImageRequest(buffer.GetBuffer().AsMemory(0, (int)buffer.Length), file?.FileName, description);
         var result = await upload.HandleAsync(orderId, request, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
+    }
+
+    /// <summary>
+    /// Moves one photo of a saved order to a place and shifts the others, with the order's version the page was opened with. Places
+    /// count from 0 and the photo at place 0 is the cover, so "Make Cover" is this request with place 0. A place below 0 or at or
+    /// above the photo count answers 400. A photo id that is not on this order answers 404 <c>orders.image-not-found</c>. A version
+    /// that is not the stored one answers 409 <c>edit.stale</c> and changes nothing; a form save is never retried. A move to the place
+    /// the photo already has changes nothing and keeps the version. A Completed or Cancelled order answers 422 <c>orders.locked</c>
+    /// and changes nothing. A move is recorded in the audit log, and so is a change of cover.
+    /// </summary>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="imageId">The photo id.</param>
+    /// <param name="body">The place and the version; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the photo on it does not exist, 409 for a stale version, or 422 when the order is completed or cancelled (<c>orders.locked</c>).</returns>
+    [HttpPut("{imageId:guid}/position")]
+    [EndpointName("MoveOrderImage")]
+    [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Move(
+        Guid orderId,
+        Guid imageId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] MoveOrderImageRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await move.HandleAsync(orderId, imageId, body ?? MoveOrderImageRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
     }
 }

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-11-03T11:43:31-06:00
+updated: 2026-11-03T20:45:00-06:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -188,6 +188,8 @@ transaction as the change.
 | `order-expense.payer-changed` | An order expense is saved with a different payer | `Order` id | `expense=<expense id>;payer=<old id>><new id>` |
 | `order-expense.removed` | An order expense is removed | `Order` id | `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>` |
 | `order-image.added` | A photo is uploaded to an order | `Order` id | `number=<order number>;position=<n>` with `position` counting from 1 (never the photo's id, address, file name or description) |
+| `order-image.moved` | A photo is moved to another place (this includes Make Cover) | `Order` id | `number=<order number>;from=<n>;to=<n>` with both places counting from 1 (never the photo's id or address) |
+| `order-image.cover-changed` | A move left another photo at place 1, the cover; recorded in the same save as `order-image.moved` | `Order` id | `number=<order number>;cover=<n>` with `cover` the place the new cover photo had before the move, counting from 1 |
 | `product-type.added`, `payment-method.added`, `order-expense-category.added` | A list entry is added | `ProductType`, `PaymentMethod` or `OrderExpenseCategory` id | `name=<encoded name>;tone=<tone>` |
 | `product-type.renamed`, `payment-method.renamed`, `order-expense-category.renamed` | A list entry is renamed | The entry id | `name=<old encoded>><new encoded>` |
 | `product-type.recolored`, `payment-method.recolored`, `order-expense-category.recolored` | A list entry changes tone | The entry id | `tone=<old>><new>` |

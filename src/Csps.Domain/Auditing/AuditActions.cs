@@ -500,5 +500,7 @@ public static class AuditActions
         OrderExpenseCategoryReactivated,
         OrderExpenseCategoryDeleted,
         OrderImageAdded,
+        OrderImageMoved,
+        OrderImageCoverChanged,
     ];
 }

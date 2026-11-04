@@ -82,6 +82,34 @@ public static class OrderAuditDetail
             AuditDetailFormat.Pair("position", (image.Position + 1).ToString(CultureInfo.InvariantCulture)));
     }
 
+    /// <summary>The detail of <c>order-image.moved</c>: the order number and the 1-based places the photo moved from and to, never its id or address (D-19).</summary>
+    /// <param name="order">The order the photo is on.</param>
+    /// <param name="move">What the move changed.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;from=2;to=1</c>.</returns>
+    public static string ImageMoved(Order order, OrderImageMove move)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(move);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("from", (move.From + 1).ToString(CultureInfo.InvariantCulture)),
+            AuditDetailFormat.Pair("to", (move.To + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>The detail of <c>order-image.cover-changed</c>: the order number and the 1-based place the new cover photo had before the move (D-14, D-19).</summary>
+    /// <param name="order">The order the photo is on.</param>
+    /// <param name="coverFrom">The place the new cover had before the move, counting from 0.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;cover=2</c>.</returns>
+    public static string ImageCoverChanged(Order order, int coverFrom)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("cover", (coverFrom + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
     /// <summary>The detail of <c>order-item.removed</c>: the item id, product type, quantity and unit price as they were.</summary>
     /// <param name="item">The item that was removed.</param>
     /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>

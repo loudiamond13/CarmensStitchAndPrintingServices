@@ -58,6 +58,9 @@ public sealed class OrderImage : IAttributedRecord
     /// <summary>Gets the description, trimmed; null when the default text applies.</summary>
     public string? Description { get; private set; }
 
+    // Used by Order.MoveImage; the slot and the file never change.
+    internal void MoveTo(int position) => Position = position;
+
     /// <inheritdoc />
     public Guid? CreatedById { get; private set; }
 
