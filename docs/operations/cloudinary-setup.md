@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T20:30:00-06:00
-updated: 2026-11-03T20:30:00-06:00
+updated: 2026-11-03T23:40:00-06:00
 ---
 
 # Cloudinary setup: where the photo keys go
@@ -63,6 +63,53 @@ The repository is public. Never commit, paste or write down in any tracked file:
 
 The automated tests use clearly fake values and never call Cloudinary. If a real value is ever committed by mistake, tell Claude straight away: the API secret must then be reset in the Cloudinary console, because git history cannot be recalled.
 
-## Later steps
+## Set up the photo sizes, then turn on strict mode
 
-Plan 09-25 adds the one-time command that creates the named photo sizes, and the step where you turn on strict transformations in the Cloudinary console. Do not turn strict mode on before that command has run.
+Do these steps in this order. The order matters.
+
+Photos are only ever shown in 13 fixed sizes, called named sizes. Strict transformations is a Cloudinary setting that refuses every size except the named ones. That protects your free credits. But if you turn it on before the 13 sizes exist, Cloudinary refuses all of them and every photo on the site breaks. So the sizes come first and strict mode comes last (D-03, D-06, D-07).
+
+1. **Put the three keys in your dev user-secrets.** Use the commands in "Where each value goes" above. The setup command reads the same store.
+2. **Look first.** Run this from the repository folder. It changes nothing. It prints one line per size and a count:
+
+   ```powershell
+   dotnet run --project tools/Csps.CloudinarySetup -- --check
+   ```
+
+3. **Create the missing sizes.** Run the same command without `--check`:
+
+   ```powershell
+   dotnet run --project tools/Csps.CloudinarySetup
+   ```
+
+   It creates only the sizes that are missing. It is safe to run again: a size that already exists is left alone.
+4. **Confirm "13 exist".** Run the `--check` command once more. The last line must say `13 exist`. If it does not, do not go on.
+5. **Only now, turn on strict transformations.** In the Cloudinary console, go to Settings, then Security, and tick strict transformations. Do not turn it on any earlier.
+6. **Add the three `Cloudinary__...` variables to the live host** (see "Where each value goes") before the deploy.
+
+The command never prints your keys or your cloud name. It prints size names and counts only. It never asks a question. If the keys are missing it says so and stops.
+
+### What the lines mean
+
+| Line | Meaning |
+|------|---------|
+| `exists` | The size is there and matches what the site expects. |
+| `missing` | The size is not there yet. The run without `--check` creates it. |
+| `created` | The run just created it and allowed it under strict mode. |
+| `different` | A size with that name exists but it is not the same as the site expects, or it is not allowed under strict mode. |
+
+A size that is `different` is never changed by the command. Live photos already use it, and changing it would redraw them and spend credits. Stop and ask before you change it by hand. The command then ends with exit code 1.
+
+### Development and live share these names
+
+Development and the live site use one Cloudinary account, so they share the same 13 names. You run the setup once for the account. Both environments then use the same sizes. Their photos stay apart because each uses its own root folder.
+
+### What the monthly run tells you
+
+Every monthly maintenance run now prints two lines: the storage used in GB and the credits used this month, for example `5.2 of 25 (20.8%)`. The run turns red in three cases:
+
+- Over 80% of the free plan is used (credits or storage).
+- The plan's photo size limit is below `Images:MaxBytes`. Lower `Images:MaxBytes` in that case.
+- Cloudinary usage could not be read, for example because the keys are wrong.
+
+If photo storage is not set up, the run prints a plain line saying so and does not fail.
