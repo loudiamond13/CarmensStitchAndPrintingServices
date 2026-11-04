@@ -1,0 +1,45 @@
+# JOB-01, D-21, 01 D-10: the monthly maintenance run, and the "Run now" button. GitHub Actions is the scheduler because the
+# host has none. GitHub runs schedules only from the default branch, may delay them, and pauses them after 60 days without
+# repository activity (docs/operations/maintenance.md).
+name: Maintenance
+
+on:
+  schedule:
+    # 19:17 UTC on the 1st, which is 03:17 on the 2nd in Manila. Off the top of the hour, when GitHub is busiest.
+    - cron: "17 19 1 * *"
+  workflow_dispatch:
+
+# The token starts with no rights and the one job asks for none: the run only calls the site.
+permissions: {}
+
+# Pressing Run now twice runs the two one after the other, and a running call is never cancelled half way.
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: monthly maintenance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions: {}
+    # No environment: a production environment with a required reviewer would hold every cron run for approval.
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # maintenance.mjs uses Node built-ins only, so no npm package is installed or cached.
+      - name: setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.21.0"
+
+      # JOB-01: the key and the site address reach the script through env only (CWE-77). The run log is public, so the
+      # script prints counts and fixed sentences, never the key or the answer.
+      - name: run maintenance
+        env:
+          MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}
+          SITE_ORIGIN: ${{ vars.SITE_ORIGIN }}
+        run: node web/scripts/maintenance.mjs
