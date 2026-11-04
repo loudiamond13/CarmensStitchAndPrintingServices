@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-17-PLAN.md (wave 4 merged); next is wave 5 (09-18)
-last_updated: "2026-11-04T01:22:20.000Z"
+stopped_at: Completed 09-22-PLAN.md (wave 5 merged); next is wave 6 (09-23)
+last_updated: "2026-11-04T05:10:00.000Z"
 last_activity: 2026-11-03
-last_activity_desc: Wave 4 (09-13 to 09-17) merged from parallel worktrees; post-merge gate fully green
-state_head: 76d6eec4443b014efef8ad7e9d9b821e6f1cec64
+last_activity_desc: Wave 5 (09-18 to 09-22) merged from parallel worktrees; post-merge gate green except the known expense timing test (D-103)
+state_head: 0ff68f52
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 257
+  completed_plans: 262
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-03T10:22:00-06:00"
+updated: "2026-11-03T23:10:00-06:00"
 ---
 
 # Project State
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 18 of 32
+Plan: 23 of 32
 Status: Ready to execute
-Last activity: 2026-11-03 — Wave 4 merged (09-13 to 09-17); 17 of 32 plans done, 09-31 parked
+Last activity: 2026-11-03 — Wave 5 merged (09-18 to 09-22); 22 of 32 plans done, 09-31 parked on host support
 
 Progress: [████░░░░░░] 44%
 
@@ -903,6 +903,8 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: 09-07: ImageSourceResponse is its own record, same JSON as ImageSource; TestingImageDelivery keeps only the last public-id segment
 - [Phase 09]: 09-08: the photo tile grip alone keeps the D-05 reveal (hover devices only); every real control is drawn at full opacity; readonly lists keep Remove on files not yet uploaded (UI-SPEC P3)
 - [Phase 09]: 09-09: fail-next takes a count from 0 to 50 and answers 204; the rules endpoint names types jpeg, png, webp, heic
+- [Phase 09]: D-103 (owner, 2026-11-03): wave 5 is marked complete although `ExpenseListTimingTests` (300 ms p95) failed in the post-merge gate and again alone; it is the known machine timing issue already in the backlog (09-01 timing tests), wave 5 changed no expense code, and the test stays open there
+- [Phase 09]: D-49 (owner, 2026-11-03, 09-CONTEXT): the host probe may ask the SQL server one read-only question, its default backup folder (`POST /probe/backup-folder`), the second named exception to the no-inline-SQL rule next to the D-40 backup statement
 
 ### Pending Todos
 
@@ -972,6 +974,12 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-16 do not ship between 09-16 and 09-23:** saved photos show disabled move, make-cover, edit, delete and viewer controls until plan 09-23 wires them. Picking, Try Again and Remove work.
 - [ ] **09-16 real-phone check (end of phase):** "Take Photo" opens the camera, and a 12 MP photo uploads and shows its thumb. Note for later plans: wrap uploads that use the shared fail-next switch in `withPhotoHost` (`web/e2e/photo-host-lock.ts`, documented in `docs/web/e2e.md`).
 - [ ] **09-17 retention margin to review:** expired invite and reset links are removed 7 days after they expire (SPEC-GAP; one constant, `PurgeExpiredRecordsJob.AccountLinkMargin`). Sessions and 2FA challenges use 1 day, outbox emails 30 days after they close (D-35, settled). Low priority: the failed-line sentences for the new rules are the executor's wording (for example "The expired sign-in tokens could not be removed."). The Phase 5 deferred item IN-08 (outbox purge) is marked delivered.
+- [ ] **09-19 Newtonsoft.Json version (package rule):** installing CloudinaryDotNet 1.29.3 newly locked Newtonsoft.Json 13.0.3 (MIT, no known issue, the lowest version Cloudinary accepts) in 10 test and tool lock files; the live app keeps 13.0.4. Recommended: pin 13.0.4 centrally (one `PackageVersion` line and a dependencies.json record) so every project uses the version already approved. Other choice: approve 13.0.3 for tests and tools as is.
+- [ ] **09-22 GitHub setup for the monthly run:** create the repository secret `MAINTENANCE_KEY` (the same value as the host's `Maintenance__Key`, 32+ characters) and check the variable `SITE_ORIGIN` is the live https address; after the merge to `main`, press Run now once (plan 09-30 covers it). GitHub emails a failed scheduled run to whoever last edited the `cron` line: recommended that this is your account. The fixed summary sentences are the executor's wording (low priority). Steps: `docs/operations/maintenance.md`.
+- [ ] **09-20 audit choices:** (1) a move that changes the cover writes two audit rows, `moved` and `cover-changed`. Recommended: keep both. (2) The description change audit row holds the old and new text, the only order audit row with free text. Recommended: keep as planned, revisit if staff type customer details into descriptions.
+- [ ] **09-18 image sizes:** should 2x screens get finer srcset candidates (for example 720w)? Recommended: no, a few KB per cover costs less than more Cloudinary transformations.
+- [ ] **09-21 wording:** removing a draft photo is announced as "Photo deleted. N photos left." Recommended: add a "Photo removed." line in the wording pass. The F1 look check with 0, 1 and 5 drafts at 390, 820 and 1440 px in both themes and the real-phone camera pick are in plan 09-30.
+- [ ] **Unrun browser check (09-18):** the `@order-photos-list` Playwright spec is written, typechecked and listed but has never run (it resets the shared CSPS_E2E database). Run `npm --prefix web run e2e -- --grep @order-photos-list` after the preflight is clear, before or at 09-30.
 
 ### Blockers/Concerns
 
@@ -1038,19 +1046,21 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T19:30:00-06:00
-Stopped at: Wave 4 merged and recorded (09-13 to 09-17). Owner asked to stop after wave 4 and continue in a new session.
+Last session: 2026-11-03T23:10:00-06:00
+Stopped at: Wave 5 merged and recorded (09-18 to 09-22). Owner asked to stop after wave 5.
 Resume file: None
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-03):
 
-- Done: 09-01 to 09-17 (17 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
-- Next: wave 5 (09-18 to 09-22), then waves 6 to 9. Run it as usual; `incomplete_plans` should list 09-18 to 09-30, 09-31 and 09-32.
-- 09-31 is parked at its owner checkpoint (Task 1 committed a6661d6d, b923b06d; see the first backlog item). Do not re-run its Task 1. 09-32 depends on 09-31's answer: skip it until the owner answers. If the answer is "blocked", revert b923b06d then a6661d6d and do not run 09-32.
+- Done: 09-01 to 09-22 (22 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
+- Next: wave 6 (09-23, 09-24, 09-25), then waves 7 to 9. `incomplete_plans` should list 09-23 to 09-30, 09-31 and 09-32.
+- 09-31 is parked on the SmarterASP.NET support reply (first backlog item). Do not re-run its Task 1. Skip 09-32 until the owner answers. If the answer is "blocked", revert 50cf165a, bd33861c, b923b06d and a6661d6d and do not run 09-32.
 - 09-30 has a blocking owner checkpoint: run it up to the checkpoint and park it; never auto-approve.
 - Parallel worktrees work: `.claude/settings.local.json` (local only, listed in `.git/info/exclude`) sets `worktree.baseRef` to `head`, so the base check passes on the unpushed branch. `.claude/worktrees/` is also in `.git/info/exclude`.
 - From a worktree the agent shell cannot start PowerShell, so executors check ports 5180, 5115, 7028 and 5199 with `netstat` and wait if busy; the orchestrator runs `preflight.ps1` from the main session before each post-merge test run.
-- Post-merge gate after wave 4: build 0 warnings; all .NET tests 6808 passed, 0 failed, 2 skipped; web 278 files, 7814 tests passed; typecheck and lint clean.
+- Executors in fresh worktrees have no `web/node_modules`: they ran `npm ci --ignore-scripts` or linked the main copy. Before removing a worktree, check its `web/node_modules` is not a link into the main checkout. `worktree.cleanup-wave` could not remove one worktree whose `node_modules` was still there; its branch was merged and the folder was removed by hand.
+- Post-merge gate after wave 5: restore and build 0 warnings; dotnet format, web typecheck, lint and Prettier clean; web 282 files, 7922 tests passed; .NET 6946 passed, 2 failed, 2 skipped in the full run. LegacyFitCheck passed alone (275, load flake); `ExpenseListTimingTests` failed again alone (known, D-103). The Server integration re-run alone: 2010 of 2011 passed.
+- Wave 6 notes from wave 5: 09-25 and 09-28 should catch the new `ImageStorageException` (thrown by a failed `ListAsync` or `GetUsageAsync`); 09-28 should check the removal `FailureCode` "unauthorized" (`CloudinaryResults.UnauthorizedCode`), because the port has no Unauthorized status. `AuditActions.All` is at 96 entries after 09-20; 09-26 adds more, so update the catalog count test.
+- Re-run `tools/scripts/New-ThirdPartyNotices.ps1` once to confirm THIRD-PARTY-NOTICES.md is unchanged (09-19 wrote the CloudinaryDotNet row by hand because PowerShell was not available in its worktree).
 - Code review is deferred to the end-of-phase verify step (code review gate) for all waves.
-- 09-19 installs CloudinaryDotNet 1.29.3 (D-37, approved). If 09-31's work stays, also regenerate `tools/Csps.HostProbe/packages.lock.json` and `tests/Csps.HostProbe.Tests/packages.lock.json`.
-- Known timing flakes: `OrderListTimingTests` and `ExpenseListTimingTests` fail under load; re-run alone before recording.
+- Known timing flakes: `OrderListTimingTests` and `ExpenseListTimingTests` fail under load; re-run alone before recording. Also flaky under load in web tests: `OrderFormPage` "cannot be left through the dialog while a save is pending" and some modal tests; each passes alone.

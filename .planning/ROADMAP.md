@@ -999,7 +999,7 @@ Plans:
 - eager variants
 - caching of signed URLs
 
-**Plans**: 17/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 22/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 09-01-PLAN.md — Upload one photo to an order through the API: OrderImage, 5-photo domain and database guard, random ids, 503 when unset (ORD-04, IMG-01, IMG-02, IMG-03; D-01, D-08, D-11, D-12, D-19)
@@ -1028,11 +1028,11 @@ Plans:
 - [x] 09-17-PLAN.md — Monthly purge of sessions, 2FA codes, links and old emails (JOB-01; D-35)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 09-18-PLAN.md — Orders list shows each order's cover (ORD-04, IMG-04; D-14)
-- [ ] 09-19-PLAN.md — Cloudinary adapter with CloudinaryDotNet 1.29.3 (IMG-01, IMG-03; D-05, D-06, D-32, D-37)
-- [ ] 09-20-PLAN.md — Move photos, choose the cover, describe photos (API) (ORD-04; D-12 to D-15, D-30)
-- [ ] 09-21-PLAN.md — New-order photos upload after Save (ORD-04; D-09, D-10, D-28)
-- [ ] 09-22-PLAN.md — Monthly scheduled run and Run now (JOB-01, JOB-02; D-21, D-22, D-36)
+- [x] 09-18-PLAN.md — Orders list shows each order's cover (ORD-04, IMG-04; D-14)
+- [x] 09-19-PLAN.md — Cloudinary adapter with CloudinaryDotNet 1.29.3 (IMG-01, IMG-03; D-05, D-06, D-32, D-37)
+- [x] 09-20-PLAN.md — Move photos, choose the cover, describe photos (API) (ORD-04; D-12 to D-15, D-30)
+- [x] 09-21-PLAN.md — New-order photos upload after Save (ORD-04; D-09, D-10, D-28)
+- [x] 09-22-PLAN.md — Monthly scheduled run and Run now (JOB-01, JOB-02; D-21, D-22, D-36)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 09-23-PLAN.md — Viewer on the order and deleted pages; read-only closed orders (ORD-04; D-11, D-16, D-20)
@@ -1408,7 +1408,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
-| 9. Order Images & Maintenance Jobs | 17/32 | In Progress | - |
+| 9. Order Images & Maintenance Jobs | 22/32 | In Progress | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
