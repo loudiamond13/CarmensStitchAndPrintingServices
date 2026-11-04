@@ -82,6 +82,20 @@ public static class OrderAuditDetail
             AuditDetailFormat.Pair("position", (image.Position + 1).ToString(CultureInfo.InvariantCulture)));
     }
 
+    /// <summary>The detail of <c>order-image.deleted</c>: the order number and the photo's 1-based place before it was removed, never its id, address or description (D-19).</summary>
+    /// <param name="order">The order the photo was on.</param>
+    /// <param name="image">The photo that was removed.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;position=2</c>.</returns>
+    public static string ImageDeleted(Order order, OrderImage image)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(image);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("position", (image.Position + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
     /// <summary>The detail of <c>order-image.moved</c>: the order number and the 1-based places the photo moved from and to, never its id or address (D-19).</summary>
     /// <param name="order">The order the photo is on.</param>
     /// <param name="move">What the move changed.</param>

@@ -11,18 +11,19 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace Csps.Server.Controllers;
 
 /// <summary>
-/// The photos of a saved order (ORD-04, IMG-01): staff of either role add them, and every answer is the whole order. Files reach the
+/// The photos of a saved order (ORD-04, IMG-01): staff of either role add, arrange and delete them, and every answer is the whole order. Files reach the
 /// image storage through the server only, never straight from the browser, and are held in memory, never on disk. Never cached.
 /// </summary>
 /// <param name="upload">The upload-a-photo handler.</param>
 /// <param name="move">The move-a-photo handler.</param>
 /// <param name="describe">The describe-a-photo handler.</param>
+/// <param name="remove">The delete-a-photo handler.</param>
 [ApiController]
 [Route("api/v1/orders/{orderId:guid}/images")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOrderImageHandler move, DescribeOrderImageHandler describe) : ControllerBase
+public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOrderImageHandler move, DescribeOrderImageHandler describe, RemoveOrderImageHandler remove) : ControllerBase
 {
     /// <summary>
     /// Uploads one photo to a saved order as a multipart form with the file in the <c>file</c> part and an optional <c>description</c>
@@ -131,6 +132,31 @@ public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOr
         CancellationToken cancellationToken)
     {
         var result = await describe.HandleAsync(orderId, imageId, body ?? DescribeOrderImageRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
+    }
+
+    /// <summary>
+    /// Deletes one photo of a saved order. No version is sent: the delete applies to the latest state, and a lost race is read again
+    /// and decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the
+    /// cover was deleted. A photo id that is not on this order, or was already deleted, answers 404 <c>orders.image-not-found</c>. A
+    /// Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing. The photo's file is queued for removal in the
+    /// same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is
+    /// recorded in the audit log.
+    /// </summary>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="imageId">The photo id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the whole order, 401 without a valid token, 404 when the order or the photo on it does not exist, 409 when two saves lost a race twice, or 422 when the order is completed or cancelled (<c>orders.locked</c>).</returns>
+    [HttpDelete("{imageId:guid}")]
+    [EndpointName("RemoveOrderImage")]
+    [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Remove(Guid orderId, Guid imageId, CancellationToken cancellationToken)
+    {
+        var result = await remove.HandleAsync(orderId, imageId, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
     }
 }

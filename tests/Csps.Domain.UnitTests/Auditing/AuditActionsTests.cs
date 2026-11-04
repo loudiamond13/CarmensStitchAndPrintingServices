@@ -40,6 +40,13 @@ public sealed class AuditActionsTests
     }
 
     [Fact]
+    public void TheOrderPhotoDeletedCodeIsInTheCatalog()
+    {
+        AuditActions.OrderImageDeleted.ShouldBe("order-image.deleted");
+        AuditActions.All.ShouldContain(AuditActions.OrderImageDeleted);
+    }
+
+    [Fact]
     public void TheManagerResetLinkCodeIsInTheCatalog()
     {
         AuditActions.UserResetLinkSent.ShouldBe("user.reset-link-sent");
