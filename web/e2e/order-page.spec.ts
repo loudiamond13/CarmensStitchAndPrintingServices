@@ -69,9 +69,10 @@ test('@orders-page a Manager opens an order from the list and sees its header, t
   await expect(totals.getByText('Order Expenses')).toBeVisible();
   await expect(totals.getByText('Estimated Profit')).toBeVisible();
 
-  // The Images card says uploads are coming (D-27); the Items tab lists the item with its subtotal footer.
+  // The Images card offers the add area (ORD-04); the Items tab lists the item with its subtotal footer.
   await expect(page.getByRole('heading', { level: 2, name: 'Images' })).toBeVisible();
-  await expect(page.getByText('Image uploads are coming soon.')).toBeVisible();
+  await expect(page.getByText('Image uploads are coming soon.')).toBeHidden();
+  await expect(page.getByText(/up to 10 MB each · 0\/5/).first()).toBeAttached();
   const items = page.getByRole('table', { name: 'Order items' });
   await expect(items).toContainText('E2E page jersey');
   await expect(items).toContainText('S-XL');

@@ -1,5 +1,5 @@
 // O1 Order page, /admin/orders/:id (ORD-07, ORD-12, ORD-19; plans 08-10, 08-12). The header, the phone balance card, the Images card
-// (coming soon, D-27), the tab card (Items, Payments, Discounts, Expenses, and Refunds when it applies) and the side with the totals
+// (the photo manager, ORD-04), the tab card (Items, Payments, Discounts, Expenses, and Refunds when it applies) and the side with the totals
 // panel, the customer card and the status history. Every figure is the server's answer: Subtotal to Balance, and the internal Order
 // Expenses and Estimated Profit, which only this staff page and the deleted view show (ORD-19, D-06, D-08). The tab is the URL
 // `tab` parameter. The first load shows skeletons, a failed load an ErrorState with Try Again, and a missing or deleted order a
@@ -8,12 +8,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { Button, ButtonLink } from '@/components/actions';
-import { Icon } from '@/components/brand';
 import { getTabPanelProps, Tabs, type TabItem } from '@/components/choice';
 import { Skeleton } from '@/components/feedback';
 import { pageHeadTitleClasses, srOnlyClasses } from '@/components/layout/layout.recipe';
 import { SkeletonTable } from '@/components/lists';
 import { OrderTotals } from '@/components/money';
+import { ConfirmDialog } from '@/components/overlays';
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { OrderHeader } from '@/modules/admin/components/OrderHeader';
@@ -23,6 +23,7 @@ import { OrderDiscountsTab } from '@/modules/admin/components/OrderDiscountsTab'
 import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
 import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner';
+import { OrderPhotosCard } from '@/modules/admin/components/OrderPhotosCard';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
 import { OrderRefundModal } from '@/modules/admin/components/OrderRefundModal';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
@@ -30,12 +31,7 @@ import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistor
 import { ReopenOrderModal } from '@/modules/admin/components/ReopenOrderModal';
 import {
   orderCardClasses,
-  orderCardHeadClasses,
-  orderCardHintClasses,
-  orderCardTitleClasses,
   orderDetailClasses,
-  orderImagesBodyClasses,
-  orderImageTileClasses,
   orderMainClasses,
   orderPageClasses,
   orderSideClasses,
@@ -45,8 +41,11 @@ import {
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { useOrderTab, type OrderTab } from '@/modules/admin/hooks/useOrderTab';
+import { usePendingPhotoCount } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import { canAddRefund, isLocked, showRefundsTab } from '@/modules/admin/orderRules';
 import { CHANGE_STATUS_ID, RECORD_REFUND_ID, REOPEN_ORDER_ID } from '@/modules/admin/orderStatus';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
@@ -103,27 +102,6 @@ function TabBody({ tab, order }: { tab: OrderTab; order: OrderDetailResponse }) 
   }
 }
 
-function ImagesCard() {
-  return (
-    <section className={orderCardClasses} aria-labelledby="order-images">
-      <div className={orderCardHeadClasses}>
-        <div>
-          <h2 id="order-images" className={orderCardTitleClasses}>
-            {COPY.images.title}
-          </h2>
-          <p className={orderCardHintClasses}>{COPY.images.hint}</p>
-        </div>
-      </div>
-      <div className={orderImagesBodyClasses}>
-        <span className={orderImageTileClasses}>
-          <Icon name="image" size={24} />
-        </span>
-        <p>{COPY.images.soon}</p>
-      </div>
-    </section>
-  );
-}
-
 /** The first-load placeholder: the header lines, the tab table and the totals card, in the places the real ones land. */
 function OrderSkeleton() {
   return (
@@ -164,6 +142,9 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
   }, [hiddenTab, setTab]);
   const active: OrderTab = hiddenTab ? 'items' : tab;
   const locked = isLocked(order);
+  // Photos that wait, upload or failed are only in memory, so leaving the page would lose them (D-29).
+  const pendingPhotos = usePendingPhotoCount(order.id);
+  const leaveGuard = useUnsavedChangesGuard({ isDirty: pendingPhotos > 0 });
   // Where focus goes once the order has changed state: Reopen Order after a complete or cancel, Change Status after a reopen.
   // The button is not on the page until the answer has rendered, so the wish is kept and carried out after that render.
   const focusWish = useRef<'reopen' | 'status' | null>(null);
@@ -240,10 +221,20 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
           }}
         />
       )}
+      <ConfirmDialog
+        open={leaveGuard.dialog.open}
+        title={ORDER_PHOTOS_COPY.leave.title}
+        message={ORDER_PHOTOS_COPY.leave.message(pendingPhotos)}
+        cancelLabel={ORDER_PHOTOS_COPY.leave.stay}
+        confirmLabel={ORDER_PHOTOS_COPY.leave.leave}
+        confirmIcon="log-out"
+        onConfirm={leaveGuard.dialog.onDiscard}
+        onCancel={leaveGuard.dialog.onKeepEditing}
+      />
       <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>
-          <ImagesCard />
+          <OrderPhotosCard order={order} />
           <section className={orderCardClasses}>
             <div className={orderTabsRowClasses}>
               <Tabs idBase={ID_BASE} items={tabItems(order, refundsShown)} value={active} onChange={setTab} />
