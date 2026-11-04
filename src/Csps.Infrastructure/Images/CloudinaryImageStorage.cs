@@ -181,6 +181,6 @@ internal sealed partial class CloudinaryImageStorage(IOptions<CloudinarySettings
             Api = { Secure = true, Client = httpClients.CreateClient(HttpClientName) },
         };
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Cloudinary {Operation} did not work: {Code} (HTTP {Status}).")]
-    private partial void LogFailed(string operation, string code, int status);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Cloudinary {Operation} did not work: {FailureCode} (HTTP {Status}).")]
+    private partial void LogFailed(string operation, string failureCode, int status);
 }

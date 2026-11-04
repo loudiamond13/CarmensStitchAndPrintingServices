@@ -35,6 +35,7 @@ public static class SensitiveDataMasking
         "Code",
         "Otp",
         "ApiKey",
+        "ApiSecret",
         "Authorization",
         "Cookie",
         "ConnectionString",
