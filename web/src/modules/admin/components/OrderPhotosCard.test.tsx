@@ -327,15 +327,15 @@ describe('the limit of 5 (D-08, UIC-29)', () => {
   });
 });
 
-function problem(status: number, code: string, title: string): HttpError {
+function problem(status: number, code: string, message: string): HttpError {
   return new HttpError({
     kind: 'http',
     status,
     problem: {
       type: undefined,
-      title,
+      title: 'Generic status words.',
       status,
-      detail: undefined,
+      detail: message,
       instance: undefined,
       traceId: undefined,
       code,
@@ -368,10 +368,9 @@ describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
       ['a.jpg', 'b.jpg', 'c.jpg'].map((name) => pickedImage(name)),
     );
 
-    const banner = await screen.findByText("1 of 3 photos didn't upload.");
-    expect(
-      screen.getByText("They're below. Try again or remove them. If you leave this page, they're lost."),
-    ).toBeVisible();
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent("1 of 3 photos didn't upload.");
+    expect(banner).toHaveTextContent("They're below. Try again or remove them. If you leave this page, they're lost.");
     const list = screen.getByRole('list', { name: 'Order photos' });
     expect(banner.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const items = within(list).getAllByRole('listitem');
@@ -385,7 +384,7 @@ describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
     await user.click(within(tileOf('b.jpg')).getByRole('button', { name: 'Try again, b.jpg' }));
 
     expect(await screen.findByText('3 photos added to ORD-2026-0148.')).toBeVisible();
-    expect(screen.queryByText("1 of 3 photos didn't upload.")).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(upload).toHaveBeenCalledTimes(4);
   });
 
@@ -401,7 +400,7 @@ describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
     await user.upload(galleryInput(container), pickedImage('a.jpg'));
 
     const tile = await waitFor(() => tileOf('a.jpg'));
-    expect(await screen.findByText("1 of 1 photo didn't upload.")).toBeVisible();
+    expect(await screen.findByRole('alert')).toHaveTextContent("1 of 1 photo didn't upload.");
     expect(
       within(tile).getByText("Didn't upload. a.jpg isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file."),
     ).toBeVisible();
@@ -410,7 +409,7 @@ describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
     await user.click(within(tile).getByRole('button', { name: 'Remove a.jpg' }));
 
     expect(screen.queryByText('a.jpg')).not.toBeInTheDocument();
-    expect(screen.queryByText(/photo didn't upload/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('turns the card read-only when the order locks meanwhile, fails waiting files with the server text, and raises a danger toast', async () => {

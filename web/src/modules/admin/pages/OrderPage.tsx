@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/feedback';
 import { pageHeadTitleClasses, srOnlyClasses } from '@/components/layout/layout.recipe';
 import { SkeletonTable } from '@/components/lists';
 import { OrderTotals } from '@/components/money';
+import { ConfirmDialog } from '@/components/overlays';
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { OrderHeader } from '@/modules/admin/components/OrderHeader';
@@ -40,8 +41,11 @@ import {
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { useOrderTab, type OrderTab } from '@/modules/admin/hooks/useOrderTab';
+import { usePendingPhotoCount } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import { canAddRefund, isLocked, showRefundsTab } from '@/modules/admin/orderRules';
 import { CHANGE_STATUS_ID, RECORD_REFUND_ID, REOPEN_ORDER_ID } from '@/modules/admin/orderStatus';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
@@ -138,6 +142,9 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
   }, [hiddenTab, setTab]);
   const active: OrderTab = hiddenTab ? 'items' : tab;
   const locked = isLocked(order);
+  // Photos that wait, upload or failed are only in memory, so leaving the page would lose them (D-29).
+  const pendingPhotos = usePendingPhotoCount(order.id);
+  const leaveGuard = useUnsavedChangesGuard({ isDirty: pendingPhotos > 0 });
   // Where focus goes once the order has changed state: Reopen Order after a complete or cancel, Change Status after a reopen.
   // The button is not on the page until the answer has rendered, so the wish is kept and carried out after that render.
   const focusWish = useRef<'reopen' | 'status' | null>(null);
@@ -214,6 +221,16 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
           }}
         />
       )}
+      <ConfirmDialog
+        open={leaveGuard.dialog.open}
+        title={ORDER_PHOTOS_COPY.leave.title}
+        message={ORDER_PHOTOS_COPY.leave.message(pendingPhotos)}
+        cancelLabel={ORDER_PHOTOS_COPY.leave.stay}
+        confirmLabel={ORDER_PHOTOS_COPY.leave.leave}
+        confirmIcon="log-out"
+        onConfirm={leaveGuard.dialog.onDiscard}
+        onCancel={leaveGuard.dialog.onKeepEditing}
+      />
       <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>

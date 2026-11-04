@@ -2,7 +2,6 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHttpClient } from '@/core/api/apiClient';
 import { HttpError } from '@/core/api/errors';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
@@ -13,8 +12,7 @@ import {
   type PreparedUpload,
   type UploadDeps,
 } from '@/modules/admin/hooks/usePhotoUploadQueue';
-import { createOrderPhotosService, orderPhotosService } from '@/modules/admin/services/orderPhotosService';
-import { createFakeFetch } from '@/test/fakeFetch';
+import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { buildOrderDetail, order0148, orderImage, type OrderDetailFixture } from '@/test/orderFixtures';
 
 // The memory-only upload queue of one order (ORD-04, IMG-01, D-31): one request at a time, one key per file.
@@ -191,15 +189,21 @@ describe('a batch of photos (IMG-05, D-31)', () => {
   });
 });
 
-function httpFailure(status: number, code: string | undefined, title: string, traceId?: string): HttpError {
+/** A ProblemDetails answer: the title is the generic words of the status, the message the server wrote is the detail. */
+function httpFailure(
+  status: number,
+  code: string | undefined,
+  detail: string | undefined,
+  traceId?: string,
+): HttpError {
   return new HttpError({
     kind: 'http',
     status,
     problem: {
       type: undefined,
-      title,
+      title: 'Generic status words.',
       status,
-      detail: undefined,
+      detail,
       instance: undefined,
       traceId,
       code,
@@ -234,7 +238,18 @@ describe('why an upload failed, and whether Try Again can help (D-10)', () => {
       true,
       "The photo couldn't be saved. Try again.",
     ],
-    ['a server error', httpFailure(500, undefined, 'Boom', 'abc123'), true, 'Something went wrong. Reference: abc123'],
+    [
+      'a server error',
+      httpFailure(500, undefined, 'Something went wrong. Reference: abc123', 'abc123'),
+      true,
+      'Something went wrong. Reference: abc123',
+    ],
+    [
+      'a server error with no detail',
+      httpFailure(500, undefined, undefined, 'abc123'),
+      true,
+      'Something went wrong. Reference: abc123',
+    ],
     [
       'a busy order',
       httpFailure(409, 'orders.busy', 'The order is busy. Try again.'),
@@ -292,11 +307,18 @@ describe('why an upload failed, and whether Try Again can help (D-10)', () => {
 
 describe('Try Again (SEC-06, WEB-09)', () => {
   it('sends the same key and the same bytes again, and the photo is stored once', async () => {
-    const fake = createFakeFetch([{ networkError: true }, { body: buildOrderDetail({ images: [orderImage(1)] }) }]);
-    const service = createOrderPhotosService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+    const sent: { key: string; form: FormData }[] = [];
+    const saved = buildOrderDetail({ images: [orderImage(1)] });
     const onSaved = vi.fn();
     const deps: UploadDeps = {
-      upload: (id, item, signal) => service.upload(id, item.blob, item.name, item.description, item.key, signal),
+      // The same form the service builds, so the two request bodies can be compared.
+      upload: (_id, item) => {
+        const form = new FormData();
+        form.append('file', item.blob, item.name);
+        form.append('description', item.description);
+        sent.push({ key: item.key, form });
+        return sent.length === 1 ? Promise.reject(new HttpError({ kind: 'network' })) : Promise.resolve(saved);
+      },
       onSaved,
       onLocked: vi.fn(),
       onBatchDone: vi.fn(),
@@ -306,16 +328,15 @@ describe('Try Again (SEC-06, WEB-09)', () => {
     await waitFor(() => {
       expect(photoUploadQueue.snapshot(ORDER_ID).items[0]?.state).toBe('failed');
     });
-    const item = photoUploadQueue.snapshot(ORDER_ID).items[0];
-    photoUploadQueue.retry(ORDER_ID, item?.id ?? '');
+    photoUploadQueue.retry(ORDER_ID, photoUploadQueue.snapshot(ORDER_ID).items[0]?.id ?? '');
     await waitFor(() => {
       expect(photoUploadQueue.snapshot(ORDER_ID).items).toHaveLength(0);
     });
 
-    const [first, second] = fake.calls;
-    expect(fake.calls).toHaveLength(2);
-    expect(second?.headers.get('Idempotency-Key')).toBe(first?.headers.get('Idempotency-Key'));
-    const part = (call: typeof first) => (call?.body as FormData).get('file') as File;
+    const [first, second] = sent;
+    expect(sent).toHaveLength(2);
+    expect(second?.key).toBe(first?.key);
+    const part = (request: typeof first) => request?.form.get('file') as File;
     expect(part(second).name).toBe(part(first).name);
     expect(await part(second).text()).toBe(await part(first).text());
     expect(onSaved).toHaveBeenCalledTimes(1);

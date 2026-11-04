@@ -8,6 +8,11 @@ import { Icon } from '@/components/brand';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { ImageUploader, type PhotoTileModel, type PickError } from '@/components/media';
 import {
+  orderPhotosBannerBodyClasses,
+  orderPhotosBannerClasses,
+  orderPhotosBannerIconClasses,
+  orderPhotosBannerTextClasses,
+  orderPhotosBannerTitleClasses,
   orderPhotosBodyClasses,
   orderPhotosSpinnerClasses,
   orderPhotosStatusClasses,
@@ -168,6 +173,17 @@ export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
         </div>
       </div>
       <div className={orderPhotosBodyClasses}>
+        {queue.failed > 0 && queue.progress === null && (
+          <div role="alert" className={orderPhotosBannerClasses}>
+            <span className={orderPhotosBannerIconClasses}>
+              <Icon name="triangle-alert" size={20} />
+            </span>
+            <div className={orderPhotosBannerTextClasses}>
+              <p className={orderPhotosBannerTitleClasses}>{COPY.banner.title(queue.failed, queue.batchTotal)}</p>
+              <p className={orderPhotosBannerBodyClasses}>{COPY.banner.body}</p>
+            </div>
+          </div>
+        )}
         <ImageUploader
           photos={photos}
           max={max}

@@ -4,8 +4,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore } from 'react';
 import { useToast } from '@/components/feedback';
+import { isHttpError, type HttpError } from '@/core/api/errors';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
-import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
@@ -95,6 +96,10 @@ interface Entry {
 }
 
 const ANNOUNCE = ORDER_PHOTOS_COPY.announce;
+const REASONS = ORDER_PHOTOS_COPY.reasons;
+const NOT_CONFIGURED = 'images.not-configured';
+const STORAGE_FAILED = 'images.storage-failed';
+const LOCKED = 'orders.locked';
 
 const EMPTY: QueueSnapshot = { items: [], progress: null, pending: 0, failed: 0, batchTotal: 0, announcement: '' };
 
@@ -129,8 +134,46 @@ function isGone(entry: Entry): boolean {
   return entry.disposed;
 }
 
-function failureOf(error: unknown): UploadFailure {
-  return { reason: error instanceof Error ? error.message : '', retryable: false };
+interface Classified extends UploadFailure {
+  /** The order is Completed or Cancelled: nothing more can be added. */
+  locked: boolean;
+}
+
+/**
+ * The server's own line: its `detail` (a 4xx message, or "Something went wrong. Reference: ..." for a 5xx), else the first
+ * field message, else a plain line. The `title` is only the generic words of the status, so it is not used.
+ */
+function serverLine(error: HttpError): string {
+  const detail = error.problem?.detail?.trim();
+  if (detail !== undefined && detail !== '') return detail;
+  const field = Object.values(error.fieldErrors)[0]?.[0];
+  if (field !== undefined && field.trim() !== '') return field;
+  return error.status >= 500 ? REASONS.server(error.traceId) : REASONS.refused;
+}
+
+/**
+ * Why a file did not upload, and whether Try Again can help: it can for a lost connection, a timeout, a 5xx other than a host
+ * with no photo store, a busy order (409) and a slow-down (429); a refusal the server would repeat (type, size, pixels, limit,
+ * locked, deleted) leaves Remove only (D-10).
+ */
+function classify(error: unknown): Classified {
+  if (!isHttpError(error)) return { reason: REASONS.server(undefined), retryable: false, locked: false };
+  if (error.kind === 'network' || error.kind === 'timeout') {
+    return { reason: REASONS.network, retryable: true, locked: false };
+  }
+  if (error.kind !== 'http') return { reason: REASONS.server(error.traceId), retryable: true, locked: false };
+  const { status, code } = error;
+  if (status === 429) return { reason: REASONS.rateLimited, retryable: true, locked: false };
+  if (status >= 500) {
+    if (code === NOT_CONFIGURED) return { reason: serverLine(error), retryable: false, locked: false };
+    if (code === STORAGE_FAILED) return { reason: serverLine(error), retryable: true, locked: false };
+    return { reason: serverLine(error), retryable: true, locked: false };
+  }
+  return {
+    reason: serverLine(error),
+    retryable: status === 409,
+    locked: status === 422 && code === LOCKED,
+  };
 }
 
 /** Counts the files of the batch that are done (saved or failed) and the files the batch holds. */
@@ -156,6 +199,16 @@ function finish(entry: Entry): void {
   }
 }
 
+/** The order locked: files still waiting cannot be added, so they fail with the server's text and keep only Remove. */
+function failWaiting(entry: Entry, message: string): void {
+  for (const item of entry.items) {
+    if (item.state === 'waiting') {
+      item.state = 'failed';
+      item.failure = { reason: message, retryable: false };
+    }
+  }
+}
+
 async function pump(orderId: string, entry: Entry): Promise<void> {
   if (entry.running) return;
   entry.running = true;
@@ -169,6 +222,7 @@ async function pump(orderId: string, entry: Entry): Promise<void> {
       entry.controller = new AbortController();
       publish(entry);
       let answer: OrderDetailResponse | null = null;
+      let lockedMessage: string | null = null;
       try {
         answer = await entry.deps.upload(
           orderId,
@@ -177,8 +231,10 @@ async function pump(orderId: string, entry: Entry): Promise<void> {
         );
       } catch (error) {
         if (isGone(entry)) return;
+        const failure = classify(error);
         item.state = 'failed';
-        item.failure = failureOf(error);
+        item.failure = { reason: failure.reason, retryable: failure.retryable };
+        if (failure.locked) lockedMessage = failure.reason;
       }
       if (isGone(entry)) return;
       if (answer !== null) {
@@ -190,7 +246,9 @@ async function pump(orderId: string, entry: Entry): Promise<void> {
         }
         entry.deps.onSaved(answer);
       }
+      if (lockedMessage !== null) failWaiting(entry, lockedMessage);
       publish(entry);
+      if (lockedMessage !== null) entry.deps.onLocked(lockedMessage);
     }
   } finally {
     entry.running = false;
@@ -241,7 +299,16 @@ export const photoUploadQueue = {
     publish(entry);
     void pump(orderId, entry);
   },
-  retry: (): void => undefined,
+  /** Sends a failed file again under its own key and bytes. Pressed twice, it still sends once. */
+  retry: (orderId: string, itemId: string): void => {
+    const entry = entries.get(orderId);
+    const item = entry?.items.find((candidate) => candidate.id === itemId);
+    if (entry === undefined || item?.state !== 'failed' || item.failure?.retryable !== true) return;
+    item.state = 'waiting';
+    item.failure = null;
+    publish(entry);
+    void pump(orderId, entry);
+  },
   /** Drops a waiting or failed file. An uploading file cannot be removed. */
   remove: (orderId: string, itemId: string): void => {
     const entry = entries.get(orderId);
@@ -300,6 +367,7 @@ export interface PhotoUploadQueueApi extends QueueSnapshot {
 /** The order's queue for the Images card: its snapshot and the actions, with the request and the order cache wired in. */
 export function usePhotoUploadQueue(orderId: string): PhotoUploadQueueApi {
   const applyOrder = useApplyOrder();
+  const refetchOrder = useRefetchOrder();
   const queryClient = useQueryClient();
   const toast = useToast();
   const snapshot = useSyncExternalStore(
@@ -312,7 +380,10 @@ export function usePhotoUploadQueue(orderId: string): PhotoUploadQueueApi {
     upload: (id, item, signal) =>
       orderPhotosService.upload(id, item.blob, item.name, item.description, item.key, signal),
     onSaved: applyOrder,
-    onLocked: () => undefined,
+    onLocked: (message) => {
+      void refetchOrder(orderId);
+      toast.show({ tone: 'danger', title: ORDER_PHOTOS_COPY.toasts.changeFailed.title, message });
+    },
     onBatchDone: (count) => {
       const number = queryClient.getQueryData<OrderDetailResponse>(orderKey(orderId))?.number ?? '';
       toast.show({
@@ -334,4 +405,13 @@ export function usePhotoUploadQueue(orderId: string): PhotoUploadQueueApi {
       photoUploadQueue.remove(orderId, itemId);
     },
   };
+}
+
+/** How many files wait, upload or failed for the order: what leaving the page would lose. */
+export function usePendingPhotoCount(orderId: string): number {
+  return useSyncExternalStore(
+    photoUploadQueue.subscribe,
+    () => photoUploadQueue.snapshot(orderId).pending,
+    () => 0,
+  );
 }

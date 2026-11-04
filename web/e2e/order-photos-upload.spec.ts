@@ -117,3 +117,40 @@ test('@order-photos-upload three picked photos upload in order and show as three
   await expect(page.getByText('3/5').first()).toBeAttached();
   await expect(page.getByText(/Uploading photo/)).toBeHidden();
 });
+
+test('@order-photos-upload a failed upload waits with a banner, and Try Again uploads it and clears the banner', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(180_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const { id, number } = await seedOrder(request);
+  guard.expectStatus(`/api/v1/orders/${id}/images`, 503);
+  await signInAs(page, request, manager);
+  await page.goto(`/admin/orders/${id}`);
+  await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible();
+
+  // The next upload fails as if the photo store were down; the one after it works.
+  const armed = await request.post('/api/testing/images/fail-next', { data: { count: 1 } });
+  expect(armed.status()).toBe(204);
+  await page
+    .locator('input[type="file"][multiple]')
+    .setInputFiles([await drawJpeg(page, 'one.jpg', 30), await drawJpeg(page, 'two.jpg', 150)]);
+
+  const banner = page.getByRole('alert');
+  await expect(banner).toContainText("1 of 2 photos didn't upload.");
+  await expect(banner).toContainText("They're below. Try again or remove them. If you leave this page, they're lost.");
+  await expect(page.getByText("Didn't upload. The photo couldn't be saved. Try again.")).toBeVisible();
+  await expect(page.getByRole('button', { name: `Open photo 1 of 1: Order ${number} photo 1` })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove one.jpg' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Try again, one.jpg' }).click();
+
+  await expect(page.getByText(`2 photos added to ${number}.`)).toBeVisible();
+  await expect(banner).toBeHidden();
+  await expect(page.getByRole('button', { name: `Open photo 2 of 2: Order ${number} photo 2` })).toBeVisible();
+  await expect.poll(() => thumbWidth(page, 2)).toBeGreaterThan(0);
+  await expect(page.getByText('one.jpg')).toBeHidden();
+});
