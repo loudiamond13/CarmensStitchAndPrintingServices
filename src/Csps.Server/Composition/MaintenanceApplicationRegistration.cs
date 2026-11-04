@@ -13,6 +13,7 @@ public static class MaintenanceApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<RunMaintenanceHandler>();
+        services.AddScoped<IMaintenanceJob, StraySweepJob>();
         services.AddScoped<IMaintenanceJob, ImageRemovalJob>();
         services.AddScoped<IMaintenanceJob, CloudinaryUsageJob>();
         return services;

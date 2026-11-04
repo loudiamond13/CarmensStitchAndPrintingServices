@@ -173,6 +173,47 @@ public sealed class ImageDeletionQueueClaimTests(CspsDatabase database) : IClass
         next.ShouldHaveSingleItem().Id.ShouldBe(claimed[0].Id);
     }
 
+    [Fact]
+    public async Task AnEnqueueManyWritesOneDueRowPerIdWithTheReasonAndNoAttempts()
+    {
+        await database.ResetAsync();
+        await using var context = database.CreateContext();
+        var ids = new[] { "csps-test/orders/a/one", "csps-test/orders/a/two", "csps-test/orders/b/three" };
+
+        await NewQueue(context).EnqueueManyNowAsync(ids, ImageDeletionReason.Stray, TestContext.Current.CancellationToken);
+
+        var rows = await RowsAsync();
+        rows.Select(row => row.PublicId).Order(StringComparer.Ordinal).ShouldBe(ids);
+        rows.ShouldAllBe(row => row.Reason == ImageDeletionReason.Stray && row.Attempts == 0 && row.NextAttemptAtUtc == Now && row.DeliveryType == "private");
+        (await NewQueue(context).ClaimDueAsync(Guid.NewGuid(), Now, Lease, 25, TestContext.Current.CancellationToken)).Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task AnEnqueueManyWithNoIdsWritesNothing()
+    {
+        await database.ResetAsync();
+        await using var context = database.CreateContext();
+
+        await NewQueue(context).EnqueueManyNowAsync([], ImageDeletionReason.Stray, TestContext.Current.CancellationToken);
+
+        (await RowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnEnqueueManyThatCannotSaveLogsOnlyTheFailureCodeAndThrowsTheError()
+    {
+        var logger = new FakeLogger<ImageDeletionQueue>();
+        await using var context = database.CreateContext();
+        var queue = new ImageDeletionQueue(context, new BrokenContextFactory(), new FakeTimeProvider(Now), logger);
+        var publicId = $"csps-test/orders/{Guid.NewGuid():D}/{Guid.NewGuid():N}";
+
+        await Should.ThrowAsync<InvalidOperationException>(() => queue.EnqueueManyNowAsync([publicId], ImageDeletionReason.Stray, TestContext.Current.CancellationToken));
+
+        var record = logger.Collector.GetSnapshot().ShouldHaveSingleItem();
+        record.Message.ShouldContain("image-queue-failed");
+        record.Message.ShouldNotContain(publicId);
+    }
+
     private ImageDeletionQueue NewQueue(CspsDbContext context) =>
         new(context, new TestContextFactory(database), new FakeTimeProvider(Now), new FakeLogger<ImageDeletionQueue>());
 
@@ -191,6 +232,11 @@ public sealed class ImageDeletionQueueClaimTests(CspsDatabase database) : IClass
     {
         await using var fresh = database.CreateContext();
         return await fresh.Set<ImageDeletion>().AsNoTracking().OrderBy(row => row.Id).ToListAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class BrokenContextFactory : IDbContextFactory<CspsDbContext>
+    {
+        public CspsDbContext CreateDbContext() => throw new InvalidOperationException("The database is not reachable.");
     }
 
     private sealed class TestContextFactory(CspsDatabase database) : IDbContextFactory<CspsDbContext>

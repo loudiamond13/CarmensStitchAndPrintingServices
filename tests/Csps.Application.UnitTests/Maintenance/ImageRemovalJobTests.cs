@@ -257,6 +257,39 @@ public sealed class ImageRemovalJobTests
     }
 
     [Fact]
+    public async Task AQueuedFileThatAPhotoRowStillNamesIsNeverRemovedAndOnlyItsQueueRowIsDropped()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(PublicId(1));
+        harness.Queue.Add(PublicId(2));
+        harness.Queue.Add(PublicId(3));
+        harness.Inventory.Photos.Add(PublicId(2));
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.ShouldBe([PublicId(1), PublicId(3)]);
+        harness.Queue.Rows.ShouldBeEmpty();
+        report.Lines.Single(line => line.Label == RemovedLabel).Value.ShouldBe(2);
+        var dropped = report.Lines.Single(line => line.Label == "Queued removals dropped (photo still in use)");
+        (dropped.Value, dropped.Failed).ShouldBe((1L, false));
+        report.Lines.ShouldNotContain(line => line.Failed);
+    }
+
+    [Fact]
+    public async Task AQueuedFileIsKeptWhenAPhotoRowNamesItInAnyLetterCase()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(PublicId(1));
+        harness.Inventory.Photos.Add(PublicId(1).ToUpperInvariant());
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.ShouldBeEmpty();
+        harness.Queue.Rows.ShouldBeEmpty();
+        report.Lines.Single(line => line.Label == RemovedLabel).Value.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task AStorageThatIsNotSetUpTouchesNothingAndDoesNotFailTheRun()
     {
         var harness = new Harness();
@@ -311,7 +344,7 @@ public sealed class ImageRemovalJobTests
             Time = new RecordingTimeProvider();
             Time.SetUtcNow(new DateTimeOffset(2026, 11, 3, 12, 0, 0, TimeSpan.Zero));
             Log = Substitute.For<IMaintenanceJobLog>();
-            Job = new ImageRemovalJob(Storage, Queue, Time, Log);
+            Job = new ImageRemovalJob(Storage, Queue, Inventory, Time, Log);
         }
 
         public RecordingTimeProvider Time { get; }
@@ -319,6 +352,8 @@ public sealed class ImageRemovalJobTests
         public FakeImageStorage Storage { get; } = new();
 
         public FakeImageDeletionQueue Queue { get; } = new();
+
+        public FakeImageInventory Inventory { get; } = new();
 
         public IMaintenanceJobLog Log { get; }
 

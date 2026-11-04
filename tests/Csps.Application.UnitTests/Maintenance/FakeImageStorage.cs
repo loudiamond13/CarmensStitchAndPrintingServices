@@ -21,6 +21,9 @@ internal sealed class FakeImageStorage : IImageStorage
     /// <summary>Gets or sets what runs just before each removal answers.</summary>
     public Action<string>? OnRemove { get; set; }
 
+    /// <summary>Gets or sets what runs just after each listing answers.</summary>
+    public Action? OnList { get; set; }
+
     /// <summary>Gets or sets an error every listing throws.</summary>
     public Exception? ListFailure { get; set; }
 
@@ -60,7 +63,9 @@ internal sealed class FakeImageStorage : IImageStorage
             throw ListFailure;
         }
 
-        return Task.FromResult(_pages.TryGetValue(cursor ?? string.Empty, out var page) ? page : new StoredImagePage([], null));
+        var answer = _pages.TryGetValue(cursor ?? string.Empty, out var page) ? page : new StoredImagePage([], null);
+        OnList?.Invoke();
+        return Task.FromResult(answer);
     }
 
     public Task<StorageUsage> GetUsageAsync(CancellationToken cancellationToken) =>

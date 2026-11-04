@@ -101,6 +101,18 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
         }
     }
 
+    /// <summary>Puts a file in the store with a chosen storage time, or changes the time of one that is there, so a test can make a file old.</summary>
+    /// <param name="publicId">The public id to store the file under.</param>
+    /// <param name="storedAt">When the file counts as stored.</param>
+    public void Seed(string publicId, DateTimeOffset storedAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicId);
+        _files.AddOrUpdate(
+            publicId,
+            _ => (new StoredTestImage(new byte[] { 0xFF, 0xD8, 0xFF }, ImageKind.Jpeg), storedAt),
+            (_, existing) => (existing.Image, storedAt));
+    }
+
     /// <summary>Makes the next removals answer with a chosen outcome and leave the files in place.</summary>
     /// <param name="count">How many removals to fail.</param>
     /// <param name="outcome">The outcome to answer; a transient failure when null.</param>

@@ -30,6 +30,8 @@ public sealed class ImageCleanupRunTests(CspsDatabase database) : IClassFixture<
     private const string KeySetting = "Maintenance:Key";
     private const string RunPath = "/api/v1/maintenance/run";
     private const string RemovedLabel = "Photos removed from storage";
+    private const string StrayLabel = "Stray files removed (older than 2 days)";
+    private const string DroppedLabel = "Queued removals dropped (photo still in use)";
 
     // A clearly fake test-only value, built here so no key-shaped text sits in the repository.
     private static readonly string TestKey = new('k', 40);
@@ -95,19 +97,118 @@ public sealed class ImageCleanupRunTests(CspsDatabase database) : IClassFixture<
         run.Text.ShouldNotContain(scene.LastSegment);
     }
 
-    private async Task<Scene> StartDeletedPhotoSceneAsync()
+    [Fact]
+    public async Task AStrayFileOlderThanTwoDaysIsQueuedAndRemovedInOneRunWhileAYoungOneStays()
+    {
+        await using var scene = await StartSceneAsync();
+        var folder = $"csps-test/orders/{Guid.NewGuid():D}";
+        var stray = $"{folder}/{Guid.NewGuid():N}";
+        var young = $"{folder}/{Guid.NewGuid():N}";
+        var now = TimeProvider.System.GetUtcNow();
+        scene.Storage.Seed(stray, now - TimeSpan.FromDays(3));
+        scene.Storage.Seed(young, now - TimeSpan.FromDays(1));
+
+        var run = await RunAsync(scene.Client);
+
+        run.Ok.ShouldBeTrue(run.Text);
+        run.Line(StrayLabel).GetProperty("value").GetInt64().ShouldBe(1);
+        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(1);
+        scene.Storage.Removals.ShouldBe([stray]);
+        scene.Storage.TryGet(stray[(stray.LastIndexOf('/') + 1)..], out _).ShouldBeFalse();
+        scene.Storage.TryGet(young[(young.LastIndexOf('/') + 1)..], out _).ShouldBeTrue();
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task APhotoOfASoftDeletedOrderOlderThanTwoDaysIsStillInTheStorageAfterTheRun()
+    {
+        await using var scene = await StartSceneAsync();
+        var (liveId, _) = await CreateOrderWithPhotosAsync(scene.Calendar, scene.Client, scene.AccessToken, photos: 1);
+        var (deletedId, _) = await CreateOrderWithPhotosAsync(scene.Calendar, scene.Client, scene.AccessToken, photos: 1);
+        using var deleted = await OrderFixtures.DeleteAsync(scene.Client, scene.AccessToken, deletedId);
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var photos = new List<string>([.. await PhotoIdsAsync(liveId), .. await PhotoIdsAsync(deletedId)]);
+        photos.Count.ShouldBe(2);
+        var old = TimeProvider.System.GetUtcNow() - TimeSpan.FromDays(30);
+        photos.ForEach(photo => scene.Storage.Seed(photo, old));
+
+        var run = await RunAsync(scene.Client);
+
+        run.Ok.ShouldBeTrue(run.Text);
+        run.Line(StrayLabel).GetProperty("value").GetInt64().ShouldBe(0);
+        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(0);
+        scene.Storage.Removals.ShouldBeEmpty();
+        photos.ShouldAllBe(photo => scene.Holds(photo));
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUploadUndoneRowThatNamesALivePhotoOrASoftDeletedOnesIsDroppedAndTheFilesStay()
+    {
+        await using var scene = await StartSceneAsync();
+        var (liveId, _) = await CreateOrderWithPhotosAsync(scene.Calendar, scene.Client, scene.AccessToken, photos: 1);
+        var (deletedId, _) = await CreateOrderWithPhotosAsync(scene.Calendar, scene.Client, scene.AccessToken, photos: 1);
+        using var deleted = await OrderFixtures.DeleteAsync(scene.Client, scene.AccessToken, deletedId);
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var photos = new List<string>([.. await PhotoIdsAsync(liveId), .. await PhotoIdsAsync(deletedId)]);
+        await QueueAsync(photos, ImageDeletionReason.UploadUndone);
+
+        var run = await RunAsync(scene.Client);
+
+        run.Ok.ShouldBeTrue(run.Text);
+        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(0);
+        run.Line(DroppedLabel).GetProperty("value").GetInt64().ShouldBe(2);
+        scene.Storage.Removals.ShouldBeEmpty();
+        photos.ShouldAllBe(photo => scene.Holds(photo));
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheSweepAndAnEarlierDeleteMayQueueTheSameFileAndTheSecondRemovalIsHarmless()
+    {
+        await using var scene = await StartDeletedPhotoSceneAsync();
+        scene.Storage.Seed(scene.PublicId, TimeProvider.System.GetUtcNow() - TimeSpan.FromDays(30));
+        await QueueAsync([scene.PublicId], ImageDeletionReason.Stray);
+
+        var run = await RunAsync(scene.Client);
+
+        run.Ok.ShouldBeTrue(run.Text);
+        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(2);
+        scene.Storage.Removals.Count.ShouldBe(2);
+        scene.Storage.TryGet(scene.LastSegment, out _).ShouldBeFalse();
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    private async Task QueueAsync(IEnumerable<string> publicIds, ImageDeletionReason reason)
+    {
+        await using var context = database.CreateContext();
+        foreach (var publicId in publicIds)
+        {
+            context.Set<ImageDeletion>().Add(ImageDeletion.Queue(publicId, "private", reason, TimeProvider.System.GetUtcNow()));
+        }
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<Scene> StartSceneAsync()
     {
         await database.ResetAsync();
         var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
         var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey));
         var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
-        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
-        var (id, number) = await CreateOrderWithPhotosAsync(baseFactory, client, manager.AccessToken, photos: 1);
-        var publicId = (await PhotoIdsAsync(id)).ShouldHaveSingleItem();
-        using var deleted = await OrderFixtures.PermanentlyDeleteAsync(client, manager.AccessToken, id, number);
+        return new Scene(baseFactory, factory, client, factory.Services.GetRequiredService<TestingImageStorage>(), manager.AccessToken);
+    }
+
+    // A Manager's order with one photo that is then deleted for good, so the photo's file waits in the queue.
+    private async Task<Scene> StartDeletedPhotoSceneAsync()
+    {
+        var scene = await StartSceneAsync();
+        var (id, number) = await CreateOrderWithPhotosAsync(scene.Calendar, scene.Client, scene.AccessToken, photos: 1);
+        scene.PublicId = (await PhotoIdsAsync(id)).ShouldHaveSingleItem();
+        using var deleted = await OrderFixtures.PermanentlyDeleteAsync(scene.Client, scene.AccessToken, id, number);
         deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        return new Scene(baseFactory, factory, client, storage, publicId);
+        return scene;
     }
 
     // One event exactly as the log file writes it, with its properties.
@@ -118,17 +219,23 @@ public sealed class ImageCleanupRunTests(CspsDatabase database) : IClassFixture<
         return writer.ToString();
     }
 
-    private sealed class Scene(CspsApiFactory baseFactory, WebApplicationFactory<Program> factory, HttpClient client, TestingImageStorage storage, string publicId) : IAsyncDisposable
+    private sealed class Scene(CspsApiFactory baseFactory, WebApplicationFactory<Program> factory, HttpClient client, TestingImageStorage storage, string accessToken) : IAsyncDisposable
     {
         public HttpClient Client => client;
 
         public TestingImageStorage Storage => storage;
 
-        public string PublicId => publicId;
+        public string AccessToken => accessToken;
 
-        public string LastSegment => publicId[(publicId.LastIndexOf('/') + 1)..];
+        public CspsApiFactory Calendar => baseFactory;
+
+        public string PublicId { get; set; } = string.Empty;
+
+        public string LastSegment => PublicId[(PublicId.LastIndexOf('/') + 1)..];
 
         public CollectingSink Sink => baseFactory.Sink;
+
+        public bool Holds(string publicId) => storage.TryGet(publicId[(publicId.LastIndexOf('/') + 1)..], out _);
 
         public async ValueTask DisposeAsync()
         {
