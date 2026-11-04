@@ -107,9 +107,10 @@ describe('the columns (UI-SPEC "Table view")', () => {
     renderTable({ rows: [entry] });
     const image = cellOf(entry.number, 'Order').querySelector('img');
 
-    expect(image?.parentElement?.children).toHaveLength(2);
-    fireEvent.load(image as HTMLImageElement);
-    expect(image?.parentElement?.children).toHaveLength(1);
+    if (image === null) throw new Error('No cover image');
+    expect(image.parentElement?.children).toHaveLength(2);
+    fireEvent.load(image);
+    expect(image.parentElement?.children).toHaveLength(1);
   });
 
   it('shows the label-free placeholder and no image for an order without a cover (UIC-4)', () => {

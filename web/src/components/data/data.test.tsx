@@ -256,7 +256,9 @@ describe('OrderCard (list contract, D-04, D-22, D-27, D-40, D-46, D-57)', () => 
     const box = image?.parentElement;
     expect(box?.style.getPropertyValue('--ratio')).toBe('16 / 10');
     expect(classTokens(box)).toEqual(expect.arrayContaining(tokens(orderImageClasses)));
-    expect(box?.parentElement).toBe(screen.getByRole('button', { name: /^View order ORD-2026-0148/ }));
+    expect(box?.parentElement).toBe(
+      screen.getByRole('button', { name: 'View order ORD-2026-0148, In Production, 1,200 images' }),
+    );
     expect(screen.queryByRole('img', { name: /no image yet/ })).toBeNull();
   });
 
@@ -266,7 +268,8 @@ describe('OrderCard (list contract, D-04, D-22, D-27, D-40, D-46, D-57)', () => 
     const box = image?.parentElement;
 
     expect(box?.children).toHaveLength(2);
-    fireEvent.load(image as HTMLImageElement);
+    if (image === null) throw new Error('No cover image');
+    fireEvent.load(image);
     expect(box?.children).toHaveLength(1);
   });
 
