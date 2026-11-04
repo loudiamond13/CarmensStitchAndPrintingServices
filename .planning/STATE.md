@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 09
 current_phase_name: Order Images & Maintenance Jobs
 status: executing
-stopped_at: Completed 09-25-PLAN.md (wave 6 merged); next is wave 7 (09-26)
-last_updated: "2026-11-04T06:26:39.000Z"
+stopped_at: Completed 09-28-PLAN.md (wave 7 merged); next is wave 8 (09-29)
+last_updated: "2026-11-04T07:44:31.000Z"
 last_activity: 2026-11-04
-last_activity_desc: Wave 6 (09-23 to 09-25) merged from parallel worktrees; post-merge gate fully green
-state_head: 5ad509e5
+last_activity_desc: Wave 7 (09-26 to 09-28) merged from parallel worktrees; one post-merge compile fix; gate fully green
+state_head: 245e3acc
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 280
-  completed_plans: 265
+  completed_plans: 268
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-04T00:26:39-06:00"
+updated: "2026-11-04T01:44:31-06:00"
 ---
 
 # Project State
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 26 of 32
+Plan: 29 of 32
 Status: Ready to execute
-Last activity: 2026-11-04 — Wave 6 merged (09-23 to 09-25); 25 of 32 plans done, 09-31 parked on host support
+Last activity: 2026-11-04 — Wave 7 merged (09-26 to 09-28); 28 of 32 plans done, 09-31 parked on host support
 
 Progress: [████░░░░░░] 44%
 
@@ -985,6 +985,9 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 - [ ] **09-23 e2e photo upload limit lifted (FYI):** the Playwright test host now sets `RateLimits__Images__PermitLimit` to no limit, like the sign-in limits already were, because the photo journeys upload 45 photos from one address. Production keeps 30 per 10 minutes. Recommended: keep.
 - [ ] **09-24 commit trailer (FYI):** its 4 commits carry `Co-Authored-By: Claude Sonnet 5.5` (the model the executor ran on) instead of the Opus line in the dispatch. Recommended: leave as is, it is accurate.
 - [ ] **Running host probe locks a build file:** `Csps.HostProbe.exe` (started outside this session, listening on 5116 and 7029) kept `tools/Csps.HostProbe/bin` locked, so the wave 6 build could not copy into that one folder. The probe and its tests were built into a scratch folder instead: 0 warnings, 26 of 26 passed. Close the probe when you no longer need it, so the full build passes in place.
+- [ ] **09-27 photo description length (FYI, fixed):** zod 4.6.7 counts characters by code point, the server by UTF-16 unit, so an emoji-heavy description could pass the browser and fail the server. `descriptionSchema` now checks the UTF-16 length, as `profileSchemas.ts` does. Recommended: no action; check other `.max()` text rules in the wording pass.
+- [ ] **09-27 Delete photo is enabled but does nothing until 09-29:** do not ship between 09-27 and 09-29 (09-29 is the next wave).
+- [ ] **09-28 removal job choices:** (1) it refuses any stored file outside `{root}/orders/`, records the row as `outside-folder`, turns the run red and removes nothing; (2) rows it claimed but did not reach (budget spent, keys refused, an error) are released for the next run; (3) a queue row whose file a photo still uses (soft-deleted orders included) is dropped and the file kept. Recommended: keep all three. Steps: `docs/operations/maintenance.md`.
 
 ### Blockers/Concerns
 
@@ -1051,19 +1054,20 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T00:26:39-06:00
-Stopped at: Wave 6 merged and recorded (09-23 to 09-25).
+Last session: 2026-11-04T01:44:31-06:00
+Stopped at: Wave 7 merged and recorded (09-26 to 09-28).
 Resume file: None
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 
-- Done: 09-01 to 09-25 (25 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
-- Next: wave 7 (09-26, 09-27, 09-28), then waves 8 and 9. `incomplete_plans` should list 09-26 to 09-30, 09-31 and 09-32.
+- Done: 09-01 to 09-28 (28 of 32). Every SUMMARY is in the phase folder and merged on `gsd/phase-09-order-images-maintenance-jobs`. Nothing is pushed.
+- Next: wave 8 (09-29; 09-32 waits on 09-31), then wave 9 (09-30). `incomplete_plans` should list 09-29, 09-30, 09-31 and 09-32.
 - 09-31 is parked on the SmarterASP.NET support reply (first backlog item). Do not re-run its Task 1. Skip 09-32 until the owner answers. If the answer is "blocked", revert 50cf165a, bd33861c, b923b06d and a6661d6d and do not run 09-32.
 - 09-30 has a blocking owner checkpoint: run it up to the checkpoint and park it; never auto-approve.
 - Parallel worktrees work: `.claude/settings.local.json` (local only, listed in `.git/info/exclude`) sets `worktree.baseRef` to `head`, so the base check passes on the unpushed branch. `.claude/worktrees/` is also in `.git/info/exclude`.
 - From a worktree the agent shell cannot start PowerShell, so executors check ports 5180, 5115, 7028 and 5199 with `netstat` and wait if busy; the orchestrator runs `preflight.ps1` from the main session before each post-merge test run.
 - Executors in fresh worktrees have no `web/node_modules`: they ran `npm ci --ignore-scripts` or linked the main copy. Before removing a worktree, check its `web/node_modules` is not a link into the main checkout. `worktree.cleanup-wave` could not remove one worktree whose `node_modules` was still there; its branch was merged and the folder was removed by hand.
+- Post-merge gate after wave 7: one compile fix (`245e3acc`: 09-26's new hand-written `IImageDeletionQueue` fake lacked the 5 members 09-28 added); build 0 warnings apart from the host probe lock again (probe built in scratch: 26 of 26); format, typecheck, lint and Prettier clean; web 282 files, 7974 tests passed; .NET 7099 passed, 0 failed, 2 skipped. For 09-29: `AuditActions.All` is 97; `OrderPhotosCard` `onDelete` is a no-op stub to wire; the web audit list mirrors 97 codes.
 - Post-merge gate after wave 6: restore 0 warnings; build 0 warnings, its only errors were the running `Csps.HostProbe.exe` locking `tools/Csps.HostProbe/bin` (that project and its tests built in a scratch folder: 0 warnings, 26 of 26 passed); dotnet format, web typecheck, lint and Prettier clean; web 282 files, 7940 tests passed; .NET 7014 passed, 0 failed, 2 skipped. No flake showed this time. The worktree with `web/node_modules` again needed removing by hand after its merge.
 - Post-merge gate after wave 5: restore and build 0 warnings; dotnet format, web typecheck, lint and Prettier clean; web 282 files, 7922 tests passed; .NET 6946 passed, 2 failed, 2 skipped in the full run. LegacyFitCheck passed alone (275, load flake); `ExpenseListTimingTests` failed again alone (known, D-103). The Server integration re-run alone: 2010 of 2011 passed.
 - Wave 7 notes from wave 6: 09-28's removal job must skip a queue row whose public id an `OrderImages` row still names (soft-deleted orders included), because an UploadUndone row can follow a lost reply after a good save (09-24). 09-26, 09-27 and 09-29 touch `OrderPhotosCard`: it now has viewer state, a `readOnly` prop, and the test `Harness` and `renderCard` take `readOnly` (09-23). `MaintenanceEndpointTests` has a fake late job at order 45, after the usage job at 40 (09-25).
