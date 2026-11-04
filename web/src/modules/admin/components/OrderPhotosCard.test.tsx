@@ -996,3 +996,103 @@ describe('a photo change that is refused (D-11, D-15, UIC-16, UIC-19)', () => {
     expect(screen.queryByText('Saved')).not.toBeInTheDocument();
   });
 });
+
+function field(): HTMLTextAreaElement {
+  return screen.getByLabelText<HTMLTextAreaElement>('Photo description');
+}
+
+describe('describing a saved photo (D-12, D-15, D-30, UIC-5, UIC-11)', () => {
+  it('opens Edit Description for photo 2 of 3 with the shown text selected, saves with the opened version, closes, focuses Edit description, shows Saved and announces it', async () => {
+    const describePhoto = vi
+      .spyOn(orderPhotosService, 'describe')
+      .mockResolvedValue(namedPhotos(['Front', 'Front mockup', 'Sleeve'], { version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Description' });
+    expect(within(dialog).getByText('ORD-2026-0148 · Photo 2 of 3')).toBeVisible();
+    expect(field()).toHaveValue('Back');
+    expect(field().selectionEnd).toBe('Back'.length);
+    await user.clear(field());
+    await user.type(field(), 'Front mockup');
+    await user.click(screen.getByRole('button', { name: 'Save Description' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Description' })).not.toBeInTheDocument();
+    });
+    expect(describePhoto).toHaveBeenCalledTimes(1);
+    expect(describePhoto).toHaveBeenCalledWith(order0148.id, orderImage(2).id, 'Front mockup', ORDER_VERSION);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit description of photo 2' })).toHaveFocus();
+    });
+    expect(screen.getByText('Saved')).toBeVisible();
+    expect(screen.getByText('Description saved.')).toBeInTheDocument();
+    expect(thumbOf(2, 3, 'Front mockup')).toBeVisible();
+  });
+
+  it('saves the exact default text as no description, and the tile keeps showing the default after a later move', async () => {
+    const describePhoto = vi
+      .spyOn(orderPhotosService, 'describe')
+      .mockResolvedValue(buildOrderDetail({ images: orderWithPhotos(3).images, version: NEXT_VERSION }));
+    const move = vi.spyOn(orderPhotosService, 'move').mockResolvedValue(
+      buildOrderDetail({
+        images: [orderImage(2, { position: 0 }), orderImage(1, { position: 1 }), orderImage(3, { position: 2 })],
+        version: AFTER_SECOND,
+      }),
+    );
+    renderCard(orderWithPhotos(3));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+    expect(await screen.findByLabelText('Photo description')).toHaveValue('Order ORD-2026-0148 photo 2');
+    await user.click(screen.getByRole('button', { name: 'Save Description' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Description' })).not.toBeInTheDocument();
+    });
+    expect(describePhoto).toHaveBeenCalledWith(order0148.id, orderImage(2).id, '', ORDER_VERSION);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Move photo 2 left' })).not.toHaveAttribute('aria-disabled', 'true');
+    });
+    await user.click(screen.getByRole('button', { name: 'Move photo 2 left' }));
+
+    await waitFor(() => {
+      expect(move).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByRole('button', { name: 'Open photo 1 of 3: Order ORD-2026-0148 photo 1' })).toBeVisible();
+    expect(move.mock.calls[0]?.slice(2)).toEqual([0, NEXT_VERSION]);
+  });
+
+  it('does not open the window while a change is saving (busy)', async () => {
+    heldMove(namedPhotos(['Back', 'Front', 'Sleeve'], { version: NEXT_VERSION }));
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Move photo 1 right' }));
+
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Edit Description' })).not.toBeInTheDocument();
+  });
+
+  it('shows the ConflictBanner when the photo changed meanwhile (409) and keeps the card as it is', async () => {
+    vi.spyOn(orderPhotosService, 'describe').mockRejectedValue(
+      problem(409, 'edit.stale', 'Someone else changed this.'),
+    );
+    renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
+    await screen.findByRole('list', { name: 'Order photos' });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 1' }));
+    await screen.findByRole('dialog', { name: 'Edit Description' });
+    await user.type(field(), '!');
+
+    await user.click(screen.getByRole('button', { name: 'Save Description' }));
+
+    expect(await screen.findByRole('button', { name: 'Load Latest' })).toBeVisible();
+    expect(field()).toHaveValue('Front!');
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+  });
+});

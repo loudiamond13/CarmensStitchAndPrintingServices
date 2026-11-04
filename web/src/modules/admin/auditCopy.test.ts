@@ -110,6 +110,11 @@ const API_ACTIONS = [
   'order-expense-category.retired',
   'order-expense-category.reactivated',
   'order-expense-category.deleted',
+  'order-image.added',
+  'order-image.moved',
+  'order-image.cover-changed',
+  'order-image.description-changed',
+  'order-image.deleted',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -132,9 +137,23 @@ describe('the action labels (D-28)', () => {
     expect(auditActionLabel('profile.email-change-canceled')).toBe('Email change canceled');
   });
 
-  it('mirrors the 92 codes of the API', () => {
-    expect(API_ACTIONS).toHaveLength(92);
-    expect(AUDIT_ACTION_CODES).toHaveLength(92);
+  it('mirrors the 97 codes of the API', () => {
+    expect(API_ACTIONS).toHaveLength(97);
+    expect(AUDIT_ACTION_CODES).toHaveLength(97);
+  });
+
+  it('reads the five order photo events in plain words under Orders (D-19)', () => {
+    const expected: [string, string][] = [
+      ['order-image.added', 'Order photo added'],
+      ['order-image.moved', 'Order photo moved'],
+      ['order-image.cover-changed', 'Order cover photo changed'],
+      ['order-image.description-changed', 'Order photo description changed'],
+      ['order-image.deleted', 'Order photo deleted'],
+    ];
+    for (const [code, label] of expected) {
+      expect(auditActionLabel(code), code).toBe(label);
+      expect(auditActionGroup(code), code).toBe('Orders');
+    }
   });
 
   it('names the seven groups: the five from the UI-SPEC and the two order groups', () => {

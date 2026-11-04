@@ -90,3 +90,24 @@ describe('orderPhotosService.move', () => {
     expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ position: 0, version: ORDER_VERSION });
   });
 });
+
+describe('orderPhotosService.describe', () => {
+  it('calls PUT /orders/{id}/images/{imageId} with the description and the order version, and no Idempotency-Key', async () => {
+    const { fake, service } = serviceWith([{ body: order0148 }]);
+
+    await expect(service.describe(ORDER_ID, IMAGE_ID, 'Front mockup', ORDER_VERSION)).resolves.toEqual(order0148);
+
+    expect(fake.calls[0]?.method).toBe('PUT');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/orders/${ORDER_ID}/images/${IMAGE_ID}`);
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ description: 'Front mockup', version: ORDER_VERSION });
+  });
+
+  it('sends an empty description to clear the stored one', async () => {
+    const { fake, service } = serviceWith([{ body: order0148 }]);
+
+    await service.describe(ORDER_ID, IMAGE_ID, '', ORDER_VERSION);
+
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ description: '', version: ORDER_VERSION });
+  });
+});
