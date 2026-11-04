@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-10-26T08:30:00-05:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-11-03T09:00:00-06:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -82,6 +82,19 @@ For staff sign-in, the owner approved these packages on **2026-10-14** (decision
 **Security exception.** Identity.EntityFrameworkCore 10.0.13 was published on 2026-10-13, so it is younger than the 14-day wait. It is a Microsoft security servicing release (D-35) that matches the other 10.0.13 pins, and the owner approved it on 2026-10-14 (D-36). Its registry record says `accepted:` and it reaches 14 days on 2026-10-27.
 
 **The four web packages were checked by the owner first.** The research tool flagged them as suspicious only because of how it reads npm's "latest" tag and download counts. At install time Claude checked each exact version (license MIT, no install script, no known security problem, 14 to 58 days old) and the owner replied "approved" on 2026-10-14. When npm installs msw it prints a notice that vitest's optional msw 2 link does not match msw 3.0.1. Vitest only uses that link for its browser mode, which CSPS does not use, so nothing is affected.
+
+## Phase 9 package: Cloudinary for order photos (approved 2026-10-31)
+
+Order photos are stored in the shop's own Cloudinary account. The owner approved the one package below on **2026-10-31** (decision D-37), before anything was installed. It is recorded under `approvals` in `docs/dependencies.json`.
+
+| Package | What it does for the shop | License |
+|---------|---------------------------|---------|
+| CloudinaryDotNet 1.29.3 | Cloudinary's own .NET library. The server uses it to send each order photo to Cloudinary, remove a photo, list a folder and read how much of the free plan is used. The secret key stays on the server. | MIT |
+
+- **Free.** MIT means free to use in a business. We only keep the author's notice in `THIRD-PARTY-NOTICES.md`. The free Cloudinary plan is a separate account the owner already has.
+- **Old enough and clean.** Version 1.29.3 was published on 2026-08-16, well past the 14-day wait. At install time (2026-11-03) NuGet showed it as listed, not deprecated and with no known security problem, and the GitHub advisory list had nothing for it.
+- **One project only.** Only `Csps.Infrastructure` refers to it. A test (`LayerTests`) fails if `Csps.Application` or `Csps.Domain` ever do.
+- **One helper library.** It needs Newtonsoft.Json (MIT), which the project already ships. The test and tool projects resolve it at the lowest version Cloudinary allows (13.0.3, no known problem); the app itself keeps 13.0.4.
 
 ## A bundled list of common passwords (approved 2026-10-14)
 
