@@ -14,7 +14,6 @@ public static class ImageSniffer
     private const int WebPHeaderSize = 12;
     private const int WebPAnimationFlag = 0x02;
     private const int MaxAssociations = 255;
-    private const int MaxChunks = 512;
     private const int MaxItemEntries = 4096;
     private const int ExifOrientationTag = 0x0112;
     private const int TiffShort = 3;
@@ -362,121 +361,6 @@ public static class ImageSniffer
         return IsPlausibleSide(width) && IsPlausibleSide(height) ? new ImageFacts(ImageKind.Heic, (int)width, (int)height, orientation) : null;
     }
 
-    // How the chunks or boxes of a format are laid out.
-    private enum ChunkLayout
-    {
-        // A 32-bit big-endian length, the 4-letter type, the data, then a 4-byte checksum.
-        Png,
-
-        // The 4-letter type, a 32-bit little-endian length, the data, then one pad byte when the length is odd.
-        WebP,
-
-        // A 32-bit big-endian size that covers the 8-byte header, the 4-letter type, then the payload. A size of 1 means a 64-bit size
-        // follows; a size of 0 or less than the header is refused.
-        Box,
-    }
-
-    // The one bounded reader behind all the container formats. Every length is checked against what is left of the span, a length
-    // that is wrong in any way ends the walk, and the walk stops after MaxChunks entries, so a hostile file cannot cause a read past the
-    // end, a loop that does not advance, or a long scan.
-    private ref struct ChunkReader
-    {
-        private readonly ReadOnlySpan<byte> _data;
-        private readonly ChunkLayout _layout;
-        private int _position;
-        private int _count;
-
-        public ChunkReader(ReadOnlySpan<byte> data, ChunkLayout layout)
-        {
-            _data = data;
-            _layout = layout;
-            _position = 0;
-            _count = 0;
-        }
-
-        public bool Next(out ReadOnlySpan<byte> type, out ReadOnlySpan<byte> payload)
-        {
-            type = default;
-            payload = default;
-            if (_count >= MaxChunks || !TryMeasure(out var typeAt, out var payloadAt, out var payloadSize, out var total))
-            {
-                return false;
-            }
-
-            type = _data.Slice(_position + typeAt, 4);
-            payload = _data.Slice(_position + payloadAt, payloadSize);
-            _position += total;
-            _count++;
-            return true;
-        }
-
-        // Works out where the type and payload sit and how far the entry reaches, or fails when it does not fit in the span.
-        private readonly bool TryMeasure(out int typeAt, out int payloadAt, out int payloadSize, out int total)
-        {
-            typeAt = 4;
-            payloadAt = 8;
-            payloadSize = 0;
-            total = 0;
-            var left = _data.Length - _position;
-            switch (_layout)
-            {
-                case ChunkLayout.Png:
-                    if (left < 12 || BinaryPrimitives.ReadUInt32BigEndian(_data[_position..]) > left - 12)
-                    {
-                        return false;
-                    }
-
-                    payloadSize = (int)BinaryPrimitives.ReadUInt32BigEndian(_data[_position..]);
-                    total = payloadSize + 12;
-                    return true;
-                case ChunkLayout.WebP:
-                    if (left < 8 || BinaryPrimitives.ReadUInt32LittleEndian(_data[(_position + 4)..]) > left - 8)
-                    {
-                        return false;
-                    }
-
-                    typeAt = 0;
-                    payloadSize = (int)BinaryPrimitives.ReadUInt32LittleEndian(_data[(_position + 4)..]);
-                    total = 8 + payloadSize + (payloadSize & 1);
-                    return true;
-                default:
-                    return TryMeasureBox(left, out payloadAt, out payloadSize, out total);
-            }
-        }
-
-        private readonly bool TryMeasureBox(int left, out int payloadAt, out int payloadSize, out int total)
-        {
-            payloadAt = 8;
-            payloadSize = 0;
-            total = 0;
-            if (left < 8)
-            {
-                return false;
-            }
-
-            long size = BinaryPrimitives.ReadUInt32BigEndian(_data[_position..]);
-            if (size == 1)
-            {
-                if (left < 16 || BinaryPrimitives.ReadUInt64BigEndian(_data[(_position + 8)..]) > int.MaxValue)
-                {
-                    return false;
-                }
-
-                size = (long)BinaryPrimitives.ReadUInt64BigEndian(_data[(_position + 8)..]);
-                payloadAt = 16;
-            }
-
-            if (size < payloadAt || size > left)
-            {
-                return false;
-            }
-
-            payloadSize = (int)size - payloadAt;
-            total = (int)size;
-            return true;
-        }
-    }
-
     // Walks the segments up to the first frame header (SOF), which holds the size. The Exif block sits before it.
     private static ImageFacts? InspectJpeg(ReadOnlySpan<byte> bytes)
     {
@@ -548,7 +432,7 @@ public static class ImageSniffer
     }
 
     // Finds the Orientation tag in the first Exif directory; null when the block is missing, damaged or holds a value outside 1 to 8.
-    private static int? ReadExifOrientation(ReadOnlySpan<byte> payload)
+    internal static int? ReadExifOrientation(ReadOnlySpan<byte> payload)
     {
         if (payload.Length < ExifHeader.Length + 8 || !payload[..ExifHeader.Length].SequenceEqual(ExifHeader))
         {

@@ -11,8 +11,8 @@ namespace Csps.Application.Orders;
 /// <summary>
 /// Use case: a staff member uploads one photo to a saved order (ORD-04, IMG-01, IMG-02, IMG-03). The steps run in this order so a
 /// refused upload never leaves a customer photo in storage: the storage must be set up (503), the order must exist, be open and have
-/// room, and the description must fit (404 or 422), then the file is read by its first bytes and held to the size limits (400), and only then is it sent to
-/// the storage under a random id (D-01). The photo row is saved through the order's row lock with one <c>order-image.added</c> entry
+/// room, and the description must fit (404 or 422), then the file is read by its first bytes and held to the size limits (400), its location and camera data
+/// is removed (400 when that cannot be done, D-02), and only then is it sent to the storage under a random id (D-01). The photo row is saved through the order's row lock with one <c>order-image.added</c> entry
 /// that names the order number and the photo's place, never its id or address (D-19). A save that loses a race is read again and
 /// decided again once. The client file name and content type never shape the stored id.
 /// </summary>
@@ -74,15 +74,22 @@ public sealed class UploadOrderImageHandler(
 
         var facts = inspected.Value;
 
+        var cleaned = ImageMetadataStripper.Strip(facts.Kind, request.Bytes.Span, request.FileName);
+        if (cleaned.IsFailure)
+        {
+            return Result.Failure<OrderDetailResponse>(cleaned.Error);
+        }
+
+        var clean = cleaned.Value;
         var publicId = PublicIds.New(storage.RootFolder, orderId);
-        var stored = await storage.UploadAsync(new ImageUpload(publicId, PublicIds.Folder(storage.RootFolder, orderId), request.Bytes, facts.Kind), cancellationToken).ConfigureAwait(false);
+        var stored = await storage.UploadAsync(new ImageUpload(publicId, PublicIds.Folder(storage.RootFolder, orderId), clean, facts.Kind), cancellationToken).ConfigureAwait(false);
         if (!stored.Succeeded)
         {
             return Result.Failure<OrderDetailResponse>(ImageErrors.StorageFailed);
         }
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        var photo = new NewOrderImage(publicId, facts.UprightWidth, facts.UprightHeight, request.Bytes.Length, ImageKinds.Key(facts.Kind), request.Description);
+        var photo = new NewOrderImage(publicId, facts.UprightWidth, facts.UprightHeight, clean.Length, ImageKinds.Key(facts.Kind), request.Description);
         var outcome = await ConflictRetry.RunAsync(
             () => OrderChildWrite.AttemptAsync(
                 orders,
