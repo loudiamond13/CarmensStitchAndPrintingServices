@@ -153,3 +153,31 @@ test('@order-photos-arrange Make Cover on photo 3 makes it the cover here and on
   await expect(card).toHaveCount(1);
   await expect(card.locator('img').first()).toHaveAttribute('src', new RegExp(key));
 });
+
+test('@order-photos-arrange describing photo 1 saves at once, focus returns to its Edit description, and the viewer shows the text as the picture description', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const { number } = await orderWithPhotos(page, request, 2);
+
+  await page.getByRole('button', { name: 'Edit description of photo 1' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit Description' });
+  const box = dialog.getByLabel('Photo description');
+  await expect(dialog.getByText(`${number} · Photo 1 of 2`)).toBeVisible();
+  await expect(box).toHaveValue(`Order ${number} photo 1`);
+  await box.fill('Front mockup');
+  await dialog.getByRole('button', { name: 'Save Description' }).click();
+
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Edit description of photo 1' })).toBeFocused();
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Open photo 1 of 2: Front mockup' }).click();
+  const viewer = page.getByRole('dialog', { name: 'Order photos' });
+  await expect(viewer.getByRole('img', { name: 'Front mockup' })).toBeVisible();
+  // The other photo keeps the default text, which follows its place.
+  await page.keyboard.press('ArrowRight');
+  await expect(viewer.getByRole('img', { name: `Order ${number} photo 2` })).toBeVisible();
+});

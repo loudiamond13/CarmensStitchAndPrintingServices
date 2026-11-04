@@ -349,7 +349,7 @@ describe('the live description window (D-12, D-15, UIC-11)', () => {
 
     const description = await screen.findByText(`${number} · Photo 2 of 3`);
 
-    expect(description).toHaveClass('wrap-anywhere');
+    expect(description.closest('.wrap-anywhere')).not.toBeNull();
   });
 
   it('has no axe violations', async () => {

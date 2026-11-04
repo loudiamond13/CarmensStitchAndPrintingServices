@@ -37,6 +37,18 @@ export interface OrderPhotosService {
     version: string,
     signal?: AbortSignal,
   ): Promise<OrderDetailResponse>;
+  /**
+   * `PUT /api/v1/orders/{orderId}/images/{imageId}`: sets the photo's description and answers the whole order. An empty
+   * `description` (or the default text) clears the stored one, so the screen shows "Order {number} photo {position}" again.
+   * The body carries the order `version` the window opened with. `400` too long, `409 edit.stale`, `404`, `422 orders.locked`.
+   */
+  describe(
+    orderId: string,
+    imageId: string,
+    description: string,
+    version: string,
+    signal?: AbortSignal,
+  ): Promise<OrderDetailResponse>;
 }
 
 const imagePath = (orderId: string, imageId: string): string =>
@@ -57,6 +69,8 @@ export function createOrderPhotosService(client: HttpClient): OrderPhotosService
     },
     move: (orderId, imageId, position, version, signal) =>
       client.put<OrderDetailResponse>(`${imagePath(orderId, imageId)}/position`, { position, version }, { signal }),
+    describe: (orderId, imageId, description, version, signal) =>
+      client.put<OrderDetailResponse>(imagePath(orderId, imageId), { description, version }, { signal }),
   };
 }
 

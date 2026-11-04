@@ -2,7 +2,8 @@
 // memory and uploaded one at a time; a saved photo shows the thumb the server delivers. Every figure and address is the server's.
 // A saved photo's thumb opens the viewer (D-16); closing it puts focus on the thumb of the photo shown last. Moving a photo saves at
 // once (D-13, D-15): the buttons and the drag send the same request, the page takes the server's answer, and the card says
-// "Saved" and announces the new place. Describing and deleting a saved photo arrive in later plans.
+// "Saved" and announces the new place. Edit description opens the description window, which saves the photo itself (D-12, P5);
+// deleting a saved photo arrives in a later plan.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Icon } from '@/components/brand';
@@ -37,6 +38,7 @@ import { isHttpError } from '@/core/api/errors';
 import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
 import { imageRulesQuery, useImageRulesQuery } from '@/modules/admin/hooks/useImageRulesQuery';
+import { PhotoDescriptionModal } from '@/modules/admin/components/PhotoDescriptionModal';
 import { VIEWER_SIZES } from '@/modules/admin/imageSlots';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
 import {
@@ -45,6 +47,7 @@ import {
   type PreparedUpload,
   type QueueItem,
 } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { orderedImages } from '@/modules/admin/orderPhotoList';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import {
   cleanFileName,
@@ -65,6 +68,8 @@ const BYTES_PER_MEGABYTE = 1_048_576;
 /** What the hint shows until the server's rules arrive; the pick itself always waits for the real rules. */
 const DISPLAY_MAX = 5;
 const DISPLAY_MEGABYTES = 10;
+/** The description limit the window uses until the server's rules arrive. */
+const DISPLAY_DESCRIPTION_MAX = 200;
 
 export interface OrderPhotosCardProps {
   order: OrderDetailResponse;
@@ -72,10 +77,19 @@ export interface OrderPhotosCardProps {
   readOnly?: boolean;
 }
 
-type OrderImage = OrderDetailResponse['images'][number];
+/** The control to put focus on once a change is shown: the pressed move button, or Edit description after Make Cover or a description. */
+type FocusControl = 'left' | 'right' | 'cover' | 'edit';
 
-/** The control to put focus on once a change is shown: the pressed move button, or Edit description after Make Cover. */
-type FocusControl = 'left' | 'right' | 'cover';
+/** The description window as it was opened: which photo, the order it opened with, and where the photo stood. */
+interface DescriptionWindow {
+  readonly key: number;
+  readonly open: boolean;
+  readonly id: string;
+  readonly order: OrderDetailResponse;
+  readonly position: number;
+  readonly total: number;
+  readonly initial: string;
+}
 
 /** One move (a button, Make Cover or a drag): the photo, the 0-based place it goes to and the control that asked. */
 interface MoveTarget {
@@ -96,16 +110,6 @@ const SERVER_WORDS: ReadonlySet<number> = new Set([400, 404, 422]);
 
 /** How long "Saved" stays on the status line (D-15). */
 const SAVED_MS = 4000;
-
-/** The saved photos in display order, each with its description (the stored one, else the default for its position). */
-function orderedImages(order: OrderDetailResponse): { image: OrderImage; description: string }[] {
-  return [...order.images]
-    .sort((a, b) => Number(a.position) - Number(b.position))
-    .map((image, index) => ({
-      image,
-      description: image.description ?? COPY.defaultDescription.saved(order.number, index + 1),
-    }));
-}
 
 function savedTiles(order: OrderDetailResponse): PhotoTileModel[] {
   return orderedImages(order).map(({ image, description }) => ({
@@ -282,6 +286,36 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
     move(id, 0, 'cover');
   };
 
+  // The description window opens with the latest order the page holds, so its save sends that version (P5).
+  const [describing, setDescribing] = useState<DescriptionWindow | null>(null);
+  const onEditDescription = (id: string): void => {
+    const current = queryClient.getQueryData<OrderDetailResponse>(orderKey(order.id)) ?? order;
+    const places = orderedImages(current);
+    const at = places.findIndex(({ image }) => image.id === id);
+    const place = places[at];
+    if (busy || place === undefined) {
+      return;
+    }
+    setAnnouncement('');
+    setSaved(false);
+    setDescribing((opened) => ({
+      key: (opened?.key ?? 0) + 1,
+      open: true,
+      id,
+      order: current,
+      position: at + 1,
+      total: places.length,
+      initial: place.description,
+    }));
+  };
+  // The window saved: it closes, focus goes to that photo's Edit description, and the card says Saved (D-15).
+  const descriptionSaved = (id: string, answer: OrderDetailResponse): void => {
+    setDescribing((opened) => (opened === null ? null : { ...opened, open: false }));
+    setAnnouncement(COPY.announce.descriptionSaved);
+    setSaved(true);
+    focusPlan.current = { ids: orderedImages(answer).map(({ image }) => image.id), id, control: 'edit' };
+  };
+
   // Once the answer is on screen, focus goes back to the pressed control on the moved photo. When that control is disabled at an
   // end of the list, the photo's other move button takes it.
   const focusMoved = useEffectEvent((): void => {
@@ -426,7 +460,7 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
           onAddFiles={addFiles}
           onMove={onMove}
           onMakeCover={onMakeCover}
-          onEditDescription={() => undefined}
+          onEditDescription={onEditDescription}
           onDelete={() => undefined}
           onRemove={queue.remove}
           onRetry={queue.retry}
@@ -439,6 +473,26 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
           {announcement}
         </div>
       </div>
+      {describing !== null && (
+        <PhotoDescriptionModal
+          key={describing.key}
+          mode="live"
+          open={describing.open}
+          order={describing.order}
+          imageId={describing.id}
+          orderLabel={describing.order.number}
+          position={describing.position}
+          total={describing.total}
+          initial={describing.initial}
+          maxLength={rules?.descriptionMaxLength ?? DISPLAY_DESCRIPTION_MAX}
+          onSaved={(answer) => {
+            descriptionSaved(describing.id, answer);
+          }}
+          onClose={() => {
+            setDescribing((opened) => (opened === null ? null : { ...opened, open: false }));
+          }}
+        />
+      )}
       {viewerIndex !== null && (
         <PhotoViewer
           photos={viewing}
