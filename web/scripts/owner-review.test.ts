@@ -35,12 +35,15 @@ import {
   PHASE6_REVIEW_CASES,
   PHASE6_RULINGS,
   PHASE6_SEED_PEOPLE,
+  PHASE9_LOOK_AT,
+  PHASE9_REVIEW_CASES,
   phase5Words,
   phase6Words,
   planAuthReviewShots,
   planBeforeAfterShots,
   planPhase5ReviewShots,
   planPhase6ReviewShots,
+  planPhase9ReviewShots,
   planReview,
   planShots,
   planSpecGapShots,
@@ -272,6 +275,7 @@ describe('planReview: the run', () => {
       authReview: planAuthReviewShots(),
       phase5Review: planPhase5ReviewShots(),
       phase6Review: planPhase6ReviewShots(),
+      phase9Review: planPhase9ReviewShots(),
     });
     expect(report).toEqual({
       kind: 'report',
@@ -1367,6 +1371,135 @@ describe('renderIndex: the Phase 6 screens (plan 06-19)', () => {
     expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain(
       'Company expenses and settings (Phase 6)',
     );
+  });
+});
+
+// --- Plan 09-30: the Phase 9 screens (order photos), signed in as a Manager ---
+
+describe('PHASE9_REVIEW_CASES (the UI-SPEC Visual Review set for Phase 9)', () => {
+  it('covers F1 drafts, O1 with 0 to 5 photos and every upload state, touch and drag, read-only orders, the viewer, the windows and the L1 covers', () => {
+    const ids = PHASE9_REVIEW_CASES.map((entry) => entry.id);
+
+    expect(ids).toEqual([
+      'f1-no-drafts',
+      'f1-one-draft',
+      'f1-five-drafts',
+      'f1-pick-error',
+      'o1-no-photos',
+      'o1-one-photo',
+      'o1-three-photos',
+      'o1-five-photos',
+      'o1-uploading',
+      'o1-failed',
+      'o1-saved-line',
+      'o1-touch-add',
+      'o1-drop-drag-over',
+      'o1-completed',
+      'x2-deleted',
+      'viewer-one-photo',
+      'viewer-five-photos',
+      'viewer-portrait',
+      'viewer-narrow',
+      'description-409',
+      'delete-dialog',
+      'l1-grid-covers',
+      'l1-table-covers',
+    ]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('names every case in plain words, groups it and shows it in Blush and Espresso', () => {
+    for (const entry of PHASE9_REVIEW_CASES) {
+      expect(entry.label.trim(), entry.id).not.toBe('');
+      expect(entry.group.trim(), entry.id).not.toBe('');
+      expect(entry.themes, entry.id).toEqual(['light', 'dark']);
+    }
+  });
+
+  it('plans each case at 390, 820 and 1440 px in both themes under phase9-review/, except the touch phone (390) and the narrow viewer (320)', () => {
+    const shots = planPhase9ReviewShots();
+    const files = shots.map((shot) => shot.file);
+    const single: Record<string, number> = { 'o1-touch-add': 390, 'viewer-narrow': 320 };
+
+    expect(new Set(files).size).toBe(files.length);
+    expect(files.every((file) => /^phase9-review\/[a-z0-9-]+-(light|dark)-(320|390|820|1440)\.png$/.test(file))).toBe(
+      true,
+    );
+    for (const entry of PHASE9_REVIEW_CASES) {
+      for (const theme of entry.themes) {
+        const widths = shots.filter((shot) => shot.id === entry.id && shot.theme === theme).map((shot) => shot.width);
+        const only = single[entry.id];
+        expect(widths, `${entry.id} ${theme}`).toEqual(only === undefined ? [...REVIEW_WIDTHS] : [only]);
+      }
+    }
+    expect(shots).toHaveLength((PHASE9_REVIEW_CASES.length - 2) * 6 + 2 * 2);
+  });
+});
+
+describe('PHASE9_LOOK_AT (what is left for the owner in the Phase 9 screens)', () => {
+  it('names each item in plain words with what it is now and what to do', () => {
+    expect(PHASE9_LOOK_AT.length).toBeGreaterThan(0);
+    for (const item of PHASE9_LOOK_AT) {
+      expect(item.title.trim(), item.id).not.toBe('');
+      expect(item.what.trim(), item.id).not.toBe('');
+      expect(item.how.trim(), item.id).not.toBe('');
+    }
+    expect(new Set(PHASE9_LOOK_AT.map((item) => item.id)).size).toBe(PHASE9_LOOK_AT.length);
+  });
+});
+
+describe('renderIndex: the Phase 9 screens (plan 09-30)', () => {
+  const escaped = (text: string) =>
+    text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  const render = () =>
+    renderIndex({
+      generatedAt: 'now',
+      shots: [],
+      problems: [],
+      specGap: planSpecGapShots(),
+      phase6Review: planPhase6ReviewShots(),
+      phase9Review: planPhase9ReviewShots(),
+    });
+
+  it('shows the Phase 9 section after the Phase 6 section and before the SPEC-GAP section, with every picture and label', () => {
+    const html = render();
+    const section = html.indexOf('Order photos (Phase 9)');
+
+    expect(section).toBeGreaterThan(html.indexOf('Company expenses and settings (Phase 6)'));
+    expect(section).toBeLessThan(html.indexOf('Parts the approved design never drew'));
+    for (const shot of planPhase9ReviewShots()) {
+      expect(html).toContain(`src="${shot.file}"`);
+    }
+    for (const entry of PHASE9_REVIEW_CASES) {
+      expect(html).toContain(escaped(entry.label));
+    }
+    expect(html).not.toMatch(/<script/i);
+  });
+
+  it('lists every screen at 390, 820 and 1440 px in Blush and Espresso', () => {
+    const html = render();
+
+    for (const theme of ['Blush (light)', 'Espresso (dark)']) {
+      for (const width of [390, 820, 1440]) {
+        expect(html).toContain(`<figcaption>${theme}, ${String(width)} px</figcaption>`);
+      }
+    }
+  });
+
+  it('says nothing is approved until the owner says so, and that no real photo is shown', () => {
+    const html = render();
+
+    expect(html).toContain('Nothing here is approved until you say so.');
+    expect(html).toContain('no real photo is shown');
+  });
+
+  it('is left out when no Phase 9 pictures were taken', () => {
+    expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain('Order photos (Phase 9)');
   });
 });
 

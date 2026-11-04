@@ -78,16 +78,19 @@ test('@order-photos-list an order with a photo shows its cover in the grid card 
   await signInAs(page, request, manager);
   await addPhoto(page, id, number);
 
-  await page.goto('/admin/orders?view=grid');
+  await page.goto(`/admin/orders?q=${number}&view=grid`);
   const card = page.getByRole('article').filter({ hasText: number });
   await expect(card).toHaveCount(1);
+  // A cover loads lazily, so it is brought into view first.
+  await card.scrollIntoViewIfNeeded();
   await expect.poll(() => coverWidth(card)).toBeGreaterThan(0);
   await expect(card.getByRole('button', { name: `View order ${number}, Pending` })).toBeVisible();
   await expect(card.getByText('No images yet')).toHaveCount(0);
 
-  await page.goto('/admin/orders?view=table');
+  await page.goto(`/admin/orders?q=${number}&view=table`);
   const row = page.getByRole('row').filter({ hasText: number });
   await expect(row).toHaveCount(1);
+  await row.scrollIntoViewIfNeeded();
   await expect.poll(() => coverWidth(row)).toBeGreaterThan(0);
 });
 
@@ -102,7 +105,7 @@ test('@order-photos-list an order without a photo keeps the No images yet placeh
   const { number } = await seedOrder(request, 'Plain');
   await signInAs(page, request, manager);
 
-  await page.goto('/admin/orders?view=grid');
+  await page.goto(`/admin/orders?q=${number}&view=grid`);
   const card = page.getByRole('article').filter({ hasText: number });
   await expect(card).toHaveCount(1);
   await expect(card.getByRole('img', { name: /No images yet/ })).toBeVisible();

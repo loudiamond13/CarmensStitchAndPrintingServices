@@ -140,7 +140,7 @@ test('@order-photos-delete deleting the cover asks first, makes the next photo t
   await expect(page.getByText('Saved', { exact: true })).toBeVisible();
   await expect(page.getByText('Photo deleted. 2 photos left.')).toBeAttached();
 
-  await page.goto('/admin/orders?view=grid');
+  await page.goto(`/admin/orders?q=${number}&view=grid`);
   const card = page.getByRole('article').filter({ hasText: number });
   await expect(card).toHaveCount(1);
   await expect(card.locator('img').first()).toHaveAttribute('src', new RegExp(photoKey(before[1])));

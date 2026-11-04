@@ -53,10 +53,10 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly kind: 'refuse', readonly name: 'output-not-ignored' | 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {{ readonly kind: 'run', readonly name: 'seed' | 'build', readonly command: string, readonly args: readonly string[], readonly cwd: string }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
- * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[], readonly phase5Review: readonly Phase5ReviewShot[], readonly phase6Review: readonly Phase6ReviewShot[] }} CaptureStep
+ * @typedef {{ readonly kind: 'capture', readonly name: 'capture', readonly origin: string, readonly shots: readonly Shot[], readonly specGap: readonly SpecGapShot[], readonly beforeAfter: readonly BeforeAfterShot[], readonly authReview: readonly AuthReviewShot[], readonly phase5Review: readonly Phase5ReviewShot[], readonly phase6Review: readonly Phase6ReviewShot[], readonly phase9Review: readonly Phase9ReviewShot[] }} CaptureStep
  * @typedef {{ readonly kind: 'report', readonly name: 'report', readonly file: string, readonly parityResults: string, readonly differencesGuide: string }} ReportStep
  * @typedef {RefuseStep | RunStep | HostStep | CaptureStep | ReportStep} Step
- * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly phase5Review?: readonly Phase5ReviewShot[], readonly phase6Review?: readonly Phase6ReviewShot[], readonly problems: readonly string[] }} CaptureResult
+ * @typedef {{ readonly captured: readonly Shot[], readonly specGap?: readonly SpecGapShot[], readonly beforeAfter?: readonly BeforeAfterShot[], readonly authReview?: readonly AuthReviewShot[], readonly phase5Review?: readonly Phase5ReviewShot[], readonly phase6Review?: readonly Phase6ReviewShot[], readonly phase9Review?: readonly Phase9ReviewShot[], readonly problems: readonly string[] }} CaptureResult
  * @typedef {{ readonly id: string, readonly label: string }} SpecGapCase
  * @typedef {{ readonly id: string, readonly label: string, readonly theme: Theme, readonly width: number, readonly file: string }} SpecGapShot
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly kind: 'frame' | 'menu' | 'dialog' }} AuthReviewCase
@@ -66,6 +66,8 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly theme: Theme, readonly width: number, readonly file: string }} Phase5ReviewShot
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly signedInAs: 'Manager' | 'Admin' }} Phase6ReviewCase
  * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly signedInAs: 'Manager' | 'Admin', readonly theme: Theme, readonly width: number, readonly file: string }} Phase6ReviewShot
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly themes: readonly Theme[], readonly widths: readonly number[] }} Phase9ReviewCase
+ * @typedef {{ readonly id: string, readonly label: string, readonly group: string, readonly theme: Theme, readonly width: number, readonly file: string }} Phase9ReviewShot
  * @typedef {{ readonly label: string, readonly text: string, readonly recommended: boolean, readonly built: boolean }} Phase6Option
  * @typedef {{ readonly id: string, readonly status: 'open' | 'ruled', readonly topic: string, readonly options: readonly Phase6Option[], readonly ruling?: string, readonly whereItChanges?: string }} Phase6Ruling
  * @typedef {{ readonly key: string, readonly role: 'Admin' | 'Manager', readonly state: string, readonly firstName: string, readonly lastName: string }} Phase5SeedPerson
@@ -94,7 +96,7 @@ import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentiona
 export const REVIEW_WIDTHS = Object.freeze([390, 820, 1440]);
 
 /** The viewport height per width; the screenshots are full page, so this only sets the first screen. */
-const VIEWPORT_HEIGHTS = Object.freeze({ 390: 844, 820: 1180, 1440: 900 });
+const VIEWPORT_HEIGHTS = Object.freeze({ 320: 700, 390: 844, 820: 1180, 1440: 900 });
 
 const BOTH = Object.freeze(/** @type {Theme[]} */ (['light', 'dark']));
 const BLUSH_ONLY = Object.freeze(/** @type {Theme[]} */ (['light']));
@@ -310,6 +312,7 @@ export function planReview({ outputIgnored, portBusy = false, bundleMtime = null
       authReview: planAuthReviewShots(),
       phase5Review: planPhase5ReviewShots(),
       phase6Review: planPhase6ReviewShots(),
+      phase9Review: planPhase9ReviewShots(),
     },
     {
       kind: 'report',
@@ -641,7 +644,7 @@ pixel tolerances: ${escapeHtml(tolerances)}.</p>
 
 /**
  * The report page: plain words, the pictures as relative links, no script and no remote address.
- * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], phase5Review?: readonly Phase5ReviewShot[], phase6Review?: readonly Phase6ReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
+ * @param {{ generatedAt: string, shots: readonly Shot[], problems: readonly string[], specGap?: readonly SpecGapShot[], beforeAfter?: readonly BeforeAfterShot[], authReview?: readonly AuthReviewShot[], phase5Review?: readonly Phase5ReviewShot[], phase6Review?: readonly Phase6ReviewShot[], phase9Review?: readonly Phase9ReviewShot[], parity?: { summary: ParitySummary, differences: readonly DifferenceRow[] }, otherReports?: readonly OtherReport[] }} input
  * @returns {string}
  */
 export function renderIndex({
@@ -653,6 +656,7 @@ export function renderIndex({
   authReview = [],
   phase5Review = [],
   phase6Review = [],
+  phase9Review = [],
   parity,
   otherReports = [],
 }) {
@@ -691,6 +695,7 @@ ${beforeAfterSection(beforeAfter)}
 ${authReviewSection(authReview)}
 ${phase5ReviewSection(phase5Review)}
 ${phase6ReviewSection(phase6Review)}
+${phase9ReviewSection(phase9Review)}
 ${specGapSection(specGap)}
 ${paritySection(parity)}
 </main>
@@ -4057,6 +4062,712 @@ async function capturePhase6Review(browser, request, origin, seed, six, shots, p
   }
 }
 
+// ───────────── Plan 09-30: the Phase 9 screens (order photos), signed in as a Manager ─────────────
+
+/**
+ * @param {string} id
+ * @param {string} label
+ * @param {string} group
+ * @param {readonly number[]} [widths] the widths it is taken at; 390, 820 and 1440 px unless the case needs one.
+ * @returns {Phase9ReviewCase}
+ */
+function phase9Case(id, label, group, widths = REVIEW_WIDTHS) {
+  return { id, label, group, themes: BOTH, widths };
+}
+
+/**
+ * The UI-SPEC "Visual Review" set for Phase 9. Each is a picture of the real screen with the real server behind it (photos
+ * kept in the Testing host's memory, so Cloudinary is never called), in Blush and Espresso at 390, 820 and 1440 px, except the
+ * touch buttons (a touch phone at 390 px) and the narrow viewer (320 px).
+ * @type {readonly Phase9ReviewCase[]}
+ */
+export const PHASE9_REVIEW_CASES = Object.freeze([
+  phase9Case('f1-no-drafts', 'F1 New Order with no draft photos: the add area and the hint ending 0/5', 'F1 New Order'),
+  phase9Case('f1-one-draft', 'F1 New Order with 1 draft photo, which is the cover', 'F1 New Order'),
+  phase9Case(
+    'f1-five-drafts',
+    'F1 New Order with 5 draft photos: the limit note replaces the add area',
+    'F1 New Order',
+  ),
+  phase9Case(
+    'f1-pick-error',
+    'F1 New Order after a pick where one file was refused: the pick-error box',
+    'F1 New Order',
+  ),
+  phase9Case('o1-no-photos', 'O1 Order page with no photos: the add area only', 'O1 Order page'),
+  phase9Case('o1-one-photo', 'O1 Order page with 1 photo: both move buttons off, no Make Cover', 'O1 Order page'),
+  phase9Case(
+    'o1-three-photos',
+    'O1 Order page with 3 photos: the Cover tag and ring, every control visible',
+    'O1 Order page',
+  ),
+  phase9Case('o1-five-photos', 'O1 Order page with 5 photos: the limit note', 'O1 Order page'),
+  phase9Case('o1-uploading', 'O1 Order page with one photo uploading and two waiting', 'O1 Order page'),
+  phase9Case('o1-failed', 'O1 Order page with a failed photo and the partial-failure banner', 'O1 Order page'),
+  phase9Case('o1-saved-line', 'O1 Order page just after Make Cover: the Saved line', 'O1 Order page'),
+  phase9Case('o1-touch-add', 'O1 Order page on a touch phone: Take Photo and Choose Photos', 'Touch and drag', [390]),
+  phase9Case('o1-drop-drag-over', 'O1 Order page with a file dragged over the drop zone', 'Touch and drag'),
+  phase9Case('o1-completed', 'O1 Order page of a Completed order: the photos read-only', 'Read-only orders'),
+  phase9Case('x2-deleted', 'X2 Deleted order: the photos read-only', 'Read-only orders'),
+  phase9Case('viewer-one-photo', 'The viewer with 1 photo: no Previous or Next', 'Photo viewer'),
+  phase9Case('viewer-five-photos', 'The viewer with 5 photos, on a landscape photo', 'Photo viewer'),
+  phase9Case('viewer-portrait', 'The viewer on a portrait photo', 'Photo viewer'),
+  phase9Case('viewer-narrow', 'The viewer on a very tall photo at 320 px', 'Photo viewer', [320]),
+  phase9Case(
+    'description-409',
+    'The description window with the banner when someone else saved first (409)',
+    'Windows',
+  ),
+  phase9Case('delete-dialog', 'The Delete photo dialog', 'Windows'),
+  phase9Case('l1-grid-covers', 'L1 Orders grid with real covers and the image chip', 'L1 Orders list'),
+  phase9Case('l1-table-covers', 'L1 Orders table with real cover thumbs', 'L1 Orders list'),
+]);
+
+/**
+ * One picture per case, per theme, at the case's widths.
+ * @param {readonly Phase9ReviewCase[]} [cases]
+ * @returns {Phase9ReviewShot[]}
+ */
+export function planPhase9ReviewShots(cases = PHASE9_REVIEW_CASES) {
+  return cases.flatMap((entry) =>
+    entry.themes.flatMap((theme) =>
+      entry.widths.map((width) => ({
+        id: entry.id,
+        label: entry.label,
+        group: entry.group,
+        theme,
+        width,
+        file: `phase9-review/${entry.id}-${theme}-${String(width)}.png`,
+      })),
+    ),
+  );
+}
+
+/**
+ * What the owner still has to look at or rule on in the Phase 9 screens, from the owner backlog. Nothing here is approved: the
+ * build keeps the option it shows until the owner says otherwise.
+ * @type {readonly { id: string, title: string, what: string, how: string }[]}
+ */
+export const PHASE9_LOOK_AT = Object.freeze([
+  {
+    id: 'move-buttons',
+    title: 'Move and Edit buttons (plan 09-08)',
+    what: 'Move left, Move right and Edit description are outlined (secondary) buttons, and Delete is the quiet red-on-hover button.',
+    how: 'Look at "O1 with 3 photos". Say keep, or make the moves and Edit quiet (ghost).',
+  },
+  {
+    id: 'phone-grip',
+    title: 'No drag grip on a phone (plan 09-08)',
+    what: 'On a touch phone the drag grip is not drawn, because touch has no drag. The moves are the buttons.',
+    how: 'Look at "O1 on a touch phone" and "O1 with 3 photos" at 390 px.',
+  },
+  {
+    id: 'readonly-remove',
+    title: 'Remove on a read-only list (plan 09-08)',
+    what: 'On a Completed order, a file that has not uploaded keeps its Remove button; saved photos have no controls.',
+    how: 'Look at "O1 of a Completed order". Say keep, or hide Remove too.',
+  },
+  {
+    id: 'touch-wrap',
+    title: 'Touch buttons at 320 px (plan 09-08)',
+    what: 'Below about 318 px inside the card, "Choose Photos" wraps under "Take Photo". At 390 px they share one row.',
+    how: 'Look at "O1 on a touch phone". Say keep the wrap, or shorten the labels.',
+  },
+  {
+    id: 'removed-line',
+    title: 'Removing a draft photo (plan 09-21)',
+    what: 'Removing a draft is announced as "Photo deleted. N photos left." to screen readers.',
+    how: 'Nothing to see here. Say if you want a "Photo removed." line instead.',
+  },
+  {
+    id: 'cover-sizes',
+    title: 'Cover sharpness on 2x screens (plan 09-18)',
+    what: 'Covers use the sizes already listed; finer sizes would cost more Cloudinary transformations.',
+    how: 'Look at "L1 grid with covers" on a sharp screen. Say if a cover looks soft.',
+  },
+]);
+
+/**
+ * The Phase 9 section: the things to look at by eye, then every picture grouped by screen.
+ * @param {readonly Phase9ReviewShot[]} phase9Review
+ * @returns {string}
+ */
+function phase9ReviewSection(phase9Review) {
+  if (phase9Review.length === 0) {
+    return '';
+  }
+  const lookAt = PHASE9_LOOK_AT.map(
+    (item) =>
+      `<tr><td><strong>${escapeHtml(item.title)}</strong></td><td>${escapeHtml(item.what)}</td><td>${escapeHtml(item.how)}</td></tr>`,
+  ).join('');
+  const groups = [...new Set(phase9Review.map((shot) => shot.group))];
+  const sections = groups
+    .map((group) => {
+      const ids = [...new Set(phase9Review.filter((shot) => shot.group === group).map((shot) => shot.id))];
+      const cases = ids
+        .map((id) => {
+          const ofCase = phase9Review.filter((shot) => shot.id === id);
+          const label = ofCase[0]?.label ?? id;
+          const figures = ofCase
+            .map(
+              (shot) =>
+                `<figure class="gap"><figcaption>${escapeHtml(themeName(shot.theme))}, ${String(shot.width)} px</figcaption>` +
+                `<a href="${escapeHtml(shot.file)}"><img src="${escapeHtml(shot.file)}" alt="${escapeHtml(
+                  `${label}, ${themeName(shot.theme)}, ${String(shot.width)} px`,
+                )}"></a></figure>`,
+            )
+            .join('');
+          return `<h4>${escapeHtml(label)}</h4><div class="row">${figures}</div>`;
+        })
+        .join('\n');
+      return `<h3>${escapeHtml(group)}</h3>\n${cases}`;
+    })
+    .join('\n');
+  return `<section><h2>Order photos (Phase 9)</h2>
+<p class="note">These pictures show the real screens, signed in as a Manager, with orders and photos made for the run. The photos
+are drawn gradients kept in the test host's memory, so Cloudinary is never called and no real photo is shown. Photos on the real
+Cloudinary account are checked by you in the last step of plan 09-30. Nothing here is approved until you say so.</p>
+<h3>Phase 9: look at these</h3>
+<table><thead><tr><th>What</th><th>How it is now</th><th>What to do</th></tr></thead><tbody>${lookAt}</tbody></table>
+${sections}</section>`;
+}
+
+/** @typedef {{ readonly id: string, readonly number: string }} MadeOrder */
+/** @typedef {{ readonly name: string, readonly mimeType: string, readonly buffer: Buffer }} MadePhoto */
+/**
+ * @typedef {{
+ *   readonly orders: Readonly<Record<'none' | 'one' | 'three' | 'five' | 'completed' | 'deleted' | 'shapes', MadeOrder>>,
+ *   readonly samples: readonly MadePhoto[],
+ * }} Phase9Seed
+ */
+/** @typedef {CaseContext & { nine: Phase9Seed, view: { theme: Theme, width: number } }} Phase9Context */
+
+/** The seeded Basketball Jersey product type and Cash payment method (the fixed migration seed literals). */
+const SEEDED_JERSEY = '01a17fce-7800-7f5d-bc6c-5d14ceeca0c6';
+const SEEDED_CASH = '01a17fce-7806-77e1-91b7-d3b852f2fd1d';
+
+/** The photos the cases use: five alike (800 x 600) for the lists, and five shapes for the viewer. */
+const PHASE9_SAMPLE_SHAPES = Object.freeze(
+  [200, 20, 130, 280, 60].map((hue, index) => ({ name: `photo-${String(index + 1)}`, hue, width: 800, height: 600 })),
+);
+const PHASE9_VIEWER_SHAPES = Object.freeze([
+  { name: 'landscape', hue: 200, width: 1600, height: 1200 },
+  { name: 'portrait', hue: 20, width: 1200, height: 1600 },
+  { name: 'very-tall', hue: 130, width: 500, height: 2000 },
+  { name: 'very-wide', hue: 280, width: 2000, height: 500 },
+  { name: 'square', hue: 60, width: 1200, height: 1200 },
+]);
+
+/**
+ * The page-side script that draws a hue gradient on a canvas and returns the JPEG bytes (a string: this file has no DOM types).
+ * @param {number} width
+ * @param {number} height
+ * @param {number} hue
+ * @returns {string}
+ */
+function jpegScript(width, height, hue) {
+  return `(async () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = ${String(width)};
+  canvas.height = ${String(height)};
+  const context = canvas.getContext('2d');
+  const gradient = context.createLinearGradient(0, 0, ${String(width)}, ${String(height)});
+  gradient.addColorStop(0, 'hsl(${String(hue)} 70% 45%)');
+  gradient.addColorStop(1, 'hsl(${String((hue + 90) % 360)} 70% 60%)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, ${String(width)}, ${String(height)});
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  return Array.from(new Uint8Array(await blob.arrayBuffer()));
+})()`;
+}
+
+/**
+ * Draws one JPEG per shape in a blank page.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {readonly { name: string, hue: number, width: number, height: number }[]} shapes
+ * @returns {Promise<MadePhoto[]>}
+ */
+async function drawPhotos(browser, shapes) {
+  const page = await browser.newPage();
+  try {
+    /** @type {MadePhoto[]} */
+    const photos = [];
+    for (const shape of shapes) {
+      const bytes = /** @type {number[]} */ (await page.evaluate(jpegScript(shape.width, shape.height, shape.hue)));
+      photos.push({ name: `${shape.name}.jpg`, mimeType: 'image/jpeg', buffer: Buffer.from(bytes) });
+    }
+    return photos;
+  } finally {
+    await page.close();
+  }
+}
+
+/**
+ * Makes an order through the Testing-only order fixture, marked with this run's tag so a search finds only the run's orders.
+ * @param {ApiRequest} request
+ * @param {string} tag
+ * @param {string} label
+ * @param {Record<string, unknown>} [extra] more of the order: a status, payments.
+ * @returns {Promise<MadeOrder>}
+ */
+async function makeOrder(request, tag, label, extra = {}) {
+  const number = `ORD-2093-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`;
+  const response = await request.post('/api/testing/orders', {
+    data: {
+      number,
+      customerName: `Review ${tag} ${label}`,
+      teamName: 'Review Team',
+      orderDate: manilaDate(-3),
+      dueDate: manilaDate(5),
+      items: [{ productTypeId: SEEDED_JERSEY, description: 'Review jersey', quantity: 6, unitPrice: 700 }],
+      ...extra,
+    },
+  });
+  if (response.status() !== 201) {
+    throw new Error(`The order fixture answered ${String(response.status())}, not 201.`);
+  }
+  return { id: idOf(await response.json()), number };
+}
+
+/**
+ * Adds photos to an order through the upload endpoint, one at a time, as the app does.
+ * @param {ApiRequest} request
+ * @param {string} token
+ * @param {string} orderId
+ * @param {readonly MadePhoto[]} photos
+ * @returns {Promise<void>}
+ */
+async function addPhotos(request, token, orderId, photos) {
+  for (const photo of photos) {
+    const response = await request.fetch(`/api/v1/orders/${orderId}/images`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': randomUUID() },
+      multipart: { file: photo, description: '' },
+    });
+    if (!response.ok()) {
+      throw new Error(`The photo upload answered ${String(response.status())}.`);
+    }
+  }
+}
+
+/**
+ * Makes what the Phase 9 pictures show: orders with 0, 1, 3 and 5 photos, a Completed order and a deleted order with 2, and an
+ * order whose five photos are of different shapes. All carry this run's tag in the customer name.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @returns {Promise<Phase9Seed>}
+ */
+async function seedPhase9(browser, request, origin, seed) {
+  const manager = seed.people.manager;
+  if (manager === undefined) {
+    throw new Error('The seed has no Manager.');
+  }
+  const token = await tokenFor(browser, request, origin, manager);
+  const samples = await drawPhotos(browser, PHASE9_SAMPLE_SHAPES);
+  const shapes = await drawPhotos(browser, PHASE9_VIEWER_SHAPES);
+  /** @param {string} label @param {number} count @param {Record<string, unknown>} [extra] */
+  const order = async (label, count, extra) => {
+    const made = await makeOrder(request, seed.tag, label, extra);
+    await addPhotos(request, token, made.id, samples.slice(0, count));
+    return made;
+  };
+  const none = await order('none', 0);
+  const one = await order('one', 1);
+  const three = await order('three', 3);
+  const five = await order('five', 5);
+  // 6 x 700 = 4,200.00, paid in full and delivered, so Mark Completed is open.
+  const completed = await order('completed', 2, {
+    status: 'delivered',
+    payments: [
+      { paymentDate: manilaDate(-2), amount: 4200, paymentMethodId: SEEDED_CASH, receivedByUserId: manager.userId },
+    ],
+  });
+  await callApi(request, token, 'POST', `/api/v1/orders/${completed.id}/status`, { status: 'completed' });
+  const deleted = await order('deleted', 2);
+  await callApi(request, token, 'DELETE', `/api/v1/orders/${deleted.id}`);
+  const viewer = await makeOrder(request, seed.tag, 'shapes');
+  await addPhotos(request, token, viewer.id, shapes);
+  return { orders: { none, one, three, five, completed, deleted, shapes: viewer }, samples };
+}
+
+/**
+ * A page script that brings every image into view in turn (photos load lazily), then waits until each has loaded or failed, for at
+ * most 8 seconds in all, so a photo that never loads cannot hold the run.
+ */
+const PHOTOS_LOADED = `(async () => {
+  const images = Array.from(document.images);
+  for (const image of images) {
+    image.scrollIntoView({ block: 'center' });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  window.scrollTo(0, 0);
+  const loaded = Promise.all(images.map((image) => image.complete ? true : new Promise((resolve) => {
+    image.addEventListener('load', () => resolve(true));
+    image.addEventListener('error', () => resolve(true));
+  })));
+  await Promise.race([loaded, new Promise((resolve) => setTimeout(() => resolve(true), 8000))]);
+  return true;
+})()`;
+
+/**
+ * A fresh access token for the person signed in on this page, from the refresh cookie.
+ * @param {Page} page
+ * @param {string} origin
+ * @returns {Promise<string>}
+ */
+async function pageToken(page, origin) {
+  const response = await page.request.post(`${origin}/api/v1/auth/refresh`, { headers: { 'X-CSPS-CSRF': '1' } });
+  /** @type {unknown} */
+  const body = response.ok() ? await response.json() : null;
+  const token = isRecord(body) && typeof body.accessToken === 'string' ? body.accessToken : null;
+  if (token === null) {
+    throw new Error(`The refresh answered ${String(response.status())} with no access token.`);
+  }
+  return token;
+}
+
+/**
+ * Makes an order of the case's own, with `count` photos, so a picture that changes the order leaves the shared ones alone.
+ * @param {Phase9Context} c
+ * @param {string} label
+ * @param {number} count
+ * @returns {Promise<MadeOrder>}
+ */
+async function ownOrder(c, label, count) {
+  const made = await makeOrder(c.request, c.seed.tag, label);
+  await addPhotos(c.request, await pageToken(c.page, c.origin), made.id, c.nine.samples.slice(0, count));
+  return made;
+}
+
+/**
+ * Opens an order page (or its deleted view) and waits for its photos, fonts and motion.
+ * @param {Phase9Context} c
+ * @param {MadeOrder} made
+ * @param {boolean} [deleted]
+ */
+async function openOrderPhotos(c, made, deleted = false) {
+  await c.page.goto(`${c.origin}/admin/orders/${deleted ? 'deleted/' : ''}${made.id}`);
+  await pageReady(c.page, made.number);
+  await c.page.getByRole('heading', { level: 2, name: 'Images' }).waitFor({ timeout: 30_000 });
+  await c.page.waitForLoadState('networkidle');
+  await c.page.evaluate(PHOTOS_LOADED);
+  await c.page.evaluate(SETTLE);
+}
+
+/** @param {Phase9Context} c */
+async function openNewOrder(c) {
+  await c.page.goto(`${c.origin}/admin/orders/new`);
+  await pageReady(c.page, 'New Order');
+  await c.page.locator('input[type="file"][multiple]').waitFor({ state: 'attached', timeout: 30_000 });
+  await c.page.waitForLoadState('networkidle');
+}
+
+/**
+ * Picks photos on the New Order form and waits until each draft shows its preview.
+ * @param {Phase9Context} c
+ * @param {readonly { name: string, mimeType: string, buffer: Buffer }[]} files
+ * @param {number} drafts how many drafts the pick should produce.
+ */
+async function pickDrafts(c, files, drafts) {
+  await c.page.locator('input[type="file"][multiple]').setInputFiles([...files]);
+  if (drafts > 0) {
+    const list = c.page.getByRole('list', { name: 'Order photos' }).getByRole('listitem');
+    await list
+      .nth(drafts - 1)
+      .locator('img')
+      .first()
+      .waitFor({ timeout: 30_000 });
+  }
+  await c.page.evaluate(PHOTOS_LOADED);
+}
+
+/**
+ * Opens the viewer on a photo of an order and waits for its picture.
+ * @param {Phase9Context} c
+ * @param {MadeOrder} made
+ * @param {number} position 1-based
+ * @param {number} total
+ */
+async function openViewer(c, made, position, total) {
+  await openOrderPhotos(c, made);
+  await c.page
+    .getByRole('button', { name: new RegExp(`^Open photo ${String(position)} of ${String(total)}:`) })
+    .click();
+  const viewer = c.page.getByRole('dialog', { name: 'Order photos' });
+  await viewer.waitFor();
+  await c.page.evaluate(PHOTOS_LOADED);
+  return viewer;
+}
+
+/**
+ * How each Phase 9 case is photographed. Every function starts from a page load of its own, so the cases can run in any order.
+ * @type {Readonly<Record<string, (c: Phase9Context) => Promise<void>>>}
+ */
+const PHASE9_CAPTURES = Object.freeze({
+  'f1-no-drafts': async (c) => {
+    await openNewOrder(c);
+    await shootFullPage(c);
+  },
+  'f1-one-draft': async (c) => {
+    await openNewOrder(c);
+    await pickDrafts(c, c.nine.samples.slice(0, 1), 1);
+    await shootFullPage(c);
+  },
+  'f1-five-drafts': async (c) => {
+    await openNewOrder(c);
+    await pickDrafts(c, c.nine.samples.slice(0, 5), 5);
+    await shootFullPage(c);
+  },
+  'f1-pick-error': async (c) => {
+    await openNewOrder(c);
+    const notAPhoto = { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('This is not a photo.') };
+    await pickDrafts(c, [notAPhoto, ...c.nine.samples.slice(0, 1)], 1);
+    await c.page.getByRole('alert').first().waitFor();
+    await shootFullPage(c);
+  },
+  'o1-no-photos': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.none);
+    await shootFullPage(c);
+  },
+  'o1-one-photo': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.one);
+    await shootFullPage(c);
+  },
+  'o1-three-photos': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.three);
+    await shootFullPage(c);
+  },
+  'o1-five-photos': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.five);
+    await shootFullPage(c);
+  },
+  'o1-uploading': async (c) => {
+    const made = await ownOrder(c, 'uploading', 0);
+    await openOrderPhotos(c, made);
+    // The first upload is held, so the first tile is Uploading and the other two stay Waiting.
+    /** @type {() => void} */
+    let release = () => undefined;
+    const gate = new Promise((resolve) => {
+      release = () => {
+        resolve(true);
+      };
+    });
+    const pattern = /\/api\/v1\/orders\/[^/]+\/images$/;
+    /** @param {import('@playwright/test').Route} route */
+    const handler = async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.fallback();
+        return;
+      }
+      await gate;
+      await route.continue();
+    };
+    await c.page.route(pattern, handler);
+    try {
+      await c.page.locator('input[type="file"][multiple]').setInputFiles([...c.nine.samples.slice(0, 3)]);
+      await c.page.getByText('Uploading', { exact: true }).first().waitFor();
+      await c.page.getByText('Waiting to upload').first().waitFor();
+      await c.page.evaluate(PHOTOS_LOADED);
+      await shootFullPage(c);
+    } finally {
+      release();
+    }
+    await c.page.getByRole('button', { name: /^Open photo 3 of 3:/ }).waitFor({ timeout: 60_000 });
+    await c.page.unroute(pattern, handler);
+  },
+  'o1-failed': async (c) => {
+    const made = await ownOrder(c, 'failed', 0);
+    await openOrderPhotos(c, made);
+    const allowed = allowConsole(c.page, /status of 503/);
+    // The next upload fails as if the photo store were down; the one after it works.
+    await c.request.post('/api/testing/images/fail-next', { data: { count: 1 } });
+    try {
+      await c.page.locator('input[type="file"][multiple]').setInputFiles([...c.nine.samples.slice(0, 2)]);
+      await c.page.getByRole('alert').first().waitFor({ timeout: 60_000 });
+      await c.page.getByRole('button', { name: /^Try again, / }).waitFor();
+      await c.page.evaluate(PHOTOS_LOADED);
+      await shootFullPage(c);
+    } finally {
+      await c.request.post('/api/testing/images/fail-next', { data: { count: 0 } });
+      allowed();
+    }
+  },
+  'o1-saved-line': async (c) => {
+    const made = await ownOrder(c, 'saved', 3);
+    await openOrderPhotos(c, made);
+    await c.page.getByRole('button', { name: 'Make cover, photo 3' }).click();
+    await c.page.getByText('Saved', { exact: true }).waitFor();
+    // No settle wait: the Saved line goes away after 4 seconds.
+    await c.page.screenshot({ path: c.target, fullPage: true });
+  },
+  'o1-touch-add': async (c) => {
+    const manager = c.seed.people.manager;
+    if (manager === undefined) {
+      throw new Error('The seed has no Manager.');
+    }
+    // A touch phone: the add area is Take Photo and Choose Photos instead of the drop zone.
+    const context = await c.browser.newContext({
+      viewport: { width: c.view.width, height: windowHeight(c.view.width) },
+      hasTouch: true,
+      isMobile: true,
+      ignoreHTTPSErrors: true,
+      deviceScaleFactor: 1,
+    });
+    if (c.view.theme === 'dark') {
+      await context.addInitScript({ content: `try { localStorage.setItem('csps-theme', 'dark'); } catch {}` });
+    }
+    try {
+      const page = await context.newPage();
+      await signIn(page, c.request, c.origin, manager);
+      await openOrderPhotos({ ...c, page }, c.nine.orders.none);
+      await page.getByRole('button', { name: 'Take Photo', exact: true }).waitFor();
+      await shootFullPage({ ...c, page });
+    } finally {
+      await context.close();
+    }
+  },
+  'o1-drop-drag-over': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.none);
+    await c.page.locator('div[data-over]').first().dispatchEvent('dragover');
+    await shootFullPage(c);
+  },
+  'o1-completed': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.completed);
+    await c.page.getByText('This order is completed.').waitFor();
+    await shootFullPage(c);
+  },
+  'x2-deleted': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.deleted, true);
+    await shootFullPage(c);
+  },
+  'viewer-one-photo': async (c) => {
+    await openViewer(c, c.nine.orders.one, 1, 1);
+    await shoot(c);
+  },
+  'viewer-five-photos': async (c) => {
+    await openViewer(c, c.nine.orders.shapes, 1, 5);
+    await shoot(c);
+  },
+  'viewer-portrait': async (c) => {
+    const viewer = await openViewer(c, c.nine.orders.shapes, 2, 5);
+    await viewer.getByText('Photo 2 of 5', { exact: true }).waitFor();
+    await shoot(c);
+  },
+  'viewer-narrow': async (c) => {
+    const viewer = await openViewer(c, c.nine.orders.shapes, 3, 5);
+    await viewer.getByText('Photo 3 of 5', { exact: true }).waitFor();
+    await shoot(c);
+  },
+  'description-409': async (c) => {
+    const made = await ownOrder(c, 'window', 2);
+    await openOrderPhotos(c, made);
+    await c.page.getByRole('button', { name: 'Edit description of photo 1' }).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Edit Description' });
+    await dialog.waitFor();
+    // A coworker describes photo 2 while the window is open, so the window holds an older version of the order.
+    const token = await pageToken(c.page, c.origin);
+    const current = await callApi(c.request, token, 'GET', `/api/v1/orders/${made.id}`);
+    /** @type {unknown[]} */
+    const images = isRecord(current) && Array.isArray(current.images) ? current.images : [];
+    const second = images.find((image) => isRecord(image) && image.position === 2);
+    if (!isRecord(current) || !isRecord(second)) {
+      throw new Error('The order has no second photo.');
+    }
+    await callApi(c.request, token, 'PUT', `/api/v1/orders/${made.id}/images/${String(second.id)}`, {
+      description: 'Changed by a coworker',
+      version: current.version,
+    });
+    const allowed = allowConsole(c.page, /status of 409/);
+    try {
+      await dialog.getByLabel('Photo description').fill('Front mockup');
+      await dialog.getByRole('button', { name: 'Save Description' }).click();
+      await dialog.getByRole('button', { name: 'Load Latest' }).waitFor();
+      await shoot(c);
+    } finally {
+      allowed();
+    }
+  },
+  'delete-dialog': async (c) => {
+    await openOrderPhotos(c, c.nine.orders.three);
+    await c.page.getByRole('button', { name: 'Delete photo 1' }).click();
+    const dialog = c.page.getByRole('dialog', { name: 'Delete photo 1?' });
+    await dialog.waitFor();
+    await shoot(c);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  },
+  'l1-grid-covers': async (c) => {
+    await c.page.goto(`${c.origin}/admin/orders?q=${c.seed.tag}&view=grid`);
+    await pageReady(c.page, 'Orders');
+    await c.page.getByRole('article').first().waitFor({ timeout: 30_000 });
+    await c.page.waitForLoadState('networkidle');
+    await c.page.evaluate(PHOTOS_LOADED);
+    await shootFullPage(c);
+  },
+  'l1-table-covers': async (c) => {
+    await c.page.goto(`${c.origin}/admin/orders?q=${c.seed.tag}&view=table`);
+    await pageReady(c.page, 'Orders');
+    await c.page.locator('tbody tr').first().waitFor({ timeout: 30_000 });
+    await c.page.waitForLoadState('networkidle');
+    await c.page.evaluate(PHOTOS_LOADED);
+    await shootFullPage(c);
+  },
+});
+
+/**
+ * Takes the Phase 9 pictures: one signed-in browser context per theme and width, and the cases in order inside it.
+ * @param {import('@playwright/test').Browser} browser
+ * @param {ApiRequest} request
+ * @param {string} origin
+ * @param {Phase5Seed} seed
+ * @param {Phase9Seed} nine
+ * @param {readonly Phase9ReviewShot[]} shots
+ * @param {string[]} problems
+ * @returns {Promise<void>}
+ */
+async function capturePhase9Review(browser, request, origin, seed, nine, shots, problems) {
+  const views = [...new Set(shots.map((shot) => `${shot.theme}|${String(shot.width)}`))];
+  for (const key of views) {
+    const [theme, width] = key.split('|');
+    const group = shots.filter((shot) => shot.theme === theme && String(shot.width) === width);
+    const first = group[0];
+    if (first === undefined) {
+      continue;
+    }
+    const view = { theme: first.theme, width: first.width };
+    const opened = await openSignedIn(browser, request, origin, seed, view, problems);
+    try {
+      for (const shot of group) {
+        const capture = PHASE9_CAPTURES[shot.id];
+        if (capture === undefined) {
+          throw new Error(`No capture is written for the Phase 9 case "${shot.id}"; update PHASE9_CAPTURES.`);
+        }
+        try {
+          await capture({
+            page: opened.page,
+            request,
+            origin,
+            seed,
+            nine,
+            view,
+            browser,
+            target: assertWritable(path.join(OUTPUT_DIR, shot.file)),
+          });
+          process.stdout.write(`review: ${shot.file}\n`);
+        } catch (error) {
+          // One picture that cannot be taken is reported in the page's list of problems; the rest are still taken.
+          const reason = error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error);
+          problems.push(`${shot.file} could not be taken: ${reason}`);
+          process.stdout.write(`review: ${shot.file} FAILED: ${reason}\n`);
+        }
+      }
+    } finally {
+      await opened.close();
+    }
+  }
+}
+
 /**
  * Takes every planned screenshot from the running host: the pages, then the SPEC-GAP cases, then the wording
  * before/after pairs.
@@ -4065,7 +4776,15 @@ async function capturePhase6Review(browser, request, origin, seed, six, shots, p
  */
 async function captureShots(step) {
   const { chromium, request: playwrightRequest } = await import('@playwright/test');
-  for (const folder of ['shots', 'spec-gap', 'before-after', 'auth-review', 'phase5-review', 'phase6-review']) {
+  for (const folder of [
+    'shots',
+    'spec-gap',
+    'before-after',
+    'auth-review',
+    'phase5-review',
+    'phase6-review',
+    'phase9-review',
+  ]) {
     rmSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true, force: true });
     mkdirSync(assertWritable(path.join(OUTPUT_DIR, folder)), { recursive: true });
   }
@@ -4078,9 +4797,12 @@ async function captureShots(step) {
     const needsSignIn =
       step.phase5Review.length > 0 ||
       step.phase6Review.length > 0 ||
+      step.phase9Review.length > 0 ||
       REVIEW_TARGETS.some((target) => target.signedIn === true);
     const seed = needsSignIn ? await seedPhase5(browser, request, step.origin) : null;
     const six = seed === null ? null : await seedPhase6(browser, request, step.origin, seed);
+    const nine =
+      seed === null || step.phase9Review.length === 0 ? null : await seedPhase9(browser, request, step.origin, seed);
     for (const shot of step.shots) {
       const target = REVIEW_TARGETS.find((entry) => entry.path === shot.path);
       const manager = seed?.people.manager;
@@ -4113,6 +4835,9 @@ async function captureShots(step) {
     if (seed !== null && six !== null) {
       await capturePhase6Review(browser, request, step.origin, seed, six, step.phase6Review, problems);
     }
+    if (seed !== null && nine !== null) {
+      await capturePhase9Review(browser, request, step.origin, seed, nine, step.phase9Review, problems);
+    }
   } finally {
     await request.dispose();
     await browser.close();
@@ -4124,6 +4849,7 @@ async function captureShots(step) {
     authReview: step.authReview,
     phase5Review: step.phase5Review,
     phase6Review: step.phase6Review,
+    phase9Review: step.phase9Review,
     problems,
   };
 }
@@ -4168,6 +4894,7 @@ function writeReport(step, result) {
       authReview: result.authReview ?? [],
       phase5Review: result.phase5Review ?? [],
       phase6Review: result.phase6Review ?? [],
+      phase9Review: result.phase9Review ?? [],
       problems: result.problems,
       parity: {
         summary: summarizeParity(report),
