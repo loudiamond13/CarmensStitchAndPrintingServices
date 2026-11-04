@@ -1,5 +1,6 @@
 using System.Globalization;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Images;
 using Csps.Server.Logging;
 using Csps.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,8 @@ public sealed class SensitiveDataMaskingTests
     [InlineData("Code")]
     [InlineData("Otp")]
     [InlineData("ApiKey")]
+    [InlineData("ApiSecret")]
+    [InlineData("apisecret")]
     [InlineData("Authorization")]
     [InlineData("Cookie")]
     [InlineData("ConnectionString")]
@@ -129,6 +132,26 @@ public sealed class SensitiveDataMaskingTests
         properties["Mode"].ShouldBe("on");
         properties["MaintenanceKey"].ShouldBe(SensitiveDataMasking.Mask);
         Render(logEvent).ShouldNotContain(SecretValue);
+    }
+
+    [Fact]
+    public void PolicyMasksTheCloudinaryApiKeyAndSecret()
+    {
+        var sink = new CollectingSink();
+        var settings = new CloudinarySettings { CloudName = "demo-cloud", ApiKey = "000000000000000", ApiSecret = SecretValue, RootFolder = "csps-dev" };
+        using (var logger = new LoggerConfiguration().Destructure.With<SensitiveDataDestructuringPolicy>().WriteTo.Sink(sink).CreateLogger())
+        {
+            logger.Information("{@Settings}", settings);
+        }
+
+        var logEvent = sink.Events.ShouldHaveSingleItem();
+        var properties = logEvent.Properties["Settings"].ShouldBeOfType<StructureValue>().Properties
+            .ToDictionary(static p => p.Name, static p => ((ScalarValue)p.Value).Value, StringComparer.Ordinal);
+        properties["ApiSecret"].ShouldBe(SensitiveDataMasking.Mask);
+        properties["ApiKey"].ShouldBe(SensitiveDataMasking.Mask);
+        properties["RootFolder"].ShouldBe("csps-dev");
+        Render(logEvent).ShouldNotContain(SecretValue);
+        Render(logEvent).ShouldNotContain("000000000000000");
     }
 
     [Fact]
