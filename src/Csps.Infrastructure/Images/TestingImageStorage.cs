@@ -1,5 +1,6 @@
 #if CSPS_TESTING
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 using Csps.Application.Images;
 using Csps.Application.Ports;
 
@@ -32,6 +33,7 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
     private int _failuresLeft;
     private ImageUploadOutcome _failure = ImageUploadOutcome.Failed("test-failure");
     private TaskCompletionSource? _hold;
+    private Channel<bool>? _steps;
 
     /// <inheritdoc />
     public bool IsConfigured => true;
@@ -106,6 +108,27 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
         }
     }
 
+    /// <summary>Makes every upload wait until <see cref="ReleaseNext"/> lets exactly one go on, so a test can finish uploads one at a time.</summary>
+    public void HoldUploadsStepwise()
+    {
+        lock (_gate)
+        {
+            _steps ??= Channel.CreateUnbounded<bool>();
+        }
+    }
+
+    /// <summary>Lets one stepwise-held upload go on.</summary>
+    public void ReleaseNext()
+    {
+        Channel<bool>? steps;
+        lock (_gate)
+        {
+            steps = _steps;
+        }
+
+        steps?.Writer.TryWrite(true);
+    }
+
     /// <summary>Lets the held uploads go on.</summary>
     public void Release()
     {
@@ -125,15 +148,22 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
         ArgumentNullException.ThrowIfNull(upload);
 
         Task? wait;
+        Channel<bool>? steps;
         lock (_gate)
         {
             _uploads.Add(new RecordedImageUpload(upload.PublicId, upload.AssetFolder, upload.Bytes.Length, upload.Kind));
             wait = _hold?.Task;
+            steps = _steps;
         }
 
         if (wait is not null)
         {
             await wait.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (steps is not null)
+        {
+            await steps.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
         }
 
         lock (_gate)

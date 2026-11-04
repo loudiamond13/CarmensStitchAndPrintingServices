@@ -1,12 +1,12 @@
 # The order photos API
 
-*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-03T11:43:44-06:00*
+*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-03T18:00:00-06:00*
 
 This is the contract for the photos on an order, and the one a future Android app will use. Everything is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
 app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in [auth.md](auth.md). The
 order itself, and the `images` list it carries, are in [orders.md](orders.md). This page covers what exists today: uploading one
-photo and reading the photo rules. Limits that are still to come, moving, describing and deleting photos, are added to this page
+photo and reading the photo rules. Moving, describing and deleting photos are added to this page
 when they ship.
 
 ## In plain words
@@ -71,10 +71,11 @@ is read again and decided again once.
 | `401` | | | no valid token |
 | `404` | `orders.not-found` | This order was not found or was deleted. | the order does not exist or was deleted |
 | `409` | `edit.stale` | | two saves lost a race twice; read the order and try again |
-| `413` | | The request is too large. | the body is over the request size cap (see the note below) |
+| `413` | | The request is too large. | the body is over 10 MiB plus 64 KiB (see the note below) |
 | `422` | `orders.images-full` | This order already has 5 photos. | the order already holds `maxPerOrder` photos |
 | `422` | `orders.locked` | This order is completed. Reopen it to make changes. (or cancelled) | the order is Completed or Cancelled; nothing changes |
-| `429` | | | the caller must slow down |
+| `422` | `idempotency.key-mismatch` | | the same `Idempotency-Key` was used with different parts (see below) |
+| `429` | `rate-limited` | Too many uploads right now. Wait a minute, then try again. | more than 30 uploads from one address in 10 minutes, or the server is already busy with other uploads. A `Retry-After` header gives the wait in seconds |
 | `503` | `images.not-configured` | Photo uploads aren't set up yet. | the host has no photo store set up. The site still runs |
 | `503` | `images.storage-failed` | The photo couldn't be saved. Try again. | the photo store did not take the file. No photo row was saved |
 
@@ -84,16 +85,26 @@ is read again and decided again once.
 The order is checked first (exists, open, has room, description fits), then the file is read, and only then is it sent to the
 store. A refused upload never leaves a customer photo in storage.
 
-**Note on the size cap.** The server stops every request body above 1 MiB with `413` before the upload runs. The 10 MB allowance
-for this one route comes in a later plan (09-14), and until then a photo over 1 MiB answers `413`. The browser already shrinks
-photos before it sends them.
+**Note on the size cap.** This route takes a body of up to 10 MiB plus 64 KiB (the file plus room for the form fields). One byte
+more answers `413` before the upload runs. Every other route in the API still stops at 1 MiB. In front of the app, IIS holds the
+same line a little higher (11 MiB), so the app answers `413` itself. The browser also shrinks photos before it sends them. The
+photo is held in memory only, never in a temp file.
+
+**Note on the pace.** One address may upload 30 times in 10 minutes. The whole server works on two uploads at a time and lets up
+to four more wait their turn. A seventh at the same moment answers `429` at once with `Retry-After: 60`. After a `429`, wait
+that long, then send the same request again with the same `Idempotency-Key`.
 
 ### The Idempotency-Key
 
-The upload needs an `Idempotency-Key` header with a fresh UUID for each photo the user picks. A retry with the same key and body
-answers with the stored `200` (and the header `Idempotent-Replayed: true`) and adds nothing more: one photo, one audit entry. The
-same key with a different body is `422 idempotency.key-mismatch`, and a key still being processed is `409 idempotency.in-progress`.
+The upload needs an `Idempotency-Key` header with a fresh UUID for each photo the user picks. A retry with the same key and the
+same parts answers with the stored `200` (and the header `Idempotent-Replayed: true`) and adds nothing more: one photo, one audit
+entry. The server compares the parts, not the raw bytes of the request: each part's name, file name, content type and bytes. So
+a retry that the browser sends with a new multipart boundary is still a repeat. The same key with a different file, description,
+file name or part type is `422 idempotency.key-mismatch`, and a key still being processed is `409 idempotency.in-progress`.
 Only `200`, `400`, `404` and `422` answers are kept. A `401`, `409`, `413`, `429` or `5xx` is not, so the same key can be sent again.
+When a body is not valid multipart at all, it is compared as it is and the upload answers `400` as usual.
+
+**To retry ("Try Again"): send the same key and the same file.** A new key makes a second photo.
 
 ## The audit entry
 

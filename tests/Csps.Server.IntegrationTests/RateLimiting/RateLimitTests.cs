@@ -67,6 +67,7 @@ public sealed class RateLimitTests(CspsDatabase database) : IClassFixture<CspsDa
         { "GET", "/api/v1/sessions", 60 },
         { "DELETE", "/api/v1/sessions/6f1d3c52-8a0e-4b7d-9c41-2e5a7b9d0f13", 60 },
         { "POST", "/api/v1/maintenance/run", 12 },
+        { "POST", "/api/v1/orders/6f1d3c52-8a0e-4b7d-9c41-2e5a7b9d0f13/images", 30 },
     };
 
     [Theory]

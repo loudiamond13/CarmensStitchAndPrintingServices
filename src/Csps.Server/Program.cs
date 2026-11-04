@@ -98,9 +98,6 @@ app.Environment.WebRootFileProvider = new HiddenSegmentFileProvider(app.Environm
 // Outermost: its OnStarting callback covers redirect, exception-handler and status-code-page responses too (SEC-01).
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
-// Refuses bodies above 1 MB with a 413 before anything else reads them (SEC-03).
-app.UseMiddleware<RequestBodyLimitMiddleware>();
-
 if (redirectToHttps)
 {
     app.UseHttpsRedirection();
@@ -130,6 +127,9 @@ app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply 
 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();
+
+// After routing, so the matched endpoint's limit is known: 1 MiB, or the photo upload's own. A 413 comes before anything reads the body (SEC-03, IMG-02).
+app.UseMiddleware<RequestBodyLimitMiddleware>();
 
 // After routing so [EnableRateLimiting] sees the endpoint; before authentication so a throttled request costs nothing (SEC-03).
 app.UseRateLimiter();

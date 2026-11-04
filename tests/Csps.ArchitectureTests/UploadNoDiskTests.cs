@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Csps.Application.Images;
 using Csps.Server.Controllers;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Csps.ArchitectureTests;
@@ -19,6 +20,8 @@ public sealed partial class UploadNoDiskTests
         "src/Csps.Application/Images/ImageInspection.cs",
         "src/Csps.Application/Images/ImageSniffer.cs",
         "src/Csps.Server/Controllers/OrderImagesController.cs",
+        "src/Csps.Server/Security/IdempotencyMiddleware.cs",
+        "src/Csps.Server/Http/RequestBodyLimitMiddleware.cs",
     ];
 
     private static readonly string[] CommentPrefixes = ["//", "/*", "*"];
@@ -48,6 +51,31 @@ public sealed partial class UploadNoDiskTests
 
         ((long)limits.MemoryBufferThreshold).ShouldBeGreaterThan(limits.MultipartBodyLengthLimit);
         limits.MultipartBodyLengthLimit.ShouldBeGreaterThanOrEqualTo(ImageUploadLimits.MaxFileBytes);
+    }
+
+    [Fact]
+    public void TheUploadActionRaisesTheRequestBodyLimitToTheUploadBodySize()
+    {
+        var action = typeof(OrderImagesController).GetMethod(nameof(OrderImagesController.Upload)).ShouldNotBeNull();
+
+        var limit = action.GetCustomAttributes().OfType<IRequestSizeLimitMetadata>().ShouldHaveSingleItem();
+
+        var allowed = limit.MaxRequestBodySize.ShouldNotBeNull();
+        allowed.ShouldBe(ImageUploadLimits.BodyBytes);
+        ((long)action.GetCustomAttribute<RequestFormLimitsAttribute>().ShouldNotBeNull().MemoryBufferThreshold).ShouldBeGreaterThan(allowed);
+    }
+
+    // The retry check buffers the body to read it twice. Its in-memory threshold has to be the endpoint limit, or a body above a
+    // smaller threshold would spill to a temp file.
+    [Fact]
+    public void TheIdempotencyBufferThresholdIsTheEndpointLimitAndNeverBelowIt()
+    {
+        var source = File.ReadAllText(RepoRoot.PathOf("src/Csps.Server/Security/IdempotencyMiddleware.cs"));
+
+        source.ShouldContain("var limit = RequestBodyLimitMiddleware.LimitFor(context);");
+        source.ShouldContain("EnableBuffering((int)limit, limit + ReadSize)");
+        source.ShouldNotContain("MemoryBufferThreshold");
+        source.ShouldNotContain("RequestBodyLimitMiddleware.MaxBytes", Case.Sensitive);
     }
 
     [Theory]

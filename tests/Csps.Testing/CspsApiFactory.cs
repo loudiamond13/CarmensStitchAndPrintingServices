@@ -140,6 +140,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
             builder.UseSetting($"RateLimits:Auth:{policy}:PermitLimit", "100000");
         }
 
+        // The photo upload limit too; the concurrency cap of two uploads at a time stays on (it is not a setting).
+        builder.UseSetting("RateLimits:Images:PermitLimit", "100000");
+
         ConfigureSettings(builder);
     }
 
