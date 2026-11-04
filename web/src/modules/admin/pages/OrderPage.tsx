@@ -1,5 +1,5 @@
 // O1 Order page, /admin/orders/:id (ORD-07, ORD-12, ORD-19; plans 08-10, 08-12). The header, the phone balance card, the Images card
-// (coming soon, D-27), the tab card (Items, Payments, Discounts, Expenses, and Refunds when it applies) and the side with the totals
+// (the photo manager, ORD-04), the tab card (Items, Payments, Discounts, Expenses, and Refunds when it applies) and the side with the totals
 // panel, the customer card and the status history. Every figure is the server's answer: Subtotal to Balance, and the internal Order
 // Expenses and Estimated Profit, which only this staff page and the deleted view show (ORD-19, D-06, D-08). The tab is the URL
 // `tab` parameter. The first load shows skeletons, a failed load an ErrorState with Try Again, and a missing or deleted order a
@@ -8,7 +8,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { Button, ButtonLink } from '@/components/actions';
-import { Icon } from '@/components/brand';
 import { getTabPanelProps, Tabs, type TabItem } from '@/components/choice';
 import { Skeleton } from '@/components/feedback';
 import { pageHeadTitleClasses, srOnlyClasses } from '@/components/layout/layout.recipe';
@@ -23,6 +22,7 @@ import { OrderDiscountsTab } from '@/modules/admin/components/OrderDiscountsTab'
 import { OrderExpensesTab } from '@/modules/admin/components/OrderExpensesTab';
 import { OrderItemsTab } from '@/modules/admin/components/OrderItemsTab';
 import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner';
+import { OrderPhotosCard } from '@/modules/admin/components/OrderPhotosCard';
 import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
 import { OrderRefundModal } from '@/modules/admin/components/OrderRefundModal';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
@@ -30,12 +30,7 @@ import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistor
 import { ReopenOrderModal } from '@/modules/admin/components/ReopenOrderModal';
 import {
   orderCardClasses,
-  orderCardHeadClasses,
-  orderCardHintClasses,
-  orderCardTitleClasses,
   orderDetailClasses,
-  orderImagesBodyClasses,
-  orderImageTileClasses,
   orderMainClasses,
   orderPageClasses,
   orderSideClasses,
@@ -101,27 +96,6 @@ function TabBody({ tab, order }: { tab: OrderTab; order: OrderDetailResponse }) 
     case 'refunds':
       return <OrderRefundsTab order={order} />;
   }
-}
-
-function ImagesCard() {
-  return (
-    <section className={orderCardClasses} aria-labelledby="order-images">
-      <div className={orderCardHeadClasses}>
-        <div>
-          <h2 id="order-images" className={orderCardTitleClasses}>
-            {COPY.images.title}
-          </h2>
-          <p className={orderCardHintClasses}>{COPY.images.hint}</p>
-        </div>
-      </div>
-      <div className={orderImagesBodyClasses}>
-        <span className={orderImageTileClasses}>
-          <Icon name="image" size={24} />
-        </span>
-        <p>{COPY.images.soon}</p>
-      </div>
-    </section>
-  );
 }
 
 /** The first-load placeholder: the header lines, the tab table and the totals card, in the places the real ones land. */
@@ -243,7 +217,7 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
       <OrderBalanceStrip totals={order.totals} status={order.status} />
       <div className={orderDetailClasses}>
         <div className={orderMainClasses}>
-          <ImagesCard />
+          <OrderPhotosCard order={order} />
           <section className={orderCardClasses}>
             <div className={orderTabsRowClasses}>
               <Tabs idBase={ID_BASE} items={tabItems(order, refundsShown)} value={active} onChange={setTab} />

@@ -1,17 +1,22 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { OrderPhotosCard } from '@/modules/admin/components/OrderPhotosCard';
 import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { photoUploadQueue } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
-import { server } from '@/test/msw';
-import { buildOrderDetail, order0148, orderImage, useOrderHandlers } from '@/test/orderFixtures';
+import {
+  buildOrderDetail,
+  order0148,
+  orderImage,
+  useOrderHandlers,
+  type OrderDetailFixture,
+} from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { prepareImage, type PrepareResult } from '@/utils/images';
 
@@ -55,8 +60,8 @@ function Harness() {
   return query.data === undefined ? null : <OrderPhotosCard order={query.data} />;
 }
 
-function renderCard() {
-  queryClient.setQueryData(orderKey(order0148.id), order0148);
+function renderCard(order: OrderDetailFixture = order0148) {
+  queryClient.setQueryData(orderKey(order0148.id), order);
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -87,12 +92,10 @@ describe('OrderPhotosCard (tracer)', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    server.use(
-      http.post('*/api/v1/orders/:id/images', async () => {
-        await gate;
-        return HttpResponse.json(saved);
-      }),
-    );
+    vi.spyOn(orderPhotosService, 'upload').mockImplementation(async () => {
+      await gate;
+      return saved;
+    });
     const file = new File(['jpeg'], 'front.jpg', { type: 'image/jpeg' });
     vi.mocked(prepareImage).mockResolvedValue(readyFile(file));
     const { container } = renderCard();

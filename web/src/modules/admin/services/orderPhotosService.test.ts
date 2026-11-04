@@ -54,7 +54,7 @@ describe('orderPhotosService.upload', () => {
   it('waits up to 120 seconds for the answer, not the 30 second default', async () => {
     vi.useFakeTimers();
     const { service } = serviceWith([{ hang: true }]);
-    const settled = vi.fn();
+    const settled = vi.fn<(error: unknown) => void>();
 
     const outcome = service.upload(ORDER_ID, new Blob(['x']), 'a.jpg', '', 'key-2').catch((error: unknown) => {
       settled(error);

@@ -5,8 +5,18 @@ import type { components } from '@/types/api.generated';
 
 export type ImageRulesResponse = components['schemas']['ImageRulesResponse'];
 
+/** A photo upload may take a while on a slow mobile connection (D-31). */
+const UPLOAD_TIMEOUT_MS = 120_000;
+
 export interface OrderPhotosService {
+  /** `GET /api/v1/orders/image-rules`: the limits the server enforces, so the browser can refuse a bad file first (OR-3). */
   rules(signal?: AbortSignal): Promise<ImageRulesResponse>;
+  /**
+   * `POST /api/v1/orders/{orderId}/images`: uploads one photo as a multipart form (parts `file` and `description`) and answers
+   * the whole order. The caller supplies one Idempotency-Key per file and reuses it for Try Again, so the server stores the
+   * photo once. `400 images.type`, `images.too-large`, `images.too-big`; `404 orders.not-found`; `409` busy; `413`;
+   * `422 orders.images-full` or `orders.locked`; `429`; `503`. A keyed form upload is never retried by the client.
+   */
   upload(
     orderId: string,
     file: Blob,
@@ -18,10 +28,18 @@ export interface OrderPhotosService {
 }
 
 export function createOrderPhotosService(client: HttpClient): OrderPhotosService {
-  void client;
   return {
-    rules: () => Promise.reject(new Error('not built')),
-    upload: () => Promise.reject(new Error('not built')),
+    rules: (signal) => client.get<ImageRulesResponse>('/orders/image-rules', { signal }),
+    upload: (orderId, file, fileName, description, idempotencyKey, signal) => {
+      const form = new FormData();
+      form.append('file', file, fileName);
+      form.append('description', description);
+      return client.post<OrderDetailResponse>(`/orders/${encodeURIComponent(orderId)}/images`, form, {
+        idempotencyKey,
+        signal,
+        timeoutMs: UPLOAD_TIMEOUT_MS,
+      });
+    },
   };
 }
 
