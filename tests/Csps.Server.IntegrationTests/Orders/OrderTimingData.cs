@@ -135,6 +135,13 @@ internal static class OrderTimingData
             null);
         var order = Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Payments = payments, Expenses = expenses }, creator, created, today).Value;
         order.AssignNumber($"T{day.Number:D8}");
+
+        // A third of the orders have a photo and every sixth has two, from the order number so the random sequence is untouched.
+        for (var photo = 0; photo < (day.Number % 6 == 0 ? 2 : day.Number % 3 == 0 ? 1 : 0); photo++)
+        {
+            order.AddImage(new NewOrderImage($"csps-test/orders/t{day.Number:D8}-{photo}", 1600, 1200, 250_000, "jpg", null), created).IsSuccess.ShouldBeTrue();
+        }
+
         context.Orders.Add(order);
 
         var entry = context.Entry(order);

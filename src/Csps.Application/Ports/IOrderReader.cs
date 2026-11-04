@@ -111,6 +111,10 @@ public sealed record OrderListQuery(
 /// <param name="CustomerCredit">What the shop owes the customer.</param>
 /// <param name="FullyPaid">True when the order is paid in full.</param>
 /// <param name="Pieces">How many pieces: the sum of the item quantities.</param>
+/// <param name="ImageCount">How many photos the order has.</param>
+/// <param name="CoverPublicId">The stored public id of the position 0 photo; null when the order has no photo.</param>
+/// <param name="CoverWidth">The upright width of the position 0 photo; null when none.</param>
+/// <param name="CoverHeight">The upright height of the position 0 photo; null when none.</param>
 public sealed record OrderListRow(
     Guid Id,
     string Number,
@@ -128,7 +132,11 @@ public sealed record OrderListRow(
     decimal Balance,
     decimal CustomerCredit,
     bool FullyPaid,
-    int Pieces);
+    int Pieces,
+    int ImageCount,
+    string? CoverPublicId,
+    int? CoverWidth,
+    int? CoverHeight);
 
 /// <summary>One page of the order list.</summary>
 /// <param name="Items">The rows of this page.</param>

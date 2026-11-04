@@ -15,7 +15,8 @@ public sealed class ListOrdersHandler(
     IOrderReader reader,
     IRequestContext requestContext,
     IBusinessCalendar calendar,
-    IValidator<ListOrdersRequest> validator)
+    IValidator<ListOrdersRequest> validator,
+    IImageDelivery imageDelivery)
 {
     /// <summary>Lists one page of orders.</summary>
     /// <param name="request">The filters, sort and page.</param>
@@ -70,8 +71,26 @@ public sealed class ListOrdersHandler(
                 row.Balance,
                 row.CustomerCredit,
                 row.FullyPaid,
-                row.Pieces)),
+                row.Pieces,
+                row.ImageCount,
+                CoverOf(row))),
         ];
         return Result.Success(new OrderListResponse(items, page.Total, request.Page, request.PageSize, page.AllOrders, page.ActiveOrders, clock.Today));
+    }
+
+    // The addresses are built per row at read time; an order with no photo has no cover.
+    private OrderCoverResponse? CoverOf(OrderListRow row)
+    {
+        if (row.CoverPublicId is not { } publicId || row.CoverWidth is not { } width || row.CoverHeight is not { } height)
+        {
+            return null;
+        }
+
+        var urls = imageDelivery.ForCover(publicId, width, height);
+        return new OrderCoverResponse(
+            new ImageSourceResponse(urls.Card.Src, urls.Card.SrcSet),
+            new ImageSourceResponse(urls.Table.Src, urls.Table.SrcSet),
+            width,
+            height);
     }
 }

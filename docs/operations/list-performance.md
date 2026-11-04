@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T09:33:00-05:00
-updated: 2026-10-29T16:30:00-05:00
+updated: 2026-11-03T18:30:00-06:00
 ---
 
 # Runbook: how fast the lists are, and how to check it
@@ -46,7 +46,7 @@ In CI the test runs inside the full integration test step (`3 integration tests`
 
 The order list has the same two rules: a fixed number of SQL commands and a p95 under 300 ms (PERF-04, ORD-01, ORD-02). The limit stays 300 ms; the command count rose from 2 to 3 for the list-wide counts and nothing else.
 
-- **Fixed number of SQL commands.** The list runs 3 commands whatever the page size, filter or sort (D-60, owner, 2026-10-29): one for the count over every page, one for the page, and one for the two list-wide counts (all orders, active orders) that ignore every filter. Every money figure on a row is a stored column of the order. The piece count of a row is a sum inside the page command, so no row costs a query.
+- **Fixed number of SQL commands.** The list runs 3 commands whatever the page size, filter or sort (D-60, owner, 2026-10-29): one for the count over every page, one for the page, and one for the two list-wide counts (all orders, active orders) that ignore every filter. Every money figure on a row is a stored column of the order. The piece count, the photo count and the cover (the photo at position 0) of a row are subqueries inside the page command, so no row costs a query and the photos add no command (ORD-04, IMG-04). The page command first picks the 20 or 100 ids of the page in an inner query, then reads those rows only. Without that, SQL Server worked out the five subqueries for every matching order before cutting the page, and the far page took about 700 ms.
 - **Speed.** The p95 of the list is under 300 ms on about five years of fake orders.
 
 | Test | What it proves | Where it runs |
@@ -56,7 +56,7 @@ The order list has the same two rules: a fixed number of SQL commands and a p95 
 | `OrderListIndexesMigrationTests` (Infrastructure integration tests) | The list indexes exist, with their filters, keys, directions and covered columns | Locally and in CI |
 | `OrderListTimingTests` (Server integration tests) | The p95 limit on five years of fake data: the default list, a customer-name search, a product type filter, has-balance, a far page at size 100 and the newest, balance and total sorts | Locally and in CI |
 
-The timing test builds about 14,600 orders (8 a day for five years, one to four items each, payments on most, expenses on many, six staff, 2 percent soft-deleted) in its own throwaway `CSPS_Test_<guid>` database, through the domain and EF in batches, with a seeded random so every run is the same. It warms up with 20 requests, then times 200 requests for each case, and prints the p50 and p95 of each. It takes about 1 to 1.5 minutes. The class runs alone, like the expense one.
+The timing test builds about 14,600 orders (8 a day for five years, one to four items each, payments on most, expenses on many, photos on a third of them and two photos on every sixth, six staff, 2 percent soft-deleted) in its own throwaway `CSPS_Test_<guid>` database, through the domain and EF in batches, with a seeded random so every run is the same. It warms up with 20 requests, then times 200 requests for each case, and prints the p50 and p95 of each. It takes about 1 to 1.5 minutes. The class runs alone, like the expense one.
 
 The indexes (migration `AddOrderListIndexes`; `DropUnusedOrderIndexes` later removed two nobody used, `IX_Orders_CreatedAtUtc` and `IX_OrderItems_ProductTypeId`) all keep live orders only (`[DeletedAtUtc] IS NULL`), because the list never shows a deleted order:
 
@@ -71,6 +71,8 @@ The indexes (migration `AddOrderListIndexes`; `DropUnusedOrderIndexes` later rem
 To run it alone, run the preflight first (step 1 above), then:
 `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OrderListTimingTests" --output Detailed`
 and read the lines `default list: p50 ... ms, p95 ... ms` and the seven after it.
+
+Last run with the cover and the photo count on every row (2026-11-03, alone, while other projects were building; `total: 1, failed: 0`), p50 / p95 in ms: default list 31.5 / 49.4, customer-name search 125.2 / 186.2, product type filter 44.2 / 69.8, has balance 17.3 / 22.6, far page at size 100 69.6 / 96.1, newest sort 47.1 / 71.5, balance sort 37.0 / 51.2, total sort 28.7 / 43.0. All are under the 300 ms limit. The customer-name search is the case that moves most with machine load: two earlier runs on a busy machine read 168.4 and 315.7 ms, and a side-by-side test showed the old and new page query take the same time for it, so the load was the cause. If it fails, re-run it alone on a quiet machine before anything else.
 
 After release, read the real speed the same way as below, with the path `/api/v1/orders`. When it fails, follow "When it fails" above, with `OrderReader` as the file to look at. A new index is a new migration, so ask the owner first. A customer-name search is a scan by nature (it looks inside the text), so it is the case that grows first as the data grows; if it is the slow one, tell the owner before changing how search works.
 

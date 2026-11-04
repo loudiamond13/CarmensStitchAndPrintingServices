@@ -9,6 +9,7 @@ type Schemas = components['schemas'];
 
 export type OrderListItemFixture = Schemas['OrderListItem'];
 export type OrderListEntryDetailFixture = Schemas['OrderListEntryDetailResponse'];
+export type OrderListCoverFixture = Schemas['OrderCoverResponse'];
 
 export type OrderListRoute = 'product-types' | 'payment-methods' | 'order-expense-categories';
 
@@ -21,6 +22,27 @@ export function listItem(
   overrides: Partial<OrderListItemFixture> = {},
 ): OrderListItemFixture {
   return { id, name, tone, status: 'active', isOthers: false, useCount: 0, ...overrides };
+}
+
+/** An order list row's cover as the server answers it for a 4000 x 3000 photo n, with the Testing addresses. */
+export function orderListCover(n: number, overrides: Partial<OrderListCoverFixture> = {}): OrderListCoverFixture {
+  const key = `photo${String(n).padStart(2, '0')}`;
+  const address = (size: string): string => `/api/testing/images/${key}?size=${size}`;
+  return {
+    card: {
+      src: address('csps_card_640'),
+      srcSet: [320, 480, 640, 800, 960]
+        .map((width) => `${address(`csps_card_${String(width)}`)} ${String(width)}w`)
+        .join(', '),
+    },
+    table: {
+      src: address('csps_sq_44'),
+      srcSet: `${address('csps_sq_44')} 1x, ${address('csps_sq_88')} 2x`,
+    },
+    width: 4000,
+    height: 3000,
+    ...overrides,
+  };
 }
 
 export const BASKETBALL_ID = '5d3a7c1e-0a41-4f6c-9d0b-2b1f6a8e0001';
