@@ -164,4 +164,171 @@ public sealed class CloudinaryImageStorageTests
 
         await Should.ThrowAsync<OperationCanceledException>(() => storage.UploadAsync(Upload(), source.Token));
     }
+
+    [Fact]
+    public async Task ARemovalSendsDestroyWithThePublicIdThePrivateTypeAndInvalidate()
+    {
+        var (storage, handler) = Build();
+        handler.Reply(HttpStatusCode.OK, """{"result":"ok"}""");
+
+        var outcome = await storage.RemoveAsync(PublicId, TestContext.Current.CancellationToken);
+
+        outcome.Status.ShouldBe(ImageRemovalStatus.Removed);
+        var request = handler.Requests.ShouldHaveSingleItem();
+        request.Method.ShouldBe(HttpMethod.Post);
+        request.Uri.AbsolutePath.ShouldBe("/v1_1/demo-cloud/image/destroy");
+        request.Fields["public_id"].ShouldBe(PublicId);
+        request.Fields["type"].ShouldBe("private");
+        request.Fields["invalidate"].ShouldBe("true");
+        request.Fields["signature"].ShouldNotBeNullOrWhiteSpace();
+        request.Fields.Values.ShouldNotContain(FakeSecret);
+    }
+
+    [Fact]
+    public async Task ARemovalOfAFileThatIsAlreadyGoneIsNotFound()
+    {
+        var (storage, handler) = Build();
+        handler.Reply(HttpStatusCode.OK, """{"result":"not found"}""");
+
+        var outcome = await storage.RemoveAsync(PublicId, TestContext.Current.CancellationToken);
+
+        outcome.Status.ShouldBe(ImageRemovalStatus.NotFound);
+    }
+
+    [Theory]
+    [InlineData((HttpStatusCode)420)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task ARemovalThatIsRateLimitedOrMetAServerErrorIsTransient(HttpStatusCode status)
+    {
+        var (storage, handler) = Build();
+        handler.Reply(status, """{"error":{"message":"Try later"}}""");
+
+        var outcome = await storage.RemoveAsync(PublicId, TestContext.Current.CancellationToken);
+
+        outcome.Status.ShouldBe(ImageRemovalStatus.Transient);
+        outcome.FailureCode.ShouldBe(CloudinaryResults.TransientCode);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task ARemovalWithRefusedKeysIsRejectedAsUnauthorized(HttpStatusCode status)
+    {
+        var (storage, handler) = Build();
+        handler.Reply(status, """{"error":{"message":"Invalid api_key"}}""");
+
+        var outcome = await storage.RemoveAsync(PublicId, TestContext.Current.CancellationToken);
+
+        outcome.Status.ShouldBe(ImageRemovalStatus.Rejected);
+        outcome.FailureCode.ShouldBe(CloudinaryResults.UnauthorizedCode);
+    }
+
+    [Fact]
+    public async Task ARemovalThatTimesOutIsTransient()
+    {
+        var (storage, handler) = Build();
+        handler.Fail(new TaskCanceledException("The request timed out."));
+
+        var outcome = await storage.RemoveAsync(PublicId, TestContext.Current.CancellationToken);
+
+        outcome.Status.ShouldBe(ImageRemovalStatus.Transient);
+    }
+
+    [Fact]
+    public async Task AListingAsksForTheFolderPrefixWithTheTypeAndThePageSizeAndNoCursorOnTheFirstPage()
+    {
+        var (storage, handler) = Build();
+        handler.Reply(HttpStatusCode.OK, """{"resources":[]}""");
+
+        await storage.ListAsync("csps-dev/orders/", null, TestContext.Current.CancellationToken);
+
+        var request = handler.Requests.ShouldHaveSingleItem();
+        request.Method.ShouldBe(HttpMethod.Get);
+        request.Uri.AbsolutePath.ShouldBe("/v1_1/demo-cloud/resources/image/private");
+        var query = System.Web.HttpUtility.ParseQueryString(request.Uri.Query);
+        query["prefix"].ShouldBe("csps-dev/orders/");
+        query["max_results"].ShouldBe("500");
+        query["next_cursor"].ShouldBeNull();
+        request.Uri.ToString().ShouldNotContain(FakeSecret);
+    }
+
+    [Fact]
+    public async Task AListingPassesTheCursorAndReturnsTheFilesWithTheirCreatedTimesAndTheNextCursor()
+    {
+        var (storage, handler) = Build();
+        handler.Reply(HttpStatusCode.OK, """
+            {"resources":[
+              {"public_id":"csps-dev/orders/o1/a1","created_at":"2026-11-01T10:00:00Z","type":"private"},
+              {"public_id":"csps-dev/orders/o1/a2","created_at":"2026-11-02T11:30:00Z","type":"private"}],
+             "next_cursor":"cursor-two"}
+            """);
+
+        var page = await storage.ListAsync("csps-dev/orders/", "cursor-one", TestContext.Current.CancellationToken);
+
+        System.Web.HttpUtility.ParseQueryString(handler.Requests.ShouldHaveSingleItem().Uri.Query)["next_cursor"].ShouldBe("cursor-one");
+        page.NextCursor.ShouldBe("cursor-two");
+        page.Entries.Select(entry => entry.PublicId).ShouldBe(["csps-dev/orders/o1/a1", "csps-dev/orders/o1/a2"]);
+        page.Entries[1].CreatedAtUtc.ShouldBe(new DateTimeOffset(2026, 11, 2, 11, 30, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task TheLastPageHasNoNextCursor()
+    {
+        var (storage, handler) = Build();
+        handler.Reply(HttpStatusCode.OK, """{"resources":[{"public_id":"csps-dev/orders/o1/a1","created_at":"2026-11-01T10:00:00Z"}]}""");
+
+        var page = await storage.ListAsync("csps-dev/orders/", null, TestContext.Current.CancellationToken);
+
+        page.NextCursor.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "unauthorized")]
+    [InlineData(HttpStatusCode.TooManyRequests, "transient")]
+    [InlineData(HttpStatusCode.BadGateway, "transient")]
+    public async Task AListingThatFailsThrowsWithTheShortCode(HttpStatusCode status, string code)
+    {
+        var (storage, handler) = Build();
+        handler.Reply(status, """{"error":{"message":"No"}}""");
+
+        var failure = await Should.ThrowAsync<ImageStorageException>(() => storage.ListAsync("csps-dev/orders/", null, TestContext.Current.CancellationToken));
+
+        failure.FailureCode.ShouldBe(code);
+        failure.Message.ShouldNotContain(FakeSecret);
+    }
+
+    [Fact]
+    public async Task TheUsageReportIsReadWithStorageCreditsAndThePlansImageLimit()
+    {
+        var (storage, handler) = Build();
+        handler.Reply(HttpStatusCode.OK, """
+            {"plan":"Free","credits":{"usage":5.2,"limit":25,"used_percent":20.8},
+             "storage":{"usage":1610612736,"credits_usage":1.5},
+             "media_limits":{"image_max_size_bytes":10485760,"image_max_px":100000000}}
+            """);
+
+        var usage = await storage.GetUsageAsync(TestContext.Current.CancellationToken);
+
+        var request = handler.Requests.ShouldHaveSingleItem();
+        request.Method.ShouldBe(HttpMethod.Get);
+        request.Uri.AbsolutePath.ShouldBe("/v1_1/demo-cloud/usage");
+        usage.StorageBytes.ShouldBe(1_610_612_736);
+        usage.CreditsUsed.ShouldBe(5.2, 0.0001);
+        usage.CreditsLimit.ShouldBe(25);
+        usage.CreditsPercent.ShouldBe(20.8, 0.0001);
+        usage.ImageMaxBytes.ShouldBe(10_485_760);
+    }
+
+    [Fact]
+    public async Task AUsageReportThatFailsThrowsWithTheShortCode()
+    {
+        var (storage, handler) = Build();
+        handler.Fail(new HttpRequestException("Connection reset."));
+
+        var failure = await Should.ThrowAsync<ImageStorageException>(() => storage.GetUsageAsync(TestContext.Current.CancellationToken));
+
+        failure.FailureCode.ShouldBe(CloudinaryResults.TransientCode);
+    }
 }
