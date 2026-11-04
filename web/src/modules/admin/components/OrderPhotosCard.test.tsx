@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
+import { HttpError } from '@/core/api/errors';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { OrderPhotosCard } from '@/modules/admin/components/OrderPhotosCard';
 import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
@@ -323,5 +324,118 @@ describe('the limit of 5 (D-08, UIC-29)', () => {
     expect(
       await screen.findByText('This order has 5 photos, the most it can have. Delete one to add another.'),
     ).toBeVisible();
+  });
+});
+
+function problem(status: number, code: string, title: string): HttpError {
+  return new HttpError({
+    kind: 'http',
+    status,
+    problem: {
+      type: undefined,
+      title,
+      status,
+      detail: undefined,
+      instance: undefined,
+      traceId: undefined,
+      code,
+      errors: {},
+    },
+  });
+}
+
+function tileOf(fileName: string): HTMLElement {
+  const tile = screen.getByText(fileName).closest('li');
+  if (tile === null) throw new Error(`No tile for ${fileName}`);
+  return tile;
+}
+
+describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
+  it('keeps the failed file with its reason, Try Again and Remove, shows the banner above the list, and clears it after a good retry', async () => {
+    prepareEveryFile();
+    const upload = vi
+      .spyOn(orderPhotosService, 'upload')
+      .mockResolvedValueOnce(orderWithPhotos(1))
+      .mockRejectedValueOnce(new HttpError({ kind: 'network' }))
+      .mockResolvedValueOnce(orderWithPhotos(2))
+      .mockResolvedValueOnce(orderWithPhotos(3));
+    const { container } = renderCard();
+    await screen.findAllByText(/0\/5/);
+    const user = userEvent.setup();
+
+    await user.upload(
+      galleryInput(container),
+      ['a.jpg', 'b.jpg', 'c.jpg'].map((name) => pickedImage(name)),
+    );
+
+    const banner = await screen.findByText("1 of 3 photos didn't upload.");
+    expect(
+      screen.getByText("They're below. Try again or remove them. If you leave this page, they're lost."),
+    ).toBeVisible();
+    const list = screen.getByRole('list', { name: 'Order photos' });
+    expect(banner.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const items = within(list).getAllByRole('listitem');
+    expect(items).toHaveLength(3);
+    expect(items[2]).toBe(tileOf('b.jpg'));
+    expect(
+      within(tileOf('b.jpg')).getByText("Didn't upload. Couldn't upload. Check your connection, then try again."),
+    ).toBeVisible();
+    await expectNoAxeViolations(container);
+
+    await user.click(within(tileOf('b.jpg')).getByRole('button', { name: 'Try again, b.jpg' }));
+
+    expect(await screen.findByText('3 photos added to ORD-2026-0148.')).toBeVisible();
+    expect(screen.queryByText("1 of 3 photos didn't upload.")).not.toBeInTheDocument();
+    expect(upload).toHaveBeenCalledTimes(4);
+  });
+
+  it('shows Remove only for a failure the server would refuse again, and Remove clears the tile and the banner', async () => {
+    prepareEveryFile();
+    vi.spyOn(orderPhotosService, 'upload').mockRejectedValue(
+      problem(400, 'images.type', "a.jpg isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file."),
+    );
+    const { container } = renderCard();
+    await screen.findAllByText(/0\/5/);
+    const user = userEvent.setup();
+
+    await user.upload(galleryInput(container), pickedImage('a.jpg'));
+
+    const tile = await waitFor(() => tileOf('a.jpg'));
+    expect(await screen.findByText("1 of 1 photo didn't upload.")).toBeVisible();
+    expect(
+      within(tile).getByText("Didn't upload. a.jpg isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file."),
+    ).toBeVisible();
+    expect(within(tile).queryByRole('button', { name: /^Try again/ })).not.toBeInTheDocument();
+
+    await user.click(within(tile).getByRole('button', { name: 'Remove a.jpg' }));
+
+    expect(screen.queryByText('a.jpg')).not.toBeInTheDocument();
+    expect(screen.queryByText(/photo didn't upload/)).not.toBeInTheDocument();
+  });
+
+  it('turns the card read-only when the order locks meanwhile, fails waiting files with the server text, and raises a danger toast', async () => {
+    prepareEveryFile();
+    const message = 'This order is completed. Reopen it to make changes.';
+    vi.spyOn(orderPhotosService, 'upload').mockRejectedValue(problem(422, 'orders.locked', message));
+    useOrderHandlers({ detail: buildOrderDetail({ status: 'completed' }) });
+    const { container } = renderCard();
+    await screen.findAllByText(/0\/5/);
+
+    await userEvent.setup().upload(
+      galleryInput(container),
+      ['a.jpg', 'b.jpg'].map((name) => pickedImage(name)),
+    );
+
+    expect(await screen.findByText("Couldn't save the photo change")).toBeVisible();
+    expect(screen.getAllByText(message).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'browse' })).not.toBeInTheDocument();
+    });
+    for (const name of ['a.jpg', 'b.jpg']) {
+      const tile = tileOf(name);
+      expect(within(tile).getByText(`Didn't upload. ${message}`)).toBeVisible();
+      expect(within(tile).getByRole('button', { name: `Remove ${name}` })).toBeVisible();
+      expect(within(tile).queryByRole('button', { name: /^Try again/ })).not.toBeInTheDocument();
+    }
   });
 });

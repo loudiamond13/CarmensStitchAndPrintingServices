@@ -2,6 +2,8 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHttpClient } from '@/core/api/apiClient';
+import { HttpError } from '@/core/api/errors';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
 import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
@@ -11,7 +13,8 @@ import {
   type PreparedUpload,
   type UploadDeps,
 } from '@/modules/admin/hooks/usePhotoUploadQueue';
-import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
+import { createOrderPhotosService, orderPhotosService } from '@/modules/admin/services/orderPhotosService';
+import { createFakeFetch } from '@/test/fakeFetch';
 import { buildOrderDetail, order0148, orderImage, type OrderDetailFixture } from '@/test/orderFixtures';
 
 // The memory-only upload queue of one order (ORD-04, IMG-01, D-31): one request at a time, one key per file.
@@ -185,5 +188,292 @@ describe('a batch of photos (IMG-05, D-31)', () => {
     });
 
     expect(photoUploadQueue.snapshot(ORDER_ID).items.map((item) => item.state)).toEqual(['uploading', 'waiting']);
+  });
+});
+
+function httpFailure(status: number, code: string | undefined, title: string, traceId?: string): HttpError {
+  return new HttpError({
+    kind: 'http',
+    status,
+    problem: {
+      type: undefined,
+      title,
+      status,
+      detail: undefined,
+      instance: undefined,
+      traceId,
+      code,
+      errors: {},
+    },
+  });
+}
+
+/** Uploads one file against held deps and fails it with `error`; returns the failed item. */
+async function failOne(error: Error) {
+  const { deps, held } = heldDeps();
+  photoUploadQueue.enqueue(ORDER_ID, names('1.jpg'), deps);
+  await waitFor(() => {
+    expect(held).toHaveLength(1);
+  });
+  held[0]?.reject(error);
+  await waitFor(() => {
+    expect(photoUploadQueue.snapshot(ORDER_ID).items[0]?.state).toBe('failed');
+  });
+  return photoUploadQueue.snapshot(ORDER_ID).items[0];
+}
+
+describe('why an upload failed, and whether Try Again can help (D-10)', () => {
+  const NETWORK = "Couldn't upload. Check your connection, then try again.";
+
+  it.each([
+    ['a lost connection', new HttpError({ kind: 'network' }), true, NETWORK],
+    ['a timeout', new HttpError({ kind: 'timeout' }), true, NETWORK],
+    [
+      'a photo store that did not take the file',
+      httpFailure(503, 'images.storage-failed', "The photo couldn't be saved. Try again."),
+      true,
+      "The photo couldn't be saved. Try again.",
+    ],
+    ['a server error', httpFailure(500, undefined, 'Boom', 'abc123'), true, 'Something went wrong. Reference: abc123'],
+    [
+      'a busy order',
+      httpFailure(409, 'orders.busy', 'The order is busy. Try again.'),
+      true,
+      'The order is busy. Try again.',
+    ],
+    [
+      'too many uploads',
+      httpFailure(429, undefined, 'Too many requests.'),
+      true,
+      'Too many uploads right now. Wait a minute, then try again.',
+    ],
+    [
+      'a host with no photo store',
+      httpFailure(503, 'images.not-configured', "Photo uploads aren't set up yet."),
+      false,
+      "Photo uploads aren't set up yet.",
+    ],
+    [
+      'a type the server refuses',
+      httpFailure(400, 'images.type', "a.svg isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file."),
+      false,
+      "a.svg isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file.",
+    ],
+    [
+      'a file that is too large',
+      httpFailure(400, 'images.too-large', 'a.jpg is over 10 MB. Choose a smaller photo.'),
+      false,
+      'a.jpg is over 10 MB. Choose a smaller photo.',
+    ],
+    [
+      'a photo with too many pixels',
+      httpFailure(400, 'images.too-big', 'a.jpg is too big. Photos can be at most 25 megapixels.'),
+      false,
+      'a.jpg is too big. Photos can be at most 25 megapixels.',
+    ],
+    [
+      'an order that is full',
+      httpFailure(422, 'orders.images-full', 'This order already has 5 photos.'),
+      false,
+      'This order already has 5 photos.',
+    ],
+    [
+      'an order that was deleted',
+      httpFailure(404, 'orders.not-found', 'This order was not found or was deleted.'),
+      false,
+      'This order was not found or was deleted.',
+    ],
+  ])('marks %s', async (_label, error, retryable, reason) => {
+    const item = await failOne(error);
+
+    expect(item?.failure).toEqual({ reason, retryable });
+  });
+});
+
+describe('Try Again (SEC-06, WEB-09)', () => {
+  it('sends the same key and the same bytes again, and the photo is stored once', async () => {
+    const fake = createFakeFetch([{ networkError: true }, { body: buildOrderDetail({ images: [orderImage(1)] }) }]);
+    const service = createOrderPhotosService(createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch }));
+    const onSaved = vi.fn();
+    const deps: UploadDeps = {
+      upload: (id, item, signal) => service.upload(id, item.blob, item.name, item.description, item.key, signal),
+      onSaved,
+      onLocked: vi.fn(),
+      onBatchDone: vi.fn(),
+    };
+
+    photoUploadQueue.enqueue(ORDER_ID, [prepared('front.jpg')], deps);
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).items[0]?.state).toBe('failed');
+    });
+    const item = photoUploadQueue.snapshot(ORDER_ID).items[0];
+    photoUploadQueue.retry(ORDER_ID, item?.id ?? '');
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).items).toHaveLength(0);
+    });
+
+    const [first, second] = fake.calls;
+    expect(fake.calls).toHaveLength(2);
+    expect(second?.headers.get('Idempotency-Key')).toBe(first?.headers.get('Idempotency-Key'));
+    const part = (call: typeof first) => (call?.body as FormData).get('file') as File;
+    expect(part(second).name).toBe(part(first).name);
+    expect(await part(second).text()).toBe(await part(first).text());
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends one request when Try Again is pressed twice', async () => {
+    const { deps, held } = heldDeps();
+    photoUploadQueue.enqueue(ORDER_ID, names('1.jpg'), deps);
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+    held[0]?.reject(new HttpError({ kind: 'network' }));
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).items[0]?.state).toBe('failed');
+    });
+    const id = photoUploadQueue.snapshot(ORDER_ID).items[0]?.id ?? '';
+
+    photoUploadQueue.retry(ORDER_ID, id);
+    photoUploadQueue.retry(ORDER_ID, id);
+
+    await waitFor(() => {
+      expect(held).toHaveLength(2);
+    });
+    expect(held).toHaveLength(2);
+  });
+
+  it('does not retry a failure the server would refuse again', async () => {
+    const { deps, held } = heldDeps();
+    photoUploadQueue.enqueue(ORDER_ID, names('1.jpg'), deps);
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+    held[0]?.reject(httpFailure(400, 'images.type', 'x'));
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).items[0]?.state).toBe('failed');
+    });
+
+    photoUploadQueue.retry(ORDER_ID, photoUploadQueue.snapshot(ORDER_ID).items[0]?.id ?? '');
+
+    expect(photoUploadQueue.snapshot(ORDER_ID).items[0]?.state).toBe('failed');
+    expect(held).toHaveLength(1);
+  });
+});
+
+describe('a batch with a failure (D-10, UIC-15)', () => {
+  it('keeps the failed file, counts it for the banner, and toasts only when none is left', async () => {
+    const { deps, held, onBatchDone } = heldDeps();
+    const saved = buildOrderDetail({ images: [orderImage(1)] });
+
+    photoUploadQueue.enqueue(ORDER_ID, names('1.jpg', '2.jpg', '3.jpg'), deps);
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+    held[0]?.resolve(saved);
+    await waitFor(() => {
+      expect(held).toHaveLength(2);
+    });
+    held[1]?.reject(new HttpError({ kind: 'network' }));
+    await waitFor(() => {
+      expect(held).toHaveLength(3);
+    });
+    held[2]?.resolve(saved);
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).progress).toBeNull();
+    });
+
+    const after = photoUploadQueue.snapshot(ORDER_ID);
+    expect(after.items.map((item) => item.name)).toEqual(['2.jpg']);
+    expect(after.failed).toBe(1);
+    expect(after.batchTotal).toBe(3);
+    expect(after.announcement).toBe("1 of 3 photos didn't upload.");
+    expect(onBatchDone).not.toHaveBeenCalled();
+
+    photoUploadQueue.retry(ORDER_ID, after.items[0]?.id ?? '');
+    await waitFor(() => {
+      expect(held).toHaveLength(4);
+    });
+    held[3]?.resolve(saved);
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).items).toHaveLength(0);
+    });
+    expect(onBatchDone).toHaveBeenCalledExactlyOnceWith(3);
+  });
+
+  it('drops a failed file on Remove, and the banner count goes with it', async () => {
+    const { deps, held, onBatchDone } = heldDeps();
+    photoUploadQueue.enqueue(ORDER_ID, names('1.jpg'), deps);
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+    held[0]?.reject(new HttpError({ kind: 'network' }));
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).failed).toBe(1);
+    });
+
+    photoUploadQueue.remove(ORDER_ID, photoUploadQueue.snapshot(ORDER_ID).items[0]?.id ?? '');
+
+    expect(photoUploadQueue.snapshot(ORDER_ID).items).toHaveLength(0);
+    expect(photoUploadQueue.snapshot(ORDER_ID).failed).toBe(0);
+    expect(onBatchDone).not.toHaveBeenCalled();
+  });
+
+  it('cannot remove the file that is uploading', async () => {
+    const { deps, held } = heldDeps();
+    photoUploadQueue.enqueue(ORDER_ID, names('1.jpg'), deps);
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+
+    photoUploadQueue.remove(ORDER_ID, photoUploadQueue.snapshot(ORDER_ID).items[0]?.id ?? '');
+
+    expect(photoUploadQueue.snapshot(ORDER_ID).items).toHaveLength(1);
+  });
+});
+
+describe('an order that locked meanwhile (UIC-19)', () => {
+  it('tells the screen once, fails the waiting files with the server text, and uploads nothing more', async () => {
+    const { deps, held, onLocked } = heldDeps();
+    const message = 'This order is completed. Reopen it to make changes.';
+
+    photoUploadQueue.enqueue(ORDER_ID, names('1.jpg', '2.jpg', '3.jpg'), deps);
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+    held[0]?.reject(httpFailure(422, 'orders.locked', message));
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(ORDER_ID).progress).toBeNull();
+    });
+
+    const items = photoUploadQueue.snapshot(ORDER_ID).items;
+    expect(items.map((item) => item.state)).toEqual(['failed', 'failed', 'failed']);
+    expect(items.every((item) => item.failure?.reason === message && !item.failure.retryable)).toBe(true);
+    expect(onLocked).toHaveBeenCalledExactlyOnceWith(message);
+    expect(held).toHaveLength(1);
+  });
+});
+
+describe('the queue is memory only (SEC prohibition, IMG-05)', () => {
+  it('drops everything and cancels the upload in flight when the card leaves the page', async () => {
+    const { deps, held } = heldDeps();
+    const signals: AbortSignal[] = [];
+    const watched: UploadDeps = {
+      ...deps,
+      upload: (id, item, signal) => {
+        signals.push(signal);
+        return deps.upload(id, item, signal);
+      },
+    };
+    photoUploadQueue.enqueue(ORDER_ID, names('1.jpg', '2.jpg'), watched);
+    await waitFor(() => {
+      expect(held).toHaveLength(1);
+    });
+
+    photoUploadQueue.clear(ORDER_ID);
+
+    expect(signals[0]?.aborted).toBe(true);
+    expect(photoUploadQueue.snapshot(ORDER_ID).items).toHaveLength(0);
+    held[0]?.reject(new HttpError({ kind: 'aborted' }));
+    expect(held).toHaveLength(1);
   });
 });

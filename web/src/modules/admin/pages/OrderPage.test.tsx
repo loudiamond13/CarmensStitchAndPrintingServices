@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { photoUploadQueue } from '@/modules/admin/hooks/usePhotoUploadQueue';
 import OrderPage from '@/modules/admin/pages/OrderPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -904,5 +905,107 @@ describe('Record Refund from the credit block (ORD-18, D-19, UIC-34; plan 08-21)
     await screen.findByRole('heading', { level: 1, name: creditOrder.number });
     expect(within(totalsPanel()).getByText('Customer credit')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Record Refund' })).toBeNull();
+  });
+});
+
+/** Puts one picked photo in the order's queue, held so it never finishes. */
+function holdOnePhoto(): void {
+  photoUploadQueue.enqueue(
+    order0148.id,
+    [
+      {
+        blob: new Blob(['jpeg bytes'], { type: 'image/jpeg' }),
+        name: 'front.jpg',
+        description: '',
+        preview: 'data:image/jpeg;base64,AAAA',
+        previewUnavailable: false,
+      },
+    ],
+    {
+      upload: () => new Promise(() => undefined),
+      onSaved: () => undefined,
+      onLocked: () => undefined,
+      onBatchDone: () => undefined,
+    },
+  );
+}
+
+function fireBeforeUnload(): Event {
+  const event = new Event('beforeunload', { cancelable: true });
+  act(() => {
+    window.dispatchEvent(event);
+  });
+  return event;
+}
+
+describe('leaving with photos that have not uploaded (D-29, UIC-23)', () => {
+  afterEach(() => {
+    photoUploadQueue.clear(order0148.id);
+  });
+
+  it('asks first, with Stay on Page focused; Stay keeps the page and Leave Page goes and drops the files', async () => {
+    const { router } = renderOrder();
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    act(() => {
+      holdOnePhoto();
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('link', { name: /^Orders/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Leave this page?' });
+    expect(dialog).toHaveTextContent("1 photo hasn't uploaded yet. If you leave now, it's lost.");
+    expect(within(dialog).getByRole('button', { name: 'Stay on Page' })).toHaveFocus();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Stay on Page' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Leave this page?' })).not.toBeInTheDocument();
+    });
+    expect(router.state.location.pathname).toBe(`/admin/orders/${order0148.id}`);
+
+    await user.click(screen.getByRole('link', { name: /^Orders/ }));
+    await user.click(await screen.findByRole('button', { name: 'Leave Page' }));
+
+    expect(await screen.findByText('The orders list')).toBeVisible();
+    await waitFor(() => {
+      expect(photoUploadQueue.snapshot(order0148.id).items).toHaveLength(0);
+    });
+  });
+
+  it('says how many files wait when there are several', async () => {
+    renderOrder();
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+    act(() => {
+      holdOnePhoto();
+      holdOnePhoto();
+    });
+
+    await userEvent.setup().click(screen.getByRole('link', { name: /^Orders/ }));
+
+    expect(await screen.findByRole('dialog', { name: 'Leave this page?' })).toHaveTextContent(
+      "2 photos haven't uploaded yet. If you leave now, they're lost.",
+    );
+  });
+
+  it('does not ask when nothing is pending', async () => {
+    renderOrder();
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+
+    await userEvent.setup().click(screen.getByRole('link', { name: /^Orders/ }));
+
+    expect(await screen.findByText('The orders list')).toBeVisible();
+    expect(screen.queryByRole('dialog', { name: 'Leave this page?' })).not.toBeInTheDocument();
+  });
+
+  it('uses the browser prompt for reload and close only while files are pending', async () => {
+    renderOrder();
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+
+    expect(fireBeforeUnload().defaultPrevented).toBe(false);
+
+    act(() => {
+      holdOnePhoto();
+    });
+    expect(fireBeforeUnload().defaultPrevented).toBe(true);
   });
 });
