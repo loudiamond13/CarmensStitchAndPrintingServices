@@ -97,10 +97,12 @@ describe('OrderPhotoPicker (tracer)', () => {
     await userEvent.setup().upload(galleryInput(container), [pickedImage('one.jpg'), pickedImage('two.jpg')]);
 
     const list = await screen.findByRole('list', { name: 'Order photos' });
-    const tiles = within(list).getAllByRole('listitem');
-    expect(tiles).toHaveLength(2);
-    expect(within(tiles[0] as HTMLElement).getByText('New order photo 1')).toBeVisible();
-    expect(within(tiles[1] as HTMLElement).getByText('New order photo 2')).toBeVisible();
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(
+      within(list)
+        .getAllByText(/^New order photo \d$/)
+        .map((line) => line.textContent),
+    ).toEqual(['New order photo 1', 'New order photo 2']);
     expect(screen.getByTestId('count')).toHaveTextContent('one.jpg,two.jpg');
     expect(screen.getAllByText(/2\/5/).length).toBeGreaterThan(0);
     await expectNoAxeViolations(container);

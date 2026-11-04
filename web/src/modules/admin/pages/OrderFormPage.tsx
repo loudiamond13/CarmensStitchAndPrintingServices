@@ -1,8 +1,10 @@
-// F1 New Order, /admin/orders/new (ORD-03, ORD-15, D-27, D-30, D-49, D-59; plan 08-13). Customer and order details, the Images card
-// (coming soon), the items and one save that sends them together. Every server rule is checked in the browser first with the
-// server's own words (OR-3). One Idempotency-Key covers a submission and its retries (SEC-06). The order date starts at the
+// F1 New Order, /admin/orders/new (ORD-03, ORD-04, ORD-15, D-09, D-27, D-28, D-30, D-49, D-59; plans 08-13 and 09-21). Customer and
+// order details, the Images card (the draft photo picker), the items and one save that sends them together. Picked photos stay on
+// the form; once the order exists they go to its upload queue and the order page shows them uploading. Every server rule is
+// checked in the browser first with the server's own words (OR-3). One Idempotency-Key covers a submission and its retries (SEC-06). The order date starts at the
 // server's business today; the device clock is never read (D-59).
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldPath } from 'react-hook-form';
@@ -31,6 +33,11 @@ import {
   type OrderDetailsControl,
 } from '@/modules/admin/components/OrderDetailsCards';
 import { OrderEditAside } from '@/modules/admin/components/OrderEditAside';
+import {
+  OrderPhotoPicker,
+  type DraftPhoto,
+  type OrderPhotoPickerHandle,
+} from '@/modules/admin/components/OrderPhotoPicker';
 import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner';
 import { OrderFormSaveBar, saveBarCaption } from '@/modules/admin/components/OrderFormSaveBar';
 import { OrderItemsEditor } from '@/modules/admin/components/OrderItemsEditor';
@@ -46,10 +53,10 @@ import {
   orderFormPageClasses,
 } from '@/modules/admin/components/orderForm.recipe';
 import { orderBackRowClasses } from '@/modules/admin/components/orderPage.recipe';
-import { orderImagesBodyClasses, orderImageTileClasses } from '@/modules/admin/components/orderPage.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { useApplyOrder } from '@/modules/admin/hooks/useApplyOrder';
-import { useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
+import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
+import { photoUploadQueue, type UploadDeps } from '@/modules/admin/hooks/usePhotoUploadQueue';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import { ORDER_FORM_COPY } from '@/modules/admin/orderFormCopy';
@@ -68,14 +75,16 @@ import {
 } from '@/modules/admin/orderFormSchemas';
 import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
+import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import { isLocked } from '@/modules/admin/orderRules';
 import { orderStateActionClasses } from '@/modules/admin/components/orderPage.recipe';
+import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { ORDER_STATUSES, type OrderStatus } from '@/utils/csps';
 import { isCalendarDate } from '@/lib/url-state/parsers';
 
 const COPY = ORDER_FORM_COPY;
-const IMAGES = ORDER_PAGE_COPY.images;
+const PHOTOS = ORDER_PHOTOS_COPY;
 
 /** The server's code for "saving is busy, nothing was saved". */
 const ORDERS_BUSY = 'orders.busy';
@@ -166,9 +175,19 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   const location = useLocation();
   const toast = useToast();
   const applyOrder = useApplyOrder();
+  const refetchOrder = useRefetchOrder();
+  const queryClient = useQueryClient();
   const backTo = backTarget(location.state);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [focusTick, setFocusTick] = useState(0);
+  // The photos picked for the new order. The ref holds the latest list for the save, which runs after awaits.
+  const [drafts, setDrafts] = useState<readonly DraftPhoto[]>([]);
+  const draftsRef = useRef<readonly DraftPhoto[]>(drafts);
+  const pickerRef = useRef<OrderPhotoPickerHandle>(null);
+  const changeDrafts = (next: readonly DraftPhoto[]): void => {
+    draftsRef.current = next;
+    setDrafts(next);
+  };
 
   const {
     control,
@@ -196,7 +215,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   // The shared cards read only the detail fields, which this form holds with the same names and types. Control is invariant in its
   // field values, so the wider control is narrowed here, once.
   const detailsControl = control as unknown as OrderDetailsControl;
-  const guard = useUnsavedChangesGuard({ isDirty });
+  const hasChanges = isDirty || drafts.length > 0;
+  const guard = useUnsavedChangesGuard({ isDirty: hasChanges });
   const [orderDate, dueDate, status] = useWatch({ control, name: ['orderDate', 'dueDate', 'status'] });
   const preview = useItemsPreview(control);
   const days = daysBetween(orderDate, dueDate);
@@ -236,11 +256,42 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     toast.show({ tone: 'danger', title: copy.title, message: copy.body });
   };
 
+  /** What the new order's queue needs to upload the drafts: the same reactions as the order page's Images card. */
+  const uploadDeps = (orderId: string): UploadDeps => ({
+    upload: (id, item, signal) =>
+      orderPhotosService.upload(id, item.blob, item.name, item.description, item.key, signal),
+    onSaved: applyOrder,
+    onLocked: (message) => {
+      void refetchOrder(orderId);
+      toast.show({ tone: 'danger', title: PHOTOS.toasts.changeFailed.title, message });
+    },
+    onBatchDone: (count) => {
+      const number = queryClient.getQueryData<OrderDetailResponse>(orderKey(orderId))?.number ?? '';
+      toast.show({
+        tone: 'success',
+        title: PHOTOS.toasts.added.title,
+        message: PHOTOS.toasts.added.message(count, number),
+      });
+    },
+  });
+
   const submission = useSubmission<CreateOrderFormValues, OrderDetailResponse>(
     (key, values) => ordersService.create(toCreateOrderRequest(values), key),
     {
       onSuccess: (order) => {
         applyOrder(order);
+        // The order exists, so its photos go to its queue in their draft order, keyed by the new id (T-09-50, D-28).
+        photoUploadQueue.enqueue(
+          order.id,
+          draftsRef.current.map((draft) => ({
+            blob: draft.blob,
+            name: draft.name,
+            description: draft.description,
+            preview: draft.preview,
+            previewUnavailable: draft.previewUnavailable,
+          })),
+          uploadDeps(order.id),
+        );
         // The saved form must not hold its own way to the new order.
         guard.allowLeave();
         void navigate(`/admin/orders/${order.id}`);
@@ -256,6 +307,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
 
   const onValid = async (values: CreateOrderFormValues): Promise<void> => {
     setBanner(null);
+    // A photo still being prepared joins the order first.
+    await pickerRef.current?.settled();
     await submission.submit(values);
   };
 
@@ -265,7 +318,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
 
   const itemsError = errors.items?.root?.message ?? errors.items?.message;
   const flagged = countErrors(errors);
-  const caption = saveBarCaption(pending, flagged, isDirty);
+  const caption = saveBarCaption(pending, flagged, hasChanges);
 
   return (
     <div className={orderFormPageClasses} data-savebar="">
@@ -327,17 +380,12 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
             <div className={orderFormCardHeadClasses}>
               <div>
                 <h2 id={`${formId}-images`} className={orderFormCardTitleClasses}>
-                  {IMAGES.title}
+                  {PHOTOS.title}
                 </h2>
-                <p className={orderFormCardHintClasses}>{IMAGES.hint}</p>
+                <p className={orderFormCardHintClasses}>{PHOTOS.hints.draft}</p>
               </div>
             </div>
-            <div className={orderImagesBodyClasses}>
-              <span className={orderImageTileClasses}>
-                <Icon name="image" size={28} />
-              </span>
-              <p>{IMAGES.soon}</p>
-            </div>
+            <OrderPhotoPicker value={drafts} onChange={changeDrafts} handleRef={pickerRef} />
           </section>
           <OrderItemsEditor control={control} rootError={itemsError} />
           <OrderFormSaveBar

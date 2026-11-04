@@ -22,7 +22,8 @@ test('@orders-create a Manager creates an order with one item and lands on its p
   await page.goto('/admin/orders/new');
   await expect(page.getByRole('heading', { level: 1, name: 'New Order' })).toBeVisible();
   await expect(page).toHaveTitle('New Order · CSPS Admin');
-  await expect(page.getByText('Image uploads are coming soon.')).toBeVisible();
+  await expect(page.getByText('Image uploads are coming soon.')).toBeHidden();
+  await expect(page.getByRole('heading', { level: 2, name: 'Images' })).toBeVisible();
   await expect(page.getByLabel(/^Status/)).toHaveValue('pending');
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
   await expectNoAxeViolations(page);
