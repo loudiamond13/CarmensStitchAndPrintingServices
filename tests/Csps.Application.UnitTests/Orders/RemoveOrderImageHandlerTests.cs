@@ -228,6 +228,22 @@ public sealed class RemoveOrderImageHandlerTests
 
         public Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken) =>
             throw new NotSupportedException("A photo delete queues its file in its own save, never on a separate context.");
+
+        // The removal job's members: a photo delete never uses them.
+        public Task EnqueueManyNowAsync(IReadOnlyCollection<string> publicIds, ImageDeletionReason reason, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<QueuedRemoval>> ClaimDueAsync(Guid holder, DateTimeOffset now, TimeSpan lease, int max, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task CompleteAsync(long id, Guid holder, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task FailAsync(long id, Guid holder, string failureCode, DateTimeOffset now, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task ReleaseAsync(IReadOnlyCollection<long> ids, Guid holder, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FixedCalendar : IBusinessCalendar
