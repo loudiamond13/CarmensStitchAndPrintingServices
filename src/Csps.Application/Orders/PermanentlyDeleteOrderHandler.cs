@@ -19,9 +19,13 @@ namespace Csps.Application.Orders;
 public sealed class PermanentlyDeleteOrderHandler(
     IOrders orders,
     IAuditTrail audit,
+    IImageDeletionQueue imageDeletions,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
 {
+    // Compile shell for the red test: the queue is not used yet.
+    private readonly IImageDeletionQueue _imageDeletions = imageDeletions;
+
     /// <summary>Deletes the order for good.</summary>
     /// <param name="id">The order to remove.</param>
     /// <param name="confirm">The order number as typed by the caller; null when none was sent.</param>

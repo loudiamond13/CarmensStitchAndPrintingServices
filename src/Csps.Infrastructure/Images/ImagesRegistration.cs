@@ -9,7 +9,7 @@ using Polly;
 
 namespace Csps.Infrastructure.Images;
 
-/// <summary>Registers the image storage and the upload limits (IMG-01, IMG-02).</summary>
+/// <summary>Registers the image storage, the removal queue and the upload limits (IMG-01, IMG-02, JOB-02).</summary>
 public static class ImagesRegistration
 {
     private const string TestingEnvironment = "Testing";
@@ -39,6 +39,9 @@ public static class ImagesRegistration
             .Validate(settings => settings.Validate() is null, "The Images settings are not valid.")
             .ValidateOnStart();
         services.AddSingleton(provider => provider.GetRequiredService<IOptions<ImageUploadSettings>>().Value);
+
+        // The removal queue joins the request's unit of work, so it is the same in every environment (JOB-02, D-20).
+        services.TryAddScoped<IImageDeletionQueue, ImageDeletionQueue>();
 
         if (environment.IsEnvironment(TestingEnvironment))
         {
