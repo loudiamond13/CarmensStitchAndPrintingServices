@@ -150,6 +150,59 @@ public sealed class OrderImageTests
         order.EditVersion.ShouldBe(editVersion);
     }
 
+    [Fact]
+    public void MovingTheSecondPhotoToTheFrontMakesItTheCoverAndShiftsTheOthersRight()
+    {
+        var order = OrderWithPhotos(3);
+        var editVersion = order.EditVersion;
+        var second = order.Images[1];
+
+        var moved = order.MoveImage(second.Id, 0, Later.AddHours(1));
+
+        moved.IsSuccess.ShouldBeTrue();
+        moved.Value.ShouldBe(new OrderImageMove(1, 0, 1));
+        PhotoIdsInOrder(order).ShouldBe(["id1", "id0", "id2"]);
+        order.Images.Select(image => image.Position).Order().ShouldBe([0, 1, 2]);
+        order.Images.Select(image => image.Slot).Order().ShouldBe([0, 1, 2]);
+        order.EditVersion.ShouldNotBe(editVersion);
+    }
+
+    [Fact]
+    public void MovingTheCoverAwayFromTheFrontChangesTheCoverToTheNextPhoto()
+    {
+        var order = OrderWithPhotos(3);
+
+        var moved = order.MoveImage(order.Images[0].Id, 2, Later.AddHours(1));
+
+        moved.Value.ShouldBe(new OrderImageMove(0, 2, 1));
+        PhotoIdsInOrder(order).ShouldBe(["id1", "id2", "id0"]);
+    }
+
+    [Fact]
+    public void MovingAPhotoBetweenTwoOthersLeavesTheCoverAlone()
+    {
+        var order = OrderWithPhotos(4);
+
+        var moved = order.MoveImage(order.Images[1].Id, 2, Later.AddHours(1));
+
+        moved.Value.ShouldBe(new OrderImageMove(1, 2, null));
+        PhotoIdsInOrder(order).ShouldBe(["id0", "id2", "id1", "id3"]);
+    }
+
+    private static string[] PhotoIdsInOrder(Order order) =>
+        [.. order.Images.OrderBy(image => image.Position).Select(image => image.PublicId.Split('/')[^1])];
+
+    private static Order OrderWithPhotos(int count)
+    {
+        var order = OpenOrder();
+        for (var index = 0; index < count; index++)
+        {
+            order.AddImage(Photo($"csps/orders/x/id{index}"), Later.AddMinutes(index)).IsSuccess.ShouldBeTrue();
+        }
+
+        return order;
+    }
+
     private static NewOrderImage Photo(string publicId) => new(publicId, 640, 480, 12345, "jpg", null);
 
     private static Order OpenOrder() => OrderWith(650.00m);

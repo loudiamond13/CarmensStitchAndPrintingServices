@@ -682,6 +682,14 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success(added);
     }
 
+    /// <summary>Moves one photo to a place (red shell).</summary>
+    /// <param name="imageId">The photo.</param>
+    /// <param name="toPosition">The place.</param>
+    /// <param name="now">The instant.</param>
+    /// <returns>A failure until built.</returns>
+    public Result<OrderImageMove?> MoveImage(Guid imageId, int toPosition, DateTimeOffset now) =>
+        Result.Failure<OrderImageMove?>(EnsureEditable() ?? OrderImageRules.ImageNotFound);
+
     /// <summary>
     /// Adds one discount at the end of the list, checking every discount rule again. The totals are worked out again and the edit
     /// version moves, so the order's row version guards the add (ORD-08).
