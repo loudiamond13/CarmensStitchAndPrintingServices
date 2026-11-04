@@ -10,6 +10,11 @@ internal sealed partial class MaintenanceJobLog(ILogger<MaintenanceJobLog> logge
     /// <inheritdoc />
     public void JobFailed(string jobName, Exception exception) => LogJobFailed(logger, exception, jobName);
 
+    /// <inheritdoc />
+    public void RemovalFailed(long rowId, string failureCode)
+    {
+    }
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The maintenance job {JobName} failed.")]
     private static partial void LogJobFailed(ILogger logger, Exception exception, string jobName);
 }

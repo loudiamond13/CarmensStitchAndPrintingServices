@@ -10,7 +10,8 @@ namespace Csps.Application.Maintenance;
 /// <param name="storage">The photo storage.</param>
 /// <param name="queue">The removal queue.</param>
 /// <param name="time">The clock.</param>
-public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue queue, TimeProvider time) : IMaintenanceJob
+/// <param name="log">Records a failed removal by row id and code.</param>
+public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue queue, TimeProvider time, IMaintenanceJobLog log) : IMaintenanceJob
 {
     /// <summary>The label of the count of removed photos.</summary>
     public const string RemovedLabel = "Photos removed from storage";
@@ -31,6 +32,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
     public async Task<MaintenanceJobReport> RunAsync(MaintenanceBudget budget, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(budget);
+        _ = log;
 
         var holder = Guid.NewGuid();
         var startedAt = time.GetUtcNow();

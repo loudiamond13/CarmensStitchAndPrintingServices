@@ -7,4 +7,9 @@ public interface IMaintenanceJobLog
     /// <param name="jobName">The job's fixed name.</param>
     /// <param name="exception">What the job threw.</param>
     void JobFailed(string jobName, Exception exception);
+
+    /// <summary>Records that a queued photo removal failed. Only the row id and a short code are written, never the file's public id.</summary>
+    /// <param name="rowId">The id of the queue row.</param>
+    /// <param name="failureCode">A short code naming the cause.</param>
+    void RemovalFailed(long rowId, string failureCode);
 }

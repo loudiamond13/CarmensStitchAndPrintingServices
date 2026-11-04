@@ -1,16 +1,22 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Images;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
+using Csps.Server.IntegrationTests.Logging;
 using Csps.Server.IntegrationTests.Orders;
 using Csps.Testing;
 using Csps.Testing.Images;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
 
 namespace Csps.Server.IntegrationTests.Maintenance;
 
@@ -32,24 +38,104 @@ public sealed class ImageCleanupRunTests(CspsDatabase database) : IClassFixture<
     [Fact]
     public async Task APermanentlyDeletedOrdersPhotoIsRemovedFromTheStorageByTheNextRun()
     {
+        await using var scene = await StartDeletedPhotoSceneAsync();
+        scene.Storage.Removals.ShouldBeEmpty();
+
+        var run = await RunAsync(scene.Client);
+
+        run.Ok.ShouldBeTrue(run.Text);
+        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(1);
+        scene.Storage.Removals.ShouldBe([scene.PublicId]);
+        scene.Storage.TryGet(scene.LastSegment, out _).ShouldBeFalse();
+        (await QueueIdsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ThreeTransientAnswersTurnTheRunRedKeepTheRowAndTheNextRunRemovesTheFile()
+    {
+        await using var scene = await StartDeletedPhotoSceneAsync();
+        scene.Storage.FailNextRemovals(3);
+
+        var failed = await RunAsync(scene.Client);
+
+        failed.Ok.ShouldBeFalse(failed.Text);
+        var failing = failed.Line("Photo removals still failing");
+        failing.GetProperty("value").GetInt64().ShouldBe(1);
+        failing.GetProperty("failed").GetBoolean().ShouldBeTrue();
+        scene.Storage.Removals.Count.ShouldBe(3);
+        scene.Storage.TryGet(scene.LastSegment, out _).ShouldBeTrue();
+        var row = (await QueueRowsAsync()).ShouldHaveSingleItem();
+        row.Attempts.ShouldBe(1);
+        row.LastFailureCode.ShouldBe("transient");
+        row.LastFailedAtUtc.ShouldNotBeNull();
+        row.LeaseHolder.ShouldBeNull();
+
+        var next = await RunAsync(scene.Client);
+
+        next.Ok.ShouldBeTrue(next.Text);
+        next.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(1);
+        scene.Storage.TryGet(scene.LastSegment, out _).ShouldBeFalse();
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AFailedRemovalIsLoggedByRowIdAndCodeAndNeverByThePublicId()
+    {
+        await using var scene = await StartDeletedPhotoSceneAsync();
+        scene.Storage.FailNextRemovals(1, new ImageRemovalOutcome(ImageRemovalStatus.Rejected, "refused"));
+
+        var run = await RunAsync(scene.Client);
+        await LogEvents.RequestCompletionAsync(scene.Sink, RunPath, TestContext.Current.CancellationToken);
+
+        run.Ok.ShouldBeFalse(run.Text);
+        var row = (await QueueRowsAsync()).ShouldHaveSingleItem();
+        var lines = scene.Sink.Events.Select(Render).ToList();
+        lines.ShouldContain(line => line.Contains("refused", StringComparison.Ordinal) && line.Contains(row.Id.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal));
+        lines.ShouldAllBe(line => !line.Contains(scene.PublicId, StringComparison.Ordinal) && !line.Contains(scene.LastSegment, StringComparison.Ordinal));
+        run.Text.ShouldNotContain(scene.LastSegment);
+    }
+
+    private async Task<Scene> StartDeletedPhotoSceneAsync()
+    {
         await database.ResetAsync();
-        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey));
-        using var client = factory.CreateClient();
+        var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey));
+        var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var storage = factory.Services.GetRequiredService<TestingImageStorage>();
         var (id, number) = await CreateOrderWithPhotosAsync(baseFactory, client, manager.AccessToken, photos: 1);
         var publicId = (await PhotoIdsAsync(id)).ShouldHaveSingleItem();
         using var deleted = await OrderFixtures.PermanentlyDeleteAsync(client, manager.AccessToken, id, number);
         deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        storage.Removals.ShouldBeEmpty();
+        return new Scene(baseFactory, factory, client, storage, publicId);
+    }
 
-        var run = await RunAsync(client);
+    // One event exactly as the log file writes it, with its properties.
+    private static string Render(LogEvent logEvent)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        new CompactJsonFormatter().Format(logEvent, writer);
+        return writer.ToString();
+    }
 
-        run.Ok.ShouldBeTrue(run.Text);
-        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(1);
-        storage.Removals.ShouldBe([publicId]);
-        (await QueueIdsAsync()).ShouldBeEmpty();
+    private sealed class Scene(CspsApiFactory baseFactory, WebApplicationFactory<Program> factory, HttpClient client, TestingImageStorage storage, string publicId) : IAsyncDisposable
+    {
+        public HttpClient Client => client;
+
+        public TestingImageStorage Storage => storage;
+
+        public string PublicId => publicId;
+
+        public string LastSegment => publicId[(publicId.LastIndexOf('/') + 1)..];
+
+        public CollectingSink Sink => baseFactory.Sink;
+
+        public async ValueTask DisposeAsync()
+        {
+            client.Dispose();
+            await factory.DisposeAsync();
+            await baseFactory.DisposeAsync();
+        }
     }
 
     private static async Task<RunAnswer> RunAsync(HttpClient client)
@@ -88,10 +174,12 @@ public sealed class ImageCleanupRunTests(CspsDatabase database) : IClassFixture<
             .ToListAsync(TestContext.Current.CancellationToken);
     }
 
-    private async Task<List<string>> QueueIdsAsync()
+    private async Task<List<string>> QueueIdsAsync() => [.. (await QueueRowsAsync()).Select(row => row.PublicId)];
+
+    private async Task<List<ImageDeletion>> QueueRowsAsync()
     {
         await using var context = database.CreateContext();
-        return await context.Set<ImageDeletion>().AsNoTracking().Select(row => row.PublicId).ToListAsync(TestContext.Current.CancellationToken);
+        return await context.Set<ImageDeletion>().AsNoTracking().OrderBy(row => row.Id).ToListAsync(TestContext.Current.CancellationToken);
     }
 
     private sealed record RunAnswer(string Text, JsonElement Root)
