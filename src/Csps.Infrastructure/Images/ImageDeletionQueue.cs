@@ -26,17 +26,28 @@ internal sealed partial class ImageDeletionQueue(CspsDbContext context, IDbConte
         context.Set<ImageDeletion>().Add(ImageDeletion.Queue(publicId, PrivateDelivery, reason, time.GetUtcNow()));
 
     /// <inheritdoc />
-    public async Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken)
+    public Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken) =>
+        EnqueueManyNowAsync([publicId], reason, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task EnqueueManyNowAsync(IReadOnlyCollection<string> publicIds, ImageDeletionReason reason, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(publicIds);
+        if (publicIds.Count == 0)
+        {
+            return;
+        }
+
         try
         {
-            var row = ImageDeletion.Queue(publicId, PrivateDelivery, reason, time.GetUtcNow());
+            var now = time.GetUtcNow();
+            var rows = publicIds.Select(publicId => ImageDeletion.Queue(publicId, PrivateDelivery, reason, now)).ToList();
             using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             limit.CancelAfter(WriteTimeout);
             var own = await contexts.CreateDbContextAsync(limit.Token).ConfigureAwait(false);
             await using (own.ConfigureAwait(false))
             {
-                own.Set<ImageDeletion>().Add(row);
+                own.Set<ImageDeletion>().AddRange(rows);
                 await own.SaveChangesAsync(limit.Token).ConfigureAwait(false);
             }
         }
@@ -46,6 +57,90 @@ internal sealed partial class ImageDeletionQueue(CspsDbContext context, IDbConte
             LogQueueWriteFailed(log, WriteFailedCode);
             throw;
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<QueuedRemoval>> ClaimDueAsync(Guid holder, DateTimeOffset now, TimeSpan lease, int max, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(max, 1);
+
+        var leaseEnd = now + lease;
+        var candidates = await context.Set<ImageDeletion>()
+            .AsNoTracking()
+            .Where(row => row.NextAttemptAtUtc <= now && (row.LeaseUntilUtc == null || row.LeaseUntilUtc < now))
+            .OrderBy(row => row.NextAttemptAtUtc)
+            .ThenBy(row => row.Id)
+            .Take(max)
+            .Select(row => new QueuedRemoval(row.Id, row.PublicId, row.Attempts))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Each row is taken by its own conditional update: a result of 1 means this run owns it, 0 means another run got there first.
+        var owned = new List<QueuedRemoval>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            var taken = await context.Set<ImageDeletion>()
+                .Where(row => row.Id == candidate.Id && row.NextAttemptAtUtc <= now && (row.LeaseUntilUtc == null || row.LeaseUntilUtc < now))
+                .ExecuteUpdateAsync(
+                    calls => calls
+                        .SetProperty(row => row.LeaseUntilUtc, (DateTimeOffset?)leaseEnd)
+                        .SetProperty(row => row.LeaseHolder, (Guid?)holder),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (taken == 1)
+            {
+                owned.Add(candidate);
+            }
+        }
+
+        return owned;
+    }
+
+    /// <inheritdoc />
+    public async Task CompleteAsync(long id, Guid holder, CancellationToken cancellationToken) =>
+        await context.Set<ImageDeletion>()
+            .Where(row => row.Id == id && row.LeaseHolder == holder)
+            .ExecuteDeleteAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task FailAsync(long id, Guid holder, string failureCode, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureCode);
+
+        var code = failureCode.Length > ImageDeletion.FailureCodeMaxLength ? failureCode[..ImageDeletion.FailureCodeMaxLength] : failureCode;
+        await context.Set<ImageDeletion>()
+            .Where(row => row.Id == id && row.LeaseHolder == holder)
+            .ExecuteUpdateAsync(
+                calls => calls
+                    .SetProperty(row => row.Attempts, row => row.Attempts + 1)
+                    .SetProperty(row => row.LastFailureCode, code)
+                    .SetProperty(row => row.LastFailedAtUtc, (DateTimeOffset?)now)
+                    .SetProperty(row => row.NextAttemptAtUtc, now)
+                    .SetProperty(row => row.LeaseUntilUtc, (DateTimeOffset?)null)
+                    .SetProperty(row => row.LeaseHolder, (Guid?)null),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task ReleaseAsync(IReadOnlyCollection<long> ids, Guid holder, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        var idList = ids.ToList();
+        await context.Set<ImageDeletion>()
+            .Where(row => idList.Contains(row.Id) && row.LeaseHolder == holder)
+            .ExecuteUpdateAsync(
+                calls => calls
+                    .SetProperty(row => row.LeaseUntilUtc, (DateTimeOffset?)null)
+                    .SetProperty(row => row.LeaseHolder, (Guid?)null),
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "A stored photo file could not be queued for removal. Code {FailureCode}.")]

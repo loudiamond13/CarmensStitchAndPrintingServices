@@ -30,6 +30,8 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
     private readonly ConcurrentDictionary<string, (StoredTestImage Image, DateTimeOffset StoredAt)> _files = new(StringComparer.Ordinal);
     private readonly List<RecordedImageUpload> _uploads = [];
     private readonly List<string> _removals = [];
+    private int _removalFailuresLeft;
+    private ImageRemovalOutcome _removalFailure = new(ImageRemovalStatus.Transient, "transient");
     private int _failuresLeft;
     private ImageUploadOutcome _failure = ImageUploadOutcome.Failed("test-failure");
     private TaskCompletionSource? _hold;
@@ -96,6 +98,30 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
         {
             _failuresLeft = count;
             _failure = outcome ?? ImageUploadOutcome.Failed("test-failure");
+        }
+    }
+
+    /// <summary>Puts a file in the store with a chosen storage time, or changes the time of one that is there, so a test can make a file old.</summary>
+    /// <param name="publicId">The public id to store the file under.</param>
+    /// <param name="storedAt">When the file counts as stored.</param>
+    public void Seed(string publicId, DateTimeOffset storedAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicId);
+        _files.AddOrUpdate(
+            publicId,
+            _ => (new StoredTestImage(new byte[] { 0xFF, 0xD8, 0xFF }, ImageKind.Jpeg), storedAt),
+            (_, existing) => (existing.Image, storedAt));
+    }
+
+    /// <summary>Makes the next removals answer with a chosen outcome and leave the files in place.</summary>
+    /// <param name="count">How many removals to fail.</param>
+    /// <param name="outcome">The outcome to answer; a transient failure when null.</param>
+    public void FailNextRemovals(int count, ImageRemovalOutcome? outcome = null)
+    {
+        lock (_gate)
+        {
+            _removalFailuresLeft = count;
+            _removalFailure = outcome ?? new ImageRemovalOutcome(ImageRemovalStatus.Transient, "transient");
         }
     }
 
@@ -185,6 +211,11 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
         lock (_gate)
         {
             _removals.Add(publicId);
+            if (_removalFailuresLeft > 0)
+            {
+                _removalFailuresLeft--;
+                return Task.FromResult(_removalFailure);
+            }
         }
 
         var status = _files.TryRemove(publicId, out _) ? ImageRemovalStatus.Removed : ImageRemovalStatus.NotFound;
