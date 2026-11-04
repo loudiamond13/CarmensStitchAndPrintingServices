@@ -957,7 +957,15 @@ export interface paths {
          */
         put: operations["DescribeOrderImage"];
         post?: never;
-        delete?: never;
+        /**
+         * Deletes one photo of a saved order. No version is sent: the delete applies to the latest state, and a lost race is read again
+         *     and decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the
+         *     cover was deleted. A photo id that is not on this order, or was already deleted, answers 404 `orders.image-not-found`. A
+         *     Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo's file is queued for removal in the
+         *     same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is
+         *     recorded in the audit log.
+         */
+        delete: operations["RemoveOrderImage"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6957,6 +6965,67 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The photo id. */
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
                 };
             };
             /** @description Unauthorized */

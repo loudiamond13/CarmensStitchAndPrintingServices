@@ -3,7 +3,7 @@ using Csps.Domain.Orders;
 
 namespace Csps.Domain.UnitTests.Orders;
 
-/// <summary>ORD-04, IMG-03, D-08, D-11, D-12: an order holds at most 5 photos, takes none while closed, and keeps a clean description.</summary>
+/// <summary>ORD-04, IMG-03, D-08, D-11, D-12: an order holds at most 5 photos, takes none while closed, keeps a clean description, and keeps its places whole under any mix of moves and removes.</summary>
 public sealed class OrderImageTests
 {
     private static readonly DateTimeOffset Created = new(2026, 10, 28, 3, 0, 0, TimeSpan.Zero);
@@ -413,6 +413,243 @@ public sealed class OrderImageTests
         refused.Error.Code.ShouldBe(OrderRules.LockedCode);
         order.Images[0].Description.ShouldBeNull();
         order.EditVersion.ShouldBe(editVersion);
+    }
+
+    [Fact]
+    public void RemovingAMiddlePhotoTakesItOffClosesTheGapAndMovesTheEditVersion()
+    {
+        var order = OrderWithPhotos(3);
+        var editVersion = order.EditVersion;
+        var middle = order.Images[1];
+
+        var removed = order.RemoveImage(middle.Id, Later.AddHours(1));
+
+        removed.IsSuccess.ShouldBeTrue();
+        removed.Value.ShouldBeSameAs(middle);
+        removed.Value.PublicId.ShouldBe("csps/orders/x/id1");
+        removed.Value.Position.ShouldBe(1);
+        PhotoIdsInOrder(order).ShouldBe(["id0", "id2"]);
+        order.Images.Select(image => image.Position).Order().ShouldBe([0, 1]);
+        order.EditVersion.ShouldNotBe(editVersion);
+    }
+
+    [Fact]
+    public void RemovingTheCoverMakesTheNextPhotoTheCover()
+    {
+        var order = OrderWithPhotos(3);
+
+        order.RemoveImage(order.Images[0].Id, Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+
+        PhotoIdsInOrder(order).ShouldBe(["id1", "id2"]);
+        order.Images.Single(image => image.Position == 0).PublicId.ShouldBe("csps/orders/x/id1");
+    }
+
+    [Fact]
+    public void RemovingTheOnlyPhotoLeavesTheOrderWithNone()
+    {
+        var order = OrderWithPhotos(1);
+
+        order.RemoveImage(order.Images[0].Id, Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+
+        order.Images.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ARemovedPhotosSlotIsTheLowestFreeSlotForTheNextPhoto()
+    {
+        var order = OrderWithPhotos(3);
+        order.RemoveImage(order.Images[1].Id, Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+
+        var added = order.AddImage(Photo("csps/orders/x/again"), Later.AddHours(2));
+
+        added.Value.Slot.ShouldBe(1);
+        added.Value.Position.ShouldBe(2);
+    }
+
+    [Fact]
+    public void APhotoThatIsNotOnTheOrderCannotBeRemoved()
+    {
+        var order = OrderWithPhotos(2);
+        var editVersion = order.EditVersion;
+
+        var refused = order.RemoveImage(Guid.NewGuid(), Later.AddHours(1));
+
+        refused.Error.Kind.ShouldBe(ErrorKind.NotFound);
+        refused.Error.Code.ShouldBe("orders.image-not-found");
+        PhotoIdsInOrder(order).ShouldBe(["id0", "id1"]);
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
+    [Theory]
+    [InlineData(OrderStatus.Completed)]
+    [InlineData(OrderStatus.Cancelled)]
+    public void AClosedOrderRefusesARemoveAsLockedAndKeepsThePhoto(OrderStatus status)
+    {
+        var order = OrderWithPhotos(2, unitPrice: 0m);
+        order.ChangeStatus(status, Guid.NewGuid(), Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+        var editVersion = order.EditVersion;
+
+        var refused = order.RemoveImage(order.Images[0].Id, Later.AddHours(2));
+
+        refused.Error.Code.ShouldBe(OrderRules.LockedCode);
+        refused.Error.Message.ShouldBe(OrderRules.Locked(status));
+        PhotoIdsInOrder(order).ShouldBe(["id0", "id1"]);
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
+    [Fact]
+    public void EverySequenceOfThreeMovesAndRemovesAmongOneToFivePhotosKeepsThePlacesWhole()
+    {
+        var sequences = 0;
+        for (var count = 1; count <= OrderImageRules.MaxImagesPerOrder; count++)
+        {
+            sequences += CheckEverySequence(count, count, 3, []);
+        }
+
+        sequences.ShouldBeGreaterThan(1000);
+    }
+
+    [Fact]
+    public void TwoHundredSeededSequencesOfTwentyMovesRemovesAndAddsKeepThePlacesWholeAndTheSlotsApart()
+    {
+        for (var seed = 0; seed < 200; seed++)
+        {
+            var random = new Seeded(20261031UL + (ulong)seed);
+            var order = OrderWithPhotos(random.Next(1, OrderImageRules.MaxImagesPerOrder + 1));
+            var model = PhotoIdsInOrder(order).ToList();
+            var added = 0;
+
+            for (var step = 0; step < 20; step++)
+            {
+                var label = $"seed {seed}, step {step}";
+                var choices = new List<string>();
+                if (model.Count > 0)
+                {
+                    choices.AddRange(["move", "remove"]);
+                }
+
+                if (model.Count < OrderImageRules.MaxImagesPerOrder)
+                {
+                    choices.Add("add");
+                }
+
+                switch (choices[random.Next(choices.Count)])
+                {
+                    case "move":
+                        var from = random.Next(model.Count);
+                        var to = random.Next(model.Count);
+                        order.MoveImage(order.Images.Single(image => image.Position == from).Id, to, Later.AddHours(step + 1)).IsSuccess.ShouldBeTrue(label);
+                        var moving = model[from];
+                        model.RemoveAt(from);
+                        model.Insert(to, moving);
+                        break;
+                    case "remove":
+                        var gone = random.Next(model.Count);
+                        order.RemoveImage(order.Images.Single(image => image.Position == gone).Id, Later.AddHours(step + 1)).IsSuccess.ShouldBeTrue(label);
+                        model.RemoveAt(gone);
+                        break;
+                    default:
+                        var name = $"new{added++}";
+                        order.AddImage(Photo($"csps/orders/x/{name}"), Later.AddHours(step + 1)).IsSuccess.ShouldBeTrue(label);
+                        model.Add(name);
+                        break;
+                }
+
+                AssertPlacesWhole(order, model, label);
+            }
+        }
+    }
+
+    private static int CheckEverySequence(int photos, int remaining, int depth, List<Step> steps)
+    {
+        if (depth == 0 || remaining == 0)
+        {
+            Replay(photos, steps);
+            return 1;
+        }
+
+        var total = 0;
+        for (var from = 0; from < remaining; from++)
+        {
+            for (var to = 0; to < remaining; to++)
+            {
+                steps.Add(new Step(false, from, to));
+                total += CheckEverySequence(photos, remaining, depth - 1, steps);
+                steps.RemoveAt(steps.Count - 1);
+            }
+
+            steps.Add(new Step(true, from, from));
+            total += CheckEverySequence(photos, remaining - 1, depth - 1, steps);
+            steps.RemoveAt(steps.Count - 1);
+        }
+
+        return total;
+    }
+
+    private static void Replay(int photos, List<Step> steps)
+    {
+        var order = OrderWithPhotos(photos);
+        var model = PhotoIdsInOrder(order).ToList();
+        string Label() => $"{photos} photos, steps {string.Join(" then ", steps.Select(step => step.Remove ? $"remove {step.From}" : $"move {step.From} to {step.To}"))}";
+        foreach (var step in steps)
+        {
+            var photo = order.Images.First(image => image.Position == step.From);
+            var worked = step.Remove
+                ? order.RemoveImage(photo.Id, Later.AddHours(1)).IsSuccess
+                : order.MoveImage(photo.Id, step.To, Later.AddHours(1)).IsSuccess;
+            if (!worked)
+            {
+                Assert.Fail($"A step was refused: {Label()}");
+            }
+
+            var id = model[step.From];
+            model.RemoveAt(step.From);
+            if (!step.Remove)
+            {
+                model.Insert(step.To, id);
+            }
+
+            AssertPlacesWhole(order, model, Label);
+        }
+    }
+
+    private static void AssertPlacesWhole(Order order, List<string> model, string label) => AssertPlacesWhole(order, model, () => label);
+
+    private static void AssertPlacesWhole(Order order, List<string> model, Func<string> label)
+    {
+        var positions = order.Images.Select(image => image.Position).Order().ToList();
+        if (!positions.SequenceEqual(Enumerable.Range(0, model.Count)))
+        {
+            Assert.Fail($"Places are not 0 to n-1 ({string.Join(",", positions)}): {label()}");
+        }
+
+        if (!PhotoIdsInOrder(order).SequenceEqual(model))
+        {
+            Assert.Fail($"Photos are out of order ({string.Join(",", PhotoIdsInOrder(order))} instead of {string.Join(",", model)}): {label()}");
+        }
+
+        if (order.Images.Select(image => image.Slot).Distinct().Count() != model.Count || order.Images.Any(image => image.Slot < 0 || image.Slot >= OrderImageRules.MaxImagesPerOrder))
+        {
+            Assert.Fail($"Slots clash or are out of range: {label()}");
+        }
+    }
+
+    private readonly record struct Step(bool Remove, int From, int To);
+
+    /// <summary>A small repeatable number source (xorshift), so a failing seed can be replayed; it is not used for anything secret.</summary>
+    private sealed class Seeded(ulong seed)
+    {
+        private ulong _state = seed * 0x9E3779B97F4A7C15UL + 1;
+
+        public int Next(int minInclusive, int maxExclusive) => minInclusive + Next(maxExclusive - minInclusive);
+
+        public int Next(int maxExclusive)
+        {
+            _state ^= _state << 13;
+            _state ^= _state >> 7;
+            _state ^= _state << 17;
+            return (int)((_state >> 33) % (ulong)maxExclusive);
+        }
     }
 
     private static string[] PhotoIdsInOrder(Order order) =>

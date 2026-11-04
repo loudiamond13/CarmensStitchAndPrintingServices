@@ -49,6 +49,7 @@ public static class OrdersApplicationRegistration
         services.AddScoped<MoveOrderImageHandler>();
         services.AddSingleton<IValidator<DescribeOrderImageRequest>, DescribeOrderImageRequestValidator>();
         services.AddScoped<DescribeOrderImageHandler>();
+        services.AddScoped<RemoveOrderImageHandler>();
         services.AddScoped<GetImageRulesHandler>();
         services.AddScoped<AddOrderDiscountHandler>();
         services.AddScoped<UpdateOrderDiscountHandler>();

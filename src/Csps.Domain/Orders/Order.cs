@@ -731,6 +731,38 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     }
 
     /// <summary>
+    /// Takes one photo off the order and closes the gap, so the places stay 0 to n-1; when the cover is removed the next photo becomes
+    /// the cover. The edit version moves. The photo is returned with the place it had, so the caller can queue its stored file for
+    /// removal (ORD-04, JOB-02).
+    /// </summary>
+    /// <param name="imageId">The photo to remove; it must be on this order.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The removed photo, a 404 when it is not on this order, or a 422 for a Completed or Cancelled order.</returns>
+    public Result<OrderImage> RemoveImage(Guid imageId, DateTimeOffset now)
+    {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderImage>(locked);
+        }
+
+        var image = _images.Find(existing => existing.Id == imageId);
+        if (image is null)
+        {
+            return Result.Failure<OrderImage>(OrderImageRules.ImageNotFound);
+        }
+
+        _images.Remove(image);
+        var arranged = _images.OrderBy(static existing => existing.Position).ToList();
+        for (var place = 0; place < arranged.Count; place++)
+        {
+            arranged[place].MoveTo(place);
+        }
+
+        Touch(now);
+        return Result.Success(image);
+    }
+
+    /// <summary>
     /// Sets or clears one photo's description. The text is trimmed and checked against the 200 character limit; an empty text, or the
     /// default text of the photo's current place, is kept as null so the default always follows the place (D-12, D-30). A text that
     /// is already kept changes nothing. A change moves the edit version.

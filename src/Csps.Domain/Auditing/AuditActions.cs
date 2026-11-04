@@ -195,6 +195,9 @@ public static class AuditActions
     /// <summary>A photo's description changed; the detail names the order number, the 1-based place and the old and new text, never the photo's id or address (D-12, D-19).</summary>
     public const string OrderImageDescriptionChanged = "order-image.description-changed";
 
+    /// <summary>A photo was deleted from an order; the detail names the order number and the 1-based place it had, never its id or address (D-19).</summary>
+    public const string OrderImageDeleted = "order-image.deleted";
+
     /// <summary>A payment was added to an order (D-31).</summary>
     public const string OrderPaymentAdded = "order-payment.added";
 
@@ -506,5 +509,6 @@ public static class AuditActions
         OrderImageMoved,
         OrderImageCoverChanged,
         OrderImageDescriptionChanged,
+        OrderImageDeleted,
     ];
 }
