@@ -61,6 +61,8 @@ export interface OrderChildSaveOptions<TData> {
   onFieldErrors?: ((errors: FieldErrors) => boolean) | undefined;
   /** Load Latest brought the latest order and the page has it. Return false when this window's own record is not in it. */
   onLatest?: ((order: OrderDetailResponse) => boolean) | undefined;
+  /** No success toast: the caller shows its own saved line (the photo description, UI-SPEC D-15). */
+  quiet?: boolean | undefined;
 }
 
 export interface OrderChildSave<TData> {
@@ -91,6 +93,7 @@ export function useOrderChildSave<TData>({
   onSaved,
   onFieldErrors,
   onLatest,
+  quiet = false,
 }: OrderChildSaveOptions<TData>): OrderChildSave<TData> {
   const toast = useToast();
   const applyOrder = useApplyOrder();
@@ -149,7 +152,9 @@ export function useOrderChildSave<TData>({
   const submission = useSubmission<TData, OrderDetailResponse>(send, {
     onSuccess: (order) => {
       applyOrder(order);
-      toast.show({ tone: 'success', ...orderSavedMessage(order, thing, verb) });
+      if (!quiet) {
+        toast.show({ tone: 'success', ...orderSavedMessage(order, thing, verb) });
+      }
       onSaved(order);
     },
     onFailure: showFailure,

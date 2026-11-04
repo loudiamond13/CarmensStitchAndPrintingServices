@@ -144,6 +144,13 @@ describe('descriptionSchema', () => {
     expect(verdict.success).toBe(false);
     expect(verdict.error?.issues[0]?.message).toBe('Keep the description to 200 characters or fewer.');
   });
+
+  it('counts UTF-16 code units like the server, so an emoji costs two', () => {
+    const schema = descriptionSchema({ ...RULES, descriptionMaxLength: 4 });
+
+    expect(schema.safeParse('😀😀').success).toBe(true);
+    expect(schema.safeParse('😀😀😀').success).toBe(false);
+  });
 });
 
 describe('counts read in the singular where they should (UIC-36)', () => {

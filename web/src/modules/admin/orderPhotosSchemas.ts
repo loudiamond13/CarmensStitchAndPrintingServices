@@ -122,7 +122,16 @@ export function pickIssue(rules: ImageRules, facts: PickFacts): string | null {
   return verdict.success ? null : (verdict.error.issues[0]?.message ?? null);
 }
 
-/** A description: trimmed, at most the server's limit (D-12). */
+/**
+ * A description: trimmed, at most the server's limit (D-12). The length is the JavaScript string length (UTF-16 code units), not zod's
+ * `max`, which counts code points: the server counts units, so an emoji must cost two here as well.
+ */
 export function descriptionSchema(rules: ImageRules) {
-  return z.string().trim().max(rules.descriptionMaxLength, REASONS.descriptionTooLong(rules.descriptionMaxLength));
+  return z
+    .string()
+    .trim()
+    .refine(
+      (text) => text.length <= rules.descriptionMaxLength,
+      REASONS.descriptionTooLong(rules.descriptionMaxLength),
+    );
 }

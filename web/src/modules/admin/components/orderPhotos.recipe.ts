@@ -11,6 +11,9 @@ export const orderPhotosStatusClasses = tw('flex items-center gap-2 text-[14px] 
 /** The spinner of the status line; it stands still under reduced motion. */
 export const orderPhotosSpinnerClasses = tw('animate-csp-spin motion-reduce:animate-none');
 
+/** The check icon of the "Saved" line, in the success colour. */
+export const orderPhotosSavedIconClasses = tw('flex text-success');
+
 /** The partial-failure banner: `--warning-soft` ground, a `--warning` icon, a Label line then a Small line. */
 export const orderPhotosBannerClasses = tw('flex items-start gap-3 rounded-sm bg-warning-soft px-4 py-3');
 
