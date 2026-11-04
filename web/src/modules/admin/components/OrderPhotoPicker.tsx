@@ -13,6 +13,7 @@ import {
   type PickError,
 } from '@/components/media';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
+import { PhotoDescriptionModal } from '@/modules/admin/components/PhotoDescriptionModal';
 import { orderPhotosBodyClasses } from '@/modules/admin/components/orderPhotos.recipe';
 import { imageRulesQuery, useImageRulesQuery } from '@/modules/admin/hooks/useImageRulesQuery';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
@@ -85,9 +86,34 @@ export interface DraftDescriptionWindowProps {
   onClose: () => void;
 }
 
-/** Stand-in so the description tests fail on their assertions (plan 09-21, RED). */
-export function DraftDescriptionWindow(props: DraftDescriptionWindowProps) {
-  return props.editingId === null ? null : null;
+/**
+ * The description window of the draft being described (P5, draft mode). It sits next to the form, not in it. Saving puts the text
+ * on the draft (empty keeps the default) and closes; nothing is sent.
+ */
+export function DraftDescriptionWindow({ store, editingId, onClose }: DraftDescriptionWindowProps) {
+  const rulesState = useImageRulesQuery();
+  const index = store.drafts.findIndex((candidate) => candidate.id === editingId);
+  const draft = store.drafts[index];
+  if (draft === undefined || rulesState.data === undefined) return null;
+  const position = index + 1;
+  return (
+    <PhotoDescriptionModal
+      key={draft.id}
+      mode="draft"
+      orderLabel=""
+      position={position}
+      total={store.drafts.length}
+      initial={draft.description === '' ? COPY.defaultDescription.draft(position) : draft.description}
+      maxLength={toImageRules(rulesState.data).descriptionMaxLength}
+      onSave={(text) => {
+        store.update((list) =>
+          list.map((candidate) => (candidate.id === draft.id ? { ...candidate, description: text } : candidate)),
+        );
+        onClose();
+      }}
+      onClose={onClose}
+    />
+  );
 }
 
 /** A file that was accepted for a place and is still being prepared: its tile shows a Skeleton. */

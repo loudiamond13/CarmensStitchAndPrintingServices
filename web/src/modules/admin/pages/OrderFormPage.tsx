@@ -34,6 +34,7 @@ import {
 } from '@/modules/admin/components/OrderDetailsCards';
 import { OrderEditAside } from '@/modules/admin/components/OrderEditAside';
 import {
+  DraftDescriptionWindow,
   OrderPhotoPicker,
   useDraftPhotos,
   type OrderPhotoPickerHandle,
@@ -183,6 +184,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   // The photos picked for the new order; the store's latest list is what the save hands on, after its awaits.
   const drafts = useDraftPhotos();
   const pickerRef = useRef<OrderPhotoPickerHandle>(null);
+  // The draft whose description window is open.
+  const [describing, setDescribing] = useState<string | null>(null);
 
   const {
     control,
@@ -380,7 +383,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
                 <p className={orderFormCardHintClasses}>{PHOTOS.hints.draft}</p>
               </div>
             </div>
-            <OrderPhotoPicker store={drafts} handleRef={pickerRef} />
+            <OrderPhotoPicker store={drafts} onEditDescription={setDescribing} handleRef={pickerRef} />
           </section>
           <OrderItemsEditor control={control} rootError={itemsError} />
           <OrderFormSaveBar
@@ -398,6 +401,14 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
           total={preview.subtotal}
         />
       </form>
+      {/* The window has a form of its own, so it sits beside the order form, never inside it. */}
+      <DraftDescriptionWindow
+        store={drafts}
+        editingId={describing}
+        onClose={() => {
+          setDescribing(null);
+        }}
+      />
       <ConfirmDialog
         open={guard.dialog.open}
         title={COPY.discard.title}
