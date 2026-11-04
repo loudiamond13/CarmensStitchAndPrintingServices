@@ -27,6 +27,21 @@ public static class OrderImageRules
     /// <summary>The message for a description over <see cref="DescriptionMaxLength"/>.</summary>
     public const string DescriptionTooLongMessage = "Keep the description to 200 characters or fewer.";
 
+    /// <summary>The field name a place error is reported on.</summary>
+    public const string PositionField = "position";
+
+    /// <summary>The machine code of a photo id that is not on the order in the route.</summary>
+    public const string ImageNotFoundCode = "orders.image-not-found";
+
+    /// <summary>The message for a photo that is not on the order in the route.</summary>
+    public const string ImageNotFoundMessage = "This photo is no longer on this order.";
+
+    /// <summary>The message for a place outside the order's photos.</summary>
+    public const string PositionOutOfRangeMessage = "Choose a place that is on this order.";
+
+    /// <summary>Gets the 404 for a photo that is not on the order.</summary>
+    public static Error ImageNotFound { get; } = Error.NotFound(ImageNotFoundCode, ImageNotFoundMessage);
+
     /// <summary>Gets the error for an order that already holds the most photos.</summary>
     public static Error TooMany { get; } = Error.BusinessRule(LimitCode, TooManyMessage);
 
@@ -60,3 +75,14 @@ public static class OrderImageRules
     public static Error? CheckDescription(string? description) =>
         description is not null && description.Trim().Length > DescriptionMaxLength ? DescriptionTooLong : null;
 }
+
+/// <summary>What a photo move changed (D-13, D-14, D-19). Places count from 0.</summary>
+/// <param name="From">The place the photo had.</param>
+/// <param name="To">The place it has now.</param>
+/// <param name="NewCoverFrom">The place the new cover photo had before the move; null when the cover is the same photo.</param>
+public sealed record OrderImageMove(int From, int To, int? NewCoverFrom);
+
+/// <summary>What a description change did (D-12, D-19). A null side means the default text applies.</summary>
+/// <param name="From">The description kept before; null when none.</param>
+/// <param name="To">The description kept now; null when none.</param>
+public sealed record OrderImageDescriptionChange(string? From, string? To);

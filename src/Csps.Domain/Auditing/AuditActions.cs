@@ -186,6 +186,15 @@ public static class AuditActions
     /// <summary>A photo was added to an order; the detail names the order number and the photo's 1-based position, never its id or address (D-19).</summary>
     public const string OrderImageAdded = "order-image.added";
 
+    /// <summary>A photo was moved to another place; the detail names the order number and the 1-based places it moved from and to, never its id or address (D-19).</summary>
+    public const string OrderImageMoved = "order-image.moved";
+
+    /// <summary>The cover photo of an order changed; the detail names the order number and the 1-based place the new cover had before the move (D-14, D-19).</summary>
+    public const string OrderImageCoverChanged = "order-image.cover-changed";
+
+    /// <summary>A photo's description changed; the detail names the order number, the 1-based place and the old and new text, never the photo's id or address (D-12, D-19).</summary>
+    public const string OrderImageDescriptionChanged = "order-image.description-changed";
+
     /// <summary>A payment was added to an order (D-31).</summary>
     public const string OrderPaymentAdded = "order-payment.added";
 
@@ -494,5 +503,8 @@ public static class AuditActions
         OrderExpenseCategoryReactivated,
         OrderExpenseCategoryDeleted,
         OrderImageAdded,
+        OrderImageMoved,
+        OrderImageCoverChanged,
+        OrderImageDescriptionChanged,
     ];
 }

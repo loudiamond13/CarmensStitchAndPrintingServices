@@ -683,6 +683,93 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     }
 
     /// <summary>
+    /// Moves one photo to a place from 0, shifts the photos between so the places stay 0 to n-1 with no gap, and moves the edit
+    /// version. The cover is the photo at place 0, so making a photo the cover is a move to 0 (D-13, D-14). A move to the place the
+    /// photo already has changes nothing. The photo's slot never changes.
+    /// </summary>
+    /// <param name="imageId">The photo; it must be on this order.</param>
+    /// <param name="toPosition">The place to move it to, from 0 to the photo count less one.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>What moved, null when nothing changed, a 404 when the photo is not on this order, a 422 for a Completed or Cancelled order, or a validation error for a place outside the photos.</returns>
+    public Result<OrderImageMove?> MoveImage(Guid imageId, int toPosition, DateTimeOffset now)
+    {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderImageMove?>(locked);
+        }
+
+        var image = _images.Find(existing => existing.Id == imageId);
+        if (image is null)
+        {
+            return Result.Failure<OrderImageMove?>(OrderImageRules.ImageNotFound);
+        }
+
+        if (toPosition < 0 || toPosition >= _images.Count)
+        {
+            return OrderRules.Reject<OrderImageMove?>(OrderImageRules.PositionField, OrderImageRules.PositionOutOfRangeMessage);
+        }
+
+        var arranged = _images.OrderBy(static existing => existing.Position).ToList();
+        var from = arranged.IndexOf(image);
+        if (from == toPosition)
+        {
+            return Result.Success<OrderImageMove?>(null);
+        }
+
+        arranged.RemoveAt(from);
+        arranged.Insert(toPosition, image);
+        for (var place = 0; place < arranged.Count; place++)
+        {
+            arranged[place].MoveTo(place);
+        }
+
+        Touch(now);
+
+        // The cover changes only when the photo went to the front (it is the new cover) or the cover left it (the second one is).
+        int? newCoverFrom = toPosition == 0 ? from : from == 0 ? 1 : null;
+        return Result.Success<OrderImageMove?>(new OrderImageMove(from, toPosition, newCoverFrom));
+    }
+
+    /// <summary>
+    /// Sets or clears one photo's description. The text is trimmed and checked against the 200 character limit; an empty text, or the
+    /// default text of the photo's current place, is kept as null so the default always follows the place (D-12, D-30). A text that
+    /// is already kept changes nothing. A change moves the edit version.
+    /// </summary>
+    /// <param name="imageId">The photo; it must be on this order.</param>
+    /// <param name="description">The text as typed; may be null.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The old and new kept text, null when nothing changed, a 404 when the photo is not on this order, a 422 for a Completed or Cancelled order, or a validation error for a description over 200 characters.</returns>
+    public Result<OrderImageDescriptionChange?> DescribeImage(Guid imageId, string? description, DateTimeOffset now)
+    {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderImageDescriptionChange?>(locked);
+        }
+
+        var image = _images.Find(existing => existing.Id == imageId);
+        if (image is null)
+        {
+            return Result.Failure<OrderImageDescriptionChange?>(OrderImageRules.ImageNotFound);
+        }
+
+        if (OrderImageRules.CheckDescription(description) is { } tooLong)
+        {
+            return Result.Failure<OrderImageDescriptionChange?>(tooLong);
+        }
+
+        var cleaned = OrderImageRules.NormalizeDescription(description, Number, image.Position);
+        if (string.Equals(cleaned, image.Description, StringComparison.Ordinal))
+        {
+            return Result.Success<OrderImageDescriptionChange?>(null);
+        }
+
+        var change = new OrderImageDescriptionChange(image.Description, cleaned);
+        image.Describe(cleaned);
+        Touch(now);
+        return Result.Success<OrderImageDescriptionChange?>(change);
+    }
+
+    /// <summary>
     /// Adds one discount at the end of the list, checking every discount rule again. The totals are worked out again and the edit
     /// version moves, so the order's row version guards the add (ORD-08).
     /// </summary>

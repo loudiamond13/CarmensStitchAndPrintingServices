@@ -938,6 +938,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets or clears one photo's description on a saved order, with the order's version the page was opened with. The description
+         *     is trimmed. An empty one, or exactly `Order {number} photo {place}` for the photo's current place, is kept as none, so
+         *     the default text always follows the place; one over 200 characters (counted as .NET string length) answers 400 on
+         *     `description`. A photo id that is not on this order answers 404 `orders.image-not-found`. A version that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A description that changes
+         *     nothing saves nothing and keeps the version. A Completed or Cancelled order answers 422 `orders.locked` and changes
+         *     nothing. A change is recorded in the audit log.
+         */
+        put: operations["DescribeOrderImage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/images/{imageId}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Moves one photo of a saved order to a place and shifts the others, with the order's version the page was opened with. Places
+         *     count from 0 and the photo at place 0 is the cover, so "Make Cover" is this request with place 0. A place below 0 or at or
+         *     above the photo count answers 400. A photo id that is not on this order answers 404 `orders.image-not-found`. A version
+         *     that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A move to the place
+         *     the photo already has changes nothing and keeps the version. A Completed or Cancelled order answers 422 `orders.locked`
+         *     and changes nothing. A move is recorded in the audit log, and so is a change of cover.
+         */
+        put: operations["MoveOrderImage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/items": {
         parameters: {
             query?: never;
@@ -2356,6 +2405,16 @@ export interface components {
              */
             total: number | string;
         };
+        /**
+         * @description Sets or clears one photo's description on a saved order (ORD-04, D-12, D-30). It carries the order's version as the page was
+         *     opened. Any other member in the body is ignored.
+         */
+        DescribeOrderImageRequest: {
+            /** @description The description; empty, missing or the default text means none. */
+            description: null | string;
+            /** @description The base64 of the eight-byte row version of the order the page was opened with. */
+            version: null | string;
+        };
         /** @description Who did it (D-27). */
         DoneBy: {
             /** @description One of DoneByKinds. */
@@ -2517,6 +2576,19 @@ export interface components {
              * @description The sum of the month's expenses by expense date; 0.00 when none.
              */
             total: number | string;
+        };
+        /**
+         * @description Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so "Make Cover" is the same request with
+         *     place 0. It carries the order's version as the page was opened. Any other member in the body is ignored.
+         */
+        MoveOrderImageRequest: {
+            /**
+             * Format: int32
+             * @description The place to move the photo to, counting from 0.
+             */
+            position: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the page was opened with. */
+            version: null | string;
         };
         /** @description An order's cover photo in the list (ORD-04, IMG-04). The addresses are built when the list is read and are never stored. */
         OrderCoverResponse: {
@@ -6844,6 +6916,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    DescribeOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The photo id. */
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["DescribeOrderImageRequest"];
+                "application/json": null | components["schemas"]["DescribeOrderImageRequest"];
+                "text/json": null | components["schemas"]["DescribeOrderImageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The photo id. */
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveOrderImageRequest"];
+                "application/json": null | components["schemas"]["MoveOrderImageRequest"];
+                "text/json": null | components["schemas"]["MoveOrderImageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
