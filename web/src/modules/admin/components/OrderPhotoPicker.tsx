@@ -55,6 +55,19 @@ export interface OrderPhotoPickerProps {
   handleRef?: Ref<OrderPhotoPickerHandle> | undefined;
 }
 
+export interface DraftDescriptionWindowProps {
+  drafts: readonly DraftPhoto[];
+  /** The draft being described; null keeps the window shut. */
+  editingId: string | null;
+  onChange: (next: DraftPhoto[]) => void;
+  onClose: () => void;
+}
+
+/** Stand-in so the description tests fail on their assertions (plan 09-21, RED). */
+export function DraftDescriptionWindow(_props: DraftDescriptionWindowProps) {
+  return null;
+}
+
 /** A file that was accepted for a place and is still being prepared: its tile shows a Skeleton. */
 interface PendingDraft {
   id: string;

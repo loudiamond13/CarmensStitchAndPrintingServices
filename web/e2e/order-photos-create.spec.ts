@@ -93,3 +93,43 @@ test('@order-photos-create a Manager creates an order with two photos, which upl
     await expect(page.getByText('Cover', { exact: true })).toHaveCount(1);
   });
 });
+
+test('@order-photos-create a draft described "Front mockup" uploads with that description and shows it on the order page', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const customer = `E2E Photos ${randomUUID().replaceAll('-', '').slice(0, 8)}`;
+  await signInAs(page, request, manager);
+  await page.goto('/admin/orders/new');
+  await expect(page.getByRole('heading', { level: 1, name: 'New Order' })).toBeVisible();
+  await fillOrder(page, customer);
+  const files = [await drawJpeg(page, 'front.jpg', 200), await drawJpeg(page, 'back.jpg', 20)];
+  await page.locator('input[type="file"][multiple]').setInputFiles(files);
+  const drafts = page.getByRole('list', { name: 'Order photos' }).getByRole('listitem');
+  await expect(drafts).toHaveCount(2);
+
+  await page.getByRole('button', { name: 'Edit description of photo 1' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit Description' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('New order · Photo 1 of 2')).toBeVisible();
+  await dialog.getByLabel('Photo description').fill('Front mockup');
+  await dialog.getByRole('button', { name: 'Save Description' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(drafts.nth(0)).toContainText('Front mockup');
+  await expect(drafts.nth(1)).toContainText('New order photo 2');
+
+  await withPhotoHost(async () => {
+    await page.getByRole('button', { name: 'Save Order' }).click();
+
+    await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+    await expect(page.getByRole('button', { name: 'Open photo 1 of 2: Front mockup' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /^Open photo 2 of 2: Order ORD-\d{4}-\d{4,} photo 2$/ }),
+    ).toBeVisible();
+    await expect(page.getByText('Photos added', { exact: true })).toBeVisible();
+  });
+});

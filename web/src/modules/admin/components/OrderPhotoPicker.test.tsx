@@ -4,9 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
-import { OrderPhotoPicker, type DraftPhoto } from '@/modules/admin/components/OrderPhotoPicker';
+import { DraftDescriptionWindow, OrderPhotoPicker, type DraftPhoto } from '@/modules/admin/components/OrderPhotoPicker';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
 import { useOrderHandlers } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { prepareImage, type PrepareResult } from '@/utils/images';
@@ -29,6 +30,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  server.events.removeAllListeners();
   queryClient.clear();
   clearSession();
 });
@@ -275,5 +277,88 @@ describe('a photo being prepared and a refused file (UIC-8, OR-3)', () => {
       expect(screen.getByTestId('count')).toHaveTextContent('good.jpg');
     });
     expect(tileTexts()).toEqual(['New order photo 1']);
+  });
+});
+
+/** The picker with its description window, as the New Order form draws them (the window sits outside the form). */
+function DescribeHarness({ initial }: { initial: readonly DraftPhoto[] }) {
+  const [drafts, setDrafts] = useState<readonly DraftPhoto[]>(initial);
+  const [editing, setEditing] = useState<string | null>(null);
+  return (
+    <>
+      <OrderPhotoPicker value={drafts} onChange={setDrafts} onEditDescription={setEditing} />
+      <DraftDescriptionWindow
+        drafts={drafts}
+        editingId={editing}
+        onChange={setDrafts}
+        onClose={() => {
+          setEditing(null);
+        }}
+      />
+    </>
+  );
+}
+
+function renderDescribing(initial: readonly DraftPhoto[]) {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <DescribeHarness initial={initial} />
+    </QueryClientProvider>,
+  );
+}
+
+describe('describing a draft (D-12, UIC-5)', () => {
+  it('Edit description of photo 2 opens the window for "New order · Photo 2 of 2" with the default text selected', async () => {
+    const user = userEvent.setup();
+    renderDescribing([draftOf('one.jpg'), draftOf('two.jpg')]);
+    await screen.findAllByText(/2\/5/);
+
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Description' });
+    expect(within(dialog).getByText('New order · Photo 2 of 2')).toBeVisible();
+    const box = within(dialog).getByLabelText<HTMLTextAreaElement>('Photo description');
+    expect(box).toHaveValue('New order photo 2');
+    expect(box).toHaveFocus();
+    expect(box.selectionEnd - box.selectionStart).toBe('New order photo 2'.length);
+  });
+
+  it('typing Back mockup and Save Description updates the tile and closes, with no request', async () => {
+    const user = userEvent.setup();
+    const requests: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      requests.push(request.url);
+    });
+    renderDescribing([draftOf('one.jpg'), draftOf('two.jpg')]);
+    await screen.findAllByText(/2\/5/);
+    requests.length = 0;
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+    const box = await screen.findByLabelText('Photo description');
+
+    await user.clear(box);
+    await user.type(box, 'Back mockup');
+    await user.click(screen.getByRole('button', { name: 'Save Description' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Description' })).not.toBeInTheDocument();
+    });
+    expect(tileTexts()).toEqual(['New order photo 1', 'Back mockup']);
+    expect(requests).toEqual([]);
+  });
+
+  it('saving the default text keeps the draft on its default, which follows moves', async () => {
+    const user = userEvent.setup();
+    renderDescribing([draftOf('one.jpg'), draftOf('two.jpg')]);
+    await screen.findAllByText(/2\/5/);
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+    await screen.findByRole('dialog', { name: 'Edit Description' });
+
+    await user.click(screen.getByRole('button', { name: 'Save Description' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Description' })).not.toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Move photo 2 left' }));
+
+    expect(tileTexts()).toEqual(['New order photo 1', 'New order photo 2']);
   });
 });

@@ -1088,6 +1088,51 @@ describe('photos picked on the form (ORD-04, D-09, D-10, D-28)', () => {
   });
 });
 
+describe('describing a draft on the form (D-12, D-30)', () => {
+  it('opens the description window outside the form and does not save the order when it is saved', async () => {
+    const backend = useOrderHandlers();
+    const { user, container } = await openForm();
+    await fillValidOrder(user);
+    await pickPhotos(user, container, ['one.jpg', 'two.jpg']);
+
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Description' });
+    expect(dialog.closest('form')).toBeNull();
+    await user.clear(within(dialog).getByLabelText('Photo description'));
+    await user.type(within(dialog).getByLabelText('Photo description'), 'Back mockup');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Description' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Description' })).not.toBeInTheDocument();
+    });
+    expect(within(screen.getByRole('list', { name: 'Order photos' })).getByText('Back mockup')).toBeVisible();
+    expect(backend.writes).toHaveLength(0);
+  });
+
+  it('sends each description with its photo to the new order: the typed text, and nothing for a default', async () => {
+    const upload = vi.spyOn(orderPhotosService, 'upload').mockResolvedValue(created);
+    useOrderHandlers({ detail: created });
+    const { user, container } = await openForm();
+    await fillValidOrder(user);
+    await pickPhotos(user, container, ['one.jpg', 'two.jpg']);
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+    const box = await screen.findByLabelText('Photo description');
+    await user.clear(box);
+    await user.type(box, 'Back mockup');
+    await user.click(screen.getByRole('button', { name: 'Save Description' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await waitFor(() => {
+      expect(upload).toHaveBeenCalledTimes(2);
+    });
+    expect(upload.mock.calls.map((call) => [call[2], call[3]])).toEqual([
+      ['one.jpg', ''],
+      ['two.jpg', 'Back mockup'],
+    ]);
+  });
+});
+
 describe('drafts and the Discard changes guard (ORD-15, D-09)', () => {
   it('asks "Discard changes?" when leaving with one draft and nothing else typed', async () => {
     useOrderHandlers();
