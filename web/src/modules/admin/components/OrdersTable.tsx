@@ -13,6 +13,7 @@ import {
   type ResponsiveTableProps,
 } from '@/components/lists';
 import { Money } from '@/components/money';
+import { LazyImage } from '@/components/states';
 import { Badge, StatusBadge, isOrderStatus } from '@/components/status';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
 import {
@@ -114,7 +115,18 @@ function columnsFor({ today, onOpen, onEdit }: Wiring): readonly ResponsiveTable
       cell: (entry) => (
         <span className={ordersOrderCellClasses}>
           <span className={ordersThumbClasses} aria-hidden="true">
-            <MediaPlaceholder label={false} ratio="1 / 1" />
+            {entry.cover ? (
+              <LazyImage
+                src={entry.cover.table.src}
+                srcSet={entry.cover.table.srcSet}
+                width={44}
+                height={44}
+                ratio="1 / 1"
+                alt=""
+              />
+            ) : (
+              <MediaPlaceholder label={false} ratio="1 / 1" />
+            )}
           </span>
           <UiLink
             to={`/admin/orders/${entry.id}`}

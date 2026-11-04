@@ -10,6 +10,6 @@ export type { DataTableColumn, DataTableProps } from './DataTable';
 export { IncomeExpenseChart } from './IncomeExpenseChart';
 export type { ChartDatum, IncomeExpenseChartProps } from './IncomeExpenseChart';
 export { OrderCard } from './OrderCard';
-export type { OrderCardCover, OrderCardOrder, OrderCardProps } from './OrderCard';
+export type { OrderCardCover, OrderCardCoverImage, OrderCardOrder, OrderCardProps } from './OrderCard';
 export { RecordMeta } from './RecordMeta';
 export type { RecordMetaProps } from './RecordMeta';

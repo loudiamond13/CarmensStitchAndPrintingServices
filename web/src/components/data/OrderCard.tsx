@@ -1,11 +1,12 @@
 // OrderCard (App. D.3 "Data display", CSPS-UI-SPEC.md §6.4), converted to utilities (D-33): the 16:10 cover button
 // (placeholder or image, the status badge, the image count), the order number and piece count, the team (or the customer
 // when there is no team) and the customer line, the order and due dates, the compact OrderTotals, and the View Order and
-// Edit Details actions. The looks are in data.recipe.ts.
+// Edit Details actions. The cover is a lazy image from the server's addresses (LazyImage, decorative). The looks are in
+// data.recipe.ts.
 //
 // SPEC-DEVIATION: plan 08-02 (owner, 2026-10-29). The card takes an order list row (the API's OrderListEntry field
 // names) and shows the server's figures as they come, with no browser arithmetic (D-09): `order` replaces App. D.3's
-// `order` plus `totals`. It has no Delete action (D-22), shows "No images yet" until Phase 9 gives it a `cover` (D-27),
+// `order` plus `totals`. It has no Delete action (D-22), shows "No images yet" until the row has a `cover` (D-27),
 // the piece count from the row (D-40) and the actions "View Order" and "Edit Details" (D-46, D-57), the second hidden on a
 // Completed or Cancelled order (D-15). The `due` slot takes the module's due flag; without it the card shows the date.
 // SPEC-DEVIATION: D-40 (owner, 2026-10-08) an order with no team shows the customer as the title, and "Walk-in customer"
@@ -21,7 +22,8 @@ import { formatCalendarDate, formatCount } from '@/utils/format';
 import { Button } from '@/components/actions';
 import { Icon, MediaPlaceholder } from '@/components/brand';
 import { OrderTotals } from '@/components/money';
-import { EmptyValue } from '@/components/states';
+import { EmptyValue, LazyImage } from '@/components/states';
+import { CARD_SIZES } from '@/modules/admin/imageSlots';
 import { isOrderStatus, StatusBadge } from '@/components/status';
 import { ORDER_CARD_COPY, WALK_IN_CUSTOMER } from './copy';
 import {
@@ -55,9 +57,17 @@ export interface OrderCardOrder extends OrderFigures {
   pieces: number | string;
 }
 
-/** The cover once the images exist (Phase 9): a file, or a named placeholder, with how many images the order has. */
+/** The cover photo as the server delivers it: the fallback address, the width candidates and the stored size. */
+export interface OrderCardCoverImage {
+  src: string;
+  srcSet: string;
+  width: number;
+  height: number;
+}
+
+/** The cover: the server's photo, or a named placeholder, with how many images the order has. */
 export interface OrderCardCover {
-  src?: string | undefined;
+  image?: OrderCardCoverImage | undefined;
   name?: string | undefined;
   /** The jersey number drawn big on the placeholder. */
   number?: string | undefined;
@@ -87,8 +97,17 @@ export function OrderCard({ order, due, cover, onView, onEdit }: OrderCardProps)
   return (
     <article className={orderCardClasses}>
       <button type="button" className={orderMediaClasses} onClick={onView} aria-label={coverName}>
-        {cover?.src ? (
-          <img src={cover.src} alt="" className={orderImageClasses} />
+        {cover?.image ? (
+          <LazyImage
+            src={cover.image.src}
+            srcSet={cover.image.srcSet}
+            sizes={CARD_SIZES}
+            width={cover.image.width}
+            height={cover.image.height}
+            ratio="16 / 10"
+            alt=""
+            className={orderImageClasses}
+          />
         ) : (
           <MediaPlaceholder
             label={cover ? (cover.name ?? '') : ORDER_CARD_COPY.noImages}
