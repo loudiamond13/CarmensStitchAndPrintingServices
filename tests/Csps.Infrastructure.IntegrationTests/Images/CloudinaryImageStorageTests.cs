@@ -246,8 +246,9 @@ public sealed class CloudinaryImageStorageTests
 
         var request = handler.Requests.ShouldHaveSingleItem();
         request.Method.ShouldBe(HttpMethod.Get);
-        request.Uri.AbsolutePath.ShouldBe("/v1_1/demo-cloud/resources/image/private");
+        request.Uri.AbsolutePath.ShouldBe("/v1_1/demo-cloud/resources/image");
         var query = System.Web.HttpUtility.ParseQueryString(request.Uri.Query);
+        query["type"].ShouldBe("private");
         query["prefix"].ShouldBe("csps-dev/orders/");
         query["max_results"].ShouldBe("500");
         query["next_cursor"].ShouldBeNull();

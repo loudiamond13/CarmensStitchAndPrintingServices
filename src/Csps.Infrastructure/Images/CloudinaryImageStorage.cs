@@ -1,9 +1,11 @@
+using System.Globalization;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Csps.Application.Ports;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Csps.Infrastructure.Images;
 
@@ -64,14 +66,70 @@ internal sealed partial class CloudinaryImageStorage(IOptions<CloudinarySettings
         }
     }
 
-    public Task<ImageRemovalOutcome> RemoveAsync(string publicId, CancellationToken cancellationToken) =>
-        Task.FromResult(new ImageRemovalOutcome(ImageRemovalStatus.Rejected, "not-built"));
+    public async Task<ImageRemovalOutcome> RemoveAsync(string publicId, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicId);
 
-    public Task<StoredImagePage> ListAsync(string prefix, string? cursor, CancellationToken cancellationToken) =>
-        Task.FromResult(new StoredImagePage([], null));
+        // The SDK's destroy call takes no cancellation token, so the HTTP timeout is the guard once it has started.
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var result = await NewClient().DestroyAsync(new DeletionParams(publicId) { Type = PrivateType, Invalidate = true }).ConfigureAwait(false);
+            var outcome = CloudinaryResults.ForRemoval(result.StatusCode, result.Result);
+            if (outcome.Status is not (ImageRemovalStatus.Removed or ImageRemovalStatus.NotFound))
+            {
+                LogFailed("remove", outcome.FailureCode ?? CloudinaryResults.RefusedCode, (int)result.StatusCode);
+            }
 
-    public Task<StorageUsage> GetUsageAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(new StorageUsage(0, 0));
+            return outcome;
+        }
+        catch (Exception failure) when (IsTransientFailure(failure, cancellationToken))
+        {
+            LogFailed("remove", CloudinaryResults.TransientCode, 0);
+            return new ImageRemovalOutcome(ImageRemovalStatus.Transient, CloudinaryResults.TransientCode);
+        }
+    }
+
+    public async Task<StoredImagePage> ListAsync(string prefix, string? cursor, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
+        var parameters = new ListResourcesByPrefixParams
+        {
+            Prefix = prefix,
+            Type = PrivateType,
+            MaxResults = 500,
+            NextCursor = string.IsNullOrEmpty(cursor) ? null : cursor,
+        };
+
+        var json = await ReadAsync("list", client => client.ListResourcesAsync(parameters, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var entries = new List<StoredImageEntry>();
+        foreach (var resource in json["resources"] ?? new JArray())
+        {
+            var publicId = resource.Value<string>("public_id");
+            var createdAt = ReadTime(resource["created_at"]);
+            if (publicId is not null && createdAt is not null)
+            {
+                entries.Add(new StoredImageEntry(publicId, createdAt.Value));
+            }
+        }
+
+        var next = json.Value<string>("next_cursor");
+        return new StoredImagePage(entries, string.IsNullOrEmpty(next) ? null : next);
+    }
+
+    public async Task<StorageUsage> GetUsageAsync(CancellationToken cancellationToken)
+    {
+        var json = await ReadAsync("usage", client => client.GetUsageAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
+
+        // Read from the raw JSON: the SDK's credit figures are whole numbers, and the plan's credits come in tenths.
+        return new StorageUsage(
+            StoragePercent: json["storage"]?.Value<double?>("used_percent") ?? 0,
+            CreditsPercent: json["credits"]?.Value<double?>("used_percent") ?? 0,
+            StorageBytes: json["storage"]?.Value<long?>("usage") ?? 0,
+            CreditsUsed: json["credits"]?.Value<double?>("usage") ?? 0,
+            CreditsLimit: json["credits"]?.Value<double?>("limit") ?? 0,
+            ImageMaxBytes: json["media_limits"]?.Value<long?>("image_max_size_bytes") ?? 0);
+    }
 
     private static bool IsTransientFailure(Exception failure, CancellationToken cancellationToken) => failure switch
     {
@@ -82,6 +140,40 @@ internal sealed partial class CloudinaryImageStorage(IOptions<CloudinarySettings
         { InnerException: JsonException } => true,
         _ => false,
     };
+
+    // Newtonsoft turns an ISO date string into a DateTime while parsing, so both a date and a string are handled.
+    private static DateTimeOffset? ReadTime(JToken? token) => token?.Type switch
+    {
+        JTokenType.Date => AsUtc(token.Value<DateTime>()),
+        JTokenType.String when DateTimeOffset.TryParse(token.Value<string>(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed) => parsed.ToUniversalTime(),
+        _ => null,
+    };
+
+    private static DateTimeOffset AsUtc(DateTime value) =>
+        new(value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime());
+
+    // Runs a read call and returns its JSON; any failure becomes an ImageStorageException with a short code.
+    private async Task<JToken> ReadAsync<TResult>(string operation, Func<Cloudinary, Task<TResult>> call, CancellationToken cancellationToken)
+        where TResult : BaseResult
+    {
+        try
+        {
+            var result = await call(NewClient()).ConfigureAwait(false);
+            if (!CloudinaryResults.IsSuccess(result.StatusCode))
+            {
+                var code = CloudinaryResults.FailureCode(result.StatusCode);
+                LogFailed(operation, code, (int)result.StatusCode);
+                throw new ImageStorageException(code);
+            }
+
+            return result.JsonObj ?? new JObject();
+        }
+        catch (Exception failure) when (IsTransientFailure(failure, cancellationToken))
+        {
+            LogFailed(operation, CloudinaryResults.TransientCode, 0);
+            throw new ImageStorageException(CloudinaryResults.TransientCode);
+        }
+    }
 
     private Cloudinary NewClient() =>
         new(new Account(_settings.CloudName, _settings.ApiKey, _settings.ApiSecret))

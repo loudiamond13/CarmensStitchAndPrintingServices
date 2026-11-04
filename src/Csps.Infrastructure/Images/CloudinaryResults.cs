@@ -28,6 +28,36 @@ internal static class CloudinaryResults
         _ => ImageUploadOutcome.Failed(FailureCode(status)),
     };
 
+    /// <summary>Maps the answer to a removal.</summary>
+    /// <param name="status">The HTTP status Cloudinary answered with.</param>
+    /// <param name="result">The <c>result</c> word in the body: <c>ok</c> or <c>not found</c>.</param>
+    /// <returns>Removed or NotFound when the file is gone, Transient when trying later can work, otherwise Rejected.</returns>
+    public static ImageRemovalOutcome ForRemoval(HttpStatusCode status, string? result)
+    {
+        if (IsSuccess(status))
+        {
+            return result switch
+            {
+                "ok" => new ImageRemovalOutcome(ImageRemovalStatus.Removed),
+                "not found" => new ImageRemovalOutcome(ImageRemovalStatus.NotFound),
+                _ => new ImageRemovalOutcome(ImageRemovalStatus.Rejected, RefusedCode),
+            };
+        }
+
+        if (status == HttpStatusCode.NotFound)
+        {
+            return new ImageRemovalOutcome(ImageRemovalStatus.NotFound);
+        }
+
+        var code = FailureCode(status);
+        return new ImageRemovalOutcome(code == TransientCode ? ImageRemovalStatus.Transient : ImageRemovalStatus.Rejected, code);
+    }
+
+    /// <summary>Tells whether a status is a 2xx answer.</summary>
+    /// <param name="status">The HTTP status.</param>
+    /// <returns>True for 200 to 299.</returns>
+    public static bool IsSuccess(HttpStatusCode status) => status is >= HttpStatusCode.OK and < HttpStatusCode.MultipleChoices;
+
     /// <summary>Maps an answer that is not a success to a short failure code.</summary>
     /// <param name="status">The HTTP status.</param>
     /// <returns><c>unauthorized</c>, <c>transient</c> or <c>refused</c>.</returns>
