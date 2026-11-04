@@ -1,6 +1,6 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-03T12:20:00-06:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-03T17:30:00-06:00*
 
 The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). A scheduled GitHub
 Actions workflow (added by a later plan) makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
@@ -15,12 +15,31 @@ One run does every job once, in this order. The number is the job's place in the
 
 | Order | Job | What it reports |
 |---|---|---|
-| 10 | Purge of expired records | How many expired request keys it removed |
+| 10 | Purge of expired records | One count per purge rule (see the table below) |
 | 20 | Stray file sweep (a later plan) | How many stray files it removed |
 | 30 | Photo removals (a later plan) | How many photos it removed from storage, and how many are still failing |
 | 40 | Usage report (a later plan) | Storage and credit use against the free plan |
 
 Later plans add their jobs to this table. Jobs with a lower number run first.
+
+## What the purge removes
+
+The purge job runs six rules in this order. Each rule has a safety margin, so nothing that a current rule still reads is
+removed. A row exactly at the cut-off stays. Each rule deletes 500 rows at a time and stops when the 90 second budget is
+spent (the answer then says `more`). If one rule fails on a database error, only its line is marked failed and the other
+rules still run.
+
+| Rule | Report line | Removed when | Why the margin |
+|---|---|---|---|
+| Request keys | Expired request keys removed | Their own expiry has passed | An expired key is already ignored |
+| Short-lived claims (locks) | Expired request keys removed | Their own expiry has passed | An expired claim is already ignored. Standing locks are never removed |
+| Sessions (their refresh tokens go with them) | Expired sign-in tokens removed | The session's fixed end was more than 1 day ago | A session past its end can never be used. Used refresh tokens of a live session stay, because reuse detection needs them |
+| 2FA challenges (their codes go with them) | Expired 2FA codes removed | The challenge expired more than 1 day ago | The send and failure limits look back 1 hour |
+| Account links (invite and reset) | Expired account links removed | The link expired more than 7 days ago | Keeps the "already used" and "expired" messages accurate for a week |
+| Emails in the outbox | Old sent emails removed | The row was sent, failed or expired more than 30 days ago | The rule in `docs/operations/mail-setup.md`. Rows still waiting to send are never removed |
+
+The request keys and the claims share one line, so five lines come back in all. The 30 day email rule is the owner's
+(D-35). The 7 day account-link margin is open for the owner to review.
 
 Each run has a time budget of 90 seconds. A job that runs out of time stops cleanly and says there is more to do.
 

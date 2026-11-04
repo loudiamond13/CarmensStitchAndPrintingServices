@@ -151,7 +151,10 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
         response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
         using var document = JsonDocument.Parse(text);
         var labels = document.RootElement.GetProperty("lines").EnumerateArray().Select(static line => line.GetProperty("label").GetString()).ToList();
-        labels.ShouldBe(["Early job", PurgeLabel, "Late job"]);
+        labels[0].ShouldBe("Early job");
+        labels[^1].ShouldBe("Late job");
+        labels[1].ShouldBe(PurgeLabel);
+        labels.Count.ShouldBeGreaterThan(3);
     }
 
     [Fact]
