@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-03T11:36:06-06:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-03T19:00:00-06:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -182,7 +182,7 @@ User-secrets load in the Testing environment only when `Csps:Testing:LoadUserSec
 The Testing environment keeps order photos in memory, so no test or browser run ever calls Cloudinary (D-07, IMG-01). Two more Testing-only routes let a spec use them:
 
 - `GET /api/testing/images/{id}?size={name}` returns the file the fake store holds for the last part of a photo's public id, with the content type it was stored as (`image/jpeg`, `image/png`, `image/webp` or `image/heic`). Every size returns the original file; the `size` value is accepted and ignored. An unknown id is a 404. The photo addresses in an order answer (`thumb`, `viewer` and `fullSize`) already point here in the Testing environment, so an `<img>` loads without any extra setup.
-- `POST /api/testing/images/fail-next` with `{ "count": 1 }` makes the next `count` photo uploads fail, so each answers 503 `images.storage-failed` ("The photo couldn't be saved. Try again."). The upload after that works again. `{ "count": 0 }` clears the switch. A missing or out-of-range count (0 to 50) is a 400. The switch is shared by the whole host, so arm it right before the upload you want to fail.
+- `POST /api/testing/images/fail-next` with `{ "count": 1 }` makes the next `count` photo uploads fail, so each answers 503 `images.storage-failed` ("The photo couldn't be saved. Try again."). The upload after that works again. `{ "count": 0 }` clears the switch. A missing or out-of-range count (0 to 50) is a 400. The switch is shared by the whole host, and the Playwright projects run side by side, so a failure armed in one project can be used up by an upload in another. Run the photo uploads of a test inside `withPhotoHost` from `web/e2e/photo-host-lock.ts` (a lock across projects and workers), arm the switch right before the upload you want to fail, and clear it with `{ "count": 0 }` at the end.
 
 Both routes follow the rule above: Debug builds only, Testing environment only, and a Release build contains neither.
 
