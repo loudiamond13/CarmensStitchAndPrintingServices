@@ -505,5 +505,6 @@ public static class AuditActions
         OrderImageAdded,
         OrderImageMoved,
         OrderImageCoverChanged,
+        OrderImageDescriptionChanged,
     ];
 }

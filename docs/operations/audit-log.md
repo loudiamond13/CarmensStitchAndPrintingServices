@@ -189,6 +189,7 @@ transaction as the change.
 | `order-expense.removed` | An order expense is removed | `Order` id | `expense=<expense id>;date=<date>;amount=<amount>;category=<id>;payer=<id>` |
 | `order-image.added` | A photo is uploaded to an order | `Order` id | `number=<order number>;position=<n>` with `position` counting from 1 (never the photo's id, address, file name or description) |
 | `order-image.moved` | A photo is moved to another place (this includes Make Cover) | `Order` id | `number=<order number>;from=<n>;to=<n>` with both places counting from 1 (never the photo's id or address) |
+| `order-image.description-changed` | A photo's description changes | `Order` id | `number=<order number>;position=<n>;description=<old>><new>` with `position` counting from 1; the text is encoded and cut to fit, and a side with no stored text shows the default text of the place (never the photo's id or address) |
 | `order-image.cover-changed` | A move left another photo at place 1, the cover; recorded in the same save as `order-image.moved` | `Order` id | `number=<order number>;cover=<n>` with `cover` the place the new cover photo had before the move, counting from 1 |
 | `product-type.added`, `payment-method.added`, `order-expense-category.added` | A list entry is added | `ProductType`, `PaymentMethod` or `OrderExpenseCategory` id | `name=<encoded name>;tone=<tone>` |
 | `product-type.renamed`, `payment-method.renamed`, `order-expense-category.renamed` | A list entry is renamed | The entry id | `name=<old encoded>><new encoded>` |

@@ -730,13 +730,44 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success<OrderImageMove?>(new OrderImageMove(from, toPosition, newCoverFrom));
     }
 
-    /// <summary>Sets a photo's description (red shell).</summary>
-    /// <param name="imageId">The photo.</param>
-    /// <param name="description">The text.</param>
-    /// <param name="now">The instant.</param>
-    /// <returns>A failure until built.</returns>
-    public Result<OrderImageDescriptionChange?> DescribeImage(Guid imageId, string? description, DateTimeOffset now) =>
-        Result.Failure<OrderImageDescriptionChange?>(EnsureEditable() ?? OrderImageRules.ImageNotFound);
+    /// <summary>
+    /// Sets or clears one photo's description. The text is trimmed and checked against the 200 character limit; an empty text, or the
+    /// default text of the photo's current place, is kept as null so the default always follows the place (D-12, D-30). A text that
+    /// is already kept changes nothing. A change moves the edit version.
+    /// </summary>
+    /// <param name="imageId">The photo; it must be on this order.</param>
+    /// <param name="description">The text as typed; may be null.</param>
+    /// <param name="now">The current instant, which makes the new edit version.</param>
+    /// <returns>The old and new kept text, null when nothing changed, a 404 when the photo is not on this order, a 422 for a Completed or Cancelled order, or a validation error for a description over 200 characters.</returns>
+    public Result<OrderImageDescriptionChange?> DescribeImage(Guid imageId, string? description, DateTimeOffset now)
+    {
+        if (EnsureEditable() is { } locked)
+        {
+            return Result.Failure<OrderImageDescriptionChange?>(locked);
+        }
+
+        var image = _images.Find(existing => existing.Id == imageId);
+        if (image is null)
+        {
+            return Result.Failure<OrderImageDescriptionChange?>(OrderImageRules.ImageNotFound);
+        }
+
+        if (OrderImageRules.CheckDescription(description) is { } tooLong)
+        {
+            return Result.Failure<OrderImageDescriptionChange?>(tooLong);
+        }
+
+        var cleaned = OrderImageRules.NormalizeDescription(description, Number, image.Position);
+        if (string.Equals(cleaned, image.Description, StringComparison.Ordinal))
+        {
+            return Result.Success<OrderImageDescriptionChange?>(null);
+        }
+
+        var change = new OrderImageDescriptionChange(image.Description, cleaned);
+        image.Describe(cleaned);
+        Touch(now);
+        return Result.Success<OrderImageDescriptionChange?>(change);
+    }
 
     /// <summary>
     /// Adds one discount at the end of the list, checking every discount rule again. The totals are worked out again and the edit

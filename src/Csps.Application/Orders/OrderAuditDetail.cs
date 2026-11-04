@@ -110,12 +110,37 @@ public static class OrderAuditDetail
             AuditDetailFormat.Pair("cover", (coverFrom + 1).ToString(CultureInfo.InvariantCulture)));
     }
 
-    /// <summary>Red shell.</summary>
-    /// <param name="order">The order.</param>
-    /// <param name="image">The photo.</param>
-    /// <param name="change">The change.</param>
-    /// <returns>Nothing until built.</returns>
-    public static string ImageDescriptionChanged(Order order, OrderImage image, OrderImageDescriptionChange change) => string.Empty;
+    /// <summary>
+    /// The detail of <c>order-image.description-changed</c>: the order number, the photo's 1-based place and the old and new text as
+    /// <c>old&gt;new</c>, encoded. A side with no kept text shows the default text of the place. The text is cut, never in the
+    /// middle of a character, so the detail stays under the audit log's limit; it never holds the photo's id or address (D-12, D-19).
+    /// </summary>
+    /// <param name="order">The order the photo is on.</param>
+    /// <param name="image">The photo after the change.</param>
+    /// <param name="change">The old and new kept text.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;position=2;description=Order ORD-2026-0148 photo 2&gt;Front mockup</c>.</returns>
+    public static string ImageDescriptionChanged(Order order, OrderImage image, OrderImageDescriptionChange change)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentNullException.ThrowIfNull(change);
+
+        var fallback = OrderImageRules.DefaultDescription(order.Number, image.Position);
+        var from = change.From ?? fallback;
+        var to = change.To ?? fallback;
+        var place = (image.Position + 1).ToString(CultureInfo.InvariantCulture);
+        for (var keep = OrderImageRules.DescriptionMaxLength; ; keep -= 10)
+        {
+            var detail = AuditDetailFormat.Join(
+                AuditDetailFormat.Pair("number", order.Number),
+                AuditDetailFormat.Pair("position", place),
+                AuditDetailFormat.Change("description", Cut(from, keep), Cut(to, keep)));
+            if (detail.Length <= AuditEntry.DetailMaxLength || keep <= 10)
+            {
+                return detail;
+            }
+        }
+    }
 
     /// <summary>The detail of <c>order-item.removed</c>: the item id, product type, quantity and unit price as they were.</summary>
     /// <param name="item">The item that was removed.</param>
@@ -411,6 +436,10 @@ public static class OrderAuditDetail
 
         return detail;
     }
+
+    // The first characters of the text, without splitting a surrogate pair.
+    private static string Cut(string text, int length) =>
+        text.Length <= length ? text : text[..(char.IsHighSurrogate(text[length - 1]) ? length - 1 : length)];
 
     private static string Compose(string[] money, PeopleList[] lists) =>
         AuditDetailFormat.Join([.. money, .. lists.Select(static list => AuditDetailFormat.Pair(list.Key, list.Text()))]);

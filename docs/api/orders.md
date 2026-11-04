@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-03T17:31:00-06:00
+updated: 2026-11-03T21:12:00-06:00
 ---
 
 # The orders API
@@ -48,6 +48,8 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `DELETE /orders/{id}/refunds/{refundId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.refund-not-found`; `409 edit.stale`; `422 orders.locked` |
 | `GET /orders/image-rules` | Staff | none | `200` the photo rules; `401` (see [order-images.md](order-images.md)) |
 | `POST /orders/{id}/images` | Staff | a multipart form with the `file` and an optional `description`, and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `413`; `422 orders.images-full` or `orders.locked`; `503` when photo storage is not set up or did not take the file (see [order-images.md](order-images.md)) |
+| `PUT /orders/{id}/images/{imageId}/position` | Staff | `{ "position": 0, "version": "..." }` | `200` the whole order; `400` on `position` or `version`; `404 orders.not-found` or `orders.image-not-found`; `409 edit.stale`; `422 orders.locked` (see [order-images.md](order-images.md)) |
+| `PUT /orders/{id}/images/{imageId}` | Staff | `{ "description": "...", "version": "..." }` | `200` the whole order; `400` on `description` or `version`; `404 orders.not-found` or `orders.image-not-found`; `409 edit.stale`; `422 orders.locked` (see [order-images.md](order-images.md)) |
 | `POST /orders/{id}/status` | Staff | `{ "status": "mockup" }` with an `Idempotency-Key` and no version | `200` the whole order; `400` on `status`; `404 orders.not-found`; `409 edit.stale` (two lost races); `422 orders.complete-balance-owed`, `orders.complete-credit` or `orders.reopen-first` |
 | `DELETE /orders/{id}` | Staff | none | `204`; `404 orders.not-found` (also for an order that is already deleted); `409 edit.stale` (two lost races) |
 | `GET /orders/deleted?page=&pageSize=` | Manager | none | `200` the deleted list; `400` for a bad page or page size; `403` for an Admin |

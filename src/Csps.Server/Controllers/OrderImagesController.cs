@@ -16,12 +16,13 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="upload">The upload-a-photo handler.</param>
 /// <param name="move">The move-a-photo handler.</param>
+/// <param name="describe">The describe-a-photo handler.</param>
 [ApiController]
 [Route("api/v1/orders/{orderId:guid}/images")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOrderImageHandler move) : ControllerBase
+public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOrderImageHandler move, DescribeOrderImageHandler describe) : ControllerBase
 {
     /// <summary>
     /// Uploads one photo to a saved order as a multipart form with the file in the <c>file</c> part and an optional <c>description</c>
@@ -98,6 +99,38 @@ public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOr
         CancellationToken cancellationToken)
     {
         var result = await move.HandleAsync(orderId, imageId, body ?? MoveOrderImageRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
+    }
+
+    /// <summary>
+    /// Sets or clears one photo's description on a saved order, with the order's version the page was opened with. The description
+    /// is trimmed. An empty one, or exactly <c>Order {number} photo {place}</c> for the photo's current place, is kept as none, so
+    /// the default text always follows the place; one over 200 characters (counted as .NET string length) answers 400 on
+    /// <c>description</c>. A photo id that is not on this order answers 404 <c>orders.image-not-found</c>. A version that is not the
+    /// stored one answers 409 <c>edit.stale</c> and changes nothing; a form save is never retried. A description that changes
+    /// nothing saves nothing and keeps the version. A Completed or Cancelled order answers 422 <c>orders.locked</c> and changes
+    /// nothing. A change is recorded in the audit log.
+    /// </summary>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="imageId">The photo id.</param>
+    /// <param name="body">The description and the version; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the whole order, 400 for field errors, 401 without a valid token, 404 when the order or the photo on it does not exist, 409 for a stale version, or 422 when the order is completed or cancelled (<c>orders.locked</c>).</returns>
+    [HttpPut("{imageId:guid}")]
+    [EndpointName("DescribeOrderImage")]
+    [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Describe(
+        Guid orderId,
+        Guid imageId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] DescribeOrderImageRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await describe.HandleAsync(orderId, imageId, body ?? DescribeOrderImageRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static order => TypedResults.Ok(order));
     }
 }
