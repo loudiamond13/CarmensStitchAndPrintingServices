@@ -440,14 +440,20 @@ describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
   });
 });
 
-/** An order whose photos carry their own descriptions, so a test can tell which photo the viewer shows. */
+const FIVE = ['Front', 'Back', 'Sleeve', 'Collar', 'Number'] as const;
+
+/**
+ * An order whose photos carry their own descriptions, so a test can tell which photo the viewer shows. A name from FIVE keeps
+ * the id of its place in FIVE, so a shorter list is the same photos with some deleted.
+ */
 function namedPhotos(names: readonly string[]): OrderDetailFixture {
   return buildOrderDetail({
-    images: names.map((name, index) => orderImage(index + 1, { description: name })),
+    images: names.map((name, index) => {
+      const known = (FIVE as readonly string[]).indexOf(name);
+      return orderImage((known >= 0 ? known : index) + 1, { description: name, position: index });
+    }),
   });
 }
-
-const FIVE = ['Front', 'Back', 'Sleeve', 'Collar', 'Number'] as const;
 
 function thumbOf(position: number, total: number, description: string): HTMLElement {
   return screen.getByRole('button', { name: `Open photo ${String(position)} of ${String(total)}: ${description}` });

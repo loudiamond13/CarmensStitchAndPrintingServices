@@ -1,12 +1,19 @@
 // The Images card of the order page, O1 (ORD-04, IMG-05; UI-SPEC P1 and P3). Picked photos are prepared in the browser, queued in
 // memory and uploaded one at a time; a saved photo shows the thumb the server delivers. Every figure and address is the server's.
-// Moving, covering, describing and deleting a saved photo, and the viewer, arrive with plan 09-23: until then those controls stay
-// disabled.
+// A saved photo's thumb opens the viewer (D-16); closing it puts focus on the thumb of the photo shown last. Moving, covering,
+// describing and deleting a saved photo arrive in later plans: until then those controls stay disabled.
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Icon } from '@/components/brand';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { ImageUploader, type PhotoTileModel, type PickError } from '@/components/media';
+import {
+  ImageUploader,
+  MEDIA_COPY,
+  PhotoViewer,
+  type PhotoTileModel,
+  type PhotoViewerPhoto,
+  type PickError,
+} from '@/components/media';
 import {
   orderPhotosBannerBodyClasses,
   orderPhotosBannerClasses,
@@ -24,6 +31,7 @@ import {
   orderCardTitleClasses,
 } from '@/modules/admin/components/orderPage.recipe';
 import { imageRulesQuery, useImageRulesQuery } from '@/modules/admin/hooks/useImageRulesQuery';
+import { VIEWER_SIZES } from '@/modules/admin/imageSlots';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
 import {
   photoUploadQueue,
@@ -54,15 +62,39 @@ export interface OrderPhotosCardProps {
   order: OrderDetailResponse;
 }
 
-function savedTiles(order: OrderDetailResponse): PhotoTileModel[] {
+type OrderImage = OrderDetailResponse['images'][number];
+
+/** The saved photos in display order, each with its description (the stored one, else the default for its position). */
+function orderedImages(order: OrderDetailResponse): { image: OrderImage; description: string }[] {
   return [...order.images]
     .sort((a, b) => Number(a.position) - Number(b.position))
     .map((image, index) => ({
-      id: image.id,
-      state: 'saved',
+      image,
       description: image.description ?? COPY.defaultDescription.saved(order.number, index + 1),
-      thumb: { src: image.thumb.src, srcSet: image.thumb.srcSet },
     }));
+}
+
+function savedTiles(order: OrderDetailResponse): PhotoTileModel[] {
+  return orderedImages(order).map(({ image, description }) => ({
+    id: image.id,
+    state: 'saved',
+    description,
+    thumb: { src: image.thumb.src, srcSet: image.thumb.srcSet },
+  }));
+}
+
+function viewerPhotos(order: OrderDetailResponse): PhotoViewerPhoto[] {
+  return orderedImages(order).map(({ image, description }) => ({
+    id: image.id,
+    alt: description,
+    viewer: {
+      src: image.viewer.src,
+      srcSet: image.viewer.srcSet,
+      width: Number(image.width),
+      height: Number(image.height),
+    },
+    fullSize: image.fullSize,
+  }));
 }
 
 function queuedTile(item: QueueItem): PhotoTileModel {
@@ -88,6 +120,47 @@ export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
   const [pickErrors, setPickErrors] = useState<readonly PickError[]>([]);
   const [leftOut, setLeftOut] = useState(0);
   const photos = [...savedTiles(order), ...queue.items.map(queuedTile)];
+  const viewing = viewerPhotos(order);
+
+  // The viewer shows the saved photo at this position; null while it is closed.
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The photo whose thumb takes focus once the viewer has closed.
+  const returnTo = useRef<string | null>(null);
+
+  const openViewer = (id: string): void => {
+    const at = viewing.findIndex((photo) => photo.id === id);
+    if (at >= 0) {
+      setViewerIndex(at);
+    }
+  };
+  const closeViewer = (lastShownId: string): void => {
+    returnTo.current = lastShownId;
+    setViewerIndex(null);
+  };
+  // After the viewer's own focus return: the thumb of the photo shown last, else the card heading (no photos left).
+  const focusAfterViewer = useEffectEvent((): void => {
+    const id = returnTo.current;
+    if (id === null) {
+      return;
+    }
+    returnTo.current = null;
+    const at = viewing.findIndex((photo) => photo.id === id);
+    const photo = viewing[at];
+    const name = photo === undefined ? undefined : MEDIA_COPY.tile.open(at + 1, viewing.length, photo.alt);
+    const thumb = [...(bodyRef.current?.querySelectorAll<HTMLElement>('button[aria-label]') ?? [])].find(
+      (button) => button.getAttribute('aria-label') === name,
+    );
+    const target = thumb ?? headingRef.current;
+    target?.scrollIntoView({ block: 'nearest' });
+    target?.focus({ preventScroll: true });
+  });
+  useEffect(() => {
+    if (viewerIndex === null) {
+      focusAfterViewer();
+    }
+  }, [viewerIndex]);
 
   // One pick at a time, so a second pick counts the files the first one queued.
   const picking = useRef<Promise<void>>(Promise.resolve());
@@ -158,7 +231,7 @@ export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
     <section className={orderCardClasses} aria-labelledby={TITLE_ID}>
       <div className={orderCardHeadClasses}>
         <div>
-          <h2 id={TITLE_ID} tabIndex={-1} className={orderCardTitleClasses}>
+          <h2 ref={headingRef} id={TITLE_ID} tabIndex={-1} className={orderCardTitleClasses}>
             {COPY.title}
           </h2>
           <p className={orderCardHintClasses}>{COPY.hints.live}</p>
@@ -172,7 +245,7 @@ export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
           )}
         </div>
       </div>
-      <div className={orderPhotosBodyClasses}>
+      <div ref={bodyRef} className={orderPhotosBodyClasses}>
         {queue.failed > 0 && queue.progress === null && (
           <div role="alert" className={orderPhotosBannerClasses}>
             <span className={orderPhotosBannerIconClasses}>
@@ -200,12 +273,22 @@ export function OrderPhotosCard({ order }: OrderPhotosCardProps) {
           onDelete={() => undefined}
           onRemove={queue.remove}
           onRetry={queue.retry}
-          onOpen={() => undefined}
+          onOpen={openViewer}
         />
         <div aria-live="polite" className={srOnlyClasses}>
           {queue.announcement}
         </div>
       </div>
+      {viewerIndex !== null && (
+        <PhotoViewer
+          photos={viewing}
+          index={viewerIndex}
+          onIndexChange={setViewerIndex}
+          onClose={closeViewer}
+          label={MEDIA_COPY.uploader.listName}
+          sizes={VIEWER_SIZES}
+        />
+      )}
     </section>
   );
 }
