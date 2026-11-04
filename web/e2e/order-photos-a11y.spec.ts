@@ -75,8 +75,6 @@ interface SeedOptions {
   readonly status?: string;
   /** A cash payment of this amount, received by the signed-in Manager. */
   readonly payment?: { readonly amount: number };
-  /** Due long ago, so the Orders list puts the order on its first page whatever else the database holds. */
-  readonly old?: boolean;
 }
 
 /** Seeds an order with one item (6 x 700 = 4,200.00) and returns its id and number. */
@@ -91,8 +89,9 @@ async function seedOrder(
     ...(options.status === undefined ? {} : { status: options.status }),
     customerName: 'E2E A11y Customer',
     teamName: 'E2E A11y Team',
-    orderDate: options.old === true ? '2000-01-01' : manilaDate(-3),
-    dueDate: options.old === true ? '2000-01-02' : manilaDate(5),
+    orderDate: manilaDate(-3),
+    // Far out, so these orders never crowd the first page of the soonest-due Orders list that other specs read.
+    dueDate: manilaDate(400),
     items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E a11y jersey', quantity: 6, unitPrice: 700 }],
     ...(options.payment === undefined
       ? {}
@@ -496,9 +495,9 @@ test('@order-photos-a11y the Orders grid and table with a cover have no axe viol
 }) => {
   test.setTimeout(300_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
-  const { number } = await orderWithPhotos(page, request, 1, { old: true });
+  const { number } = await orderWithPhotos(page, request, 1);
 
-  await page.goto('/admin/orders?view=grid');
+  await page.goto(`/admin/orders?q=${number}&view=grid`);
   const card = page.getByRole('article').filter({ hasText: number });
   await expect(card).toHaveCount(1);
   // A cover loads lazily, so it is brought into view first.
@@ -506,7 +505,7 @@ test('@order-photos-a11y the Orders grid and table with a cover have no axe viol
   await expect.poll(() => coverWidth(card), { timeout: 20_000 }).toBeGreaterThan(0);
   await expectNoAxeViolations(page);
 
-  await page.goto('/admin/orders?view=table');
+  await page.goto(`/admin/orders?q=${number}&view=table`);
   const row = page.getByRole('row').filter({ hasText: number });
   await expect(row).toHaveCount(1);
   await row.scrollIntoViewIfNeeded();

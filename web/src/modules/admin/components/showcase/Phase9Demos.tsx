@@ -1,5 +1,5 @@
 // The Phase 9 demos of the Component Showcase (UI-SPEC Component Inventory "Component Showcase additions" and "UI Considerations";
-// plan 09-30): the order photo pieces on made-up photos, in the "Order photos" section. Every photo is a small SVG drawn here as a
+// plan 09-30): the order photo pieces on made-up photos, in the "Order photos" section. Every photo is a flat-colour one-pixel PNG, written out here as a
 // `data:` address, so nothing is ever requested and no photo store is touched. The pieces are the real shared parts wired to local
 // state: the photo list in its states (saved, uploading, waiting, failed, draft, no preview, pick errors, over the limit), the
 // partial-failure banner and status line, the viewer on tall and wide photos, the description window with its 409 banner, the delete
@@ -49,20 +49,48 @@ const ORDER_NUMBER = 'ORD-2026-0148';
 const MAX = 5;
 const MEGABYTES = 10;
 
-/** A made-up photo: a gradient with a circle, drawn as a `data:` address. The size is the stored size (it sets the box ratio). */
-function demoPhoto(hue: number, width: number, height: number): string {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}" viewBox="0 0 ${String(width)} ${String(height)}">` +
-    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${String(hue)} 60% 42%)"/>` +
-    `<stop offset="1" stop-color="hsl(${String((hue + 70) % 360)} 65% 62%)"/></linearGradient></defs>` +
-    `<rect width="100%" height="100%" fill="url(#g)"/>` +
-    `<circle cx="${String(width / 2)}" cy="${String(height / 2)}" r="${String(Math.min(width, height) / 4)}" fill="hsl(${String(hue)} 40% 92%)" fill-opacity="0.8"/></svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+/** Made-up photos: flat colours drawn as one-pixel PNG `data:` addresses. The box (its ratio and size) gives the photo its shape. */
+const PHOTO_COLOURS: readonly (readonly [number, string])[] = [
+  [
+    20,
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4Xe4LAAOgAZDBbDQ6AAAAAElFTkSuQmCC',
+  ],
+  [
+    60,
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4fdoXAARIAeR9bBlJAAAAAElFTkSuQmCC',
+  ],
+  [
+    130,
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPwPZ0EAALjAXvD9iK+AAAAAElFTkSuQmCC',
+  ],
+  [
+    200,
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPwXXgaAAL4AbqHSdbpAAAAAElFTkSuQmCC',
+  ],
+  [
+    280,
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNY6HsaAANMAboNIAXqAAAAAElFTkSuQmCC',
+  ],
+  [
+    340,
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM47VsOAAN2AZC8HlqrAAAAAElFTkSuQmCC',
+  ],
+];
+
+/** The made-up photo whose colour is nearest to the hue. */
+function demoPhoto(hue: number): string {
+  let best = PHOTO_COLOURS[0];
+  for (const entry of PHOTO_COLOURS) {
+    if (best === undefined || Math.abs(entry[0] - hue) < Math.abs(best[0] - hue)) {
+      best = entry;
+    }
+  }
+  return best?.[1] ?? '';
 }
 
 /** A saved photo tile. The default description follows the photo's place, as in the app. */
 function saved(position: number, hue: number, description?: string): PhotoTileModel {
-  const src = demoPhoto(hue, 640, 480);
+  const src = demoPhoto(hue);
   return {
     id: `saved-${String(position)}`,
     state: 'saved',
@@ -83,15 +111,15 @@ const UPLOAD_TILES: readonly PhotoTileModel[] = [
     state: 'uploading',
     description: '',
     fileName: 'front-mockup.jpg',
-    preview: demoPhoto(90, 176, 132),
+    preview: demoPhoto(90),
   },
-  { id: 'waiting', state: 'waiting', description: '', fileName: 'back-mockup.jpg', preview: demoPhoto(310, 176, 132) },
+  { id: 'waiting', state: 'waiting', description: '', fileName: 'back-mockup.jpg', preview: demoPhoto(310) },
   {
     id: 'failed',
     state: 'failed',
     description: '',
     fileName: 'sleeve.jpg',
-    preview: demoPhoto(150, 176, 132),
+    preview: demoPhoto(150),
     failure: { reason: COPY.reasons.network, retryable: true },
   },
 ];
@@ -115,7 +143,7 @@ const DRAFT_TILES: readonly PhotoTileModel[] = [
     state: 'draft',
     description: COPY.defaultDescription.draft(1),
     fileName: 'front.jpg',
-    preview: demoPhoto(200, 176, 132),
+    preview: demoPhoto(200),
   },
   {
     id: 'draft-2',
@@ -237,7 +265,7 @@ const VIEWER_PHOTOS: readonly PhotoViewerPhoto[] = VIEWER_SHAPES.map((shape, ind
   id: `viewer-${String(index + 1)}`,
   alt: `${shape.name} photo of order ${ORDER_NUMBER}`,
   viewer: {
-    src: demoPhoto(shape.hue, shape.width, shape.height),
+    src: demoPhoto(shape.hue),
     srcSet: '',
     width: shape.width,
     height: shape.height,
@@ -386,7 +414,7 @@ const COVER_ORDER: OrderCardOrder = {
 };
 
 function cover(count: number): OrderCardCover {
-  return { image: { src: demoPhoto(200, 640, 400), srcSet: '', width: 640, height: 400 }, count };
+  return { image: { src: demoPhoto(200), srcSet: '', width: 640, height: 400 }, count };
 }
 
 /** The Orders list covers: three photos (the image chip), one photo (no chip) and no photo (the placeholder). */
