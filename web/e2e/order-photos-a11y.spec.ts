@@ -675,3 +675,20 @@ test('@order-photos-a11y UIC-42 every photo control has a name, a big enough tar
     await expectNoAxeViolations(page);
   }
 });
+
+test('@order-photos-a11y the Order photos showcase cases show on request and have no axe violation', async ({
+  page,
+}) => {
+  // About 200 cases plus the Order photos cases: the first load is slow in WebKit, so the waits here are long.
+  test.setTimeout(240_000);
+  const response = await page.goto('/dev/components');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveText('Component Showcase', { timeout: 60_000 });
+  await expect(page.locator('[data-case="photos-list-three"]')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Show the Order photos cases' }).click();
+
+  await expect(page.locator('[data-case="photos-list-three"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-case="photos-viewer"]')).toBeVisible();
+  await expectNoAxeViolations(page);
+});

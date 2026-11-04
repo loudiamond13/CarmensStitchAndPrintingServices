@@ -81,6 +81,7 @@ export const SHOWCASE_COPY = {
   },
   /** SPEC-GAP dev wording: the Order photos demos (plan 09-30). Made-up photos only, drawn as local data: images. */
   photos: {
+    show: 'Show the Order photos cases',
     openViewer: 'Open viewer with 5 photos',
     openViewerOne: 'Open viewer with 1 photo',
     openDescription: 'Open Edit Description (409)',

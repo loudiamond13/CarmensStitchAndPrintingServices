@@ -4,7 +4,7 @@
 // trigger, and nothing is saved or deleted (the Delete Order demo only raises the spec §9.3 success toast). The extra
 // cases show what no scenario does: the 56 icons with their names, the toast triggers for every tone, formatted
 // dates and a loaded LazyImage.
-import { useId, useState, type ComponentType } from 'react';
+import { lazy, Suspense, useId, useState, type ComponentType } from 'react';
 import { formatCalendarDate } from '@/utils/format';
 import {
   Button,
@@ -44,7 +44,6 @@ import {
 import { Phase5Demos } from './Phase5Demos';
 import { Phase6Demos } from './Phase6Demos';
 import { Phase8Demos } from './Phase8Demos';
-import { Phase9Demos } from './Phase9Demos';
 import { SHOWCASE_COPY } from './showcaseCopy';
 import type { ShowcaseSectionId } from './showcaseSections';
 
@@ -409,6 +408,35 @@ function LoadedLazyImage() {
   );
 }
 
+const Phase9Demos = lazy(() => import('./Phase9Demos').then((module) => ({ default: module.Phase9Demos })));
+
+/**
+ * The Order photos cases mount when asked for. They add about 70 photo controls and as many images to a page of about 200 cases,
+ * and WebKit's first load of this page is slow enough that the existing specs, which wait 5 seconds for the heading, began to fail
+ * with them in the first render. Their code loads with the first press too, so the page's own chunk stays as it was. Phase9Demos.test.tsx and the `@order-photos-a11y` showcase test cover them.
+ */
+function Phase9OnRequest() {
+  const [shown, setShown] = useState(false);
+  if (shown) {
+    return (
+      <Suspense fallback={null}>
+        <Phase9Demos />
+      </Suspense>
+    );
+  }
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => {
+        setShown(true);
+      }}
+    >
+      {SHOWCASE_COPY.photos.show}
+    </Button>
+  );
+}
+
 export interface ExtraCase {
   readonly id: string;
   readonly Component: ComponentType;
@@ -429,5 +457,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
   staff: [{ id: 'showcase-staff-and-audit', Component: Phase5Demos, demo: true }],
   expenses: [{ id: 'showcase-company-expenses', Component: Phase6Demos, demo: true }],
   orders: [{ id: 'showcase-orders', Component: Phase8Demos, demo: true }],
-  photos: [{ id: 'showcase-order-photos', Component: Phase9Demos, demo: true }],
+  photos: [{ id: 'showcase-order-photos', Component: Phase9OnRequest, demo: true }],
 };
