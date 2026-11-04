@@ -12,7 +12,8 @@ namespace Csps.Application.Orders;
 /// <c>confirm</c>). In one transaction the audit trail records <c>order.permanently-deleted</c> first, with the money facts and the
 /// people's user ids and never customer details or notes, and then the order is removed with its items, discounts, payments,
 /// expenses, refunds and history, so the entry stays when the rows are gone. A tracked remove is used, not a bulk delete, so the
-/// audit row and the delete share one save. No version is sent: the delete applies to the latest state, so a lost race is read again
+/// audit row and the delete share one save. Each photo file is queued for removal in that same save and nothing calls the photo storage
+/// here (D-20, JOB-02), so a rolled-back delete queues nothing. No version is sent: the delete applies to the latest state, so a lost race is read again
 /// and decided again, and an order that is already gone is a 404 that writes nothing. The 404 comes before the confirm check, so a
 /// wrong id never learns anything about the order.
 /// </summary>
@@ -23,9 +24,6 @@ public sealed class PermanentlyDeleteOrderHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
 {
-    // Compile shell for the red test: the queue is not used yet.
-    private readonly IImageDeletionQueue _imageDeletions = imageDeletions;
-
     /// <summary>Deletes the order for good.</summary>
     /// <param name="id">The order to remove.</param>
     /// <param name="confirm">The order number as typed by the caller; null when none was sent.</param>
@@ -64,6 +62,11 @@ public sealed class PermanentlyDeleteOrderHandler(
             OrderAuditDetail.OrderTarget,
             AuditKey.Of(order.Id),
             OrderAuditDetail.PermanentlyDeleted(order));
+        foreach (var image in order.Images)
+        {
+            imageDeletions.Enqueue(image.PublicId, ImageDeletionReason.OrderDeleted);
+        }
+
         orders.Remove(order);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);

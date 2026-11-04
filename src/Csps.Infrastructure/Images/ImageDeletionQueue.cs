@@ -16,16 +16,14 @@ internal sealed class ImageDeletionQueue(CspsDbContext context, IDbContextFactor
     private const string PrivateDelivery = "private";
 
     /// <inheritdoc />
-    public void Enqueue(string publicId, ImageDeletionReason reason)
-    {
-        // Compile shell: the row is not added yet.
-        _ = (context, publicId, reason);
-    }
+    public void Enqueue(string publicId, ImageDeletionReason reason) =>
+        context.Set<ImageDeletion>().Add(ImageDeletion.Queue(publicId, PrivateDelivery, reason, time.GetUtcNow()));
 
     /// <inheritdoc />
     public Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken)
     {
-        _ = (contexts, time, PrivateDelivery, publicId, reason, cancellationToken);
+        // Compile shell until the own-context write is tested (Task 2).
+        _ = (contexts, publicId, reason, cancellationToken);
         return Task.CompletedTask;
     }
 }
