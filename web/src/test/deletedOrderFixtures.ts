@@ -6,6 +6,7 @@ import {
   buildOrderDetail,
   order0148,
   orderId,
+  orderImage,
   orderRefund,
   ORDER_STAFF,
   type OrderDetailFixture,
@@ -56,7 +57,14 @@ export function deletedOrderDetail(
 /** An order that holds only the child rows asked for, for the permanent-delete tiles. */
 export function orderWithCounts(
   number: string,
-  counts: { items?: number; payments?: number; discounts?: number; expenses?: number; refunds?: number },
+  counts: {
+    items?: number;
+    payments?: number;
+    discounts?: number;
+    expenses?: number;
+    refunds?: number;
+    images?: number;
+  },
   id: string = orderId(9),
 ): OrderDetailFixture {
   const base = buildOrderDetail({ id, number });
@@ -69,6 +77,7 @@ export function orderWithCounts(
     discounts: take(base.discounts, counts.discounts),
     expenses: take(base.expenses, counts.expenses),
     refunds: take([orderRefund('2026-10-04', 100, 'Test refund')], counts.refunds),
+    images: Array.from({ length: counts.images ?? 0 }, (_unused, index) => orderImage(index + 1)),
   };
 }
 

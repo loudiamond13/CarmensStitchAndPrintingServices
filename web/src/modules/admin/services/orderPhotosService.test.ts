@@ -91,6 +91,19 @@ describe('orderPhotosService.move', () => {
   });
 });
 
+describe('orderPhotosService.remove', () => {
+  it('calls DELETE /orders/{id}/images/{imageId} with no body, no version and no Idempotency-Key, and resolves the whole order', async () => {
+    const { fake, service } = serviceWith([{ body: order0148 }]);
+
+    await expect(service.remove(ORDER_ID, IMAGE_ID)).resolves.toEqual(order0148);
+
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/orders/${ORDER_ID}/images/${IMAGE_ID}`);
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+    expect(fake.calls[0]?.body ?? null).toBeNull();
+  });
+});
+
 describe('orderPhotosService.describe', () => {
   it('calls PUT /orders/{id}/images/{imageId} with the description and the order version, and no Idempotency-Key', async () => {
     const { fake, service } = serviceWith([{ body: order0148 }]);

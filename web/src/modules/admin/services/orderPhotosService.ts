@@ -49,6 +49,12 @@ export interface OrderPhotosService {
     version: string,
     signal?: AbortSignal,
   ): Promise<OrderDetailResponse>;
+  /**
+   * `DELETE /api/v1/orders/{orderId}/images/{imageId}`: removes the photo and answers the whole order. It acts on the latest
+   * state, so it sends no body, no `version` and no Idempotency-Key. The server queues the Cloudinary removal. `404` (already
+   * deleted), `422 orders.locked`.
+   */
+  remove(orderId: string, imageId: string, signal?: AbortSignal): Promise<OrderDetailResponse>;
 }
 
 const imagePath = (orderId: string, imageId: string): string =>
@@ -71,6 +77,7 @@ export function createOrderPhotosService(client: HttpClient): OrderPhotosService
       client.put<OrderDetailResponse>(`${imagePath(orderId, imageId)}/position`, { position, version }, { signal }),
     describe: (orderId, imageId, description, version, signal) =>
       client.put<OrderDetailResponse>(imagePath(orderId, imageId), { description, version }, { signal }),
+    remove: (orderId, imageId, signal) => client.delete<OrderDetailResponse>(imagePath(orderId, imageId), { signal }),
   };
 }
 

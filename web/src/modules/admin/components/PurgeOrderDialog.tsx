@@ -32,13 +32,14 @@ export interface PurgeOrderDialogProps {
   onDone: (outcome: 'purged' | 'gone') => void;
 }
 
-/** The tiles: the count of each kind of row the deleted order holds. Images join in Phase 9, so they are 0 for now. */
+/** The tiles: the count of each kind of row the deleted order holds. A permanent delete removes the photos too (D-20). */
 function countsOf(order: {
   items: readonly unknown[];
   payments: readonly unknown[];
   discounts: readonly unknown[];
   expenses: readonly unknown[];
   refunds: readonly unknown[];
+  images: readonly unknown[];
 }): CascadeCounts {
   return {
     items: order.items.length,
@@ -46,7 +47,7 @@ function countsOf(order: {
     discounts: order.discounts.length,
     expenses: order.expenses.length,
     refunds: order.refunds.length,
-    images: 0,
+    images: order.images.length,
   };
 }
 

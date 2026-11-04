@@ -2,8 +2,9 @@
 // memory and uploaded one at a time; a saved photo shows the thumb the server delivers. Every figure and address is the server's.
 // A saved photo's thumb opens the viewer (D-16); closing it puts focus on the thumb of the photo shown last. Moving a photo saves at
 // once (D-13, D-15): the buttons and the drag send the same request, the page takes the server's answer, and the card says
-// "Saved" and announces the new place. Edit description opens the description window, which saves the photo itself (D-12, P5);
-// deleting a saved photo arrives in a later plan.
+// "Saved" and announces the new place. Edit description opens the description window, which saves the photo itself (D-12, P5).
+// Delete photo asks first (P7, D-15, Cancel focused); a delete takes the server's answer, says how many photos are left, and puts
+// focus on the next photo's thumb, else the previous one's, else the first add control, else the card heading.
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Icon } from '@/components/brand';
@@ -13,10 +14,12 @@ import {
   ImageUploader,
   MEDIA_COPY,
   PhotoViewer,
+  type AddControlHandle,
   type PhotoTileModel,
   type PhotoViewerPhoto,
   type PickError,
 } from '@/components/media';
+import { ConfirmDialog } from '@/components/overlays';
 import {
   orderPhotosBannerBodyClasses,
   orderPhotosBannerClasses,
@@ -105,8 +108,26 @@ interface FocusPlan {
   readonly control: FocusControl;
 }
 
+/** The delete dialog as it was opened: which photo and where it stood. Kept while the dialog animates out. */
+interface DeleteWindow {
+  readonly open: boolean;
+  readonly id: string;
+  readonly position: number;
+}
+
+/** What waits for the deleted photo to leave the page before focus moves: the photos to try, nearest first. */
+interface AfterDelete {
+  readonly removedId: string;
+  readonly candidates: readonly string[];
+}
+
 /** The statuses whose own sentence the server writes for staff (a lock, a photo that is gone, a refused value). */
 const SERVER_WORDS: ReadonlySet<number> = new Set([400, 404, 422]);
+
+/** The dialog's own failure line: the server's sentence for a lock; any other failure is left to the shared mapper. */
+function describeDeleteFailure(error: unknown): string | undefined {
+  return isHttpError(error) && error.kind === 'http' && error.status === 422 ? error.problem?.detail : undefined;
+}
 
 /** How long "Saved" stays on the status line (D-15). */
 const SAVED_MS = 4000;
@@ -166,6 +187,11 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
   const headingRef = useRef<HTMLHeadingElement>(null);
   // The photo whose thumb takes focus once the viewer has closed.
   const returnTo = useRef<string | null>(null);
+  // The named button inside the card (a thumb or a per-photo control), if it is on screen.
+  const findControl = (name: string): HTMLElement | undefined =>
+    [...(bodyRef.current?.querySelectorAll<HTMLElement>('button[aria-label]') ?? [])].find(
+      (button) => button.getAttribute('aria-label') === name,
+    );
 
   const openViewer = (id: string): void => {
     const at = viewing.findIndex((photo) => photo.id === id);
@@ -257,8 +283,45 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
       });
     },
   );
+
+  // The delete dialog, and where focus goes once the photo has left the page or the dialog was cancelled (P7, D-15).
+  const [deleting, setDeleting] = useState<DeleteWindow | null>(null);
+  const afterDelete = useRef<AfterDelete | null>(null);
+  const cancelledDelete = useRef<string | null>(null);
+  const addControl = useRef<AddControlHandle>(null);
+  const closeDelete = (): void => {
+    setDeleting((current) => (current === null ? null : { ...current, open: false }));
+  };
+  // The photos to try for focus once `id` is gone: the ones after it, then the ones before it, nearest first.
+  const neighbours = (id: string): string[] => {
+    const places = orderedImages(queryClient.getQueryData<OrderDetailResponse>(orderKey(order.id)) ?? order).map(
+      ({ image }) => image.id,
+    );
+    const at = places.indexOf(id);
+    return at < 0 ? [] : [...places.slice(at + 1), ...places.slice(0, at).reverse()];
+  };
+  const removal = useOrderAction<{ readonly id: string }>(
+    (_key, target) => orderPhotosService.remove(order.id, target.id),
+    (answer, target) => {
+      const left = orderedImages(answer).length;
+      afterDelete.current = { removedId: target.id, candidates: neighbours(target.id) };
+      closeDelete();
+      applyOrder(answer);
+      setAnnouncement(COPY.announce.deleted(left));
+      setSaved(true);
+    },
+    (error) => {
+      // A lock: the page is out of date as well as refused, so the card reads the order again and turns read-only.
+      if (isHttpError(error) && error.kind === 'http' && error.status === 422) {
+        void refetchOrder(order.id);
+      }
+    },
+  );
   // Saved photos can change only while no change is saving and nothing is uploading (UI-SPEC busy rule).
-  const busy = moving.pending || queue.items.some((item) => item.state === 'waiting' || item.state === 'uploading');
+  const busy =
+    moving.pending ||
+    removal.pending ||
+    queue.items.some((item) => item.state === 'waiting' || item.state === 'uploading');
 
   // Which move control has focus now: the answer puts focus back on it, on the moved photo. A drag leaves focus alone.
   const pressedControl = (position: number): FocusControl | null => {
@@ -284,6 +347,39 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
   };
   const onMakeCover = (id: string): void => {
     move(id, 0, 'cover');
+  };
+
+  // Delete photo n asks first. The photo's place is kept so the title still reads right while the answer arrives.
+  const onDelete = (id: string): void => {
+    const at = orderedImages(order).findIndex(({ image }) => image.id === id);
+    if (busy || at < 0) {
+      return;
+    }
+    setAnnouncement('');
+    setSaved(false);
+    afterDelete.current = null;
+    setDeleting({ open: true, id, position: at + 1 });
+  };
+  const cancelDelete = (): void => {
+    if (deleting !== null) {
+      cancelledDelete.current = MEDIA_COPY.tile.deletePhoto(deleting.position);
+    }
+    closeDelete();
+  };
+  // Someone deleted the photo first: the dialog closes, the photos are read again and the card says so.
+  const alreadyDeleted = (id: string): void => {
+    afterDelete.current = { removedId: id, candidates: neighbours(id) };
+    closeDelete();
+    void refetchOrder(order.id);
+    setAnnouncement(COPY.announce.alreadyDeleted);
+  };
+  const confirmDelete = async (id: string) => {
+    const outcome = await removal.submit({ id });
+    if (!outcome.ok && isHttpError(outcome.error) && outcome.error.kind === 'http' && outcome.error.status === 404) {
+      alreadyDeleted(id);
+      return undefined;
+    }
+    return outcome;
   };
 
   // The description window opens with the latest order the page holds, so its save sends that version (P5).
@@ -344,6 +440,39 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
   useEffect(() => {
     focusMoved();
   }, [order]);
+
+  // Once the dialog has closed: after a Cancel, focus returns to that photo's Delete control. After a delete, once the answer no
+  // longer holds the photo, it goes to the next photo's thumb, else the previous one's, else the first add control, else the heading.
+  const focusAfterDelete = useEffectEvent((): void => {
+    if (deleting?.open === true) {
+      return;
+    }
+    const cancelled = cancelledDelete.current;
+    if (cancelled !== null) {
+      cancelledDelete.current = null;
+      findControl(cancelled)?.focus();
+    }
+    const wanted = afterDelete.current;
+    const places = orderedImages(order);
+    if (wanted === null || places.some(({ image }) => image.id === wanted.removedId)) {
+      return;
+    }
+    afterDelete.current = null;
+    const nextId = wanted.candidates.find((id) => places.some(({ image }) => image.id === id));
+    const at = places.findIndex(({ image }) => image.id === nextId);
+    const next = places[at];
+    if (next !== undefined) {
+      findControl(MEDIA_COPY.tile.open(at + 1, places.length, next.description))?.focus();
+      return;
+    }
+    addControl.current?.focus();
+    if (bodyRef.current?.contains(document.activeElement) !== true) {
+      headingRef.current?.focus();
+    }
+  });
+  useEffect(() => {
+    focusAfterDelete();
+  }, [order, deleting]);
 
   // One pick at a time, so a second pick counts the files the first one queued.
   const picking = useRef<Promise<void>>(Promise.resolve());
@@ -461,10 +590,11 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
           onMove={onMove}
           onMakeCover={onMakeCover}
           onEditDescription={onEditDescription}
-          onDelete={() => undefined}
+          onDelete={onDelete}
           onRemove={queue.remove}
           onRetry={queue.retry}
           onOpen={openViewer}
+          addControlRef={addControl}
         />
         <div aria-live="polite" className={srOnlyClasses}>
           {queue.announcement}
@@ -491,6 +621,19 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
           onClose={() => {
             setDescribing((opened) => (opened === null ? null : { ...opened, open: false }));
           }}
+        />
+      )}
+      {deleting !== null && (
+        <ConfirmDialog
+          open={deleting.open}
+          title={COPY.delete.title(deleting.position)}
+          message={COPY.delete.message(order.number)}
+          cancelLabel={COPY.delete.cancel}
+          confirmLabel={COPY.delete.confirm}
+          pendingLabel={COPY.delete.pending}
+          describeFailure={describeDeleteFailure}
+          onConfirm={() => confirmDelete(deleting.id)}
+          onCancel={cancelDelete}
         />
       )}
       {viewerIndex !== null && (
