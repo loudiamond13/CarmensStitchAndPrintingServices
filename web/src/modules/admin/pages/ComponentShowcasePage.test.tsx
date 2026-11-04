@@ -30,6 +30,7 @@ const SECTION_TITLES = [
   'Staff and audit',
   'Expenses and settings',
   'Orders',
+  'Order photos',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */

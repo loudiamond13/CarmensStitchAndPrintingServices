@@ -44,6 +44,7 @@ import {
 import { Phase5Demos } from './Phase5Demos';
 import { Phase6Demos } from './Phase6Demos';
 import { Phase8Demos } from './Phase8Demos';
+import { Phase9Demos } from './Phase9Demos';
 import { SHOWCASE_COPY } from './showcaseCopy';
 import type { ShowcaseSectionId } from './showcaseSections';
 
@@ -428,4 +429,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
   staff: [{ id: 'showcase-staff-and-audit', Component: Phase5Demos, demo: true }],
   expenses: [{ id: 'showcase-company-expenses', Component: Phase6Demos, demo: true }],
   orders: [{ id: 'showcase-orders', Component: Phase8Demos, demo: true }],
+  photos: [{ id: 'showcase-order-photos', Component: Phase9Demos, demo: true }],
 };

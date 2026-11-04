@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T20:30:00-06:00
-updated: 2026-11-03T23:40:00-06:00
+updated: 2026-11-04T09:30:00-06:00
 ---
 
 # Cloudinary setup: where the photo keys go
@@ -113,3 +113,31 @@ Every monthly maintenance run now prints two lines: the storage used in GB and t
 - Cloudinary usage could not be read, for example because the keys are wrong.
 
 If photo storage is not set up, the run prints a plain line saying so and does not fail.
+
+## Your one-time checks on the dev account (plan 09-30)
+
+Claude cannot do these: they use your real account and your real photos. Do them after the three keys are in your dev user-secrets. Nothing here is committed, and the photos you use stay on your computer.
+
+1. Run `dotnet run --project tools/Csps.CloudinarySetup -- --check`. It changes nothing. Note the last line (the count).
+2. Run the same command without `--check`. Then run `--check` again. The last line must say `13 exist`.
+3. In the Cloudinary console, Settings, Security, tick strict transformations.
+4. Start the dev site (Claude can start it after the shared-machine check). Sign in and open a test order.
+5. Add one real JPEG that has a location (a normal phone photo). Check that it shows upright and sharp. Click the photo, then "Open Full Size".
+6. Add one real iPhone photo in the HEIC format. Check that it shows upright.
+7. Open each full-size photo in any photo-info viewer. It must show no GPS location.
+8. Tell Claude: the count line from step 2, whether strict mode is on, and what you saw for both photos (upright or not, GPS or not).
+
+If the HEIC photo fails at Cloudinary, or a GPS location is still there, Claude opens a fix plan for the metadata stripper (plan 09-15) and does not ship.
+
+## Release day: the list for the live site (plan 09-30)
+
+Do these in order when Phase 9 goes live. The list is also copied into the plan 09-30 summary for `/gsd-verify-work`.
+
+1. Apply the deploy package's `csps-migrations.sql` to the live database. It adds the `OrderImages` and `ImageDeletions` tables. It only adds; nothing is dropped or changed.
+2. Set these as app pool environment variables on the host: `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret` and `Maintenance__Key` (32 or more characters). Never paste the values into a chat or into a tracked file.
+3. Only when the database backup (plan 09-32) is built, also set `Maintenance__Backup__SqlServerFolder` and `Maintenance__Backup__AppFolder`. Keep both paths out of the repository and out of chat. Plan 09-32 waits for the hosting company's answer, so skip this item until it is built.
+4. Add the GitHub repository secret `MAINTENANCE_KEY` with the same value as `Maintenance__Key`. Check that the variable `SITE_ORIGIN` is the live https address.
+5. Deploy. Then take one photo with a phone camera on an Android phone and one on an iPhone, add each to a test order on the live site, and check that both show upright.
+6. Press "Run now" on the Maintenance workflow once. The summary must be green and show counts only. When the backup is built it must also show `Database backups written: 1`. A line saying the backup "did not show up in the app folder" means the app-side folder path is wrong; see `docs/operations/maintenance.md`.
+
+The steps for the key, the schedule and a red run are in `docs/operations/maintenance.md`.

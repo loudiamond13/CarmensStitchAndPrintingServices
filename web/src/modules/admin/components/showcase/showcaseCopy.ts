@@ -79,6 +79,13 @@ export const SHOWCASE_COPY = {
     openPurge: 'Open Delete Order Permanently',
     changeStatus: 'Change Status',
   },
+  /** SPEC-GAP dev wording: the Order photos demos (plan 09-30). Made-up photos only, drawn as local data: images. */
+  photos: {
+    openViewer: 'Open viewer with 5 photos',
+    openViewerOne: 'Open viewer with 1 photo',
+    openDescription: 'Open Edit Description (409)',
+    openDelete: 'Open Delete Photo',
+  },
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },
   /** The loaded LazyImage shows the brand mark (web/public/mark.svg). */
