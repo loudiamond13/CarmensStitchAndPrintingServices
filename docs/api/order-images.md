@@ -1,13 +1,12 @@
 # The order photos API
 
-*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-03T21:10:00-06:00*
+*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-04T00:50:00-06:00*
 
 This is the contract for the photos on an order, and the one a future Android app will use. Everything is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
 app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in [auth.md](auth.md). The
 order itself, and the `images` list it carries, are in [orders.md](orders.md). This page covers what exists today: uploading one
-photo, reading the photo rules, moving a photo (which also chooses the cover) and describing a photo. Deleting photos is added to
-this page when it ships.
+photo, reading the photo rules, moving a photo (which also chooses the cover), describing a photo and deleting a photo.
 
 ## In plain words
 
@@ -19,6 +18,8 @@ this page when it ships.
 4. The server never keeps a customer photo on disk. The file is read in memory and sent on.
 5. Every answer is the whole order, with its photos in display order.
 6. The cover is the photo at place 0. There is no separate cover flag, so the cover can never disagree with the order of the photos.
+7. Deleting a photo never calls the photo store. The photo leaves the order at once, and its file is queued for removal in the same
+   save. The file leaves the store on the next monthly cleanup run.
 
 ## Routes
 
@@ -28,9 +29,10 @@ this page when it ships.
 | `POST /orders/{id}/images` | Staff | a multipart form (below), with an `Idempotency-Key` | `200` the whole order; `400`; `404 orders.not-found`; `409 edit.stale`; `413`; `422 orders.images-full` or `orders.locked`; `429`; `503` |
 | `PUT /orders/{id}/images/{imageId}/position` | Staff | `{ "position": 0, "version": "..." }` | `200` the whole order; `400` on `position` or `version`; `404 orders.not-found` or `orders.image-not-found`; `409 edit.stale`; `422 orders.locked` |
 | `PUT /orders/{id}/images/{imageId}` | Staff | `{ "description": "...", "version": "..." }` | `200` the whole order; `400` on `description` or `version`; `404 orders.not-found` or `orders.image-not-found`; `409 edit.stale`; `422 orders.locked` |
+| `DELETE /orders/{id}/images/{imageId}` | Staff | none | `200` the whole order; `401`; `404 orders.not-found` or `orders.image-not-found`; `409 edit.stale`; `422 orders.locked` |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. No token is `401`. Both roles
-may upload to, move and describe photos on any order. No answer is ever cached (`Cache-Control: no-store`).
+may upload to, move, describe and delete photos on any order. No answer is ever cached (`Cache-Control: no-store`).
 
 ## The photo rules (`GET /api/v1/orders/image-rules`)
 
@@ -155,6 +157,30 @@ The body is `{ "description": "<text or null>", "version": "<order version>" }`.
 | `409` | `edit.stale` | | the `version` is not the stored one, or two saves lost a race |
 | `422` | `orders.locked` | This order is completed. Reopen it to make changes. (or cancelled) | the order is Completed or Cancelled; nothing changes |
 
+## Deleting a photo (`DELETE /api/v1/orders/{id}/images/{imageId}`)
+
+There is no body and no `version`. Like removing an item, the delete acts on the latest state of the order, and a save that loses a
+race is read again and decided again once.
+
+- The photo leaves the order at once. The other photos close up, so the places stay 0 to n-1 with no gap. When the cover (place 0)
+  is deleted, the next photo becomes the cover.
+- In the same save, the photo's stored file is added to the removal queue with the reason "photo deleted". Nothing calls the photo
+  store during the request, so a slow or failing store can never block a delete or leave it half done.
+- The file leaves the store on the next monthly cleanup run. Until then it stays in the store, but nothing points at it and no
+  address for it is ever given out again.
+- The photo is looked up on the order in the route only. A photo id from another order is `404`, and nothing is queued.
+- Deleting the same photo twice answers `200` and then `404 orders.image-not-found`. Only the first delete queues the file.
+- The answer is the whole order with the new `version`.
+
+| Status | Code | Message | When |
+|---|---|---|---|
+| `200` | | the whole order, without the photo, with the new places and version | the photo was deleted and its file queued |
+| `401` | | | no valid token |
+| `404` | `orders.not-found` | This order was not found or was deleted. | the order does not exist or was deleted |
+| `404` | `orders.image-not-found` | This photo is no longer on this order. | the photo is not on this order, or was already deleted |
+| `409` | `edit.stale` | | two saves lost a race twice; read the order and try again |
+| `422` | `orders.locked` | This order is completed. Reopen it to make changes. (or cancelled) | the order is Completed or Cancelled; nothing changes and nothing is queued |
+
 ## The audit entries
 
 Each upload writes one `order-image.added` entry for the order, in the same save as the photo row:
@@ -166,6 +192,7 @@ name or its description. Every place below counts from 1.
 | a photo moves | `order-image.moved` | `number=<order number>;from=<n>;to=<n>` |
 | the move changes the cover (a photo goes to place 1, or the cover leaves it) | also `order-image.cover-changed` | `number=<order number>;cover=<n>`, the place the new cover had before the move |
 | a description changes | `order-image.description-changed` | `number=<order number>;position=<n>;description=<old>><new>` |
+| a photo is deleted | `order-image.deleted` | `number=<order number>;position=<n>`, the place the photo had before it was deleted |
 
 The description entry holds the text staff typed, percent-encoded like other audit text (`%`, `;`, `=` and `>`), and cut so the
 whole detail fits the audit log's 400 character limit. A side with no stored text shows the default text of the place. No entry
