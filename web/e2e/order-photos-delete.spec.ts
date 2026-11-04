@@ -97,6 +97,17 @@ async function thumbSources(page: Page): Promise<(string | null)[]> {
   return sources;
 }
 
+/** Soft-deletes an order through the API as the signed-in Manager of this page, with a fresh token from its refresh cookie. */
+async function deleteOrderThroughApi(page: Page, id: string): Promise<void> {
+  const refreshed = await page.request.post('/api/v1/auth/refresh', { headers: { 'X-CSPS-CSRF': '1' } });
+  expect(refreshed.status(), 'POST /api/v1/auth/refresh').toBe(200);
+  const session = (await refreshed.json()) as { accessToken: string };
+  const deleted = await page.request.delete(`/api/v1/orders/${id}`, {
+    headers: { 'X-CSPS-CSRF': '1', Authorization: `Bearer ${session.accessToken}` },
+  });
+  expect(deleted.status(), `DELETE /api/v1/orders/${id}`).toBe(204);
+}
+
 /** The photo's key in a Testing image address: the part that names the photo, whatever the size. */
 function photoKey(source: string | null | undefined): string {
   const key = /\/api\/testing\/images\/([^?]+)/.exec(source ?? '')?.[1];
@@ -133,4 +144,26 @@ test('@order-photos-delete deleting the cover asks first, makes the next photo t
   const card = page.getByRole('article').filter({ hasText: number });
   await expect(card).toHaveCount(1);
   await expect(card.locator('img').first()).toHaveAttribute('src', new RegExp(photoKey(before[1])));
+});
+
+test("@order-photos-delete a Manager's permanent-delete dialog counts the order's 2 photos", async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const { id, number } = await orderWithPhotos(page, request, 2);
+  await deleteOrderThroughApi(page, id);
+
+  await page.goto(`/admin/orders/deleted/${id}`);
+  await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Order Permanently' }).click();
+
+  const dialog = page.getByRole('dialog', { name: `Delete ${number} permanently?` });
+  const box = dialog.getByRole('alert');
+  await expect(box).toContainText('and 2 images.');
+  await expect(box.getByRole('listitem').filter({ hasText: 'images' })).toHaveText('2images');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
 });
