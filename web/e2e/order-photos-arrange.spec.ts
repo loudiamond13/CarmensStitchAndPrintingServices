@@ -148,7 +148,7 @@ test('@order-photos-arrange Make Cover on photo 3 makes it the cover here and on
   await expect(page.getByRole('button', { name: 'Edit description of photo 1' })).toBeFocused();
   await expect(page.getByText('Saved', { exact: true })).toBeVisible();
 
-  await page.goto('/admin/orders?view=grid');
+  await page.goto(`/admin/orders?q=${number}&view=grid`);
   const card = page.getByRole('article').filter({ hasText: number });
   await expect(card).toHaveCount(1);
   await expect(card.locator('img').first()).toHaveAttribute('src', new RegExp(key));
