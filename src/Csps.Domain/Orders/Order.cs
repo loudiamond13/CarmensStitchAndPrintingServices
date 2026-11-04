@@ -730,6 +730,14 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return Result.Success<OrderImageMove?>(new OrderImageMove(from, toPosition, newCoverFrom));
     }
 
+    /// <summary>Sets a photo's description (red shell).</summary>
+    /// <param name="imageId">The photo.</param>
+    /// <param name="description">The text.</param>
+    /// <param name="now">The instant.</param>
+    /// <returns>A failure until built.</returns>
+    public Result<OrderImageDescriptionChange?> DescribeImage(Guid imageId, string? description, DateTimeOffset now) =>
+        Result.Failure<OrderImageDescriptionChange?>(EnsureEditable() ?? OrderImageRules.ImageNotFound);
+
     /// <summary>
     /// Adds one discount at the end of the list, checking every discount rule again. The totals are worked out again and the edit
     /// version moves, so the order's row version guards the add (ORD-08).

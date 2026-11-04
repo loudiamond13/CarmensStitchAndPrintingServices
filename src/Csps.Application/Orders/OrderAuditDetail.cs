@@ -110,6 +110,13 @@ public static class OrderAuditDetail
             AuditDetailFormat.Pair("cover", (coverFrom + 1).ToString(CultureInfo.InvariantCulture)));
     }
 
+    /// <summary>Red shell.</summary>
+    /// <param name="order">The order.</param>
+    /// <param name="image">The photo.</param>
+    /// <param name="change">The change.</param>
+    /// <returns>Nothing until built.</returns>
+    public static string ImageDescriptionChanged(Order order, OrderImage image, OrderImageDescriptionChange change) => string.Empty;
+
     /// <summary>The detail of <c>order-item.removed</c>: the item id, product type, quantity and unit price as they were.</summary>
     /// <param name="item">The item that was removed.</param>
     /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>

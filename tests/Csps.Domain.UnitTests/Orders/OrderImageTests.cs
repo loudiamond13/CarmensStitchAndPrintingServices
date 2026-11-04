@@ -294,6 +294,127 @@ public sealed class OrderImageTests
         order.EditVersion.ShouldBe(editVersion);
     }
 
+    [Fact]
+    public void ADescriptionIsTrimmedStoredAndReportedAsAChange()
+    {
+        var order = OrderWithPhotos(2);
+        var editVersion = order.EditVersion;
+
+        var described = order.DescribeImage(order.Images[0].Id, "  Front mockup  ", Later.AddHours(1));
+
+        described.IsSuccess.ShouldBeTrue();
+        described.Value.ShouldBe(new OrderImageDescriptionChange(null, "Front mockup"));
+        order.Images[0].Description.ShouldBe("Front mockup");
+        order.EditVersion.ShouldNotBe(editVersion);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("Order ORD-2026-0148 photo 2")]
+    [InlineData("  Order ORD-2026-0148 photo 2  ")]
+    public void AnEmptyDescriptionOrTheDefaultTextOfThePhotoPlaceClearsTheStoredText(string text)
+    {
+        var order = OrderWithPhotos(2);
+        order.DescribeImage(order.Images[1].Id, "Back print", Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+
+        var cleared = order.DescribeImage(order.Images[1].Id, text, Later.AddHours(2));
+
+        cleared.Value.ShouldBe(new OrderImageDescriptionChange("Back print", null));
+        order.Images[1].Description.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ADescriptionNotChangedReturnsNullAndKeepsTheEditVersion()
+    {
+        var order = OrderWithPhotos(2);
+        order.DescribeImage(order.Images[0].Id, "Front mockup", Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+        var editVersion = order.EditVersion;
+
+        order.DescribeImage(order.Images[0].Id, "Front mockup", Later.AddHours(2)).Value.ShouldBeNull();
+        order.DescribeImage(order.Images[0].Id, " Front mockup ", Later.AddHours(2)).Value.ShouldBeNull();
+        order.DescribeImage(order.Images[1].Id, null, Later.AddHours(2)).Value.ShouldBeNull();
+
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
+    [Fact]
+    public void TheDefaultTextOfAnotherPlaceIsKeptAsTypedText()
+    {
+        var order = OrderWithPhotos(2);
+
+        var described = order.DescribeImage(order.Images[0].Id, "Order ORD-2026-0148 photo 2", Later.AddHours(1));
+
+        described.Value.ShouldBe(new OrderImageDescriptionChange(null, "Order ORD-2026-0148 photo 2"));
+    }
+
+    [Fact]
+    public void AStoredNothingStillShowsTheDefaultOfTheNewPlaceAfterAMove()
+    {
+        var order = OrderWithPhotos(3);
+        var last = order.Images[2];
+
+        order.MoveImage(last.Id, 0, Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+
+        last.Description.ShouldBeNull();
+        OrderImageRules.DefaultDescription(order.Number, last.Position).ShouldBe("Order ORD-2026-0148 photo 1");
+    }
+
+    [Fact]
+    public void ADescriptionOfTwoHundredCharactersIsKeptAndOneOfTwoHundredAndOneIsRefused()
+    {
+        var order = OrderWithPhotos(1);
+        var editVersion = order.EditVersion;
+
+        order.DescribeImage(order.Images[0].Id, new string('d', 200), Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+        var versionAfterFit = order.EditVersion;
+        var refused = order.DescribeImage(order.Images[0].Id, new string('e', 201), Later.AddHours(2));
+
+        refused.Error.Kind.ShouldBe(ErrorKind.Validation);
+        refused.Error.Code.ShouldBe("orders.image-description-too-long");
+        refused.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["description"]);
+        order.Images[0].Description.ShouldBe(new string('d', 200));
+        order.EditVersion.ShouldBe(versionAfterFit);
+        versionAfterFit.ShouldNotBe(editVersion);
+    }
+
+    [Fact]
+    public void TheLimitCountsUtf16CodeUnitsLikeTheBrowser()
+    {
+        var order = OrderWithPhotos(1);
+        var emoji = char.ConvertFromUtf32(0x1F600);
+
+        order.DescribeImage(order.Images[0].Id, string.Concat(Enumerable.Repeat(emoji, 100)), Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+        order.DescribeImage(order.Images[0].Id, string.Concat(Enumerable.Repeat(emoji, 101)), Later.AddHours(2)).IsFailure.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void APhotoThatIsNotOnTheOrderCannotBeDescribed()
+    {
+        var order = OrderWithPhotos(1);
+
+        var refused = order.DescribeImage(Guid.NewGuid(), "Front", Later.AddHours(1));
+
+        refused.Error.Code.ShouldBe("orders.image-not-found");
+        refused.Error.Kind.ShouldBe(ErrorKind.NotFound);
+    }
+
+    [Theory]
+    [InlineData(OrderStatus.Completed)]
+    [InlineData(OrderStatus.Cancelled)]
+    public void AClosedOrderRefusesADescriptionAsLocked(OrderStatus status)
+    {
+        var order = OrderWithPhotos(1, unitPrice: 0m);
+        order.ChangeStatus(status, Guid.NewGuid(), Later.AddHours(1)).IsSuccess.ShouldBeTrue();
+        var editVersion = order.EditVersion;
+
+        var refused = order.DescribeImage(order.Images[0].Id, "Front", Later.AddHours(2));
+
+        refused.Error.Code.ShouldBe(OrderRules.LockedCode);
+        order.Images[0].Description.ShouldBeNull();
+        order.EditVersion.ShouldBe(editVersion);
+    }
+
     private static string[] PhotoIdsInOrder(Order order) =>
         [.. order.Images.OrderBy(image => image.Position).Select(image => image.PublicId.Split('/')[^1])];
 

@@ -192,6 +192,9 @@ public static class AuditActions
     /// <summary>The cover photo of an order changed; the detail names the order number and the 1-based place the new cover had before the move (D-14, D-19).</summary>
     public const string OrderImageCoverChanged = "order-image.cover-changed";
 
+    /// <summary>A photo's description changed; the detail names the order number, the 1-based place and the old and new text, never the photo's id or address (D-12, D-19).</summary>
+    public const string OrderImageDescriptionChanged = "order-image.description-changed";
+
     /// <summary>A payment was added to an order (D-31).</summary>
     public const string OrderPaymentAdded = "order-payment.added";
 

@@ -81,3 +81,8 @@ public static class OrderImageRules
 /// <param name="To">The place it has now.</param>
 /// <param name="NewCoverFrom">The place the new cover photo had before the move; null when the cover is the same photo.</param>
 public sealed record OrderImageMove(int From, int To, int? NewCoverFrom);
+
+/// <summary>What a description change did (D-12, D-19). A null side means the default text applies.</summary>
+/// <param name="From">The description kept before; null when none.</param>
+/// <param name="To">The description kept now; null when none.</param>
+public sealed record OrderImageDescriptionChange(string? From, string? To);

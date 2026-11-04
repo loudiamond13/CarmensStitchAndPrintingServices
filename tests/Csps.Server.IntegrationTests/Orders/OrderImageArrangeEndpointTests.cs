@@ -275,6 +275,177 @@ public sealed class OrderImageArrangeEndpointTests(CspsDatabase database) : ICla
         (await ImageAuditAsync(id)).Count(entry => entry.Action == "order-image.moved").ShouldBe(1);
     }
 
+    [Fact]
+    public async Task ADescriptionIsTrimmedSavedAndAnsweredWithTheWholeOrderAndAuditedWithOldAndNewText()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString();
+        var photos = PhotosByDescription(order);
+
+        using var response = await PutDescriptionAsync(client, manager.AccessToken, id, photos["B"], "  Front mockup  ", order.GetProperty("version").GetString());
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        DescriptionsInOrder(document.RootElement).ShouldBe(["A", "Front mockup", "C"]);
+        document.RootElement.GetProperty("version").GetString().ShouldNotBe(order.GetProperty("version").GetString());
+        var entry = (await ImageAuditAsync(id)).ShouldHaveSingleItem();
+        entry.Action.ShouldBe("order-image.description-changed");
+        entry.Detail.ShouldBe($"number={number};position=2;description=B>Front mockup");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("    ")]
+    [InlineData(null)]
+    public async Task AnEmptyDescriptionIsStoredAsNoneSoTheDefaultFollowsThePlace(string? description)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString();
+        var photos = PhotosByDescription(order);
+
+        using var response = await PutDescriptionAsync(client, manager.AccessToken, id, photos["C"], description, order.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var third = document.RootElement.GetProperty("images").EnumerateArray().Single(image => image.GetProperty("id").GetGuid() == photos["C"]);
+        third.GetProperty("description").ValueKind.ShouldBe(JsonValueKind.Null);
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().AsNoTracking().SingleAsync(row => row.Id == photos["C"], TestContext.Current.CancellationToken)).Description.ShouldBeNull();
+        (await ImageAuditAsync(id)).ShouldHaveSingleItem().Detail.ShouldBe($"number={number};position=3;description=C>Order {number} photo 3");
+    }
+
+    [Fact]
+    public async Task TheDefaultTextOfThePhotosCurrentPlaceIsStoredAsNone()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString();
+        var photos = PhotosByDescription(order);
+
+        using var response = await PutDescriptionAsync(client, manager.AccessToken, id, photos["B"], $"Order {number} photo 2", order.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().AsNoTracking().SingleAsync(row => row.Id == photos["B"], TestContext.Current.CancellationToken)).Description.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ADescriptionOf201CharactersAnswers400WithThePlainMessage()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var photos = PhotosByDescription(order);
+        var version = order.GetProperty("version").GetString();
+
+        using var fits = await PutDescriptionAsync(client, manager.AccessToken, id, photos["A"], new string('a', 200), version);
+        using var tooLong = await PutDescriptionAsync(client, manager.AccessToken, id, photos["B"], new string('b', 201), version);
+
+        tooLong.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(tooLong, TestContext.Current.CancellationToken), "description").ShouldBe(["Keep the description to 200 characters or fewer."]);
+        fits.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ASameDescriptionAnswers200WithTheSameVersionAndWritesNoAuditRow()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var version = order.GetProperty("version").GetString();
+
+        using var response = await PutDescriptionAsync(client, manager.AccessToken, id, PhotosByDescription(order)["A"], " A ", version);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("version").GetString().ShouldBe(version);
+        (await ImageAuditAsync(id)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AStaleVersionOnADescriptionAnswers409AndChangesNothing()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var photos = PhotosByDescription(order);
+        var oldVersion = order.GetProperty("version").GetString();
+        using (var moved = await PutPositionAsync(client, manager.AccessToken, id, photos["B"], 0, oldVersion))
+        {
+            moved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var stale = await PutDescriptionAsync(client, manager.AccessToken, id, photos["A"], "Late edit", oldVersion);
+
+        stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ProblemJson.ReadAsync(stale, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("edit.stale");
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().AsNoTracking().SingleAsync(row => row.Id == photos["A"], TestContext.Current.CancellationToken)).Description.ShouldBe("A");
+    }
+
+    [Fact]
+    public async Task ADeletedOrAnotherOrdersPhotoCannotBeDescribedAndAnswers404WithThePlainMessage()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var other = await OrderWithThreePhotosAsync(factory, client, manager.AccessToken);
+        var id = order.GetProperty("id").GetGuid();
+        var version = order.GetProperty("version").GetString();
+
+        using var foreign = await PutDescriptionAsync(client, manager.AccessToken, id, PhotosByDescription(other)["A"], "Mine now", version);
+        using var gone = await PutDescriptionAsync(client, manager.AccessToken, id, Guid.NewGuid(), "Gone", version);
+
+        foreach (var response in new[] { foreign, gone })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("code").GetString().ShouldBe("orders.image-not-found");
+            problem.GetProperty("detail").GetString().ShouldBe("This photo is no longer on this order.");
+        }
+
+        await using var context = database.CreateContext();
+        (await context.Set<OrderImage>().AsNoTracking().SingleAsync(row => row.Id == PhotosByDescription(other)["A"], TestContext.Current.CancellationToken)).Description.ShouldBe("A");
+    }
+
+    [Fact]
+    public async Task ACompletedOrderAnswers422LockedOnADescription()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var paid = await OrderFixtures.Ord0148PaidInFullAsync(client, admin, manager, today);
+        var id = paid.GetProperty("id").GetGuid();
+        var withPhotos = await AddThreePhotosAsync(client, manager.AccessToken, id);
+        var completed = await OrderFixtures.ChangeStatusAndReadAsync(client, manager.AccessToken, id, "completed");
+
+        using var response = await PutDescriptionAsync(client, manager.AccessToken, id, PhotosByDescription(withPhotos)["A"], "Too late", completed.GetProperty("version").GetString());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("orders.locked");
+    }
+
     private async Task<List<(string Action, string? Detail)>> ImageAuditAsync(Guid orderId)
     {
         await using var context = database.CreateContext();
@@ -323,6 +494,13 @@ public sealed class OrderImageArrangeEndpointTests(CspsDatabase database) : ICla
         form.Add(part, "file", "photo.jpg");
         form.Add(new StringContent(description), "description");
         request.Content = form;
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<HttpResponseMessage> PutDescriptionAsync(HttpClient client, string? accessToken, Guid orderId, Guid imageId, string? description, string? version)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Put, $"/api/v1/orders/{orderId:D}/images/{imageId:D}", accessToken);
+        request.Content = JsonContent.Create(new Dictionary<string, object?> { ["description"] = description, ["version"] = version });
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
