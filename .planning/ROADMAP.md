@@ -999,7 +999,7 @@ Plans:
 - eager variants
 - caching of signed URLs
 
-**Plans**: 28/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 29/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 09-01-PLAN.md — Upload one photo to an order through the API: OrderImage, 5-photo domain and database guard, random ids, 503 when unset (ORD-04, IMG-01, IMG-02, IMG-03; D-01, D-08, D-11, D-12, D-19)
@@ -1045,7 +1045,7 @@ Plans:
 - [x] 09-28-PLAN.md — Removal job with leases and retries; stray sweep (JOB-02; D-05, D-22, D-23)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 09-29-PLAN.md — Delete photos on the page; real photo count in permanent delete (ORD-04; D-15, D-20)
+- [x] 09-29-PLAN.md — Delete photos on the page; real photo count in permanent delete (ORD-04; D-15, D-20)
 - [ ] 09-32-PLAN.md — Monthly database backup job: first in the run, 20-day gap, keep its own newest 3, red on failure (JOB-01, CUT-01; D-39, D-41, D-43, D-46, D-47)
 
 **Wave 9** *(blocked on Wave 8 completion)*
@@ -1408,7 +1408,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
-| 9. Order Images & Maintenance Jobs | 28/32 | In Progress | - |
+| 9. Order Images & Maintenance Jobs | 29/32 | In Progress | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
