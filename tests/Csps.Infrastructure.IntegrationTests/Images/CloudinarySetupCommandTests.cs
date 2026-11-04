@@ -101,6 +101,9 @@ public sealed class CloudinarySetupCommandTests
 
         handler.Requests.Count.ShouldBe(11);
         handler.Requests.ShouldAllBe(request => request.Method == HttpMethod.Get);
+        handler.Requests[0].Uri.AbsolutePath.ShouldBe("/v1_1/demo-cloud/transformations");
+        handler.Requests[0].Uri.Query.ShouldContain("named=true");
+        handler.Requests[1].Uri.PathAndQuery.ShouldBe("/v1_1/demo-cloud/transformations?transformation=csps_sq_44");
     }
 
     [Fact]
