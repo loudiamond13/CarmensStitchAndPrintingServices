@@ -114,6 +114,20 @@ public sealed class ImageMetadataStripperTests
     }
 
     [Fact]
+    public void APngSplitIntoManyImageDataChunksAsBrowsersWriteItIsCleanedWhole()
+    {
+        // Chrome's canvas writes a photo as about 4 KB IDAT chunks, so a 2000 px PNG holds over a thousand of them.
+        var plain = SyntheticImages.Png(2000, 1125);
+        var data = SyntheticImages.PngChunk("IDAT", new byte[16]);
+        byte[] input = [.. plain[..^12], .. Enumerable.Repeat(data, 1500).SelectMany(chunk => chunk), .. SyntheticImages.PngChunk("IEND", [])];
+
+        var output = Strip(ImageKind.Png, input);
+
+        output.ShouldBe(input);
+        PngChunks(output).Count(chunk => chunk.Type == "IDAT").ShouldBe(1501);
+    }
+
+    [Fact]
     public void APngWithAnUnknownCriticalChunkOrNoIendOrABrokenChunkIsRefused()
     {
         var whole = SyntheticImages.Png(800, 600, SyntheticImages.PngChunk("tEXt", new byte[4]));
