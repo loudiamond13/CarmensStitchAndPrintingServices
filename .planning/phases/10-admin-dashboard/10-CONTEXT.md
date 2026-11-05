@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-05T06:50:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-05T12:00:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -88,6 +88,13 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-45:** A leaver's row with money has a **"Hand over"** button. It opens the transfer dialog with the leaver as sender (D-17). (owner, 2026-11-05)
 - **D-46:** The **dashboard money card** is a slim personal strip **above the KPI row**, under the greeting: "Your money on hand ₱8,450.00", with "Transfer" and "View ledger". It's the same for both roles. (owner, 2026-11-05)
 - **D-47:** **Transfers are recorded in a modal dialog** (To, Amount, Date defaulting to today, Note), opened from the dashboard card or the My money page, like the payment and expense dialogs. The zod schema mirrors the API validator (OR-3). (owner, 2026-11-05)
+
+### UI contract rulings (UI phase, 2026-11-05)
+
+- **D-48:** Managers get a third **"Transfers" tab** on My Money: every transfer, newest first, with Show deleted, Delete and Remove Permanently. (owner, 2026-11-05; UI-SPEC OQ-1)
+- **D-49:** A transfer **to a former staff member who is owed money** is capped at what brings them back to ₱0.00. The "To" list shows no figure; the refusal tells a Manager the amount and tells an Admin to ask a Manager. (owner, 2026-11-05; UI-SPEC OQ-2)
+- **D-50:** Chart names: "Income (payments minus refunds)", "Expenses (company + orders)", "Profit (income minus expenses)"; the tooltip's "Net" row becomes "Profit". (owner, 2026-11-05; UI-SPEC OQ-3)
+- **D-51:** On phones the chart **draws at the real width** so text stays readable; on narrow screens with 12 months it labels every other month. (owner, 2026-11-05; UI-SPEC OQ-4, OD-14)
 
 ### Claude's Discretion
 - How the balance and ledger queries are built (one ledger union view vs per-source queries), as long as no balance is stored as an editable number, there's no inline SQL, and the lock for D-14 covers every ledger source (MONEY-05).
