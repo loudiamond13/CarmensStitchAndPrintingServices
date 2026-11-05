@@ -1,6 +1,6 @@
 # Phase 10: Admin Dashboard - Research
 
-*Created: 2026-11-05T13:30:00-06:00 · Updated: 2026-11-05T13:30:00-06:00*
+*Created: 2026-11-05T13:30:00-06:00 · Updated: 2026-11-05T14:10:00-06:00*
 
 **Researched:** 2026-11-05
 **Domain:** read-side aggregates over existing order and expense data (dashboard), a new staff-money ledger with a locked check-then-write transfer, a hand-rolled SVG chart extension, and two new admin screens
@@ -664,6 +664,8 @@ new[] { first.StatusCode, second.StatusCode }.Order().ShouldBe([HttpStatusCode.C
 | A9 | The legacy holder stays out of All Staff and recipients until Phase 15 | Pitfall 9 | Phase 15 may need to show it |
 
 ## Open Questions
+
+**Resolved by the owner on 2026-11-05 (see CONTEXT.md D-52 to D-56):** OQ-1 note presence only (D-52); OQ-2 only transfer create and hand-over take the lock, backed by a race test (D-53); OQ-3 percent against the absolute value (D-54); OQ-4 Delivered orders count in due this week (D-55); OQ-5 locked or not-set-up staff are active and can receive transfers, overriding A8 (D-56).
 
 1. **Does the permanent-remove audit entry carry the note text?** (owner)
    - What we know: D-25 lists "note". The project rule (IAuditTrail, expense D-06) keeps free text and names out of the audit log, and the 400-character cap cannot hold an encoded 200-character note plus four ids.

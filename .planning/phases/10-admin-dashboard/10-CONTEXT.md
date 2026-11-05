@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-05T12:00:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-05T14:10:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -96,8 +96,16 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-50:** Chart names: "Income (payments minus refunds)", "Expenses (company + orders)", "Profit (income minus expenses)"; the tooltip's "Net" row becomes "Profit". (owner, 2026-11-05; UI-SPEC OQ-3)
 - **D-51:** On phones the chart **draws at the real width** so text stays readable; on narrow screens with 12 months it labels every other month. (owner, 2026-11-05; UI-SPEC OQ-4, OD-14)
 
+### Research rulings (plan step, 2026-11-05)
+
+- **D-52:** The permanent-remove (and delete) audit entry records only **whether the transfer had a note** (`note=yes|no`), never the note text. Keeps free text out of the audit log and fits the 400-character detail limit. (owner, 2026-11-05; RESEARCH OQ-1)
+- **D-53:** **Only transfer create and hand-over take the `staff-money` lock.** Expense, payment and refund saves do not, because they may already take a balance below zero (D-15, D-16). An integration test races a transfer against an expense for the same person and proves the transfer still never overdraws. (owner, 2026-11-05; RESEARCH OQ-2, assumption A4)
+- **D-54:** The Collected card's change percent divides by the **absolute value** of last month's comparison amount, so a move from a negative to a positive figure shows as up. Still `null` when the comparison is 0.00 (D-06). (owner, 2026-11-05; RESEARCH OQ-3, assumption A6)
+- **D-55:** "Due this week" **counts a Delivered order** whose due date falls Monday to Sunday of this week, the literal reading of D-01. (owner, 2026-11-05; RESEARCH OQ-4, assumption A5)
+- **D-56:** Staff who are **Manager-locked or never finished first sign-in set-up are treated as active**: they show as Active in All Staff with their balance and can receive transfers. Only deactivated or deleted staff get Hand Over. (owner, 2026-11-05; RESEARCH OQ-5, replaces assumption A8's "not recipients")
+
 ### Claude's Discretion
-- How the balance and ledger queries are built (one ledger union view vs per-source queries), as long as no balance is stored as an editable number, there's no inline SQL, and the lock for D-14 covers every ledger source (MONEY-05).
+- How the balance and ledger queries are built (one ledger union view vs per-source queries), as long as no balance is stored as an editable number and there's no inline SQL. The lock scope for D-14 is set by D-53 (MONEY-05).
 - The API shape and resource names for dashboard, balances, ledger, transfers and hand-over, following the one-controller-per-resource rule.
 - The chart's profit-line styling, legend and accessible text, within UI-SPEC tokens.
 - Empty, loading and error copy for each card (DASH-06), in plain English.
