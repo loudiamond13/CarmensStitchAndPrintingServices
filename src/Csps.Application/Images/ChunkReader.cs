@@ -21,7 +21,9 @@ internal enum ChunkLayout
 /// <summary>
 /// The one bounded reader behind all the container formats, shared by the sniffer and the metadata stripper. Every length is checked
 /// against what is left of the span, a length that is wrong in any way ends the walk, and the walk stops after a fixed number of
-/// entries, so a hostile file cannot cause a read past the end, a loop that does not advance, or a long scan.
+/// entries, so a hostile file cannot cause a read past the end, a loop that does not advance, or a long scan. PNG image data
+/// (IDAT) is not counted: browsers split a photo into a thousand or more of them, and each still advances at least 12 bytes, so the
+/// upload size limit bounds that walk (owner, 2026-11-05).
 /// </summary>
 internal ref struct ChunkReader
 {
@@ -66,7 +68,11 @@ internal ref struct ChunkReader
         payload = _data.Slice(_position + payloadAt, payloadSize);
         length = Math.Min(total, _data.Length - _position);
         _position += total;
-        _count++;
+        if (_layout != ChunkLayout.Png || !type.SequenceEqual("IDAT"u8))
+        {
+            _count++;
+        }
+
         return true;
     }
 
