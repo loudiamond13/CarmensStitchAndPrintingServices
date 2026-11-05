@@ -999,14 +999,14 @@ Plans:
 - eager variants
 - caching of signed URLs
 
-**Plans**: 30/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 32/32 plans executed in 9 waves (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 09-01-PLAN.md — Upload one photo to an order through the API: OrderImage, 5-photo domain and database guard, random ids, 503 when unset (ORD-04, IMG-01, IMG-02, IMG-03; D-01, D-08, D-11, D-12, D-19)
 - [x] 09-02-PLAN.md — Named sizes and delivery addresses, folder guard (IMG-03, IMG-04; D-01, D-03, D-04, D-07, D-32, D-33)
 - [x] 09-03-PLAN.md — Prepare a photo in the browser: sniff, upright, 2000 px downscale (IMG-05, IMG-02; D-18, D-34)
 - [x] 09-04-PLAN.md — Photo viewer, responsive LazyImage, camera icon (ORD-04, IMG-04; D-04, D-16, D-26, D-27)
-- [ ] 09-31-PLAN.md — One-time host probe: the site's login can back up the database; stop with the manual fallback if not (CUT-01, JOB-01; D-40, D-42, D-44, D-45, D-48)
+- [x] 09-31-PLAN.md — (deferred, D-51, owner 2026-11-05) One-time host probe: the site's login can back up the database; stop with the manual fallback if not (CUT-01, JOB-01; D-40, D-42, D-44, D-45, D-48)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 09-05-PLAN.md — The 5-photo limit, closed orders and the size rules refused at the endpoint; uploads never touch disk (ORD-04, IMG-01, IMG-02; D-08, D-11, D-12, D-34)
@@ -1046,7 +1046,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [x] 09-29-PLAN.md — Delete photos on the page; real photo count in permanent delete (ORD-04; D-15, D-20)
-- [ ] 09-32-PLAN.md — Monthly database backup job: first in the run, 20-day gap, keep its own newest 3, red on failure (JOB-01, CUT-01; D-39, D-41, D-43, D-46, D-47)
+- [x] 09-32-PLAN.md — (deferred, D-51, owner 2026-11-05) Monthly database backup job: first in the run, 20-day gap, keep its own newest 3, red on failure (JOB-01, CUT-01; D-39, D-41, D-43, D-46, D-47)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [x] 09-30-PLAN.md — Prove the phase and the owner's Cloudinary setup (all eight requirements; D-03, D-06)
@@ -1408,7 +1408,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
-| 9. Order Images & Maintenance Jobs | 30/32 | In Progress | - |
+| 9. Order Images & Maintenance Jobs | 32/32 | In Progress | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
