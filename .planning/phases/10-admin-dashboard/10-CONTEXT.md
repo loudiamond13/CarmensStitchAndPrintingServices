@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-05T14:10:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-05T16:40:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -103,6 +103,9 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-54:** The Collected card's change percent divides by the **absolute value** of last month's comparison amount, so a move from a negative to a positive figure shows as up. Still `null` when the comparison is 0.00 (D-06). (owner, 2026-11-05; RESEARCH OQ-3, assumption A6)
 - **D-55:** "Due this week" **counts a Delivered order** whose due date falls Monday to Sunday of this week, the literal reading of D-01. (owner, 2026-11-05; RESEARCH OQ-4, assumption A5)
 - **D-56:** Staff who are **Manager-locked or never finished first sign-in set-up are treated as active**: they show as Active in All Staff with their balance and can receive transfers. Only deactivated or deleted staff get Hand Over. (owner, 2026-11-05; RESEARCH OQ-5, replaces assumption A8's "not recipients")
+- **D-57:** MoneyTransfers stores an explicit **`IsHandover` flag** (plus the sender `FromUserId` on every row), rather than inferring a hand-over from "recorder is not the sender". Keeps a later legacy import from being misread as hand-overs. (owner, 2026-11-05; plans 10-08, 10-12)
+- **D-58:** Server-only messages approved as written: "Only money held by former staff can be handed over.", "Choose whose money to hand over.", "This person can't receive transfers now. Choose someone else.", "You can only see your own money.", "Only Managers can see deleted transfers.", "This transfer wasn't found.", "Choose 6 or 12 months." (owner, 2026-11-05; plans 10-06, 10-10, 10-12, 10-16, 10-18)
+- **D-59 [informational]:** The plan checker's plan-size warning (13 plans touching 16 to 26 files, mostly generated contract files and tests) is **accepted as is**; split a plan only if an executor runs short of room. (owner, 2026-11-05; plan check)
 
 ### Claude's Discretion
 - How the balance and ledger queries are built (one ledger union view vs per-source queries), as long as no balance is stored as an editable number and there's no inline SQL. The lock scope for D-14 is set by D-53 (MONEY-05).

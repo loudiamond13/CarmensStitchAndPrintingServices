@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-10-31T18:55:00-05:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-05T15:30:00-06:00*
 
 ## Overview
 
@@ -1089,7 +1089,50 @@ Plans:
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
 
-**Plans**: TBD
+**Plans**: 21 plans in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
+
+**Wave 1**
+- [ ] 10-01-PLAN.md — Ledger union query proven on SQL Server, the Wave 0 spike (MONEY-02; RESEARCH A1, A2)
+- [ ] 10-02-PLAN.md — Business week, same-day comparison, greeting part and overdue statuses as pure rules (DASH-01, DASH-02, DASH-04; D-01, D-05, D-55)
+- [ ] 10-03-PLAN.md — Transfer rules, money on hand and the money audit codes in the Domain (MONEY-01, MONEY-04, MONEY-05, MONEY-07; D-14, D-17 to D-24, D-49, D-56)
+- [ ] 10-04-PLAN.md — Chart profit line, negative months and true-pixel width (DASH-03; D-36, D-50, D-51)
+
+**Wave 2**
+- [ ] 10-05-PLAN.md — Dashboard summary API: greeting, KPIs, statuses, recent orders (DASH-01, DASH-02, DASH-04, DASH-05; D-01 to D-08, D-11 to D-13, D-38, D-54, D-55)
+
+**Wave 3**
+- [ ] 10-06-PLAN.md — Dashboard chart API for 6 or 12 months (DASH-03; D-04, D-09 to D-11, D-36)
+- [ ] 10-07-PLAN.md — Sign-in lands on the dashboard greeting; the dev /admin preview is removed (DASH-01, DASH-06)
+
+**Wave 4**
+- [ ] 10-08-PLAN.md — Money on hand API and the MoneyTransfers table, the phase's one migration (MONEY-01, MONEY-02, MONEY-08; D-15, D-16, D-23)
+- [ ] 10-09-PLAN.md — KPI cards, Orders by status and Recent orders (DASH-02, DASH-04, DASH-05, DASH-06; D-01 to D-08, D-37, D-38)
+
+**Wave 5**
+- [ ] 10-10-PLAN.md — Transfer create under the staff-money lock (MONEY-04, MONEY-05, MONEY-08; D-14, D-19, D-20, D-49, D-53, D-56)
+- [ ] 10-11-PLAN.md — Chart card with the range in the URL; the dashboard refreshes after writes (DASH-03, DASH-06; D-13, D-36, D-50)
+
+**Wave 6**
+- [ ] 10-12-PLAN.md — Manager hand-over and the recipients list (MONEY-04, MONEY-05, MONEY-06, MONEY-08; D-17, D-18, D-52, D-56)
+- [ ] 10-13-PLAN.md — Money strip, My Money page and the sidebar item (MONEY-02; D-21, D-39, D-40, D-46)
+
+**Wave 7**
+- [ ] 10-14-PLAN.md — Own ledger API with the running balance (MONEY-02, MONEY-08; D-30, D-31, D-41)
+- [ ] 10-15-PLAN.md — Transfer window from the strip and My Money (MONEY-04, MONEY-05; D-13, D-14, D-20, D-47)
+
+**Wave 8**
+- [ ] 10-16-PLAN.md — Manager money views and the transfer list API (MONEY-03, MONEY-08; D-31, D-42 to D-44, D-48)
+- [ ] 10-17-PLAN.md — Ledger table on My Money (MONEY-02; D-30, D-31, D-41)
+
+**Wave 9**
+- [ ] 10-18-PLAN.md — Transfer delete, permanent remove and no edit route (MONEY-06, MONEY-07, MONEY-08; D-22 to D-28, D-33 to D-35, D-52)
+- [ ] 10-19-PLAN.md — All Staff tab, one person's money page and the hand-over window (MONEY-03, MONEY-04; D-17, D-42 to D-45, D-49)
+
+**Wave 10**
+- [ ] 10-20-PLAN.md — Transfers tab, delete and remove dialogs, audit labels (MONEY-03, MONEY-06, MONEY-07; D-24 to D-33, D-48)
+
+**Wave 11**
+- [ ] 10-21-PLAN.md — Showcase demos and the accessibility, layout and CSP sweep (DASH-06, MONEY-02)
 **UI hint**: yes
 
 ### Phase 11: Public Site & Content Management
