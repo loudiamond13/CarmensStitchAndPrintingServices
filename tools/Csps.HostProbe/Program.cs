@@ -1,9 +1,8 @@
 using Csps.HostProbe;
-using Csps.Infrastructure.Maintenance;
 
-// Throwaway FND-13 host probe (D-09, D-28). GET /probe, POST /probe/backup (D-42) and POST /probe/backup-folder (D-49) exist. All answer 503 when no key
-// of 32+ characters is configured, 401 without a matching X-Probe-Key header, and their facts as JSON otherwise. Every
-// response is no-store with an empty body unless the key matched. Owner steps: README.md.
+// Throwaway FND-13 host probe (D-09, D-28). Only GET /probe exists. It answers 503 when no key of 32+ characters is
+// configured, 401 without a matching X-Probe-Key header, and the host facts as JSON otherwise. Every response is
+// no-store with an empty body unless the key matched. Owner steps: README.md.
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
@@ -13,52 +12,19 @@ app.MapGet("/probe", (HttpContext context, IConfiguration configuration, IHostEn
 {
     context.Response.Headers.CacheControl = "no-store";
 
-    var denied = Denied(context, configuration);
-    return denied ?? Results.Json(HostFacts.Collect(context, environment, TimeProvider.System));
-});
-
-app.MapPost("/probe/backup", async (HttpContext context, IConfiguration configuration, IHostEnvironment environment, CancellationToken cancellationToken) =>
-{
-    context.Response.Headers.CacheControl = "no-store";
-
-    var denied = Denied(context, configuration);
-    if (denied is not null)
+    var configured = configuration[ProbeKey.ConfigurationKey];
+    if (!ProbeKey.IsConfigured(configured))
     {
-        return denied;
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     }
 
-    var facts = await BackupCheck.RunAsync(
-        BackupSettings.From(configuration),
-        environment.ContentRootPath,
-        SqlServerBackupStatement.RunAsync,
-        TimeProvider.System,
-        cancellationToken).ConfigureAwait(false);
-    return Results.Json(facts);
-});
-
-app.MapPost("/probe/backup-folder", async (HttpContext context, IConfiguration configuration, CancellationToken cancellationToken) =>
-{
-    context.Response.Headers.CacheControl = "no-store";
-
-    var denied = Denied(context, configuration);
-    if (denied is not null)
+    string? provided = context.Request.Headers[ProbeKey.HeaderName];
+    if (!ProbeKey.Matches(provided, configured))
     {
-        return denied;
+        return Results.StatusCode(StatusCodes.Status401Unauthorized);
     }
 
-    var facts = await BackupFolderCheck.RunAsync(
-        BackupSettings.From(configuration),
-        SqlServerBackupStatement.ReadDefaultBackupFolderAsync,
-        cancellationToken).ConfigureAwait(false);
-    return Results.Json(facts);
+    return Results.Json(HostFacts.Collect(context, environment, TimeProvider.System));
 });
 
 await app.RunAsync().ConfigureAwait(false);
-
-// Null lets the request through; otherwise the empty 503 or 401 answer.
-static IResult? Denied(HttpContext context, IConfiguration configuration)
-{
-    string? provided = context.Request.Headers[ProbeKey.HeaderName];
-    var status = ProbeKey.DeniedStatusCode(provided, configuration[ProbeKey.ConfigurationKey]);
-    return status is null ? null : Results.StatusCode(status.Value);
-}

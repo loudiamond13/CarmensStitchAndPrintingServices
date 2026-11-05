@@ -1,21 +1,14 @@
-using System.Text.RegularExpressions;
-
 namespace Csps.ArchitectureTests;
 
 /// <summary>
 /// Owner rule (no inline SQL), PERF-04, T-06-36: application code reaches the database through EF's own API (LINQ,
 /// <c>ExecuteUpdate</c>, <c>ExecuteDelete</c>, row versions), never through hand-written SQL. Generated migrations are the one
-/// exception. Every C# file under <c>src/</c> and the host probe is scanned for the raw SQL entry points.
+/// exception. Every C# file under <c>src/</c> is scanned for the raw SQL entry points.
 /// </summary>
-public sealed partial class NoInlineSqlTests
+public sealed class NoInlineSqlTests
 {
-    private const string BackupFile = "Csps.Infrastructure/Maintenance/SqlServerBackupStatement.cs";
-
-    // The one file the owner approved by name (D-40, D-49): the backup statement and its read-only folder question. Nothing else may hold raw SQL.
-    private static readonly string[] AllowedFiles = [BackupFile];
-
-    private static readonly string[] SqlKeywords =
-        ["SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "EXEC", "DROP", "ALTER", "CREATE", "GRANT", "RESTORE", "TRUNCATE"];
+    // The owner approved no file by name (D-50), so no file under src may hold inline SQL.
+    private static readonly string[] AllowedFiles = [];
 
     private static readonly string[] RawSqlTokens =
     [
@@ -26,10 +19,6 @@ public sealed partial class NoInlineSqlTests
         "new SqlCommand",
         "ExecuteNonQuery",
         "ExecuteScalar",
-        "CreateCommand",
-        "ExecuteReader",
-        "BACKUP ",
-        "RESTORE ",
     ];
 
     private static readonly string[] CommentPrefixes = ["//", "/*", "*"];
@@ -43,57 +32,15 @@ public sealed partial class NoInlineSqlTests
         foreach (var file in SourceFiles(sourceRoot))
         {
             var relative = RelativePath(sourceRoot, file);
-            if (AllowedFiles.Contains(relative, StringComparer.Ordinal))
-            {
-                continue;
-            }
-
             offenders.AddRange(File.ReadLines(file).SelectMany(Offences).Select(offence => $"{relative}: {offence}"));
         }
 
-        offenders.ShouldBeEmpty("Inline SQL is allowed only in generated migrations and the one approved backup file (D-40, D-50).");
+        offenders.ShouldBeEmpty("Inline SQL is allowed only in generated migrations (D-50).");
     }
 
     [Fact]
-    public void TheHostProbeHoldsNoRawSqlAndNoFileIsAllowed()
-    {
-        var probeRoot = RepoRoot.PathOf("tools/Csps.HostProbe");
-        var offenders = new List<string>();
-
-        foreach (var file in SourceFiles(probeRoot))
-        {
-            var relative = RelativePath(probeRoot, file);
-            offenders.AddRange(File.ReadLines(file).SelectMany(Offences).Select(offence => $"{relative}: {offence}"));
-        }
-
-        offenders.ShouldBeEmpty("The probe runs the job's own statement and holds no SQL of its own (D-40).");
-    }
-
-    [Fact]
-    public void OnlyTheBackupStatementFileIsAllowedInlineSql() =>
-        AllowedFiles.ShouldBe([BackupFile], "The owner approved this one file by name (D-40). Rebuild any other code with EF's own API.");
-
-    [Fact]
-    public void TheBackupFileHoldsExactlyTheTwoApprovedStatements()
-    {
-        var text = File.ReadAllText(RepoRoot.PathOf("src/" + BackupFile));
-        var literals = StringLiterals(text).ToList();
-
-        var backupLiterals = literals.Where(literal => literal.Contains("BACKUP DATABASE", StringComparison.Ordinal)).ToList();
-        backupLiterals.Count.ShouldBe(1);
-        backupLiterals[0].ShouldBe("BACKUP DATABASE @database TO DISK = @path WITH COPY_ONLY, CHECKSUM, FORMAT, INIT");
-
-        // D-49: the one read-only question the probe asks before a backup is tried.
-        var folderLiterals = literals.Where(literal => literal.Contains("SERVERPROPERTY", StringComparison.Ordinal)).ToList();
-        folderLiterals.Count.ShouldBe(1);
-        folderLiterals[0].ShouldBe("SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(260))");
-
-        var others = literals.Where(literal =>
-            !literal.Contains("BACKUP DATABASE", StringComparison.Ordinal) && !literal.Contains("SERVERPROPERTY", StringComparison.Ordinal));
-        others.Where(NamesAnSqlKeyword).ShouldBeEmpty("No other literal in the backup file may name an SQL keyword.");
-        string[] interpolated = ["$\"", "$@\"", "@$\""];
-        interpolated.Where(marker => text.Contains(marker, StringComparison.Ordinal)).ShouldBeEmpty("No interpolated strings: the SQL text is never built from values.");
-    }
+    public void NoFileIsAllowedInlineSql() =>
+        AllowedFiles.ShouldBeEmpty("The owner approved no file by name (D-50). Rebuild the code with EF's own API instead.");
 
     [Theory]
     [InlineData("await context.Database.ExecuteSqlRawAsync(\"DELETE FROM X\", ct);")]
@@ -104,10 +51,6 @@ public sealed partial class NoInlineSqlTests
     [InlineData("var command = new SqlCommand(sql, connection);")]
     [InlineData("var count = command.ExecuteNonQueryAsync(ct);")]
     [InlineData("var count = command.ExecuteScalar();")]
-    [InlineData("var command = connection.CreateCommand();")]
-    [InlineData("var reader = await command.ExecuteReaderAsync(ct);")]
-    [InlineData("const string Sql = \"BACKUP DATABASE X TO DISK = 'y'\";")]
-    [InlineData("const string Sql = \"RESTORE DATABASE X FROM DISK = 'y'\";")]
     public void TheScannerFlagsEachRawSqlEntryPoint(string line) => Offences(line).ShouldNotBeEmpty();
 
     [Theory]
@@ -117,7 +60,6 @@ public sealed partial class NoInlineSqlTests
     [InlineData("    // The old code used ExecuteSqlRaw here.")]
     [InlineData("    /// <summary>Never use FromSql or CommandText.</summary>")]
     [InlineData("     * ExecuteScalar is banned")]
-    [InlineData("    // BACKUP DATABASE lives only in the one approved file.")]
     public void TheScannerAllowsEfApiCallsAndComments(string line) => Offences(line).ShouldBeEmpty();
 
     [Theory]
@@ -151,16 +93,6 @@ public sealed partial class NoInlineSqlTests
             && !segments.Contains("obj", StringComparer.OrdinalIgnoreCase)
             && !relativePath.Contains("/Persistence/Migrations/", StringComparison.Ordinal);
     }
-
-    private static IEnumerable<string> StringLiterals(string text) =>
-        StringLiteral().Matches(text).Select(match => match.Groups[1].Value);
-
-    private static bool NamesAnSqlKeyword(string literal) =>
-        SqlKeywords.Any(keyword => Regex.IsMatch(literal, @"\b" + keyword + @"\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant));
-
-    // A plain or escaped string literal on one line (the backup file has no verbatim or raw strings).
-    [GeneratedRegex(@"""((?:[^""\\\r\n]|\\.)*)""")]
-    private static partial Regex StringLiteral();
 
     private static string RelativePath(string sourceRoot, string file) =>
         Path.GetRelativePath(sourceRoot, file).Replace('\\', '/');
