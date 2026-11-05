@@ -4,7 +4,7 @@ plan: 30
 subsystem: testing
 tags: [playwright, axe, csp, showcase, owner-review, validation, cloudinary]
 created: "2026-11-04T09:00:00-06:00"
-updated: "2026-11-04T10:00:00-06:00"
+updated: "2026-11-05T18:00:00-06:00"
 
 requires:
   - phase: 09-order-images-maintenance-jobs
@@ -25,18 +25,18 @@ plan_head_before: 008e363d451983776cd7be5ae46d017e7f545436
 plan_head_after: 50a4d30b84f6a473c7c23c0bdde0575b6d99d2c0
 
 duration: about 6 hours (long e2e runs on a shared machine)
-completed: 2026-11-04
-status: awaiting-owner-checkpoint
+completed: 2026-11-05
+status: complete
 requirements-completed: []
 ---
 
-# Phase 9 Plan 30: Prove the whole phase and hand it to the owner Summary (partial)
+# Phase 9 Plan 30: Prove the whole phase and hand it to the owner Summary
 
-**Tasks 1 and 2 are done and committed. Task 3 (the owner's Cloudinary account setup and the real-photo check) is waiting on the owner and was not performed, simulated or approved. The e2e gate is not fully green: see "Open items".**
+**All three tasks are done. Task 3 (the owner's Cloudinary setup and real-photo check) was done by the owner on 2026-11-05: 13 sizes exist, strict mode is on and a browser PNG uploads; the GPS and upright checks on real phone photos were skipped by owner ruling. The owner check found two bugs, both fixed with tests (see "Owner checkpoint").**
 
 ## Performance
 
-- **Tasks:** 2 of 3 done. Task 3 is the owner's blocking `checkpoint:human-action`.
+- **Tasks:** 3 of 3 done. Task 3 was the owner's blocking `checkpoint:human-action`, answered 2026-11-05.
 - **Commits:** 6 (see Task Commits). STATE.md and ROADMAP.md were not touched, as ordered.
 
 ## Accomplishments
@@ -54,7 +54,7 @@ requirements-completed: []
 1. **Task 1: phone, axe, CSP and layout journeys** - `1cdaf052` (test)
 2. **Task 2: showcase, owner review pack, docs, validation map** - `ed4b83b6` (feat)
 3. **Fixes found by the gates** - `fbbac0d2`, `8e50b53e`, `c9c4e4da`, `50a4d30b` (fix)
-4. **Task 3: owner checkpoint** - not performed; waiting on the owner.
+4. **Task 3: owner checkpoint** - done by the owner 2026-11-05. Fixes it found: `12b85e3a` (setup check reads Cloudinary's "format" name), `d3ef31d2` (browser PNGs with many IDAT chunks). Post-merge: `7f127c2a` (the Orders list Admin spec finds its order by number).
 
 TDD: Task 1 is test-only (no feat commit). Its first full run was the RED: 8 of 85 failed, all faults in the new spec (see Deviations 2); nothing in the app failed. Task 2's showcase and review-pack code were written before their tests (Deviations 1).
 
@@ -114,9 +114,14 @@ TDD: Task 1 is test-only (no feat commit). Its first full run was the RED: 8 of 
 4. **Known worktree-only failures (not code):** `web/scripts/license-policy.test.ts` and `npm run license:check` fail in a fresh worktree (license-checker finds no packages after `npm ci --ignore-scripts`). Both pass in the main checkout per the wave notes.
 5. **Shared photo specs now search by number.** The arrange, delete and list specs are edited (Deviations 4); they were fragile in a full run before this plan.
 
-## Owner checkpoint: Task 3 (waiting on the owner, not done)
+## Owner checkpoint: Task 3 (done by the owner, 2026-11-05)
 
-The owner puts the Cloudinary keys in dev user-secrets, runs the setup command and confirms 13 sizes, turns on strict transformations, and checks one real JPEG and one real iPhone HEIC. The exact steps are in `docs/operations/cloudinary-setup.md` ("Your one-time checks on the dev account"). The answer needed: the command's count line, whether strict mode is on, and for each photo whether it showed upright and had no GPS in the full-size file. Nothing is committed. Claude records the answer here and in STATE.md as a dated ruling; a HEIC or GPS failure opens a gap plan against plan 09-15.
+- **Setup count line:** `13 exist`. The first `--check` after creating the sizes said `13 different`: the real account describes `f_webp` as `"format": "webp"`, and the command expected `fetch_format`. Fixed with a test that holds the real answer (`12b85e3a`); the sizes themselves were right.
+- **Strict transformations:** enabled by the owner, after the count line said 13 exist.
+- **Real upload:** a PNG picked in the browser was refused as "isn't a photo we can use". Chrome redraws a PNG into about 4 KB IDAT chunks (over a thousand), and the shared chunk reader stopped at 512, so the metadata step gave up. Ruling (owner, 2026-11-05): IDAT chunks no longer count toward the cap; every other chunk still does. Fixed with a test (`d3ef31d2`); the same PNG then uploaded.
+- **GPS check: skipped** (owner ruling, 2026-11-05). GPS removal is proven by the automated tests only.
+- **Upright check (JPEG and iPhone HEIC): skipped** (owner ruling, 2026-11-05). Turning is proven by the automated tests and the e2e phone path (a canvas-made JPEG) only. Recommended: do one real phone photo on each platform on release day (release-day list item 5).
+- No gap plan against 09-15 was opened, since no HEIC or GPS failure was seen; neither was tested on a real photo.
 
 ## Release-day list for `/gsd-verify-work`
 
@@ -130,9 +135,9 @@ None. The showcase photos are intentionally flat-colour demo images.
 
 None. No new endpoint, auth path or schema; the e2e and showcase make no Cloudinary call.
 
-## Self-Check: PASSED (files, commits and the Task 1 and 2 acceptance lines); the e2e gate is open
+## Self-Check: PASSED (files, commits, all three tasks); e2e status in Open items
 
 - Files exist: `web/e2e/order-photos-a11y.spec.ts`, `Phase9Demos.tsx`, `Phase9Demos.test.tsx`, this summary.
 - Commits exist: `1cdaf052`, `ed4b83b6`, `fbbac0d2`, `8e50b53e`, `c9c4e4da`, `50a4d30b`.
 - Task 1 and 2 acceptance: the a11y spec has one test per screen state and asserts 2000 x 1500; `grep "coming soon"` prints only tests; `09-VALIDATION.md` has `nyquist_compliant: true` and a new `updated`.
-- Not met: the full e2e suite is not green (Open items 1 to 3) and Task 3 is waiting. These are reported, not hidden.
+- Full e2e after the merge (main checkout, 2026-11-04): 1628 passed, 53 skipped, 23 failed. One was real (`orders-list.spec.ts:137`, fixed in `7f127c2a`, 5 of 5); the other 22 passed when re-run one at a time (58 of 58), so they are load flakes. The hung review run (Open item 1) was stopped on the owner's word. The review pictures (Open item 2) are still not made: the stale Phase 2 before/after section stops the run first (owner choice in STATE.md).
