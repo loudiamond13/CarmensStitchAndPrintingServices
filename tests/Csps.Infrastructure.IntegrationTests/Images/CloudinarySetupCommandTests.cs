@@ -25,8 +25,13 @@ public sealed class CloudinarySetupCommandTests
         ["w"] = "width",
         ["h"] = "height",
         ["q"] = "quality",
-        ["f"] = "fetch_format",
+        // The real account describes f_webp as "format" (seen 2026-11-05).
+        ["f"] = "format",
     };
+
+    // The real account's answer for csps_sq_44 (2026-11-05): the list gives "t_" names and the detail keeps Cloudinary's key order.
+    private const string RealSquareDetail =
+        """{"name":"t_csps_sq_44","allowed_for_strict":true,"used":false,"named":true,"info":[{"gravity":"auto","width":44,"height":44,"crop":"fill"},{"quality":"auto"},{"format":"webp"}],"derived":[]}""";
 
     private static (CloudinarySetupCommand Command, StubCloudinaryHandler Handler) Build(CloudinarySettings? settings = null)
     {
@@ -211,6 +216,18 @@ public sealed class CloudinarySetupCommandTests
 
         exit.ShouldBe(0);
         output.ShouldContain("13 exist");
+    }
+
+    [Fact]
+    public async Task TheRealAccountsDescriptionOfASizeCountsAsExisting()
+    {
+        var (command, handler) = Build();
+        handler.Reply(HttpStatusCode.OK, ListJson(["t_csps_sq_44"]));
+        handler.Reply(HttpStatusCode.OK, RealSquareDetail);
+
+        var (_, output) = await RunAsync(command, checkOnly: true);
+
+        output.ShouldContain("csps_sq_44: exists");
     }
 
     [Fact]

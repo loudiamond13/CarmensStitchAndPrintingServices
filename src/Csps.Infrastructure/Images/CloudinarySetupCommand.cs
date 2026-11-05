@@ -46,6 +46,8 @@ public sealed class CloudinarySetupCommand(CloudinarySettings settings, IHttpCli
         ["width"] = "w",
         ["height"] = "h",
         ["quality"] = "q",
+        // The Admin API names f_ "format" in a named size's description (seen on the real account); "fetch_format" is kept too.
+        ["format"] = "f",
         ["fetch_format"] = "f",
     };
 
