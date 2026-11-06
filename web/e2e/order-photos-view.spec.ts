@@ -7,7 +7,15 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { addPhotos, drawJpeg, savedName, seedOrder, uploadAndWait, type PhotoOrderSeed, type PickedFile } from './photos.ts';
+import {
+  addPhotos,
+  drawJpeg,
+  savedName,
+  seedOrder,
+  uploadAndWait,
+  type PhotoOrderSeed,
+  type PickedFile,
+} from './photos.ts';
 import { createStaff } from './testing-api.ts';
 
 const SEED: PhotoOrderSeed = {
