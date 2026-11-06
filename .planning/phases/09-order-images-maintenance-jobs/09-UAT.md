@@ -1,10 +1,10 @@
 ---
-status: diagnosed
+status: partial
 phase: 09-order-images-maintenance-jobs
 source: [09-01-SUMMARY.md, 09-02-SUMMARY.md, 09-03-SUMMARY.md, 09-04-SUMMARY.md, 09-05-SUMMARY.md, 09-06-SUMMARY.md, 09-07-SUMMARY.md, 09-08-SUMMARY.md, 09-09-SUMMARY.md, 09-10-SUMMARY.md, 09-11-SUMMARY.md, 09-12-SUMMARY.md, 09-13-SUMMARY.md, 09-14-SUMMARY.md, 09-15-SUMMARY.md, 09-16-SUMMARY.md, 09-17-SUMMARY.md, 09-18-SUMMARY.md, 09-19-SUMMARY.md, 09-20-SUMMARY.md, 09-21-SUMMARY.md, 09-22-SUMMARY.md, 09-23-SUMMARY.md, 09-24-SUMMARY.md, 09-25-SUMMARY.md, 09-26-SUMMARY.md, 09-27-SUMMARY.md, 09-28-SUMMARY.md, 09-29-SUMMARY.md, 09-30-SUMMARY.md]
 started: 2026-11-05T17:58:00-06:00
 created: 2026-11-05T17:58:00-06:00
-updated: 2026-11-05T19:20:00-06:00
+updated: 2026-11-06T04:54:53.830Z
 ---
 
 # Phase 9 UAT: Order Images & Maintenance Jobs
@@ -110,7 +110,7 @@ reason: Needs the production deploy, the host's Maintenance__Key and the GitHub 
 expected: The monthly run makes a database backup the owner can restore.
 result: blocked
 blocked_by: other
-reason: Not built. 09-31 Task 3 and 09-32 wait on the owner's choice after D-50 (hand-built export plus FTP, manual monthly backups, or DacFx under a license exception).
+reason: Not built. Deferred by owner ruling D-51 (2026-11-05): backups stay manual in the control panel until CUT-01 (Phase 17) picks an approach.
 
 ### 22. 09-01 D1: A JPEG posted to an order is stored through the port and saved as a photo row at Slot 0...
 expected: A JPEG posted to an order is stored through the port and saved as a photo row at Slot 0 and Position 0 with its size, bytes and format, audited as order-image.added
@@ -590,3 +590,5 @@ blocked: 2
     - "A failing test first: a wide window (1899 x 951) with a landscape photo whose capped box is narrower than the column shows the box centered (equal space left and right of it between Previous and Next), plus a unit test that the recipe carries the centering class"
   debug_session: ""
   fix_plan: "09-33-PLAN.md"
+  resolved_by: 09-33-PLAN.md
+  resolved_at: 2026-11-05
