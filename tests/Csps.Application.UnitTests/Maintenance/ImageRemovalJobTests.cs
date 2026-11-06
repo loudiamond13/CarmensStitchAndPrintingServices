@@ -372,12 +372,18 @@ public sealed class ImageRemovalJobTests
 
         public ImageRemovalJob Job { get; }
 
-        // Runs the job and lets each retry wait pass as soon as the job asks for it.
+        // Runs the job and lets each retry wait pass as soon as the job asks for it. A job that stalls fails after 10 real seconds.
         public async Task<MaintenanceJobReport> RunAsync(MaintenanceBudget? budget = null)
         {
             var run = Job.RunAsync(budget ?? new MaintenanceBudget(Time), TestContext.Current.CancellationToken);
+            var giveUp = TimeProvider.System.GetUtcNow() + TimeSpan.FromSeconds(10);
             while (!run.IsCompleted)
             {
+                if (TimeProvider.System.GetUtcNow() > giveUp)
+                {
+                    throw new TimeoutException("The job did not finish within 10 seconds.");
+                }
+
                 if (Time.Waiting.TryDequeue(out var wait))
                 {
                     Time.Advance(wait);
