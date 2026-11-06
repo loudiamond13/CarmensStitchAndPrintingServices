@@ -81,6 +81,35 @@ public sealed class ImageCleanupRunTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
+    public async Task ARemovalThatFailsFiveRunsInARowTurnsTheFirstFourRunsRedThenStaysQueuedAndQuiet()
+    {
+        await using var scene = await StartDeletedPhotoSceneAsync();
+        scene.Storage.FailNextRemovals(5, new ImageRemovalOutcome(ImageRemovalStatus.Rejected, "refused"));
+
+        for (var run = 1; run <= 4; run++)
+        {
+            var red = await RunAsync(scene.Client);
+            red.Ok.ShouldBeFalse(red.Text);
+        }
+
+        var quiet = await RunAsync(scene.Client);
+
+        quiet.Ok.ShouldBeTrue(quiet.Text);
+        var attention = quiet.Line("Photo removals needing attention");
+        attention.GetProperty("value").GetInt64().ShouldBe(1);
+        attention.GetProperty("failed").GetBoolean().ShouldBeFalse();
+        var row = (await QueueRowsAsync()).ShouldHaveSingleItem();
+        row.Attempts.ShouldBe(5);
+        scene.Storage.TryGet(scene.LastSegment, out _).ShouldBeTrue();
+
+        var recovered = await RunAsync(scene.Client);
+
+        recovered.Ok.ShouldBeTrue(recovered.Text);
+        recovered.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(1);
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task AFailedRemovalIsLoggedByRowIdAndCodeAndNeverByThePublicId()
     {
         await using var scene = await StartDeletedPhotoSceneAsync();

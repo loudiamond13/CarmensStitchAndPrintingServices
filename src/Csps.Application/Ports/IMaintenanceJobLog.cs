@@ -13,6 +13,10 @@ public interface IMaintenanceJobLog
     /// <param name="failureCode">A short code naming the cause.</param>
     void RemovalFailed(long rowId, string failureCode);
 
+    /// <summary>Records how many queued removals have failed too often to turn the run red and now need a person to look (D-55).</summary>
+    /// <param name="count">How many rows needed attention in this run.</param>
+    void RemovalsNeedAttention(long count);
+
     /// <summary>Records that a job could not read the photo storage, so the operator can tell a wrong key from a timeout.</summary>
     /// <param name="jobName">The job's fixed name.</param>
     /// <param name="failureCode">A short code naming the cause, such as <c>transient</c> or <c>unauthorized</c>.</param>

@@ -14,6 +14,9 @@ internal sealed partial class MaintenanceJobLog(ILogger<MaintenanceJobLog> logge
     public void RemovalFailed(long rowId, string failureCode) => LogRemovalFailed(logger, rowId, failureCode);
 
     /// <inheritdoc />
+    public void RemovalsNeedAttention(long count) => LogRemovalsNeedAttention(logger, count);
+
+    /// <inheritdoc />
     public void StorageReadFailed(string jobName, string failureCode) => LogStorageReadFailed(logger, jobName, failureCode);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The maintenance job {JobName} could not read the photo storage. Code {FailureCode}.")]
@@ -21,6 +24,9 @@ internal sealed partial class MaintenanceJobLog(ILogger<MaintenanceJobLog> logge
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "A queued photo removal failed. Queue row {RowId}, code {FailureCode}.")]
     private static partial void LogRemovalFailed(ILogger logger, long rowId, string failureCode);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Count} queued photo removals have failed too often to turn the run red. They stay queued and need attention.")]
+    private static partial void LogRemovalsNeedAttention(ILogger logger, long count);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The maintenance job {JobName} failed.")]
     private static partial void LogJobFailed(ILogger logger, Exception exception, string jobName);
