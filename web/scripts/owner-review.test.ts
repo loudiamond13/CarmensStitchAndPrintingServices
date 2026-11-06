@@ -23,6 +23,7 @@ import {
   beforeAfterScript,
   E2E_DIST,
   executeReview,
+  HOST_ENV,
   OUTPUT_DIR,
   OUTPUT_NOT_IGNORED_MESSAGE,
   parseDifferencesTable,
@@ -258,6 +259,7 @@ describe('planReview: the run', () => {
       RateLimits__Auth__Forgot__PermitLimit: '100000',
       RateLimits__Auth__Reset__PermitLimit: '100000',
       RateLimits__Auth__Refresh__PermitLimit: '100000',
+      RateLimits__Images__PermitLimit: '100000',
     });
   });
 
@@ -1527,6 +1529,18 @@ describe('secondPhotoOf (the second photo of an order answer)', () => {
   it('is undefined when the order has fewer than two photos', () => {
     expect(secondPhotoOf([{ id: 'a', position: 0 }])).toBeUndefined();
     expect(secondPhotoOf([])).toBeUndefined();
+  });
+});
+
+describe('HOST_ENV (the owner review host matches the Playwright E2E host)', () => {
+  it('lifts every rate limit that playwright.config.ts lifts', () => {
+    const config = readFileSync(path.join(webDirectory, 'playwright.config.ts'), 'utf8');
+    const lifted = [...config.matchAll(/^\s+(RateLimits__[A-Za-z_]+): noThrottle,/gm)].map((match) => match[1]);
+
+    expect(lifted).toContain('RateLimits__Images__PermitLimit');
+    for (const name of lifted) {
+      expect(HOST_ENV, name).toHaveProperty(name, '100000');
+    }
   });
 });
 
