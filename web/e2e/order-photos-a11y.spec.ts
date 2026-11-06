@@ -6,37 +6,52 @@
 // photo; and the name and size of every photo control at 390, 820 and 1440 px. Photos come from the Testing image route, so
 // Playwright never reaches Cloudinary (D-07). Uploads run under withPhotoHost, because the fail-next switch of the Testing host
 // is shared by every project running together. Every test runs under the shared guard (console, page errors, CSP, responses).
-import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test, type Guard } from './fixtures.ts';
 import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
-import { BASKETBALL_JERSEY_ID, createOrder, createStaff, type TestStaff } from './testing-api.ts';
+import { gradientScript } from './photo-scripts.ts';
+import {
+  apiToken,
+  drawJpegs as drawSizedJpegs,
+  openOrder,
+  orderWithPhotos as orderWithSeededPhotos,
+  savedName,
+  seedOrder as seedPhotoOrder,
+  tiles,
+  uploadAndWait,
+  type PhotoOrderSeed,
+} from './photos.ts';
+import { createStaff } from './testing-api.ts';
 
-const CASH_ID = '01a17fce-7806-77e1-91b7-d3b852f2fd1d';
+// Far out, so these orders never crowd the first page of the soonest-due Orders list that other specs read.
+const SEED: PhotoOrderSeed = {
+  prefix: 'ORD-2094',
+  label: 'A11y',
+  itemDescription: 'E2E a11y jersey',
+  dueDate: manilaDate(400),
+};
 
-interface PickedFile {
-  readonly name: string;
-  readonly mimeType: string;
-  readonly buffer: Buffer;
+/** The photos of this spec are 800 x 600, small enough to upload fast. */
+const PHOTO_SIZE = { width: 800, height: 600 };
+
+/** The optional parts of a seeded order. */
+type SeedOptions = Pick<PhotoOrderSeed, 'status' | 'payment'>;
+
+/** Draws `count` photos of different hues. */
+function drawJpegs(page: Page, count: number) {
+  return drawSizedJpegs(page, count, PHOTO_SIZE.width, PHOTO_SIZE.height);
 }
 
-/** The page-side script that draws a hue gradient on a canvas and returns the JPEG bytes. Strings, because e2e has no DOM types. */
-function gradientScript(width: number, height: number, hue: number): string {
-  return `(async () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = ${String(width)};
-    canvas.height = ${String(height)};
-    const context = canvas.getContext('2d');
-    const gradient = context.createLinearGradient(0, 0, ${String(width)}, ${String(height)});
-    gradient.addColorStop(0, 'hsl(${String(hue)} 70% 45%)');
-    gradient.addColorStop(1, 'hsl(${String((hue + 90) % 360)} 70% 60%)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, ${String(width)}, ${String(height)});
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    return Array.from(new Uint8Array(await blob.arrayBuffer()));
-  })()`;
+/** Seeds an order with one item (6 x 700 = 4,200.00) and returns its id and number. */
+function seedOrder(request: APIRequestContext, options: SeedOptions = {}, receivedByUserId = '') {
+  return seedPhotoOrder(request, { ...SEED, ...options }, receivedByUserId);
+}
+
+/** Signs a new Manager in, opens a seeded order and adds `count` drawn photos, waiting until all of them show as saved. */
+function orderWithPhotos(page: Page, request: APIRequestContext, count: number, options: SeedOptions = {}) {
+  return orderWithSeededPhotos(page, request, count, { ...SEED, ...options }, PHOTO_SIZE);
 }
 
 /** A photo with a red top half and a blue bottom half, so an upside-down or sideways result can be told from an upright one. */
@@ -53,110 +68,6 @@ function bandsScript(width: number, height: number): string {
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
     return Array.from(new Uint8Array(await blob.arrayBuffer()));
   })()`;
-}
-
-/** A JPEG drawn on a canvas in the page, so every file differs and compresses small. */
-async function drawJpeg(page: Page, name: string, hue: number, width = 800, height = 600): Promise<PickedFile> {
-  const bytes = await page.evaluate<number[]>(gradientScript(width, height, hue));
-  return { name, mimeType: 'image/jpeg', buffer: Buffer.from(bytes) };
-}
-
-/** Draws `count` photos of different hues. */
-async function drawJpegs(page: Page, count: number): Promise<PickedFile[]> {
-  const files: PickedFile[] = [];
-  for (let index = 0; index < count; index += 1) {
-    files.push(await drawJpeg(page, `photo-${String(index + 1)}.jpg`, (index * 55) % 360));
-  }
-  return files;
-}
-
-/** The optional parts of a seeded order. */
-interface SeedOptions {
-  readonly status?: string;
-  /** A cash payment of this amount, received by the signed-in Manager. */
-  readonly payment?: { readonly amount: number };
-}
-
-/** Seeds an order with one item (6 x 700 = 4,200.00) and returns its id and number. */
-async function seedOrder(
-  request: APIRequestContext,
-  options: SeedOptions = {},
-  receivedByUserId = '',
-): Promise<{ id: string; number: string }> {
-  const number = `ORD-2094-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`;
-  const id = await createOrder(request, {
-    number,
-    ...(options.status === undefined ? {} : { status: options.status }),
-    customerName: 'E2E A11y Customer',
-    teamName: 'E2E A11y Team',
-    orderDate: manilaDate(-3),
-    // Far out, so these orders never crowd the first page of the soonest-due Orders list that other specs read.
-    dueDate: manilaDate(400),
-    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E a11y jersey', quantity: 6, unitPrice: 700 }],
-    ...(options.payment === undefined
-      ? {}
-      : {
-          payments: [
-            {
-              paymentDate: manilaDate(-2),
-              amount: options.payment.amount,
-              paymentMethodId: CASH_ID,
-              receivedByUserId,
-            },
-          ],
-        }),
-  });
-  return { id, number };
-}
-
-/** The name of the saved photo tile at `position` of `total`, with the default description. */
-function savedName(number: string, position: number, total: number): string {
-  return `Open photo ${String(position)} of ${String(total)}: Order ${number} photo ${String(position)}`;
-}
-
-/** The photo tiles, in the order they show. */
-function tiles(page: Page): Locator {
-  return page.getByRole('list', { name: 'Order photos' }).getByRole('listitem');
-}
-
-/** Opens a seeded order's page as a signed-in Manager. */
-async function openOrder(page: Page, request: APIRequestContext, manager: TestStaff, id: string, number: string) {
-  await signInAs(page, request, manager);
-  await page.goto(`/admin/orders/${id}`);
-  await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('heading', { level: 2, name: 'Images' })).toBeVisible();
-}
-
-/** Picks `files` on the order page and waits until `total` photos show as saved. */
-async function uploadAndWait(page: Page, number: string, files: PickedFile[], total: number): Promise<void> {
-  // The photos upload one at a time, and the other projects wait their turn on the host lock, so the last one takes a while.
-  await withPhotoHost(async () => {
-    await page.locator('input[type="file"][multiple]').setInputFiles(files);
-    await expect(page.getByRole('button', { name: savedName(number, total, total) })).toBeVisible({ timeout: 120_000 });
-  });
-}
-
-/** Signs a new Manager in, opens a seeded order and adds `count` drawn photos, waiting until all of them show as saved. */
-async function orderWithPhotos(
-  page: Page,
-  request: APIRequestContext,
-  count: number,
-  options: SeedOptions = {},
-): Promise<{ id: string; number: string; manager: TestStaff }> {
-  const manager = await createStaff(request, 'Manager');
-  const { id, number } = await seedOrder(request, options, manager.userId);
-  await openOrder(page, request, manager, id, number);
-  if (count > 0) {
-    await uploadAndWait(page, number, await drawJpegs(page, count), count);
-  }
-  return { id, number, manager };
-}
-
-/** A fresh access token for API calls made as the signed-in person of this page. */
-async function apiToken(page: Page): Promise<string> {
-  const refreshed = await page.request.post('/api/v1/auth/refresh', { headers: { 'X-CSPS-CSRF': '1' } });
-  expect(refreshed.status(), 'POST /api/v1/auth/refresh').toBe(200);
-  return ((await refreshed.json()) as { accessToken: string }).accessToken;
 }
 
 /** The CSP record so far must hold no violation (UIC-46). */

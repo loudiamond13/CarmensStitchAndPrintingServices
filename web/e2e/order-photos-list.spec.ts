@@ -4,43 +4,21 @@
 // placeholder. The order is due long ago, so the default sort puts it on the first page whatever else the database holds. The
 // upload runs under withPhotoHost, because the fail-next switch of the Testing host is shared by every project running together.
 // Every test runs under the shared guard (console, page errors, CSP, failed responses).
-import { randomUUID } from 'node:crypto';
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, test } from './fixtures.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
-import { BASKETBALL_JERSEY_ID, createOrder, createStaff } from './testing-api.ts';
+import { drawJpeg, seedOrder, type PhotoOrderSeed } from './photos.ts';
+import { createStaff } from './testing-api.ts';
 
-/** The page-side script that draws a hue gradient on a canvas and returns the JPEG bytes. Strings, because e2e has no DOM types. */
-function drawScript(width: number, height: number, hue: number): string {
-  return `(async () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = ${String(width)};
-    canvas.height = ${String(height)};
-    const context = canvas.getContext('2d');
-    const gradient = context.createLinearGradient(0, 0, ${String(width)}, ${String(height)});
-    gradient.addColorStop(0, 'hsl(${String(hue)} 70% 45%)');
-    gradient.addColorStop(1, 'hsl(${String((hue + 90) % 360)} 70% 60%)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, ${String(width)}, ${String(height)});
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    return Array.from(new Uint8Array(await blob.arrayBuffer()));
-  })()`;
-}
-
-/** Seeds an active order with one item, due long ago, and returns its id and number. */
-async function seedOrder(request: APIRequestContext, label: string): Promise<{ id: string; number: string }> {
-  const number = `ORD-2096-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`;
-  const id = await createOrder(request, {
-    number,
-    customerName: `E2E ${label} Customer`,
-    teamName: `E2E ${label} Team`,
-    orderDate: '2000-01-01',
-    dueDate: '2000-01-02',
-    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E cover jersey', quantity: 6, unitPrice: 700 }],
-  });
-  return { id, number };
-}
+// Due long ago, so the default sort puts the order on the first page whatever else the database holds.
+const SEED: PhotoOrderSeed = {
+  prefix: 'ORD-2096',
+  label: 'Cover',
+  itemDescription: 'E2E cover jersey',
+  orderDate: '2000-01-01',
+  dueDate: '2000-01-02',
+};
 
 /** The natural width of the first image in `scope`: 0 until the browser has decoded it (a broken image stays 0). */
 function coverWidth(scope: Locator): Promise<number> {
@@ -57,11 +35,9 @@ function coverWidth(scope: Locator): Promise<number> {
 async function addPhoto(page: Page, id: string, number: string): Promise<void> {
   await page.goto(`/admin/orders/${id}`);
   await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible();
-  const bytes = await page.evaluate<number[]>(drawScript(3000, 2000, 200));
+  const photo = await drawJpeg(page, 'cover.jpg', 200);
   await withPhotoHost(async () => {
-    await page
-      .locator('input[type="file"][multiple]')
-      .setInputFiles({ name: 'cover.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(bytes) });
+    await page.locator('input[type="file"][multiple]').setInputFiles(photo);
     await expect(page.getByText(`1 photo added to ${number}.`)).toBeVisible();
   });
 }
@@ -74,7 +50,7 @@ test('@order-photos-list an order with a photo shows its cover in the grid card 
   test.setTimeout(240_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const manager = await createStaff(request, 'Manager');
-  const { id, number } = await seedOrder(request, 'Cover');
+  const { id, number } = await seedOrder(request, { ...SEED, label: 'Cover' });
   await signInAs(page, request, manager);
   await addPhoto(page, id, number);
 
@@ -102,7 +78,7 @@ test('@order-photos-list an order without a photo keeps the No images yet placeh
   test.setTimeout(120_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const manager = await createStaff(request, 'Manager');
-  const { number } = await seedOrder(request, 'Plain');
+  const { number } = await seedOrder(request, { ...SEED, label: 'Plain' });
   await signInAs(page, request, manager);
 
   await page.goto(`/admin/orders?q=${number}&view=grid`);

@@ -3,117 +3,21 @@
 // list, focus lands on the next photo's thumb and "Saved" shows. The photos come from the Testing image route, so Playwright never
 // reaches Cloudinary (D-07). The uploads run under withPhotoHost, because the fail-next switch of the Testing host is shared by
 // every project running together. Every test runs under the shared guard (console, page errors, CSP, failed responses).
-import { randomUUID } from 'node:crypto';
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
-import { signInAs } from './auth.ts';
 import { expect, test } from './fixtures.ts';
-import { manilaDate } from './helpers.ts';
-import { withPhotoHost } from './photo-host-lock.ts';
-import { BASKETBALL_JERSEY_ID, createOrder, createStaff } from './testing-api.ts';
+import {
+  deleteOrderThroughApi,
+  orderWithPhotos,
+  photoKey,
+  thumbSources,
+  tiles,
+  type PhotoOrderSeed,
+} from './photos.ts';
 
-interface PickedFile {
-  readonly name: string;
-  readonly mimeType: string;
-  readonly buffer: Buffer;
-}
-
-/** The page-side script that draws a hue gradient on a canvas and returns the JPEG bytes. Strings, because e2e has no DOM types. */
-function drawScript(width: number, height: number, hue: number): string {
-  return `(async () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = ${String(width)};
-    canvas.height = ${String(height)};
-    const context = canvas.getContext('2d');
-    const gradient = context.createLinearGradient(0, 0, ${String(width)}, ${String(height)});
-    gradient.addColorStop(0, 'hsl(${String(hue)} 70% 45%)');
-    gradient.addColorStop(1, 'hsl(${String((hue + 90) % 360)} 70% 60%)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, ${String(width)}, ${String(height)});
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    return Array.from(new Uint8Array(await blob.arrayBuffer()));
-  })()`;
-}
-
-/** A JPEG drawn on a canvas in the page, so every file differs and compresses small. */
-async function drawJpeg(page: Page, name: string, hue: number): Promise<PickedFile> {
-  const bytes = await page.evaluate<number[]>(drawScript(3000, 2000, hue));
-  return { name, mimeType: 'image/jpeg', buffer: Buffer.from(bytes) };
-}
-
-/** Seeds an active order with one item and returns its id and number. */
-async function seedOrder(request: APIRequestContext): Promise<{ id: string; number: string }> {
-  const number = `ORD-2092-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`;
-  const id = await createOrder(request, {
-    number,
-    customerName: 'E2E Delete Customer',
-    teamName: 'E2E Delete Team',
-    orderDate: manilaDate(-3),
-    dueDate: manilaDate(5),
-    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E delete jersey', quantity: 6, unitPrice: 700 }],
-  });
-  return { id, number };
-}
-
-/** The name of the saved photo thumb at `position` of `total`, with the default description. */
-function savedName(number: string, position: number, total: number): string {
-  return `Open photo ${String(position)} of ${String(total)}: Order ${number} photo ${String(position)}`;
-}
-
-/** Signs a new Manager in, opens a seeded order and adds `count` drawn photos, waiting until all of them show as saved. */
-async function orderWithPhotos(
-  page: Page,
-  request: APIRequestContext,
-  count: number,
-): Promise<{ id: string; number: string }> {
-  const manager = await createStaff(request, 'Manager');
-  const { id, number } = await seedOrder(request);
-  await signInAs(page, request, manager);
-  await page.goto(`/admin/orders/${id}`);
-  await expect(page.getByRole('heading', { level: 1, name: number })).toBeVisible({ timeout: 30_000 });
-  const files: PickedFile[] = [];
-  for (let index = 0; index < count; index += 1) {
-    files.push(await drawJpeg(page, `photo-${String(index + 1)}.jpg`, (index * 55) % 360));
-  }
-  // The photos upload one at a time, and the other projects wait their turn on the host lock, so the last one takes a while.
-  await withPhotoHost(async () => {
-    await page.locator('input[type="file"][multiple]').setInputFiles(files);
-    await expect(page.getByRole('button', { name: savedName(number, count, count) })).toBeVisible({ timeout: 120_000 });
-  });
-  return { id, number };
-}
-
-/** The photo tiles, in the order they show. */
-function tiles(page: Page): Locator {
-  return page.getByRole('list', { name: 'Order photos' }).getByRole('listitem');
-}
-
-/** The address of each tile's thumb picture, which tells the photos apart whatever their text says. */
-async function thumbSources(page: Page): Promise<(string | null)[]> {
-  const sources: (string | null)[] = [];
-  const count = await tiles(page).count();
-  for (let index = 0; index < count; index += 1) {
-    sources.push(await tiles(page).nth(index).locator('img').first().getAttribute('src'));
-  }
-  return sources;
-}
-
-/** Soft-deletes an order through the API as the signed-in Manager of this page, with a fresh token from its refresh cookie. */
-async function deleteOrderThroughApi(page: Page, id: string): Promise<void> {
-  const refreshed = await page.request.post('/api/v1/auth/refresh', { headers: { 'X-CSPS-CSRF': '1' } });
-  expect(refreshed.status(), 'POST /api/v1/auth/refresh').toBe(200);
-  const session = (await refreshed.json()) as { accessToken: string };
-  const deleted = await page.request.delete(`/api/v1/orders/${id}`, {
-    headers: { 'X-CSPS-CSRF': '1', Authorization: `Bearer ${session.accessToken}` },
-  });
-  expect(deleted.status(), `DELETE /api/v1/orders/${id}`).toBe(204);
-}
-
-/** The photo's key in a Testing image address: the part that names the photo, whatever the size. */
-function photoKey(source: string | null | undefined): string {
-  const key = /\/api\/testing\/images\/([^?]+)/.exec(source ?? '')?.[1];
-  if (key === undefined) throw new Error(`No photo key in ${source ?? 'a missing address'}`);
-  return key;
-}
+const SEED: PhotoOrderSeed = {
+  prefix: 'ORD-2092',
+  label: 'Delete',
+  itemDescription: 'E2E delete jersey',
+};
 
 test('@order-photos-delete deleting the cover asks first, makes the next photo the cover here and on the Orders list, and focus lands on the next thumb', async ({
   page,
@@ -122,7 +26,7 @@ test('@order-photos-delete deleting the cover asks first, makes the next photo t
 }) => {
   test.setTimeout(300_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
-  const { number } = await orderWithPhotos(page, request, 3);
+  const { number } = await orderWithPhotos(page, request, 3, SEED);
   const before = await thumbSources(page);
   expect(new Set(before).size).toBe(3);
   await expect(tiles(page).nth(0).getByText('Cover', { exact: true })).toBeVisible();
@@ -153,7 +57,7 @@ test("@order-photos-delete a Manager's permanent-delete dialog counts the order'
 }) => {
   test.setTimeout(300_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
-  const { id, number } = await orderWithPhotos(page, request, 2);
+  const { id, number } = await orderWithPhotos(page, request, 2, SEED);
   await deleteOrderThroughApi(page, id);
 
   await page.goto(`/admin/orders/deleted/${id}`);
