@@ -286,6 +286,19 @@ describe('PhotoViewer look and layout', () => {
     expect(within(dialog()).getByRole('img', { name: 'Front mockup 1' })).toHaveClass('object-contain');
   });
 
+  it('centres the image box in its stage column above 639 px and keeps the phone alignment', () => {
+    render(<Harness />);
+    expect(imageBox()).toHaveClass(
+      'justify-self-center',
+      'vp-lt-sm:justify-self-auto',
+      'col-start-2',
+      'row-start-1',
+      'vp-lt-sm:col-span-full',
+      'min-w-0',
+      'max-h-[min(680px,calc(100dvh-200px))]',
+    );
+  });
+
   it('wraps a long description across lines in the caption and hides it from assistive technology', () => {
     const long = 'Front mockup in red and black with the club name across the chest '.repeat(6).trim();
     render(<Harness photos={[photo(1, { alt: long })]} />);
