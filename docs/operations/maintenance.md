@@ -1,6 +1,6 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-04T01:05:00-06:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-05T20:55:00-05:00*
 
 The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). The GitHub
 Actions workflow `.github/workflows/maintenance.yml` makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
@@ -85,7 +85,7 @@ The workflow is called **Maintenance** (job `monthly maintenance`). It has two t
 | Schedule | Cron `17 19 1 * *`: 19:17 UTC on the 1st of each month, which is 03:17 on the 2nd in Manila | The minute is off the top of the hour, when GitHub is busiest |
 | Run now | Whenever the owner presses it | Actions tab, **Maintenance**, **Run workflow**, or `gh workflow run maintenance.yml --ref main` |
 
-Pressing Run now twice does not run two calls together. The second waits for the first (the workflow's `maintenance` queue), and a running call is never cancelled.
+Run now works only from `main`: the job is skipped on any other branch, so the maintenance key is never given to a changed copy of the script. Pressing Run now twice does not run two calls together. The second waits for the first (the workflow's `maintenance` queue), and a running call is never cancelled.
 
 ### What the workflow needs in GitHub
 
