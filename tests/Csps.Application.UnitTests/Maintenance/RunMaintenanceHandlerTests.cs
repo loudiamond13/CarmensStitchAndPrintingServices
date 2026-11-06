@@ -122,7 +122,7 @@ public sealed class RunMaintenanceHandlerTests
 
         await Should.ThrowAsync<OperationCanceledException>(() => handler.HandleAsync(cancel.Token));
 
-        await runLock.Received(1).ReleaseAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await runLock.Received(1).ReleaseAsync(Arg.Any<Guid>(), CancellationToken.None);
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public sealed class RunMaintenanceHandlerTests
 
         await handler.HandleAsync(TestContext.Current.CancellationToken);
 
-        await runLock.Received(1).ReleaseAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await runLock.Received(1).ReleaseAsync(Arg.Any<Guid>(), CancellationToken.None);
     }
 
     [Fact]
