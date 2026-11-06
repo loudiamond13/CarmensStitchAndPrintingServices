@@ -4,7 +4,7 @@ plan: 33
 subsystem: web / photo viewer
 tags: [gap-closure, G-09-10, viewer, layout, e2e]
 requires: [09-UAT.md gap G-09-10]
-provides: "viewer image box centred in its stage column on wide windows; three @order-photos-view checks (written, not yet run)"
+provides: "viewer image box centred in its stage column on wide windows; three @order-photos-view checks, run on the real order page in all five projects"
 affects: [web/src/components/media/photoViewer.recipe.ts]
 key-files:
   modified:
@@ -13,7 +13,7 @@ key-files:
     - web/e2e/order-photos-view.spec.ts
     - docs/web/e2e.md
     - .planning/phases/09-order-images-maintenance-jobs/09-UAT.md
-status: partial
+status: complete
 commits: 4
 plan_head_before: 7b9b7236a978b3550fb4fb0e4f51847b079b6a4b
 plan_head_after: 251d8e9dc780fcd74caab8e23ea4ac93d5f45433
@@ -21,12 +21,12 @@ actuals:
   tasks: 3
   commits: 4
 created: "2026-11-05T19:30:00-06:00"
-updated: "2026-11-05T19:30:00-06:00"
+updated: "2026-11-05T20:30:00-06:00"
 ---
 
 # Phase 9 Plan 33: Centre the photo viewer's picture on wide windows Summary
 
-*Created: 2026-11-05T19:30:00-06:00 · Updated: 2026-11-05T19:30:00-06:00*
+*Created: 2026-11-05T19:30:00-06:00 · Updated: 2026-11-05T20:30:00-06:00*
 
 **One-liner:** The viewer box is now centred between Previous and Next above 639 px with its size unchanged (proved on the dev showcase viewer in three engines), but the real-order-page Playwright checks were written and NOT run, because LocalDB would not start in this agent shell. Status is partial.
 
@@ -84,13 +84,20 @@ The 5:4 and 4:3 numbers on the real order page (about 16 / 122 px before, about 
 - `npm --prefix web run verify` as one command was not run, because its `license:check` step fails in this worktree for the reason above; every other step was run on its own and passed except the one failing test inside `test:coverage`.
 - `gitleaks protect --staged`: no leaks found, before each of the four commits. No real names, paths or emails in the staged text.
 
+## Real-host e2e run (orchestrator, after the merge)
+
+LocalDB answered from the orchestrator shell, so the gates ran there on the merged phase branch (preflight: 5180, 5115, 7028, 5199 free, no other test processes).
+
+- **RED on the real order page:** with the recipe from ca050c02 put back for one run, `npm --prefix web run e2e -- --grep "G-09-10" --project chromium` failed only the wide-window check: `equal space on both sides (photo 1: box 850 x 680, left 471.5, right 1321.5, space 16 / 122, column 956)`. The phone and white-band checks passed before the fix, as planned. This matches the diagnosis, so the Diagnosis check checkpoint did not fire. The recipe was restored afterwards.
+- **GREEN, five projects:** `npm --prefix web run e2e -- --grep "G-09-10"`: `11 passed`, 4 skipped (the two wide-window checks on pixel and iphone, by design).
+- **Regression:** `npm --prefix web run e2e -- --grep "@order-photos-view|@order-photos-a11y"`: `113 passed`, 7 skipped, exit 0.
+- **verify:** `npm --prefix web run verify` exited 0 in the main checkout (license check included), so the license-checker failure in deviation 3 was specific to the worktree.
+- The white band read as the photo itself in chromium, firefox and webkit, so the second-fix checkpoint did not fire. No package changed.
+
 ## What is still open
 
-1. Owner: free LocalDB for the agent shell (see Evidence), or run the e2e yourself outside the agent shell.
-2. Then run, in order: `npm --prefix web run e2e -- --grep "G-09-10" --project chromium --project pixel` (expect the wide-window test to pass now; the pre-fix numbers can be had by checking out `ca050c02` for the recipe), then `npm --prefix web run e2e -- --grep "G-09-10"` (needs 11 passed), then `npm --prefix web run e2e -- --grep "@order-photos-view|@order-photos-a11y"`.
-3. Watch two things on the first run: the delivered file reading exactly 255 in the white band (a JPEG re-encode could give 254; do not widen a tolerance without asking), and the PNG upload being accepted by the Testing image route.
-4. Owner's eyes: ORD-2026-0161 photo 1 at about 1899 px wide should sit centred between Previous and Next, and Open Full Size should show the same white band in the full-size photo (human check from Task 3).
-5. Owner's call, in plain words: phones keep today's alignment as asked, so a very tall photo on a phone still sits at the left of the stage. Do you want it centred there too?
+1. Owner's eyes: ORD-2026-0161 photo 1 at about 1899 px wide should sit centred between Previous and Next, and Open Full Size should show the same white band in the full-size photo (human check from Task 3).
+2. Owner's call, in plain words: phones keep today's alignment as asked, so a very tall photo on a phone still sits at the left of the stage. Do you want it centred there too?
 
 ## Known stubs
 
@@ -100,4 +107,4 @@ None.
 
 - Files: all five modified files exist and are committed (`git diff --name-only 7b9b7236..HEAD`).
 - Commits `ca050c02`, `8203224b`, `0075ce7d`, `251d8e9d` are on this branch.
-- Self-Check result: PASSED for what was built. The plan itself is NOT complete: the real-host e2e gates did not run.
+- Self-Check result: PASSED. The real-host e2e gates ran after the merge (see above).
