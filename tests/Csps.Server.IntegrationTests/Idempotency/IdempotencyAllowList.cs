@@ -47,15 +47,17 @@ public static class IdempotencyAllowList
         new("POST /api/v1/profile/email-change/check", "Read-only lookup; changes nothing.", Decision),
         new("POST /api/v1/auth/password/set-new/check", "Read-only lookup; changes nothing.", Decision),
         new("POST /api/v1/auth/password/set-new", "The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice.", Decision),
+        new("POST /api/v1/maintenance/run", "A scheduled machine call with no body; each run is guarded by a database lease, so a repeat is harmless.", Decision),
     ];
 
-    // The Testing-only staff, expense and order fixtures exist in Debug builds in the Testing environment only (QUAL-05).
+    // The Testing-only staff, expense, order and photo-failure fixtures exist in Debug builds in the Testing environment only (QUAL-05).
     private static IdempotencyExemption[] TestingEntries => BuildFlavor.HasTestingFeatures
         ?
         [
             new("POST /api/testing/staff", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/expenses", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/orders", "Testing-only test data, compiled out of Release.", Decision),
+            new("POST /api/testing/images/fail-next", "Testing-only test switch, compiled out of Release.", Decision),
         ]
         : [];
 }

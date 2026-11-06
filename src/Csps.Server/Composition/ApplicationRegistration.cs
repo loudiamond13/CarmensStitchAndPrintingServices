@@ -63,6 +63,7 @@ public static class ApplicationRegistration
         services.AddScoped<IValidator<ListAuditLogRequest>, ListAuditLogRequestValidator>();
         services.AddCspsExpenseHandlers();
         services.AddCspsOrderHandlers();
+        services.AddCspsMaintenanceHandlers();
         return services;
     }
 }

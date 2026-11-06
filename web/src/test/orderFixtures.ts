@@ -3,7 +3,7 @@
 // Names are made up. Every figure is written out (the same numbers the server would store), never worked out in a test.
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw';
-import { PRODUCT_TYPES } from '@/test/orderListFixtures';
+import { PRODUCT_TYPES, orderListCover } from '@/test/orderListFixtures';
 import type { components } from '@/types/api.generated';
 
 type Schemas = components['schemas'];
@@ -16,6 +16,8 @@ export type OrderDiscountFixture = Schemas['OrderDiscountResponse'];
 export type OrderPaymentFixture = Schemas['OrderPaymentResponse'];
 export type OrderExpenseFixture = Schemas['OrderExpenseResponse'];
 export type OrderRefundFixture = Schemas['OrderRefundResponse'];
+export type OrderImageFixture = Schemas['OrderImageResponse'];
+export type ImageRulesFixture = Schemas['ImageRulesResponse'];
 export type OrderTotalsFixture = Schemas['OrderTotalsResponse'];
 export type DeletedOrderListFixture = Schemas['DeletedOrderListResponse'];
 export type ListRefFixture = Schemas['OrderListRef'];
@@ -236,6 +238,44 @@ function totals(overrides: Partial<OrderTotalsFixture>): OrderTotalsFixture {
   };
 }
 
+/** A photo as the server answers it, with the Testing addresses; photo n sits at position n - 1. */
+export function orderImage(n: number, overrides: Partial<OrderImageFixture> = {}): OrderImageFixture {
+  const key = `photo${String(n).padStart(2, '0')}`;
+  const address = (size: string): string => `/api/testing/images/${key}?size=${size}`;
+  return {
+    id: `00000000-0000-4000-a000-${String(n).padStart(12, '0')}`,
+    position: n - 1,
+    description: null,
+    width: 4000,
+    height: 3000,
+    thumb: {
+      src: address('csps_sq_88'),
+      srcSet: `${address('csps_sq_88')} 1x, ${address('csps_sq_176')} 2x`,
+    },
+    viewer: {
+      src: address('csps_view_960'),
+      srcSet: [
+        `${address('csps_view_640')} 640w`,
+        `${address('csps_view_960')} 960w`,
+        `${address('csps_view_1280')} 1280w`,
+        `${address('csps_view_1600')} 1600w`,
+      ].join(', '),
+    },
+    fullSize: address('csps_full_2000'),
+    ...overrides,
+  };
+}
+
+/** The photo rules the server answers today (GET /orders/image-rules). */
+export const IMAGE_RULES: ImageRulesFixture = {
+  maxPerOrder: 5,
+  maxBytes: 10_485_760,
+  maxPixels: 25_000_000,
+  maxSide: 10_000,
+  types: ['jpeg', 'png', 'webp', 'heic'],
+  descriptionMaxLength: 200,
+};
+
 /** One full order answer. The defaults are ORD-2026-0148; a test overrides what it needs. */
 export function buildOrderDetail(overrides: Partial<OrderDetailFixture> = {}): OrderDetailFixture {
   return {
@@ -273,6 +313,7 @@ export function buildOrderDetail(overrides: Partial<OrderDetailFixture> = {}): O
       orderExpense('2026-10-04', OUTSOURCING, 600, 'Embroidery, coach polos'),
     ],
     refunds: [],
+    images: [],
     totals: totals({
       subtotal: 22450,
       discount: 1122.5,
@@ -440,7 +481,7 @@ export const deliveredOrder: OrderDetailFixture = buildOrderDetail({
   totals: totals({ subtotal: 5000, total: 5000, paid: 2000, balance: 3000, profit: 5000 }),
 });
 
-/** The list row of an order: the figures the list stores, the pieces as the sum of the item quantities. */
+/** The list row of an order: the figures the list stores, the pieces as the sum of the item quantities, the photo count and the cover. */
 export function listEntryOf(order: OrderDetailFixture): OrderListEntryFixture {
   const t = order.totals;
   return {
@@ -461,6 +502,8 @@ export function listEntryOf(order: OrderDetailFixture): OrderListEntryFixture {
     balance: t.balance,
     customerCredit: t.customerCredit,
     fullyPaid: t.fullyPaid,
+    imageCount: order.images.length,
+    cover: order.images.length > 0 ? orderListCover(1) : null,
   };
 }
 
@@ -600,6 +643,8 @@ export function useOrderHandlers(options: OrderHandlerOptions = {}): OrderBacken
       const body = await resolve(options.list ?? standardOrderList(), url);
       return body instanceof Response ? body : HttpResponse.json(body);
     }),
+    // Before the :id route, which would take "image-rules" for an order id.
+    http.get('*/api/v1/orders/image-rules', () => HttpResponse.json(IMAGE_RULES)),
     http.get('*/api/v1/orders/:id', async ({ params }) => {
       const id = String(params.id);
       backend.reads.push(id);

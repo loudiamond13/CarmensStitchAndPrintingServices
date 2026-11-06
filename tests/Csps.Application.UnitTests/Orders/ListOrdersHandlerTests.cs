@@ -1,5 +1,6 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
+using Csps.Application.Images;
 using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Domain.Orders;
@@ -129,11 +130,51 @@ public sealed class ListOrdersHandlerTests
         page.Items.Count.ShouldBe(2);
         page.Items[0].ShouldBe(new OrderListEntry(
             first.Id, "ORD-2026-0148", "Juan Dela Cruz", "Ballers", new DateOnly(2026, 10, 28), new DateOnly(2026, 11, 11), "production", Now,
-            22450.00m, 1122.50m, 21327.50m, 12000.00m, 0.00m, 9327.50m, 0.00m, false, 40));
+            22450.00m, 1122.50m, 21327.50m, 12000.00m, 0.00m, 9327.50m, 0.00m, false, 40, 0, null));
         page.Items[1].Status.ShouldBe("cancelled");
         page.Items[1].DueDate.ShouldBeNull();
         page.Items[1].FullyPaid.ShouldBeTrue();
         page.Items[1].Pieces.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task ARowWithACoverIdBuildsItsCoverAddressesThroughForCoverAndKeepsTheCountAndSize()
+    {
+        var harness = new Harness();
+        var row = Row("ORD-2026-0150", OrderStatus.Pending, null, 100.00m, 0.00m, 100.00m, 0.00m, 0.00m, 100.00m, 0.00m, false) with
+        {
+            ImageCount = 3,
+            CoverPublicId = "csps/orders/abc123",
+            CoverWidth = 4000,
+            CoverHeight = 3000,
+        };
+        harness.Delivery.ForCover("csps/orders/abc123", 4000, 3000).Returns(
+            new CoverUrls(new ImageSource("/card.jpg", "/card.jpg 640w"), new ImageSource("/table.jpg", "/table.jpg 1x")));
+        harness.Reader.ListAsync(Arg.Any<OrderListQuery>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new OrderListPage([row], 1, 1, 1)));
+
+        var result = await harness.Handler.HandleAsync(new ListOrdersRequest(), TestContext.Current.CancellationToken);
+
+        var entry = result.Value.Items.ShouldHaveSingleItem();
+        entry.ImageCount.ShouldBe(3);
+        entry.Cover.ShouldBe(new OrderCoverResponse(new ImageSourceResponse("/card.jpg", "/card.jpg 640w"), new ImageSourceResponse("/table.jpg", "/table.jpg 1x"), 4000, 3000));
+        harness.Delivery.Received(1).ForCover("csps/orders/abc123", 4000, 3000);
+    }
+
+    [Fact]
+    public async Task ARowWithNoCoverIdHasANullCoverAndTheDeliveryIsNeverCalled()
+    {
+        var harness = new Harness();
+        var row = Row("ORD-2026-0151", OrderStatus.Pending, null, 100.00m, 0.00m, 100.00m, 0.00m, 0.00m, 100.00m, 0.00m, false);
+        harness.Reader.ListAsync(Arg.Any<OrderListQuery>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new OrderListPage([row], 1, 1, 1)));
+
+        var result = await harness.Handler.HandleAsync(new ListOrdersRequest(), TestContext.Current.CancellationToken);
+
+        var entry = result.Value.Items.ShouldHaveSingleItem();
+        entry.ImageCount.ShouldBe(0);
+        entry.Cover.ShouldBeNull();
+        harness.Delivery.DidNotReceive().ForCover(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
     }
 
     [Fact]
@@ -184,7 +225,7 @@ public sealed class ListOrdersHandlerTests
         decimal balance,
         decimal credit,
         bool fullyPaid) =>
-        new(Guid.NewGuid(), number, "Juan Dela Cruz", "Ballers", new DateOnly(2026, 10, 28), due, status, Now, subtotal, discount, total, paid, refunded, balance, credit, fullyPaid, fullyPaid ? 3 : 40);
+        new(Guid.NewGuid(), number, "Juan Dela Cruz", "Ballers", new DateOnly(2026, 10, 28), due, status, Now, subtotal, discount, total, paid, refunded, balance, credit, fullyPaid, fullyPaid ? 3 : 40, 0, null, null, null);
 
     private sealed class Harness
     {
@@ -200,10 +241,13 @@ public sealed class ListOrdersHandlerTests
                 });
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43"));
-            Handler = new ListOrdersHandler(Reader, request, new FixedCalendar(clockAt ?? Now), new ListOrdersRequestValidator());
+            Delivery = Substitute.For<IImageDelivery>();
+            Handler = new ListOrdersHandler(Reader, request, new FixedCalendar(clockAt ?? Now), new ListOrdersRequestValidator(), Delivery);
         }
 
         public IOrderReader Reader { get; }
+
+        public IImageDelivery Delivery { get; }
 
         public ListOrdersHandler Handler { get; }
 

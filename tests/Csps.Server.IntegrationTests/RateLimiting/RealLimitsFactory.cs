@@ -51,6 +51,8 @@ internal sealed class RealLimitsFactory : CspsApiFactory
             builder.UseSetting(PermitLimitKey(PolicyNames[index]), PermitLimits[index].ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
+        builder.UseSetting("RateLimits:Images:PermitLimit", "30");
+
         if (RemoteIpFromHeader)
         {
             builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>());

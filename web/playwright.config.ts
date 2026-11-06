@@ -107,6 +107,8 @@ export default defineConfig({
       RateLimits__Auth__Forgot__PermitLimit: noThrottle,
       RateLimits__Auth__Reset__PermitLimit: noThrottle,
       RateLimits__Auth__Refresh__PermitLimit: noThrottle,
+      // The photo journeys of all projects upload from this one address too (30 per 10 minutes in production, IMG-02).
+      RateLimits__Images__PermitLimit: noThrottle,
     },
   },
 });

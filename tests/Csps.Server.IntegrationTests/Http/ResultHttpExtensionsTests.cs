@@ -151,6 +151,35 @@ public sealed class ResultHttpExtensionsTests : IDisposable
     }
 
     [Fact]
+    public async Task UnavailableIs503WithItsOwnMessageAndCode()
+    {
+        using var activity = new Activity("csps-test").Start();
+        var http = _harness.NewContext();
+        var result = Result.Failure(Error.Unavailable("images.not-configured", "Photo uploads aren't set up yet."));
+
+        var (_, problem) = await ResultHarness.ExecuteAsync(result.ToHttpResult(http, () => TypedResults.NoContent()), http);
+
+        http.Response.StatusCode.ShouldBe(StatusCodes.Status503ServiceUnavailable);
+        problem.GetProperty("status").GetInt32().ShouldBe(503);
+        problem.GetProperty("title").GetString().ShouldBe("The service is busy. Please try again shortly.");
+        problem.GetProperty("detail").GetString().ShouldBe("Photo uploads aren't set up yet.");
+        problem.GetProperty("code").GetString().ShouldBe("images.not-configured");
+        problem.GetProperty("traceId").GetString().ShouldBe(activity.TraceId.ToHexString());
+    }
+
+    [Fact]
+    public async Task AnUnexpectedFaultStill503sWithTheFixedTextEvenWhenAnUnavailableErrorWasMappedBefore()
+    {
+        var http = _harness.NewContext();
+        var problem = CspsProblemDetails.Build(http, StatusCodes.Status503ServiceUnavailable, "Timeout expired. SqlException", code: "leak.me");
+
+        var (_, json) = await ResultHarness.ExecuteAsync(TypedResults.Problem(problem), http);
+
+        json.TryGetProperty("code", out _).ShouldBeFalse();
+        json.GetProperty("detail").GetString().ShouldStartWith("Something went wrong. Reference: ");
+    }
+
+    [Fact]
     public async Task ServerErrorBodiesNeverCarryACode()
     {
         var http = _harness.NewContext();

@@ -12,6 +12,7 @@ import {
   OrderCard,
   OrderTotals,
   StatusBadge,
+  type OrderCardCover,
   type OrderCardOrder,
   type OrderFigures,
   type OrderStatus,
@@ -132,11 +133,23 @@ const FIGURES_HUGE: OrderFigures = {
 interface CardCase {
   readonly key: string;
   readonly order: OrderCardOrder;
+  readonly cover?: OrderCardCover;
 }
 
-function card(key: string, order: Partial<OrderCardOrder> & Pick<OrderCardOrder, 'number' | 'status'>): CardCase {
+/** A made-up cover: the app mark stands in for a photo, so the demo needs no photo store. */
+const DEMO_COVER: OrderCardCover = {
+  image: { src: '/mark.svg', srcSet: '/mark.svg 320w', width: 512, height: 512 },
+  count: 3,
+};
+
+function card(
+  key: string,
+  order: Partial<OrderCardOrder> & Pick<OrderCardOrder, 'number' | 'status'>,
+  cover?: OrderCardCover,
+): CardCase {
   return {
     key,
+    ...(cover ? { cover } : {}),
     order: {
       teamName: 'Brgy. San Roque Ballers',
       customerName: 'Juan Dela Cruz',
@@ -151,7 +164,7 @@ function card(key: string, order: Partial<OrderCardOrder> & Pick<OrderCardOrder,
 
 /** The card states: balance due, Fully Paid, a credit, no team, Delivered, Completed (no Edit), Cancelled and 100-character names. */
 const CARDS: readonly CardCase[] = [
-  card('due', { number: 'ORD-2026-0148', status: 'production' }),
+  card('due', { number: 'ORD-2026-0148', status: 'production' }, DEMO_COVER),
   card('paid', {
     number: 'ORD-2026-0151',
     status: 'ready',
@@ -230,10 +243,11 @@ function TotalsDemo() {
 function CardsDemo() {
   return (
     <div className={orderCardsGridClasses}>
-      {CARDS.map(({ key, order }) => (
+      {CARDS.map(({ key, order, cover }) => (
         <OrderCard
           key={key}
           order={order}
+          cover={cover}
           due={<DueFlag dueDate={order.dueDate} status={order.status} today={TODAY} />}
           onView={() => undefined}
           onEdit={() => undefined}

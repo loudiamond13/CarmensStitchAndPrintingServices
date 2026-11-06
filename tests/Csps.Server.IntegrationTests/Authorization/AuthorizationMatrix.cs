@@ -58,7 +58,7 @@ public static class AuthorizationMatrix
     ];
 
     // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
-    // POST /api/testing/staff, POST /api/testing/expenses and POST /api/testing/orders get no body here, so every caller meets the same 400.
+    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400.
     private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
         ?
         [
@@ -66,6 +66,8 @@ public static class AuthorizationMatrix
             new("POST", "/api/testing/staff", "/api/testing/staff", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/expenses", "/api/testing/expenses", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/orders", "/api/testing/orders", Anonymous: 400, Admin: 400, Manager: 400),
+            new("GET", "/api/testing/images/{id}", "/api/testing/images/unknown-photo", Anonymous: 404, Admin: 404, Manager: 404),
+            new("POST", "/api/testing/images/fail-next", "/api/testing/images/fail-next", Anonymous: 400, Admin: 400, Manager: 400),
         ]
         : [];
 
@@ -213,6 +215,8 @@ public static class AuthorizationMatrix
 
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
+        // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.
+        new("GET", "/api/v1/orders/image-rules", "/api/v1/orders/image-rules", Anonymous: 401, Admin: 200, Manager: 200),
         // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.
         new("POST", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 400, Manager: 400),
         // Reading one order (ORD-03): both roles. A fresh random id is no order, so both meet 404 orders.not-found.
@@ -225,6 +229,14 @@ public static class AuthorizationMatrix
         new("PUT", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/7d3b9e25-1a64-4c80-b5f2-8e0c4a6d1b97/items/2f8a5c13-9e47-4d06-a1b3-6c0d7e4f9a28", Anonymous: 401, Admin: 400, Manager: 400),
         // Removing an item (ORD-05): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
         new("DELETE", "/api/v1/orders/{orderId:guid}/items/{itemId:guid}", "/api/v1/orders/1e6c4a82-3b95-4d07-8a1f-5d2e9b7c0a34/items/9c4e7a16-2d83-4b05-a6f1-3e8b0d5c2a79", Anonymous: 401, Admin: 404, Manager: 404),
+        // Uploading a photo with POST orders/{orderId}/images (ORD-04, D-19): both roles. The matrix sends an Idempotency-Key and no form body, so both meet 400 images.file-missing before the order is looked up.
+        new("POST", "/api/v1/orders/{orderId:guid}/images", "/api/v1/orders/6b1d8f40-2e75-4c93-a0b6-9d4e3a7c5f18/images", Anonymous: 401, Admin: 400, Manager: 400),
+        // Moving a photo or making it the cover (ORD-04, D-13, D-14): both roles. The matrix sends no body, so both meet 400 on the position and version before the order is looked up.
+        new("PUT", "/api/v1/orders/{orderId:guid}/images/{imageId:guid}/position", "/api/v1/orders/3c9e5b71-8a24-4d60-b1f7-0e6a2d4c8b95/images/a5d1e703-6b48-4c92-8f0a-7e3b9c1d2f64/position", Anonymous: 401, Admin: 400, Manager: 400),
+        // Describing a photo (ORD-04, D-12): both roles. The matrix sends no body, so both meet 400 on the version before the order is looked up.
+        new("PUT", "/api/v1/orders/{orderId:guid}/images/{imageId:guid}", "/api/v1/orders/8e2a6d14-5c97-4b30-a1f8-3d7b0c9e4a62/images/c3f7a915-2d68-4e01-b4a0-9e5d1b7c8f23", Anonymous: 401, Admin: 400, Manager: 400),
+        // Deleting a photo (ORD-04, JOB-02, D-19): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
+        new("DELETE", "/api/v1/orders/{orderId:guid}/images/{imageId:guid}", "/api/v1/orders/2d7f4b95-6e13-4a80-9c2b-8f1a5e3d0b67/images/e6a0c3d8-1b94-4f27-a5d3-7c2e9b4f1a05", Anonymous: 401, Admin: 404, Manager: 404),
         // Adding a discount to a saved order (ORD-05, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("POST", "/api/v1/orders/{orderId:guid}/payments", "/api/v1/orders/9e4b1c73-2a58-4d06-b3f9-5c7a0e1d8f24/payments", Anonymous: 401, Admin: 400, Manager: 400),
         new("PUT", "/api/v1/orders/{orderId:guid}/payments/{paymentId:guid}", "/api/v1/orders/4a7c1e90-6b25-4d83-8f0a-2e5b9c3d7a16/payments/c8f2a05d-3e71-4b96-a4d0-1b7e6c9f2a53", Anonymous: 401, Admin: 400, Manager: 400),
@@ -253,6 +265,9 @@ public static class AuthorizationMatrix
         new("PUT", "/api/v1/orders/{orderId:guid}/discounts/{discountId:guid}", "/api/v1/orders/2b7e5a91-4d36-4c08-a9f1-7e3c0d8b5a64/discounts/8d1f4b27-6a93-4e50-b2c7-0a5e9d3f1b48", Anonymous: 401, Admin: 400, Manager: 400),
         // Removing a discount (ORD-05, D-15): both roles. A fresh random order id is no order, so both meet 404 orders.not-found.
         new("DELETE", "/api/v1/orders/{orderId:guid}/discounts/{discountId:guid}", "/api/v1/orders/5c9a2e68-1f47-4b03-8d6a-3b0e7f4c2a91/discounts/a3e6d0b5-7c28-4f19-9b4a-6d1c8e2f0a37", Anonymous: 401, Admin: 404, Manager: 404),
+
+        // The maintenance run (JOB-01) is anonymous but needs the X-Maintenance-Key header. The matrix sends none, so every caller meets the same 401.
+        new("POST", "/api/v1/maintenance/run", "/api/v1/maintenance/run", Anonymous: 401, Admin: 401, Manager: 401),
 
         // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
@@ -285,6 +300,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/auth/invite/accept",
             "POST /api/v1/profile/email-change/confirm",
             "POST /api/v1/profile/email-change/check",
+            "POST /api/v1/maintenance/run",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
@@ -293,7 +309,7 @@ public static class AuthorizationMatrix
             "* /scalar/{**path}",
         }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
 
-    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders"] : [];
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>

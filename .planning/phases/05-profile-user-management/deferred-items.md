@@ -1,6 +1,6 @@
 ---
 created: 2026-10-17T20:55:00-05:00
-updated: 2026-10-19T05:10:32-05:00
+updated: 2026-11-03T19:20:00-06:00
 ---
 
 # Phase 5: deferred items
@@ -13,6 +13,7 @@ Things found while executing Phase 5 that are out of scope for the plan that fou
 - **Deferred to:** Phase 9 maintenance job, requirement JOB-01.
 - **Why deferred:** The app has no host scheduler on the Basic hosting plan. Scheduled jobs run from GitHub Actions calling a secret-protected endpoint, and that endpoint and its job runner are built in Phase 9. Building a one-off purge now would create a second, unscheduled path to the same table.
 - **Covered meanwhile:** A deleted user's outbox rows are scrubbed at delete time (plan 05-26), so a removed staff address does not wait for the purge.
+- **Delivered (2026-11-03):** plan 09-17 added the outbox rule to the purge job: sent, failed or expired rows are deleted 30 days after they close, and open rows are never touched.
 
 ## Security items for /gsd-secure-phase 5 (found in Phase 5; not fixed here)
 

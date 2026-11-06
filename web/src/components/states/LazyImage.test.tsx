@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as statesScenarios } from '@/dev/scenarios/groups/states';
@@ -88,6 +88,33 @@ describe('LazyImage markup', () => {
   });
 });
 
+describe('LazyImage responsive delivery (IMG-04)', () => {
+  const SRC_SET = `${SRC}?w=640 640w, ${SRC}?w=960 960w`;
+  const SIZES = '(max-width: 639px) calc(100vw - 32px), 956px';
+
+  it('passes srcSet and sizes to the img', () => {
+    const { container } = render(image({ srcSet: SRC_SET, sizes: SIZES }));
+    expect(imgOf(container)).toHaveAttribute('srcset', SRC_SET);
+    expect(imgOf(container)).toHaveAttribute('sizes', SIZES);
+  });
+
+  it('leaves srcset and sizes off the img when they are not given', () => {
+    const { container } = render(image());
+    expect(imgOf(container)).not.toHaveAttribute('srcset');
+    expect(imgOf(container)).not.toHaveAttribute('sizes');
+  });
+
+  it('crops with cover by default and fits the whole photo with contain', () => {
+    const cover = render(image({ fit: 'cover' }));
+    expect(imgOf(cover.container)).toHaveClass('object-cover');
+    cover.unmount();
+    const { container } = render(image({ fit: 'contain' }));
+    expect(imgOf(container)).toHaveClass('object-contain');
+    expect(imgOf(container)).not.toHaveClass('object-cover');
+    expect(tokens(imgOf(container).className)).toEqual(tokens('block size-full object-contain'));
+  });
+});
+
 describe('LazyImage loading', () => {
   it('shows a full-box radius-0 Skeleton over the image until the load event, then only the image', () => {
     const { container } = render(image());
@@ -153,6 +180,35 @@ describe('LazyImage error', () => {
     expect(imgOf(container)).toHaveAttribute('src', `${SRC}?v=2`);
     expect(skeleton(container)).not.toBeNull();
     expect(box(container)).not.toHaveAttribute('role');
+  });
+});
+
+describe('LazyImage with no address (the API sends empty addresses when image delivery is not set up)', () => {
+  it('shows the placeholder at once with no img, no skeleton and no console error', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { container } = render(image({ src: '', srcSet: '' }));
+    expect(container.querySelector('img')).toBeNull();
+    expect(skeleton(container)).toBeNull();
+    expect(placeholder(container)).not.toBeNull();
+    expect(screen.getByRole('img', { name: ALT })).toBe(box(container));
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+    await expectNoAxeViolations(container);
+  });
+
+  it('hides a decorative image with no address from assistive tech', () => {
+    const { container } = render(image({ src: '', srcSet: '', alt: '' }));
+    expect(container.querySelector('img')).toBeNull();
+    expect(box(container)).toHaveAttribute('aria-hidden', 'true');
+    expect(placeholder(container)).not.toBeNull();
+  });
+
+  it('loads normally once an address arrives', () => {
+    const { container, rerender } = render(image({ src: '' }));
+    rerender(image());
+    expect(imgOf(container)).toHaveAttribute('src', SRC);
+    expect(skeleton(container)).not.toBeNull();
+    expect(placeholder(container)).toBeNull();
   });
 });
 

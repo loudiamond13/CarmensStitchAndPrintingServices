@@ -14,7 +14,7 @@ namespace Csps.Infrastructure.Orders;
 /// <see cref="IOrderReader"/> over EF: untracked reads. The order detail is one statement for the order and one for each child list and
 /// the history, then one that checks the row version has not moved. The business today is stamped from the calendar after the reads.
 /// </summary>
-internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calendar) : IOrderReader
+internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calendar, IImageDelivery imageDelivery) : IOrderReader
 {
     private const string SoftDeleteFilter = "SoftDelete";
     private const int DetailReadAttempts = 3;
@@ -30,9 +30,16 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         var matches = Filter(context.Orders.AsNoTracking(), query, now);
 
         // Command 1: the count over every page. Command 2: the page, ending on the id so paging is stable. Command 3: the two
-        // list-wide counts, which ignore every filter (D-41, D-60). The piece count of a row is a correlated sum inside command 2.
+        // list-wide counts, which ignore every filter (D-41, D-60). The piece count, the photo count and the position 0 photo of a row are correlated subqueries inside command 2.
         var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
-        var rows = await Sort(matches, query.Sort)
+
+        // The page is cut in an inner query on the ids, so the subqueries run for the rows of the page only and not for every
+        // matching order; the outer query sorts the page again on the same keys.
+        var pageIds = Sort(matches, query.Sort)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(order => order.Id);
+        var rows = await Sort(context.Orders.AsNoTracking().Where(order => pageIds.Contains(order.Id)), query.Sort)
             .Select(order => new OrderListRow(
                 order.Id,
                 order.Number,
@@ -50,9 +57,11 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                 order.Balance,
                 order.CustomerCredit,
                 order.FullyPaid,
-                context.Set<OrderItem>().Where(item => item.OrderId == order.Id).Sum(item => item.Quantity)))
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+                context.Set<OrderItem>().Where(item => item.OrderId == order.Id).Sum(item => item.Quantity),
+                context.Set<OrderImage>().Count(image => image.OrderId == order.Id),
+                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => image.PublicId).FirstOrDefault(),
+                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Width).FirstOrDefault(),
+                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Height).FirstOrDefault()))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -276,6 +285,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         var paymentsSource = deleted ? context.Set<OrderPayment>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderPayment>().AsNoTracking();
         var refundsSource = deleted ? context.Set<OrderRefund>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderRefund>().AsNoTracking();
         var expensesSource = deleted ? context.Set<OrderExpense>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderExpense>().AsNoTracking();
+        var imagesSource = deleted ? context.Set<OrderImage>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderImage>().AsNoTracking();
         var changesSource = deleted ? context.Set<OrderStatusChange>().IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() : context.Set<OrderStatusChange>().AsNoTracking();
         var header = await (
             from row in orders
@@ -480,6 +490,14 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // Photos in display order. The addresses are built here from the stored id and size and are never kept (IMG-04, D-01).
+        var imageRows = await imagesSource
+            .Where(image => image.OrderId == id)
+            .OrderBy(image => image.Position)
+            .ThenBy(image => image.Slot)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var order = header.Order;
         return new OrderDetailResponse(
             order.Id,
@@ -591,6 +609,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                         : null,
                     change.ChangedAtUtc)),
             ],
+            [.. imageRows.Select(ToResponse)],
             new OrderTotalsResponse(
                 order.Subtotal,
                 order.DiscountTotal,
@@ -612,5 +631,19 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             order.UpdatedAtUtc,
             RowVersions.ToText(order.RowVersion),
             default);
+    }
+
+    private OrderImageResponse ToResponse(OrderImage image)
+    {
+        var urls = imageDelivery.ForPhoto(image.PublicId, image.Width, image.Height);
+        return new OrderImageResponse(
+            image.Id,
+            image.Position,
+            image.Description,
+            image.Width,
+            image.Height,
+            new ImageSourceResponse(urls.Thumb.Src, urls.Thumb.SrcSet),
+            new ImageSourceResponse(urls.Viewer.Src, urls.Viewer.SrcSet),
+            urls.FullSize);
     }
 }

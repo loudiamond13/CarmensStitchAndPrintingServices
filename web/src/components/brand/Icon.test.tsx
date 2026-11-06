@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import {
   Archive,
   ArchiveRestore,
+  Camera,
   Copy,
   Eraser,
   Funnel,
@@ -82,7 +83,7 @@ const SPEC_ICON_NAMES = [
 ] as const;
 
 // Not in App. D.5: the owner's empty-value icon (OR-4, 2026-10-14), the six Phase 5 icons (UI-SPEC OQ-9), then the five Phase 6
-// icons (UI-SPEC OQ-12).
+// icons (UI-SPEC OQ-12), then the Phase 9 camera icon (D-26, "Take Photo").
 const OWNER_ICON_NAMES = [
   'minus',
   'copy',
@@ -96,6 +97,7 @@ const OWNER_ICON_NAMES = [
   'archive',
   'archive-restore',
   'eraser',
+  'camera',
 ] as const;
 
 /** The one svg an Icon renders. */
@@ -221,6 +223,10 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
     ['eraser', Eraser],
   ] as const)('draws %s with the lucide component of the same name (Phase 6, OQ-12)', (name, component) => {
     expect(ICONS[name]).toBe(component);
+  });
+
+  it('draws camera with lucide’s Camera (Phase 9, D-26)', () => {
+    expect(ICONS.camera).toBe(Camera);
   });
 
   it('renders the History icon as a named image', () => {

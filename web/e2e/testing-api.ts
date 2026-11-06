@@ -127,6 +127,9 @@ export async function createExpense(request: APIRequestContext, input: ExpenseSe
 /** The seeded Basketball Jersey product type (the id is the fixed migration seed literal). */
 export const BASKETBALL_JERSEY_ID = '01a17fce-7800-7f5d-bc6c-5d14ceeca0c6';
 
+/** The seeded Cash payment method (the id is the fixed migration seed literal). */
+export const CASH_ID = '01a17fce-7806-77e1-91b7-d3b852f2fd1d';
+
 /** One line of a seeded order. */
 export interface OrderSeedItem {
   readonly productTypeId: string;

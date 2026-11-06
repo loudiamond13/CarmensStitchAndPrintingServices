@@ -1,6 +1,6 @@
 ---
 created: 2026-10-14T18:00:00-05:00
-updated: 2026-10-18T07:10:00-05:00
+updated: 2026-11-03T17:30:00-06:00
 ---
 
 # Mail setup: the app's sender mailbox and the .NET security update
@@ -125,7 +125,7 @@ Every email the app sends goes through a table of queued messages (the outbox). 
 
 - **While a row is open** (waiting to send or being retried), it holds the encrypted subject and bodies, so the message can be sent.
 - **When a row is closed** (sent, or given up after the retries), the app clears the subject and bodies at once. What stays is the recipient address, the kind of email, the times and the result code, so staff can see that a sign-in code or reset link was sent and when.
-- **Closed rows are deleted 30 days after they close.** The recipient address is personal data, so it is not kept longer than that. The deleting is done by the maintenance job planned for Phase 9 (requirement JOB-01). Until that job exists, closed rows stay, which is why this is recorded as deferred in `.planning/phases/05-profile-user-management/deferred-items.md`.
+- **Closed rows are deleted 30 days after they close.** The recipient address is personal data, so it is not kept longer than that. The monthly maintenance run deletes them (requirement JOB-01, see `docs/operations/maintenance.md`). A row that is sent, given up on or expired is removed by the first run that happens more than 30 days after it closed. Rows that are still open are never deleted.
 - **When a user is deleted,** the rows addressed to that user are scrubbed at delete time (plan 05-26 of Phase 5), without waiting for the 30 days.
 
 Nothing here needs action from you. It is written down so the rule is clear and the Phase 9 job has a definition to follow.

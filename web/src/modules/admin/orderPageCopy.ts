@@ -103,12 +103,6 @@ export const ORDER_PAGE_COPY = {
       message: 'Someone else deleted this order. The list is up to date.',
     },
   },
-  /** The Images card (D-27): Phase 9 replaces its body with the gallery. */
-  images: {
-    title: 'Images',
-    hint: 'Mockups and reference photos.',
-    soon: 'Image uploads are coming soon.',
-  },
   /** The visually hidden heading of the totals panel, which the phone balance card scrolls to (D-33). */
   totals: 'Totals',
   /** The tab card: one label per tab, shown with its count. */

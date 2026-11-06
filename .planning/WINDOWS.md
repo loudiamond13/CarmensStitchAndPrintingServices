@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 3
+open_count: 4
 waived_count: 1
 fixed_count: 3
-total_count: 7
-last_updated: 2026-10-30T18:16:26.940Z
+total_count: 8
+last_updated: 2026-11-03T13:11:22.204Z
 ---
 
 # Broken Windows Ledger
@@ -22,6 +22,7 @@ last_updated: 2026-10-30T18:16:26.940Z
 | 5 | 08 | unrun-verify | .planning/phases/08-order-screens/08-VALIDATION.md |  | Browser beforeunload prompt on a dirty New Order and Edit Order form is a manual check (ORD-15); owner to confirm | open |  | 2026-10-30T18:16:25.367Z |  |
 | 6 | 08 | unrun-verify | .planning/phases/08-order-screens/08-UI-SPEC.md |  | Visual Review screenshot set at 390, 820 and 1440 px in Blush and Espresso (UIC-71) awaits the owner; run npm --prefix web run review | open |  | 2026-10-30T18:16:26.158Z |  |
 | 7 | 08 | deviation | web/e2e/dialog-fit.spec.ts |  | Full e2e not green: dialog-fit 1274x585, dialog-scrollbars, long-text four-chip and shell 1440x900 fail at the pre-08-24 commit too (see deferred-items 08-24 item 8) | open |  | 2026-10-30T18:16:26.940Z |  |
+| 8 | 09 | stub | src/Csps.Infrastructure/Images/UnconfiguredImageStorage.cs |  | Image storage answers 503 on every non-Testing host until plan 09-19 adds Cloudinary | open |  | 2026-11-03T13:11:22.204Z |  |
 
 ````json
 [
@@ -113,6 +114,19 @@ last_updated: 2026-10-30T18:16:26.940Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-30T18:16:26.940Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 8,
+    "kind": "stub",
+    "phase": "09",
+    "file": "src/Csps.Infrastructure/Images/UnconfiguredImageStorage.cs",
+    "line": null,
+    "description": "Image storage answers 503 on every non-Testing host until plan 09-19 adds Cloudinary",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T13:11:22.204Z",
     "resolved_at": null,
     "milestone": null
   }

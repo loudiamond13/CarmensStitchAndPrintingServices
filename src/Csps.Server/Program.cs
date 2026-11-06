@@ -68,8 +68,13 @@ builder.Services.AddCspsRateLimiting(builder.Configuration);
 // One handler per use case, no mediator (PRD section 3.3).
 builder.Services.AddCspsApplication();
 
-// Controllers (owner rule 2026-10-07). Model-state 400s are off: validation is FluentValidation in the handlers.
-var mvc = builder.Services.AddControllers().ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
+// Controllers (owner rule 2026-10-07). Model-state 400s are off: validation is FluentValidation in the handlers. A photo upload is not
+// matched by content type, so a request with no form body still reaches authorization (401) and the handler (400) instead of a 404.
+var mvc = builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+    options.SuppressConsumesConstraintForFormFileParameters = true;
+});
 
 #if CSPS_TESTING
 // Debug builds only: the Testing-only controllers exist in the Testing environment alone, and a Debug build never runs as
@@ -92,9 +97,6 @@ app.Environment.WebRootFileProvider = new HiddenSegmentFileProvider(app.Environm
 
 // Outermost: its OnStarting callback covers redirect, exception-handler and status-code-page responses too (SEC-01).
 app.UseMiddleware<SecurityHeadersMiddleware>();
-
-// Refuses bodies above 1 MB with a 413 before anything else reads them (SEC-03).
-app.UseMiddleware<RequestBodyLimitMiddleware>();
 
 if (redirectToHttps)
 {
@@ -126,12 +128,18 @@ app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();
 
+// After routing, so the matched endpoint's limit is known: 1 MiB, or the photo upload's own. A 413 comes before anything reads the body (SEC-03, IMG-02).
+app.UseMiddleware<RequestBodyLimitMiddleware>();
+
 // After routing so [EnableRateLimiting] sees the endpoint; before authentication so a throttled request costs nothing (SEC-03).
 app.UseRateLimiter();
 
 // Inside status-code pages, so an empty 401 challenge or 403 forbid becomes a ProblemDetails (FND-05).
 app.UseAuthentication();
 app.UseAuthorization();
+
+// The two-at-a-time photo upload cap, after authorization so a refused anonymous request never takes a slot (T-09-27, CWE-770).
+app.UseMiddleware<UploadSlotsMiddleware>();
 
 // Every POST needs an Idempotency-Key unless it is exempt with a written reason (SEC-06, D-40). It runs after routing and
 // authorization so the endpoint and the user are known and a refused request never takes a key.

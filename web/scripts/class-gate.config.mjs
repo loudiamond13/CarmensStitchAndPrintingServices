@@ -12,15 +12,16 @@
  * @property {string} decision The owner decision that allows it.
  */
 
-/** Paths matching `src/components/media/ImageUploader*.{ts,tsx}`. */
-const imageUploaderFiles = /^src\/components\/media\/ImageUploader[^/]*\.tsx?$/;
+/** Paths matching `src/components/media/ImageUploader*.{ts,tsx}` and `src/components/media/PhotoTile*.{ts,tsx}`. */
+const imageUploaderFiles = /^src\/components\/media\/(?:ImageUploader|PhotoTile)[^/]*\.tsx?$/;
 
 /** @type {readonly OpacityAllow[]} */
 export const OPACITY_ALLOW = Object.freeze([
   // D-02 / WEB-09: the App. B disabled button and the pending button (aria-disabled) share the 45% look.
   { pattern: /^(disabled|aria-disabled):opacity-45$/, decision: 'D-02' },
-  // D-05: the ImageUploader thumb grip and actions are hidden at rest on hover devices, shown on hover and on
-  // keyboard focus within the thumb, and always shown on touch.
+  // D-05: the decorative drag grip of a PhotoTile is hidden at rest on hover devices and shown on hover and on
+  // keyboard focus within the tile (Phase 9, D-13 and D-14 keep every real control visible). The no-hover entry is
+  // kept for the ImageUploader files that carried the original D-05 reveal.
   { pattern: /^opacity-0$/, files: imageUploaderFiles, decision: 'D-05' },
   { pattern: /^group-hover\/thumb:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },
   { pattern: /^group-focus-within\/thumb:opacity-100$/, files: imageUploaderFiles, decision: 'D-05' },

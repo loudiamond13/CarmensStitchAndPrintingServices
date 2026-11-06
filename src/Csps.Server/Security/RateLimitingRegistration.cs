@@ -16,12 +16,14 @@ public static class RateLimitingRegistration
     /// <summary>The machine code a limiter rejection carries.</summary>
     public const string RateLimitedCode = "rate-limited";
 
+    internal const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
+    private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
     private const int SegmentsPerWindow = 6;
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies. The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
+    /// Adds the six auth policies, the maintenance policy and the photo upload policy, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
     /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -34,7 +36,11 @@ public static class RateLimitingRegistration
         ArgumentNullException.ThrowIfNull(configuration);
 
         var settings = configuration.GetSection(RateLimitSettings.SectionName).Get<RateLimitSettings>() ?? new RateLimitSettings();
-        var problems = settings.Validate();
+        var maintenance = MaintenanceRateLimit.Default();
+        configuration.GetSection(MaintenanceRateLimit.SectionName).Bind(maintenance);
+        var images = ImageUploadRateLimit.Default();
+        configuration.GetSection(ImageUploadRateLimit.SectionName).Bind(images);
+        var problems = settings.Validate().Concat(MaintenanceRateLimit.Validate(maintenance)).Concat(ImageUploadRateLimit.Validate(images)).ToList();
         if (problems.Count > 0)
         {
             throw new InvalidOperationException(string.Join(" ", problems));
@@ -48,8 +54,11 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.Forgot] = settings.Forgot.Window,
             [RateLimitPolicies.Reset] = settings.Reset.Window,
             [RateLimitPolicies.Refresh] = settings.Refresh.Window,
+            [RateLimitPolicies.Maintenance] = maintenance.Window,
+            [RateLimitPolicies.ImageUpload] = images.Window,
         };
 
+        services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -60,6 +69,8 @@ public static class RateLimitingRegistration
             AddPolicy(options, RateLimitPolicies.Forgot, settings.Forgot);
             AddPolicy(options, RateLimitPolicies.Reset, settings.Reset);
             AddPolicy(options, RateLimitPolicies.Refresh, settings.Refresh);
+            AddPolicy(options, RateLimitPolicies.Maintenance, maintenance);
+            AddPolicy(options, RateLimitPolicies.ImageUpload, images);
         });
         return services;
     }
@@ -116,8 +127,8 @@ public static class RateLimitingRegistration
         var http = context.HttpContext;
         var policy = http.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
 
-        // A sliding window reports no wait, so the policy's whole window is the safe answer: after it, every earlier
-        // request has left the window. Whole seconds, rounded up and never below 1 (SEC-03 precision edge).
+        // A window reports its own wait; if a lease reports none, the policy's whole window is the safe answer: after it, every
+        // earlier request has left the window. Whole seconds, rounded up and never below 1 (SEC-03 precision edge).
         if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var wait)
             || (policy is not null && windows.TryGetValue(policy, out wait)))
         {
@@ -125,8 +136,8 @@ public static class RateLimitingRegistration
             http.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
         }
 
-        var problem = CspsProblemDetails.Build(
-            http, StatusCodes.Status429TooManyRequests, "Too many attempts from this address. Please wait and try again.", code: RateLimitedCode);
+        var detail = policy == RateLimitPolicies.ImageUpload ? UploadsBusyDetail : AttemptsDetail;
+        var problem = CspsProblemDetails.Build(http, StatusCodes.Status429TooManyRequests, detail, code: RateLimitedCode);
         await TypedResults.Problem(problem).ExecuteAsync(http).ConfigureAwait(false);
     }
 }

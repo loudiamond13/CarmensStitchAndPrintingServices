@@ -224,6 +224,7 @@ public sealed class LegacyEditHandlerTests
             [.. order.Refunds.Select(refund => new OrderRefundResponse(refund.Id, refund.RefundDate, refund.Amount, refund.Reason, person, true, null, Now, null, null))],
             [.. order.Expenses.Select(expense => new OrderExpenseResponse(expense.Id, expense.ExpenseDate, list with { Id = expense.OrderExpenseCategoryId }, expense.Description, expense.Amount, person, true, null, Now, null, null))],
             [],
+            [],
             new OrderTotalsResponse(order.Subtotal, order.DiscountTotal, order.Total, order.PaidTotal, order.RefundedTotal, order.Balance, order.CustomerCredit, order.ExpensesTotal, order.Profit, order.FullyPaid),
             person,
             Now,

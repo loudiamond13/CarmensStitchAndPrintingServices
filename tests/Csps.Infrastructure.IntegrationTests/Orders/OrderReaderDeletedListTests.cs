@@ -1,6 +1,7 @@
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.Images;
 using Csps.Infrastructure.Orders;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +28,7 @@ public sealed class OrderReaderDeletedListTests(CspsDatabase database) : IClassF
         await using var context = database.CreateContext(counter);
 
         counter.Reset();
-        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListDeletedAsync(1, pageSize, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListDeletedAsync(1, pageSize, TestContext.Current.CancellationToken);
 
         counter.Count.ShouldBe(2);
         page.Items.Count.ShouldBe(pageSize);
@@ -42,7 +43,7 @@ public sealed class OrderReaderDeletedListTests(CspsDatabase database) : IClassF
         await using var context = database.CreateContext(counter);
 
         counter.Reset();
-        var page = await new OrderReader(context, new FixedBusinessCalendar(Now)).ListDeletedAsync(1, 20, TestContext.Current.CancellationToken);
+        var page = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListDeletedAsync(1, 20, TestContext.Current.CancellationToken);
 
         counter.Count.ShouldBe(2);
         page.Items.ShouldBeEmpty();
@@ -54,7 +55,7 @@ public sealed class OrderReaderDeletedListTests(CspsDatabase database) : IClassF
     {
         var (deletedIds, liveId) = await SeedAsync();
         await using var context = database.CreateContext();
-        var reader = new OrderReader(context, new FixedBusinessCalendar(Now));
+        var reader = new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery());
 
         var first = await reader.ListDeletedAsync(1, 100, TestContext.Current.CancellationToken);
         var second = await reader.ListDeletedAsync(2, 100, TestContext.Current.CancellationToken);
@@ -77,7 +78,7 @@ public sealed class OrderReaderDeletedListTests(CspsDatabase database) : IClassF
         var id = await SeedOrderWithChildrenAsync(deleted: true);
         await using var context = database.CreateContext();
 
-        var read = await new OrderReader(context, new FixedBusinessCalendar(Now)).GetDeletedDetailAsync(id, TestContext.Current.CancellationToken);
+        var read = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).GetDeletedDetailAsync(id, TestContext.Current.CancellationToken);
 
         var deleted = read.ShouldNotBeNull();
         deleted.DeletedAt.ShouldBe(Now.AddMinutes(5));
@@ -102,7 +103,7 @@ public sealed class OrderReaderDeletedListTests(CspsDatabase database) : IClassF
     {
         var liveId = await SeedOrderWithChildrenAsync(deleted: false);
         await using var context = database.CreateContext();
-        var reader = new OrderReader(context, new FixedBusinessCalendar(Now));
+        var reader = new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery());
 
         var live = await reader.GetDeletedDetailAsync(liveId, TestContext.Current.CancellationToken);
         var unknown = await reader.GetDeletedDetailAsync(Guid.NewGuid(), TestContext.Current.CancellationToken);
@@ -125,7 +126,7 @@ public sealed class OrderReaderDeletedListTests(CspsDatabase database) : IClassF
         var id = await SeedOrderWithChildrenAsync(deleted: true);
         await using var context = database.CreateContext();
 
-        var live = await new OrderReader(context, new FixedBusinessCalendar(Now)).GetDetailAsync(id, TestContext.Current.CancellationToken);
+        var live = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).GetDetailAsync(id, TestContext.Current.CancellationToken);
 
         live.ShouldBeNull();
     }

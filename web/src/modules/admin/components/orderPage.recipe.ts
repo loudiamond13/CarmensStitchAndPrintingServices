@@ -67,14 +67,6 @@ export const orderCardTitleClasses = tw('font-display text-[22px] leading-[1.1] 
 /** `.s-card-h p`: 13px muted. */
 export const orderCardHintClasses = tw('text-[13px] text-ink-muted');
 
-/** The Images card body: the icon tile and its line, centred. */
-export const orderImagesBodyClasses = tw(
-  'flex flex-col items-center gap-3 px-4 py-10 text-center text-[14px] leading-5 text-ink-muted',
-);
-
-/** The 56px tile behind the image icon. */
-export const orderImageTileClasses = tw('grid size-14 place-items-center rounded-md bg-surface-2 text-ink-muted');
-
 /** `.s-tabcard .csp-tabs`: the tab strip is inset 12px from the card edge. */
 export const orderTabsRowClasses = tw('px-3');
 

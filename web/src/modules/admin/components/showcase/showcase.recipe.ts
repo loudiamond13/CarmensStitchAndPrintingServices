@@ -93,3 +93,9 @@ export const bannersStackClasses = tw('flex w-full min-w-0 flex-col gap-4');
 
 /** The status menu demo: the button, then the open menu under it. */
 export const statusMenuColumnClasses = tw('flex min-w-0 flex-col items-start gap-1');
+
+/** The photo status line and the partial-failure banner, one above the other (plan 09-30). */
+export const photoCaseColumnClasses = tw('flex w-full min-w-0 flex-col gap-4');
+
+/** The card head's two status lines side by side. */
+export const photoStatusRowClasses = tw('flex flex-wrap items-center gap-x-6 gap-y-2');

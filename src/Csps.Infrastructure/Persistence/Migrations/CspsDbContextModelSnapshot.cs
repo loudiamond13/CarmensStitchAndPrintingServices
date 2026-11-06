@@ -1242,6 +1242,87 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Bytes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PublicId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_OrderImages_CreatedById");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_OrderImages_PublicId");
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_OrderImages_UpdatedById");
+
+                    b.HasIndex("OrderId", "Position")
+                        .HasDatabaseName("IX_OrderImages_OrderId_Position");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("OrderId", "Position"), new[] { "PublicId", "Width", "Height" });
+
+                    b.HasIndex("OrderId", "Slot")
+                        .IsUnique()
+                        .HasDatabaseName("IX_OrderImages_OrderId_Slot");
+
+                    b.ToTable("OrderImages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderImages_Position_Range", "[Position] BETWEEN 0 AND 4");
+
+                            t.HasCheckConstraint("CK_OrderImages_Slot_Range", "[Slot] BETWEEN 0 AND 4");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1768,6 +1849,84 @@ namespace Csps.Infrastructure.Persistence.Migrations
                             SecurityStamp = "D794185C-717C-4A46-AFFF-FFC9616BFFE8",
                             TwoFactorEnabled = false
                         });
+                });
+
+            modelBuilder.Entity("Csps.Infrastructure.Images.ImageDeletion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DeliveryType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<DateTimeOffset>("EnqueuedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("LastFailedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastFailureCode")
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<Guid?>("LeaseHolder")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("LeaseUntilUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("NextAttemptAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PublicId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte>("Reason")
+                        .HasColumnType("tinyint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NextAttemptAtUtc")
+                        .HasDatabaseName("IX_ImageDeletions_NextAttemptAtUtc");
+
+                    b.HasIndex("PublicId")
+                        .HasDatabaseName("IX_ImageDeletions_PublicId");
+
+                    b.ToTable("ImageDeletions", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Infrastructure.Maintenance.MaintenanceCursor", b =>
+                {
+                    b.Property<string>("JobName")
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("JobName");
+
+                    b.ToTable("MaintenanceCursors", (string)null);
                 });
 
             modelBuilder.Entity("Csps.Infrastructure.Persistence.Locking.DatabaseLock", b =>
@@ -2431,6 +2590,27 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Csps.Domain.Orders.OrderImage", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", "Order")
+                        .WithMany("Images")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Csps.Domain.Orders.OrderItem", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -2608,6 +2788,8 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Discounts");
 
                     b.Navigation("Expenses");
+
+                    b.Navigation("Images");
 
                     b.Navigation("Items");
 

@@ -5,6 +5,11 @@
     <ProjectReference Include="..\..\src\Csps.Application\Csps.Application.csproj" />
   </ItemGroup>
 
+  <!-- The synthetic photo builders have no dependencies, so the sniffer tests share the one source file with the endpoint tests. -->
+  <ItemGroup>
+    <Compile Include="..\Csps.Testing\Images\SyntheticImages.cs" Link="Images\SyntheticImages.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />

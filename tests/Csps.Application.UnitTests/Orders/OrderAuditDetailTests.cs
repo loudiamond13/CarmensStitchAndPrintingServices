@@ -604,6 +604,110 @@ public sealed class OrderAuditDetailTests
         return order;
     }
 
+    [Fact]
+    public void ImageMovedHoldsTheNumberAndTheOneBasedPlacesNeverAnId()
+    {
+        var order = OrderWithPhotos(3);
+
+        OrderAuditDetail.ImageMoved(order, new OrderImageMove(1, 0, 1)).ShouldBe("number=ORD-2026-0148;from=2;to=1");
+        OrderAuditDetail.ImageMoved(order, new OrderImageMove(0, 4, 1)).ShouldBe("number=ORD-2026-0148;from=1;to=5");
+    }
+
+    [Fact]
+    public void ImageDeletedHoldsTheNumberAndTheOneBasedPlaceThePhotoHadNeverAnId()
+    {
+        var order = OrderWithPhotos(3);
+
+        OrderAuditDetail.ImageDeleted(order, order.Images[0]).ShouldBe("number=ORD-2026-0148;position=1");
+        OrderAuditDetail.ImageDeleted(order, order.Images[2]).ShouldBe("number=ORD-2026-0148;position=3");
+    }
+
+    [Fact]
+    public void ImageCoverChangedHoldsTheNumberAndTheOneBasedPlaceTheNewCoverHad()
+    {
+        var order = OrderWithPhotos(3);
+
+        OrderAuditDetail.ImageCoverChanged(order, 2).ShouldBe("number=ORD-2026-0148;cover=3");
+    }
+
+    [Fact]
+    public void ImageDescriptionChangedHoldsTheOldAndNewTextAndThePlace()
+    {
+        var order = OrderWithPhotos(2);
+        order.DescribeImage(order.Images[1].Id, "Back print", Now).IsSuccess.ShouldBeTrue();
+
+        OrderAuditDetail.ImageDescriptionChanged(order, order.Images[1], new OrderImageDescriptionChange(null, "Back print"))
+            .ShouldBe("number=ORD-2026-0148;position=2;description=Order ORD-2026-0148 photo 2>Back print");
+        OrderAuditDetail.ImageDescriptionChanged(order, order.Images[1], new OrderImageDescriptionChange("Back print", null))
+            .ShouldBe("number=ORD-2026-0148;position=2;description=Back print>Order ORD-2026-0148 photo 2");
+    }
+
+    [Fact]
+    public void ImageDescriptionChangedEncodesTheSeparatorsInTheText()
+    {
+        var order = OrderWithPhotos(1);
+
+        OrderAuditDetail.ImageDescriptionChanged(order, order.Images[0], new OrderImageDescriptionChange("a;b", "c=d>e"))
+            .ShouldBe("number=ORD-2026-0148;position=1;description=a%3Bb>c%3Dd%3Ee");
+    }
+
+    [Fact]
+    public void ImageDescriptionChangedStaysUnderTheDetailLimitForTheLongestEncodedText()
+    {
+        var order = OrderWithPhotos(1);
+        var longest = new string(';', OrderImageRules.DescriptionMaxLength);
+
+        var detail = OrderAuditDetail.ImageDescriptionChanged(order, order.Images[0], new OrderImageDescriptionChange(longest, new string('=', OrderImageRules.DescriptionMaxLength)));
+
+        detail.Length.ShouldBeLessThanOrEqualTo(AuditEntry.DetailMaxLength);
+        detail.ShouldStartWith("number=ORD-2026-0148;position=1;description=%3B");
+    }
+
+    [Fact]
+    public void ImageDescriptionChangedNeverSplitsAnEmojiWhenItCutsTheText()
+    {
+        var order = OrderWithPhotos(1);
+        var text = string.Concat(Enumerable.Repeat(char.ConvertFromUtf32(0x1F600), 100));
+
+        var detail = OrderAuditDetail.ImageDescriptionChanged(order, order.Images[0], new OrderImageDescriptionChange(text, text + text));
+
+        detail.Length.ShouldBeLessThanOrEqualTo(AuditEntry.DetailMaxLength);
+        detail.ShouldNotContain("�");
+        foreach (var index in Enumerable.Range(0, detail.Length))
+        {
+            if (char.IsHighSurrogate(detail[index]))
+            {
+                char.IsLowSurrogate(detail[index + 1]).ShouldBeTrue();
+            }
+        }
+    }
+
+    [Fact]
+    public void TheImageDetailsAreNullChecked()
+    {
+        var order = OrderWithPhotos(1);
+
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageMoved(null!, new OrderImageMove(0, 1, null)));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageMoved(order, null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageCoverChanged(null!, 0));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageDeleted(null!, order.Images[0]));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageDeleted(order, null!));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageDescriptionChanged(null!, order.Images[0], new OrderImageDescriptionChange(null, "x")));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageDescriptionChanged(order, null!, new OrderImageDescriptionChange(null, "x")));
+        Should.Throw<ArgumentNullException>(() => OrderAuditDetail.ImageDescriptionChanged(order, order.Images[0], null!));
+    }
+
+    private static Order OrderWithPhotos(int count)
+    {
+        var order = NewOrder("ORD-2026-0148");
+        for (var index = 0; index < count; index++)
+        {
+            order.AddImage(new NewOrderImage($"csps/orders/x/id{index}", 640, 480, 12345, "jpg", null), Now).IsSuccess.ShouldBeTrue();
+        }
+
+        return order;
+    }
+
     // One item of 9,750.00, paid in full, then cancelled, so a refund up to 9,750.00 is allowed.
     private static Order CancelledPaidOrder()
     {

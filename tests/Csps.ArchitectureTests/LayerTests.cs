@@ -92,6 +92,23 @@ public sealed class LayerTests
     }
 
     [Fact]
+    public void OnlyInfrastructureReferencesTheCloudinaryLibrary()
+    {
+        const string Cloudinary = "CloudinaryDotNet";
+
+        // The positive check proves this test can see the reference, so the absent ones mean something.
+        ReferencedAssemblyNames(InfrastructureAssembly).ShouldContain(Cloudinary);
+        ReferencedAssemblyNames(DomainAssembly).ShouldNotContain(Cloudinary);
+        ReferencedAssemblyNames(ApplicationAssembly).ShouldNotContain(Cloudinary);
+        ReferencedAssemblyNames(ServerAssembly).ShouldNotContain(Cloudinary);
+
+        foreach (var project in new[] { "src/Csps.Domain/Csps.Domain.csproj", "src/Csps.Application/Csps.Application.csproj", "src/Csps.Server/Csps.Server.csproj" })
+        {
+            PackageReferences(XDocument.Load(RepoRoot.PathOf(project))).ShouldNotContain(Cloudinary, project);
+        }
+    }
+
+    [Fact]
     public void DomainProjectHasNoPackageReferences()
     {
         var project = XDocument.Load(RepoRoot.PathOf("src/Csps.Domain/Csps.Domain.csproj"));

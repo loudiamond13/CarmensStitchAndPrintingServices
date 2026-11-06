@@ -68,6 +68,94 @@ public static class OrderAuditDetail
     /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>
     public static string ItemAdded(OrderItem item) => ItemSnapshot(item);
 
+    /// <summary>The detail of <c>order-image.added</c>: the order number and the photo's 1-based place, never its id, address or description (D-19).</summary>
+    /// <param name="order">The order the photo was added to.</param>
+    /// <param name="image">The photo that was added.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;position=1</c>.</returns>
+    public static string ImageAdded(Order order, OrderImage image)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(image);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("position", (image.Position + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>The detail of <c>order-image.deleted</c>: the order number and the photo's 1-based place before it was removed, never its id, address or description (D-19).</summary>
+    /// <param name="order">The order the photo was on.</param>
+    /// <param name="image">The photo that was removed.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;position=2</c>.</returns>
+    public static string ImageDeleted(Order order, OrderImage image)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(image);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("position", (image.Position + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>The detail of <c>order-image.moved</c>: the order number and the 1-based places the photo moved from and to, never its id or address (D-19).</summary>
+    /// <param name="order">The order the photo is on.</param>
+    /// <param name="move">What the move changed.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;from=2;to=1</c>.</returns>
+    public static string ImageMoved(Order order, OrderImageMove move)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(move);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("from", (move.From + 1).ToString(CultureInfo.InvariantCulture)),
+            AuditDetailFormat.Pair("to", (move.To + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>The detail of <c>order-image.cover-changed</c>: the order number and the 1-based place the new cover photo had before the move (D-14, D-19).</summary>
+    /// <param name="order">The order the photo is on.</param>
+    /// <param name="coverFrom">The place the new cover had before the move, counting from 0.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;cover=2</c>.</returns>
+    public static string ImageCoverChanged(Order order, int coverFrom)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("cover", (coverFrom + 1).ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>
+    /// The detail of <c>order-image.description-changed</c>: the order number, the photo's 1-based place and the old and new text as
+    /// <c>old&gt;new</c>, encoded. A side with no kept text shows the default text of the place. The text is cut, never in the
+    /// middle of a character, so the detail stays under the audit log's limit; it never holds the photo's id or address (D-12, D-19).
+    /// </summary>
+    /// <param name="order">The order the photo is on.</param>
+    /// <param name="image">The photo after the change.</param>
+    /// <param name="change">The old and new kept text.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;position=2;description=Order ORD-2026-0148 photo 2&gt;Front mockup</c>.</returns>
+    public static string ImageDescriptionChanged(Order order, OrderImage image, OrderImageDescriptionChange change)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentNullException.ThrowIfNull(change);
+
+        var fallback = OrderImageRules.DefaultDescription(order.Number, image.Position);
+        var from = change.From ?? fallback;
+        var to = change.To ?? fallback;
+        var place = (image.Position + 1).ToString(CultureInfo.InvariantCulture);
+        for (var keep = OrderImageRules.DescriptionMaxLength; ; keep -= 10)
+        {
+            var detail = AuditDetailFormat.Join(
+                AuditDetailFormat.Pair("number", order.Number),
+                AuditDetailFormat.Pair("position", place),
+                AuditDetailFormat.Change("description", Cut(from, keep), Cut(to, keep)));
+            if (detail.Length <= AuditEntry.DetailMaxLength || keep <= 10)
+            {
+                return detail;
+            }
+        }
+    }
+
     /// <summary>The detail of <c>order-item.removed</c>: the item id, product type, quantity and unit price as they were.</summary>
     /// <param name="item">The item that was removed.</param>
     /// <returns>For example <c>item=&lt;id&gt;;productType=&lt;id&gt;;quantity=2;unitPrice=550.00</c>.</returns>
@@ -362,6 +450,10 @@ public static class OrderAuditDetail
 
         return detail;
     }
+
+    // The first characters of the text, without splitting a surrogate pair.
+    private static string Cut(string text, int length) =>
+        text.Length <= length ? text : text[..(char.IsHighSurrogate(text[length - 1]) ? length - 1 : length)];
 
     private static string Compose(string[] money, PeopleList[] lists) =>
         AuditDetailFormat.Join([.. money, .. lists.Select(static list => AuditDetailFormat.Pair(list.Key, list.Text()))]);

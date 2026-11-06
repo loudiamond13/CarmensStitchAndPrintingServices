@@ -10,7 +10,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Button, ButtonLink } from '@/components/actions';
-import { OrderCard, type OrderCardOrder } from '@/components/data';
+import { OrderCard, type OrderCardCover, type OrderCardOrder } from '@/components/data';
 import { EmptyState } from '@/components/feedback';
 import {
   pageHeadClasses,
@@ -73,6 +73,20 @@ function statusLabel(status: OrderStatusFilter): string {
  */
 function toCardOrder(entry: OrderListEntry): OrderCardOrder {
   return { ...entry, status: entry.status as OrderStatus };
+}
+
+/** The card's cover from the row: the server's card address with the stored size, and the photo count. */
+function toCardCover(entry: OrderListEntry): OrderCardCover | undefined {
+  if (!entry.cover) return undefined;
+  return {
+    image: {
+      src: entry.cover.card.src,
+      srcSet: entry.cover.card.srcSet,
+      width: Number(entry.cover.width),
+      height: Number(entry.cover.height),
+    },
+    count: Number(entry.imageCount),
+  };
 }
 
 export default function OrdersPage() {
@@ -349,6 +363,7 @@ export default function OrdersPage() {
                   <OrderCard
                     key={entry.id}
                     order={toCardOrder(entry)}
+                    cover={toCardCover(entry)}
                     due={<DueFlag dueDate={entry.dueDate} status={entry.status} today={data.today} />}
                     onView={() => {
                       open(`/admin/orders/${entry.id}`);

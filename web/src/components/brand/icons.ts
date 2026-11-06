@@ -2,7 +2,7 @@
 // App. D.5 shipped Lucide 0.460.0 node data for these icons; the design system draws them with lucide-react's own
 // components instead (per-icon named imports, so unused icons are tree-shaken). The keys are the 56 App. D.5 names (the
 // spec prose says 57; its ICONS object holds 56), then `minus`, the owner's empty-value icon (OR-4), the six Phase 5 icons (copy, lock-open, key-round, user-x,
-// user-check, history; UI-SPEC OQ-9) and the five Phase 6 icons (settings, rotate-ccw, archive, archive-restore, eraser; UI-SPEC OQ-12). The 20 redrawn icons are owner-approved as the new
+// user-check, history; UI-SPEC OQ-9) and the five Phase 6 icons (settings, rotate-ccw, archive, archive-restore, eraser; UI-SPEC OQ-12) and the Phase 9 camera icon (D-26, "Take Photo"). The 20 redrawn icons are owner-approved as the new
 // drawing (D-32). Two spec names are lucide aliases and keep their spec name here: `trash-2` draws lucide's Trash
 // and `filter` draws lucide's Funnel (D-32).
 import {
@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Calendar,
+  Camera,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -147,6 +148,7 @@ export const ICONS = {
   archive: Archive,
   'archive-restore': ArchiveRestore,
   eraser: Eraser,
+  camera: Camera,
 } as const satisfies Record<string, LucideIcon>;
 
 /** The icon names the design uses; `<Icon name="trahs-2" />` is a compile error. */

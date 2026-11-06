@@ -1,3 +1,4 @@
+using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
 namespace Csps.Server.Composition;
@@ -19,10 +20,27 @@ public static class OpenApiRegistration
 
         if (environment.IsDevelopment())
         {
-            services.AddOpenApi();
+            services.AddOpenApi(options => options.AddOperationTransformer(
+                (operation, context, _) =>
+                {
+                    MarkFileFormsAsMultipart(operation, context.Description.ParameterDescriptions.Any(parameter => parameter.Type == typeof(IFormFile)));
+                    return Task.CompletedTask;
+                }));
         }
 
         return services;
+    }
+
+    // A form that carries a file is multipart. The action cannot say so with [Consumes], because that would answer 404 to a request with
+    // no content type, so the document is corrected here.
+    private static void MarkFileFormsAsMultipart(OpenApiOperation operation, bool hasFile)
+    {
+        const string UrlEncoded = "application/x-www-form-urlencoded";
+        const string Multipart = "multipart/form-data";
+        if (hasFile && operation.RequestBody?.Content is { } content && content.Remove(UrlEncoded, out var media))
+        {
+            content[Multipart] = media;
+        }
     }
 
     /// <summary>

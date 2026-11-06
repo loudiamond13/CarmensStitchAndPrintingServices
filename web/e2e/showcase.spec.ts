@@ -1,6 +1,6 @@
 // Component Showcase E2E (D-22, WEB-06, A11Y-01; plan 02-34): /dev/components on the real host (the e2e bundle has the
 // dev-only routes) in all five projects, in Blush and in Espresso (switched with the shell's own toggle, D-13). Each
-// run checks one h1, the thirteen sections, no "Missing component" alert, a page-level axe pass over every case, and the
+// run checks one h1, the fourteen sections, no "Missing component" alert, a page-level axe pass over every case, and the
 // guard (no console, page, CSP or failed-response findings). Then: nothing in the showcase widens the page at 320px
 // (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, a picked image previews under
 // the strict CSP (UI-CR-01: a `data:` URL, never a blocked `blob:` one), and an open Delete Order dialog is axe-clean
@@ -28,6 +28,7 @@ const SECTIONS = [
   'Staff and audit',
   'Expenses and settings',
   'Orders',
+  'Order photos',
 ];
 
 /**
@@ -172,25 +173,14 @@ test('@showcase the date box shows one calendar icon and passes a click on it to
   }
 });
 
-/** A 1×1 PNG, so the preview has pixels to decode. */
-const ONE_PIXEL_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-  'base64',
-);
-
-test('@showcase a picked image previews under the strict CSP (UI-CR-01)', async ({ page }) => {
+test('@showcase a draft photo previews from a data: address under the strict CSP (UI-CR-01)', async ({ page }) => {
   await openShowcase(page);
-  const uploader = page.locator('[data-case="uploader-empty"]');
-  await uploader.locator('input[type="file"]').setInputFiles({
-    name: 'pixel.png',
-    mimeType: 'image/png',
-    buffer: ONE_PIXEL_PNG,
-  });
-  const preview = uploader.getByRole('img', { name: 'pixel.png' });
+  // The draft case lists a draft photo whose preview is a small local PNG.
+  const preview = page.locator('[data-case="uploader-draft"] li img').first();
   await expect(preview).toBeVisible();
   // The browser decoded it: an image the CSP blocked would have no natural size (and the guard reports the violation).
-  const naturalWidth = `document.querySelector('[data-case="uploader-empty"] img[alt="pixel.png"]').naturalWidth`;
-  await expect.poll(() => page.evaluate<number>(naturalWidth)).toBe(1);
+  const naturalWidth = `document.querySelector('[data-case="uploader-draft"] li img').naturalWidth`;
+  await expect.poll(() => page.evaluate<number>(naturalWidth)).toBeGreaterThan(0);
   expect(await preview.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
 });
 
@@ -240,7 +230,7 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   await expect(page.locator('main > div').first().getByText('Demo data', { exact: true })).toBeVisible();
   await expect(page.locator('main > div').nth(1)).toHaveText(DEMO_BANNER);
   await expect(page.locator('main > section').first()).toBeVisible();
-  await expect(page.locator('main > section > div > h2')).toHaveCount(13);
+  await expect(page.locator('main > section > div > h2')).toHaveCount(14);
   await expect(page.getByText(/^Missing component/)).toHaveCount(0);
   // No sidebar item claims the page, and the sidebar has no link to it.
   await expect(page.locator('[data-ui="s-admin-side"] [aria-current="page"]')).toHaveCount(0);

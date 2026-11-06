@@ -1533,6 +1533,30 @@
         ],
         "type": "object"
       },
+      "DescribeOrderImageRequest": {
+        "description": "Sets or clears one photo's description on a saved order (ORD-04, D-12, D-30). It carries the order's version as the page was\nopened. Any other member in the body is ignored.",
+        "properties": {
+          "description": {
+            "description": "The description; empty, missing or the default text means none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the page was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "description",
+          "version"
+        ],
+        "type": "object"
+      },
       "DoneBy": {
         "description": "Who did it (D-27).",
         "properties": {
@@ -1764,6 +1788,94 @@
         ],
         "type": "object"
       },
+      "IFormFile": {
+        "format": "binary",
+        "type": "string"
+      },
+      "ImageRulesResponse": {
+        "description": "The photo rules the server enforces, for the browser to check before it sends a file (OR-3, IMG-02).",
+        "properties": {
+          "descriptionMaxLength": {
+            "description": "The longest description, in characters.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxBytes": {
+            "description": "The largest file, in bytes.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxPerOrder": {
+            "description": "The most photos one order holds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxPixels": {
+            "description": "The most pixels (width times height) a photo may have.",
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "maxSide": {
+            "description": "The longest side, in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "types": {
+            "description": "The accepted formats: `jpeg`, `png`, `webp` and `heic`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "maxPerOrder",
+          "maxBytes",
+          "maxPixels",
+          "maxSide",
+          "types",
+          "descriptionMaxLength"
+        ],
+        "type": "object"
+      },
+      "ImageSourceResponse": {
+        "description": "An image address and its candidates for the browser's `srcset` (IMG-04).",
+        "properties": {
+          "src": {
+            "description": "The address used when the browser cannot pick a candidate.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The candidates with their `w` or `x` descriptors, comma separated.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "src",
+          "srcSet"
+        ],
+        "type": "object"
+      },
       "InviteLinkResponse": {
         "description": "The answer to a usable invite link.",
         "properties": {
@@ -1837,6 +1949,71 @@
         ],
         "type": "object"
       },
+      "MoveOrderImageRequest": {
+        "description": "Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so \"Make Cover\" is the same request with\nplace 0. It carries the order's version as the page was opened. Any other member in the body is ignored.",
+        "properties": {
+          "position": {
+            "description": "The place to move the photo to, counting from 0.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version of the order the page was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "position",
+          "version"
+        ],
+        "type": "object"
+      },
+      "OrderCoverResponse": {
+        "description": "An order's cover photo in the list (ORD-04, IMG-04). The addresses are built when the list is read and are never stored.",
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The 16:10 card cover, with width candidates."
+          },
+          "height": {
+            "description": "The height in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "table": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The 44 px table thumb, with a 2x candidate."
+          },
+          "width": {
+            "description": "The width in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "card",
+          "table",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
       "OrderDetailResponse": {
         "description": "One order with its items, history, totals and who recorded and last changed it (ORD-03).",
         "properties": {
@@ -1891,6 +2068,13 @@
             "description": "The order id.",
             "format": "uuid",
             "type": "string"
+          },
+          "images": {
+            "description": "The photos, in display order; empty when the order has none.",
+            "items": {
+              "$ref": "#/components/schemas/OrderImageResponse"
+            },
+            "type": "array"
           },
           "items": {
             "description": "The lines, in order.",
@@ -2020,6 +2204,7 @@
           "refunds",
           "expenses",
           "statusHistory",
+          "images",
           "totals",
           "recordedBy",
           "recordedAt",
@@ -2293,6 +2478,73 @@
         ],
         "type": "object"
       },
+      "OrderImageResponse": {
+        "description": "One photo of an order (ORD-04, IMG-04). The addresses are built when the order is read and are never stored.",
+        "properties": {
+          "description": {
+            "description": "The description; null when the default text applies.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fullSize": {
+            "description": "The address of the 2000 px JPEG behind \"Open Full Size\".",
+            "type": "string"
+          },
+          "height": {
+            "description": "The height in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "id": {
+            "description": "The photo id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "position": {
+            "description": "The display order from 0; the photo at 0 is the cover.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "thumb": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The tile thumb, with a 2x candidate."
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The whole photo for the viewer, with width candidates."
+          },
+          "width": {
+            "description": "The width in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "description",
+          "width",
+          "height",
+          "thumb",
+          "viewer",
+          "fullSize"
+        ],
+        "type": "object"
+      },
       "OrderItemRequest": {
         "description": "One line of the New Order form (ORD-13).",
         "properties": {
@@ -2461,6 +2713,17 @@
               "string"
             ]
           },
+          "cover": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrderCoverResponse",
+                "description": "The cover photo (the one at position 0); null when the order has no photo."
+              }
+            ]
+          },
           "customerCredit": {
             "description": "What the shop owes the customer in pesos.",
             "format": "double",
@@ -2499,6 +2762,15 @@
             "description": "The order id.",
             "format": "uuid",
             "type": "string"
+          },
+          "imageCount": {
+            "description": "How many photos the order has, 0 to 5.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
           },
           "number": {
             "description": "The order number.",
@@ -2588,7 +2860,9 @@
           "balance",
           "customerCredit",
           "fullyPaid",
-          "pieces"
+          "pieces",
+          "imageCount",
+          "cover"
         ],
         "type": "object"
       },
@@ -7759,6 +8033,37 @@
         ]
       }
     },
+    "/api/v1/orders/image-rules": {
+      "get": {
+        "operationId": "GetImageRules",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageRulesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the photo rules: `maxPerOrder` (5), `maxBytes`, `maxPixels`, `maxSide`, `types`\n(`jpeg`, `png`, `webp`, `heic`) and `descriptionMaxLength`. The upload enforces the same values, so a\nclient that checks them first sends no file the server would refuse for size or type.",
+        "tags": [
+          "OrderImageRules"
+        ]
+      }
+    },
     "/api/v1/orders/{id}": {
       "delete": {
         "operationId": "DeleteOrder",
@@ -8946,6 +9251,493 @@
         "summary": "Saves an edit of one expense of a saved order with the order's version the form was opened with. The rules are the same as\nwhen adding. The category and the payer are checked only when the edit changes them, so an expense may keep a category that\nwas retired or a payer who was deactivated after it was saved. An expense id that is not on this order answers 404\n`orders.expense-not-found`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a\nform save is never retried. An edit that changes nothing saves nothing and keeps the version. Who changed the expense and\nwhen come from the token and the clock.\nA Completed or Cancelled order answers 422 `orders.locked` and changes nothing.",
         "tags": [
           "OrderExpenses"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/images": {
+      "post": {
+        "operationId": "UploadOrderImage",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "allOf": [
+                  {
+                    "properties": {
+                      "file": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Uploads one photo to a saved order as a multipart form with the file in the `file` part and an optional `description`\npart. The type is read from the first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a\nfile that is not a photo we can use answers 400 and is never sent to storage. The description is trimmed; an empty one, or the\ndefault text, is kept as none, and one over 200 characters answers 400. An order holds at most 5 photos: a sixth answers 422\n`orders.images-full`. A Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo is\nstored under a random id the client never chooses. When photo storage is not set up the answer is 503\n`images.not-configured`. A retry with the same `Idempotency-Key` and body answers with the stored answer and adds\nnothing more. Who added the photo and when come from the token and the clock.",
+        "tags": [
+          "OrderImages"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/images/{imageId}": {
+      "delete": {
+        "operationId": "RemoveOrderImage",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The photo id.",
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes one photo of a saved order. No version is sent: the delete applies to the latest state, and a lost race is read again\nand decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the\ncover was deleted. A photo id that is not on this order, or was already deleted, answers 404 `orders.image-not-found`. A\nCompleted or Cancelled order answers 422 `orders.locked` and changes nothing. The photo's file is queued for removal in the\nsame save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is\nrecorded in the audit log.",
+        "tags": [
+          "OrderImages"
+        ]
+      },
+      "put": {
+        "operationId": "DescribeOrderImage",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The photo id.",
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DescribeOrderImageRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DescribeOrderImageRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DescribeOrderImageRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sets or clears one photo's description on a saved order, with the order's version the page was opened with. The description\nis trimmed. An empty one, or exactly `Order {number} photo {place}` for the photo's current place, is kept as none, so\nthe default text always follows the place; one over 200 characters (counted as .NET string length) answers 400 on\n`description`. A photo id that is not on this order answers 404 `orders.image-not-found`. A version that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A description that changes\nnothing saves nothing and keeps the version. A Completed or Cancelled order answers 422 `orders.locked` and changes\nnothing. A change is recorded in the audit log.",
+        "tags": [
+          "OrderImages"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/images/{imageId}/position": {
+      "put": {
+        "operationId": "MoveOrderImage",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The photo id.",
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveOrderImageRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveOrderImageRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveOrderImageRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Moves one photo of a saved order to a place and shifts the others, with the order's version the page was opened with. Places\ncount from 0 and the photo at place 0 is the cover, so \"Make Cover\" is this request with place 0. A place below 0 or at or\nabove the photo count answers 400. A photo id that is not on this order answers 404 `orders.image-not-found`. A version\nthat is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A move to the place\nthe photo already has changes nothing and keeps the version. A Completed or Cancelled order answers 422 `orders.locked`\nand changes nothing. A move is recorded in the audit log, and so is a change of cover.",
+        "tags": [
+          "OrderImages"
         ]
       }
     },
@@ -12923,6 +13715,12 @@
     },
     {
       "name": "OrderExpenses"
+    },
+    {
+      "name": "OrderImageRules"
+    },
+    {
+      "name": "OrderImages"
     },
     {
       "name": "OrderItems"

@@ -153,7 +153,8 @@ test('@orders-list an Admin reaches Orders too and a 320 px phone shows one colu
   await signInAs(page, request, admin);
 
   await page.setViewportSize({ width: 320, height: 800 });
-  const body = await openList(page, '/admin/orders?size=100');
+  // Searched by its number, so the order is listed however many others the shared database holds.
+  const body = await openList(page, `/admin/orders?q=${number}`);
   await expect(page.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();
   await expect(page.getByRole('article').first()).toBeVisible();
   expect(body.items.some((item) => item.number === number)).toBe(true);

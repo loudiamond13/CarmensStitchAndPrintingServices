@@ -212,7 +212,8 @@ test('@orders-payments on a phone the payment card shows both people, the row ac
     const box = await button.boundingBox();
     expect(box).not.toBeNull();
     if (box !== null) {
-      expect({ width: box.width, height: box.height }).toEqual({ width: 36, height: 36 });
+      // Rounded: Firefox reports a box far down a long page a hair under 36 (35.99994) from float precision.
+      expect({ width: Math.round(box.width), height: Math.round(box.height) }).toEqual({ width: 36, height: 36 });
       expect(box.x).toBeGreaterThan(390 / 2);
     }
     const label = (await button.getAttribute('aria-label')) ?? '';

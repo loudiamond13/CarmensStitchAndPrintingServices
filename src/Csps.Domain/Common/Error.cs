@@ -84,6 +84,12 @@ public sealed record Error
     /// <returns>The error.</returns>
     public static Error Unauthenticated(string code, string message) => new(ErrorKind.Unauthenticated, code, message, null);
 
+    /// <summary>A part the use case depends on is not set up or not answering, so the caller may try again later.</summary>
+    /// <param name="code">A stable machine-readable code.</param>
+    /// <param name="message">A short plain-English message.</param>
+    /// <returns>The error.</returns>
+    public static Error Unavailable(string code, string message) => new(ErrorKind.Unavailable, code, message, null);
+
     /// <summary>The caller must slow down.</summary>
     /// <param name="code">A stable machine-readable code.</param>
     /// <param name="message">A short plain-English message.</param>

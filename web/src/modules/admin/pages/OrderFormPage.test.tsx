@@ -6,7 +6,9 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { photoUploadQueue } from '@/modules/admin/hooks/usePhotoUploadQueue';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
+import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
   buildOrderDetail,
@@ -25,6 +27,12 @@ import {
 } from '@/test/orderFixtures';
 import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { prepareImage, type PrepareResult } from '@/utils/images';
+
+vi.mock('@/utils/images', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/images')>()),
+  prepareImage: vi.fn(),
+}));
 
 // F1 New Order, /admin/orders/new (ORD-03, ORD-15, D-27, D-30, D-49; plan 08-13): the cards, the checks that run before any
 // request, and one save that lands on the new order.
@@ -42,6 +50,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
+  photoUploadQueue.clear(created.id);
   queryClient.clear();
   clearSession();
 });
@@ -162,12 +172,15 @@ describe('the opening form (D-30, D-49, D-59, D-27)', () => {
     expect(screen.getByText('Completed and Cancelled are set on the order page.')).toBeVisible();
   });
 
-  it('says images are coming soon and has no uploader (D-27)', async () => {
+  it('shows the Images card as the draft photo picker, not the coming-soon text (D-09, UIC-3)', async () => {
     useOrderHandlers();
     const { container } = await openForm();
 
-    expect(screen.getByText('Image uploads are coming soon.')).toBeVisible();
-    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(screen.queryByText('Image uploads are coming soon.')).not.toBeInTheDocument();
+    expect(screen.getByText('Mockups and reference photos. They upload after you save the order.')).toBeVisible();
+    expect(container.querySelector('input[type="file"][multiple]')).not.toBeNull();
+    expect((await screen.findAllByText('JPG, PNG, WEBP or HEIC · up to 10 MB each · 0/5')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('list', { name: 'Order photos' })).not.toBeInTheDocument();
   });
 
   it('offers a back link to the list the person came from, else to Orders (D-51)', async () => {
@@ -955,5 +968,205 @@ describe('imported orders without a due date and locked orders (D-15, D-38, UIC-
 
     expect(await screen.findByText('This order is completed.')).toBeVisible();
     expect(screen.queryByLabelText(/^Customer name/)).toBeNull();
+  });
+});
+
+function readyFile(file: File): PrepareResult {
+  return {
+    ok: true,
+    file,
+    name: file.name,
+    type: 'image/jpeg',
+    width: 3000,
+    height: 2000,
+    preview: 'data:image/jpeg;base64,AAAA',
+    previewUnavailable: false,
+  };
+}
+
+function pickedImage(name: string): File {
+  return new File(['jpeg'], name, { type: 'image/jpeg' });
+}
+
+function galleryInput(container: HTMLElement): HTMLInputElement {
+  const input = container.querySelector<HTMLInputElement>('input[type="file"][multiple]');
+  if (input === null) throw new Error('No gallery input');
+  return input;
+}
+
+/** Picks files into the Images card and waits for their tiles. */
+async function pickPhotos(
+  user: ReturnType<typeof userEvent.setup>,
+  container: HTMLElement,
+  names: readonly string[],
+): Promise<void> {
+  vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+  await screen.findAllByText(/0\/5/);
+  await user.upload(galleryInput(container), names.map(pickedImage));
+  const list = await screen.findByRole('list', { name: 'Order photos' });
+  await waitFor(() => {
+    expect(within(list).getAllByRole('listitem')).toHaveLength(names.length);
+  });
+}
+
+describe('photos picked on the form (ORD-04, D-09, D-10, D-28)', () => {
+  it('shows each picked photo as a draft tile named New order photo {n}', async () => {
+    useOrderHandlers();
+    const { user, container } = await openForm();
+
+    await pickPhotos(user, container, ['one.jpg', 'two.jpg']);
+
+    const list = screen.getByRole('list', { name: 'Order photos' });
+    expect(within(list).getByText('New order photo 1')).toBeVisible();
+    expect(within(list).getByText('New order photo 2')).toBeVisible();
+  });
+
+  it('creates the order first, then hands both drafts to the new order in their order, and lands on its page', async () => {
+    const upload = vi.spyOn(orderPhotosService, 'upload').mockResolvedValue(created);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const backend = useOrderHandlers({
+      detail: created,
+      reply: async () => {
+        await gate;
+        return HttpResponse.json(created, { status: 201 });
+      },
+    });
+    const { user, router, container } = await openForm();
+    await fillValidOrder(user);
+    await pickPhotos(user, container, ['one.jpg', 'two.jpg']);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    await waitFor(() => {
+      expect(backend.writes).toHaveLength(1);
+    });
+    expect(upload).not.toHaveBeenCalled();
+    release();
+
+    await screen.findByText('The order page');
+    expect(router.state.location.pathname).toBe(`/admin/orders/${created.id}`);
+    await waitFor(() => {
+      expect(upload).toHaveBeenCalledTimes(2);
+    });
+    const [first, second] = upload.mock.calls;
+    expect(first?.[0]).toBe(created.id);
+    expect(first?.[2]).toBe('one.jpg');
+    expect(second?.[0]).toBe(created.id);
+    expect(second?.[2]).toBe('two.jpg');
+  });
+
+  it('keeps the drafts on the form with everything else when the create fails, and sends no upload', async () => {
+    const upload = vi.spyOn(orderPhotosService, 'upload').mockResolvedValue(created);
+    useOrderHandlers({ reply: () => orderProblem(500) });
+    const { user, container } = await openForm();
+    await fillValidOrder(user);
+    await pickPhotos(user, container, ['one.jpg', 'two.jpg']);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    expect(await screen.findByText('Something went wrong')).toBeVisible();
+    const list = screen.getByRole('list', { name: 'Order photos' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Test Customer');
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('sends no upload when the order is created with no drafts ([EDGE ORD-04 empty])', async () => {
+    const upload = vi.spyOn(orderPhotosService, 'upload').mockResolvedValue(created);
+    const backend = useOrderHandlers({ detail: created });
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes).toHaveLength(1);
+    expect(upload).not.toHaveBeenCalled();
+    expect(photoUploadQueue.snapshot(created.id).pending).toBe(0);
+  });
+});
+
+describe('describing a draft on the form (D-12, D-30)', () => {
+  it('opens the description window outside the form and does not save the order when it is saved', async () => {
+    const backend = useOrderHandlers();
+    const { user, container } = await openForm();
+    await fillValidOrder(user);
+    await pickPhotos(user, container, ['one.jpg', 'two.jpg']);
+
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Description' });
+    expect(dialog.closest('form')).toBeNull();
+    await user.clear(within(dialog).getByLabelText('Photo description'));
+    await user.type(within(dialog).getByLabelText('Photo description'), 'Back mockup');
+    await user.click(within(dialog).getByRole('button', { name: 'Save Description' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit Description' })).not.toBeInTheDocument();
+    });
+    expect(within(screen.getByRole('list', { name: 'Order photos' })).getByText('Back mockup')).toBeVisible();
+    expect(backend.writes).toHaveLength(0);
+  });
+
+  it('sends each description with its photo to the new order: the typed text, and nothing for a default', async () => {
+    const upload = vi.spyOn(orderPhotosService, 'upload').mockResolvedValue(created);
+    useOrderHandlers({ detail: created });
+    const { user, container } = await openForm();
+    await fillValidOrder(user);
+    await pickPhotos(user, container, ['one.jpg', 'two.jpg']);
+    await user.click(screen.getByRole('button', { name: 'Edit description of photo 2' }));
+    const box = await screen.findByLabelText('Photo description');
+    await user.clear(box);
+    await user.type(box, 'Back mockup');
+    await user.click(screen.getByRole('button', { name: 'Save Description' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await waitFor(() => {
+      expect(upload).toHaveBeenCalledTimes(2);
+    });
+    expect(upload.mock.calls.map((call) => [call[2], call[3]])).toEqual([
+      ['one.jpg', ''],
+      ['two.jpg', 'Back mockup'],
+    ]);
+  });
+});
+
+describe('drafts and the Discard changes guard (ORD-15, D-09)', () => {
+  it('asks "Discard changes?" when leaving with one draft and nothing else typed', async () => {
+    useOrderHandlers();
+    const { user, container, router } = await openForm();
+    await pickPhotos(user, container, ['one.jpg']);
+
+    await user.click(screen.getByRole('link', { name: 'Orders' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Editing' }));
+    expect(router.state.location.pathname).toBe('/admin/orders/new');
+    expect(within(screen.getByRole('list', { name: 'Order photos' })).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('leaves without asking once the only draft is removed', async () => {
+    useOrderHandlers();
+    const { user, container } = await openForm();
+    await pickPhotos(user, container, ['one.jpg']);
+    await user.click(screen.getByRole('button', { name: 'Remove photo 1' }));
+
+    await user.click(screen.getByRole('link', { name: 'Orders' }));
+
+    expect(await screen.findByText('The orders list')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('reads Unsaved changes in the save bar once a draft is picked', async () => {
+    useOrderHandlers();
+    const { user, container } = await openForm();
+    expect(screen.queryByText('Unsaved changes')).toBeNull();
+
+    await pickPhotos(user, container, ['one.jpg']);
+
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
   });
 });

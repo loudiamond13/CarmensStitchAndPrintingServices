@@ -127,6 +127,43 @@ describe('reading the counts first (D-24, UIC-16)', () => {
     expect(confirmButton()).toBeDisabled();
   });
 
+  it("counts the order's real photos in the Images tile and the sentence (D-20)", async () => {
+    deletedOrdersBackend({
+      list: deletedOrderList([]),
+      detail: deletedOrderDetail(
+        orderWithCounts(NUMBER, { items: 5, payments: 2, discounts: 1, expenses: 3, images: 4 }, ID),
+      ),
+    });
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: TITLE });
+    const box = await within(dialog).findByRole('alert');
+    expect(
+      within(box).getByText('This will also delete 5 items, 2 payments, 1 discount, 3 expenses, and 4 images.'),
+    ).toBeVisible();
+    const tiles = within(box)
+      .getAllByRole('listitem')
+      .map((tile) => tile.textContent);
+    expect(tiles).toEqual(['5items', '2payments', '1discount', '3expenses', '0refunds', '4images']);
+  });
+
+  it('says 1 image in the singular (the order with no photos keeps the 0images tile above)', async () => {
+    deletedOrdersBackend({
+      list: deletedOrderList([]),
+      detail: deletedOrderDetail(orderWithCounts(NUMBER, { images: 1 }, ID)),
+    });
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: TITLE });
+    const box = await within(dialog).findByRole('alert');
+    expect(within(box).getByText('This will also delete 1 image.')).toBeVisible();
+    expect(
+      within(box)
+        .getAllByRole('listitem')
+        .map((tile) => tile.textContent),
+    ).toEqual(['0items', '0payments', '0discounts', '0expenses', '0refunds', '1image']);
+  });
+
   it('leaves the team out of the message when the order has none', async () => {
     deletedOrdersBackend({ list: deletedOrderList([]) });
     renderDialog({ team: null });

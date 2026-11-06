@@ -19,7 +19,7 @@ import {
   type DeletedOrdersOptions,
 } from '@/test/deletedOrderFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
-import { buildOrderDetail, creditOrder, order0148, orderRefund } from '@/test/orderFixtures';
+import { buildOrderDetail, creditOrder, order0148, orderImage, orderRefund } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { inStrictMode } from '@/test/strictMode';
 
@@ -159,6 +159,49 @@ describe('the page, read-only (ORD-06, D-24)', () => {
 
     await loaded();
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Images card (D-20, 08 D-24, UIC-2)', () => {
+  it('no longer says image uploads are coming soon', async () => {
+    backend();
+    renderPage();
+
+    await loaded();
+    expect(screen.getByRole('heading', { level: 2, name: 'Images' })).toBeVisible();
+    expect(screen.queryByText('Image uploads are coming soon.')).not.toBeInTheDocument();
+  });
+
+  it('shows the photos of the deleted order read-only, and a thumb opens the viewer', async () => {
+    const photos = buildOrderDetail({ images: [orderImage(1), orderImage(2)] });
+    backend(deletedOrderDetail(photos));
+    const user = userEvent.setup();
+    const { container } = renderPage({ id: photos.id });
+
+    await loaded();
+    const list = await screen.findByRole('list', { name: 'Order photos' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'browse' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Choose Photos' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(Move photo|Edit description|Delete photo|Make cover)/ })).toBeNull();
+    await expectNoAxeViolations(container);
+
+    const thumb = screen.getByRole('button', { name: 'Open photo 2 of 2: Order ORD-2026-0148 photo 2' });
+    await user.click(thumb);
+    const dialog = await screen.findByRole('dialog', { name: 'Order photos' });
+    expect(within(dialog).getByText('Photo 2 of 2')).toBeVisible();
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(thumb).toHaveFocus();
+    });
+  });
+
+  it('says No photos on this order. when the deleted order has none', async () => {
+    backend();
+    renderPage();
+
+    await loaded();
+    expect(await screen.findByText('No photos on this order.')).toBeVisible();
   });
 });
 

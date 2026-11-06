@@ -11,6 +11,10 @@ public sealed partial class CiWorkflowTests
     private const string CiPath = ".github/workflows/ci.yml";
     private const string WeeklyPath = ".github/workflows/weekly.yml";
     private const string DeployPath = ".github/workflows/deploy.yml";
+    private const string MaintenancePath = ".github/workflows/maintenance.yml";
+
+    // The one secret reference allowed outside deploy.yml, as the exact env line (owner rulings 01 D-10 and 09 D-21, 2026-10-31).
+    private const string MaintenanceKeyLine = "MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}";
 
     // Owner-approved actions (plan 03-01 Task 1, 2026-10-15): "owner/repo@commit" to its version comment.
     private static readonly Dictionary<string, string> ApprovedActions = new(StringComparer.Ordinal)
@@ -402,6 +406,13 @@ public sealed partial class CiWorkflowTests
     }
 
     [Fact]
+    public void GateHasRoomForTheFullSuiteButStillStopsAHang()
+    {
+        // The full gate took 60 minutes on the Phase 9 PR (Playwright alone 30), so 60 cancelled it in its last step.
+        GateJob().Lines.Select(line => line.Trim()).ShouldContain("timeout-minutes: 90");
+    }
+
+    [Fact]
     public void GateSetsUpNodeWithAnNpmCache()
     {
         var node = WorkflowText.Steps(GateJob().Lines)
@@ -667,16 +678,37 @@ public sealed partial class CiWorkflowTests
     [Fact]
     public void NoWorkflowCarriesAProductionSecret()
     {
-        // deploy.yml is the one workflow that holds the deploy credentials; DeployWorkflowTests pins how it uses them.
+        // deploy.yml holds the deploy credentials (DeployWorkflowTests pins how it uses them). maintenance.yml may hold the
+        // maintenance key on one exact line (MaintenanceWorkflowTests pins how it is used); nothing else is allowed.
         var offenders = WorkflowText.Files()
             .Where(path => path != DeployPath)
             .SelectMany(path => WorkflowText.Lines(path)
-                .Where(line => ProductionSecret().IsMatch(line))
+                .Where(line => ProductionSecret().IsMatch(line) && !IsTheMaintenanceKeyLine(path, line))
                 .Select(line => $"{path}: {line.Trim()}"))
             .ToList();
 
         offenders.ShouldBeEmpty("CI uses only its own loopback container and holds no production secret or deploy credential (T-03-43).");
         WorkflowText.Files().ShouldContain(DeployPath, "The exemption above names the deploy workflow, which must exist.");
+        WorkflowText.Files().ShouldContain(MaintenancePath, "The exemption above names the maintenance workflow, which must exist.");
+    }
+
+    [Fact]
+    public void MaintenanceKeyExceptionIsExactlyOneLineInOneWorkflow()
+    {
+        IsTheMaintenanceKeyLine(MaintenancePath, "          MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}").ShouldBeTrue();
+
+        // The same line anywhere else, any other secret, and any other form of the key all stay forbidden.
+        IsTheMaintenanceKeyLine(CiPath, "          MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}").ShouldBeFalse();
+        IsTheMaintenanceKeyLine(WeeklyPath, "          MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}").ShouldBeFalse();
+        IsTheMaintenanceKeyLine(MaintenancePath, "          OTHER_KEY: ${{ secrets.OTHER_KEY }}").ShouldBeFalse();
+        IsTheMaintenanceKeyLine(MaintenancePath, "          WEBDEPLOY_PASSWORD: ${{ secrets.WEBDEPLOY_PASSWORD }}").ShouldBeFalse();
+        IsTheMaintenanceKeyLine(MaintenancePath, "        run: echo ${{ secrets.MAINTENANCE_KEY }}").ShouldBeFalse();
+        IsTheMaintenanceKeyLine(MaintenancePath, "          MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }} ${{ secrets.OTHER_KEY }}").ShouldBeFalse();
+        IsTheMaintenanceKeyLine(MaintenancePath, "          OTHER: ${{ secrets.MAINTENANCE_KEY }}").ShouldBeFalse();
+
+        // The detector the exception sits behind still flags each of these lines.
+        ProductionSecret().IsMatch("          MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}").ShouldBeTrue();
+        ProductionSecret().IsMatch("          OTHER_KEY: ${{ secrets.OTHER_KEY }}").ShouldBeTrue();
     }
 
     [Fact]
@@ -746,6 +778,9 @@ public sealed partial class CiWorkflowTests
         gate.ShouldNotBeNull("ci.yml needs a job with the id gate.");
         return gate;
     }
+
+    private static bool IsTheMaintenanceKeyLine(string path, string line) =>
+        path == MaintenancePath && line.Trim() == MaintenanceKeyLine;
 
     private static bool IsApprovedPin(string value)
     {

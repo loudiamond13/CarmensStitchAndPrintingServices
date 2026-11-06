@@ -1,9 +1,12 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Csps.Application.Security;
+using Csps.Domain.Orders;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
+using Csps.Testing.Images;
 using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.Orders;
@@ -11,6 +14,8 @@ namespace Csps.Server.IntegrationTests.Orders;
 /// <summary>ORD-01, ORD-02, ORD-20, PERF-04: staff list orders by due date with the stored totals, search, filter, sort and page.</summary>
 public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
+    private static readonly int[] CardWidths = [320, 480, 640, 800, 960];
+
     [Fact]
     public async Task StaffListOrdersByDueDateWithTheStoredTotalsAndADeletedOrderIsAbsent()
     {
@@ -74,6 +79,79 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
         var pieces = page.GetProperty("items").EnumerateArray().ToDictionary(item => item.GetProperty("customerName").GetString()!, item => item.GetProperty("pieces").GetInt32());
         pieces["Forty Pieces"].ShouldBe(40);
         pieces["One Piece"].ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AnOrderWithPhotosListsItsPhotoCountAndThePositionZeroPhotoAsItsCover()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        var order = await rig.NewOrderAsync("Photo Pia");
+        var id = order.GetProperty("id").GetGuid();
+        await rig.UploadPhotoAsync(id, 4000, 3000);
+        await rig.UploadPhotoAsync(id, 800, 600);
+        var coverId = await rig.PhotoIdAtPositionAsync(id, 0);
+
+        var row = (await rig.ReadAsync()).GetProperty("items").EnumerateArray().Single();
+
+        row.GetProperty("imageCount").GetInt32().ShouldBe(2);
+        var cover = row.GetProperty("cover");
+        cover.GetProperty("width").GetInt32().ShouldBe(4000);
+        cover.GetProperty("height").GetInt32().ShouldBe(3000);
+        var card = cover.GetProperty("card");
+        card.GetProperty("src").GetString().ShouldBe(Address(coverId, "csps_card_640"));
+        card.GetProperty("srcSet").GetString().ShouldBe(
+            string.Join(", ", CardWidths.Select(width => $"{Address(coverId, $"csps_card_{width}")} {width}w")));
+        var table = cover.GetProperty("table");
+        table.GetProperty("src").GetString().ShouldBe(Address(coverId, "csps_sq_44"));
+        table.GetProperty("srcSet").GetString().ShouldBe($"{Address(coverId, "csps_sq_44")} 1x, {Address(coverId, "csps_sq_88")} 2x");
+    }
+
+    [Fact]
+    public async Task AnOrderWithNoPhotosListsACountOfZeroAndANullCover()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.NewOrderAsync("Bare Ben");
+
+        var row = (await rig.ReadAsync()).GetProperty("items").EnumerateArray().Single();
+
+        row.GetProperty("imageCount").GetInt32().ShouldBe(0);
+        row.GetProperty("cover").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task EachRowKeepsItsOwnCoverWhenOtherOrdersHavePhotosOrNone()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        var withPhoto = await rig.NewOrderAsync("Has Photo", due: rig.Today.AddDays(1));
+        await rig.NewOrderAsync("No Photo", due: rig.Today.AddDays(2));
+        await rig.UploadPhotoAsync(withPhoto.GetProperty("id").GetGuid(), 1600, 900);
+
+        var items = (await rig.ReadAsync()).GetProperty("items").EnumerateArray().ToDictionary(item => item.GetProperty("customerName").GetString()!);
+
+        items["Has Photo"].GetProperty("imageCount").GetInt32().ShouldBe(1);
+        items["Has Photo"].GetProperty("cover").GetProperty("width").GetInt32().ShouldBe(1600);
+        items["No Photo"].GetProperty("imageCount").GetInt32().ShouldBe(0);
+        items["No Photo"].GetProperty("cover").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task WhenThePositionZeroPhotoChangesTheNextListShowsTheNewCover()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        var order = await rig.NewOrderAsync("Moved Mae");
+        var id = order.GetProperty("id").GetGuid();
+        await rig.UploadPhotoAsync(id, 4000, 3000);
+        await rig.UploadPhotoAsync(id, 800, 600);
+        var newCoverId = await rig.PhotoIdAtPositionAsync(id, 1);
+        await rig.SwapFirstTwoPositionsAsync(id);
+
+        var row = (await rig.ReadAsync()).GetProperty("items").EnumerateArray().Single();
+
+        row.GetProperty("imageCount").GetInt32().ShouldBe(2);
+        var cover = row.GetProperty("cover");
+        cover.GetProperty("width").GetInt32().ShouldBe(800);
+        cover.GetProperty("height").GetInt32().ShouldBe(600);
+        cover.GetProperty("table").GetProperty("src").GetString().ShouldBe(Address(newCoverId, "csps_sq_44"));
     }
 
     [Theory]
@@ -171,7 +249,7 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
         var number = second.GetProperty("number").GetString()!;
 
         var one = await rig.ReadAsync($"q={Uri.EscapeDataString(number)}");
-        var all = await rig.ReadAsync("q=ORD-2026");
+        var all = await rig.ReadAsync($"q=ORD-{rig.Today.Year:D4}");
 
         Names(one).ShouldBe(["Maria Santos"]);
         all.GetProperty("total").GetInt32().ShouldBe(2);
@@ -444,6 +522,8 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
         accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    private static string Address(string photoId, string size) => $"/api/testing/images/{photoId}?size={size}";
+
     private static IReadOnlyList<string> Names(JsonElement page) =>
         [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("customerName").GetString()!)];
 
@@ -538,6 +618,41 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
             await using var context = _database.CreateContext();
             await context.Orders.Where(row => row.Id == id)
                 .ExecuteUpdateAsync(set => set.SetProperty(row => row.DueDate, (DateOnly?)null), TestContext.Current.CancellationToken);
+        }
+
+        public async Task UploadPhotoAsync(Guid orderId, int width, int height)
+        {
+            using var request = ApiRequests.Create(HttpMethod.Post, $"/api/v1/orders/{orderId:D}/images", Admin.AccessToken);
+            request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+            using var form = new MultipartFormDataContent();
+            var part = new ByteArrayContent(SyntheticImages.Jpeg(width, height));
+            part.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            form.Add(part, "file", "photo.jpg");
+            request.Content = form;
+            using var response = await Client.SendAsync(request, TestContext.Current.CancellationToken);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        // The id a photo's address carries: the last segment of its stored public id.
+        public async Task<string> PhotoIdAtPositionAsync(Guid orderId, int position)
+        {
+            await using var context = _database.CreateContext();
+            var publicId = await context.Set<OrderImage>().AsNoTracking()
+                .Where(image => image.OrderId == orderId && image.Position == position)
+                .Select(image => image.PublicId)
+                .SingleAsync(TestContext.Current.CancellationToken);
+            return publicId[(publicId.LastIndexOf('/') + 1)..];
+        }
+
+        public async Task SwapFirstTwoPositionsAsync(Guid orderId)
+        {
+            await using var context = _database.CreateContext();
+            await context.Set<OrderImage>().Where(image => image.OrderId == orderId && image.Position == 0)
+                .ExecuteUpdateAsync(set => set.SetProperty(image => image.Position, 4), TestContext.Current.CancellationToken);
+            await context.Set<OrderImage>().Where(image => image.OrderId == orderId && image.Position == 1)
+                .ExecuteUpdateAsync(set => set.SetProperty(image => image.Position, 0), TestContext.Current.CancellationToken);
+            await context.Set<OrderImage>().Where(image => image.OrderId == orderId && image.Position == 4)
+                .ExecuteUpdateAsync(set => set.SetProperty(image => image.Position, 1), TestContext.Current.CancellationToken);
         }
 
         public async ValueTask DisposeAsync()

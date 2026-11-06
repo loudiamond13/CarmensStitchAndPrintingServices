@@ -3,6 +3,8 @@ using Csps.Server.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -44,6 +46,32 @@ public sealed class RequestBodyLimitTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public async Task AnOrderItemRouteStillRefusesOneByteOverOneMebibyte()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var content = new ByteArrayContent(new byte[Limit + 1]);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+        using var response = await client.PostAsync(new Uri($"/api/v1/orders/{Guid.NewGuid():D}/items", UriKind.Relative), content, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+    }
+
+    [Fact]
+    public async Task TheUploadRouteAcceptsABodyOverOneMebibyteAndIsStoppedByAuthorizationNotByTheLimit()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var content = new ByteArrayContent(new byte[Limit + 1]);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("multipart/form-data");
+
+        using var response = await client.PostAsync(new Uri($"/api/v1/orders/{Guid.NewGuid():D}/images", UriKind.Relative), content, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task ARequestWithoutABodyIsUnaffected()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -68,6 +96,34 @@ public sealed class RequestBodyLimitTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
+    public async Task AnEndpointSizeLimitReplacesTheDefaultOnTheServerFeature()
+    {
+        var feature = new FakeMaxBodyFeature();
+        var context = ContextWith(feature);
+        context.SetEndpoint(UploadEndpoint());
+        context.Request.ContentLength = 4_000_000;
+
+        await new RequestBodyLimitMiddleware(static _ => Task.CompletedTask).InvokeAsync(context);
+
+        feature.MaxRequestBodySize.ShouldBe(5_000_000);
+        context.Response.StatusCode.ShouldNotBe(StatusCodes.Status413PayloadTooLarge);
+    }
+
+    [Fact]
+    public async Task AnEndpointSizeLimitRefusesALargerDeclaredBody()
+    {
+        var context = new DefaultHttpContext { RequestServices = new ServiceCollection().AddLogging().AddProblemDetails().BuildServiceProvider() };
+        context.SetEndpoint(UploadEndpoint());
+        context.Request.ContentLength = 5_000_001;
+        var called = false;
+
+        await new RequestBodyLimitMiddleware(_ => { called = true; return Task.CompletedTask; }).InvokeAsync(context);
+
+        called.ShouldBeFalse();
+        context.Response.StatusCode.ShouldBe(StatusCodes.Status413PayloadTooLarge);
+    }
+
+    [Fact]
     public async Task AReadOnlyServerFeatureIsLeftAlone()
     {
         var feature = new FakeMaxBodyFeature { IsReadOnly = true, MaxRequestBodySize = 5 };
@@ -88,6 +144,9 @@ public sealed class RequestBodyLimitTests(CspsDatabase database) : IClassFixture
 
         called.ShouldBeTrue();
     }
+
+    private static Endpoint UploadEndpoint() =>
+        new(null, new EndpointMetadataCollection(new RequestSizeLimitAttribute(5_000_000)), "upload");
 
     private static DefaultHttpContext ContextWith(FakeMaxBodyFeature feature)
     {

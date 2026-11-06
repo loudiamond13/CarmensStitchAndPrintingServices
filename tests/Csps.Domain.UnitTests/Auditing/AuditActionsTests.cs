@@ -11,9 +11,39 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixAndPhaseSevenCodes()
     {
-        AuditActions.All.Count.ShouldBe(92);
+        AuditActions.All.Count.ShouldBe(97);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
+    }
+
+    [Fact]
+    public void TheOrderPhotoAddedCodeIsInTheCatalog()
+    {
+        AuditActions.OrderImageAdded.ShouldBe("order-image.added");
+        AuditActions.All.ShouldContain(AuditActions.OrderImageAdded);
+    }
+
+    [Fact]
+    public void TheOrderPhotoMovedAndCoverChangedCodesAreInTheCatalog()
+    {
+        AuditActions.OrderImageMoved.ShouldBe("order-image.moved");
+        AuditActions.OrderImageCoverChanged.ShouldBe("order-image.cover-changed");
+        AuditActions.All.ShouldContain(AuditActions.OrderImageMoved);
+        AuditActions.All.ShouldContain(AuditActions.OrderImageCoverChanged);
+    }
+
+    [Fact]
+    public void TheOrderPhotoDescriptionChangedCodeIsInTheCatalog()
+    {
+        AuditActions.OrderImageDescriptionChanged.ShouldBe("order-image.description-changed");
+        AuditActions.All.ShouldContain(AuditActions.OrderImageDescriptionChanged);
+    }
+
+    [Fact]
+    public void TheOrderPhotoDeletedCodeIsInTheCatalog()
+    {
+        AuditActions.OrderImageDeleted.ShouldBe("order-image.deleted");
+        AuditActions.All.ShouldContain(AuditActions.OrderImageDeleted);
     }
 
     [Fact]
@@ -216,7 +246,8 @@ public sealed class AuditActionsTests
     public void ThePhaseSevenCodesComeAfterThePhaseSixCodesInThisOrder()
     {
         PhaseSeven.Length.ShouldBe(43);
-        AuditActions.All.Skip(49).ShouldBe(PhaseSeven.Select(entry => entry.Code));
+        AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted"]);
     }
 
     [Fact]

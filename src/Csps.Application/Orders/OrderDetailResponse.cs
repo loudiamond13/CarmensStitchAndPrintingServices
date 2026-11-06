@@ -137,6 +137,30 @@ public sealed record OrderExpenseResponse(
 /// <param name="ChangedAt">When it moved.</param>
 public sealed record OrderStatusChangeResponse(string? From, string To, ActorRef? ChangedBy, DateTimeOffset ChangedAt);
 
+/// <summary>An image address and its candidates for the browser's <c>srcset</c> (IMG-04).</summary>
+/// <param name="Src">The address used when the browser cannot pick a candidate.</param>
+/// <param name="SrcSet">The candidates with their <c>w</c> or <c>x</c> descriptors, comma separated.</param>
+public sealed record ImageSourceResponse(string Src, string SrcSet);
+
+/// <summary>One photo of an order (ORD-04, IMG-04). The addresses are built when the order is read and are never stored.</summary>
+/// <param name="Id">The photo id.</param>
+/// <param name="Position">The display order from 0; the photo at 0 is the cover.</param>
+/// <param name="Description">The description; null when the default text applies.</param>
+/// <param name="Width">The width in pixels, as the photo is shown upright.</param>
+/// <param name="Height">The height in pixels, as the photo is shown upright.</param>
+/// <param name="Thumb">The tile thumb, with a 2x candidate.</param>
+/// <param name="Viewer">The whole photo for the viewer, with width candidates.</param>
+/// <param name="FullSize">The address of the 2000 px JPEG behind "Open Full Size".</param>
+public sealed record OrderImageResponse(
+    Guid Id,
+    int Position,
+    string? Description,
+    int Width,
+    int Height,
+    ImageSourceResponse Thumb,
+    ImageSourceResponse Viewer,
+    string FullSize);
+
 /// <summary>
 /// The money figures of an order, read straight from the stored snapshot (ORD-20). Subtotal is before discount, total is after
 /// discount, balance is total minus paid plus refunded, and customerCredit is what the shop owes the customer.
@@ -182,6 +206,7 @@ public sealed record OrderTotalsResponse(
 /// <param name="Refunds">The refunds, oldest refund date first.</param>
 /// <param name="Expenses">The order expenses, oldest expense date first.</param>
 /// <param name="StatusHistory">The status history, oldest first.</param>
+/// <param name="Images">The photos, in display order; empty when the order has none.</param>
 /// <param name="Totals">The money figures.</param>
 /// <param name="RecordedBy">Who created it; null reads as System.</param>
 /// <param name="RecordedAt">When it was created.</param>
@@ -208,6 +233,7 @@ public sealed record OrderDetailResponse(
     IReadOnlyList<OrderRefundResponse> Refunds,
     IReadOnlyList<OrderExpenseResponse> Expenses,
     IReadOnlyList<OrderStatusChangeResponse> StatusHistory,
+    IReadOnlyList<OrderImageResponse> Images,
     OrderTotalsResponse Totals,
     ActorRef? RecordedBy,
     DateTimeOffset RecordedAt,

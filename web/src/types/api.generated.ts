@@ -673,6 +673,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/image-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the photo rules: `maxPerOrder` (5), `maxBytes`, `maxPixels`, `maxSide`, `types`
+         *     (`jpeg`, `png`, `webp`, `heic`) and `descriptionMaxLength`. The upload enforces the same values, so a
+         *     client that checks them first sends no file the server would refuse for size or type.
+         */
+        get: operations["GetImageRules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}": {
         parameters: {
             query?: never;
@@ -886,6 +907,89 @@ export interface paths {
          *     A Completed or Cancelled order answers 422 `orders.locked` and changes nothing.
          */
         delete: operations["RemoveOrderExpense"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Uploads one photo to a saved order as a multipart form with the file in the `file` part and an optional `description`
+         *     part. The type is read from the first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a
+         *     file that is not a photo we can use answers 400 and is never sent to storage. The description is trimmed; an empty one, or the
+         *     default text, is kept as none, and one over 200 characters answers 400. An order holds at most 5 photos: a sixth answers 422
+         *     `orders.images-full`. A Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo is
+         *     stored under a random id the client never chooses. When photo storage is not set up the answer is 503
+         *     `images.not-configured`. A retry with the same `Idempotency-Key` and body answers with the stored answer and adds
+         *     nothing more. Who added the photo and when come from the token and the clock.
+         */
+        post: operations["UploadOrderImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets or clears one photo's description on a saved order, with the order's version the page was opened with. The description
+         *     is trimmed. An empty one, or exactly `Order {number} photo {place}` for the photo's current place, is kept as none, so
+         *     the default text always follows the place; one over 200 characters (counted as .NET string length) answers 400 on
+         *     `description`. A photo id that is not on this order answers 404 `orders.image-not-found`. A version that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A description that changes
+         *     nothing saves nothing and keeps the version. A Completed or Cancelled order answers 422 `orders.locked` and changes
+         *     nothing. A change is recorded in the audit log.
+         */
+        put: operations["DescribeOrderImage"];
+        post?: never;
+        /**
+         * Deletes one photo of a saved order. No version is sent: the delete applies to the latest state, and a lost race is read again
+         *     and decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the
+         *     cover was deleted. A photo id that is not on this order, or was already deleted, answers 404 `orders.image-not-found`. A
+         *     Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo's file is queued for removal in the
+         *     same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is
+         *     recorded in the audit log.
+         */
+        delete: operations["RemoveOrderImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{orderId}/images/{imageId}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Moves one photo of a saved order to a place and shifts the others, with the order's version the page was opened with. Places
+         *     count from 0 and the photo at place 0 is the cover, so "Make Cover" is this request with place 0. A place below 0 or at or
+         *     above the photo count answers 400. A photo id that is not on this order answers 404 `orders.image-not-found`. A version
+         *     that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A move to the place
+         *     the photo already has changes nothing and keeps the version. A Completed or Cancelled order answers 422 `orders.locked`
+         *     and changes nothing. A move is recorded in the audit log, and so is a change of cover.
+         */
+        put: operations["MoveOrderImage"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2309,6 +2413,16 @@ export interface components {
              */
             total: number | string;
         };
+        /**
+         * @description Sets or clears one photo's description on a saved order (ORD-04, D-12, D-30). It carries the order's version as the page was
+         *     opened. Any other member in the body is ignored.
+         */
+        DescribeOrderImageRequest: {
+            /** @description The description; empty, missing or the default text means none. */
+            description: null | string;
+            /** @description The base64 of the eight-byte row version of the order the page was opened with. */
+            version: null | string;
+        };
         /** @description Who did it (D-27). */
         DoneBy: {
             /** @description One of DoneByKinds. */
@@ -2400,6 +2514,45 @@ export interface components {
             /** @description The email address. */
             email: null | string;
         };
+        /** Format: binary */
+        IFormFile: string;
+        /** @description The photo rules the server enforces, for the browser to check before it sends a file (OR-3, IMG-02). */
+        ImageRulesResponse: {
+            /**
+             * Format: int32
+             * @description The longest description, in characters.
+             */
+            descriptionMaxLength: number | string;
+            /**
+             * Format: int32
+             * @description The largest file, in bytes.
+             */
+            maxBytes: number | string;
+            /**
+             * Format: int32
+             * @description The most photos one order holds.
+             */
+            maxPerOrder: number | string;
+            /**
+             * Format: int64
+             * @description The most pixels (width times height) a photo may have.
+             */
+            maxPixels: number | string;
+            /**
+             * Format: int32
+             * @description The longest side, in pixels.
+             */
+            maxSide: number | string;
+            /** @description The accepted formats: `jpeg`, `png`, `webp` and `heic`. */
+            types: string[];
+        };
+        /** @description An image address and its candidates for the browser's `srcset` (IMG-04). */
+        ImageSourceResponse: {
+            /** @description The address used when the browser cannot pick a candidate. */
+            src: string;
+            /** @description The candidates with their `w` or `x` descriptors, comma separated. */
+            srcSet: string;
+        };
         /** @description The answer to a usable invite link. */
         InviteLinkResponse: {
             /** @description The address of the account the invite belongs to, so the page can name it. */
@@ -2432,6 +2585,36 @@ export interface components {
              */
             total: number | string;
         };
+        /**
+         * @description Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so "Make Cover" is the same request with
+         *     place 0. It carries the order's version as the page was opened. Any other member in the body is ignored.
+         */
+        MoveOrderImageRequest: {
+            /**
+             * Format: int32
+             * @description The place to move the photo to, counting from 0.
+             */
+            position: null | number | string;
+            /** @description The base64 of the eight-byte row version of the order the page was opened with. */
+            version: null | string;
+        };
+        /** @description An order's cover photo in the list (ORD-04, IMG-04). The addresses are built when the list is read and are never stored. */
+        OrderCoverResponse: {
+            /** @description The 16:10 card cover, with width candidates. */
+            card: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The height in pixels, as the photo is shown upright.
+             */
+            height: number | string;
+            /** @description The 44 px table thumb, with a 2x candidate. */
+            table: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The width in pixels, as the photo is shown upright.
+             */
+            width: number | string;
+        };
         /** @description One order with its items, history, totals and who recorded and last changed it (ORD-03). */
         OrderDetailResponse: {
             /** @description The address; null when none. */
@@ -2456,6 +2639,8 @@ export interface components {
              * @description The order id.
              */
             id: string;
+            /** @description The photos, in display order; empty when the order has none. */
+            images: components["schemas"]["OrderImageResponse"][];
             /** @description The lines, in order. */
             items: components["schemas"]["OrderItemResponse"][];
             /**
@@ -2610,6 +2795,37 @@ export interface components {
             recordedAt: string;
             recordedBy: null | components["schemas"]["ActorRef"];
         };
+        /** @description One photo of an order (ORD-04, IMG-04). The addresses are built when the order is read and are never stored. */
+        OrderImageResponse: {
+            /** @description The description; null when the default text applies. */
+            description: null | string;
+            /** @description The address of the 2000 px JPEG behind "Open Full Size". */
+            fullSize: string;
+            /**
+             * Format: int32
+             * @description The height in pixels, as the photo is shown upright.
+             */
+            height: number | string;
+            /**
+             * Format: uuid
+             * @description The photo id.
+             */
+            id: string;
+            /**
+             * Format: int32
+             * @description The display order from 0; the photo at 0 is the cover.
+             */
+            position: number | string;
+            /** @description The tile thumb, with a 2x candidate. */
+            thumb: components["schemas"]["ImageSourceResponse"];
+            /** @description The whole photo for the viewer, with width candidates. */
+            viewer: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The width in pixels, as the photo is shown upright.
+             */
+            width: number | string;
+        };
         /** @description One line of the New Order form (ORD-13). */
         OrderItemRequest: {
             /** @description What the line is. */
@@ -2680,6 +2896,7 @@ export interface components {
              * @description The balance in pesos.
              */
             balance: number | string;
+            cover: null | components["schemas"]["OrderCoverResponse"];
             /**
              * Format: double
              * @description What the shop owes the customer in pesos.
@@ -2704,6 +2921,11 @@ export interface components {
              * @description The order id.
              */
             id: string;
+            /**
+             * Format: int32
+             * @description How many photos the order has, 0 to 5.
+             */
+            imageCount: number | string;
             /** @description The order number. */
             number: string;
             /**
@@ -5776,6 +5998,35 @@ export interface operations {
             };
         };
     };
+    GetImageRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageRulesResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetOrder: {
         parameters: {
             query?: never;
@@ -6533,6 +6784,325 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                } & {
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    DescribeOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The photo id. */
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["DescribeOrderImageRequest"];
+                "application/json": null | components["schemas"]["DescribeOrderImageRequest"];
+                "text/json": null | components["schemas"]["DescribeOrderImageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The photo id. */
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveOrderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+                /** @description The photo id. */
+                imageId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveOrderImageRequest"];
+                "application/json": null | components["schemas"]["MoveOrderImageRequest"];
+                "text/json": null | components["schemas"]["MoveOrderImageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Unauthorized */

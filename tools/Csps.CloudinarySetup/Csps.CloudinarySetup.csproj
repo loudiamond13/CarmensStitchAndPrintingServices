@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The one-time command that creates the 13 named photo sizes in the Cloudinary account (IMG-04, D-03).
+    All the work is in Csps.Infrastructure.Images.CloudinarySetupCommand. It never prompts and never touches the database.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

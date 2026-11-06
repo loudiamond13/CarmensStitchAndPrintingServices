@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-10-30T18:50:00-05:00
+updated: 2026-11-03T21:12:00-06:00
 ---
 
 # The orders API
@@ -46,6 +46,10 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `POST /orders/{id}/refunds` | Staff | the refund form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.refund-not-allowed`, `orders.too-many-refunds` or `orders.locked` |
 | `PUT /orders/{id}/refunds/{refundId}` | Staff | the refund form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.refund-not-found`; `409 edit.stale`; `422 orders.locked` |
 | `DELETE /orders/{id}/refunds/{refundId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.refund-not-found`; `409 edit.stale`; `422 orders.locked` |
+| `GET /orders/image-rules` | Staff | none | `200` the photo rules; `401` (see [order-images.md](order-images.md)) |
+| `POST /orders/{id}/images` | Staff | a multipart form with the `file` and an optional `description`, and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `413`; `422 orders.images-full` or `orders.locked`; `503` when photo storage is not set up or did not take the file (see [order-images.md](order-images.md)) |
+| `PUT /orders/{id}/images/{imageId}/position` | Staff | `{ "position": 0, "version": "..." }` | `200` the whole order; `400` on `position` or `version`; `404 orders.not-found` or `orders.image-not-found`; `409 edit.stale`; `422 orders.locked` (see [order-images.md](order-images.md)) |
+| `PUT /orders/{id}/images/{imageId}` | Staff | `{ "description": "...", "version": "..." }` | `200` the whole order; `400` on `description` or `version`; `404 orders.not-found` or `orders.image-not-found`; `409 edit.stale`; `422 orders.locked` (see [order-images.md](order-images.md)) |
 | `POST /orders/{id}/status` | Staff | `{ "status": "mockup" }` with an `Idempotency-Key` and no version | `200` the whole order; `400` on `status`; `404 orders.not-found`; `409 edit.stale` (two lost races); `422 orders.complete-balance-owed`, `orders.complete-credit` or `orders.reopen-first` |
 | `DELETE /orders/{id}` | Staff | none | `204`; `404 orders.not-found` (also for an order that is already deleted); `409 edit.stale` (two lost races) |
 | `GET /orders/deleted?page=&pageSize=` | Manager | none | `200` the deleted list; `400` for a bad page or page size; `403` for an Admin |
@@ -83,11 +87,13 @@ no money. A row never carries contact details, the address or notes. For ORD-202
 21,327.50, 12,000.00 and 9,327.50 for subtotal, discount, total, paid and balance.
 
 - `pieces` is how many pieces the order has: the sum of its item quantities (D-40). An order with items of 25 and 15 reads `40`.
+- `imageCount` is how many photos the order has, from 0 to 5.
+- `cover` is the order's cover photo, the one at position 0, or `null` when the order has no photo. It holds `card` and `table`, each `{ src, srcSet }`, and the photo's upright `width` and `height`. The `card` is the 16:10 cover at 320 to 960 px wide, with width candidates in `srcSet`. The `table` is the 44 px thumb with a 2x candidate. No candidate is wider than the photo. The addresses are built when the list is read and are never stored. They appear only in this staff list, the order answer and the deleted-order read (D-01). The web app uses them as they are and never builds an address itself.
 - `allOrders` is every order that is not deleted, and `activeOrders` is the part of those in Pending, Mockup, In Production, Ready or Delivered (D-41). Both ignore `q`, `status`, the dates, `productType` and `hasBalance`, so a screen can show "showing 5 of 40" whatever the filters are.
 - `today` is the business date from the shop's time zone (D-59), so the browser never reads the device clock for a due date.
 
 The list runs three SQL commands (the count, the page and the two list-wide counts) whatever the page size, filter or sort (D-60), and answers under 300 ms at the 95th percentile on
-about five years of orders. How that is proved is in [list-performance.md](../operations/list-performance.md).
+about five years of orders. The photo count and the cover are read inside the page command, so photos add no command. How that is proved is in [list-performance.md](../operations/list-performance.md).
 
 ## The order form (`POST /orders`)
 
@@ -478,7 +484,7 @@ Who may do what:
 
 ## The order
 
-`POST`, `GET` and `PUT` answer the same shape, and so do the item, discount, payment, refund, expense and status routes:
+`POST`, `GET` and `PUT` answer the same shape, and so do the item, discount, payment, refund, expense, photo upload and status routes:
 
 ```
 {
@@ -493,6 +499,7 @@ Who may do what:
                recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
   expenses: [ { id, expenseDate, category: { id, name, tone, retired }, description, amount,
                 paidBy, paidByActive, recordedBy, recordedAt, lastChangedBy, lastChangedAt } ],
+  images: [ { id, position, description, width, height, thumb: { src, srcSet }, viewer: { src, srcSet }, fullSize } ],
   statusHistory: [ { from, to, changedBy, changedAt } ],
   totals: { subtotal, discount, total, paid, refunded, balance, customerCredit, expenses, profit, fullyPaid },
   recordedBy, recordedAt, lastChangedBy, lastChangedAt, version, today
@@ -516,6 +523,12 @@ Who may do what:
   payments, refunds, expenses and status), so the browser never reads the device clock for a due date.
 - `productType.retired` is true when a Manager later retired the type; old orders keep showing it.
 - `version` is the base64 of the eight-byte row version a later save must send back.
+- `images` lists the order's photos in display order (ORD-04, IMG-04), `[]` when there are none. The photo at `position` 0 is the cover.
+  Each has `id`, `position`, `description` (`null` when the default text, `Order <number> photo <n>`, applies), `width` and `height` as the
+  photo is shown upright, and three addresses built when the order is read, never stored: `thumb` (the tile, `src` plus a `srcSet` with
+  a 2x candidate when the photo is large enough), `viewer` (the whole photo, `src` plus a `srcSet` of width candidates no wider than
+  the photo) and `fullSize` (a 2000 px JPEG for "Open Full Size"). Photos are staff-only: the addresses appear in the staff order answers
+  (read, every write, the upload and the Manager's deleted-order read) and nowhere else. The upload rules are in [order-images.md](order-images.md).
 
 A deleted or unknown order is the same `404 orders.not-found`, "This order was not found or was deleted."
 
@@ -550,6 +563,8 @@ the change entry when anything else changed too.
 Each status move writes one `order.status-changed` entry and each reopen from Completed or Cancelled writes one `order.reopened` entry
 (never both), in the same save as the history row, each with `status=<from>><to>` by wire key, for example `status=pending>mockup`. A
 request for the status the order already has writes nothing.
+Each photo upload writes one `order-image.added` entry for the order in the same save: `number=<n>;position=<n>`, with `position` counting from 1.
+It never holds the photo's address, id, file name or description.
 A delete writes one `order.deleted` entry and a restore one `order.restored` entry in the same save, each with
 `number=<n>;status=<key>;total=<amount>;paid=<amount>;balance=<amount>`. A delete for good writes one `order.permanently-deleted`
 entry first, in the same save as the removal: `number`, `status`, `subtotal`, `discount`, `total`, `paid`, `refunded`, `balance` and

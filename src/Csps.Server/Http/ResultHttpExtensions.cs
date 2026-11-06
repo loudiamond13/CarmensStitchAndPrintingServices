@@ -52,6 +52,7 @@ public static class ResultHttpExtensions
             ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
             ErrorKind.Unauthenticated => StatusCodes.Status401Unauthorized,
             ErrorKind.TooManyRequests => StatusCodes.Status429TooManyRequests,
+            ErrorKind.Unavailable => StatusCodes.Status503ServiceUnavailable,
             _ => throw new ArgumentOutOfRangeException(nameof(error), error.Kind, "Unknown error kind."),
         };
 
@@ -60,6 +61,12 @@ public static class ResultHttpExtensions
             // Whole seconds, rounded up and never below 1 (SEC-03 precision edge).
             var seconds = Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds));
             http.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        }
+
+        if (error.Kind == ErrorKind.Unavailable)
+        {
+            // A use-case error is written in plain English for the person, unlike an unexpected fault, so its message and code are kept.
+            http.Items[CspsProblemDetails.AuthoredErrorItem] = true;
         }
 
         return TypedResults.Problem(CspsProblemDetails.Build(http, status, error.Message, SortedFieldErrors(error), error.Code));

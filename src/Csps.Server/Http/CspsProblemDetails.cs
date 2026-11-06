@@ -15,6 +15,12 @@ public static class CspsProblemDetails
     /// <summary>The ProblemDetails extension that carries a use-case error's machine code.</summary>
     public const string CodeKey = "code";
 
+    /// <summary>
+    /// The <c>HttpContext.Items</c> key a use-case error sets when its message is written for the person (a 503 such as "Photo uploads
+    /// aren't set up yet."), so the 5xx rule below keeps its detail and code. An unexpected fault never sets it.
+    /// </summary>
+    public const string AuthoredErrorItem = "csps.problem.authored-error";
+
     /// <summary>Builds a complete ProblemDetails for the current request.</summary>
     /// <param name="context">The current HTTP context.</param>
     /// <param name="status">The HTTP status code.</param>
@@ -31,7 +37,7 @@ public static class CspsProblemDetails
         problem.Status = status;
         problem.Detail = detail;
         Apply(problem, context);
-        if (code is not null && status < StatusCodes.Status500InternalServerError)
+        if (code is not null && (status < StatusCodes.Status500InternalServerError || IsAuthored(context)))
         {
             problem.Extensions[CodeKey] = code;
         }
@@ -42,7 +48,7 @@ public static class CspsProblemDetails
     /// <summary>
     /// Applies the CSPS rules to any ProblemDetails, including ones the framework creates: plain-English title,
     /// <c>traceId</c>, and for 5xx the fixed detail "Something went wrong. Reference: &lt;traceId&gt;" with every
-    /// other extension removed.
+    /// other extension removed, unless a use-case error marked the answer with <see cref="AuthoredErrorItem"/>.
     /// </summary>
     /// <param name="problem">The ProblemDetails to update.</param>
     /// <param name="context">The current HTTP context.</param>
@@ -56,7 +62,7 @@ public static class CspsProblemDetails
 
         problem.Status = status;
         problem.Title = PlainEnglish.TitleFor(status);
-        if (status >= StatusCodes.Status500InternalServerError)
+        if (status >= StatusCodes.Status500InternalServerError && !IsAuthored(context))
         {
             problem.Detail = $"Something went wrong. Reference: {traceId}";
             problem.Extensions.Clear();
@@ -75,6 +81,8 @@ public static class CspsProblemDetails
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        // An authored error mapped earlier on this request must not hide the reference text of the fault that followed it.
+        context.Items.Remove(AuthoredErrorItem);
         var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;
         var status = error is BadHttpRequestException { StatusCode: >= StatusCodes.Status400BadRequest and < StatusCodes.Status500InternalServerError } bad
             ? bad.StatusCode
@@ -94,4 +102,6 @@ public static class CspsProblemDetails
         ArgumentNullException.ThrowIfNull(context);
         return TypedResults.Problem(Build(context, status)).ExecuteAsync(context);
     }
+
+    private static bool IsAuthored(HttpContext context) => context.Items.ContainsKey(AuthoredErrorItem);
 }

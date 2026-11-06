@@ -56,12 +56,14 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasQueryFilter("SoftDelete", order => order.DeletedAtUtc == null);
 
         builder.HasMany(order => order.Items).WithOne(item => item.Order).HasForeignKey(item => item.OrderId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasMany(order => order.Images).WithOne(image => image.Order).HasForeignKey(image => image.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(order => order.Discounts).WithOne(discount => discount.Order).HasForeignKey(discount => discount.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(order => order.Payments).WithOne(payment => payment.Order).HasForeignKey(payment => payment.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(order => order.Expenses).WithOne(expense => expense.Order).HasForeignKey(expense => expense.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(order => order.Refunds).WithOne(refund => refund.Order).HasForeignKey(refund => refund.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(order => order.StatusChanges).WithOne(change => change.Order).HasForeignKey(change => change.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(order => order.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.Navigation(order => order.Images).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Navigation(order => order.Discounts).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Navigation(order => order.Payments).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Navigation(order => order.Expenses).UsePropertyAccessMode(PropertyAccessMode.Field);
