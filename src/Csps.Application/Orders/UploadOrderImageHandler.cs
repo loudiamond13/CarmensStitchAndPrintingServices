@@ -15,7 +15,7 @@ namespace Csps.Application.Orders;
 /// is removed (400 when that cannot be done, D-02), and only then is it sent to the storage under a random id (D-01). The photo row is saved through the order's row lock with one <c>order-image.added</c> entry
 /// that names the order number and the photo's place, never its id or address (D-19). A save that loses a race is read again and
 /// decided again once. When the photo row cannot be saved after the file reached storage, the file is queued for removal as
-/// <c>UploadUndone</c> on its own short context (JOB-02). The client file name and content type never shape the stored id.
+/// <c>UploadUndone</c> on its own short context (JOB-02); so is a file whose upload ended with a lost reply. The client file name and content type never shape the stored id.
 /// </summary>
 public sealed class UploadOrderImageHandler(
     IOrders orders,
@@ -87,6 +87,12 @@ public sealed class UploadOrderImageHandler(
         var stored = await storage.UploadAsync(new ImageUpload(publicId, PublicIds.Folder(storage.RootFolder, orderId), clean, facts.Kind), cancellationToken).ConfigureAwait(false);
         if (!stored.Succeeded)
         {
+            // A timeout or busy storage may have kept the file; queue it. A clear refusal stored nothing.
+            if (stored.FailureCode == ImageFailureCodes.Transient)
+            {
+                await UndoUploadAsync(publicId).ConfigureAwait(false);
+            }
+
             return Result.Failure<OrderDetailResponse>(ImageErrors.StorageFailed);
         }
 
