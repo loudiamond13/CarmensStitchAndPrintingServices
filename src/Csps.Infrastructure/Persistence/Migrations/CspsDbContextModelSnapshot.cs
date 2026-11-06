@@ -1908,6 +1908,27 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("ImageDeletions", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Infrastructure.Maintenance.MaintenanceCursor", b =>
+                {
+                    b.Property<string>("JobName")
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("JobName");
+
+                    b.ToTable("MaintenanceCursors", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Persistence.Locking.DatabaseLock", b =>
                 {
                     b.Property<string>("Name")

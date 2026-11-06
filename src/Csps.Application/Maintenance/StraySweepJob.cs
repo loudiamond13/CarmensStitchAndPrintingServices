@@ -12,9 +12,10 @@ namespace Csps.Application.Maintenance;
 /// <param name="storage">The photo storage.</param>
 /// <param name="queue">The removal queue.</param>
 /// <param name="inventory">Tells which ids the database knows.</param>
+/// <param name="cursors">Keeps the listing place between runs.</param>
 /// <param name="time">The clock.</param>
 /// <param name="log">The server log for a storage read that failed.</param>
-public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue queue, IImageInventory inventory, TimeProvider time, IMaintenanceJobLog log) : IMaintenanceJob
+public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue queue, IImageInventory inventory, IMaintenanceCursors cursors, TimeProvider time, IMaintenanceJobLog log) : IMaintenanceJob
 {
     /// <summary>The label of the count of queued stray files.</summary>
     public const string StrayLabel = "Stray files removed (older than 2 days)";
@@ -63,7 +64,11 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         var more = false;
         var unreadable = false;
         var overCap = false;
-        string? cursor = null;
+        var saved = await cursors.GetAsync(Name, cancellationToken).ConfigureAwait(false);
+        var cursor = saved;
+
+        // Where the next run starts; null means a new pass from page 1.
+        string? resumeAt = null;
 
         try
         {
@@ -72,9 +77,11 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
                 if (budget.IsSpent)
                 {
                     more = true;
+                    resumeAt = cursor;
                     break;
                 }
 
+                var pageStart = cursor;
                 var page = await storage.ListAsync(folder, cursor, cancellationToken).ConfigureAwait(false);
                 var strays = await FindStraysAsync(page, folder, cutOff, cancellationToken).ConfigureAwait(false);
                 var take = (int)Math.Min(strays.Count, MaxStraysPerRun - queued);
@@ -87,6 +94,7 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
                 if (strays.Count > take)
                 {
                     overCap = true;
+                    resumeAt = pageStart;
                     break;
                 }
 
@@ -98,7 +106,12 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         {
             log.StorageReadFailed(Name, failure.FailureCode);
             unreadable = true;
+
+            // A busy storage or a wrong key says nothing about the place, so it is kept. Any other refusal may mean the cursor is no longer valid.
+            resumeAt = failure.FailureCode is ImageFailureCodes.Transient or ImageFailureCodes.Unauthorized ? cursor : null;
         }
+
+        await RememberPlaceAsync(saved, resumeAt, cancellationToken).ConfigureAwait(false);
 
         var lines = new List<MaintenanceLine> { new(StrayLabel, queued, false, null) };
         if (overCap)
@@ -112,6 +125,21 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         }
 
         return new MaintenanceJobReport(lines, more);
+    }
+
+    private async Task RememberPlaceAsync(string? saved, string? resumeAt, CancellationToken cancellationToken)
+    {
+        if (resumeAt is null)
+        {
+            if (saved is not null)
+            {
+                await cursors.ClearAsync(Name, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else if (resumeAt != saved)
+        {
+            await cursors.SaveAsync(Name, resumeAt, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     // Only files of the own folder that are old enough are checked against the database; the rest are left alone.

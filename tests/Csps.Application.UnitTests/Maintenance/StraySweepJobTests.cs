@@ -269,6 +269,127 @@ public sealed class StraySweepJobTests
     }
 
     [Fact]
+    public async Task ARunStartsAtTheSavedCursorInsteadOfThePageOne()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep"] = "saved-7";
+        harness.Storage.Page("saved-7", new StoredImagePage([Entry(PublicId("a"), TimeSpan.FromDays(5))], null));
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Listings.ShouldBe([(Folder, "saved-7")]);
+        report.Lines.Single(line => line.Label == StrayLabel).Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task APassThatReachesTheLastPageClearsTheSavedCursor()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep"] = "saved-7";
+        harness.Storage.Page("saved-7", new StoredImagePage([Entry(PublicId("a"), TimeSpan.FromDays(5))], "next-8"));
+        harness.Storage.Page("next-8", new StoredImagePage([], null));
+
+        var report = await harness.RunAsync();
+
+        harness.Cursors.Saved.ShouldBeEmpty();
+        report.More.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ASpentBudgetSavesTheCursorOfTheNextUnreadPageSoTheNextRunResumes()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(null, new StoredImagePage([Entry(PublicId("a"), TimeSpan.FromDays(5))], "next-1"));
+        harness.Storage.Page("next-1", new StoredImagePage([Entry(PublicId("b"), TimeSpan.FromDays(5))], null));
+        harness.Storage.OnList = () => harness.Time.Advance(TimeSpan.FromSeconds(2));
+
+        var first = await harness.RunAsync(new MaintenanceBudget(harness.Time, TimeSpan.FromSeconds(1)));
+        harness.Storage.OnList = null;
+        var second = await harness.RunAsync();
+
+        first.More.ShouldBeTrue();
+        harness.Storage.Listings.ShouldBe([(Folder, null), (Folder, "next-1")]);
+        harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([PublicId("a"), PublicId("b")]);
+        second.More.ShouldBeFalse();
+        harness.Cursors.Saved.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ABudgetThatIsSpentBeforeAnyPageWasReadKeepsTheCursorItStartedWith()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep"] = "saved-7";
+        var budget = new MaintenanceBudget(harness.Time, TimeSpan.FromSeconds(1));
+        harness.Time.Advance(TimeSpan.FromSeconds(2));
+
+        var report = await harness.RunAsync(budget);
+
+        report.More.ShouldBeTrue();
+        harness.Storage.Listings.ShouldBeEmpty();
+        harness.Cursors.Saved["stray-sweep"].ShouldBe("saved-7");
+    }
+
+    [Fact]
+    public async Task TheCapKeepsTheCursorOfThePageItStoppedOnSoThatPageIsReadAgain()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(null, new StoredImagePage(Strays(0, 30), "next-1"));
+        harness.Storage.Page("next-1", new StoredImagePage(Strays(30, 30), "next-2"));
+
+        await harness.RunAsync();
+
+        harness.Cursors.Saved["stray-sweep"].ShouldBe("next-1");
+    }
+
+    [Fact]
+    public async Task TheCapOnTheFirstPageLeavesNoCursor()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(null, new StoredImagePage(Strays(0, StraySweepJob.MaxStraysPerRun + 1), "next-1"));
+
+        await harness.RunAsync();
+
+        harness.Cursors.Saved.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AListingThatFailsForNowKeepsTheSavedCursor()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep"] = "saved-7";
+        harness.Storage.ListFailure = new ImageStorageException(ImageFailureCodes.Transient);
+
+        await harness.RunAsync();
+
+        harness.Cursors.Saved["stray-sweep"].ShouldBe("saved-7");
+    }
+
+    [Fact]
+    public async Task AListingThatTheStorageRefusesForTheSavedCursorClearsItSoTheNextRunStartsOver()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep"] = "saved-7";
+        harness.Storage.ListFailure = new ImageStorageException("failed");
+
+        var report = await harness.RunAsync();
+
+        harness.Cursors.Saved.ShouldBeEmpty();
+        report.Lines.ShouldContain(line => line.Failed);
+    }
+
+    [Fact]
+    public async Task AWrongKeyKeepsTheSavedCursor()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep"] = "saved-7";
+        harness.Storage.ListFailure = new ImageStorageException(ImageFailureCodes.Unauthorized);
+
+        await harness.RunAsync();
+
+        harness.Cursors.Saved["stray-sweep"].ShouldBe("saved-7");
+    }
+
+    [Fact]
     public async Task NoLineCarriesAPublicId()
     {
         var harness = new Harness();
@@ -287,7 +408,7 @@ public sealed class StraySweepJobTests
         public Harness()
         {
             Time = new FakeTimeProvider(Now);
-            Job = new StraySweepJob(Storage, Queue, Inventory, Time, Log);
+            Job = new StraySweepJob(Storage, Queue, Inventory, Cursors, Time, Log);
         }
 
         public FakeTimeProvider Time { get; }
@@ -299,6 +420,8 @@ public sealed class StraySweepJobTests
         public FakeImageDeletionQueue Queue { get; } = new();
 
         public FakeImageInventory Inventory { get; } = new();
+
+        public FakeMaintenanceCursors Cursors { get; } = new();
 
         public StraySweepJob Job { get; }
 

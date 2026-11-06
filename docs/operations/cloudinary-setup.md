@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T20:30:00-06:00
-updated: 2026-11-05T20:58:00-05:00
+updated: 2026-11-05T21:30:00-05:00
 ---
 
 # Cloudinary setup: where the photo keys go
@@ -133,7 +133,7 @@ If the HEIC photo fails at Cloudinary, or a GPS location is still there, Claude 
 
 Do these in order when Phase 9 goes live. The list is also copied into the plan 09-30 summary for `/gsd-verify-work`.
 
-1. Apply the deploy package's `csps-migrations.sql` to the live database. It adds the `OrderImages` and `ImageDeletions` tables. It only adds; nothing is dropped or changed.
+1. Apply the deploy package's `csps-migrations.sql` to the live database. It adds the `OrderImages`, `ImageDeletions` and `MaintenanceCursors` tables. It only adds; nothing is dropped or changed.
 2. Set these as app pool environment variables on the host: `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret` and `Maintenance__Key` (32 or more characters). Never paste the values into a chat or into a tracked file.
 3. Database backups are deferred (D-51). The host's SQL server cannot write a backup file, so nothing in the app makes one and there are no backup settings to add. Take backups by hand in the hosting control panel until the owner decides on a backup plan.
 4. Add the GitHub repository secret `MAINTENANCE_KEY` with the same value as `Maintenance__Key`. Check that the variable `SITE_ORIGIN` is the live https address.
