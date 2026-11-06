@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Images;
@@ -173,8 +174,17 @@ public sealed class OrderImagesEndpointTests(CspsDatabase database) : IClassFixt
         using var baseClient = baseFactory.CreateClient();
         var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
         var created = await CreateOrderAsync(baseFactory, baseClient, manager.AccessToken);
-        await using var development = baseFactory.WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Development));
+        await using var development = baseFactory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment(Environments.Development);
+
+            // Development loads the machine's user-secrets, which may hold real Cloudinary keys.
+            builder.UseSetting("Cloudinary:CloudName", string.Empty);
+            builder.UseSetting("Cloudinary:ApiKey", string.Empty);
+            builder.UseSetting("Cloudinary:ApiSecret", string.Empty);
+        });
         using var client = development.CreateClient();
+        development.Services.GetRequiredService<IImageStorage>().IsConfigured.ShouldBeFalse("this host must not pick up Cloudinary keys from the machine");
 
         using var health = await client.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
         using var response = await UploadAsync(client, manager.AccessToken, created.GetProperty("id").GetGuid(), Photo);
