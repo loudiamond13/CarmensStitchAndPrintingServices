@@ -1,6 +1,7 @@
 using Csps.Application.Maintenance;
 using Csps.Application.Ports;
 using Microsoft.Extensions.Time.Testing;
+using NSubstitute;
 
 namespace Csps.Application.UnitTests.Maintenance;
 
@@ -186,6 +187,7 @@ public sealed class StraySweepJobTests
         failed.Label.ShouldBe("Photo storage");
         failed.Text.ShouldBe("The stray file sweep could not read the photo storage.");
         report.More.ShouldBeFalse();
+        harness.Log.Received(1).StorageReadFailed("stray-sweep", "transient");
     }
 
     [Fact]
@@ -198,6 +200,7 @@ public sealed class StraySweepJobTests
 
         harness.Queue.Queued.ShouldBeEmpty();
         report.Lines.Single(line => line.Failed).Text.ShouldBe("The stray file sweep could not read the photo storage.");
+        harness.Log.Received(1).StorageReadFailed("stray-sweep", "unauthorized");
     }
 
     [Fact]
@@ -216,10 +219,12 @@ public sealed class StraySweepJobTests
         public Harness()
         {
             Time = new FakeTimeProvider(Now);
-            Job = new StraySweepJob(Storage, Queue, Inventory, Time);
+            Job = new StraySweepJob(Storage, Queue, Inventory, Time, Log);
         }
 
         public FakeTimeProvider Time { get; }
+
+        public IMaintenanceJobLog Log { get; } = Substitute.For<IMaintenanceJobLog>();
 
         public FakeImageStorage Storage { get; } = new();
 

@@ -11,7 +11,8 @@ namespace Csps.Application.Maintenance;
 /// </summary>
 /// <param name="storage">The photo storage.</param>
 /// <param name="uploadSettings">The upload limits, for the plan limit check.</param>
-public sealed class CloudinaryUsageJob(IImageStorage storage, ImageUploadSettings uploadSettings) : IMaintenanceJob
+/// <param name="log">The server log for a storage read that failed.</param>
+public sealed class CloudinaryUsageJob(IImageStorage storage, ImageUploadSettings uploadSettings, IMaintenanceJobLog log) : IMaintenanceJob
 {
     /// <summary>The label of the storage line.</summary>
     public const string StorageLabel = "Cloudinary storage used";
@@ -61,8 +62,9 @@ public sealed class CloudinaryUsageJob(IImageStorage storage, ImageUploadSetting
         {
             usage = await storage.GetUsageAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (ImageStorageException)
+        catch (ImageStorageException failure)
         {
+            log.StorageReadFailed(Name, failure.FailureCode);
             return Report(Failed(UnreadableText));
         }
 

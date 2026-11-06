@@ -30,9 +30,9 @@ public sealed class CloudinaryUsageJobTests
         return await RunAsync(storage, maxBytes);
     }
 
-    private static async Task<IReadOnlyList<MaintenanceLine>> RunAsync(IImageStorage storage, int maxBytes = ImageUploadLimits.MaxFileBytes)
+    private static async Task<IReadOnlyList<MaintenanceLine>> RunAsync(IImageStorage storage, int maxBytes = ImageUploadLimits.MaxFileBytes, IMaintenanceJobLog? log = null)
     {
-        var job = new CloudinaryUsageJob(storage, new ImageUploadSettings { MaxBytes = maxBytes });
+        var job = new CloudinaryUsageJob(storage, new ImageUploadSettings { MaxBytes = maxBytes }, log ?? Substitute.For<IMaintenanceJobLog>());
         var report = await job.RunAsync(new MaintenanceBudget(new FakeTimeProvider()), TestContext.Current.CancellationToken);
         report.More.ShouldBeFalse();
         return report.Lines;
@@ -41,7 +41,7 @@ public sealed class CloudinaryUsageJobTests
     [Fact]
     public void TheJobRunsLastInThePassAsOrder40()
     {
-        var job = new CloudinaryUsageJob(Substitute.For<IImageStorage>(), new ImageUploadSettings());
+        var job = new CloudinaryUsageJob(Substitute.For<IImageStorage>(), new ImageUploadSettings(), Substitute.For<IMaintenanceJobLog>());
 
         job.Order.ShouldBe(40);
         job.Name.ShouldBe("cloudinary-usage");
@@ -131,10 +131,13 @@ public sealed class CloudinaryUsageJobTests
         storage.IsConfigured.Returns(true);
         storage.GetUsageAsync(Arg.Any<CancellationToken>()).Returns<Task<StorageUsage>>(_ => throw new ImageStorageException(code));
 
-        var lines = await RunAsync(storage);
+        var log = Substitute.For<IMaintenanceJobLog>();
+
+        var lines = await RunAsync(storage, log: log);
 
         var failed = lines.Single(candidate => candidate.Failed);
         failed.Text.ShouldBe(UnreadableText);
+        log.Received(1).StorageReadFailed("cloudinary-usage", code);
         lines.ShouldNotContain(candidate => candidate.Label == StorageLabel);
     }
 
@@ -169,7 +172,7 @@ public sealed class CloudinaryUsageJobTests
         var storage = Substitute.For<IImageStorage>();
         storage.IsConfigured.Returns(true);
         storage.GetUsageAsync(Arg.Any<CancellationToken>()).Returns<Task<StorageUsage>>(_ => throw new OperationCanceledException(cancelled.Token));
-        var job = new CloudinaryUsageJob(storage, new ImageUploadSettings());
+        var job = new CloudinaryUsageJob(storage, new ImageUploadSettings(), Substitute.For<IMaintenanceJobLog>());
 
         await Should.ThrowAsync<OperationCanceledException>(() => job.RunAsync(new MaintenanceBudget(new FakeTimeProvider()), cancelled.Token));
     }
