@@ -1535,7 +1535,7 @@ describe('secondPhotoOf (the second photo of an order answer)', () => {
 describe('HOST_ENV (the owner review host matches the Playwright E2E host)', () => {
   it('lifts every rate limit that playwright.config.ts lifts', () => {
     const config = readFileSync(path.join(webDirectory, 'playwright.config.ts'), 'utf8');
-    const lifted = [...config.matchAll(/^\s+(RateLimits__[A-Za-z_]+): noThrottle,/gm)].map((match) => match[1]);
+    const lifted = [...config.matchAll(/^\s+(RateLimits__[A-Za-z_]+): noThrottle,/gm)].map((match) => String(match[1]));
 
     expect(lifted).toContain('RateLimits__Images__PermitLimit');
     for (const name of lifted) {
