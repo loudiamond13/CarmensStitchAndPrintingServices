@@ -37,6 +37,8 @@ export type PrepareResult =
 
 export const MAX_LONG_SIDE = 2000;
 export const PREVIEW_LONG_SIDE = 176;
+/** Only protects the phone's memory (D-53): the server's pixel and side limits are checked on the shrunk photo. */
+export const MAX_ORIGINAL_PIXELS = 100_000_000;
 const ENCODE_QUALITY = 0.85;
 const PREVIEW_QUALITY = 0.8;
 const HEAD_BYTES = 32;
@@ -176,7 +178,8 @@ function previewOf(parts: BrowserImageParts, bitmap: DecodedBitmap): string | nu
 
 /**
  * Checks, rights, shrinks and previews one picked file before any request (IMG-05, D-18; OR-3 mirror of the server's
- * type, size and pixel rules). Keeps no state, so calls may overlap.
+ * type, size and pixel rules, with the pixel and side limits applied to the shrunk photo, D-53). Keeps no state, so
+ * calls may overlap.
  */
 export async function prepareImage(
   file: File,
@@ -208,12 +211,14 @@ export async function prepareImage(
   try {
     const { width, height } = bitmap;
     if (!(width > 0 && height > 0)) return { ok: false, reason: 'unreadable' };
-    if (width * height > rules.maxPixels || Math.max(width, height) > rules.maxSide) {
+    if (width * height > MAX_ORIGINAL_PIXELS) return { ok: false, reason: 'pixels' };
+
+    const plan = planDownscale(width, height);
+    if (plan.width * plan.height > rules.maxPixels || Math.max(plan.width, plan.height) > rules.maxSide) {
       return { ok: false, reason: 'pixels' };
     }
 
     const preview = previewOf(parts, bitmap);
-    const plan = planDownscale(width, height);
     if (!plan.scaled) {
       if (file.size > rules.maxBytes) return { ok: false, reason: 'size' };
       return {
