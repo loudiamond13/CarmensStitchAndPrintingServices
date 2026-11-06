@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions: {}
+    # Run workflow from another branch would run that branch's copy of the script with MAINTENANCE_KEY, so only main runs.
+    # The monthly schedule always runs on main.
+    if: github.ref == 'refs/heads/main'
     # No environment: a production environment with a required reviewer would hold every cron run for approval.
     steps:
       - name: checkout

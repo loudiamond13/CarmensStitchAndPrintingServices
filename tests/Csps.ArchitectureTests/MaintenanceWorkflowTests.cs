@@ -54,7 +54,8 @@ public sealed class MaintenanceWorkflowTests
         job.Lines.ShouldContain("    name: monthly maintenance");
         job.Lines.ShouldContain("    runs-on: ubuntu-24.04");
         job.Lines.ShouldContain("    timeout-minutes: 20");
-        job.Lines.ShouldNotContain(line => line.TrimStart().StartsWith("if:", StringComparison.Ordinal), "A skipped job would hide a missed run.");
+        job.Lines.Where(line => line.TrimStart().StartsWith("if:", StringComparison.Ordinal)).Select(line => line.Trim()).ToList()
+            .ShouldBe(["if: github.ref == 'refs/heads/main'"], "The only condition is the branch guard: Run workflow from another branch must not read MAINTENANCE_KEY, and the monthly schedule always runs on main.");
         lines.ShouldNotContain(
             line => line.TrimStart().StartsWith("environment:", StringComparison.Ordinal),
             "A production environment's required reviewer would hold every cron run (Pitfall 17).");
