@@ -1,6 +1,6 @@
 # Phase 9 UI Review
 
-*Created: 2026-11-06T07:55:00-06:00 · Updated: 2026-11-06T07:59:00-06:00*
+*Created: 2026-11-06T07:55:00-06:00 · Updated: 2026-11-06T08:17:00-06:00*
 
 **Audited:** 2026-11-06
 **Baseline:** `09-UI-SPEC.md` (approved), plus project rules (OR-3, OR-4, WCAG 2.2 AA, 44 px targets, strict CSP, en-PH)
@@ -21,6 +21,21 @@
 | 6. Experience Design | 3/4 | State coverage is broad (waiting, uploading, failed, locked, 409, 404, leave guard). Nothing was run in a browser, and Playwright e2e was never run after the review fixes. |
 
 **Overall: 20/24**
+
+---
+
+## Outcomes on the Phase 9 branch
+
+The audit read an older copy of the Phase 9 code (the Phase 10 checkout, at the D-53 fix). The scores above are for that copy. Each finding was then checked against the Phase 9 branch:
+
+| Finding | Outcome |
+|---|---|
+| Fix 1: viewer off-centre (G-09-10) | **Fixed by plan 09-33.** `viewerImageClasses` now has `justify-self-center` and a width set from the height cap. Proof on the real order page waits for the CI Playwright run (see Fix 3). |
+| Fix 2: pixel-limit wording | **Fixed in the spec.** Owner kept megapixels (D-56, 2026-11-06). |
+| Fix 3: prove visuals in a browser | **Deferred to CI.** The full gate runs Playwright (chromium and the phone viewport) with the 44 px and axe checks in `order-photos-a11y.spec.ts`. 09-33's real-page checks were not run locally, because LocalDB would not start. |
+| Banner plural "1 of 1 photo" | **Waiting for the owner's wording.** The code still follows the total. |
+| Gap wordings (`rulesUnavailable`, `refused`, the waiting line end) | **Waiting for the owner's wording.** |
+| Tap-area assertion | **Already covered.** `order-photos-a11y.spec.ts:585` fails on any card control under 44 px. |
 
 ---
 
