@@ -211,6 +211,19 @@ public sealed class ImageSnifferTests
     }
 
     [Fact]
+    public void AnExtendedWebPWhoseFrameIsBiggerThanItsCanvasGivesNoAnswer()
+    {
+        byte[] BigLossy(int side) => SyntheticImages.WebPChunk("VP8 ", [0x50, 0x00, 0x00, 0x9D, 0x01, 0x2A, (byte)side, (byte)(side >> 8), (byte)side, (byte)(side >> 8), 0x00, 0x00]);
+
+        var tinyCanvas = SyntheticImages.WebP(WebPKind.Extended, 1, 1, 0, BigLossy(16383));
+        var narrowCanvas = SyntheticImages.WebP(WebPKind.Extended, 100, 16383, 0, BigLossy(16383));
+
+        ImageSniffer.Inspect(tinyCanvas).ShouldBeNull();
+        ImageSniffer.Inspect(narrowCanvas).ShouldBeNull();
+        ImageSniffer.Inspect(SyntheticImages.WebP(WebPKind.Extended, 16383, 16383, 0, BigLossy(16383))).ShouldNotBeNull();
+    }
+
+    [Fact]
     public void AnAnimatedWebPIsRefusedWhetherTheFlagOrTheChunkSaysSo()
     {
         var flagged = SyntheticImages.WebP(WebPKind.Extended, 400, 300, SyntheticImages.WebPAnimation);
