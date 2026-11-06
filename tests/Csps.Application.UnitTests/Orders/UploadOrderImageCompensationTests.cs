@@ -97,16 +97,38 @@ public sealed class UploadOrderImageCompensationTests
         result.ShouldNotBeNull();
     }
 
-    [Fact]
-    public async Task AFileTheStorageRefusedQueuesNothingBecauseNothingWasStored()
+    [Theory]
+    [InlineData("refused")]
+    [InlineData("unauthorized")]
+    [InlineData("images.type")]
+    public async Task AFileTheStorageRefusedQueuesNothingBecauseNothingWasStored(string code)
     {
         var harness = new Harness();
-        harness.Storage.UploadAsync(Arg.Any<ImageUpload>(), Arg.Any<CancellationToken>()).Returns(ImageUploadOutcome.Failed("transient"));
+        harness.Storage.UploadAsync(Arg.Any<ImageUpload>(), Arg.Any<CancellationToken>()).Returns(ImageUploadOutcome.Failed(code));
 
         var result = await harness.Handler.HandleAsync(harness.Order.Id, new UploadOrderImageRequest(Photo, "p.jpg", null), TestContext.Current.CancellationToken);
 
         result.Error.ShouldBe(ImageErrors.StorageFailed);
         harness.Queue.Calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUploadWhoseReplyWasLostQueuesTheFileItMayHaveStoredAndAnswersStorageFailed()
+    {
+        var harness = new Harness();
+        string? sent = null;
+        harness.Storage.UploadAsync(Arg.Any<ImageUpload>(), Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            sent = call.Arg<ImageUpload>().PublicId;
+            return Task.FromResult(ImageUploadOutcome.Failed(ImageFailureCodes.Transient));
+        });
+
+        var result = await harness.Handler.HandleAsync(harness.Order.Id, new UploadOrderImageRequest(Photo, "p.jpg", null), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(ImageErrors.StorageFailed);
+        harness.Queue.Calls.Select(call => call.Reason).ShouldBe([ImageDeletionReason.UploadUndone]);
+        harness.Queue.Calls[0].PublicId.ShouldBe(sent.ShouldNotBeNull());
+        harness.Queue.Calls[0].TokenWasCancelled.ShouldBeFalse();
     }
 
     [Fact]
