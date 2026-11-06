@@ -376,3 +376,84 @@ test('@order-photos-view G-09-10 the phone layout is unchanged: the photo spans 
   }
   expect(Math.abs(read.previous.top - read.next.top), `one row (${numbers})`).toBeLessThanOrEqual(0.5);
 });
+
+/** The page-side script that draws a PNG like a jersey mockup on a white sheet: the upper 60% one colour, the lower 40% white. */
+function drawMockupScript(width: number, height: number): string {
+  return `(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = ${String(width)};
+    canvas.height = ${String(height)};
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, ${String(width)}, ${String(height)});
+    context.fillStyle = 'hsl(10 70% 45%)';
+    context.fillRect(0, 0, ${String(width)}, ${String(Math.round(height * 0.6))});
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  })()`;
+}
+
+/** Reads the delivered file behind the viewer's picture back: its colour at 30% and 80% of the height, in the middle. */
+function readDeliveredPixels(): string {
+  return `(async () => {
+    const image = document.querySelector('[role="dialog"][aria-label="Order photos"] img');
+    const response = await fetch(image.currentSrc);
+    const bitmap = await createImageBitmap(await response.blob());
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(bitmap, 0, 0);
+    const at = (y) => Array.from(context.getImageData(Math.floor(bitmap.width / 2), Math.floor(y), 1, 1).data);
+    return { status: response.status, upper: at(bitmap.height * 0.3), lower: at(bitmap.height * 0.8) };
+  })()`;
+}
+
+interface DeliveredPixels {
+  readonly status: number;
+  readonly upper: readonly number[];
+  readonly lower: readonly number[];
+}
+
+test("@order-photos-view G-09-10 the white band under a mockup is the photo's own pixels, and the box is fitted to the photo", async ({
+  page,
+  request,
+  guard,
+}, testInfo) => {
+  test.skip(isTouch(testInfo), 'The wide window is a desktop check.');
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await page.setViewportSize(WIDE_WINDOW);
+  const number = await openOrderWithPhotos(page, request, async () => [
+    {
+      name: 'mockup.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(await page.evaluate<number[]>(drawMockupScript(1500, 1200))),
+    },
+    await drawJpeg(page, 'second.jpg', 200),
+  ]);
+
+  await page.getByRole('button', { name: savedName(number, 1, 2) }).click();
+  await expect(page.getByRole('dialog', { name: 'Order photos' })).toBeVisible();
+  const read = await viewerGeometry(page);
+  const delivered = await page.evaluate<DeliveredPixels>(readDeliveredPixels());
+  const boxRatio = read.box.width / read.box.height;
+  const naturalRatio = read.naturalWidth / read.naturalHeight;
+  const numbers = `box ${String(read.box.width)} x ${String(read.box.height)} (ratio ${String(boxRatio)}), natural ${String(read.naturalWidth)} x ${String(read.naturalHeight)} (ratio ${String(naturalRatio)}), ground ${read.boxBackground}, picture at ${String(read.image.left - read.box.left)} / ${String(read.image.top - read.box.top)} / ${String(read.box.right - read.image.right)} / ${String(read.box.bottom - read.image.bottom)}, upper ${delivered.upper.join(',')}, lower ${delivered.lower.join(',')}`;
+  expect(Math.abs(boxRatio / naturalRatio - 1), `the box has the photo's ratio (${numbers})`).toBeLessThanOrEqual(0.01);
+  expect(Math.abs(read.image.left - read.box.left), `the picture fills the box (${numbers})`).toBeLessThanOrEqual(1);
+  expect(Math.abs(read.image.top - read.box.top), `the picture fills the box (${numbers})`).toBeLessThanOrEqual(1);
+  expect(Math.abs(read.image.right - read.box.right), `the picture fills the box (${numbers})`).toBeLessThanOrEqual(1);
+  expect(Math.abs(read.image.bottom - read.box.bottom), `the picture fills the box (${numbers})`).toBeLessThanOrEqual(
+    1,
+  );
+  expect(read.boxBackground, `the box ground is the dark surface (${numbers})`).toBe('rgb(47, 30, 27)');
+  expect(delivered.status, 'the delivered file loads').toBe(200);
+  expect([...delivered.lower.slice(0, 3)], `the delivered file is white at 80% of its height (${numbers})`).toEqual([
+    255, 255, 255,
+  ]);
+  expect(
+    [...delivered.upper.slice(0, 3)],
+    `the delivered file is not white at 30% of its height (${numbers})`,
+  ).not.toEqual([255, 255, 255]);
+});
