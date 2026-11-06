@@ -1,7 +1,7 @@
 ---
 phase: 09-order-images-maintenance-jobs
 created: 2026-11-05T20:02:34-05:00
-updated: 2026-11-05T20:02:34-05:00
+updated: 2026-11-05T22:56:00-06:00
 reviewed: 2026-11-05T20:02:34-05:00
 depth: standard
 files_reviewed: 294
@@ -16,7 +16,7 @@ status: issues_found
 
 # Phase 9: Code Review Report
 
-*Created: 2026-11-05T20:02:34-05:00 · Updated: 2026-11-05T20:02:34-05:00*
+*Created: 2026-11-05T20:02:34-05:00 · Updated: 2026-11-05T22:56:00-06:00*
 
 Five reviewers ran in parallel, one per lane, at standard depth. Their reports are merged below without changes, apart from the notes in the next section.
 
@@ -652,7 +652,7 @@ _Depth: standard_
 
 ## Phase 9, lane G4: Code Review Report
 
-*Created: 2026-11-05T12:00:00-05:00 · Updated: 2026-11-05T12:00:00-05:00*
+*Created: 2026-11-05T12:00:00-05:00 · Updated: 2026-11-05T22:56:00-06:00*
 
 **Reviewed:** 2026-11-05
 **Depth:** standard
@@ -756,5 +756,84 @@ or move the secret into an environment limited to the `main` branch with no revi
 ---
 
 _Reviewed: 2026-11-05_
+_Reviewer: Claude (gsd-code-reviewer)_
+_Depth: standard_
+
+---
+
+## Second review: the fix commits (689b59c8..HEAD)
+
+*Added: 2026-11-05T22:56:00-06:00*
+
+
+### Phase 9: Second Code Review Report (review fixes 689b59c8..HEAD)
+
+**Depth:** standard
+**Files Reviewed:** 71
+**Status:** issues_found
+
+#### Summary
+
+I read each fix against its finding and against the rulings D-52 to D-55. No fix introduced a crash, a data loss path or a security hole. The risky ones hold up:
+
+- **UploadSlotsMiddleware** is correct. It sits after `UseAuthorization` and before the idempotency step. `using var lease` frees the slot on a normal finish, on an exception and on an early 429. The limiter is a singleton, so each app has its own two slots. A full queue gives the 429 with `Retry-After: 60` and the same code as the address limits. An aborted request that is still waiting throws from `AcquireAsync`, and the existing exception handler deals with that, so no slot leaks.
+- **MaintenanceCursors**: the migration only adds one table. It has no JSON column, no trigger and no inline SQL; it uses LINQ with `ExecuteUpdate` and `ExecuteDelete`. The model snapshot matches the configuration and the migration.
+- **Sweep save and clear logic**: I walked through every branch (budget spent, over the cap, transient or unauthorized failure, other failure, normal end). Each saves, keeps or clears the place correctly. It matches D-52 and D-54.
+- **D-55 logic**: `Attempts + 1 >= 5` is right, because `FailAsync` adds one after the claim read the old count. The attention line is non-failing, and the log line is written.
+- **Photo host lock rewrite** is a clear improvement. It has two small gaps (WR-R2-02).
+- **order-photos-view.spec.ts** resolution is correct. `seedOrder(request, SEED)` and `uploadAndWait(page, number, files, files.length)` match the signatures in `photos.ts`. The helper waits for the same `savedName(n, n)` tile as the old private helper. The three 09-33 viewer tests build the same files with the same sizes. No unused imports remain, and `isTouch` is still defined locally.
+- **No long dashes** were added.
+
+Two warnings and three info items remain.
+
+#### Warnings
+
+##### WR-R2-01: The `if: github.ref == 'refs/heads/main'` guard does not protect the maintenance key, and the docs say it does
+
+**File:** `.github/workflows/maintenance.yml:26-28`, `docs/operations/ci.md:344`, `tests/Csps.ArchitectureTests/MaintenanceWorkflowTests.cs:57-58`
+**Issue:** The guard lives inside the workflow file. "Run workflow" on another branch runs that branch's copy of the file. Anyone who can push a branch can delete the `if:` line (and change the script) in their copy, then press Run workflow on it. The secret `MAINTENANCE_KEY` is a repository secret with no environment, so that branch run can read it. The guard only stops an accident by the owner. `ci.md` says "a changed copy of the script on a throw-away branch can never read `MAINTENANCE_KEY`", and the architecture test calls it a security guard. That claim is false. The finding it answers (WR-G4-02) was a key-exposure risk, so the fix looks done while the risk stays.
+**Why it matters:** The repo is public and the key opens the maintenance endpoint. A false "can never" in the ops docs leads the owner to relax other controls. Only people with write access can exploit this, so the risk is low, but the claim is wrong.
+**Fix:** Move the secret into a GitHub environment named for the job (for example `maintenance`) and limit its deployment branches to `main`, with no required reviewer so the cron run is not held. Add `environment: maintenance` to the job and update the architecture test (it currently forbids `environment:`; change it to require the branch-limited one). If the owner prefers to keep a repository secret, change the `ci.md` and workflow comment to say the guard prevents accidents only, and rely on branch rules for protection.
+
+##### WR-R2-02: The stale-lock takeover can delete a live lock
+
+**File:** `web/e2e/photo-host-lock.ts:60-77` (`takeOverStale`)
+**Issue:** The function reads the token (`seen`) after `isStale()` returned true, not before. If, between those two steps, another waiter takes over the stale lock and a third process takes the now free lock and writes its token, then `seen` is the new holder's token. The waiter then renames the new, live lock away. `tokenIn(away) === seen` is true, so it deletes it. The put-back branch has a second gap. If a fourth process has already created a new directory at the old path, `renameSync(away, directory)` fails and the catch runs `rmSync(away)`, which also deletes a live lock. In both cases two tests can upload at once, which is the problem the lock exists to stop (a shared `fail-next` switch gets used up by the wrong test). It can also make the new holder's `writeFileSync` throw `ENOENT`, failing a test with an unrelated error. The unit test `lets only one of two waiters take over` cannot catch this, because both waiters run in one process and the code is synchronous.
+**Why it matters:** The window is small, but waiters in separate Playwright worker processes all poll on the same 250 ms rhythm, and a crashed run makes them all see "stale" together. The cost is an occasional flaky E2E run that is hard to explain.
+**Fix:** Decide staleness from the directory you actually moved, not from a token read earlier:
+```ts
+function takeOverStale(): void {
+  const away = `${directory}.stale-${randomUUID()}`;
+  try { renameSync(directory, away); } catch { return; }
+  const stale = Date.now() - statSync(away).mtimeMs > staleAfterMs;
+  if (stale) { rmSync(away, { recursive: true, force: true }); return; }
+  try { renameSync(away, directory); } catch { /* a newer lock exists; leave `away` for the next run to clean */ }
+}
+```
+Do not `rmSync(away)` when the put-back fails and the moved directory was fresh.
+
+#### Info
+
+##### IN-R2-01: A client that aborts an upload mid-send can leave a stored file that is never queued
+
+**File:** `src/Csps.Application/Orders/UploadOrderImageHandler.cs:87-97`, `src/Csps.Infrastructure/Images/CloudinaryImageStorage.cs:134-136`
+**Issue:** The WR-G1A-06 fix queues the file only when the storage returns the `transient` code. If the request itself is cancelled (the phone drops off), `IsTransientFailure` returns false for `OperationCanceledException` when the caller's token is cancelled, so the exception propagates out of `UploadAsync`. Cloudinary may already have stored the file, and nothing queues it. The stray sweep removes it after 2 days, so nothing is lost for good.
+**Fix:** In the handler, wrap `storage.UploadAsync` in `catch (OperationCanceledException)` that calls `UndoUploadAsync(publicId)` (it already uses `CancellationToken.None`) and then rethrows. Or accept the 2 day sweep as the answer and say so in the handler comment.
+
+##### IN-R2-02: The upload endpoint name is written twice
+
+**File:** `src/Csps.Server/Controllers/OrderImagesController.cs:44`, `src/Csps.Server/Security/UploadSlotsMiddleware.cs:15`
+**Issue:** The middleware compares against `UploadSlotsMiddleware.UploadEndpointName`, but the controller still has the string `"UploadOrderImage"` as a literal. If one is renamed, the slot cap silently stops applying and only a test that runs seven uploads together would notice.
+**Fix:** Use `[EndpointName(UploadSlotsMiddleware.UploadEndpointName)]` on the action.
+
+##### IN-R2-03: No test for slot release on an exception or an aborted request
+
+**File:** `tests/Csps.Server.IntegrationTests/RateLimiting/ImageUploadRateLimitTests.cs`
+**Issue:** The tests cover queueing, the 429, the anonymous 401 and the other-endpoint pass-through. Nothing proves that a handler that throws, or a client that aborts while waiting in the queue, frees its slot. The code is correct today (`using var lease`), but a later edit to a manual `Dispose` would not be caught, and a leaked slot would lock uploads for the whole app until restart.
+**Fix:** Add a test where the held upload's storage call throws, then check that two more uploads can run at once. Add one that cancels a queued request and checks the next request still gets a slot.
+
+---
+
+_Reviewed: 2026-11-05T22:30:00-05:00_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_

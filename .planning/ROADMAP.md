@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-05T18:30:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-06T01:10:00-06:00*
 
 ## Overview
 
@@ -1455,6 +1455,15 @@ Plans:
 **Deferred at:** 2026-10-26 during /gsd-verify-work 6 session completion
 **Follow-ups:**
 - [ ] Test 6: Check the live request logs after release: p95 under 300 ms for GET /api/v1/company-expenses and /kpis, following docs/operations/list-performance.md (D-28, D-58). (deferred 2026-10-26)
+
+### Phase 999.5: Owner items parked during Phase 9 review and ship (BACKLOG)
+
+**Goal:** Settle the owner decisions, sign-offs and manual checks parked while the owner was away during the Phase 9 second review, verify, validate, secure and PR steps (2026-11-06). Each item is in `.planning/phases/999.5-owner-items-parked-during-phase-9-review-and-ship/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
 *Roadmap created: 2026-10-07*
