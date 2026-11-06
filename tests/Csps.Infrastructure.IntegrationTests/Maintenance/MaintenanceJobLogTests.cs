@@ -21,4 +21,17 @@ public sealed class MaintenanceJobLogTests
         record.Message.ShouldNotContain("detail only for the server log");
         record.Exception.ShouldBeSameAs(thrown);
     }
+
+    [Fact]
+    public void RemovalsThatNeedAttentionAreLoggedAsAWarningWithTheCountOnly()
+    {
+        var logger = new FakeLogger<MaintenanceJobLog>();
+
+        new MaintenanceJobLog(logger).RemovalsNeedAttention(3);
+
+        var record = logger.Collector.GetSnapshot().ShouldHaveSingleItem();
+        record.Level.ShouldBe(LogLevel.Warning);
+        record.Message.ShouldContain("3 queued photo removals");
+        record.Message.ShouldContain("need attention");
+    }
 }

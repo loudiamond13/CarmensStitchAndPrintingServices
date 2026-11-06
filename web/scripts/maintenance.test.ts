@@ -183,6 +183,20 @@ describe('failures turn the run red', () => {
     expect(run.summary).toContain(FAILED_CLOSING);
   });
 
+  it('lists a needs-attention count without turning the run red (D-55)', async () => {
+    const attention: Line = {
+      label: 'Photo removals needing attention',
+      value: 2,
+      failed: false,
+      text: 'These rows stay queued and have failed 5 times. The server log has the codes.',
+    };
+    const run = await drive([answer([REQUEST_KEYS, attention])]);
+
+    expect(run.code).toBe(0);
+    expect(run.summary).toContain('- Photo removals needing attention: 2');
+    expect(run.summary).toContain(FINISHED_CLOSING);
+  });
+
   it('answers 401 with the fixed key line, exits 1 and asks only once', async () => {
     const run = await drive([{ status: 401, body: { detail: 'fake-error-body-text' } }]);
 

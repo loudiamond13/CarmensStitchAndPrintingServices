@@ -1,6 +1,6 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-05T21:30:00-05:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-05T21:50:00-05:00*
 
 The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). The GitHub
 Actions workflow `.github/workflows/maintenance.yml` makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
@@ -17,7 +17,7 @@ One run does every job once, in this order. The number is the job's place in the
 |---|---|---|
 | 10 | Purge of expired records | One count per purge rule (see the table below) |
 | 20 | Stray file sweep | How many stray files it queued for removal |
-| 30 | Photo removals | How many photos it removed from storage, and how many are still failing |
+| 30 | Photo removals | How many photos it removed from storage, how many are still failing, and how many need attention |
 | 40 | Usage report | Storage and credit use against the free plan |
 
 Later plans add their jobs to this table. Jobs with a lower number run first.
@@ -53,7 +53,7 @@ folder).
 | Job | What it does |
 |---|---|
 | Stray file sweep (20) | Lists the orders folder, 500 files at a time. A file is **kept** when a photo row names it (this includes photos of orders that are only soft-deleted, because those orders can be restored), when it is already in the removal queue, or when it is less than 2 days old (an upload may still be saving). Every other file is queued as a stray, but at most 50 files per run (D-52). If it finds more than 50, it queues the first 50 and the run turns red, so you can check before more photos are removed (for example after an older backup was restored) |
-| Photo removals (30) | Takes up to 25 due queue rows at a time and holds each for 5 minutes, so two runs never work on the same row. It asks Cloudinary to remove the file and its cached copies, then deletes the row. A file Cloudinary no longer has counts as removed. When Cloudinary is busy it tries again up to 3 times in all, after 2 and then 8 seconds. A row that still fails stays in the queue with one more attempt and its failure code, and the next run tries it again |
+| Photo removals (30) | Takes up to 25 due queue rows at a time and holds each for 5 minutes, so two runs never work on the same row. It asks Cloudinary to remove the file and its cached copies, then deletes the row. A file Cloudinary no longer has counts as removed. When Cloudinary is busy it tries again up to 3 times in all, after 2 and then 8 seconds. A row that still fails stays in the queue with one more attempt and its failure code, and the next run tries it again. A row that has failed 5 times (D-55) no longer turns the run red: it is tried again every run, but only counted on the "needing attention" line |
 
 The sweep runs first, so the strays it queues are removed in the same run. A queued file that a photo row still names is
 **never** removed: the job drops only the queue row. That can happen when an upload's reply was lost after the photo was
@@ -74,7 +74,8 @@ time. The purge job never touches this row.
 | Stray files removed (older than 2 days): n | No | n stray files were queued. The removal job removes them in the same run | Nothing. A large number the first time is normal |
 | Queued removals dropped (photo still in use): n | No | n queue rows named a file that a photo still uses. The files were kept | Nothing. It is rare |
 | Stray file limit: More than 50 stray files were found, so only the first 50 were queued for removal. Check the photo storage and the database before the next run. | Yes | The sweep found more than 50 strays in one run. It queued the first 50 only | Check that the database is the right and current one (a restore from an older backup makes every newer photo look stray). If the files really are strays, press Run now again: each run queues up to 50 more |
-| Photo removals still failing: n | Yes | n removals failed 3 tries, or named a file outside the site's own folder. The rows stay queued | The host log has one line per failure, "A queued photo removal failed", with the row number and a code (`transient` means Cloudinary was busy, `refused` means it said no, `outside-folder` means the file is not in this site's folder). Press Run now later. If it keeps failing, check the Cloudinary account |
+| Photo removals still failing: n | Yes | n removals failed 3 tries, or named a file outside the site's own folder, and each of those rows has failed fewer than 5 times in all. The rows stay queued | The host log has one line per failure, "A queued photo removal failed", with the row number and a code (`transient` means Cloudinary was busy, `refused` means it said no, `outside-folder` means the file is not in this site's folder). Press Run now later. If it keeps failing, check the Cloudinary account |
+| Photo removals needing attention: n | No | n queued removals have now failed 5 times or more. They stay queued and are tried again every run, but they no longer turn the run red (D-55). A common case is production photo rows copied into a dev database, where every file is outside the dev folder | The host log has a warning "queued photo removals have failed too often" and one "A queued photo removal failed" line per row, with the row number and a code. Look at the codes. If the files are really gone or belong to another site, delete the rows by hand in the database. If Cloudinary keeps refusing, check the Cloudinary account |
 | Cloudinary refused the keys. Check the Cloudinary settings. | Yes | Cloudinary did not accept the cloud name, key or secret. The job stopped and left every row for the next run | Check the three `Cloudinary__...` values on the host against the Cloudinary dashboard (see `cloudinary-setup.md`), then press Run now |
 | The stray file sweep could not read the photo storage. | Yes | The listing failed, for example because Cloudinary was busy or the keys are wrong | Press Run now later. If it repeats, check the keys as above |
 | Photo removals not run, or Stray file sweep not run (photo storage is not set up.) | No | The host has no Cloudinary keys, so there is nothing to do | Nothing, unless photos should be working. Then set the keys |

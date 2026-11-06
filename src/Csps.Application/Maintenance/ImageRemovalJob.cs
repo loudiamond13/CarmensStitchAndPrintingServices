@@ -6,7 +6,8 @@ namespace Csps.Application.Maintenance;
 /// Removes the queued photo files from the photo storage (JOB-02, D-05, D-22). It takes due rows 25 at a time, each with its own
 /// 5 minute lease, asks the storage to remove the file and clear its cached copies, and deletes the row. A transient answer is tried
 /// again twice, after 2 and then 8 seconds. A row that still fails keeps its place with one more attempt and its failure code, and the
-/// run turns red. Keys the storage refuses stop the job at once. Lines hold counts and fixed sentences only, never a file id.
+/// run turns red, until the row has failed <see cref="AttentionAfterAttempts"/> times: from then on it is tried every run but counted on
+/// its own "needing attention" line and no longer turns the run red (D-55). Keys the storage refuses stop the job at once. Lines hold counts and fixed sentences only, never a file id.
 /// </summary>
 /// <param name="storage">The photo storage.</param>
 /// <param name="queue">The removal queue.</param>
@@ -20,6 +21,12 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
 
     /// <summary>The label of the count of removals that still fail.</summary>
     public const string FailingLabel = "Photo removals still failing";
+
+    /// <summary>The label of the count of removals that failed too often to turn the run red (D-55).</summary>
+    public const string AttentionLabel = "Photo removals needing attention";
+
+    /// <summary>The text of the line for removals that need attention.</summary>
+    public const string AttentionText = "These rows stay queued and have failed 5 times. The server log has the codes.";
 
     /// <summary>The label of the count of queue rows dropped because a photo row still names the file.</summary>
     public const string DroppedLabel = "Queued removals dropped (photo still in use)";
@@ -39,6 +46,12 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
     /// <summary>The failure code of a queued file outside this environment's own orders folder. It is never removed.</summary>
     public const string OutsideFolderCode = "outside-folder";
 
+    /// <summary>
+    /// How many failures a row has before it stops turning the run red (D-55). The row stays queued and is tried again every run; it is
+    /// counted on its own non-failing line instead.
+    /// </summary>
+    public const int AttentionAfterAttempts = 5;
+
     /// <summary>The most rows one claim takes.</summary>
     public const int ClaimSize = 25;
 
@@ -53,6 +66,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
         Removed,
         Dropped,
         Failed,
+        NeedsAttention,
         KeysRefused,
     }
 
@@ -78,6 +92,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
         var held = new HashSet<long>();
         long removed = 0;
         long failing = 0;
+        long attention = 0;
         long dropped = 0;
         var more = false;
         var keysRefused = false;
@@ -121,6 +136,9 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
                         case Step.Dropped:
                             dropped++;
                             break;
+                        case Step.NeedsAttention:
+                            attention++;
+                            break;
                         default:
                             failing++;
                             break;
@@ -153,6 +171,12 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
             lines.Add(new MaintenanceLine(FailingLabel, failing, true, FailingText));
         }
 
+        if (attention > 0)
+        {
+            lines.Add(new MaintenanceLine(AttentionLabel, attention, false, AttentionText));
+            log.RemovalsNeedAttention(attention);
+        }
+
         if (keysRefused)
         {
             lines.Add(new MaintenanceLine(CloudinaryUsageJob.FailedLabel, null, true, KeysRefusedText));
@@ -174,7 +198,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
         if (!row.PublicId.StartsWith(folder, StringComparison.Ordinal))
         {
             await FailRowAsync(row, holder, OutsideFolderCode, startedAt, cancellationToken).ConfigureAwait(false);
-            return Step.Failed;
+            return FailedStep(row);
         }
 
         var outcome = await RemoveWithRetriesAsync(row.PublicId, cancellationToken).ConfigureAwait(false);
@@ -189,9 +213,12 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
             default:
                 var code = outcome.FailureCode ?? outcome.Status.ToString().ToLowerInvariant();
                 await FailRowAsync(row, holder, code, startedAt, cancellationToken).ConfigureAwait(false);
-                return Step.Failed;
+                return FailedStep(row);
         }
     }
+
+    // The row was just failed once more, so its count is one higher than the claim saw (D-55).
+    private static Step FailedStep(QueuedRemoval row) => row.Attempts + 1 >= AttentionAfterAttempts ? Step.NeedsAttention : Step.Failed;
 
     // Up to three tries: a transient answer waits 2 seconds, then 8 seconds, through the clock so tests never really wait.
     private async Task<ImageRemovalOutcome> RemoveWithRetriesAsync(string publicId, CancellationToken cancellationToken)

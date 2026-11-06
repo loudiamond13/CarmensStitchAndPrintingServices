@@ -14,6 +14,7 @@ public sealed class ImageRemovalJobTests
 {
     private const string RemovedLabel = "Photos removed from storage";
     private const string FailingLabel = "Photo removals still failing";
+    private const string AttentionLabel = "Photo removals needing attention";
     private const string KeysRefusedText = "Cloudinary refused the keys. Check the Cloudinary settings.";
 
     private static readonly ImageRemovalOutcome Removed = new(ImageRemovalStatus.Removed);
@@ -318,6 +319,119 @@ public sealed class ImageRemovalJobTests
         var line = report.Lines.ShouldHaveSingleItem();
         line.Failed.ShouldBeFalse();
         line.Text.ShouldBe("photo storage is not set up.");
+    }
+
+    [Fact]
+    public void TheAttentionThresholdIsFiveFailures()
+    {
+        ImageRemovalJob.AttentionAfterAttempts.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task AFourthFailureStillTurnsTheRunRed()
+    {
+        var harness = new Harness();
+        var row = harness.Queue.Add(PublicId(1), attempts: 3);
+        harness.Storage.Script(Refused);
+
+        var report = await harness.RunAsync();
+
+        row.Attempts.ShouldBe(4);
+        report.Lines.Single(line => line.Failed).Label.ShouldBe(FailingLabel);
+        report.Lines.ShouldNotContain(line => line.Label == AttentionLabel);
+        harness.Log.DidNotReceiveWithAnyArgs().RemovalsNeedAttention(default);
+    }
+
+    [Fact]
+    public async Task AFifthFailureKeepsTheRowQueuedAndShowsItAsNeedingAttentionWithoutTurningTheRunRed()
+    {
+        var harness = new Harness();
+        var row = harness.Queue.Add(PublicId(1), attempts: 4);
+        harness.Storage.Script(Refused);
+
+        var report = await harness.RunAsync();
+
+        row.Attempts.ShouldBe(5);
+        row.LastFailureCode.ShouldBe("refused");
+        harness.Queue.Rows.ShouldContain(row);
+        report.Lines.ShouldNotContain(line => line.Failed);
+        var attention = report.Lines.Single(line => line.Label == AttentionLabel);
+        (attention.Value, attention.Failed).ShouldBe((1L, false));
+        attention.Text.ShouldBe("These rows stay queued and have failed 5 times. The server log has the codes.");
+        harness.Log.Received(1).RemovalFailed(row.Id, "refused");
+        harness.Log.Received(1).RemovalsNeedAttention(1);
+    }
+
+    [Fact]
+    public async Task ARowThatHasFailedManyTimesIsStillTriedAndStaysQuiet()
+    {
+        var harness = new Harness();
+        var row = harness.Queue.Add(PublicId(1), attempts: 12);
+        harness.Storage.Script(Transient, Transient, Transient);
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.Count.ShouldBe(3);
+        row.Attempts.ShouldBe(13);
+        report.Lines.ShouldNotContain(line => line.Failed);
+        report.Lines.Single(line => line.Label == AttentionLabel).Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AFileOutsideTheFolderThatHasFailedFourTimesGoesQuietOnTheFifth()
+    {
+        var harness = new Harness();
+        var row = harness.Queue.Add("csps/orders/00000000-0000-0000-0000-000000000001/photo001", attempts: 4);
+
+        var report = await harness.RunAsync();
+
+        row.Attempts.ShouldBe(5);
+        row.LastFailureCode.ShouldBe("outside-folder");
+        harness.Storage.Removals.ShouldBeEmpty();
+        report.Lines.ShouldNotContain(line => line.Failed);
+        report.Lines.Single(line => line.Label == AttentionLabel).Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ARedRowAndAQuietRowAreCountedOnTheirOwnLines()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(PublicId(1), attempts: 4);
+        harness.Queue.Add(PublicId(2), attempts: 1);
+        harness.Queue.Add(PublicId(3));
+        harness.Storage.Script(Refused, Refused, Removed);
+
+        var report = await harness.RunAsync();
+
+        report.Lines.Single(line => line.Label == AttentionLabel).Value.ShouldBe(1);
+        report.Lines.Single(line => line.Failed).Value.ShouldBe(1);
+        report.Lines.Single(line => line.Label == RemovedLabel).Value.ShouldBe(1);
+        harness.Log.Received(1).RemovalsNeedAttention(1);
+    }
+
+    [Fact]
+    public async Task AQuietRowThatIsRemovedAtLastIsCountedAsRemovedAndLeavesNoAttentionLine()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(PublicId(1), attempts: 9);
+        harness.Storage.Script(Removed);
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Rows.ShouldBeEmpty();
+        var line = report.Lines.ShouldHaveSingleItem();
+        (line.Label, line.Value).ShouldBe((RemovedLabel, 1L));
+    }
+
+    [Fact]
+    public async Task ARunWithNoAttentionRowsNeverWritesTheAttentionLog()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(PublicId(1));
+
+        await harness.RunAsync();
+
+        harness.Log.DidNotReceiveWithAnyArgs().RemovalsNeedAttention(default);
     }
 
     [Fact]
