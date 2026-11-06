@@ -3,7 +3,8 @@
 // upload. Tests that upload photos run that part under this lock, one at a time, across all projects and workers.
 // The lock is a directory (creating it is atomic) holding a token file. The holder touches the directory while it works, so a
 // slow test is never taken over; a lock nobody touched for a few minutes was left by a crashed run and is taken over by
-// renaming it away (atomic, so one waiter wins). A holder removes the lock only if the token in it is still its own.
+// renaming it away (atomic, so one waiter wins) and checked again once moved. A holder removes the lock only if the token in
+// it is still its own.
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -45,37 +46,38 @@ function tokenIn(directory: string): string | undefined {
   }
 }
 
+function isStaleAt(directory: string, staleAfterMs: number): boolean {
+  try {
+    return Date.now() - statSync(directory).mtimeMs > staleAfterMs;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Moves a stale lock out of the way. Only the waiter whose rename succeeds clears it. The moved lock is checked again, so a
+ * fresh lock a new holder made after the stale check is put back, never deleted.
+ */
+export function takeOverStale(directory: string, staleAfterMs: number): void {
+  const away = `${directory}.stale-${randomUUID()}`;
+  try {
+    renameSync(directory, away);
+  } catch {
+    return;
+  }
+  if (isStaleAt(away, staleAfterMs)) {
+    rmSync(away, { recursive: true, force: true });
+    return;
+  }
+  try {
+    renameSync(away, directory);
+  } catch {
+    // Someone made a new lock meanwhile. Leave the moved one alone: it may still be in use, and its holder checks its token.
+  }
+}
+
 export function createPhotoHostLock(options: PhotoHostLockOptions = DEFAULTS) {
   const { directory, pollMs, waitLimitMs, staleAfterMs, heartbeatMs } = options;
-
-  function isStale(): boolean {
-    try {
-      return Date.now() - statSync(directory).mtimeMs > staleAfterMs;
-    } catch {
-      return false;
-    }
-  }
-
-  /** Moves a stale lock out of the way. Only the waiter whose rename succeeds clears it; any other waiter finds nothing to move. */
-  function takeOverStale(): void {
-    const seen = tokenIn(directory);
-    const away = `${directory}.stale-${randomUUID()}`;
-    try {
-      renameSync(directory, away);
-    } catch {
-      return;
-    }
-    if (tokenIn(away) === seen) {
-      rmSync(away, { recursive: true, force: true });
-      return;
-    }
-    // The lock moved was not the stale one: a new holder took the free lock in between. Put it back.
-    try {
-      renameSync(away, directory);
-    } catch {
-      rmSync(away, { recursive: true, force: true });
-    }
-  }
 
   async function acquire(token: string): Promise<void> {
     const deadline = Date.now() + waitLimitMs;
@@ -87,8 +89,8 @@ export function createPhotoHostLock(options: PhotoHostLockOptions = DEFAULTS) {
         return;
       } catch (error) {
         if (codeOf(error) !== 'EEXIST') throw error;
-        if (isStale()) {
-          takeOverStale();
+        if (isStaleAt(directory, staleAfterMs)) {
+          takeOverStale(directory, staleAfterMs);
           continue;
         }
         if (Date.now() > deadline) throw new Error('The photo host lock was not free in time.', { cause: error });
