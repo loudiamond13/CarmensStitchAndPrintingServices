@@ -1,5 +1,4 @@
 using System.Net;
-using Csps.Application.Images;
 using Csps.Application.Ports;
 
 namespace Csps.Infrastructure.Images;
@@ -24,7 +23,6 @@ internal static class CloudinaryResults
     public static ImageUploadOutcome ForUpload(HttpStatusCode status) => status switch
     {
         >= HttpStatusCode.OK and < HttpStatusCode.MultipleChoices => ImageUploadOutcome.Stored,
-        HttpStatusCode.BadRequest => ImageUploadOutcome.Failed(ImageErrors.TypeCode),
         _ => ImageUploadOutcome.Failed(FailureCode(status)),
     };
 

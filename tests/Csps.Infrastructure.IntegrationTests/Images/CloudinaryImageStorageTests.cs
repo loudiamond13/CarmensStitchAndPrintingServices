@@ -79,7 +79,7 @@ public sealed class CloudinaryImageStorageTests
     }
 
     [Fact]
-    public async Task AnUploadAnswered400IsRefusedWithTheTypeCode()
+    public async Task AnUploadAnswered400IsRefusedWithTheGeneralCodeNotTheTypeCode()
     {
         var (storage, handler) = Build();
         handler.Reply(HttpStatusCode.BadRequest, """{"error":{"message":"Invalid image file"}}""");
@@ -87,7 +87,7 @@ public sealed class CloudinaryImageStorageTests
         var outcome = await storage.UploadAsync(Upload(), TestContext.Current.CancellationToken);
 
         outcome.Succeeded.ShouldBeFalse();
-        outcome.FailureCode.ShouldBe(ImageErrors.TypeCode);
+        outcome.FailureCode.ShouldBe(CloudinaryResults.RefusedCode);
     }
 
     [Theory]
