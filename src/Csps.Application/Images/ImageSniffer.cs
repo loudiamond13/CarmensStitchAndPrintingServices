@@ -132,6 +132,7 @@ public static class ImageSniffer
     }
 
     // The VP8X chunk holds flags, then the canvas width - 1 and height - 1 as 24-bit numbers. An ANIM or ANMF chunk also means animation.
+    // A frame bigger than the canvas is refused, so the canvas size can be trusted for the pixel limits.
     private static ImageFacts? ReadWebPExtended(ReadOnlySpan<byte> data, ref ChunkReader chunks)
     {
         if (data.Length < 10 || (data[0] & WebPAnimationFlag) != 0)
@@ -152,7 +153,7 @@ public static class ImageSniffer
             if (lossy || type.SequenceEqual("VP8L"u8))
             {
                 var image = lossy ? ReadWebPLossy(chunk) : ReadWebPLossless(chunk);
-                return image is null ? null : new ImageFacts(ImageKind.WebP, width, height, 1);
+                return image is null || image.Width > width || image.Height > height ? null : new ImageFacts(ImageKind.WebP, width, height, 1);
             }
         }
 
