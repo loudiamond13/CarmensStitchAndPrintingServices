@@ -58,10 +58,11 @@ public sealed class RunMaintenanceHandlerTests
     {
         var clock = new FakeTimeProvider();
         var seen = new List<bool>();
-        var handler = Handler([new ProbeJob(10, "first", clock, seen, TimeSpan.Zero), new ProbeJob(20, "second", clock, seen, MaintenanceBudget.DefaultDuration)], clock);
+        var handler = Handler([new ProbeJob(10, "first", clock, seen, TimeSpan.FromSeconds(60)), new ProbeJob(20, "second", clock, seen, TimeSpan.FromSeconds(30))], clock);
 
         await handler.HandleAsync(TestContext.Current.CancellationToken);
 
+        // A budget made per job would read [false, false]: the second job alone spends only 30 of 90 seconds.
         seen.ShouldBe([false, true]);
     }
 
@@ -253,7 +254,7 @@ public sealed class RunMaintenanceHandlerTests
         }
     }
 
-    // Advances the clock after it looks at the budget, to show that the second job sees the same budget spent.
+    // Advances the clock, then reads the budget it was given.
     private sealed class ProbeJob(int order, string name, FakeTimeProvider clock, List<bool> seen, TimeSpan advanceBefore) : IMaintenanceJob
     {
         public int Order => order;
