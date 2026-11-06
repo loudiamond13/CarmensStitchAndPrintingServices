@@ -4,11 +4,11 @@ phase: 09-order-images-maintenance-jobs
 source: [09-01-SUMMARY.md, 09-02-SUMMARY.md, 09-03-SUMMARY.md, 09-04-SUMMARY.md, 09-05-SUMMARY.md, 09-06-SUMMARY.md, 09-07-SUMMARY.md, 09-08-SUMMARY.md, 09-09-SUMMARY.md, 09-10-SUMMARY.md, 09-11-SUMMARY.md, 09-12-SUMMARY.md, 09-13-SUMMARY.md, 09-14-SUMMARY.md, 09-15-SUMMARY.md, 09-16-SUMMARY.md, 09-17-SUMMARY.md, 09-18-SUMMARY.md, 09-19-SUMMARY.md, 09-20-SUMMARY.md, 09-21-SUMMARY.md, 09-22-SUMMARY.md, 09-23-SUMMARY.md, 09-24-SUMMARY.md, 09-25-SUMMARY.md, 09-26-SUMMARY.md, 09-27-SUMMARY.md, 09-28-SUMMARY.md, 09-29-SUMMARY.md, 09-30-SUMMARY.md]
 started: 2026-11-05T17:58:00-06:00
 created: 2026-11-05T17:58:00-06:00
-updated: 2026-11-05T18:55:00-06:00
+updated: 2026-11-05T19:20:00-06:00
 ---
 
 # Phase 9 UAT: Order Images & Maintenance Jobs
-*Created: 2026-11-05T17:58:00-06:00 · Updated: 2026-11-05T18:55:00-06:00*
+*Created: 2026-11-05T17:58:00-06:00 · Updated: 2026-11-05T19:20:00-06:00*
 
 Plans 09-01 to 09-30 are built. 09-31 and 09-32 (the database backup job) are not built; test 21 is blocked on them.
 Tests 22 to 96 are passed by automated tests (coverage blocks); they are not asked.
@@ -589,3 +589,4 @@ blocked: 2
     - "Center the image box in the stage column (justify-self-center, width driven by the ratio and max height, never wider than the column), keeping the phone layout (col-span-full) unchanged"
     - "A failing test first: a wide window (1899 x 951) with a landscape photo whose capped box is narrower than the column shows the box centered (equal space left and right of it between Previous and Next), plus a unit test that the recipe carries the centering class"
   debug_session: ""
+  fix_plan: "09-33-PLAN.md"

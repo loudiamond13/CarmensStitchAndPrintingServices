@@ -41,10 +41,12 @@ export const viewerStageClasses = tw(
 
 /**
  * `.s-lb-img`: the image box (LazyImage's box, with its own ratio). Radius 18 on `--surface-2`, at most
- * `min(680px, 100dvh - 200px)` tall; the photo is fitted inside it, never cropped. Full width on phones.
+ * `min(680px, 100dvh - 200px)` tall; the photo is fitted inside it, never cropped. Full width on phones. Above 639px the
+ * box is centred in its column, because a height-capped box is narrower than the column. Its width is set from the height
+ * cap and the ratio (at most the column), so centring never shrinks it to its content. Phones keep the grid default.
  */
 export const viewerImageClasses = tw(
-  'col-start-2 row-start-1 max-h-[min(680px,calc(100dvh-200px))] min-w-0 rounded-lg bg-surface-2 vp-lt-sm:col-span-full',
+  'col-start-2 row-start-1 max-h-[min(680px,calc(100dvh-200px))] w-[calc(min(680px,100dvh-200px)*var(--ratio))] max-w-full min-w-0 justify-self-center rounded-lg bg-surface-2 vp-lt-sm:col-span-full vp-lt-sm:w-auto vp-lt-sm:max-w-none vp-lt-sm:justify-self-auto',
 );
 
 /**
