@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as statesScenarios } from '@/dev/scenarios/groups/states';
@@ -180,6 +180,35 @@ describe('LazyImage error', () => {
     expect(imgOf(container)).toHaveAttribute('src', `${SRC}?v=2`);
     expect(skeleton(container)).not.toBeNull();
     expect(box(container)).not.toHaveAttribute('role');
+  });
+});
+
+describe('LazyImage with no address (the API sends empty addresses when image delivery is not set up)', () => {
+  it('shows the placeholder at once with no img, no skeleton and no console error', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { container } = render(image({ src: '', srcSet: '' }));
+    expect(container.querySelector('img')).toBeNull();
+    expect(skeleton(container)).toBeNull();
+    expect(placeholder(container)).not.toBeNull();
+    expect(screen.getByRole('img', { name: ALT })).toBe(box(container));
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+    await expectNoAxeViolations(container);
+  });
+
+  it('hides a decorative image with no address from assistive tech', () => {
+    const { container } = render(image({ src: '', srcSet: '', alt: '' }));
+    expect(container.querySelector('img')).toBeNull();
+    expect(box(container)).toHaveAttribute('aria-hidden', 'true');
+    expect(placeholder(container)).not.toBeNull();
+  });
+
+  it('loads normally once an address arrives', () => {
+    const { container, rerender } = render(image({ src: '' }));
+    rerender(image());
+    expect(imgOf(container)).toHaveAttribute('src', SRC);
+    expect(skeleton(container)).not.toBeNull();
+    expect(placeholder(container)).toBeNull();
   });
 });
 
