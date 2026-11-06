@@ -81,6 +81,8 @@ public static class CspsProblemDetails
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        // An authored error mapped earlier on this request must not hide the reference text of the fault that followed it.
+        context.Items.Remove(AuthoredErrorItem);
         var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;
         var status = error is BadHttpRequestException { StatusCode: >= StatusCodes.Status400BadRequest and < StatusCodes.Status500InternalServerError } bad
             ? bad.StatusCode

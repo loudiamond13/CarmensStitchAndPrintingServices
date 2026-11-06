@@ -1,8 +1,11 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Csps.Server.Http;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Http;
 
@@ -21,6 +24,28 @@ public sealed class CspsProblemDetailsTests
         problem.Detail.ShouldBe($"Something went wrong. Reference: {traceId}");
         problem.Detail.ShouldNotBeNull().ShouldNotContain("Exception");
         problem.Extensions[CspsProblemDetails.TraceIdKey].ShouldBe(traceId);
+    }
+
+    [Fact]
+    public async Task AnExceptionAfterAnAuthoredErrorStillGetsTheReferenceText()
+    {
+        using var activity = new Activity("csps-test").Start();
+        var traceId = activity.TraceId.ToHexString();
+        var context = new DefaultHttpContext
+        {
+            RequestServices = new ServiceCollection().AddLogging().BuildServiceProvider(),
+        };
+        context.Response.Body = new MemoryStream();
+        context.Items[CspsProblemDetails.AuthoredErrorItem] = true;
+        context.Features.Set<IExceptionHandlerFeature>(new ExceptionHandlerFeature { Error = new InvalidOperationException("rollback failed") });
+
+        await CspsProblemDetails.WriteExceptionAsync(context);
+
+        context.Response.StatusCode.ShouldBe(500);
+        context.Items.ContainsKey(CspsProblemDetails.AuthoredErrorItem).ShouldBeFalse();
+        context.Response.Body.Position = 0;
+        using var json = await JsonDocument.ParseAsync(context.Response.Body, cancellationToken: TestContext.Current.CancellationToken);
+        json.RootElement.GetProperty("detail").GetString().ShouldBe($"Something went wrong. Reference: {traceId}");
     }
 
     [Fact]
