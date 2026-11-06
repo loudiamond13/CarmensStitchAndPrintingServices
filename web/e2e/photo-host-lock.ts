@@ -1,15 +1,31 @@
 // A lock for the photo uploads of the E2E host (plan 09-16). The Testing switch POST /api/testing/images/fail-next is shared by the
 // whole host, and the Playwright projects run side by side, so a failure armed by one test could be used up by another test's
-// upload. Tests that upload photos run that part under this lock, one at a time, across all projects and workers. The lock is a
-// directory (creating it is atomic); one left behind by a crashed run is taken over after a few minutes.
-import { mkdirSync, rmSync, statSync } from 'node:fs';
+// upload. Tests that upload photos run that part under this lock, one at a time, across all projects and workers.
+// The lock is a directory (creating it is atomic) holding a token file. The holder touches the directory while it works, so a
+// slow test is never taken over; a lock nobody touched for a few minutes was left by a crashed run and is taken over by
+// renaming it away (atomic, so one waiter wins). A holder removes the lock only if the token in it is still its own.
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const LOCK_DIRECTORY = path.join(fileURLToPath(new URL('..', import.meta.url)), '.locks', 'photo-host.lock');
-const POLL_MS = 250;
-const WAIT_LIMIT_MS = 4 * 60 * 1000;
-const STALE_AFTER_MS = 3 * 60 * 1000;
+const TOKEN_FILE = 'owner';
+
+export interface PhotoHostLockOptions {
+  readonly directory: string;
+  readonly pollMs: number;
+  readonly waitLimitMs: number;
+  readonly staleAfterMs: number;
+  readonly heartbeatMs: number;
+}
+
+const DEFAULTS: PhotoHostLockOptions = {
+  directory: path.join(fileURLToPath(new URL('..', import.meta.url)), '.locks', 'photo-host.lock'),
+  pollMs: 250,
+  waitLimitMs: 4 * 60 * 1000,
+  staleAfterMs: 3 * 60 * 1000,
+  heartbeatMs: 30 * 1000,
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -17,40 +33,100 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-function isStale(): boolean {
+function codeOf(error: unknown): string | undefined {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : undefined;
+}
+
+function tokenIn(directory: string): string | undefined {
   try {
-    return Date.now() - statSync(LOCK_DIRECTORY).mtimeMs > STALE_AFTER_MS;
+    return readFileSync(path.join(directory, TOKEN_FILE), 'utf8');
   } catch {
-    return false;
+    return undefined;
   }
 }
 
-async function acquire(): Promise<void> {
-  const deadline = Date.now() + WAIT_LIMIT_MS;
-  for (;;) {
+export function createPhotoHostLock(options: PhotoHostLockOptions = DEFAULTS) {
+  const { directory, pollMs, waitLimitMs, staleAfterMs, heartbeatMs } = options;
+
+  function isStale(): boolean {
     try {
-      mkdirSync(path.dirname(LOCK_DIRECTORY), { recursive: true });
-      mkdirSync(LOCK_DIRECTORY);
-      return;
-    } catch (error) {
-      const exists = error instanceof Error && 'code' in error && error.code === 'EEXIST';
-      if (!exists) throw error;
-      if (isStale()) {
-        rmSync(LOCK_DIRECTORY, { recursive: true, force: true });
-        continue;
-      }
-      if (Date.now() > deadline) throw new Error('The photo host lock was not free in time.', { cause: error });
-      await sleep(POLL_MS);
+      return Date.now() - statSync(directory).mtimeMs > staleAfterMs;
+    } catch {
+      return false;
     }
   }
+
+  /** Moves a stale lock out of the way. Only the waiter whose rename succeeds clears it; any other waiter finds nothing to move. */
+  function takeOverStale(): void {
+    const seen = tokenIn(directory);
+    const away = `${directory}.stale-${randomUUID()}`;
+    try {
+      renameSync(directory, away);
+    } catch {
+      return;
+    }
+    if (tokenIn(away) === seen) {
+      rmSync(away, { recursive: true, force: true });
+      return;
+    }
+    // The lock moved was not the stale one: a new holder took the free lock in between. Put it back.
+    try {
+      renameSync(away, directory);
+    } catch {
+      rmSync(away, { recursive: true, force: true });
+    }
+  }
+
+  async function acquire(token: string): Promise<void> {
+    const deadline = Date.now() + waitLimitMs;
+    for (;;) {
+      try {
+        mkdirSync(path.dirname(directory), { recursive: true });
+        mkdirSync(directory);
+        writeFileSync(path.join(directory, TOKEN_FILE), token);
+        return;
+      } catch (error) {
+        if (codeOf(error) !== 'EEXIST') throw error;
+        if (isStale()) {
+          takeOverStale();
+          continue;
+        }
+        if (Date.now() > deadline) throw new Error('The photo host lock was not free in time.', { cause: error });
+        await sleep(pollMs);
+      }
+    }
+  }
+
+  /** Runs `work` while no other test uploads photos to the E2E host. */
+  async function withLock<T>(work: () => Promise<T>): Promise<T> {
+    const token = randomUUID();
+    await acquire(token);
+    const heartbeat = setInterval(() => {
+      if (tokenIn(directory) !== token) return;
+      try {
+        const now = new Date();
+        utimesSync(directory, now, now);
+      } catch {
+        // The lock is gone; the release below checks the token again.
+      }
+    }, heartbeatMs);
+    heartbeat.unref();
+    try {
+      return await work();
+    } finally {
+      clearInterval(heartbeat);
+      if (tokenIn(directory) === token) {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    }
+  }
+
+  return { withLock };
 }
 
+const shared = createPhotoHostLock();
+
 /** Runs `work` while no other test uploads photos to the E2E host. */
-export async function withPhotoHost<T>(work: () => Promise<T>): Promise<T> {
-  await acquire();
-  try {
-    return await work();
-  } finally {
-    rmSync(LOCK_DIRECTORY, { recursive: true, force: true });
-  }
+export function withPhotoHost<T>(work: () => Promise<T>): Promise<T> {
+  return shared.withLock(work);
 }
