@@ -441,6 +441,37 @@ describe('failed uploads (D-10, UIC-13 to UIC-15, UIC-27)', () => {
   });
 });
 
+describe('a pick that finishes after the card has left (WR-G3-01)', () => {
+  it('queues nothing and starts no upload when the card is gone before the photo is prepared', async () => {
+    let started = false;
+    let finish: () => void = () => undefined;
+    vi.mocked(prepareImage).mockImplementation((file) => {
+      started = true;
+      return new Promise((resolve) => {
+        finish = () => {
+          resolve(readyFile(file));
+        };
+      });
+    });
+    const upload = vi.spyOn(orderPhotosService, 'upload').mockResolvedValue(orderWithPhotos(1));
+    const { container, unmount } = renderCard();
+    await screen.findAllByText(/0\/5/);
+    await userEvent.setup().upload(galleryInput(container), pickedImage('a.jpg'));
+    await waitFor(() => {
+      expect(started).toBe(true);
+    });
+
+    unmount();
+    await act(async () => {
+      finish();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(photoUploadQueue.snapshot(order0148.id).items).toHaveLength(0);
+  });
+});
+
 const FIVE = ['Front', 'Back', 'Sleeve', 'Collar', 'Number'] as const;
 
 /**

@@ -476,6 +476,14 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
 
   // One pick at a time, so a second pick counts the files the first one queued.
   const picking = useRef<Promise<void>>(Promise.resolve());
+  // A pick that finishes after the card has left must not start a queue nobody shows. Set in the effect so StrictMode is safe.
+  const alive = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   const runPick = async (files: File[]): Promise<void> => {
     let current: ImageRules;
@@ -532,7 +540,7 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
     }
     setPickErrors(refused);
     setLeftOut(leftOutCount);
-    queue.enqueue(ready);
+    if (alive.current) queue.enqueue(ready);
   };
 
   const addFiles = (files: File[]): void => {
