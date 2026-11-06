@@ -59,7 +59,8 @@ export function LazyImage({
     setShownSrc(src);
     setState('loading');
   }
-  const failed = state === 'failed';
+  // No address (image delivery is not set up): the placeholder shows at once, and no request is made.
+  const failed = src === '' || state === 'failed';
   const named = failed && alt !== '';
   return (
     <div
@@ -91,7 +92,9 @@ export function LazyImage({
           }}
         />
       )}
-      {state === 'loading' && <Skeleton width="100%" height="100%" radius={0} className={lazySkeletonClasses} />}
+      {!failed && state === 'loading' && (
+        <Skeleton width="100%" height="100%" radius={0} className={lazySkeletonClasses} />
+      )}
     </div>
   );
 }
