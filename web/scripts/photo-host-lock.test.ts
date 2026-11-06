@@ -29,7 +29,14 @@ function sleep(ms: number): Promise<void> {
 }
 
 function fast(overrides: { staleAfterMs?: number; heartbeatMs?: number; waitLimitMs?: number } = {}) {
-  return createPhotoHostLock({ directory, pollMs: 10, waitLimitMs: 5000, staleAfterMs: 300, heartbeatMs: 50, ...overrides });
+  return createPhotoHostLock({
+    directory,
+    pollMs: 10,
+    waitLimitMs: 5000,
+    staleAfterMs: 300,
+    heartbeatMs: 50,
+    ...overrides,
+  });
 }
 
 /** Leaves a lock behind as a crashed run would: a directory with someone's token, last touched `ageMs` ago. */
