@@ -485,6 +485,44 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
     };
   }, []);
 
+  // After Remove or Try Again on a queued file its buttons are gone, so focus goes to the next tile's first control, else the
+  // add control, else the card heading. `from` is the place in the list where the search starts.
+  const queueFocus = useRef<number | null>(null);
+  const [queueFocusTick, setQueueFocusTick] = useState(0);
+  const focusAfterQueueChange = useEffectEvent((): void => {
+    const from = queueFocus.current;
+    if (from === null) {
+      return;
+    }
+    queueFocus.current = null;
+    const list = [...(bodyRef.current?.querySelectorAll<HTMLElement>('ul[aria-label]') ?? [])].find(
+      (candidate) => candidate.getAttribute('aria-label') === MEDIA_COPY.uploader.listName,
+    );
+    const tiles = [...(list?.children ?? [])].slice(from);
+    const control = tiles
+      .map((tile) => tile.querySelector<HTMLElement>('button:not([disabled])'))
+      .find((button) => button !== null);
+    if (control != null) {
+      control.focus();
+      return;
+    }
+    addControl.current?.focus();
+    if (bodyRef.current?.contains(document.activeElement) !== true) {
+      headingRef.current?.focus();
+    }
+  });
+  useEffect(() => {
+    focusAfterQueueChange();
+  }, [queueFocusTick]);
+  const queuedAction = (id: string, act: (id: string) => void, keepsTile: boolean): void => {
+    const at = photos.findIndex((photo) => photo.id === id);
+    act(id);
+    if (at >= 0) {
+      queueFocus.current = keepsTile ? at + 1 : at;
+      setQueueFocusTick((tick) => tick + 1);
+    }
+  };
+
   const runPick = async (files: File[]): Promise<void> => {
     let current: ImageRules;
     try {
@@ -599,8 +637,12 @@ export function OrderPhotosCard({ order, readOnly = false }: OrderPhotosCardProp
           onMakeCover={onMakeCover}
           onEditDescription={onEditDescription}
           onDelete={onDelete}
-          onRemove={queue.remove}
-          onRetry={queue.retry}
+          onRemove={(id) => {
+            queuedAction(id, queue.remove, false);
+          }}
+          onRetry={(id) => {
+            queuedAction(id, queue.retry, true);
+          }}
           onOpen={openViewer}
           addControlRef={addControl}
         />

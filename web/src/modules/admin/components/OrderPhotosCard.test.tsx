@@ -472,6 +472,103 @@ describe('a pick that finishes after the card has left (WR-G3-01)', () => {
   });
 });
 
+describe('focus after Remove or Try Again on a queued file (WR-G3-02)', () => {
+  const failBoth = (): void => {
+    prepareEveryFile();
+    vi.spyOn(orderPhotosService, 'upload')
+      .mockRejectedValueOnce(new HttpError({ kind: 'network' }))
+      .mockRejectedValueOnce(new HttpError({ kind: 'network' }));
+  };
+
+  it('Remove puts focus on the next tile control', async () => {
+    failBoth();
+    const { container } = renderCard();
+    await screen.findAllByText(/0\/5/);
+    const user = userEvent.setup();
+    await user.upload(
+      galleryInput(container),
+      ['a.jpg', 'b.jpg'].map((name) => pickedImage(name)),
+    );
+    await screen.findByText('b.jpg');
+    await waitFor(() => {
+      expect(within(tileOf('b.jpg')).getByRole('button', { name: 'Remove b.jpg' })).toBeVisible();
+    });
+
+    await user.click(within(tileOf('a.jpg')).getByRole('button', { name: 'Remove a.jpg' }));
+
+    await waitFor(() => {
+      expect(within(tileOf('b.jpg')).getByRole('button', { name: 'Try again, b.jpg' })).toHaveFocus();
+    });
+  });
+
+  it('Remove on the last tile puts focus on the add control', async () => {
+    failBoth();
+    const { container } = renderCard();
+    await screen.findAllByText(/0\/5/);
+    const user = userEvent.setup();
+    await user.upload(
+      galleryInput(container),
+      ['a.jpg', 'b.jpg'].map((name) => pickedImage(name)),
+    );
+    await waitFor(() => {
+      expect(within(tileOf('b.jpg')).getByRole('button', { name: 'Remove b.jpg' })).toBeVisible();
+    });
+
+    await user.click(within(tileOf('b.jpg')).getByRole('button', { name: 'Remove b.jpg' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'browse' })).toHaveFocus();
+    });
+  });
+
+  it('Remove puts focus on the card heading when there is no next tile and no add control', async () => {
+    prepareEveryFile();
+    vi.spyOn(orderPhotosService, 'upload').mockRejectedValue(
+      problem(422, 'orders.locked', 'This order is completed. Reopen it to make changes.'),
+    );
+    useOrderHandlers({ detail: buildOrderDetail({ status: 'completed' }) });
+    const { container } = renderCard();
+    await screen.findAllByText(/0\/5/);
+    const user = userEvent.setup();
+    await user.upload(galleryInput(container), pickedImage('a.jpg'));
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'browse' })).not.toBeInTheDocument();
+    });
+
+    await user.click(await within(tileOf('a.jpg')).findByRole('button', { name: 'Remove a.jpg' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'Images' })).toHaveFocus();
+    });
+  });
+
+  it('Try Again keeps focus inside the card: the next tile control, else the add control', async () => {
+    prepareEveryFile();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.spyOn(orderPhotosService, 'upload')
+      .mockRejectedValueOnce(new HttpError({ kind: 'network' }))
+      .mockImplementation(async () => {
+        await gate;
+        return orderWithPhotos(1);
+      });
+    const { container } = renderCard();
+    await screen.findAllByText(/0\/5/);
+    const user = userEvent.setup();
+    await user.upload(galleryInput(container), pickedImage('a.jpg'));
+    const retry = await screen.findByRole('button', { name: 'Try again, a.jpg' });
+
+    await user.click(retry);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'browse' })).toHaveFocus();
+    });
+    release();
+  });
+});
+
 const FIVE = ['Front', 'Back', 'Sleeve', 'Collar', 'Number'] as const;
 
 /**
