@@ -15,7 +15,11 @@ public sealed class MaintenanceWorkflowTests
     private const string KeyEntry = "MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}";
     private const string SiteEntry = "SITE_ORIGIN: ${{ vars.SITE_ORIGIN }}";
 
-    private static readonly Regex ModuleReference = new(@"(?:\bfrom\s+|\bimport\s*\(?\s*|\brequire\s*\(\s*)'(?<module>[^']+)'", RegexOptions.CultureInvariant);
+    // Single, double or backtick quotes: from "x", import 'x', import(`x`), require("x").
+    private static readonly Regex ModuleReference = new(@"(?:\bfrom\s+|\bimport\s*\(?\s*|\brequire\s*\(\s*)['""`](?<module>[^'""`]+)['""`]", RegexOptions.CultureInvariant);
+
+    // An import or require whose module name is not a plain quoted string, so the scanner cannot read it.
+    private static readonly Regex DynamicLoad = new(@"\b(?:import|require)\s*\(", RegexOptions.CultureInvariant);
 
     [Fact]
     public void RunsMonthlyAndOnRunNowOnly()
@@ -113,14 +117,48 @@ public sealed class MaintenanceWorkflowTests
     [Fact]
     public void TheScriptUsesBuiltInsOnly()
     {
-        var imports = ScriptLines()
-            .Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal))
-            .SelectMany(line => ModuleReference.Matches(line).Select(match => match.Groups["module"].Value))
-            .ToList();
+        var code = ScriptLines().Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal)).ToList();
+        var imports = code.SelectMany(ImportsOf).ToList();
 
         imports.ShouldNotBeEmpty($"{ScriptPath} imports nothing, so the import reader is not working.");
+        code.Where(CannotBeRead).ToList().ShouldBeEmpty($"{ScriptPath} has an import or require the guard cannot read, so it cannot vouch for it.");
         imports.Where(module => !module.StartsWith("node:", StringComparison.Ordinal)).ToList()
             .ShouldBeEmpty($"{ScriptPath} runs without npm ci, so it may import only node: built-ins (T-09-SC).");
+    }
+
+    [Theory]
+    [InlineData("import { appendFileSync } from 'node:fs';", "node:fs")]
+    [InlineData("import path from \"left-pad\";", "left-pad")]
+    [InlineData("} from \"left-pad\";", "left-pad")]
+    [InlineData("import 'left-pad';", "left-pad")]
+    [InlineData("const lib = await import(`left-pad`);", "left-pad")]
+    [InlineData("const lib = await import(\"left-pad\");", "left-pad")]
+    [InlineData("const lib = require(\"left-pad\");", "left-pad")]
+    [InlineData("const lib = require('left-pad');", "left-pad")]
+    public void TheImportReaderSeesEveryQuoteStyle(string line, string module)
+    {
+        ImportsOf(line).ShouldBe([module]);
+        CannotBeRead(line).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("const lib = await import(name);")]
+    [InlineData("const lib = require(name);")]
+    [InlineData("import lib from name;")]
+    public void AnImportTheReaderCannotParseIsFlaggedNotIgnored(string line)
+    {
+        ImportsOf(line).ShouldBeEmpty();
+        CannotBeRead(line).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("const here = fileURLToPath(import.meta.url);")]
+    [InlineData("import {")]
+    [InlineData("  const important = 1;")]
+    public void LinesThatLoadNothingAreNotFlagged(string line)
+    {
+        ImportsOf(line).ShouldBeEmpty();
+        CannotBeRead(line).ShouldBeFalse();
     }
 
     [Fact]
@@ -144,6 +182,20 @@ public sealed class MaintenanceWorkflowTests
         var job = WorkflowText.Jobs(WorkflowText.Lines(WorkflowPath)).SingleOrDefault(candidate => candidate.Id == "run");
         job.ShouldNotBeNull("maintenance.yml needs a job with the id run.");
         return job;
+    }
+
+    private static IEnumerable<string> ImportsOf(string line) => ModuleReference.Matches(line).Select(match => match.Groups["module"].Value);
+
+    private static bool CannotBeRead(string line)
+    {
+        if (ImportsOf(line).Any())
+        {
+            return false;
+        }
+
+        var text = line.TrimStart();
+        var staticImport = text.StartsWith("import ", StringComparison.Ordinal) && !text.StartsWith("import {", StringComparison.Ordinal) && !text.EndsWith('{');
+        return staticImport || DynamicLoad.IsMatch(line);
     }
 
     private static string[] ScriptLines() => File.ReadAllLines(RepoRoot.PathOf(ScriptPath));
