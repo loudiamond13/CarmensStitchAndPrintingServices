@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-05T22:55:00-05:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-06T06:56:04-06:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
@@ -152,7 +152,7 @@ Rules every workflow follows:
 - **Runs when:** a pull request to `main` is opened, gets a new push, is reopened or is marked ready for review; on every push to `main`; when someone presses **Run workflow** on the Actions tab (full mode, Chromium and the phone viewport only, no package upload); and when `weekly.yml` calls it with the `all-engines` input switched on. The modes are explained in [The pipeline, in order](#the-pipeline-in-order), [Drafts](#drafts), [Docs-only pull requests](#docs-only-pull-requests) and [Pushes to main](#pushes-to-main).
 - **Permissions:** none at the top. `classify` may read the repository, pull requests and checks. `gate` may read the repository only. `gate result` has no rights at all.
 - **Concurrency:** one run per pull request (or per commit on `main`). A newer push to a pull request cancels its older run. A run for `main` is never cancelled.
-- **Runner and time limit:** `ubuntu-24.04`. `classify` 5 minutes, `gate` 60 minutes, `gate result` 2 minutes. If the gate passes 60 minutes, GitHub stops it and `gate result` then fails.
+- **Runner and time limit:** `ubuntu-24.04`. `classify` 5 minutes, `gate` 90 minutes (raised from 60 on 2026-11-06, when the full run of the Phase 9 PR reached 60), `gate result` 2 minutes. If the gate passes 90 minutes, GitHub stops it and `gate result` then fails.
 - **Required on `main`:** `gate result` only.
 
 #### `classify`

@@ -406,6 +406,13 @@ public sealed partial class CiWorkflowTests
     }
 
     [Fact]
+    public void GateHasRoomForTheFullSuiteButStillStopsAHang()
+    {
+        // The full gate took 60 minutes on the Phase 9 PR (Playwright alone 30), so 60 cancelled it in its last step.
+        GateJob().Lines.Select(line => line.Trim()).ShouldContain("timeout-minutes: 90");
+    }
+
+    [Fact]
     public void GateSetsUpNodeWithAnNpmCache()
     {
         var node = WorkflowText.Steps(GateJob().Lines)
