@@ -1,14 +1,14 @@
 ---
-status: diagnosed
+status: partial
 phase: 09-order-images-maintenance-jobs
 source: [09-01-SUMMARY.md, 09-02-SUMMARY.md, 09-03-SUMMARY.md, 09-04-SUMMARY.md, 09-05-SUMMARY.md, 09-06-SUMMARY.md, 09-07-SUMMARY.md, 09-08-SUMMARY.md, 09-09-SUMMARY.md, 09-10-SUMMARY.md, 09-11-SUMMARY.md, 09-12-SUMMARY.md, 09-13-SUMMARY.md, 09-14-SUMMARY.md, 09-15-SUMMARY.md, 09-16-SUMMARY.md, 09-17-SUMMARY.md, 09-18-SUMMARY.md, 09-19-SUMMARY.md, 09-20-SUMMARY.md, 09-21-SUMMARY.md, 09-22-SUMMARY.md, 09-23-SUMMARY.md, 09-24-SUMMARY.md, 09-25-SUMMARY.md, 09-26-SUMMARY.md, 09-27-SUMMARY.md, 09-28-SUMMARY.md, 09-29-SUMMARY.md, 09-30-SUMMARY.md]
 started: 2026-11-05T17:58:00-06:00
 created: 2026-11-05T17:58:00-06:00
-updated: 2026-11-05T18:55:00-06:00
+updated: 2026-11-06T10:02:00-06:00
 ---
 
 # Phase 9 UAT: Order Images & Maintenance Jobs
-*Created: 2026-11-05T17:58:00-06:00 · Updated: 2026-11-05T18:55:00-06:00*
+*Created: 2026-11-05T17:58:00-06:00 · Updated: 2026-11-06T10:02:00-06:00*
 
 Plans 09-01 to 09-30 are built. 09-31 and 09-32 (the database backup job) are not built; test 21 is blocked on them.
 Tests 22 to 96 are passed by automated tests (coverage blocks); they are not asked.
@@ -57,7 +57,9 @@ result: pass
 
 ### 10. Photo viewer
 expected: Clicking a saved photo's thumbnail opens a dark full-screen viewer showing "Photo i of n", the whole photo (never cropped, tall and wide photos fit), its description, and "Open Full Size" (opens a new tab). Previous and Next (and the left and right arrow keys) step through the photos and wrap from last to first. Esc or Close viewer closes it, and focus goes back to the thumbnail of the photo last shown. On a phone-width screen Previous and Next sit under the photo.
-result: issue
+result: pass
+retest: "Fixed by 09-33. The three G-09-10 checks on the real order page passed in CI on 2026-11-06 (chromium; the phone layout check also passed on pixel). Run 42233493464, commit 936e2139."
+first_result: issue
 reported: "image inst centered" (screenshot: at 1899 px wide, Photo 1 of 4 on ORD-2026-0161 sits left of center between Previous and Next; the white image box is taller than the photo, leaving a large empty band under it)
 severity: cosmetic
 
@@ -110,7 +112,7 @@ reason: Needs the production deploy, the host's Maintenance__Key and the GitHub 
 expected: The monthly run makes a database backup the owner can restore.
 result: blocked
 blocked_by: other
-reason: Not built. 09-31 Task 3 and 09-32 wait on the owner's choice after D-50 (hand-built export plus FTP, manual monthly backups, or DacFx under a license exception).
+reason: Not built. Deferred by owner ruling D-51 (2026-11-05): backups stay manual in the control panel until CUT-01 (Phase 17) picks an approach.
 
 ### 22. 09-01 D1: A JPEG posted to an order is stored through the port and saved as a photo row at Slot 0...
 expected: A JPEG posted to an order is stored through the port and saved as a photo row at Slot 0 and Position 0 with its size, bytes and format, audited as order-image.added
@@ -565,8 +567,8 @@ coverage_id: 09-29-D5
 ## Summary
 
 total: 96
-passed: 92
-issues: 1
+passed: 93
+issues: 0
 pending: 0
 skipped: 1
 blocked: 2
@@ -575,7 +577,8 @@ blocked: 2
 
 - gap_id: G-09-10
   truth: "The viewer shows the whole photo centered in the stage between Previous and Next, with the image box fitted to the photo"
-  status: failed
+  status: resolved
+  verified: "CI run 42233493464 on 936e2139 (2026-11-06): order-photos-view.spec.ts G-09-10 checks passed on the real order page"
   reason: "User reported: image inst centered (screenshot: photo left of center, white box taller than the photo)"
   severity: cosmetic
   test: 10
@@ -589,3 +592,6 @@ blocked: 2
     - "Center the image box in the stage column (justify-self-center, width driven by the ratio and max height, never wider than the column), keeping the phone layout (col-span-full) unchanged"
     - "A failing test first: a wide window (1899 x 951) with a landscape photo whose capped box is narrower than the column shows the box centered (equal space left and right of it between Previous and Next), plus a unit test that the recipe carries the centering class"
   debug_session: ""
+  fix_plan: "09-33-PLAN.md"
+  resolved_by: 09-33-PLAN.md
+  resolved_at: 2026-11-05
