@@ -68,9 +68,34 @@ function widthsOf(srcSet: string): number[] {
   return [...srcSet.matchAll(/\s(\d+)w(?:,|$)/g)].map((match) => Number(match[1]));
 }
 
+/**
+ * The Orders grid card cover's width (inside the card's 1px border) from the admin layout: the side column (248px, or the 72px rail when collapsed and always on
+ * tablets, none on phones), the body padding (16, 24 or 32px a side, the body at most 1440px), and 1 to 4 columns 20px apart.
+ */
+function cardWidth(viewport: number, sidebar: 'expanded' | 'collapsed'): number {
+  return cardColumnWidth(viewport, sidebar) - 2;
+}
+
+function cardColumnWidth(viewport: number, sidebar: 'expanded' | 'collapsed'): number {
+  if (viewport <= 767) return viewport - 32;
+  if (viewport <= 1023) return (viewport - 72 - 48 - 20) / 2;
+  const side = sidebar === 'expanded' ? 248 : 72;
+  const content = Math.min(viewport - side, 1440) - 64;
+  const columns = viewport <= 1279 ? 3 : 4;
+  return (content - 20 * (columns - 1)) / columns;
+}
+
 describe('the sizes strings', () => {
-  it('give the card the UI-SPEC boxes at 390, 820 and 1440 px wide', () => {
-    expect(VIEWPORTS.map((viewport) => slotWidth(CARD_SIZES, viewport))).toEqual([358, 376, 330]);
+  it('give the card its widest box (collapsed sidebar) at 390, 820 and 1440 px wide', () => {
+    expect(VIEWPORTS.map((viewport) => Math.round(slotWidth(CARD_SIZES, viewport)))).toEqual([356, 338, 309]);
+  });
+
+  it('match the widest the card can be at every width, so a cover is never soft and never much too large', () => {
+    for (let viewport = 320; viewport <= 1920; viewport += 1) {
+      const box = slotWidth(CARD_SIZES, viewport);
+      expect(Math.abs(box - cardWidth(viewport, 'collapsed'))).toBeLessThan(1);
+      expect(box).toBeGreaterThanOrEqual(cardWidth(viewport, 'expanded'));
+    }
   });
 
   it('give the viewer the UI-SPEC boxes at 390, 820 and 1440 px wide', () => {
