@@ -267,20 +267,67 @@ describe('prepareImage', () => {
     expect(fake.close).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses a 6000 x 5000 photo over the pixel limit and closes the bitmap', async () => {
+  it('shrinks a 6000 x 5000 photo (30 MP, over the server limit) and accepts the shrunk copy (D-53)', async () => {
     const fake = fakeParts({ head: JPEG_HEAD, width: 6000, height: 5000 });
     const result = await prepareImage(fileOf('huge.jpg'), RULES, fake.parts);
+
+    expect(result).toMatchObject({ ok: true, width: 2000, height: 1667 });
+    expect(fake.encode).toHaveBeenCalledTimes(1);
+    expect(fake.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('shrinks a 48 MP phone photo (8000 x 6000) and accepts the shrunk copy (D-53)', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 8000, height: 6000 });
+    const result = await prepareImage(fileOf('flagship.jpg'), RULES, fake.parts);
+
+    expect(result).toMatchObject({ ok: true, width: 2000, height: 1500 });
+  });
+
+  it('accepts a photo whose side is over the side limit when the shrunk copy is within it (D-53)', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 9000, height: 1000 });
+    const result = await prepareImage(fileOf('strip.jpg'), { ...RULES, maxSide: 8000 }, fake.parts);
+
+    expect(result).toMatchObject({ ok: true, width: 2000, height: 222 });
+  });
+
+  it('refuses a shrunk copy that is still over the pixel limit, before encoding, and closes the bitmap', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 6000, height: 5000 });
+    const result = await prepareImage(fileOf('huge.jpg'), { ...RULES, maxPixels: 3_000_000 }, fake.parts);
 
     expect(result).toEqual({ ok: false, reason: 'pixels' });
     expect(fake.encode).not.toHaveBeenCalled();
     expect(fake.close).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses a photo with a side over the side limit', async () => {
+  it('refuses a shrunk copy whose side is still over the side limit', async () => {
     const fake = fakeParts({ head: JPEG_HEAD, width: 9000, height: 1000 });
-    const result = await prepareImage(fileOf('strip.jpg'), { ...RULES, maxSide: 8000 }, fake.parts);
+    const result = await prepareImage(fileOf('strip.jpg'), { ...RULES, maxSide: 1500 }, fake.parts);
 
     expect(result).toEqual({ ok: false, reason: 'pixels' });
+    expect(fake.encode).not.toHaveBeenCalled();
+  });
+
+  it('refuses an untouched photo over the side limit', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 1800, height: 1000 });
+    const result = await prepareImage(fileOf('wide.jpg'), { ...RULES, maxSide: 1500 }, fake.parts);
+
+    expect(result).toEqual({ ok: false, reason: 'pixels' });
+  });
+
+  it('accepts an original at the 100 MP memory ceiling', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 10_000, height: 10_000 });
+    const result = await prepareImage(fileOf('max.jpg'), RULES, fake.parts);
+
+    expect(result).toMatchObject({ ok: true, width: 2000, height: 2000 });
+  });
+
+  it('refuses an original over the 100 MP memory ceiling without encoding, and closes the bitmap', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 10_001, height: 10_000 });
+    const result = await prepareImage(fileOf('pano.jpg'), RULES, fake.parts);
+
+    expect(result).toEqual({ ok: false, reason: 'pixels' });
+    expect(fake.encode).not.toHaveBeenCalled();
+    expect(fake.close).toHaveBeenCalledTimes(1);
   });
 
   it('refuses an encoded photo over the size and closes the bitmap', async () => {
