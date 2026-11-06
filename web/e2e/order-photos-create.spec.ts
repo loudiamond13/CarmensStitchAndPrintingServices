@@ -9,36 +9,8 @@ import { signInAs } from './auth.ts';
 import { expect, test } from './fixtures.ts';
 import { manilaDate } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
+import { drawJpeg } from './photos.ts';
 import { createStaff } from './testing-api.ts';
-
-interface PickedFile {
-  readonly name: string;
-  readonly mimeType: string;
-  readonly buffer: Buffer;
-}
-
-/** The page-side script that draws a hue gradient on a canvas and returns the JPEG bytes. Strings, because e2e has no DOM types. */
-function drawScript(width: number, height: number, hue: number): string {
-  return `(async () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = ${String(width)};
-    canvas.height = ${String(height)};
-    const context = canvas.getContext('2d');
-    const gradient = context.createLinearGradient(0, 0, ${String(width)}, ${String(height)});
-    gradient.addColorStop(0, 'hsl(${String(hue)} 70% 45%)');
-    gradient.addColorStop(1, 'hsl(${String((hue + 90) % 360)} 70% 60%)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, ${String(width)}, ${String(height)});
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    return Array.from(new Uint8Array(await blob.arrayBuffer()));
-  })()`;
-}
-
-/** A JPEG drawn on a canvas in the page, so every file differs and compresses small. */
-async function drawJpeg(page: Page, name: string, hue: number, width = 3000, height = 2000): Promise<PickedFile> {
-  const bytes = await page.evaluate<number[]>(drawScript(width, height, hue));
-  return { name, mimeType: 'image/jpeg', buffer: Buffer.from(bytes) };
-}
 
 /** Fills every required field of the New Order form with good values. */
 async function fillOrder(page: Page, customer: string): Promise<void> {

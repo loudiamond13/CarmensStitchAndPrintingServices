@@ -42,6 +42,7 @@ import {
   WEB_DIRECTORY,
 } from './e2e.mjs';
 import { manilaDate, RENT as SEEDED_RENT, SUPPLIES as SEEDED_SUPPLIES } from '../e2e/helpers.ts';
+import { gradientScript } from '../e2e/photo-scripts.ts';
 import { portIsBusy, startHost, stopRunningHostsSync } from './lighthouse.mjs';
 import { waitForSharedMachine } from './shared-machine.mjs';
 import { STRUCTURAL_EXCEPTIONS, TOLERANCE_OVERRIDES } from '../visual/intentional-differences.ts';
@@ -4279,29 +4280,6 @@ const PHASE9_VIEWER_SHAPES = Object.freeze([
 ]);
 
 /**
- * The page-side script that draws a hue gradient on a canvas and returns the JPEG bytes (a string: this file has no DOM types).
- * @param {number} width
- * @param {number} height
- * @param {number} hue
- * @returns {string}
- */
-function jpegScript(width, height, hue) {
-  return `(async () => {
-  const canvas = document.createElement('canvas');
-  canvas.width = ${String(width)};
-  canvas.height = ${String(height)};
-  const context = canvas.getContext('2d');
-  const gradient = context.createLinearGradient(0, 0, ${String(width)}, ${String(height)});
-  gradient.addColorStop(0, 'hsl(${String(hue)} 70% 45%)');
-  gradient.addColorStop(1, 'hsl(${String((hue + 90) % 360)} 70% 60%)');
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, ${String(width)}, ${String(height)});
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-  return Array.from(new Uint8Array(await blob.arrayBuffer()));
-})()`;
-}
-
-/**
  * Draws one JPEG per shape in a blank page.
  * @param {import('@playwright/test').Browser} browser
  * @param {readonly { name: string, hue: number, width: number, height: number }[]} shapes
@@ -4313,7 +4291,7 @@ async function drawPhotos(browser, shapes) {
     /** @type {MadePhoto[]} */
     const photos = [];
     for (const shape of shapes) {
-      const bytes = /** @type {number[]} */ (await page.evaluate(jpegScript(shape.width, shape.height, shape.hue)));
+      const bytes = /** @type {number[]} */ (await page.evaluate(gradientScript(shape.width, shape.height, shape.hue)));
       photos.push({ name: `${shape.name}.jpg`, mimeType: 'image/jpeg', buffer: Buffer.from(bytes) });
     }
     return photos;
