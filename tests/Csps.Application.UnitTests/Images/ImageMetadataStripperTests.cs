@@ -496,6 +496,8 @@ public sealed class ImageMetadataStripperTests
         byte[][] damaged =
         [
             [.. SyntheticImages.Box("free", [0x00]), .. plain],
+            [.. plain, 0x01, 0x02],
+            [.. plain, 0x00, 0x00, 0x00, 0x40, .. "free"u8.ToArray()],
             [.. ftyp, .. SyntheticImages.Box("free", [0x00])],
             [.. ftyp, .. SyntheticImages.Box("meta", [0x00])],
             [.. ftyp, .. SyntheticImages.FullBox("meta", 0, 0, SyntheticImages.Iinf(SyntheticImages.Infe(2, "Exif")), SyntheticImages.Box("idat", [0x00]), SyntheticImages.Box("idat", [0x00]))],

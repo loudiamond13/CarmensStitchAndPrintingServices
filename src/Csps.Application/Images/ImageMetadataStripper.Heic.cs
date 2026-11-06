@@ -42,7 +42,7 @@ public static partial class ImageMetadataStripper
             }
         }
 
-        if (!haveMeta || meta.Length < 4)
+        if (!boxes.AtEnd || !haveMeta || meta.Length < 4)
         {
             return null;
         }
