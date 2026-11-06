@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using Csps.Application.Images;
 using Csps.Infrastructure.Images;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 
 namespace Csps.Infrastructure.IntegrationTests.Images;
@@ -11,8 +13,8 @@ public sealed partial class CloudinaryImageDeliveryTests
     private const string Id = "csps/orders/0b0f/abcdefghijklmnopqrstuvwxyz";
     private const string Base = "https://res.cloudinary.com/demo-cloud/image/private/";
 
-    private static CloudinaryImageDelivery Delivery(string cloud = "demo-cloud") =>
-        new(Options.Create(new CloudinarySettings { CloudName = cloud, ApiKey = "fake-key", ApiSecret = "fake-secret", RootFolder = "csps" }));
+    private static CloudinaryImageDelivery Delivery(string cloud = "demo-cloud", FakeLogger<CloudinaryImageDelivery>? logger = null) =>
+        new(Options.Create(new CloudinarySettings { CloudName = cloud, ApiKey = "fake-key", ApiSecret = "fake-secret", RootFolder = "csps" }), logger ?? new FakeLogger<CloudinaryImageDelivery>());
 
     private static string Address(string name) => $"{Base}t_{name}/v1/{Id}";
 
@@ -229,9 +231,27 @@ public sealed partial class CloudinaryImageDeliveryTests
     }
 
     [Fact]
-    public void AMissingCloudNameStopsTheBuilderInsteadOfMakingBrokenAddresses()
+    public void AMissingCloudNameGivesEmptyAddressesAndOneWarningInsteadOfFailingTheOrderRead()
     {
-        Should.Throw<InvalidOperationException>(() => Delivery(string.Empty).ForPhoto(Id, 100, 100));
+        var logger = new FakeLogger<CloudinaryImageDelivery>();
+        var delivery = Delivery(string.Empty, logger);
+
+        var photo = delivery.ForPhoto(Id, 4000, 3000);
+        var cover = delivery.ForCover(Id, 4000, 3000);
+        delivery.ForPhoto(Id, 100, 100);
+
+        photo.Thumb.ShouldBe(new ImageSource(string.Empty, string.Empty));
+        photo.Viewer.ShouldBe(new ImageSource(string.Empty, string.Empty));
+        photo.FullSize.ShouldBeEmpty();
+        cover.Card.ShouldBe(new ImageSource(string.Empty, string.Empty));
+        cover.Table.ShouldBe(new ImageSource(string.Empty, string.Empty));
+        logger.Collector.GetSnapshot().Count(record => record.Level == LogLevel.Warning).ShouldBe(1);
+    }
+
+    [Fact]
+    public void AMissingCloudNameStillRefusesABadPublicId()
+    {
+        Should.Throw<ArgumentException>(() => Delivery(string.Empty).ForPhoto("Not A Valid Id", 100, 100));
     }
 
     [GeneratedRegex(@"^https://res\.cloudinary\.com/demo-cloud/image/private/t_(?<name>[a-z0-9_]+)/v1/csps/orders/0b0f/abcdefghijklmnopqrstuvwxyz$")]

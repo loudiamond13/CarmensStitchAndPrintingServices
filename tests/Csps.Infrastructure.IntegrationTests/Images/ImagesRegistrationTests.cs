@@ -21,6 +21,7 @@ public sealed class ImagesRegistrationTests
             .Build();
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
+        services.AddLogging();
         services.AddCspsImages(configuration, new TestEnvironment(environmentName));
         return services.BuildServiceProvider();
     }
