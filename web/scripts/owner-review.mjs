@@ -2546,6 +2546,24 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null;
 }
 
+/**
+ * The photo in place 1 of an order answer. Places count from 0, so the second photo is at 1; the list is sorted first so the
+ * answer's own order does not matter.
+ * @param {readonly unknown[]} images
+ * @returns {Record<string, unknown> | undefined}
+ */
+export function secondPhotoOf(images) {
+  /** @type {Record<string, unknown>[]} */
+  const placed = [];
+  for (const image of images) {
+    if (isRecord(image) && typeof image.position === 'number') {
+      placed.push(image);
+    }
+  }
+  placed.sort((a, b) => Number(a.position) - Number(b.position));
+  return placed[1];
+}
+
 /** @param {unknown} value @returns {readonly unknown[]} */
 function arrayOf(value) {
   return Array.isArray(value) ? value : [];
@@ -4671,8 +4689,8 @@ const PHASE9_CAPTURES = Object.freeze({
     const current = await callApi(c.request, token, 'GET', `/api/v1/orders/${made.id}`);
     /** @type {unknown[]} */
     const images = isRecord(current) && Array.isArray(current.images) ? current.images : [];
-    const second = images.find((image) => isRecord(image) && image.position === 2);
-    if (!isRecord(current) || !isRecord(second)) {
+    const second = secondPhotoOf(images);
+    if (!isRecord(current) || second === undefined) {
       throw new Error('The order has no second photo.');
     }
     await callApi(c.request, token, 'PUT', `/api/v1/orders/${made.id}/images/${String(second.id)}`, {

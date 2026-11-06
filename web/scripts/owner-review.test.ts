@@ -47,6 +47,7 @@ import {
   planReview,
   planShots,
   planSpecGapShots,
+  secondPhotoOf,
   renderIndex,
   REVIEW_TARGETS,
   REVIEW_WIDTHS,
@@ -1500,6 +1501,32 @@ describe('renderIndex: the Phase 9 screens (plan 09-30)', () => {
 
   it('is left out when no Phase 9 pictures were taken', () => {
     expect(renderIndex({ generatedAt: 'now', shots: [], problems: [] })).not.toContain('Order photos (Phase 9)');
+  });
+});
+
+describe('secondPhotoOf (the second photo of an order answer)', () => {
+  it('takes the photo in place 1, because places count from 0', () => {
+    const images = [
+      { id: 'a', position: 0 },
+      { id: 'b', position: 1 },
+    ];
+
+    expect(secondPhotoOf(images)).toEqual({ id: 'b', position: 1 });
+  });
+
+  it('sorts by place first, so the answer order does not matter', () => {
+    const images = [
+      { id: 'c', position: 2 },
+      { id: 'b', position: 1 },
+      { id: 'a', position: 0 },
+    ];
+
+    expect(secondPhotoOf(images)).toEqual({ id: 'b', position: 1 });
+  });
+
+  it('is undefined when the order has fewer than two photos', () => {
+    expect(secondPhotoOf([{ id: 'a', position: 0 }])).toBeUndefined();
+    expect(secondPhotoOf([])).toBeUndefined();
   });
 });
 
