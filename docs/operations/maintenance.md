@@ -1,6 +1,6 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-05T21:10:00-05:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-05T21:30:00-05:00*
 
 The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). The GitHub
 Actions workflow `.github/workflows/maintenance.yml` makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
@@ -60,7 +60,11 @@ The sweep runs first, so the strays it queues are removed in the same run. A que
 saved. A file outside the site's own orders folder is never removed either.
 
 Each job stops when the 90 second budget is spent and says there is more. The next call carries on from the database.
-The sweep starts its listing again from the first page, but files it already queued are skipped.
+The sweep keeps its place in the listing in a small table (`MaintenanceCursors`, one row for the sweep, D-54). The next
+call resumes from that page, so a large folder is finished over several calls. The row is cleared when a pass reaches the
+last page, and the next pass starts again from the first page. If the sweep stops at the 50 file limit, the row keeps the
+page it was on, so that page is read again. If Cloudinary refuses the saved place, the sweep clears it and starts over next
+time. The purge job never touches this row.
 
 ### The photo lines and what to do
 
