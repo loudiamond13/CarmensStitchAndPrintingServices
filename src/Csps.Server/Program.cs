@@ -138,6 +138,9 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// The two-at-a-time photo upload cap, after authorization so a refused anonymous request never takes a slot (T-09-27, CWE-770).
+app.UseMiddleware<UploadSlotsMiddleware>();
+
 // Every POST needs an Idempotency-Key unless it is exempt with a written reason (SEC-06, D-40). It runs after routing and
 // authorization so the endpoint and the user are known and a refused request never takes a key.
 app.UseMiddleware<IdempotencyMiddleware>();
