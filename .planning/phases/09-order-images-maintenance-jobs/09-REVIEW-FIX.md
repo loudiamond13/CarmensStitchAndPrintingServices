@@ -1,18 +1,18 @@
 ---
 phase: 09-order-images-maintenance-jobs
 created: 2026-11-05T21:23:29-05:00
-updated: 2026-11-05T21:23:29-05:00
+updated: 2026-11-06T01:23:00-06:00
 iteration: 1
 fix_scope: critical_warning
-findings_in_scope: 31
-fixed: 27
-skipped: 4
-status: partial
+findings_in_scope: 33
+fixed: 33
+skipped: 0
+status: all_fixed
 ---
 
 # Phase 9: Code Review Fix Report
 
-*Created: 2026-11-05T21:23:29-05:00 · Updated: 2026-11-05T21:23:29-05:00*
+*Created: 2026-11-05T21:23:29-05:00 · Updated: 2026-11-05T22:56:00-06:00*
 
 Five fixers ran one after another, one per review lane, on branch `gsd/phase-10-admin-dashboard`. Each fix is its own commit. Info findings were out of scope.
 
@@ -27,12 +27,20 @@ In scope: 1 critical and 28 warnings from `09-REVIEW.md`, plus IN-G2-06 (promote
 | G4 CI, docs, tools, e2e | 6 | 6 | 0 |
 | **Total** | **31** | **27** | **4** |
 
-## Skipped: waiting for owner decisions
+## Owner rulings (2026-11-05) and their fixes
 
-- **WR-G1A-03:** should the stray sweep cap how many files it queues for permanent deletion in one run? (Recommended: yes, a small cap.)
-- **WR-G3-03:** should the 25 megapixel check run on the shrunk photo instead of the original? (Recommended: yes.)
-- **WR-G1A-02:** the stray sweep restarts at page 1 every run. Should it (a) save its place in a small new database row (schema change, recommended) or (b) stop asking for a rerun and say when it ran out of time?
-- **WR-G1A-07:** a queued photo that can never be removed keeps the run red forever (ruling D-22). Should it (a) stay red, (b) go green after 5 tries with a "needs attention" count and stay queued (recommended), or (c) be dropped after 5 tries with a log line?
+The four skipped findings were ruled on by the owner and then fixed:
+
+- **WR-G1A-03 (D-52):** the stray sweep queues at most 50 files per run; more turns the run red.
+- **WR-G1A-02 (D-54):** the sweep saves its listing place in the new MaintenanceCursors table (additive migration 20261106033839_AddMaintenanceCursors).
+- **WR-G1A-07 (D-55):** a removal that has failed 5 times stays queued and shows as "needing attention" without turning the run red.
+- **WR-G3-03 (D-53):** the browser checks the 25 megapixel and side limits on the shrunk photo; originals over 100 megapixels are still refused.
+
+## Second review fixes
+
+- **WR-R2-01:** the docs now say the maintenance branch guard only stops accidental runs. Limiting MAINTENANCE_KEY to main needs a GitHub environment: parked for the owner (backlog).
+- **WR-R2-02:** the photo host lock checks a moved lock's own age before deleting it, and never deletes a live lock it could not put back (test first).
+- Info IN-R2-01 to IN-R2-03 are out of scope and recorded only.
 
 ## Behavior choices made by fixers (owner may want to confirm)
 
@@ -49,6 +57,15 @@ In scope: 1 critical and 28 warnings from `09-REVIEW.md`, plus IN-G2-06 (promote
 - `npm run test`: 284 test files, 8038 tests passed.
 - **Not run:** Playwright e2e. The e2e changes (WR-G4-03 lock, WR-G4-05 shared helpers) and the owner-review fix (CR-G4-01, WR-G4-01) have not been executed in a browser.
 - Commit attribution: lanes G1A, G1B and G4 use the Opus 5.5 trailer; lanes G2 and G3 use Sonnet 5.5 (the model that ran them).
+
+### Phase 9 branch, after the second review (2026-11-06, worktree `.claude/worktrees/p09`)
+
+- Preflight: ports 5180, 5115, 7028 and 5199 free; no other project's test processes.
+- Web: `npm run typecheck` passed; `npm run lint` passed; `npm run test`: 283 files passed, 1 failed (8047 of 8048 tests). The one failure is `scripts/license-policy.test.ts` ("exits 1 on a stricter policy given through --exceptions"): "No packages found in this path". It fails only in the worktree folder; the same files pass in the main folder (8045 of 8045 there). Recorded as environment-only; CI on the PR is the check.
+- `dotnet build`: 0 errors. `CSPS_TEST_SQL=localdb dotnet test`: total 7084, failed 0, succeeded 7082, skipped 2.
+- Full e2e (`npm run e2e`): 1630 passed, 57 skipped, 32 failed in 1.8 h. All 32 were outside the photo specs (1 Firefox, 12 WebKit, 19 iPhone).
+- Re-run of those 32 alone (`--last-failed --workers=2`): 15 passed, 17 failed, all in WebKit or iPhone. Each waits 5 s for the `/dev/components` heading ("Component Showcase") and does not find it, or times out on that page. This is open item 3 of `09-30-SUMMARY.md` (the showcase is borderline in WebKit since the Order photos cases were added). Parked for the owner as P9-BL-10 in Phase 999.5; CI runs Chromium and the phone viewport only, where these pass.
+- Every photo spec (`@order-photos*`, `G-09-10`) passed in all five projects.
 
 ---
 

@@ -46,6 +46,7 @@ test('@order-photos-list an order with a photo shows its cover in the grid card 
   page,
   request,
   guard,
+  isMobile,
 }) => {
   test.setTimeout(240_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
@@ -62,6 +63,33 @@ test('@order-photos-list an order with a photo shows its cover in the grid card 
   await expect.poll(() => coverWidth(card)).toBeGreaterThan(0);
   await expect(card.getByRole('button', { name: `View order ${number}, Pending` })).toBeVisible();
   await expect(card.getByText('No images yet')).toHaveCount(0);
+
+  // On a 1440px desktop the cover is 265px (sidebar open) or 309px (collapsed); the sizes hint says 309px, so a 1x screen
+  // picks the 320w candidate and a 2x screen (Desktop Safari) the 640w one.
+  if (!isMobile) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const density = await page.evaluate(() => (globalThis as unknown as { devicePixelRatio: number }).devicePixelRatio);
+    const expected = density >= 2 ? 'csps_card_640' : 'csps_card_320';
+    for (const [state, width] of [
+      ['open', 265],
+      ['collapsed', 309],
+    ] as const) {
+      if (state === 'collapsed') await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+      const image = card.locator('img').first();
+      await expect
+        .poll(() =>
+          image.evaluate((element) =>
+            Math.round(
+              (element as unknown as { getBoundingClientRect(): { width: number } }).getBoundingClientRect().width,
+            ),
+          ),
+        )
+        .toBe(width);
+      await expect
+        .poll(() => image.evaluate((element) => (element as unknown as { currentSrc: string }).currentSrc))
+        .toContain(expected);
+    }
+  }
 
   await page.goto(`/admin/orders?q=${number}&view=table`);
   const row = page.getByRole('row').filter({ hasText: number });

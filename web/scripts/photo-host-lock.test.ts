@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, w
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createPhotoHostLock } from '../e2e/photo-host-lock.ts';
+import { createPhotoHostLock, takeOverStale } from '../e2e/photo-host-lock.ts';
 
 const TOKEN_FILE = 'owner';
 
@@ -145,6 +145,25 @@ describe('createPhotoHostLock', () => {
     const lock = fast();
 
     await expect(lock.withLock(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
+
+    expect(existsSync(directory)).toBe(false);
+  });
+});
+
+describe('takeOverStale', () => {
+  it('puts back a lock that a new holder took after the stale check, instead of deleting it', () => {
+    // The waiter saw a stale lock, but by the time it moves the lock, a new holder has made a fresh one.
+    leaveLock('new-holder', 0);
+
+    takeOverStale(directory, 300);
+
+    expect(readFileSync(path.join(directory, TOKEN_FILE), 'utf8')).toBe('new-holder');
+  });
+
+  it('removes a lock that is still stale once moved', () => {
+    leaveLock('dead-run', 10_000);
+
+    takeOverStale(directory, 300);
 
     expect(existsSync(directory)).toBe(false);
   });

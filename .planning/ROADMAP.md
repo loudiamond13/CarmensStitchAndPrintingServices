@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-05T18:30:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-06T01:10:00-06:00*
 
 ## Overview
 
@@ -999,7 +999,7 @@ Plans:
 - eager variants
 - caching of signed URLs
 
-**Plans**: 32/33 plans executed in 9 waves (09-31 and 09-32 deferred, D-51), plus gap-closure plan 09-33 (UAT G-09-10, planned 2026-11-05) (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
+**Plans**: 33/33 plans executed in 9 waves (09-31 and 09-32 deferred, D-51), plus gap-closure plan 09-33 (UAT G-09-10, planned 2026-11-05) (planned 2026-10-31; re-sliced the same day to fit the per-plan budget; the database backup added the same day as 09-31 and 09-32, D-39 to D-48; each plan leads with an end-to-end tracer task; TDD)
 
 **Wave 1**
 - [x] 09-01-PLAN.md — Upload one photo to an order through the API: OrderImage, 5-photo domain and database guard, random ids, 503 when unset (ORD-04, IMG-01, IMG-02, IMG-03; D-01, D-08, D-11, D-12, D-19)
@@ -1052,7 +1052,7 @@ Plans:
 - [x] 09-30-PLAN.md — Prove the phase and the owner's Cloudinary setup (all eight requirements; D-03, D-06)
 
 **Gap closure** *(UAT G-09-10, planned 2026-11-05; run with `/gsd-execute-phase 9 --gaps-only`)*
-- [ ] 09-33-PLAN.md — The photo viewer centres a height-capped photo between Previous and Next on wide windows, the phone layout stays as it is, and the white band under a mockup is checked to be the photo itself (ORD-04, IMG-04; D-16)
+- [x] 09-33-PLAN.md — The photo viewer centres a height-capped photo between Previous and Next on wide windows, the phone layout stays as it is, and the white band under a mockup is checked to be the photo itself (ORD-04, IMG-04; D-16)
 
 **UI hint**: yes
 
@@ -1455,7 +1455,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 6. Company Expenses | 21/21 | Complete    | 2026-10-26 |
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
-| 9. Order Images & Maintenance Jobs | 32/32 | In Progress | - |
+| 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 0/TBD | Not started | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
@@ -1499,6 +1499,15 @@ Plans:
 **Deferred at:** 2026-10-26 during /gsd-verify-work 6 session completion
 **Follow-ups:**
 - [ ] Test 6: Check the live request logs after release: p95 under 300 ms for GET /api/v1/company-expenses and /kpis, following docs/operations/list-performance.md (D-28, D-58). (deferred 2026-10-26)
+
+### Phase 999.5: Owner items parked during Phase 9 review and ship (BACKLOG)
+
+**Goal:** Settle the owner decisions, sign-offs and manual checks parked while the owner was away during the Phase 9 second review, verify, validate, secure and PR steps (2026-11-06). Each item is in `.planning/phases/999.5-owner-items-parked-during-phase-9-review-and-ship/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ---
 *Roadmap created: 2026-10-07*

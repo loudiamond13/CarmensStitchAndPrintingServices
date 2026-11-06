@@ -5,7 +5,7 @@ current_phase_name: Admin Dashboard
 status: executing
 stopped_at: Phase 10 UI-SPEC approved
 last_updated: "2026-11-06T02:45:00.000Z"
-last_activity: "2026-11-05: D-51 brought over from the Phase 9 branch: backups skipped for now, 09-31 and 09-32 deferred, the disk backup probe removed"
+last_activity: "2026-11-06: Phase 9 shipped to main (PR #23, a7c40cf2); main merged into this branch"
 state_head: 6273f6084bc3e4fb6697511f5be19e041fe89269
 progress:
   total_phases: 18
@@ -14,8 +14,8 @@ progress:
   completed_plans: 278
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-05T20:45:00-06:00"
-last_activity_desc: "D-51 applied on this branch: 09-31 and 09-32 deferred, backup probe removed; 09-33 runs on the Phase 9 branch"
+updated: "2026-11-06T10:53:00-06:00"
+last_activity_desc: "Phase 9 merged to main as PR #23 (09-31 and 09-32 deferred, D-51); main merged into the Phase 10 branch"
 ---
 
 # Project State
@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 
 Phase: 10 (Admin Dashboard) — READY TO EXECUTE
 Plan: 31 of 32
-Status: Phase 9 work lives on the Phase 9 branch; 09-31 and 09-32 deferred (D-51)
-Last activity: 2026-11-05: D-51 brought over from the Phase 9 branch (backup probe removed, 09-31 and 09-32 deferred)
+Status: Phase 9 shipped to main (PR #23); 09-31 and 09-32 deferred (D-51)
+Last activity: 2026-11-06: Phase 9 merged to main as PR #23 (a7c40cf2), and main merged into this branch
 
 Progress: [████░░░░░░] 44%
 

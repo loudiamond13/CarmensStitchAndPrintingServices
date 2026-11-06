@@ -1,11 +1,11 @@
 ---
 phase: "09"
 slug: "order-images-maintenance-jobs"
-status: draft
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: "2026-10-31T10:10:00-05:00"
-updated: "2026-11-04T09:45:00-06:00"
+updated: "2026-11-06T01:15:00-06:00"
 ---
 
 # Phase 9: Validation Strategy
@@ -118,23 +118,26 @@ Filled from the plans and their summaries (plan 09-30). A task is `green` when i
 | 09-30-01 | 30 | 9 | ORD-04, IMG-01, IMG-02, IMG-03, IMG-04, IMG-05, JOB-01, JOB-02 | T-09-74, T-09-75, T-09-SC | The phone path and every screen are proven accessible and CSP-clean end to end. | e2e | `npm --prefix web run e2e -- --grep @order-photos-a11y` | yes | green |
 | 09-30-02 | 30 | 9 | ORD-04, IMG-01, IMG-02, IMG-03, IMG-04, IMG-05, JOB-01, JOB-02 | T-09-74, T-09-75, T-09-SC | Every automated gate is green and the owner has the review pack. | web unit | `npm --prefix web run test -- --run src/modules/admin/components/showcase scripts/owner-review.test.ts (+4 more)` | yes | green |
 | 09-30-03 | 30 | 9 | ORD-04, IMG-01, IMG-02, IMG-03, IMG-04, IMG-05, JOB-01, JOB-02 | T-09-74, T-09-75, T-09-SC |  | manual (owner checkpoint) | `owner checkpoint (see Manual-Only Verifications)` | yes | pending |
-| 09-31-01 | 31 | 1 | CUT-01, JOB-01 | T-09-81, T-09-82 | One parameterised BACKUP statement in one allowed file; the probe answers facts only (D-40, D-42) | integration, unit, architecture | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*SqlServerBackupStatementTests"`; `dotnet test --project tests/Csps.HostProbe.Tests --filter-class "*BackupCheckTests"`; `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*NoInlineSqlTests"` | no, the task creates them (NoInlineSqlTests exists) | pending |
-| 09-31-02 | 31 | 1 | CUT-01 | T-09-83, T-09-84 | Owner adds db_backupoperator and runs the probe from the PC; a blocked host stops the work (D-42, D-44, D-45) | manual (owner checkpoint) | `dotnet build tools/Csps.HostProbe --configuration Release` | yes | pending |
-| 09-31-03 | 31 | 1 | CUT-01 | T-09-83 | Probe facts recorded without paths or names; the cutover runbook lists the three roles, or Task 1 is reverted (D-44) | architecture | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HostingRecordTests" --filter-class "*CutoverRunbookTests" --filter-class "*NoInlineSqlTests"` | yes | pending |
-| 09-32-01 | 32 | 8 | JOB-01, CUT-01 | T-09-86, T-09-87 | Backup first in the run (Order 5); counts-only lines; red when not set up; off on Development and test hosts (D-39, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | no, the task creates them | pending |
-| 09-32-02 | 32 | 8 | JOB-01, CUT-01 | T-09-85, T-09-88, T-09-89, T-09-91 | 20-day gap; one try a day through the `database-backup-attempt` claim (one write call per run, failure stays red); no line on repeat calls after a fresh backup; keep own newest 3; never touch foreign files; red on any failure while other jobs run (D-41, D-43, D-46, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests" --filter-class "*BackupAttemptLockTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | created in 09-32-01, except BackupAttemptLockTests (this task) | pending |
-| 09-32-03 | 32 | 8 | CUT-01 | T-09-87 | Runbook backup and restore sections, no path or name; UI-SPEC run-summary row | docs check | `grep -c "Maintenance__Backup__SqlServerFolder" docs/operations/maintenance.md` | yes | pending |
+| 09-31-01 | 31 | 1 | CUT-01, JOB-01 | T-09-81, T-09-82 | One parameterised BACKUP statement in one allowed file; the probe answers facts only (D-40, D-42) | integration, unit, architecture | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*SqlServerBackupStatementTests"`; `dotnet test --project tests/Csps.HostProbe.Tests --filter-class "*BackupCheckTests"`; `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*NoInlineSqlTests"` | no, the task creates them (NoInlineSqlTests exists) | deferred (D-51) |
+| 09-31-02 | 31 | 1 | CUT-01 | T-09-83, T-09-84 | Owner adds db_backupoperator and runs the probe from the PC; a blocked host stops the work (D-42, D-44, D-45) | manual (owner checkpoint) | `dotnet build tools/Csps.HostProbe --configuration Release` | yes | deferred (D-51) |
+| 09-31-03 | 31 | 1 | CUT-01 | T-09-83 | Probe facts recorded without paths or names; the cutover runbook lists the three roles, or Task 1 is reverted (D-44) | architecture | `dotnet test --project tests/Csps.ArchitectureTests --filter-class "*HostingRecordTests" --filter-class "*CutoverRunbookTests" --filter-class "*NoInlineSqlTests"` | yes | deferred (D-51) |
+| 09-32-01 | 32 | 8 | JOB-01, CUT-01 | T-09-86, T-09-87 | Backup first in the run (Order 5); counts-only lines; red when not set up; off on Development and test hosts (D-39, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | no, the task creates them | deferred (D-51) |
+| 09-32-02 | 32 | 8 | JOB-01, CUT-01 | T-09-85, T-09-88, T-09-89, T-09-91 | 20-day gap; one try a day through the `database-backup-attempt` claim (one write call per run, failure stays red); no line on repeat calls after a fresh backup; keep own newest 3; never touch foreign files; red on any failure while other jobs run (D-41, D-43, D-46, D-47) | unit, integration | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*DatabaseBackupJobTests"`; `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*DatabaseBackupStoreTests" --filter-class "*BackupAttemptLockTests"`; `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*DatabaseBackupRunTests"` | created in 09-32-01, except BackupAttemptLockTests (this task) | deferred (D-51) |
+| 09-32-03 | 32 | 8 | CUT-01 | T-09-87 | Runbook backup and restore sections, no path or name; UI-SPEC run-summary row | docs check | `grep -c "Maintenance__Backup__SqlServerFolder" docs/operations/maintenance.md` | yes | deferred (D-51) |
+| 09-33-01 | 33 | 10 | ORD-04, IMG-04 | T-09-SC | A height-capped landscape photo sits centred between Previous and Next on the real order page (G-09-10). | web unit, e2e | `npm --prefix web run test -- --run src/components/media/PhotoViewer.test.tsx`; `npm --prefix web run e2e -- --grep "G-09-10" --project chromium --project pixel` | yes | green |
+| 09-33-02 | 33 | 10 | ORD-04, IMG-04 | T-09-SC | The band under a mockup is the photo's own background, and the centring holds in all five projects. | e2e | `npm --prefix web run e2e -- --grep "G-09-10"` | yes | green |
+| 09-33-03 | 33 | 10 | ORD-04, IMG-04 | T-09-SC | Records and gates are green; the owner's look at the real order joins the end-of-phase checks. | web unit, e2e | `npm --prefix web run verify`; `npm --prefix web run e2e -- --grep "@order-photos-view\|@order-photos-a11y"` | yes | green |
 
-*Status: pending, green, red, flaky*
+*Status: pending, green, red, flaky, deferred (D-51: 09-31 and 09-32 are not built; backups stay manual). Code review fixes (09-REVIEW-FIX.md, D-52 to D-55) each landed with their own failing test first.*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] Synthetic image fixtures built in test code, never real photos (public repo): JPEG with fake GPS at 0N 0E and Orientation 6, JPEG with XMP and trailing MPF bytes, PNG with `tEXt`/`eXIf`, WebP with `EXIF`/`XMP ` chunks, an ISOBMFF HEIC shell with an `Exif` item and `ispe`, an AVIF shell, an SVG renamed `.jpg`, truncated and looping files.
-- [ ] `TestingImageStorage` and `TestingImageDelivery` (memory store, same-origin URLs) so tests and Playwright never call Cloudinary.
-- [ ] A multipart request helper for integration tests (chosen boundary).
-- [ ] A large JPEG generated in the browser by canvas at Playwright test time.
+- [x] Synthetic image fixtures built in test code, never real photos (public repo): JPEG with fake GPS at 0N 0E and Orientation 6, JPEG with XMP and trailing MPF bytes, PNG with `tEXt`/`eXIf`, WebP with `EXIF`/`XMP ` chunks, an ISOBMFF HEIC shell with an `Exif` item and `ispe`, an AVIF shell, an SVG renamed `.jpg`, truncated and looping files.
+- [x] `TestingImageStorage` and `TestingImageDelivery` (memory store, same-origin URLs) so tests and Playwright never call Cloudinary.
+- [x] A multipart request helper for integration tests (chosen boundary).
+- [x] A large JPEG generated in the browser by canvas at Playwright test time.
 
 ---
 
@@ -154,9 +157,19 @@ Filled from the plans and their summaries (plan 09-30). A task is `green` when i
 
 - [x] All tasks have `<automated>` verify or Wave 0 dependencies (the owner checkpoints 09-30-03 and 09-31-02 are listed under Manual-Only Verifications)
 - [x] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated by the audit on 2026-11-06 (owner away); owner checkpoints 09-30-03 and the manual rows stay open in Phase 999.5.
+
+## Validation Audit 2026-11-06
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+| Rows added (09-33) | 3 |
+| Rows deferred (D-51) | 6 |
