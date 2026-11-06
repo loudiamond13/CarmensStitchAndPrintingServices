@@ -4,6 +4,7 @@ using Csps.Application.Images;
 using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Application.UnitTests.Auth;
+using Csps.Application.Users;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
 using Csps.Domain.Time;
@@ -94,7 +95,7 @@ public sealed class UploadOrderImageCompensationTests
         harness.Unit.Commits.ShouldBe(1);
         harness.Order.Images.Count.ShouldBe(1);
         harness.Queue.Calls.ShouldBeEmpty();
-        result.ShouldNotBeNull();
+        result.IsSuccess.ShouldBeTrue();
     }
 
     [Theory]
@@ -201,7 +202,7 @@ public sealed class UploadOrderImageCompensationTests
             });
             var calendar = new FixedCalendar();
             var reader = Substitute.For<IOrderReader>();
-            reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<OrderDetailResponse?>(null));
+            reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(call => Task.FromResult<OrderDetailResponse?>(Detail(call.Arg<Guid>())));
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(CallerId);
             Handler = new UploadOrderImageHandler(Orders, reader, calendar, Substitute.For<IAuditTrail>(), Unit, request, Storage, Queue, new ImageUploadSettings());
@@ -220,6 +221,34 @@ public sealed class UploadOrderImageCompensationTests
         public List<string> StoredIds { get; } = [];
 
         public UploadOrderImageHandler Handler { get; }
+
+        private static OrderDetailResponse Detail(Guid id) => new(
+            id,
+            OrderNumber,
+            "Juan Dela Cruz",
+            null,
+            "0917 123 4567",
+            null,
+            null,
+            Today,
+            Today.AddDays(14),
+            "pending",
+            Now,
+            null,
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            new OrderTotalsResponse(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, false),
+            new ActorRef(CallerId, "Mina Mercado", false),
+            Now,
+            null,
+            null,
+            "AAAAAAAAH6Q=",
+            Today);
 
         public static Order NewOrder()
         {
