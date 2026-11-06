@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T20:30:00-06:00
-updated: 2026-11-04T09:30:00-06:00
+updated: 2026-11-05T20:58:00-05:00
 ---
 
 # Cloudinary setup: where the photo keys go
@@ -135,9 +135,9 @@ Do these in order when Phase 9 goes live. The list is also copied into the plan 
 
 1. Apply the deploy package's `csps-migrations.sql` to the live database. It adds the `OrderImages` and `ImageDeletions` tables. It only adds; nothing is dropped or changed.
 2. Set these as app pool environment variables on the host: `Cloudinary__CloudName`, `Cloudinary__ApiKey`, `Cloudinary__ApiSecret` and `Maintenance__Key` (32 or more characters). Never paste the values into a chat or into a tracked file.
-3. Only when the database backup (plan 09-32) is built, also set `Maintenance__Backup__SqlServerFolder` and `Maintenance__Backup__AppFolder`. Keep both paths out of the repository and out of chat. Plan 09-32 waits for the hosting company's answer, so skip this item until it is built.
+3. Database backups are deferred (D-51). The host's SQL server cannot write a backup file, so nothing in the app makes one and there are no backup settings to add. Take backups by hand in the hosting control panel until the owner decides on a backup plan.
 4. Add the GitHub repository secret `MAINTENANCE_KEY` with the same value as `Maintenance__Key`. Check that the variable `SITE_ORIGIN` is the live https address.
 5. Deploy. Then take one photo with a phone camera on an Android phone and one on an iPhone, add each to a test order on the live site, and check that both show upright.
-6. Press "Run now" on the Maintenance workflow once. The summary must be green and show counts only. When the backup is built it must also show `Database backups written: 1`. A line saying the backup "did not show up in the app folder" means the app-side folder path is wrong; see `docs/operations/maintenance.md`.
+6. Press "Run now" on the Maintenance workflow once, from `main`. The summary must be green and show counts only. It shows no database backup line, because backups are deferred (D-51).
 
 The steps for the key, the schedule and a red run are in `docs/operations/maintenance.md`.
