@@ -249,7 +249,7 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
         var number = second.GetProperty("number").GetString()!;
 
         var one = await rig.ReadAsync($"q={Uri.EscapeDataString(number)}");
-        var all = await rig.ReadAsync("q=ORD-2026");
+        var all = await rig.ReadAsync($"q=ORD-{rig.Today.Year:D4}");
 
         Names(one).ShouldBe(["Maria Santos"]);
         all.GetProperty("total").GetInt32().ShouldBe(2);
