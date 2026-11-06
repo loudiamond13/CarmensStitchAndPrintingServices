@@ -1,5 +1,5 @@
 # Phase 9: Order Images & Maintenance Jobs - Context
-*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-11-05T21:30:00-05:00*
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-11-06T07:59:00-06:00*
 
 **Gathered:** 2026-10-31
 **Status:** Ready for planning
@@ -72,6 +72,7 @@ The owner decisions the roadmap lists for this phase are closed here: OD-9 and C
 - **D-53:** **The 25 megapixel and side limits apply to the shrunk photo** (owner, 2026-11-05; review WR-G3-03): the browser checks `MaxPixels` and `MaxSide` against the prepared photo after the D-18 downscale, not the original. A much higher ceiling (100 megapixels) on the original stays, only to protect the phone's memory. The server rules are unchanged. **Reversibility:** reversible.
 - **D-54:** **The stray sweep keeps its place between runs** (owner, 2026-11-05; review WR-G1A-02): the listing cursor is saved in a small new database row (an additive migration, no JSON column), so a large folder finishes over several runs. The cursor is cleared when a pass completes. **Reversibility:** reversible, drop the row in a later migration.
 - **D-55:** **A removal that keeps failing goes quiet after 5 tries** (owner, 2026-11-05; review WR-G1A-07; amends D-22): a queued removal that has failed 5 times no longer turns the run red. It stays queued, and the run answer and the log show a "needs attention" count. Fewer than 5 tries still turns the run red as in D-22. **Reversibility:** reversible.
+- **D-56:** **The pixel-limit message says megapixels** (owner, 2026-11-06; UI review finding 2): the message stays "{file name} is too big. Photos can be at most {max} megapixels." in the browser and on the server, as built. The UI-SPEC wording "pixels wide or tall" is replaced. **Reversibility:** reversible, copy only.
 
 ### UI contract rulings (UI-SPEC OQ-1 to OQ-7)
 - **D-25:** **Photos show as one compact photo list** on the order page and the order form: each photo is a small card with an 88px thumbnail, its description, "Make Cover" and four 44px buttons; 2 columns on wide screens, 1 on phones. No mosaic gallery (OQ-1 A; owner, 2026-10-31).

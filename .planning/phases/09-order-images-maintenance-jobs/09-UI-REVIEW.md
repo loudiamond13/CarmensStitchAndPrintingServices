@@ -1,6 +1,6 @@
 # Phase 9 UI Review
 
-*Created: 2026-11-06T09:00:00-06:00 · Updated: 2026-11-06T09:00:00-06:00*
+*Created: 2026-11-06T07:55:00-06:00 · Updated: 2026-11-06T07:59:00-06:00*
 
 **Audited:** 2026-11-06
 **Baseline:** `09-UI-SPEC.md` (approved), plus project rules (OR-3, OR-4, WCAG 2.2 AA, 44 px targets, strict CSP, en-PH)
@@ -33,7 +33,7 @@
 ## Top 3 Priority Fixes
 
 1. **Viewer image off-centre in wide windows (WARNING, known G-09-10)** - every photo opened on a desktop looks lopsided between Previous and Next - add `justify-self-center` (and keep `max-w-full`) to `viewerImageClasses` at `photoViewer.recipe.ts:44`, with the failing test first as plan 09-33 says.
-2. **Pixel-limit message does not match the spec (WARNING)** - the spec (Validation table) says "{file name} is too big. Photos can be at most {max} pixels wide or tall." but the browser says "...at most N megapixels." (`orderPhotosCopy.ts` `reasons.pixels`) and the server says "Photos can be at most 25 megapixels." (`src/Csps.Application/Images/ImageErrors.cs:21`). Both sides agree with each other, so there is no OR-3 drift, but the spec and the code differ and the owner has not ruled. Ask the owner which wording stands (megapixels is easier for staff to read), then record a dated ruling and update the spec or the two strings together.
+2. **Pixel-limit message does not match the spec (WARNING)** - the spec (Validation table) says "{file name} is too big. Photos can be at most {max} pixels wide or tall." but the browser says "...at most N megapixels." (`orderPhotosCopy.ts` `reasons.pixels`) and the server says "Photos can be at most 25 megapixels." (`src/Csps.Application/Images/ImageErrors.cs:21`). Both sides agree with each other, so there is no OR-3 drift, but the spec and the code differ and the owner has not ruled. **Outcome: fixed in the spec.** The owner kept the megapixels wording (D-56, 2026-11-06), and the UI-SPEC Validation table now matches the code.
 3. **Prove the visual claims in a browser before release (WARNING)** - 320 px fit of the tile rows, the 44 px tap areas on the `sm` buttons, and contrast of `text-ink-muted` on `--surface-2` were not checked. `09-REVIEW-FIX.md` says the Playwright e2e was not run after the fixes. Run the owner-review and axe e2e once the machine is free (preflight first), and attach screenshots at 320, 390, 820 and 1440 px in both themes.
 
 ---
