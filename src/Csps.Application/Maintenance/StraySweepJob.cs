@@ -13,7 +13,8 @@ namespace Csps.Application.Maintenance;
 /// <param name="queue">The removal queue.</param>
 /// <param name="inventory">Tells which ids the database knows.</param>
 /// <param name="time">The clock.</param>
-public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue queue, IImageInventory inventory, TimeProvider time) : IMaintenanceJob
+/// <param name="log">The server log for a storage read that failed.</param>
+public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue queue, IImageInventory inventory, TimeProvider time, IMaintenanceJobLog log) : IMaintenanceJob
 {
     /// <summary>The label of the count of queued stray files.</summary>
     public const string StrayLabel = "Stray files removed (older than 2 days)";
@@ -76,8 +77,9 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
             }
             while (cursor is not null);
         }
-        catch (ImageStorageException)
+        catch (ImageStorageException failure)
         {
+            log.StorageReadFailed(Name, failure.FailureCode);
             unreadable = true;
         }
 

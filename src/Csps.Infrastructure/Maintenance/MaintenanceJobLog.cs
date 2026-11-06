@@ -13,6 +13,12 @@ internal sealed partial class MaintenanceJobLog(ILogger<MaintenanceJobLog> logge
     /// <inheritdoc />
     public void RemovalFailed(long rowId, string failureCode) => LogRemovalFailed(logger, rowId, failureCode);
 
+    /// <inheritdoc />
+    public void StorageReadFailed(string jobName, string failureCode) => LogStorageReadFailed(logger, jobName, failureCode);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The maintenance job {JobName} could not read the photo storage. Code {FailureCode}.")]
+    private static partial void LogStorageReadFailed(ILogger logger, string jobName, string failureCode);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "A queued photo removal failed. Queue row {RowId}, code {FailureCode}.")]
     private static partial void LogRemovalFailed(ILogger logger, long rowId, string failureCode);
 
