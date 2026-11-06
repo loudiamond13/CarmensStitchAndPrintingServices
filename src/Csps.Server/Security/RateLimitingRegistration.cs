@@ -16,20 +16,14 @@ public static class RateLimitingRegistration
     /// <summary>The machine code a limiter rejection carries.</summary>
     public const string RateLimitedCode = "rate-limited";
 
-    private const string UploadEndpointName = "UploadOrderImage";
-    private const string UploadSlotsKey = "image-upload-slots";
-    private const string NoLimitKey = "no-limit";
-    private const int UploadsAtOnce = 2;
-    private const int UploadsWaiting = 4;
-    private const int BusyRetrySeconds = 60;
-    private const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
+    internal const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
     private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
     private const int SegmentsPerWindow = 6;
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy and the photo upload policy, plus the app-wide cap of two uploads at a time. The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
+    /// Adds the six auth policies, the maintenance policy and the photo upload policy, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
     /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -64,11 +58,11 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.ImageUpload] = images.Window,
         };
 
+        services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, cancellationToken) => WriteRejectionAsync(context, windows, cancellationToken);
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(UploadSlots);
             AddPolicy(options, RateLimitPolicies.SignIn, settings.SignIn);
             AddPolicy(options, RateLimitPolicies.Verify, settings.Verify);
             AddPolicy(options, RateLimitPolicies.Resend, settings.Resend);
@@ -80,18 +74,6 @@ public static class RateLimitingRegistration
         });
         return services;
     }
-
-    // One shared pool of upload slots for the whole app, so a few 10 MB uploads cannot exhaust the 256 MB app pool (T-09-27).
-    // Only the photo upload endpoint takes a slot; every other request is not limited here.
-    private static RateLimitPartition<string> UploadSlots(HttpContext context) =>
-        context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName == UploadEndpointName
-            ? RateLimitPartition.GetConcurrencyLimiter(UploadSlotsKey, _ => new ConcurrencyLimiterOptions
-            {
-                PermitLimit = UploadsAtOnce,
-                QueueLimit = UploadsWaiting,
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            })
-            : RateLimitPartition.GetNoLimiter(NoLimitKey);
 
     /// <summary>
     /// Builds the bucket key for a client address: the full IPv4 address, the first 64 bits of an IPv6 address (one
@@ -145,23 +127,16 @@ public static class RateLimitingRegistration
         var http = context.HttpContext;
         var policy = http.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
 
-        // The app-wide upload cap is full: its lease names a reason and no wait, and a minute is the honest answer.
-        var uploadsBusy = !context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var wait) && context.Lease.TryGetMetadata(MetadataName.ReasonPhrase, out _);
-        if (uploadsBusy)
-        {
-            wait = TimeSpan.FromSeconds(BusyRetrySeconds);
-        }
-
         // A window reports its own wait; if a lease reports none, the policy's whole window is the safe answer: after it, every
         // earlier request has left the window. Whole seconds, rounded up and never below 1 (SEC-03 precision edge).
-        if (uploadsBusy || context.Lease.TryGetMetadata(MetadataName.RetryAfter, out wait)
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var wait)
             || (policy is not null && windows.TryGetValue(policy, out wait)))
         {
             var seconds = Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds));
             http.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
         }
 
-        var detail = uploadsBusy || policy == RateLimitPolicies.ImageUpload ? UploadsBusyDetail : AttemptsDetail;
+        var detail = policy == RateLimitPolicies.ImageUpload ? UploadsBusyDetail : AttemptsDetail;
         var problem = CspsProblemDetails.Build(http, StatusCodes.Status429TooManyRequests, detail, code: RateLimitedCode);
         await TypedResults.Problem(problem).ExecuteAsync(http).ConfigureAwait(false);
     }

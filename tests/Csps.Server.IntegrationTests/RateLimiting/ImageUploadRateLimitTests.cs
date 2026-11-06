@@ -118,6 +118,40 @@ public sealed class ImageUploadRateLimitTests(CspsDatabase database) : IClassFix
         storage.Uploads.Count.ShouldBe(ProcessedAtOnce + Waiting);
     }
 
+    [Fact]
+    public async Task AnAnonymousUploadIsRefusedWith401EvenWhenAllSlotsAndQueuePlacesAreTaken()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+        var orders = new List<Guid>();
+        for (var count = 0; count < ProcessedAtOnce + Waiting; count++)
+        {
+            orders.Add(await CreateOrderAsync(factory, client, manager.AccessToken));
+        }
+
+        storage.HoldUploadsStepwise();
+        var uploads = orders.Select(id => Task.Run(() => UploadAsync(client, manager.AccessToken, id), TestContext.Current.CancellationToken)).ToList();
+        await WaitForAsync(() => storage.Uploads.Count == ProcessedAtOnce);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+
+        using var anonymous = await UploadAnonymouslyAsync(client, Guid.NewGuid(), "203.0.113.30");
+
+        for (var step = 1; step <= uploads.Count; step++)
+        {
+            storage.ReleaseNext();
+            await WaitForAsync(() => uploads.Count(upload => upload.IsCompleted) == step);
+        }
+
+        foreach (var answer in await Task.WhenAll(uploads).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken))
+        {
+            answer.Dispose();
+        }
+
+        anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
     private static async Task WaitForAsync(Func<bool> condition)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
