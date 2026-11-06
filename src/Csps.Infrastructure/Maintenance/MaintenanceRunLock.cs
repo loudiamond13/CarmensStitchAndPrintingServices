@@ -17,8 +17,12 @@ internal sealed class MaintenanceRunLock(IDbContextFactory<CspsDbContext> contex
     /// <summary>The name of the claim row.</summary>
     internal const string LockName = "maintenance-run";
 
-    /// <summary>How long the lease counts when its run never gives it back.</summary>
-    internal static readonly TimeSpan Lease = TimeSpan.FromMinutes(3);
+    /// <summary>
+    /// How long the lease counts when its run never gives it back. It is longer than the worst case of a run that is still working:
+    /// the 90 second budget, a last photo removal of 3 tries at 60 seconds plus 10 seconds of waits, and the usage call of 60 seconds
+    /// (340 seconds in all).
+    /// </summary>
+    internal static readonly TimeSpan Lease = TimeSpan.FromMinutes(10);
 
     private const int DuplicateIndexKey = 2601;
     private const int DuplicateKey = 2627;

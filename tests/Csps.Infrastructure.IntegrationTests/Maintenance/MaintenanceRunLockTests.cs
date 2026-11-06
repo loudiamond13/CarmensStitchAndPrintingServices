@@ -1,3 +1,4 @@
+using Csps.Application.Maintenance;
 using Csps.Infrastructure.Maintenance;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
@@ -12,7 +13,7 @@ public sealed class MaintenanceRunLockTests(CspsDatabase database) : IClassFixtu
     private const string LockName = "maintenance-run";
 
     private static readonly DateTimeOffset Now = new(2026, 11, 3, 12, 0, 0, TimeSpan.Zero);
-    private static readonly TimeSpan Lease = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan Lease = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(20);
 
     [Fact]
@@ -29,13 +30,23 @@ public sealed class MaintenanceRunLockTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task TheLeaseLastsThreeMinutes()
+    public async Task TheLeaseLastsTenMinutes()
     {
         await ClearAsync();
 
         await NewLock().TryTakeAsync(Guid.NewGuid(), Now, TestContext.Current.CancellationToken);
 
         (await ReadExpiryAsync()).ShouldBe(Now + Lease);
+    }
+
+    [Fact]
+    public void TheLeaseOutlastsTheWorstCaseRun()
+    {
+        // The 90 second pass budget is checked only between rows, so a row can start at its edge: three storage tries of 60 seconds
+        // plus the 2 and 8 second waits, then the usage call of up to 60 seconds that runs whatever the budget.
+        var worstCase = MaintenanceBudget.DefaultDuration + (3 * TimeSpan.FromSeconds(60)) + TimeSpan.FromSeconds(10) + TimeSpan.FromSeconds(60);
+
+        MaintenanceRunLock.Lease.ShouldBeGreaterThan(worstCase);
     }
 
     [Fact]
