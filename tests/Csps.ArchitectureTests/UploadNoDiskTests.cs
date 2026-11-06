@@ -19,6 +19,9 @@ public sealed partial class UploadNoDiskTests
         "src/Csps.Application/Orders/UploadOrderImageHandler.cs",
         "src/Csps.Application/Images/ImageInspection.cs",
         "src/Csps.Application/Images/ImageSniffer.cs",
+        "src/Csps.Application/Images/ImageMetadataStripper.cs",
+        "src/Csps.Application/Images/ImageMetadataStripper.Heic.cs",
+        "src/Csps.Infrastructure/Images/CloudinaryImageStorage.cs",
         "src/Csps.Server/Controllers/OrderImagesController.cs",
         "src/Csps.Server/Security/IdempotencyMiddleware.cs",
         "src/Csps.Server/Http/RequestBodyLimitMiddleware.cs",
@@ -35,7 +38,7 @@ public sealed partial class UploadNoDiskTests
             .Select(entry => $"{entry.relative}:{entry.number}: {entry.line.Trim()}")
             .ToList();
 
-        offenders.ShouldBeEmpty("Uploads stay in memory (IMG-02): no File., FileStream, Path.GetTempFileName or Path.GetTempPath in the upload code.");
+        offenders.ShouldBeEmpty("Uploads stay in memory (IMG-02): no File., Directory., FileStream, FileInfo, DirectoryInfo, Path.GetTempFileName, Path.GetTempPath or Path.GetRandomFileName in the upload code.");
     }
 
     [Fact]
@@ -84,6 +87,10 @@ public sealed partial class UploadNoDiskTests
     [InlineData("var stream = new FileStream(path, FileMode.Create);")]
     [InlineData("var path = Path.GetTempFileName();")]
     [InlineData("var folder = Path.GetTempPath();")]
+    [InlineData("var name = Path.GetRandomFileName();")]
+    [InlineData("var folder = Directory.CreateTempSubdirectory();")]
+    [InlineData("var info = new FileInfo(path);")]
+    [InlineData("var info = new DirectoryInfo(path);")]
     public void TheScannerFlagsEachDiskUse(string line) => Offends(line).ShouldBeTrue();
 
     [Theory]
@@ -93,6 +100,8 @@ public sealed partial class UploadNoDiskTests
     [InlineData("    // Never use File.WriteAllBytes or Path.GetTempPath here.")]
     [InlineData("    /// <summary>Not a FileStream.</summary>")]
     [InlineData("private const string FileField = \"file\";")]
+    [InlineData("var name = Path.GetFileName(upload.FileName);")]
+    [InlineData("var unit = new ImageDirectory.Entry();")]
     public void TheScannerAllowsMemoryCopiesAndComments(string line) => Offends(line).ShouldBeFalse();
 
     // A comment-only line is skipped so documentation may name the banned calls.
@@ -102,6 +111,6 @@ public sealed partial class UploadNoDiskTests
         return !CommentPrefixes.Any(prefix => trimmed.StartsWith(prefix, StringComparison.Ordinal)) && DiskUse().IsMatch(line);
     }
 
-    [GeneratedRegex(@"(?<![A-Za-z0-9_])File\.|\bFileStream\b|\bPath\.GetTempFileName\b|\bPath\.GetTempPath\b")]
+    [GeneratedRegex(@"(?<![A-Za-z0-9_])(?:File|Directory)\.|\b(?:FileStream|FileInfo|DirectoryInfo)\b|\bPath\.(?:GetTempFileName|GetTempPath|GetRandomFileName)\b")]
     private static partial Regex DiskUse();
 }
