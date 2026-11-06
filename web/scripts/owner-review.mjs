@@ -178,7 +178,7 @@ export const OUTPUT_NOT_IGNORED_MESSAGE =
   'stops; restore the `artifacts/` rule in .gitignore and run it again.';
 
 const SERVER_PROJECT = path.join(REPO_ROOT, 'src', 'Csps.Server');
-/** The per-address auth limit the host runs with: high enough that signing in many times never reaches it (playwright.config.ts). */
+/** The per-address limit the host runs with: high enough that signing in or uploading many times never reaches it (playwright.config.ts). */
 const NO_THROTTLE = '100000';
 /**
  * The host's variables, set on that one child only, never at User or Machine level. The Testing environment is the one the
@@ -186,7 +186,7 @@ const NO_THROTTLE = '100000';
  * signed-in pictures need (plan 05-37). Csps__Testing__LoadUserSecrets reads this developer's user-secrets for the JWT key
  * and the Data Protection certificate; no secret is passed or written here.
  */
-const HOST_ENV = Object.freeze({
+export const HOST_ENV = Object.freeze({
   ASPNETCORE_ENVIRONMENT: 'Testing',
   Csps__Testing__LoadUserSecrets: 'true',
   App__PublicBaseUrl: ORIGIN,
@@ -198,6 +198,8 @@ const HOST_ENV = Object.freeze({
   RateLimits__Auth__Forgot__PermitLimit: NO_THROTTLE,
   RateLimits__Auth__Reset__PermitLimit: NO_THROTTLE,
   RateLimits__Auth__Refresh__PermitLimit: NO_THROTTLE,
+  // The Phase 9 pictures upload about 80 photos from this one address (30 per 10 minutes in production, IMG-02).
+  RateLimits__Images__PermitLimit: NO_THROTTLE,
 });
 // The Development host also loads the build-time static web assets manifest, whose wwwroot files would win over
 // --webroot; a manifest path that never exists turns that loader off for this host only (playwright.config.ts).
