@@ -4,8 +4,8 @@ namespace Csps.Application.Maintenance;
 
 /// <summary>
 /// Reconciles the photo storage with the database once a month (JOB-02, D-23): it lists this environment's own orders folder, and
-/// queues every file that no photo row and no removal row knows and that is older than 2 days. The removal job in the same run then
-/// removes them. A photo of a soft-deleted order is known, so it is kept. The job never looks outside the folder
+/// queues every file that no photo row and no removal row knows and that is older than 2 days, up to <see cref="MaxStraysPerRun"/> files
+/// per run; when it finds more, it queues the first ones and the run turns red (D-52). The removal job in the same run then removes them. A photo of a soft-deleted order is known, so it is kept. The job never looks outside the folder
 /// <c>{RootFolder}/orders/</c>, and it does nothing when the storage is not set up. Lines hold counts and fixed sentences only, never a
 /// file id.
 /// </summary>
@@ -27,6 +27,15 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
 
     /// <summary>The failed line for a listing that could not be read.</summary>
     public const string UnreadableText = "The stray file sweep could not read the photo storage.";
+
+    /// <summary>The most stray files one run queues (D-52). More than this turns the run red, so the owner checks before more photos go.</summary>
+    public const int MaxStraysPerRun = 50;
+
+    /// <summary>The label of the failed line for a run that found more strays than the cap.</summary>
+    public const string LimitLabel = "Stray file limit";
+
+    /// <summary>The failed line for a run that found more strays than the cap.</summary>
+    public const string LimitText = "More than 50 stray files were found, so only the first 50 were queued for removal. Check the photo storage and the database before the next run.";
 
     /// <summary>A file younger than this is never swept: an upload may still be saving its photo row.</summary>
     public static readonly TimeSpan MinimumAge = TimeSpan.FromDays(2);
@@ -53,6 +62,7 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         long queued = 0;
         var more = false;
         var unreadable = false;
+        var overCap = false;
         string? cursor = null;
 
         try
@@ -67,10 +77,17 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
 
                 var page = await storage.ListAsync(folder, cursor, cancellationToken).ConfigureAwait(false);
                 var strays = await FindStraysAsync(page, folder, cutOff, cancellationToken).ConfigureAwait(false);
-                if (strays.Count > 0)
+                var take = (int)Math.Min(strays.Count, MaxStraysPerRun - queued);
+                if (take > 0)
                 {
-                    await queue.EnqueueManyNowAsync(strays, ImageDeletionReason.Stray, cancellationToken).ConfigureAwait(false);
-                    queued += strays.Count;
+                    await queue.EnqueueManyNowAsync(strays.GetRange(0, take), ImageDeletionReason.Stray, cancellationToken).ConfigureAwait(false);
+                    queued += take;
+                }
+
+                if (strays.Count > take)
+                {
+                    overCap = true;
+                    break;
                 }
 
                 cursor = page.NextCursor;
@@ -84,6 +101,11 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         }
 
         var lines = new List<MaintenanceLine> { new(StrayLabel, queued, false, null) };
+        if (overCap)
+        {
+            lines.Add(new MaintenanceLine(LimitLabel, null, true, LimitText));
+        }
+
         if (unreadable)
         {
             lines.Add(new MaintenanceLine(CloudinaryUsageJob.FailedLabel, null, true, UnreadableText));

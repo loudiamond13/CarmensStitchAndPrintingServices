@@ -204,6 +204,71 @@ public sealed class StraySweepJobTests
     }
 
     [Fact]
+    public void TheCapIs50FilesPerRun()
+    {
+        StraySweepJob.MaxStraysPerRun.ShouldBe(50);
+    }
+
+    [Fact]
+    public async Task ExactlyAsManyStraysAsTheCapAreAllQueuedAndTheRunStaysGreen()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(null, new StoredImagePage(Strays(0, StraySweepJob.MaxStraysPerRun), null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.Count.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        report.Lines.ShouldNotContain(line => line.Failed);
+    }
+
+    [Fact]
+    public async Task MoreStraysThanTheCapOnOnePageQueuesTheFirstFiftyAndTurnsTheRunRed()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(null, new StoredImagePage(Strays(0, StraySweepJob.MaxStraysPerRun + 1), null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe(Strays(0, StraySweepJob.MaxStraysPerRun).Select(entry => entry.PublicId));
+        report.Lines.Single(line => line.Label == StrayLabel).Value.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        var failed = report.Lines.Single(line => line.Failed);
+        failed.Label.ShouldBe("Stray file limit");
+        failed.Text.ShouldBe("More than 50 stray files were found, so only the first 50 were queued for removal. Check the photo storage and the database before the next run.");
+        report.More.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task TheCapHoldsAcrossPagesAndTheListingStopsOnceItIsPassed()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(null, new StoredImagePage(Strays(0, 30), "next-1"));
+        harness.Storage.Page("next-1", new StoredImagePage(Strays(30, 30), "next-2"));
+        harness.Storage.Page("next-2", new StoredImagePage(Strays(60, 30), null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.Count.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        harness.Storage.Listings.Count.ShouldBe(2);
+        report.Lines.Single(line => line.Label == StrayLabel).Value.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        report.Lines.ShouldContain(line => line.Failed);
+    }
+
+    [Fact]
+    public async Task AFullCapFollowedByAPageOfOnlyKnownFilesStaysGreen()
+    {
+        var harness = new Harness();
+        harness.Inventory.Photos.Add(PublicId("known"));
+        harness.Storage.Page(null, new StoredImagePage(Strays(0, StraySweepJob.MaxStraysPerRun), "next-1"));
+        harness.Storage.Page("next-1", new StoredImagePage([Entry(PublicId("known"), TimeSpan.FromDays(9))], null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.Count.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        report.Lines.ShouldNotContain(line => line.Failed);
+    }
+
+    [Fact]
     public async Task NoLineCarriesAPublicId()
     {
         var harness = new Harness();
@@ -213,6 +278,9 @@ public sealed class StraySweepJobTests
 
         report.Lines.ShouldAllBe(line => !(line.Label + line.Text).Contains("secret-name", StringComparison.Ordinal));
     }
+
+    private static List<StoredImageEntry> Strays(int first, int count) =>
+        [.. Enumerable.Range(first, count).Select(number => Entry(PublicId($"stray{number:D3}"), TimeSpan.FromDays(5)))];
 
     private sealed class Harness
     {
