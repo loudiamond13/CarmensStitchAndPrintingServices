@@ -71,13 +71,14 @@ public sealed class CloudinarySetupCommandTests
         $"{{\"name\":\"{size.Name}\",\"allowed_for_strict\":{allowed},\"used\":false,\"named\":true,\"info\":{InfoJson(size.Transformation, widthShift)},\"derived\":[]}}";
 
     // Queues the list answer and one detail answer per existing size, in catalog order.
-    private static void QueueExisting(StubCloudinaryHandler handler, IReadOnlyCollection<string> missing, string? differentName = null, string allowed = "true")
+    // differentName changes that size's width; notAllowedName keeps its definition but clears allowed_for_strict.
+    private static void QueueExisting(StubCloudinaryHandler handler, IReadOnlyCollection<string> missing, string? differentName = null, string? notAllowedName = null)
     {
         var existing = ImageNamedSizes.All.Where(size => !missing.Contains(size.Name)).ToList();
         handler.Reply(HttpStatusCode.OK, ListJson(existing.Select(size => size.Name)));
         foreach (var size in existing)
         {
-            handler.Reply(HttpStatusCode.OK, DetailJson(size, size.Name == differentName ? 1 : 0, size.Name == differentName ? allowed : "true"));
+            handler.Reply(HttpStatusCode.OK, DetailJson(size, size.Name == differentName ? 1 : 0, size.Name == notAllowedName ? "false" : "true"));
         }
     }
 
@@ -195,11 +196,14 @@ public sealed class CloudinarySetupCommandTests
     public async Task ASizeNotAllowedForStrictModeIsReportedAsDifferentAndNotChanged()
     {
         var (command, handler) = Build();
-        QueueExisting(handler, [], differentName: "csps_full_2000", allowed: "false");
-        var (exit, output) = await RunAsync(command, checkOnly: true);
+        QueueExisting(handler, [], notAllowedName: "csps_full_2000");
+
+        var (exit, output) = await RunAsync(command, checkOnly: false);
 
         exit.ShouldBe(1);
         output.ShouldContain("csps_full_2000: different");
+        output.ShouldContain("12 exist, 1 different");
+        handler.Requests.ShouldAllBe(request => request.Method == HttpMethod.Get);
     }
 
     [Fact]
