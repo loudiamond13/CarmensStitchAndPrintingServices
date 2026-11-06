@@ -4,6 +4,7 @@ using System.Text;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
+using Csps.Server.IntegrationTests.Logging;
 using Csps.Server.IntegrationTests.Orders;
 using Csps.Testing;
 using Csps.Testing.Images;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog.Events;
+using Serilog.Formatting.Compact;
 
 namespace Csps.Server.IntegrationTests.Images;
 
@@ -70,13 +72,20 @@ public sealed class ImageSecretExposureTests(CspsDatabase database) : IClassFixt
 
         seen.ToString().ShouldNotContain(FakeSecret);
         seen.ToString().ShouldNotContain(FakeKey);
+        await LogEvents.RequestCompletionAsync(baseFactory.Sink, "/api/v1/orders/image-rules", TestContext.Current.CancellationToken);
+        baseFactory.Sink.Events.ShouldNotBeEmpty();
         var logs = string.Join('\n', baseFactory.Sink.Events.Select(Render));
         logs.ShouldNotContain(FakeSecret);
         logs.ShouldNotContain(FakeKey);
     }
 
-    private static string Render(LogEvent logEvent) =>
-        logEvent.RenderMessage(CultureInfo.InvariantCulture) + " " + string.Join(' ', logEvent.Properties.Select(property => property.Value.ToString()));
+    // One event as the log file writes it (message, properties and exception), plus the full exception text again.
+    private static string Render(LogEvent logEvent)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        new CompactJsonFormatter().Format(logEvent, writer);
+        return writer + " " + logEvent.Exception;
+    }
 
     private static async Task<string> Describe(HttpResponseMessage response)
     {
