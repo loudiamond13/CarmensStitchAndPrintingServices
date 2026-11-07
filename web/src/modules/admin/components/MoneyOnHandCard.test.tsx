@@ -42,6 +42,15 @@ describe('the card with a figure (D-39)', () => {
     ).toBeVisible();
   });
 
+  it('is a region named by its visible overline, so a screen reader can find it by landmark (wave 6 IN-02)', () => {
+    render(<MoneyOnHandCard query={queryOf({ data: moneyOf(8450) })} />);
+
+    const region = screen.getByRole('region', { name: 'Money on hand' });
+    expect(region).toContainElement(screen.getByText('₱8,450.00'));
+    expect(region).toHaveAttribute('aria-labelledby', screen.getByText('Money on hand').id);
+    expect(region).not.toHaveAttribute('aria-label');
+  });
+
   it('shows the figure at the large display size (Money lg)', () => {
     render(<MoneyOnHandCard query={queryOf({ data: moneyOf(8450) })} />);
 

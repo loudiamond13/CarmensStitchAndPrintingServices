@@ -78,6 +78,17 @@ describe('the figure from the server (D-46, MONEY-02)', () => {
     expect(calls[0]?.search).toBe('');
   });
 
+  it('is a region named by its visible label, so a screen reader can find it by landmark (wave 6 IN-02)', async () => {
+    myMoneyBackend();
+    renderFed();
+
+    await screen.findByText('₱8,450.00');
+    const region = screen.getByRole('region', { name: 'Your money on hand' });
+    expect(region).toContainElement(screen.getByText('₱8,450.00'));
+    expect(region).toHaveAttribute('aria-labelledby', screen.getByText('Your money on hand').id);
+    expect(region).not.toHaveAttribute('aria-label');
+  });
+
   it('links View Ledger to the My Money page', async () => {
     myMoneyBackend();
     renderFed();
