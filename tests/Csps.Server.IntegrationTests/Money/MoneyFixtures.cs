@@ -64,6 +64,19 @@ internal static class MoneyFixtures
             database,
             new ExpenseSeed(date, payerId, recorderId, now, ExpenseFixtures.SuppliesId, "Thread and needles", amount));
 
+    /// <summary>Soft-deletes an order so its money stops counting.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="orderId">The order.</param>
+    /// <param name="now">The delete instant.</param>
+    /// <returns>A task that completes once the order is marked.</returns>
+    public static async Task DeleteOrderAsync(CspsDatabase database, Guid orderId, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        await context.Orders.Where(row => row.Id == orderId)
+            .ExecuteUpdateAsync(set => set.SetProperty(row => row.DeletedAtUtc, now), TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads the caller's own money on hand.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token; none when null.</param>
