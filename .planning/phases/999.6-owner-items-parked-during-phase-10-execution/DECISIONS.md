@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T08:15:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T09:52:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -53,3 +53,15 @@ On phones the four dashboard figures sit in a 2 x 2 grid, as the UI spec says. T
 - **A (recommended):** one column on small phones (420 px and below), as the Expenses figures already do. Every figure fits at full size. The dashboard gets longer on a phone.
 - **B:** keep 2 x 2 and shrink six-digit figures on small phones (about 20 px). The figures stay side by side but are smaller to read.
 - **C:** let a long figure wrap onto a second line inside its card (for example after the peso sign). The grid stays 2 x 2 at full size, but some cards get taller. (Simply accepting the overflow is no longer an option: it makes the page scroll sideways.)
+
+## P10-BL-07 · What a staff member sees when the chosen person can't receive a transfer (plan 10-10)
+
+**Status:** open · **Blocks:** nothing; the server uses option A for now and the transfer screen comes in a later plan.
+
+When a staff member picks the old system's placeholder account ("Legacy / unassigned") or an account with no role, the server refuses the transfer. Plan 10-10 used the general D-58 line, which does not name the person: "This person can't receive transfers now. Choose someone else." The named version would show "Legacy / unassigned" to the user.
+
+- **A (used now, recommended):** keep the general line for these accounts. Staff never see the internal placeholder name.
+- **B:** name the person anyway, so the message reads "Legacy / unassigned can't receive transfers now."
+- **C:** give these accounts their own line, for example "This account can't receive transfers. Choose a coworker."
+
+Also still open from plan 10-08: the wording of two money errors no screen shows yet, "This person was not found." and "You can't do this." Later money plans should set them; if none does, this item will ask you.
