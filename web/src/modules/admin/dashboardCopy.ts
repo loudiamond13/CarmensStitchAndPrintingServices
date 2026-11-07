@@ -50,6 +50,24 @@ export const DASHBOARD_COPY = {
     // SPEC-GAP: the foot of the Company expenses card in a month with no entries.
     noExpenses: 'No expenses yet this month',
   },
+  /** The Income vs. expenses card (DASH-03, D-36, D-50, D-104). Month names come from the server's month keys. */
+  chart: {
+    title: 'Income vs. expenses',
+    /** "Last 6 months", "Last 12 months". */
+    sub: (months: number): string => `Last ${String(months)} months`,
+    /** The noun of the loading region and of the failure line: "Loading the chart…", "Couldn't load the chart." */
+    things: 'the chart',
+    /** The legend words (D-50) and the tooltip words (D-104): the tooltip says only "Profit". */
+    labels: {
+      income: 'Income (payments minus refunds)',
+      expenses: 'Expenses (company + orders)',
+      profit: 'Profit (income minus expenses)',
+      net: 'Net',
+      incomeTip: 'Income',
+      expensesTip: 'Expenses',
+      profitTip: 'Profit',
+    },
+  },
   /** Orders by status (DASH-04, D-08, 07 D-01). */
   statuses: {
     title: 'Orders by status',

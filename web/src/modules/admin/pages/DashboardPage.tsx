@@ -1,6 +1,7 @@
 // D1 Dashboard, /admin (DASH-01, DASH-02, DASH-06, D-13). The header: the greeting, the business date and the two actions, all
 // built from the server's summary, never the device clock; under it the cards that the same summary feeds. While the summary
 // loads or has failed the h1 reads "Dashboard", so the page always has a title; each card shows its own loading and failure.
+// The Income vs. expenses card reads its own query (the chart), so a failed chart never blanks the cards that the summary feeds.
 import clsx from 'clsx';
 import { useEffect } from 'react';
 import { ButtonLink } from '@/components/actions';
@@ -17,6 +18,7 @@ import {
   dashboardRowClasses,
   dashboardTitleClasses,
 } from '@/modules/admin/components/dashboard.recipe';
+import { IncomeExpenseCard } from '@/modules/admin/components/IncomeExpenseCard';
 import { OrdersByStatusCard } from '@/modules/admin/components/OrdersByStatusCard';
 import { RecentOrdersCard } from '@/modules/admin/components/RecentOrdersCard';
 import { ADMIN_COPY } from '@/modules/admin/copy';
@@ -57,8 +59,8 @@ export function DashboardRoute() {
         </div>
       </div>
       <DashboardKpiRow query={summary} />
-      {/* SPEC-GAP: the income chart card (plan 10-11) joins this row as its first child. */}
       <div className={dashboardRowClasses}>
+        <IncomeExpenseCard />
         <OrdersByStatusCard query={summary} />
       </div>
       <RecentOrdersCard query={summary} />

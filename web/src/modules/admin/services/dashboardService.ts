@@ -13,14 +13,18 @@ export interface DashboardService {
    * six status counts and the six newest orders in one live answer. It takes no parameters and the server never caches it.
    */
   summary(signal?: AbortSignal): Promise<DashboardSummaryResponse>;
-  /** `GET /api/v1/dashboard/chart?months=6|12`: STUB. */
+  /**
+   * `GET /api/v1/dashboard/chart?months=6|12`: income, expenses and profit for each business month, oldest first, the current
+   * month last. Every figure is the server's; the server answers 400 for any other month count.
+   */
   chart(months: number, signal?: AbortSignal): Promise<DashboardChartResponse>;
 }
 
 export function createDashboardService(client: HttpClient): DashboardService {
   return {
     summary: (signal) => client.get<DashboardSummaryResponse>('/dashboard/summary', { signal }),
-    chart: () => Promise.resolve({ months: 0, items: [] }),
+    chart: (months, signal) =>
+      client.get<DashboardChartResponse>('/dashboard/chart', { params: { months: String(months) }, signal }),
   };
 }
 
