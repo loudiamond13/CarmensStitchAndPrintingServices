@@ -29,10 +29,19 @@ public sealed record BusinessClock(TimeZoneInfo Zone, ZoneSource Source, DateTim
     /// <summary>Returns the Monday and the Sunday of the week that holds <paramref name="day"/> (D-01).</summary>
     /// <param name="day">Any day of the week.</param>
     /// <returns>The Monday and the Sunday of that week.</returns>
-    public static (DateOnly Monday, DateOnly Sunday) WeekOf(DateOnly day) => (day, day);
+    public static (DateOnly Monday, DateOnly Sunday) WeekOf(DateOnly day)
+    {
+        var monday = day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
+        return (monday, monday.AddDays(6));
+    }
 
     /// <summary>The part of the business day now, read from <see cref="LocalNow"/> (DASH-01).</summary>
-    public DayPart DayPart => LocalNow.Hour >= 0 ? DayPart.Morning : DayPart.Evening;
+    public DayPart DayPart => LocalNow.Hour switch
+    {
+        < 12 => DayPart.Morning,
+        < 18 => DayPart.Afternoon,
+        _ => DayPart.Evening,
+    };
 
     /// <summary>
     /// Returns the UTC instants that bound the business days <paramref name="from"/> through
