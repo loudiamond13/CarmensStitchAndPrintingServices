@@ -1,7 +1,7 @@
----
+| IN-10 | Fixed (`a67120e0`): `isPending` removed. || IN-08 | Fixed (`8e4a64c6`): `data-kpi-icon` on the KpiCard tile, targeted by the phone rule. || IN-06 | Fixed (`cb705e39`). || IN-05 | Fixed (`e0631141`). || IN-03 | Fixed (`dbaf025a`): a hand-over reads back `IsHandover = true`; seen failing with the flag forced off. || IN-02 | Fixed (`d4248542`): `/me` with another user's id returns the caller's own money and `no-store`; seen failing with the cache attribute removed. || IN-01 | Fixed (`d3097ba0`). || WR-02 | Fixed (`afae7a23`, `332dbf0c`): one LoadingRegion stays mounted, so the card says "Order counts loaded."; loaded-message tests for all three cards. || WR-01 | Partly fixed (`5ebecbd0`, `cff3b321`): the 24 px phone size is applied and a 320 px no-sideways-scroll check with a six-digit figure passes on chromium and iphone. A six-digit figure still runs 6 to 18 px into the card padding at 320 px, so the layout choice is parked for the owner: P10-BL-06 (its fit check is `test.fixme`). |---
 phase: 10-admin-dashboard
 created: 2026-11-07T05:44:00-06:00
-updated: 2026-11-07T05:46:00-06:00
+updated: 2026-11-07T06:23:00-06:00
 reviewed: 2026-11-07T05:44:00-06:00
 scope: "wave 4: plan 10-08 and plan 10-09, plus the wave 3 fix commits in the same range (git diff e9f56fed..76f3f335), .planning/ excluded"
 depth: standard

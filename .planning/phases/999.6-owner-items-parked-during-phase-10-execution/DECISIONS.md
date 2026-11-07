@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T03:30:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T06:23:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -43,3 +43,13 @@ WebKit reports a request that a page navigation cancels as a page error ("due to
 
 - **A (recommended):** teach the test guard to ignore exactly this message for the app's own `/api/` requests on WebKit, documented in docs/web/e2e.md next to the existing WebKit preload rule. All other page errors still fail.
 - **B:** keep failing on it, and add a wait to each spec that navigates away from the dashboard.
+
+## P10-BL-06 · Dashboard figures on a 320 px phone (wave 4 review WR-01)
+
+**Status:** open · **Blocks:** nothing now; one e2e check ("every KPI figure fits inside its card at 320px" in `web/e2e/dashboard.spec.ts`) is `test.fixme` until you choose.
+
+On phones the four dashboard figures sit in a 2 x 2 grid, as the UI spec says. The UI spec's 24 px phone size is now applied. At 320 px wide, each card has 104 px for its figure, but a six-digit amount needs more: ₱58,517.50 needs 110 px and ₱126,450.00 needs 122 px. The figure runs 6 to 18 px into the card's padding. The page itself does not scroll sideways (that is tested and passes). At 390 px and wider the figures fit.
+
+- **A (recommended):** one column on small phones (420 px and below), as the Expenses figures already do. Every figure fits at full size. The dashboard gets longer on a phone.
+- **B:** keep 2 x 2 and shrink six-digit figures on small phones (about 20 px). The figures stay side by side but are smaller to read.
+- **C:** accept the overflow into the padding. Nothing is cut off, but the figure touches the card edge.
