@@ -337,6 +337,58 @@ describe('the card states (DASH-06)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('keeps one status: silent on the failure, "Loading the chart…" during Try Again, then "The chart loaded."', async () => {
+    let answered = 0;
+    dashboardChartBackend(async () => {
+      answered += 1;
+      if (answered === 1) return problemResponse(500);
+      await delay(300);
+      return dashboardChartFixture(6);
+    });
+    renderCard();
+    await screen.findByText("Couldn't load the chart.");
+    const status = screen.getByRole('status');
+    expect(status).toBeEmptyDOMElement();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading the chart…');
+    });
+    expect(status.previousElementSibling).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByRole('img', { name: OCT_NAME })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('The chart loaded.');
+    expect(status.previousElementSibling).not.toHaveAttribute('aria-busy');
+  });
+
+  it('says it is busy and then that the chart loaded when Try Again follows a failed 12 months', async () => {
+    let twelve = 0;
+    dashboardChartBackend(async (url) => {
+      if (url.searchParams.get('months') !== '12') return dashboardChartFixture(6);
+      twelve += 1;
+      if (twelve === 1) return problemResponse(500);
+      await delay(300);
+      return dashboardChartFixture(12);
+    });
+    renderCard();
+    await screen.findByRole('img', { name: OCT_NAME });
+    await userEvent.click(screen.getByRole('radio', { name: '12M' }));
+    await screen.findByText("Couldn't load the chart.");
+    const status = screen.getByRole('status');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading the chart…');
+    });
+    await waitFor(() => {
+      expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(12);
+    });
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('The chart loaded.');
+  });
+
   it('shows the failure when the 12 months cannot be read, and the switch still works', async () => {
     dashboardChartBackend((url) =>
       url.searchParams.get('months') === '12' ? problemResponse(500) : dashboardChartFixture(6),
