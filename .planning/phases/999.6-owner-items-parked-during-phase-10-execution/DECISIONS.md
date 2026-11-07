@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T09:52:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T10:07:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -65,3 +65,12 @@ When a staff member picks the old system's placeholder account ("Legacy / unassi
 - **C:** give these accounts their own line, for example "This account can't receive transfers. Choose a coworker."
 
 Also still open from plan 10-08: the wording of two money errors no screen shows yet, "This person was not found." and "You can't do this." Later money plans should set them; if none does, this item will ask you.
+
+## P10-BL-08 · Should a normal staff transfer write an audit entry? (wave 5 review IN-05)
+
+**Status:** open · **Blocks:** nothing now.
+
+Today a transfer records who made it and when on the transfer itself, and the audit log only gets an entry when a transfer is deleted, permanently deleted or handed over. Adding a company expense, by contrast, writes an audit entry. A transfer moves money between people, so you may want the same trail.
+
+- **A (recommended):** add a "money transfer added" audit entry with who sent, who received, the amount, the date and whether there is a note. Same style as the expense entries.
+- **B:** keep it as is: the stamps on the transfer are enough for a normal transfer.
