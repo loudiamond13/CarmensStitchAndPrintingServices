@@ -77,6 +77,52 @@ describe('the card with a figure (D-39)', () => {
   });
 });
 
+describe('the figure as given (no arithmetic in the card)', () => {
+  it.each([
+    [0.1, '₱0.10'],
+    [1234.5, '₱1,234.50'],
+    [-0.5, '−₱0.50'],
+  ])('writes %s as %s and nothing else', (balance, text) => {
+    render(<MoneyOnHandCard query={queryOf({ data: moneyOf(balance) })} />);
+
+    expect(screen.getByText(text)).toBeVisible();
+    expect(screen.getAllByText(/₱/)).toHaveLength(1);
+  });
+});
+
+// jsdom evaluates no container query, so the clamp is pinned as a class here and as generated CSS in money.recipe.node.test.ts.
+describe('very large figures (UI-SPEC overflow rows)', () => {
+  it('keeps the large size for an ordinary figure and for 14 characters', () => {
+    const { rerender } = render(<MoneyOnHandCard query={queryOf({ data: moneyOf(8450) })} />);
+    expect(screen.getByText('₱8,450.00').className).not.toContain('clamp');
+
+    rerender(<MoneyOnHandCard query={queryOf({ data: moneyOf(99999999.99) })} />);
+    expect(screen.getByText('₱99,999,999.99').className).not.toContain('clamp');
+  });
+
+  it('shrinks a figure of 15 characters or more with the card width, as the KPI cards do, so it stays inside the card', () => {
+    render(<MoneyOnHandCard query={queryOf({ data: moneyOf(999999999.99) })} />);
+
+    const figure = screen.getByText('₱999,999,999.99');
+    expect(figure.className).toContain('text-[length:clamp(22px,13.5cqi,40px)]!');
+    expect(figure.className).toContain('whitespace-nowrap');
+  });
+
+  it('shrinks a negative figure of 15 characters or more the same way', () => {
+    render(<MoneyOnHandCard query={queryOf({ data: moneyOf(-99999999.99) })} />);
+
+    expect(screen.getByText('−₱99,999,999.99').className).toContain('clamp(22px,13.5cqi,40px)');
+  });
+
+  it('measures the card body, so the clamp follows the card and not the page', () => {
+    const { container } = render(<MoneyOnHandCard query={queryOf({ data: moneyOf(8450) })} />);
+
+    const body = screen.getByText('Money on hand').parentElement;
+    expect(body?.className.split(' ')).toContain('@container');
+    expect(container.querySelector('section')).toContainElement(body);
+  });
+});
+
 describe('loading (UI-SPEC M1 MoneyOnHandCard)', () => {
   it('announces "Loading money on hand…" and shows the 220 x 40 skeleton in a busy region', () => {
     const { container } = render(<MoneyOnHandCard query={queryOf()} />);

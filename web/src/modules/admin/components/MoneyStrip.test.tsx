@@ -232,4 +232,51 @@ describe('the figure as given (no arithmetic in the strip)', () => {
 
     expect(screen.getByText('₱1,234.50')).toBeVisible();
   });
+
+  it.each([
+    [0.1, '₱0.10'],
+    [1234.5, '₱1,234.50'],
+    [-0.5, '−₱0.50'],
+    [9999999.99, '₱9,999,999.99'],
+  ])('writes %s as %s and nothing else', (balance, text) => {
+    renderWith(queryOf({ data: moneyOf(balance) }));
+
+    expect(screen.getByText(text)).toBeVisible();
+    expect(screen.getAllByText(/₱/)).toHaveLength(1);
+  });
+});
+
+// jsdom evaluates no container query, so the phone rules are pinned as classes here and as generated CSS in money.recipe.node.test.ts.
+describe('very large figures and phones (UI-SPEC overflow rows, D-46)', () => {
+  it('keeps a 9,999,999.99 figure on one line', () => {
+    renderWith(queryOf({ data: moneyOf(9999999.99) }));
+
+    expect(screen.getByText('₱9,999,999.99').className.split(' ')).toContain('whitespace-nowrap');
+  });
+
+  it('lets the button row wrap under the figure on phones and share the row equally', () => {
+    renderWith(queryOf({ data: moneyOf(9999999.99) }), <button type="button">Slot action</button>);
+
+    const row = screen.getByRole('link', { name: 'View Ledger' }).parentElement;
+    const classes = row?.className.split(' ') ?? [];
+    expect(classes).toEqual(expect.arrayContaining(['flex-wrap', 'pg-phone:w-full', 'pg-phone:*:flex-1']));
+    expect(row).toContainElement(screen.getByRole('button', { name: 'Slot action' }));
+  });
+
+  it('wraps the whole strip, so the buttons can drop to their own row', () => {
+    const { container } = renderWith(queryOf({ data: moneyOf(8450) }));
+
+    expect(container.querySelector('section')?.className.split(' ')).toEqual(
+      expect.arrayContaining(['flex', 'flex-wrap', 'min-w-0']),
+    );
+  });
+
+  it('hides the wallet tile at 767px and below and stacks the label over the figure', () => {
+    const { container } = renderWith(queryOf({ data: moneyOf(8450) }));
+
+    const tile = container.querySelector('svg.lucide-wallet')?.parentElement;
+    expect(tile?.className.split(' ')).toContain('pg-phone:hidden');
+    const body = screen.getByText('Your money on hand').parentElement;
+    expect(body?.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'flex-col', 'min-w-0']));
+  });
 });
