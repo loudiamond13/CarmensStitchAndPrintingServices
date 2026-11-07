@@ -41,6 +41,12 @@ export const dashboardCardSubClasses = tw('text-[13px] text-ink-muted');
 /** The room around a loading or failure line shown in place of a card's content. */
 export const dashboardCardStateClasses = tw('p-5');
 
+/**
+ * The chart's body. A refetching chart (the other range is loading) is dimmed by colour only, to `--surface-2`, as the list tables are
+ * (UI-SPEC refetch row, D-02: no text-bearing element takes an opacity below 1).
+ */
+export const chartBodyClasses = tw('p-5 data-[refetching=true]:bg-surface-2');
+
 /** `.s-status-list`: the rows 12px apart, 16px under the head. */
 export const statusListClasses = tw('m-0 flex list-none flex-col gap-3 px-5 pt-4 pb-5');
 

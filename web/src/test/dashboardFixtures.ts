@@ -121,20 +121,75 @@ export function dashboardRecentOrders(): DashboardSummaryFixture['recentOrders']
   return [order0148, order0151, order0153, creditOrder, deliveredOrder, cancelledOrderWithRefunds].map(listEntryOf);
 }
 
-/** What `GET /api/v1/dashboard/summary` was asked for. */
+export type DashboardChartFixture = Schemas['DashboardChartResponse'];
+
+/** The last month of the chart fixtures: November 2026, the month of `dashboardNovemberSummary`. */
+export const CHART_END_MONTH = '2026-11';
+
+/** The `yyyy-MM` keys of `count` months ending at `end`, oldest first. */
+export function chartMonthKeys(count: number, end: string = CHART_END_MONTH): string[] {
+  const [year = 0, month = 1] = end.split('-').map(Number);
+  return Array.from({ length: count }, (_, index) => {
+    const offset = count - 1 - index;
+    const total = year * 12 + (month - 1) - offset;
+    return `${String(Math.floor(total / 12))}-${String((total % 12) + 1).padStart(2, '0')}`;
+  });
+}
+
+/**
+ * The chart answer for 6 or 12 months, oldest first. October 2026 holds the UI-SPEC 12.4 values (126,450.00 in, 58,320.00 out,
+ * 68,130.00 profit); every other month is 90,000.00 in, 40,000.00 out, 50,000.00 profit.
+ */
+export function dashboardChartFixture(
+  months: 6 | 12 = 6,
+  overrides: Partial<DashboardChartFixture> = {},
+): DashboardChartFixture {
+  return {
+    months,
+    items: chartMonthKeys(months).map((month) =>
+      month === '2026-10'
+        ? { month, income: 126450, expenses: 58320, profit: 68130 }
+        : { month, income: 90000, expenses: 40000, profit: 50000 },
+    ),
+    ...overrides,
+  };
+}
+
+/** A shop with no money in or out: every listed month is zero. */
+export function dashboardChartEmptyFixture(months: 6 | 12 = 6): DashboardChartFixture {
+  return {
+    months,
+    items: chartMonthKeys(months).map((month) => ({ month, income: 0, expenses: 0, profit: 0 })),
+  };
+}
+
+/** What `GET /api/v1/dashboard/summary` and `/dashboard/chart` were asked for. */
 export interface DashboardCalls {
   readonly calls: URL[];
+  readonly chartCalls: URL[];
 }
 
 type DashboardResponder = (
   url: URL,
 ) => Response | DashboardSummaryFixture | Promise<Response | DashboardSummaryFixture>;
 
-/** Answers the summary with a fixture, or with a function that decides per call (a failure is a Response). */
+type ChartResponder = (url: URL) => Response | DashboardChartFixture | Promise<Response | DashboardChartFixture>;
+
+/** The chart of the months the request names: 12 for `months=12`, else 6. */
+function chartForRequest(url: URL): DashboardChartFixture {
+  return dashboardChartFixture(url.searchParams.get('months') === '12' ? 12 : 6);
+}
+
+/**
+ * Answers the summary with a fixture, or with a function that decides per call (a failure is a Response). The chart is answered
+ * too, so a page test never reaches an unhandled request: by the months asked for, or by `chart` (a fixture or a function).
+ */
 export function dashboardBackend(
   answer: DashboardSummaryFixture | DashboardResponder = dashboardSummaryFixture(),
+  chart: DashboardChartFixture | ChartResponder = chartForRequest,
 ): DashboardCalls {
   const calls: URL[] = [];
+  const chartCalls: URL[] = [];
   server.use(
     http.get('*/api/v1/dashboard/summary', async ({ request }) => {
       const url = new URL(request.url);
@@ -142,6 +197,26 @@ export function dashboardBackend(
       const body = typeof answer === 'function' ? await answer(url) : answer;
       return body instanceof Response ? body : HttpResponse.json(body);
     }),
+    http.get('*/api/v1/dashboard/chart', async ({ request }) => {
+      const url = new URL(request.url);
+      chartCalls.push(url);
+      const body = typeof chart === 'function' ? await chart(url) : chart;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
   );
-  return { calls };
+  return { calls, chartCalls };
+}
+
+/** Answers only the chart (the summary is answered by the caller's own handler or not asked). */
+export function dashboardChartBackend(chart: DashboardChartFixture | ChartResponder = chartForRequest): URL[] {
+  const chartCalls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/dashboard/chart', async ({ request }) => {
+      const url = new URL(request.url);
+      chartCalls.push(url);
+      const body = typeof chart === 'function' ? await chart(url) : chart;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return chartCalls;
 }
