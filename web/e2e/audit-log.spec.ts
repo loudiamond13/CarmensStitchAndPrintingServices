@@ -332,9 +332,8 @@ test('@audit an Admin who opens /admin/audit-log is sent on to /admin and never 
 
   await page.goto('/admin/audit-log');
 
-  // The guard sends the Admin to /admin (the e2e bundle shows its preview there, a production bundle goes on to Signed-in
-  // devices); the log never shows. The Admin's navigation has no Audit Log item: proved by the unit tests, since this bundle's
-  // preview shell uses a placeholder Manager.
+  // The guard sends the Admin to the dashboard at /admin; the log never shows. The Admin's navigation has no Audit Log item:
+  // proved by the unit tests.
   await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Audit Log' })).toHaveCount(0);
   await expect(page.getByRole('table', { name: 'Audit log' })).toHaveCount(0);

@@ -6,26 +6,23 @@
 //   - Below it, the lazy pathless UrlStateLayout (the one NuqsAdapter around `<Outlet/>`, WEB-10), so the admin lists of
 //     later phases keep their state in the URL. Its AdminRouteErrorBoundary shows the admin error screen inside the
 //     shell's `main` when a page crashes or a page chunk fails to load.
-//   - Until the dashboard exists (Phase 10) the index goes to Orders (D-61).
+//   - The index is the dashboard (DASH-01).
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - An unknown `/admin/...` address is the splat route inside the shell (D-89), not the public holding page.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
-//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the same
-//     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11), and
-//     /dev/public, the real PublicLayout around a column of fields for the e2e focus checks. Nothing there ships.
+//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the same Component Showcase at /dev/components,
+//     inside the same AdminLayout with a placeholder user (Pitfall 11), and /dev/public, the real PublicLayout around a
+//     column of fields for the e2e focus checks. It holds no /admin entry, so no build shows a fake signed-in user at the
+//     dashboard (T-10-10). Nothing there ships.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
 // `@__PURE__` marks: an unused tree is then dropped whole, and its dynamic imports never become chunks.
-import { redirect, type LoaderFunction, type RouteObject } from 'react-router';
+import type { LoaderFunction, RouteObject } from 'react-router';
 import { AdminRootErrorBoundary, AdminRouteErrorBoundary } from '@/core/routes/ErrorBoundary';
 import { lazyRoute } from '@/core/routes/lazyRoute';
 
 /** The placeholder user of the dev routes, loaded on demand so no admin navigation code joins the public entry. */
 const devUser: LoaderFunction = async () => (await import('@/modules/admin/sections')).DEV_USER;
-
-const previewPage = /* @__PURE__ */ lazyRoute(async () => ({
-  Component: (await import('@/modules/admin/pages/AdminPreviewPage')).AdminPreviewRoute,
-}));
 
 const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/layouts/PublicLayout')).PublicLayout,
@@ -69,6 +66,10 @@ const acceptInvitePage = /* @__PURE__ */ lazyRoute(async () => ({
 
 const confirmEmailPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/ConfirmEmailPage')).ConfirmEmailRoute,
+}));
+
+const dashboardPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/DashboardPage')).DashboardRoute,
 }));
 
 const sessionsPage = /* @__PURE__ */ lazyRoute(async () => ({
@@ -162,14 +163,8 @@ export const adminRoutes: RouteObject[] = [
         ErrorBoundary: AdminRouteErrorBoundary,
         lazy: urlStateLayout,
         children: [
-          {
-            index: true,
-            element: null,
-            loader: () => {
-              // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's redirect() is thrown by design.
-              throw redirect('/admin/orders');
-            },
-          },
+          // DASH-01: the dashboard is the landing page of the admin.
+          { index: true, lazy: dashboardPage },
           { path: 'sessions', lazy: sessionsPage },
           { path: 'orders', lazy: ordersPage },
           // ORD-03: the New Order form. A static segment, so it wins over the dynamic orders/:id below.
@@ -223,19 +218,6 @@ export const adminRoutes: RouteObject[] = [
 ];
 
 export const devRoutes: RouteObject[] = [
-  {
-    path: 'admin',
-    ErrorBoundary: AdminRootErrorBoundary,
-    lazy: adminLayout,
-    loader: devUser,
-    children: [
-      {
-        ErrorBoundary: AdminRouteErrorBoundary,
-        lazy: urlStateLayout,
-        children: [{ index: true, lazy: previewPage }],
-      },
-    ],
-  },
   {
     path: 'dev',
     ErrorBoundary: AdminRootErrorBoundary,

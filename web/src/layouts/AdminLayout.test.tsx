@@ -8,35 +8,43 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { collectConsole } from '@/test/consoleGuard';
-import { ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
+import { AdminRootErrorBoundary, AdminRouteErrorBoundary, ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
 import { lazyRoute, queryBranch, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
 import { devRoutes } from '@/modules/admin/routes';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
-import { AdminFrame } from '@/layouts/AdminLayout';
+import AdminLayout, { AdminFrame } from '@/layouts/AdminLayout';
+import UrlStateLayout from '@/lib/url-state/UrlStateLayout';
+import { DEV_USER } from '@/modules/admin/sections';
 import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
 import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
 
 /**
- * The dev preview of /admin/orders that plan 08-06 took out of `devRoutes` (the real Orders page replaced it). These layout
- * tests still need a short page to render in the shell, so they add the preview to their own copy of the dev routes.
+ * The dev previews these layout tests render in the shell: the placeholder-user /admin entry that plan 10-07 took out of
+ * devRoutes (the real dashboard replaced it) and the /admin/orders one that plan 08-06 took out. The layout tests still need
+ * short pages in the shell, so they build their own copy of the dev routes with both previews in front of the real ones.
  */
 function devRoutesWithOrdersPreview(): RouteObject[] {
-  const [admin, ...rest] = devRoutes;
-  const urlState = admin?.children?.[0];
-  if (admin === undefined || urlState === undefined) {
-    throw new Error('The admin routes changed shape: expected admin > url state.');
-  }
-  const preview: RouteObject = {
-    path: 'orders',
-    lazy: lazyRoute(() => Promise.resolve({ Component: AdminPreviewRoute })),
+  const preview = lazyRoute(() => Promise.resolve({ Component: AdminPreviewRoute }));
+  const admin: RouteObject = {
+    path: 'admin',
+    ErrorBoundary: AdminRootErrorBoundary,
+    lazy: lazyRoute(() => Promise.resolve({ Component: AdminLayout })),
+    loader: () => DEV_USER,
+    children: [
+      {
+        ErrorBoundary: AdminRouteErrorBoundary,
+        lazy: lazyRoute(() => Promise.resolve({ Component: UrlStateLayout })),
+        children: [
+          { index: true, lazy: preview },
+          { path: 'orders', lazy: preview },
+        ],
+      },
+    ],
   };
-  return [
-    { ...admin, children: [{ ...urlState, children: [...(urlState.children ?? []), preview] }] } as RouteObject,
-    ...rest,
-  ];
+  return [admin, ...devRoutes];
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   expenseList,
   expensesBackend,
 } from '@/test/expenseFixtures';
+import { dashboardBackend, dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { deletedOrderItem, deletedOrderList, deletedOrdersBackend } from '@/test/deletedOrderFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -107,15 +108,31 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
   });
 
-  it('opening /admin with a session goes to Orders (D-61) until the dashboard exists', async () => {
+  it('opening /admin with a session shows the dashboard, with no redirect to Orders (DASH-01)', async () => {
     answerRefresh(sessionResponse());
-    // The Orders page loads its list after the redirect; answer it so the request never goes unhandled.
-    const backend = useOrderHandlers();
+    const backend = dashboardBackend(dashboardSummaryFixture({ greeting: 'evening', firstName: 'Carmen' }));
     const router = createMemoryRouter(routes, { initialEntries: ['/admin'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
-    await expect.poll(() => backend.lists.length, { timeout: 5000 }).toBe(1);
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(backend.calls).toHaveLength(1);
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+    await waitFor(() => {
+      expect(document.title).toBe('Dashboard · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('opening /admin without a session lands on sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin')}`);
   });
 
   it('keeps the return path of a deep link with a query', async () => {
@@ -142,18 +159,22 @@ const adminSession = () =>
 
 describe('Manager-only routes (USER-08)', () => {
   it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
-    'an Admin who opens %s lands on /admin and then Orders',
+    'an Admin who opens %s lands on the dashboard at /admin',
     async (path) => {
       answerRefresh(adminSession());
-      useOrderHandlers();
+      dashboardBackend(dashboardSummaryFixture({ greeting: 'afternoon', firstName: 'Lito' }));
       const router = createMemoryRouter(routes, { initialEntries: [path] });
       render(<RouterProvider router={router} />);
 
-      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Good afternoon, Lito' }, { timeout: 10_000 }),
+      ).toBeVisible();
+      expect(router.state.location.pathname).toBe('/admin');
 
       await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
       expect(screen.queryByRole('link', { name: /^Users/ })).toBeNull();
     },
+    30_000,
   );
 
   it('a Manager who opens /admin/audit-log stays and sees the Audit Log (AUDIT-02)', async () => {
@@ -495,17 +516,20 @@ describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
     });
   }, 30_000);
 
-  it('an Admin who opens /admin/components lands on /admin and then Orders, like /admin/users', async () => {
+  it('an Admin who opens /admin/components lands on the dashboard at /admin, like /admin/users', async () => {
     answerRefresh(adminSession());
-    useOrderHandlers();
+    dashboardBackend(dashboardSummaryFixture({ greeting: 'afternoon', firstName: 'Lito' }));
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good afternoon, Lito' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
 
     await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
     expect(screen.queryByRole('heading', { level: 1, name: /Component Showcase/ })).toBeNull();
-  }, 15_000);
+  }, 30_000);
 
   it('a visitor without a session opening /admin/components goes to sign-in with the return path', async () => {
     answerRefresh();
@@ -668,22 +692,37 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
   }, 30_000);
 
-  it('with the dev routes added, /dev/components and the section previews render without a session or a refresh', async () => {
+  it('with the dev routes added, /dev/components renders without a session or a refresh', async () => {
     const probe = answerRefresh();
     const showcase = createMemoryRouter(devTree(), { initialEntries: ['/dev/components'] });
-    const first = render(<RouterProvider router={showcase} />);
+    render(<RouterProvider router={showcase} />);
     expect(
       await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 15_000 }),
     ).toBeVisible();
     expect(screen.getByText('Demo data')).toBeVisible();
-    first.unmount();
-
-    const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
-    render(<RouterProvider router={preview} />);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' }, { timeout: 5000 })).toBeVisible();
-    expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeVisible();
-    expect(preview.state.location.pathname).toBe('/admin');
     expect(probe.count).toBe(0);
+  }, 30_000);
+
+  it('with the dev routes added, /admin is still the guarded real dashboard: no preview shadows it (Pitfall 1, T-10-10)', async () => {
+    answerRefresh(sessionResponse());
+    dashboardBackend(dashboardSummaryFixture({ greeting: 'evening', firstName: 'Carmen' }));
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+    expect(router.state.location.pathname).toBe('/admin');
+  }, 30_000);
+
+  it('with the dev routes added, /admin without a session still goes to sign-in: there is no placeholder user at /admin', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
   });
 
   it('with the dev routes added, /dev/public shows the real public layout around labelled fields, with no session request', async () => {

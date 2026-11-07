@@ -37,7 +37,7 @@ async function expectDialogAxeClean(page: Page): Promise<void> {
   await expectNoAxeViolations(page);
 }
 
-for (const path of ['/', '/admin']) {
+for (const path of ['/', '/dev/components']) {
   test(`@keyboard the skip link on ${path} is the first stop and moves focus to main`, async ({
     page,
     browserName,

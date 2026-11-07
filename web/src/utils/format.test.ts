@@ -7,6 +7,7 @@ import {
   formatBusinessDateTime,
   formatBusinessTime,
   formatCalendarDate,
+  formatCalendarWeekday,
   formatCount,
   formatMonthShort,
   isMoneyText,
@@ -175,6 +176,33 @@ describe('formatCalendarDate', () => {
   ])('gives null for %j', (value) => {
     expect(formatCalendarDate(value)).toBeNull();
   });
+});
+
+describe('formatCalendarWeekday', () => {
+  it.for(MACHINE_ZONES)('shows 2026-10-06 as "Tuesday" with no zone shift on a machine in %s', (zone) => {
+    useMachineZone(zone);
+    expect(formatCalendarWeekday('2026-10-06')).toBe('Tuesday');
+  });
+
+  it('names every day of one week in full', () => {
+    const days = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'];
+    expect(days.map(formatCalendarWeekday)).toEqual([
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]);
+  });
+
+  it.for(['2026-02-30', '2026-13-01', '2026-10-6', '2026-10-06T00:00:00Z', ' 2026-10-06', '', 'not a date'])(
+    'gives null for %j',
+    (value) => {
+      expect(formatCalendarWeekday(value)).toBeNull();
+    },
+  );
 });
 
 describe('MONEY_TEXT', () => {

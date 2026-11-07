@@ -11,9 +11,9 @@
 // leaves; under reduced motion it leaves at once; the layout does not shift.
 // The first sample is taken inside one page task, 40 ms after the click, because a Playwright round trip alone can take
 // longer than the 150 ms exit animation. Page scripts are strings: the e2e TypeScript program has no DOM types.
-import type { Page } from '@playwright/test';
-import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
+import type { APIRequestContext, Page } from '@playwright/test';
+import { dashboardHeading, signInAs, signInFreshStaff } from './auth.ts';
+import { expect, test, type Guard } from './fixtures.ts';
 import { createStaff } from './testing-api.ts';
 
 const DIALOGS = [
@@ -170,12 +170,12 @@ interface DrawerSample {
   readonly buttonExpanded: string | null;
 }
 
-async function openAdminOnPhone(page: Page): Promise<void> {
+/** Signs a fresh Manager in and shows the dashboard on a phone-wide page. The Component Showcase repeats the shell's parts, so it cannot stand in. */
+async function openAdminOnPhone(page: Page, request: APIRequestContext, guard: Guard): Promise<void> {
   test.setTimeout(120_000);
+  const user = await signInFreshStaff(page, request, guard);
   await page.setViewportSize(PHONE);
-  const response = await page.goto('/admin');
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Dashboard');
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
 }
 
 const DESCRIBE_DRAWER = `(() => {
@@ -208,8 +208,12 @@ function escapeAndSample(page: Page, delay: number): Promise<DrawerSample> {
   })`);
 }
 
-test('@motion drawer: slides in, plays its exit with the scrim fading, then leaves the DOM', async ({ page }) => {
-  await openAdminOnPhone(page);
+test('@motion drawer: slides in, plays its exit with the scrim fading, then leaves the DOM', async ({
+  page,
+  request,
+  guard,
+}) => {
+  await openAdminOnPhone(page, request, guard);
   const menu = page.getByRole('button', { name: 'Open navigation' });
 
   const opened = await openAndSample(page, 40);
@@ -238,9 +242,13 @@ test('@motion drawer: slides in, plays its exit with the scrim fading, then leav
   await expect(menu).toBeFocused();
 });
 
-test('@motion drawer reduced: does not move under reduced motion and leaves the DOM at once', async ({ page }) => {
+test('@motion drawer reduced: does not move under reduced motion and leaves the DOM at once', async ({
+  page,
+  request,
+  guard,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await openAdminOnPhone(page);
+  await openAdminOnPhone(page, request, guard);
 
   const opened = await openAndSample(page, 40);
 
@@ -254,7 +262,7 @@ test('@motion drawer reduced: does not move under reduced motion and leaves the 
   await expect(page.getByRole('button', { name: 'Open navigation' })).toBeFocused();
 });
 
-test('@motion drawer cls: opening and closing the drawer shifts no layout', async ({ page }) => {
+test('@motion drawer cls: opening and closing the drawer shifts no layout', async ({ page, request, guard }) => {
   await page.addInitScript(`
     window.__cspsLayoutShift = 0;
     window.__cspsLayoutShiftSupported = PerformanceObserver.supportedEntryTypes.includes('layout-shift');
@@ -268,7 +276,7 @@ test('@motion drawer cls: opening and closing the drawer shifts no layout', asyn
       }).observe({ type: 'layout-shift', buffered: true });
     }
   `);
-  await openAdminOnPhone(page);
+  await openAdminOnPhone(page, request, guard);
   test.skip(
     !(await page.evaluate('window.__cspsLayoutShiftSupported')),
     'This engine does not report layout shifts; Chromium proves it.',
@@ -314,12 +322,18 @@ const DESCRIBE_MENU = `(() => {
   };
 })()`;
 
-async function openAdminAt(page: Page, width: number, height: number): Promise<void> {
+/** Signs a fresh Manager in and shows the dashboard at a page size. */
+async function openAdminAt(
+  page: Page,
+  request: APIRequestContext,
+  guard: Guard,
+  width: number,
+  height: number,
+): Promise<void> {
   test.setTimeout(120_000);
+  const user = await signInFreshStaff(page, request, guard);
   await page.setViewportSize({ width, height });
-  const response = await page.goto('/admin');
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Dashboard');
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
 }
 
 /** Clicks the user-menu button and describes the menu `delay` ms later, inside one page task. */
@@ -361,8 +375,10 @@ function isHalfTurn(sample: MenuSample): boolean {
 for (const { label, width, height } of MENU_VIEWPORTS) {
   test(`@motion user menu: ${label} pops in, turns the chevron, plays its exit, then leaves the DOM`, async ({
     page,
+    request,
+    guard,
   }) => {
-    await openAdminAt(page, width, height);
+    await openAdminAt(page, request, guard, width, height);
 
     const early = await openMenuAndSample(page, 40);
     expect(early.state).toBe('open');
@@ -388,9 +404,11 @@ for (const { label, width, height } of MENU_VIEWPORTS) {
 
   test(`@motion user menu reduced: ${label} does not move under reduced motion and leaves the DOM at once`, async ({
     page,
+    request,
+    guard,
   }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await openAdminAt(page, width, height);
+    await openAdminAt(page, request, guard, width, height);
 
     const opened = await openMenuAndSample(page, 40);
     expect(opened.animationName).toBe('none');

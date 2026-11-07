@@ -1,9 +1,9 @@
 // Shell geometry E2E (Phase 5 plan 01; D-01, D-02, D-03, D-04, D-05, D-36): the admin and public layouts fill the dynamic
 // viewport, the phone tab bar sits at the viewport bottom, the sidebar and top bar stay pinned, and no shell page
-// scrolls sideways. The short admin page is the dev preview /admin and the long one is /dev/components: both
-// render the real AdminLayout (the e2e bundle's dev routes use a placeholder user, so no sign-in is needed).
+// scrolls sideways. The short admin page is the signed-in Signed-in Devices page, /admin/sessions, with one device listed; the long one
+// is /dev/components, which renders the real AdminLayout with the dev placeholder user and needs no sign-in.
 import type { Page } from '@playwright/test';
-import { signInAs } from './auth.ts';
+import { signInAs, signInFreshStaff } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { settle } from './sweep.ts';
 import { createStaff } from './testing-api.ts';
@@ -61,7 +61,7 @@ async function openAt(page: Page, path: string, width: number, height: number): 
   await page.evaluate('document.fonts.ready.then(() => true)');
 }
 
-const SHORT_ADMIN_PAGE = '/admin';
+const SHORT_ADMIN_PAGE = '/admin/sessions';
 const LONG_ADMIN_PAGE = '/dev/components';
 
 const PHONES = [
@@ -74,7 +74,12 @@ const PHONES = [
 // D-36: the phone tab bar's bottom edge is the viewport bottom on a short page and on a long page, and the end of main
 // is never hidden behind it.
 for (const { width, height } of PHONES) {
-  test(`@shell tab bar sits at the viewport bottom at ${String(width)}x${String(height)}`, async ({ page }) => {
+  test(`@shell tab bar sits at the viewport bottom at ${String(width)}x${String(height)}`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    await signInFreshStaff(page, request, guard);
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
     const short = await geometry(page);
     expect(short.tabBarBottom, 'short page: tab bar shows').not.toBeNull();
@@ -105,7 +110,8 @@ for (const { width, height } of [
   { width: 1440, height: 900 },
   { width: 390, height: 844 },
 ] as const) {
-  test(`@shell full bleed admin at ${String(width)}x${String(height)}`, async ({ page }) => {
+  test(`@shell full bleed admin at ${String(width)}x${String(height)}`, async ({ page, request, guard }) => {
+    await signInFreshStaff(page, request, guard);
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
     const reading = await geometry(page);
     expect(reading.documentHeight, 'a short page needs no scroll').toBeLessThanOrEqual(reading.innerHeight + 1);
@@ -196,7 +202,12 @@ for (const { width, height, mustScroll } of [
   { width: 1440, height: 450, mustScroll: false },
   { width: 1280, height: 360, mustScroll: true },
 ] as const) {
-  test(`@shell short screen ${String(width)}x${String(height)} keeps Logout in view`, async ({ page }) => {
+  test(`@shell short screen ${String(width)}x${String(height)} keeps Logout in view`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    await signInFreshStaff(page, request, guard);
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
     const reading = await page.evaluate<ShortSidebar>(READ_SHORT_SIDEBAR);
     expect(reading.navOverflowY, 'the nav scrolls on its own').toBe('auto');
@@ -213,7 +224,8 @@ for (const { width, height, mustScroll } of [
   });
 }
 
-test('@shell the scrolling nav passes axe at 1280x600', async ({ page }) => {
+test('@shell the scrolling nav passes axe at 1280x600', async ({ page, request, guard }) => {
+  await signInFreshStaff(page, request, guard);
   await openAt(page, SHORT_ADMIN_PAGE, 1280, 600);
   await expectNoAxeViolations(page);
 });

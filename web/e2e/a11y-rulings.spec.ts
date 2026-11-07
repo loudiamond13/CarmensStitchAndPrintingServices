@@ -290,7 +290,7 @@ interface ManagerRow {
   readonly tag: { readonly visible: boolean; readonly opacity: number } | null;
 }
 
-for (const pageCase of PAGES.filter((candidate) => candidate.path.startsWith('/admin'))) {
+for (const pageCase of PAGES.filter((candidate) => candidate.admin)) {
   test(`@a11y-rulings D-BL-02 the current sidebar row on ${pageCase.name} hides the Manager tag`, async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await openPage(page, pageCase);
