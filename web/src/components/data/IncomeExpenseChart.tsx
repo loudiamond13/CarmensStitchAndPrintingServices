@@ -12,10 +12,9 @@
 // "Oct 2026"; without it the short month is used. Attributes and handlers only; the look at rest is unchanged.
 // SPEC-DEVIATION: D-36, D-50 (Phase 10) `showProfit` draws the server's monthly profit as a line and swaps the tooltip's
 // Net row for a Profit row; `labels` sets the legend and tooltip words. Without them the chart draws as before.
-import { useState, type KeyboardEvent } from 'react';
+import { useId, useState, type KeyboardEvent } from 'react';
 import { formatPeso } from '@/utils/csps';
 import {
-  chartAxisClasses,
   chartBarClasses,
   chartClasses,
   chartGridClasses,
@@ -26,12 +25,14 @@ import {
   chartProfitGroupClasses,
   chartProfitHaloClasses,
   chartProfitLineClasses,
+  chartProfitLossClasses,
   chartProfitPointClasses,
   chartProfitSwatchClasses,
   chartSvgClasses,
   chartSwatchClasses,
   chartTickClasses,
   chartTipClasses,
+  chartZeroLineClasses,
 } from './data.recipe';
 
 /** Monthly income vs expenses: one bar group per month. */
@@ -84,8 +85,12 @@ const T = 12;
 /** The three gridline fractions of the axis top. */
 const TICK_FRACTIONS = [0, 0.5, 1] as const;
 
-/** A tick label: "₱{n}k" from ₱1,000, else the plain figure (App. D.3). */
+/** The minus sign (U+2212) for a below-zero tick (D-36); never a hyphen. */
+const MINUS = '−';
+
+/** A tick label: "₱{n}k" from ₱1,000, else the plain figure (App. D.3); below zero it leads with the minus sign. */
 function tick(value: number): string {
+  if (value < 0) return `${MINUS}${tick(-value)}`;
   return value >= 1000 ? `₱${String(Math.round(value / 1000))}k` : `₱${String(value)}`;
 }
 
@@ -94,6 +99,13 @@ function bar(x: number, y: number, w: number, h: number): string {
   const r = Math.min(4, w / 2, h);
   if (h <= 0) return '';
   return `M${String(x)},${String(y + h)}V${String(y + r)}Q${String(x)},${String(y)} ${String(x + r)},${String(y)}H${String(x + w - r)}Q${String(x + w)},${String(y)} ${String(x + w)},${String(y + r)}V${String(y + h)}Z`;
+}
+
+/** A below-zero bar from the zero line down, with 4px rounded bottom corners (D-36); no bar for a zero height. */
+function barDown(x: number, y: number, w: number, h: number): string {
+  const r = Math.min(4, w / 2, h);
+  if (h <= 0) return '';
+  return `M${String(x)},${String(y)}H${String(x + w)}V${String(y + h - r)}Q${String(x + w)},${String(y + h)} ${String(x + w - r)},${String(y + h)}H${String(x + r)}Q${String(x)},${String(y + h)} ${String(x)},${String(y + h - r)}Z`;
 }
 
 /** The accessible name of one month group; with `showProfit` it ends with the server's profit. */
@@ -115,11 +127,24 @@ export function IncomeExpenseChart({
   const H = height;
   const gw = (W - L) / Math.max(1, data.length);
   const bw = Math.min(18, gw / 3.2);
-  const y = (v: number) => T + (H - T - B) * (1 - v / top);
-  const ticks = TICK_FRACTIONS.map((f) => top * f);
+  // SPEC-DEVIATION: D-36 when income (or profit, with showProfit) is below zero, the axis bottom is the lowest figure
+  // rounded down to the top's step; otherwise `bottom` is 0 and every position is as in App. D.3.
+  const lowest = Math.min(
+    0,
+    ...data.flatMap((d) => (showProfit && d.profit !== undefined ? [d.income, d.profit] : [d.income])),
+  );
+  const bottom = lowest < 0 ? Math.floor(lowest / step) * step : 0;
+  const y = (v: number) => T + (H - T - B) * (1 - (v - bottom) / (top - bottom));
+  const zeroY = y(0);
+  const ticks = bottom < 0 ? [bottom, 0, top / 2, top] : TICK_FRACTIONS.map((f) => top * f);
+  const clipId = useId();
+  const aboveClip = `${clipId}-above`;
+  const belowClip = `${clipId}-below`;
   const cur = hover === null ? undefined : data[hover];
   const profitPoints = showProfit
-    ? data.flatMap((d, i) => (d.profit === undefined ? [] : [{ i, x: L + gw * i + gw / 2, y: y(d.profit) }]))
+    ? data.flatMap((d, i) =>
+        d.profit === undefined ? [] : [{ i, x: L + gw * i + gw / 2, y: y(d.profit), loss: d.profit < 0 }],
+      )
     : [];
   const profitPath =
     profitPoints.length === 0 ? '' : `M${profitPoints.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`;
@@ -186,26 +211,47 @@ export function IncomeExpenseChart({
               {hover === i && (
                 <rect x={L + gw * i + 4} y={T} width={gw - 8} height={H - T - B} className={chartHoverClasses} rx="6" />
               )}
-              <path d={bar(cx0 - bw - 1, y(d.income), bw, H - B - y(d.income))} className={chartBarClasses.income} />
-              <path d={bar(cx0 + 1, y(d.expenses), bw, H - B - y(d.expenses))} className={chartBarClasses.expense} />
+              <path
+                d={
+                  d.income < 0
+                    ? barDown(cx0 - bw - 1, zeroY, bw, y(d.income) - zeroY)
+                    : bar(cx0 - bw - 1, y(d.income), bw, zeroY - y(d.income))
+                }
+                className={chartBarClasses.income}
+              />
+              <path d={bar(cx0 + 1, y(d.expenses), bw, zeroY - y(d.expenses))} className={chartBarClasses.expense} />
               <text x={cx0} y={H - 8} textAnchor="middle" className={chartTickClasses}>
                 {d.month}
               </text>
             </g>
           );
         })}
-        <line x1={L} x2={W} y1={H - B} y2={H - B} className={chartAxisClasses} />
+        <line x1={L} x2={W} y1={zeroY} y2={zeroY} className={chartZeroLineClasses} />
         {showProfit && (
           <g aria-hidden="true" className={chartProfitGroupClasses}>
+            <defs>
+              <clipPath id={aboveClip}>
+                <rect x={0} y={0} width={W} height={zeroY} />
+              </clipPath>
+              <clipPath id={belowClip}>
+                <rect x={0} y={zeroY} width={W} height={H - zeroY} />
+              </clipPath>
+            </defs>
             <path d={profitPath} className={chartProfitHaloClasses} />
-            <path d={profitPath} className={chartProfitLineClasses.above} />
+            <path d={profitPath} className={chartProfitLineClasses.above} clipPath={`url(#${aboveClip})`} />
+            <path
+              d={profitPath}
+              className={chartProfitLineClasses.below}
+              strokeDasharray="4 3"
+              clipPath={`url(#${belowClip})`}
+            />
             {profitPoints.map((p) => (
               <circle
                 key={p.i}
                 cx={p.x}
                 cy={p.y}
                 r={hover === p.i ? POINT_RADIUS_ACTIVE : POINT_RADIUS}
-                className={chartProfitPointClasses.above}
+                className={p.loss ? chartProfitPointClasses.below : chartProfitPointClasses.above}
               />
             ))}
           </g>
@@ -225,7 +271,12 @@ export function IncomeExpenseChart({
           {showProfit ? (
             cur.profit !== undefined && (
               <span>
-                {labels.profit} {formatPeso(cur.profit)}
+                {labels.profit}{' '}
+                {cur.profit < 0 ? (
+                  <span className={chartProfitLossClasses}>{formatPeso(cur.profit)}</span>
+                ) : (
+                  formatPeso(cur.profit)
+                )}
               </span>
             )
           ) : (
