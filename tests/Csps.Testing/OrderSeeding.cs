@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Testing;
 
-/// <summary>One payment or refund of a seeded order.</summary>
+/// <summary>One payment, refund or expense of a seeded order.</summary>
 /// <param name="Date">The day the money moved.</param>
 /// <param name="Amount">The amount in pesos.</param>
 public sealed record SeedMoney(DateOnly Date, decimal Amount);
@@ -32,6 +32,9 @@ public sealed record SeedOrder(string Number, OrderStatus Status)
 
     /// <summary>Gets the refunds.</summary>
     public IReadOnlyList<SeedMoney> Refunds { get; init; } = [];
+
+    /// <summary>Gets the order expenses, each in the first order expense category and paid by the seeding staff member.</summary>
+    public IReadOnlyList<SeedMoney> Expenses { get; init; } = [];
 
     /// <summary>Gets when the order was created; null keeps the seeding instant.</summary>
     public DateTimeOffset? CreatedAtUtc { get; init; }
@@ -86,6 +89,7 @@ public static class OrderSeeding
         ArgumentNullException.ThrowIfNull(spec);
         var productTypeId = OrderListSeed.ProductTypes[0].Id;
         var cashId = OrderListSeed.PaymentMethods.Single(row => row.Name == "Cash").Id;
+        var expenseCategoryId = OrderListSeed.OrderExpenseCategories[0].Id;
         var snapshot = new OrderImportSnapshot(
             spec.Number,
             new OrderDetails("Juan Dela Cruz", null, null, null, null, spec.OrderDate, spec.DueDate, null),
@@ -94,6 +98,7 @@ public static class OrderSeeding
         {
             Payments = [.. spec.Payments.Select(payment => new NewOrderPayment(payment.Date, payment.Amount, cashId, null, null, staffId))],
             Refunds = [.. spec.Refunds.Select(refund => new NewOrderRefund(refund.Date, refund.Amount, "Seeded refund", staffId))],
+            Expenses = [.. spec.Expenses.Select(expense => new NewOrderExpense(expense.Date, expense.Amount, expenseCategoryId, null, staffId))],
             StatusHistory = spec.StatusChangedAtUtc is { } changedAt ? [new ImportedStatusChange(null, spec.Status, null, changedAt)] : [],
         };
         var order = Order.Import(snapshot, OrderImportRules.Default, now).Value;
