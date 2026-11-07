@@ -1,6 +1,8 @@
 using Csps.Application.Auth;
+using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Domain.Common;
+using Csps.Domain.Orders;
 using Csps.Domain.Time;
 
 namespace Csps.Application.Dashboard;
@@ -23,6 +25,8 @@ public sealed class GetDashboardSummaryHandler(
     IRequestContext requestContext,
     IBusinessCalendar calendar)
 {
+    private const int RecentOrderCount = 6;
+
     /// <summary>Reads the summary.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The summary, or a 401 when the token names no usable account.</returns>
@@ -43,7 +47,7 @@ public sealed class GetDashboardSummaryHandler(
 
         var (lastFirst, lastLast) = BusinessClock.MonthOf(period.MonthFirst.AddDays(-1));
         var totals = await expenses.GetKpisAsync(new KpiMonths(period.MonthFirst, period.MonthLast, lastFirst, lastLast), cancellationToken).ConfigureAwait(false);
-        _ = (orders, imageDelivery);
+        var newest = await orders.ListNewestAsync(RecentOrderCount, cancellationToken).ConfigureAwait(false);
 
         return Result.Success(new DashboardSummaryResponse(
             period.Today,
@@ -59,9 +63,20 @@ public sealed class GetDashboardSummaryHandler(
                 totals.ThisMonthTotal,
                 totals.ThisMonthCount,
                 totals.ThisMonthCount > 0 ? totals.TopCategory?.Name : null),
-            [],
-            []));
+            StatusesOf(figures.Statuses),
+            [.. newest.Select(row => OrderListEntries.From(row, imageDelivery))]));
     }
+
+    // The six shown statuses in a fixed order, keyed as the order list keys them.
+    private static IReadOnlyList<DashboardStatusCount> StatusesOf(DashboardStatusCounts counts) =>
+    [
+        new(OrderStatusNames.ToKey(OrderStatus.Pending), counts.Pending),
+        new(OrderStatusNames.ToKey(OrderStatus.Mockup), counts.Mockup),
+        new(OrderStatusNames.ToKey(OrderStatus.InProduction), counts.Production),
+        new(OrderStatusNames.ToKey(OrderStatus.Ready), counts.Ready),
+        new(OrderStatusNames.ToKey(OrderStatus.Delivered), counts.Delivered),
+        new(OrderStatusNames.ToKey(OrderStatus.Completed), counts.CompletedThisMonth),
+    ];
 
     // Whole-number change against the absolute comparison, half away from zero (D-06, D-54); null when there is nothing to compare.
     private static int? ChangePercent(decimal thisMonth, decimal comparison)

@@ -26,6 +26,8 @@ internal sealed class DashboardReader(CspsDbContext context) : IDashboardReader
         var monthLast = period.MonthLast;
         var comparisonFirst = period.ComparisonFirst;
         var comparisonLast = period.ComparisonLast;
+        var monthStartUtc = period.MonthStartUtc;
+        var monthEndUtc = period.MonthEndUtcExclusive;
 
         var firstName = await context.Users.AsNoTracking()
             .Where(user => user.Id == callerId)
@@ -45,6 +47,14 @@ internal sealed class DashboardReader(CspsDbContext context) : IDashboardReader
                     && (!OverdueStatuses.Contains(order.Status) || order.DueDate >= today)),
                 Overdue = group.Count(order => OverdueStatuses.Contains(order.Status) && order.DueDate < today),
                 Receivables = group.Sum(order => ActiveStatuses.Contains(order.Status) && order.Balance > 0m ? order.Balance : 0m),
+                Pending = group.Count(order => order.Status == OrderStatus.Pending),
+                Mockup = group.Count(order => order.Status == OrderStatus.Mockup),
+                Production = group.Count(order => order.Status == OrderStatus.InProduction),
+                Ready = group.Count(order => order.Status == OrderStatus.Ready),
+                Delivered = group.Count(order => order.Status == OrderStatus.Delivered),
+                CompletedThisMonth = group.Count(order => order.Status == OrderStatus.Completed
+                    && order.StatusChangedAtUtc >= monthStartUtc
+                    && order.StatusChangedAtUtc < monthEndUtc),
             })
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -80,6 +90,12 @@ internal sealed class DashboardReader(CspsDbContext context) : IDashboardReader
             orders?.Receivables ?? 0m,
             (payments?.ThisMonth ?? 0m) - (refunds?.ThisMonth ?? 0m),
             (payments?.Comparison ?? 0m) - (refunds?.Comparison ?? 0m),
-            new DashboardStatusCounts(0, 0, 0, 0, 0, 0));
+            new DashboardStatusCounts(
+                orders?.Pending ?? 0,
+                orders?.Mockup ?? 0,
+                orders?.Production ?? 0,
+                orders?.Ready ?? 0,
+                orders?.Delivered ?? 0,
+                orders?.CompletedThisMonth ?? 0));
     }
 }

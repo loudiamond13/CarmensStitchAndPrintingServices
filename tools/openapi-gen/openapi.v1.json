@@ -1391,6 +1391,29 @@
         ],
         "type": "object"
       },
+      "DashboardStatusCount": {
+        "description": "One status of the orders-by-status bar.",
+        "properties": {
+          "count": {
+            "description": "Pending to Delivered: orders now in the status. Completed: orders moved to Completed in this business month.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "status": {
+            "description": "The status key: `pending`, `mockup`, `production`, `ready`, `delivered` or `completed`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ],
+        "type": "object"
+      },
       "DashboardSummaryResponse": {
         "description": "Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ.",
         "properties": {
@@ -1414,6 +1437,20 @@
             "$ref": "#/components/schemas/DashboardOrderFigures",
             "description": "The order figures."
           },
+          "recentOrders": {
+            "description": "The 6 newest created orders of any status that are not deleted, newest first, in the order list entry shape.",
+            "items": {
+              "$ref": "#/components/schemas/OrderListEntry"
+            },
+            "type": "array"
+          },
+          "statuses": {
+            "description": "Exactly six entries in this order: pending, mockup, production, ready, delivered, completed. Cancelled is never listed.",
+            "items": {
+              "$ref": "#/components/schemas/DashboardStatusCount"
+            },
+            "type": "array"
+          },
           "today": {
             "description": "The business today, so the browser never reads the device clock for it.",
             "format": "date",
@@ -1426,7 +1463,9 @@
           "firstName",
           "orders",
           "collected",
-          "expenses"
+          "expenses",
+          "statuses",
+          "recentOrders"
         ],
         "type": "object"
       },

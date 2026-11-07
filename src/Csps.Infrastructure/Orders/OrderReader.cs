@@ -39,29 +39,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(order => order.Id);
-        var rows = await Sort(context.Orders.AsNoTracking().Where(order => pageIds.Contains(order.Id)), query.Sort)
-            .Select(order => new OrderListRow(
-                order.Id,
-                order.Number,
-                order.CustomerName,
-                order.TeamName,
-                order.OrderDate,
-                order.DueDate,
-                order.Status,
-                order.StatusChangedAtUtc,
-                order.Subtotal,
-                order.DiscountTotal,
-                order.Total,
-                order.PaidTotal,
-                order.RefundedTotal,
-                order.Balance,
-                order.CustomerCredit,
-                order.FullyPaid,
-                context.Set<OrderItem>().Where(item => item.OrderId == order.Id).Sum(item => item.Quantity),
-                context.Set<OrderImage>().Count(image => image.OrderId == order.Id),
-                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => image.PublicId).FirstOrDefault(),
-                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Width).FirstOrDefault(),
-                context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Height).FirstOrDefault()))
+        var rows = await ToRows(Sort(context.Orders.AsNoTracking().Where(order => pageIds.Contains(order.Id)), query.Sort))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -74,8 +52,47 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         return new OrderListPage(rows, total, counts?.All ?? 0, counts?.Active ?? 0);
     }
 
-    public Task<IReadOnlyList<OrderListRow>> ListNewestAsync(int count, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<OrderListRow>>([]);
+    public async Task<IReadOnlyList<OrderListRow>> ListNewestAsync(int count, CancellationToken cancellationToken)
+    {
+        // One command. The newest ids are cut in an inner query, as the list does, so the row subqueries run for those orders only. The
+        // sort is by when the order was created and ends on the id; it is not the list's sort by order date, and no status is filtered.
+        var newestIds = context.Orders.AsNoTracking()
+            .OrderByDescending(order => order.CreatedAtUtc)
+            .ThenByDescending(order => order.Id)
+            .Take(count)
+            .Select(order => order.Id);
+        return await ToRows(context.Orders.AsNoTracking()
+                .Where(order => newestIds.Contains(order.Id))
+                .OrderByDescending(order => order.CreatedAtUtc)
+                .ThenByDescending(order => order.Id))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    // The list row of each order, in the order given. The piece count, the photo count and the position 0 photo are correlated subqueries.
+    private IQueryable<OrderListRow> ToRows(IOrderedQueryable<Order> orders) => orders
+        .Select(order => new OrderListRow(
+            order.Id,
+            order.Number,
+            order.CustomerName,
+            order.TeamName,
+            order.OrderDate,
+            order.DueDate,
+            order.Status,
+            order.StatusChangedAtUtc,
+            order.Subtotal,
+            order.DiscountTotal,
+            order.Total,
+            order.PaidTotal,
+            order.RefundedTotal,
+            order.Balance,
+            order.CustomerCredit,
+            order.FullyPaid,
+            context.Set<OrderItem>().Where(item => item.OrderId == order.Id).Sum(item => item.Quantity),
+            context.Set<OrderImage>().Count(image => image.OrderId == order.Id),
+            context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => image.PublicId).FirstOrDefault(),
+            context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Width).FirstOrDefault(),
+            context.Set<OrderImage>().Where(image => image.OrderId == order.Id).OrderBy(image => image.Position).ThenBy(image => image.Slot).Select(image => (int?)image.Height).FirstOrDefault()));
 
     // The statuses, the search, the order dates, the product type and the balance. A typed wildcard stays literal (CWE-943).
     private IQueryable<Order> Filter(IQueryable<Order> orders, OrderListQuery query, DateTimeOffset now)

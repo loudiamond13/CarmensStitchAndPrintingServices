@@ -2377,6 +2377,16 @@ export interface components {
              */
             receivables: number | string;
         };
+        /** @description One status of the orders-by-status bar. */
+        DashboardStatusCount: {
+            /**
+             * Format: int32
+             * @description Pending to Delivered: orders now in the status. Completed: orders moved to Completed in this business month.
+             */
+            count: number | string;
+            /** @description The status key: `pending`, `mockup`, `production`, `ready`, `delivered` or `completed`. */
+            status: string;
+        };
         /** @description Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ. */
         DashboardSummaryResponse: {
             /** @description The money collected this month. */
@@ -2389,6 +2399,10 @@ export interface components {
             greeting: string;
             /** @description The order figures. */
             orders: components["schemas"]["DashboardOrderFigures"];
+            /** @description The 6 newest created orders of any status that are not deleted, newest first, in the order list entry shape. */
+            recentOrders: components["schemas"]["OrderListEntry"][];
+            /** @description Exactly six entries in this order: pending, mockup, production, ready, delivered, completed. Cancelled is never listed. */
+            statuses: components["schemas"]["DashboardStatusCount"][];
             /**
              * Format: date
              * @description The business today, so the browser never reads the device clock for it.
