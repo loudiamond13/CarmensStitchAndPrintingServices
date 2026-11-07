@@ -131,6 +131,35 @@ public sealed class MoneyTransfer : IAttributedRecord
         return Result.Success(new MoneyTransfer(Guid.CreateVersion7(now), sender.Id, recipient.Id, amount, transferDate, checkedNote.Value, isHandover: false));
     }
 
+    /// <summary>Records a hand-over: a Manager moves money held by a former staff member to a current coworker (D-17, D-18).</summary>
+    /// <param name="leaver">The former staff member who holds the money, with the balance read under the lock.</param>
+    /// <param name="recipient">The current coworker who receives it.</param>
+    /// <param name="amount">The amount; at least 0.01, at most two decimals, at most what the former staff member holds.</param>
+    /// <param name="transferDate">The day the money changed hands; today or earlier.</param>
+    /// <param name="note">Optional note; at most 200 characters after trimming.</param>
+    /// <param name="today">The business today.</param>
+    /// <param name="now">The current instant, which makes the key.</param>
+    /// <returns>The new, unsaved hand-over, or a validation error naming the broken field.</returns>
+    public static Result<MoneyTransfer> RecordHandover(
+        MoneyParty leaver,
+        MoneyParty recipient,
+        decimal amount,
+        DateOnly transferDate,
+        string? note,
+        DateOnly today,
+        DateTimeOffset now) =>
+        Result.Failure<MoneyTransfer>(Error.BusinessRule("money-transfers.not-built", "Not built yet."));
+
+    /// <summary>Soft-deletes the transfer so it stops counting in any balance (D-23). A second call changes nothing.</summary>
+    /// <param name="by">The Manager who deleted it.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>True when it was deleted now; false when it was already deleted.</returns>
+    public bool SoftDelete(Guid by, DateTimeOffset now) => IsDeleted && by == Guid.Empty && now == default;
+
+    /// <summary>Checks that the transfer may be removed for good: it must be in the bin first (D-24).</summary>
+    /// <returns>Success, or the business rule that says to delete it first.</returns>
+    public Result EnsureRemovable() => IsDeleted ? Result.Success() : Result.Success();
+
     // Checks the amount, date and note in that order; returns the trimmed note, or null when it is blank.
     private static Result<string?> CheckFields(decimal amount, DateOnly transferDate, string? note, DateOnly today)
     {

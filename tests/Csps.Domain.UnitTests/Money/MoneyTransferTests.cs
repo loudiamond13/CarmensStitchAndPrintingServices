@@ -232,6 +232,144 @@ public sealed class MoneyTransferTests
         ShouldFail(Record(sender, recipient, 200.00m, Today, null), "amount", "You only have ₱100.00 on hand.");
     }
 
+    [Theory]
+    [InlineData(MoneyPartyStatus.Deactivated)]
+    [InlineData(MoneyPartyStatus.Deleted)]
+    public void AHandoverFromAFormerStaffMemberKeepsEveryValueAndIsFlagged(MoneyPartyStatus status)
+    {
+        var leaver = Leaver with { Status = status, Balance = 2000.00m };
+
+        var result = Handover(leaver, Liza, 2000.00m, Today, "  Closing the account  ");
+
+        result.IsSuccess.ShouldBeTrue();
+        var transfer = result.Value;
+        transfer.FromUserId.ShouldBe(leaver.Id);
+        transfer.ToUserId.ShouldBe(Liza.Id);
+        transfer.Amount.ShouldBe(2000.00m);
+        transfer.TransferDate.ShouldBe(Today);
+        transfer.Note.ShouldBe("Closing the account");
+        transfer.IsHandover.ShouldBeTrue();
+        transfer.Id.Version.ShouldBe(7);
+    }
+
+    [Theory]
+    [InlineData(MoneyPartyStatus.Active)]
+    [InlineData(MoneyPartyStatus.NotStaff)]
+    public void AHandoverFromAnyoneButFormerStaffIsRefusedUnderFromUserId(MoneyPartyStatus status)
+    {
+        var sender = Carmen with { Status = status };
+
+        ShouldFail(Handover(sender, Liza, 10m, Today, null), "fromUserId", "Only money held by former staff can be handed over.");
+    }
+
+    [Fact]
+    public void AHandoverWithNoRecipientIsRefused()
+    {
+        var nobody = new MoneyParty(Guid.Empty, "Nobody", MoneyPartyStatus.NotStaff, 0m);
+
+        ShouldFail(Handover(Leaver with { Balance = 50m }, nobody, 10m, Today, null), "toUserId", "Choose who got the cash.");
+    }
+
+    [Fact]
+    public void AHandoverToTheFormerStaffMemberIsRefusedByName()
+    {
+        ShouldFail(Handover(Leaver with { Balance = 50m }, Leaver with { Balance = 50m }, 10m, Today, null), "toUserId", "Choose someone other than Jomar Santos.");
+    }
+
+    [Theory]
+    [InlineData(MoneyPartyStatus.Deactivated, -100.00)]
+    [InlineData(MoneyPartyStatus.Deleted, 0.00)]
+    [InlineData(MoneyPartyStatus.NotStaff, 0.00)]
+    public void AHandoverToAnyoneButCurrentStaffIsRefusedByNameUnderToUserId(MoneyPartyStatus status, double balance)
+    {
+        var recipient = new MoneyParty(Guid.Parse("c0a1b2c3-0004-4000-8000-000000000004"), "Rosa Dela Cruz", status, (decimal)balance);
+
+        ShouldFail(Handover(Leaver with { Balance = 50m }, recipient, 10m, Today, null), "toUserId", "Rosa Dela Cruz can't receive transfers now. Choose someone else.");
+    }
+
+    [Fact]
+    public void AHandoverChecksTheAmountDateAndNoteLikeAnyTransfer()
+    {
+        var leaver = Leaver with { Balance = 2000.00m };
+
+        ShouldFail(Handover(leaver, Liza, 0m, Today, null), "amount", "Enter an amount of at least ₱0.01.");
+        ShouldFail(Handover(leaver, Liza, 10.005m, Today, null), "amount", "Use at most 2 decimal places.");
+        ShouldFail(Handover(leaver, Liza, 10m, Today.AddDays(1), null), "transferDate", "The transfer date can't be in the future.");
+        ShouldFail(Handover(leaver, Liza, 10m, Today, new string('n', 201)), "note", "Keep the note to 200 characters or fewer.");
+    }
+
+    [Fact]
+    public void AHandoverFromAFormerStaffMemberWithNothingOnHandIsRefusedByName()
+    {
+        ShouldFail(Handover(Leaver with { Balance = 0.00m }, Liza, 10m, Today, null), "amount", "Jomar Santos has nothing on hand to hand over.");
+        ShouldFail(Handover(Leaver with { Balance = -500.00m }, Liza, 10m, Today, null), "amount", "Jomar Santos has nothing on hand to hand over.");
+    }
+
+    [Fact]
+    public void AHandoverAboveWhatTheFormerStaffMemberHoldsNamesTheFigure()
+    {
+        var leaver = Leaver with { Balance = 2000.00m };
+
+        ShouldFail(Handover(leaver, Liza, 2000.01m, Today, null), "amount", "Jomar Santos only has ₱2,000.00 on hand.");
+        Handover(leaver, Liza, 2000.00m, Today, null).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void SoftDeleteMarksTheTransferOnceAndTheSecondCallChangesNothing()
+    {
+        var transfer = Record(Carmen, Liza, 10m, Today, null).Value;
+        var manager = Guid.Parse("c0a1b2c3-0005-4000-8000-000000000005");
+        var later = Now.AddHours(2);
+
+        transfer.SoftDelete(manager, Now).ShouldBeTrue();
+        transfer.SoftDelete(Guid.NewGuid(), later).ShouldBeFalse();
+
+        transfer.IsDeleted.ShouldBeTrue();
+        transfer.DeletedById.ShouldBe(manager);
+        transfer.DeletedAtUtc.ShouldBe(Now);
+    }
+
+    [Fact]
+    public void ALiveTransferCannotBeRemovedForGoodUntilItIsDeleted()
+    {
+        var transfer = Record(Carmen, Liza, 10m, Today, null).Value;
+
+        var refused = transfer.EnsureRemovable();
+
+        refused.IsFailure.ShouldBeTrue();
+        refused.Error.Kind.ShouldBe(Csps.Domain.Common.ErrorKind.BusinessRule);
+        refused.Error.Code.ShouldBe("money-transfers.not-deleted");
+        refused.Error.Message.ShouldBe("Delete the transfer first.");
+
+        transfer.SoftDelete(Carmen.Id, Now);
+
+        transfer.EnsureRemovable().IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ARecordedTransferHasNoEditPathBeyondSoftDelete()
+    {
+        var publicSetters = typeof(MoneyTransfer)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Where(property => property.SetMethod is { IsPublic: true })
+            .Select(property => property.Name);
+        var publicMethods = typeof(MoneyTransfer)
+            .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)
+            .Where(method => !method.IsSpecialName)
+            .Select(method => method.Name);
+
+        publicSetters.ShouldBeEmpty();
+        publicMethods.Order().ShouldBe(["EnsureRemovable", "SoftDelete"]);
+    }
+
+    private static Csps.Domain.Common.Result<MoneyTransfer> Handover(
+        MoneyParty leaver,
+        MoneyParty recipient,
+        decimal amount,
+        DateOnly date,
+        string? note) =>
+        MoneyTransfer.RecordHandover(leaver, recipient, amount, date, note, Today, Now);
+
     private static void ShouldFail(Csps.Domain.Common.Result<MoneyTransfer> result, string field, string message)
     {
         result.IsFailure.ShouldBeTrue();
