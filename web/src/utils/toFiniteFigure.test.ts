@@ -28,6 +28,15 @@ describe('toFiniteFigure', () => {
     ['a boolean', true],
     ['an object', {}],
     ['a list', [12]],
+    ['hex text', '0x1F'],
+    ['binary text', '0b101'],
+    ['octal text', '0o17'],
+    ['exponent text', '1e3'],
+    ['a plus sign', '+12'],
+    ['two points', '1.2.3'],
+    ['a trailing point', '12.'],
+    ['a leading point', '.5'],
+    ['a comma', '1,000.00'],
   ])('refuses %s', (_what, value) => {
     expect(toFiniteFigure(value)).toBeNull();
   });
