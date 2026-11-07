@@ -33,6 +33,15 @@ function rows(): HTMLElement[] {
   return within(screen.getByRole('list')).getAllByRole('listitem');
 }
 
+/** One row of the list, by its place. */
+function rowAt(index: number): HTMLElement {
+  const row = rows()[index];
+  if (row === undefined) {
+    throw new Error(`No row ${String(index)}`);
+  }
+  return row;
+}
+
 /** The bar fill of a row: the one element that carries the --bar-w property. */
 function fillOf(row: HTMLElement): HTMLElement {
   const fill = Array.from(row.querySelectorAll<HTMLElement>('*')).find(
@@ -118,18 +127,18 @@ describe('the rows (DASH-04, D-08)', () => {
     const data = dashboardNovemberSummary({ statuses: statusesOf([1234, 0, 0, 0, 0, 0]) });
     render(<OrdersByStatusCard query={loaded(data)} />);
 
-    expect(within(rows()[0] as HTMLElement).getByText('1,234')).toBeVisible();
+    expect(within(rowAt(0)).getByText('1,234')).toBeVisible();
   });
 
   it('reads the Completed row as "Completed this month" and its count, through a visually hidden " this month"', () => {
     render(<OrdersByStatusCard query={loaded()} />);
 
-    const completed = rows()[5] as HTMLElement;
+    const completed = rowAt(5);
     expect(completed).toHaveTextContent(/^Completed\s+this month\s*11$/);
     const hidden = within(completed).getByText('this month');
     expect(hidden.className).toContain('h-px');
     expect(hidden.textContent).toBe(' this month');
-    expect(within(rows()[0] as HTMLElement).queryByText(/this month/)).toBeNull();
+    expect(within(rowAt(0)).queryByText(/this month/)).toBeNull();
   });
 });
 

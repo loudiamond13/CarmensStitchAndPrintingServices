@@ -50,4 +50,18 @@ export const DASHBOARD_COPY = {
     // SPEC-GAP: the foot of the Company expenses card in a month with no entries.
     noExpenses: 'No expenses yet this month',
   },
+  /** Orders by status (DASH-04, D-08, 07 D-01). */
+  statuses: {
+    title: 'Orders by status',
+    sub: 'Open orders + completed this month',
+    /** The noun of the loading region and of the failure line: "Loading order counts…", "Couldn't load order counts." */
+    things: 'order counts',
+    /** Read after the Completed badge by assistive technology only, so the row says "Completed this month". */
+    thisMonth: ' this month',
+    // SPEC-DEVIATION: 07 D-01 App. E.6 footer "Active (Pending → Ready)"; Delivered is active now and OR-4 drops the arrow.
+    activeLabel: 'Active (Pending to Delivered)',
+    orders: (count: number): string => (count === 1 ? '1 order' : `${formatCount(count)} orders`),
+    emptyTitle: 'No open orders',
+    emptyMessage: 'New orders show here by status.',
+  },
 } as const;

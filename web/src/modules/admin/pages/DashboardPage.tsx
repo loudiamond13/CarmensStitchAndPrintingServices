@@ -12,7 +12,12 @@ import {
 } from '@/components/layout/layout.recipe';
 import { SkeletonText } from '@/components/states';
 import { DashboardKpiRow } from '@/modules/admin/components/DashboardKpiRow';
-import { dashboardHeadActionsClasses, dashboardTitleClasses } from '@/modules/admin/components/dashboard.recipe';
+import {
+  dashboardHeadActionsClasses,
+  dashboardRowClasses,
+  dashboardTitleClasses,
+} from '@/modules/admin/components/dashboard.recipe';
+import { OrdersByStatusCard } from '@/modules/admin/components/OrdersByStatusCard';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import { useDashboardSummaryQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
@@ -51,6 +56,10 @@ export function DashboardRoute() {
         </div>
       </div>
       <DashboardKpiRow query={summary} />
+      {/* SPEC-GAP: the income chart card (plan 10-11) joins this row as its first child. */}
+      <div className={dashboardRowClasses}>
+        <OrdersByStatusCard query={summary} />
+      </div>
     </>
   );
 }

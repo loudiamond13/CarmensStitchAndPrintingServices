@@ -157,9 +157,9 @@ describe('the Orders by status card on the page (DASH-04, plan 10-09)', () => {
     dashboardBackend(dashboardNovemberSummary());
     renderPage();
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Orders by status' })).toBeVisible();
+    expect(await screen.findByText('18 orders')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Orders by status' })).toBeVisible();
     expect(screen.getByText('Active (Pending to Delivered)')).toBeVisible();
-    expect(screen.getByText('18 orders')).toBeVisible();
     expect(screen.getAllByRole('listitem')).toHaveLength(6);
   });
 
@@ -207,13 +207,15 @@ describe('while the summary loads (DASH-06)', () => {
       await delay(300);
       return EVENING;
     });
-    const { container } = renderPage();
+    renderPage();
 
+    // The cards below have their own skeletons and bars, so the header's skeleton is looked up inside the header.
+    const headerOf = () => screen.getByRole('heading', { level: 1 }).parentElement;
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
-    expect(container.querySelector('span[aria-hidden="true"]')).not.toBeNull();
+    expect(headerOf()?.querySelector('span[aria-hidden="true"]')).not.toBeNull();
     expect(screen.queryByText(/Here's how the shop is doing this month/)).toBeNull();
     expect(await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' })).toBeVisible();
-    expect(container.querySelector('span[aria-hidden="true"]')).toBeNull();
+    expect(headerOf()?.querySelector('span[aria-hidden="true"]')).toBeNull();
   });
 
   it('still offers the two actions while it loads', () => {
@@ -241,7 +243,11 @@ describe('when the summary fails (DASH-06)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
     expect(screen.queryByText(/Here's how the shop is doing this month/)).toBeNull();
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Try Again' })[0] as HTMLElement);
+    const [retry] = screen.getAllByRole('button', { name: 'Try Again' });
+    if (retry === undefined) {
+      throw new Error('No Try Again button');
+    }
+    await userEvent.click(retry);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' })).toBeVisible();
     expect(backend.calls).toHaveLength(2);
