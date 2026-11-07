@@ -98,4 +98,38 @@ internal sealed class DashboardReader(CspsDbContext context) : IDashboardReader
                 orders?.Delivered ?? 0,
                 orders?.CompletedThisMonth ?? 0));
     }
+
+    public async Task<DashboardMonthSums> GetMonthSumsAsync(DateOnly firstDay, DateOnly lastDay, CancellationToken cancellationToken)
+    {
+        // Four grouped sums by the Year and Month of each row's own date. Deleted orders and deleted expenses are hidden by their SoftDelete filters; Cancelled orders stay in (D-11).
+        var payments = await context.Set<OrderPayment>().AsNoTracking()
+            .Where(payment => payment.PaymentDate >= firstDay && payment.PaymentDate <= lastDay)
+            .GroupBy(payment => new { payment.PaymentDate.Year, payment.PaymentDate.Month })
+            .Select(group => new MonthSum(group.Key.Year, group.Key.Month, group.Sum(payment => payment.Amount)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var refunds = await context.Set<OrderRefund>().AsNoTracking()
+            .Where(refund => refund.RefundDate >= firstDay && refund.RefundDate <= lastDay)
+            .GroupBy(refund => new { refund.RefundDate.Year, refund.RefundDate.Month })
+            .Select(group => new MonthSum(group.Key.Year, group.Key.Month, group.Sum(refund => refund.Amount)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var companyExpenses = await context.CompanyExpenses.AsNoTracking()
+            .Where(expense => expense.ExpenseDate >= firstDay && expense.ExpenseDate <= lastDay)
+            .GroupBy(expense => new { expense.ExpenseDate.Year, expense.ExpenseDate.Month })
+            .Select(group => new MonthSum(group.Key.Year, group.Key.Month, group.Sum(expense => expense.Amount)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var orderExpenses = await context.Set<OrderExpense>().AsNoTracking()
+            .Where(expense => expense.ExpenseDate >= firstDay && expense.ExpenseDate <= lastDay)
+            .GroupBy(expense => new { expense.ExpenseDate.Year, expense.ExpenseDate.Month })
+            .Select(group => new MonthSum(group.Key.Year, group.Key.Month, group.Sum(expense => expense.Amount)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new DashboardMonthSums(payments, refunds, companyExpenses, orderExpenses);
+    }
 }

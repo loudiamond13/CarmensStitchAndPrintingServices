@@ -407,6 +407,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the money-over-time chart: one entry for every month of the window, oldest first, the current business month last. Each
+         *     month has `income` (payments minus refunds, so it can be below zero), `expenses` (company plus order expenses) and
+         *     `profit` (income minus expenses). A month with no money is listed with 0.00. Money on Cancelled orders counts; money on
+         *     deleted orders and deleted company expenses does not. Both roles get the same answer. Nothing is cached.
+         */
+        get: operations["GetDashboardChart"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/summary": {
         parameters: {
             query?: never;
@@ -2315,6 +2337,36 @@ export interface components {
              * @description The new account id.
              */
             id: string;
+        };
+        /** @description One month of the dashboard chart. Every figure is worked out on the server. */
+        DashboardChartMonth: {
+            /**
+             * Format: double
+             * @description Company expenses plus order expenses, each placed by its own expense date; deleted ones never count (D-10, D-11).
+             */
+            expenses: number | string;
+            /**
+             * Format: double
+             * @description Payments dated in the month minus refunds dated in it, on orders that are not deleted; Cancelled orders count; may be below zero (D-09, D-11).
+             */
+            income: number | string;
+            /** @description The business month as `yyyy-MM`. */
+            month: string;
+            /**
+             * Format: double
+             * @description Income minus Expenses (D-36).
+             */
+            profit: number | string;
+        };
+        /** @description The money-over-time chart of the dashboard (DASH-03). */
+        DashboardChartResponse: {
+            /** @description Exactly Months entries, oldest first, the current business month last. A month with no money is still listed, with zeros. */
+            items: components["schemas"]["DashboardChartMonth"][];
+            /**
+             * Format: int32
+             * @description How many months the window holds: 6 or 12.
+             */
+            months: number | string;
         };
         /** @description The money collected this month and the comparison. */
         DashboardCollectedFigures: {
@@ -5075,6 +5127,47 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetDashboardChart: {
+        parameters: {
+            query?: {
+                /** @description How many months to show: 6 or 12; 6 when not sent. Anything else is a 400 on `months`. */
+                months?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardChartResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

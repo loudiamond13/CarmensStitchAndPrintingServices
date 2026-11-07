@@ -1262,6 +1262,75 @@
         ],
         "type": "object"
       },
+      "DashboardChartMonth": {
+        "description": "One month of the dashboard chart. Every figure is worked out on the server.",
+        "properties": {
+          "expenses": {
+            "description": "Company expenses plus order expenses, each placed by its own expense date; deleted ones never count (D-10, D-11).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "income": {
+            "description": "Payments dated in the month minus refunds dated in it, on orders that are not deleted; Cancelled orders count; may be below zero (D-09, D-11).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "month": {
+            "description": "The business month as `yyyy-MM`.",
+            "type": "string"
+          },
+          "profit": {
+            "description": "Income minus Expenses (D-36).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "income",
+          "expenses",
+          "profit"
+        ],
+        "type": "object"
+      },
+      "DashboardChartResponse": {
+        "description": "The money-over-time chart of the dashboard (DASH-03).",
+        "properties": {
+          "items": {
+            "description": "Exactly Months entries, oldest first, the current business month last. A month with no money is still listed, with zeros.",
+            "items": {
+              "$ref": "#/components/schemas/DashboardChartMonth"
+            },
+            "type": "array"
+          },
+          "months": {
+            "description": "How many months the window holds: 6 or 12.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "months",
+          "items"
+        ],
+        "type": "object"
+      },
       "DashboardCollectedFigures": {
         "description": "The money collected this month and the comparison.",
         "properties": {
@@ -6798,6 +6867,57 @@
         "summary": "Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by\nis the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no\nversion, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/dashboard/chart": {
+      "get": {
+        "operationId": "GetDashboardChart",
+        "parameters": [
+          {
+            "description": "How many months to show: 6 or 12; 6 when not sent. Anything else is a 400 on `months`.",
+            "in": "query",
+            "name": "months",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardChartResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the money-over-time chart: one entry for every month of the window, oldest first, the current business month last. Each\nmonth has `income` (payments minus refunds, so it can be below zero), `expenses` (company plus order expenses) and\n`profit` (income minus expenses). A month with no money is listed with 0.00. Money on Cancelled orders counts; money on\ndeleted orders and deleted company expenses does not. Both roles get the same answer. Nothing is cached.",
+        "tags": [
+          "Dashboard"
         ]
       }
     },

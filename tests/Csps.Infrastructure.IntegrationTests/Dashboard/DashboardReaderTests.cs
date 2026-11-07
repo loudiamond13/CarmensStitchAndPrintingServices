@@ -1,5 +1,6 @@
 using Csps.Application.Dashboard;
 using Csps.Application.Ports;
+using Csps.Domain.Expenses;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Dashboard;
 using Csps.Infrastructure.Images;
@@ -277,7 +278,138 @@ public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<
         rows.Select(row => row.Id).ShouldBe(expected);
     }
 
+    [Fact]
+    public async Task MonthSumsGroupEachSourceByItsOwnDateAndKeepCancelledOrders()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(Day(6, 5), 100.00m), new SeedMoney(Day(10, 10), 1000.00m), new SeedMoney(Day(11, 2), 500.00m)],
+            Refunds = [new SeedMoney(Day(11, 3), 200.00m)],
+            Expenses = [new SeedMoney(Day(10, 3), 40.00m), new SeedMoney(Day(11, 1), 100.00m)],
+        });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Cancelled)
+        {
+            Total = 800.00m,
+            Payments = [new SeedMoney(Day(10, 20), 50.00m)],
+            Refunds = [new SeedMoney(Day(10, 22), 10.00m)],
+            Expenses = [new SeedMoney(Day(10, 21), 5.00m)],
+        });
+        await rig.SeedCompanyExpenseAsync(Day(10, 12), 300.00m);
+        await rig.SeedCompanyExpenseAsync(Day(10, 13), 200.00m);
+        await rig.SeedCompanyExpenseAsync(Day(11, 25), 80.00m);
+
+        var sums = await rig.ReadMonthSumsAsync(Day(6, 1), Day(11, 30));
+
+        Totals(sums.Payments).ShouldBe([(2026, 6, 100.00m), (2026, 10, 1050.00m), (2026, 11, 500.00m)]);
+        Totals(sums.Refunds).ShouldBe([(2026, 10, 10.00m), (2026, 11, 200.00m)]);
+        Totals(sums.CompanyExpenses).ShouldBe([(2026, 10, 500.00m), (2026, 11, 80.00m)]);
+        Totals(sums.OrderExpenses).ShouldBe([(2026, 10, 45.00m), (2026, 11, 100.00m)]);
+    }
+
+    [Fact]
+    public async Task MonthSumsLeaveOutDeletedOrdersAndDeletedCompanyExpenses()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(Day(11, 2), 5000.00m)],
+            Refunds = [new SeedMoney(Day(11, 2), 4000.00m)],
+            Expenses = [new SeedMoney(Day(11, 2), 900.00m)],
+            Deleted = true,
+        });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Pending) { Payments = [new SeedMoney(Day(11, 2), 7.00m)] });
+        await rig.SeedCompanyExpenseAsync(Day(11, 3), 600.00m, deleted: true);
+        await rig.SeedCompanyExpenseAsync(Day(11, 3), 3.00m);
+
+        var sums = await rig.ReadMonthSumsAsync(Day(6, 1), Day(11, 30));
+
+        Totals(sums.Payments).ShouldBe([(2026, 11, 7.00m)]);
+        sums.Refunds.ShouldBeEmpty();
+        Totals(sums.CompanyExpenses).ShouldBe([(2026, 11, 3.00m)]);
+        sums.OrderExpenses.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task MonthSumsIncludeBothWindowEdgesAndLeaveOutTheDaysAroundThem()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments =
+            [
+                new SeedMoney(new DateOnly(2026, 5, 31), 1.00m),
+                new SeedMoney(Day(6, 1), 2.00m),
+                new SeedMoney(Day(11, 30), 4.00m),
+                new SeedMoney(new DateOnly(2026, 12, 1), 8.00m),
+            ],
+        });
+        await rig.SeedCompanyExpenseAsync(Day(11, 25), 80.00m);
+        await rig.SeedCompanyExpenseAsync(new DateOnly(2026, 12, 2), 90.00m);
+
+        var sums = await rig.ReadMonthSumsAsync(Day(6, 1), Day(11, 30));
+
+        Totals(sums.Payments).ShouldBe([(2026, 6, 2.00m), (2026, 11, 4.00m)]);
+        Totals(sums.CompanyExpenses).ShouldBe([(2026, 11, 80.00m)]);
+    }
+
+    [Fact]
+    public async Task MonthSumsKeepDecemberAndJanuaryApartAcrossAYearEnd()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2025-0001", OrderStatus.Pending)
+        {
+            OrderDate = new DateOnly(2025, 9, 1),
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2025, 12, 31), 10.00m), new SeedMoney(new DateOnly(2026, 1, 1), 20.00m), new SeedMoney(new DateOnly(2025, 1, 1), 99.00m)],
+        });
+
+        var sums = await rig.ReadMonthSumsAsync(new DateOnly(2025, 9, 1), new DateOnly(2026, 2, 28));
+
+        Totals(sums.Payments).ShouldBe([(2025, 12, 10.00m), (2026, 1, 20.00m)]);
+    }
+
+    [Fact]
+    public async Task MonthSumsRunExactlyFourCommandsWhateverTheData()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Payments = [new SeedMoney(Day(11, 3), 100.00m)],
+            Refunds = [new SeedMoney(Day(11, 3), 10.00m)],
+            Expenses = [new SeedMoney(Day(11, 3), 5.00m)],
+        });
+        await rig.SeedCompanyExpenseAsync(Day(11, 3), 3.00m);
+        var counter = new CommandCounter();
+        await using var context = database.CreateContext(counter);
+
+        counter.Reset();
+        var sums = await new DashboardReader(context).GetMonthSumsAsync(Day(6, 1), Day(11, 30), TestContext.Current.CancellationToken);
+
+        counter.Count.ShouldBe(4, string.Join(Environment.NewLine, counter.Commands));
+        Totals(sums.Payments).ShouldBe([(2026, 11, 100.00m)]);
+    }
+
+    [Fact]
+    public async Task MonthSumsOfAnEmptyShopAreFourEmptyLists()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+
+        var sums = await rig.ReadMonthSumsAsync(Day(6, 1), Day(11, 30));
+
+        sums.Payments.ShouldBeEmpty();
+        sums.Refunds.ShouldBeEmpty();
+        sums.CompanyExpenses.ShouldBeEmpty();
+        sums.OrderExpenses.ShouldBeEmpty();
+    }
+
     private static DateOnly Day(int month, int day) => new(2026, month, day);
+
+    private static List<(int Year, int Month, decimal Total)> Totals(IReadOnlyList<MonthSum> sums) =>
+        [.. sums.OrderBy(sum => sum.Year).ThenBy(sum => sum.Month).Select(sum => (sum.Year, sum.Month, sum.Total))];
 
     private sealed class Rig
     {
@@ -321,6 +453,30 @@ public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<
                 .OrderByDescending(order => order.Id)
                 .Select(order => order.Id)
                 .ToListAsync(TestContext.Current.CancellationToken);
+        }
+
+        public async Task SeedCompanyExpenseAsync(DateOnly date, decimal amount, bool deleted = false)
+        {
+            var categoryId = ExpenseCategorySeed.Rows.Single(row => row.Name == "Supplies").Id;
+            var expense = CompanyExpense.Create(date, categoryId, "Thread and needles", amount, _staffId, null, date, _now).Value;
+            await using var context = _database.CreateContext();
+            context.CompanyExpenses.Add(expense);
+            var entry = context.Entry(expense);
+            entry.Property(row => row.CreatedById).CurrentValue = _staffId;
+            entry.Property(row => row.CreatedAtUtc).CurrentValue = _now;
+            if (deleted)
+            {
+                entry.Property(row => row.DeletedAtUtc).CurrentValue = _now.AddMinutes(1);
+                entry.Property(row => row.DeletedById).CurrentValue = _staffId;
+            }
+
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        public async Task<DashboardMonthSums> ReadMonthSumsAsync(DateOnly firstDay, DateOnly lastDay)
+        {
+            await using var context = _database.CreateContext();
+            return await new DashboardReader(context).GetMonthSumsAsync(firstDay, lastDay, TestContext.Current.CancellationToken);
         }
 
         public Task<DashboardFigures> ReadAsync() => ReadAsync(_staffId);
