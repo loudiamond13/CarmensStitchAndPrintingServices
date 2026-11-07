@@ -46,8 +46,12 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
           ? 'zero'
           : 'plain';
 
+  // A read that failed shows its alert until Try Again runs; while the retry runs the skeleton stands in, even over an older figure.
+  const failed = query.isError && !query.isFetching;
+  const loading = query.isFetching && (money === undefined || query.isError);
+
   let figure;
-  if (query.isError) {
+  if (failed) {
     figure = (
       <div className={moneyStripFailedClasses}>
         <p role="alert" className={moneyStripFailedTextClasses}>
@@ -64,7 +68,7 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
         </Button>
       </div>
     );
-  } else if (money === undefined) {
+  } else if (money === undefined || query.isError) {
     figure = <Skeleton width={160} height={28} />;
   } else {
     figure = (
@@ -77,12 +81,7 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
       <span className={moneyStripTileClasses}>
         <Icon name="wallet" size={18} />
       </span>
-      <LoadingRegion
-        loading={money === undefined && !query.isError}
-        failed={query.isError}
-        things={COPY.things}
-        className={moneyStripBodyClasses}
-      >
+      <LoadingRegion loading={loading} failed={failed} things={COPY.things} className={moneyStripBodyClasses}>
         <span className={moneyStripLabelClasses}>{COPY.label}</span>
         {figure}
       </LoadingRegion>

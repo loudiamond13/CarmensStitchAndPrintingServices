@@ -49,7 +49,9 @@ function renderFed(actions?: ReactNode) {
 }
 
 function queryOf(overrides: Partial<MyMoneyCardQuery> = {}): MyMoneyCardQuery {
-  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  // With nothing to show and no failure, a plain query is still reading.
+  const isFetching = overrides.data === undefined && overrides.isError !== true;
+  return { data: undefined, isError: false, isFetching, error: null, refetch: vi.fn(), ...overrides };
 }
 
 function moneyOf(balance: number): MyMoney {
