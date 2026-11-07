@@ -272,6 +272,17 @@ public sealed class CreateMoneyTransferHandlerTests
         new StaffMoneyBusyException().Message.ShouldBe(MoneyErrors.BusyMessage);
     }
 
+    [Fact]
+    public void TheBusyExceptionKeepsTheCauseWhenOneIsGiven()
+    {
+        var cause = new TimeoutException("the wait ran out");
+
+        var busy = new StaffMoneyBusyException(cause);
+
+        busy.Message.ShouldBe(MoneyErrors.BusyMessage);
+        busy.InnerException.ShouldBeSameAs(cause);
+    }
+
     private static CreateMoneyTransferRequest Valid() => new(RecipientId, 200.00m, "2026-11-04", "Fabric");
 
     private static void OnlyField(Result<MoneyTransferSavedResponse> result, string field, string message)
