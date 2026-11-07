@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-11-04T00:50:00-06:00
+updated: 2026-11-07T13:52:00-06:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -201,6 +201,20 @@ transaction as the change.
 
 The list events reuse the keys of `CategoryAuditDetail`, so the names are percent-encoded the same way. The order expense Others
 is never renamed, retired or deleted, so it never appears in a rename, retire or delete event.
+
+## Phase 10 staff money events (AUDIT-01, D-17, D-52)
+
+Same rules as the tables above: the target is the thing acted on, by id, and the code is a constant in
+`Csps.Domain.Auditing.AuditActions`. The detail follows the Phase 6 format, written by `Csps.Application.Money.MoneyAuditDetail`:
+`key=value` pairs joined by `;`, with people as ids, the amount as `0.00`, the date as `yyyy-MM-dd` and the note as `note=yes` or
+`note=no`. **The note text and people's names never appear in a detail** (D-52). The detail is far under the 400 character limit.
+A normal transfer between staff writes no audit entry of its own.
+
+| Code | Written when | Target | Detail | Write path |
+|------|--------------|--------|--------|------------|
+| `money-transfer.handed-over` | A Manager hands money held by a deactivated or deleted staff member to a current coworker (`POST /api/v1/money-transfers/handovers`, D-17). Refused hand-overs (a Manager who is no longer allowed, an active sender, a bad amount, a coworker who cannot receive) write nothing | `MoneyTransfer` id (the new hand-over) | `from=<former staff id>;to=<coworker id>;amount=2000.00;date=2026-11-04;note=no`. `note=yes` when the hand-over has a note; the note text is never written | `Record`, in the same save as the hand-over, under the `staff-money` lock; the actor is the Manager who recorded it |
+
+The audit screen reads `from` and `to` as people (a deleted person shows the former staff mark), and shows the amount and the date.
 
 ## Viewing the log
 
