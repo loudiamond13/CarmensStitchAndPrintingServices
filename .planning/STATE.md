@@ -4,15 +4,15 @@ current_phase: 10
 current_phase_name: Admin Dashboard
 status: executing
 stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-11-07T15:04:12.389Z"
+last_updated: "2026-11-07T19:29:32.962Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 10 execution started
-state_head: 9ee28c163d064762faa09e69db03983879d10099
+state_head: a1374bf2a2dbab4802140b74f0e2694bccb2c2f5
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 302
-  completed_plans: 290
+  completed_plans: 292
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-06T10:53:00-06:00"
@@ -912,6 +912,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 10]: Wave 2 (10-05) post-merge gate: build 0 warnings; dotnet format, typecheck, lint and OpenAPI check clean. Web 8086 of 8087 passed; third-party-notices --check test timed out at 120 s under load, passed alone 11 of 11. Full .NET run had 50 load failures (email transport, migration script, matrix HEAD /health, user create races); each project re-run alone: all 7227 pass (2 skipped). 10-05 executor also saw OrderImagesEndpointTests last-free-slot race return 500 once under load (passed alone): watch it. 10-05 followed D-05 over a contradicting Task 2 test note (Oct 31 payment in neither figure).
 - [Phase 10]: Wave 3 gate (10-06, 10-07): build, format, typecheck, lint and OpenAPI clean; .NET 7285 passed, 0 failed (per project); web 8118 passed, 0 failed; e2e 1609 passed, 24 failed under load, and all 24 passed when re-run alone (mostly /dev/components h1 not shown within 5 s on a cold WebKit/iPhone server). Recorded as load flakes, not fixed.
 - [Phase 10]: Wave 4 gate (10-08, 10-09, plus review fixes): build, format, typecheck, lint and OpenAPI clean; .NET 7338 with 1 real failure (IdempotencyGate purge test hard-coded 66 standing locks; fixed 9747445f to read DatabaseLocks.StandingNames); web 8223 passed; e2e 1604 passed, 34 failed. 6 are a real 320 px sideways scroll on the dashboard with large figures (Firefox, WebKit, iPhone), parked as P10-BL-06 and left failing on purpose. The other 28 passed when re-run alone or one worker at a time (WebKit/iPhone showcase load); recorded as load flakes.
+- [Phase 10]: Wave 5 (10-10, 10-11) closed 2026-11-07: build, format, types, lint, OpenAPI clean; .NET 7443 passed 0 failed; vitest 8298 passed; e2e 1604 passed, 33 failed then all 33 passed on one worker (load; the 6 P10-BL-06 checks pass only on small figures). Review fixes merged 3850b2a0.
 
 ### Pending Todos
 

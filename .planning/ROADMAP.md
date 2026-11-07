@@ -1092,7 +1092,7 @@ Plans:
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
 
-**Plans**: 9/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
+**Plans**: 11/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
 
 **Wave 1**
 - [x] 10-01-PLAN.md — Ledger union query proven on SQL Server, the Wave 0 spike (MONEY-02; RESEARCH A1, A2)
@@ -1112,8 +1112,8 @@ Plans:
 - [x] 10-09-PLAN.md — KPI cards, Orders by status and Recent orders (DASH-02, DASH-04, DASH-05, DASH-06; D-01 to D-08, D-37, D-38)
 
 **Wave 5**
-- [ ] 10-10-PLAN.md — Transfer create under the staff-money lock (MONEY-04, MONEY-05, MONEY-08; D-14, D-19, D-20, D-49, D-53, D-56)
-- [ ] 10-11-PLAN.md — Chart card with the range in the URL; the dashboard refreshes after writes (DASH-03, DASH-06; D-13, D-36, D-50)
+- [x] 10-10-PLAN.md — Transfer create under the staff-money lock (MONEY-04, MONEY-05, MONEY-08; D-14, D-19, D-20, D-49, D-53, D-56)
+- [x] 10-11-PLAN.md — Chart card with the range in the URL; the dashboard refreshes after writes (DASH-03, DASH-06; D-13, D-36, D-50)
 
 **Wave 6**
 - [ ] 10-12-PLAN.md — Manager hand-over and the recipients list (MONEY-04, MONEY-05, MONEY-06, MONEY-08; D-17, D-18, D-52, D-56)
@@ -1456,7 +1456,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
-| 10. Admin Dashboard | 9/21 | In Progress | - |
+| 10. Admin Dashboard | 11/21 | In Progress | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
