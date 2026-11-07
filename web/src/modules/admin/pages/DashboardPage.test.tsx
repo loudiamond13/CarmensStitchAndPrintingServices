@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { DashboardRoute } from '@/modules/admin/pages/DashboardPage';
-import { dashboardBackend, dashboardSummaryFixture } from '@/test/dashboardFixtures';
+import { dashboardBackend, dashboardNovemberSummary, dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 
@@ -113,6 +113,42 @@ describe('the loaded header (DASH-01)', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' });
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('the KPI row under the header (DASH-02, plan 10-09)', () => {
+  it('shows the four cards from the same summary that feeds the header', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    renderPage();
+
+    expect(await screen.findByText('Active orders')).toBeVisible();
+    expect(screen.getByText('Total receivables')).toBeVisible();
+    expect(screen.getByText('Collected · Nov')).toBeVisible();
+    expect(screen.getByText('Company expenses · Nov')).toBeVisible();
+    expect(screen.getByText('5 due this week · 2 overdue')).toBeVisible();
+    expect(screen.getByText('₱126,450.00')).toBeVisible();
+  });
+
+  it('announces "Loading the shop figures…" while the summary loads', async () => {
+    dashboardBackend(async () => {
+      await delay(300);
+      return dashboardNovemberSummary();
+    });
+    renderPage();
+
+    expect(screen.getByText('Loading the shop figures…')).toBeInTheDocument();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+  });
+
+  it('shows the failure line in the KPI row, not under the header', async () => {
+    dashboardBackend(() => problemResponse(500));
+    renderPage();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't load the shop figures.");
+    expect(screen.queryByText('Active orders')).toBeNull();
+    const header = screen.getByRole('heading', { level: 1, name: 'Dashboard' }).parentElement?.parentElement;
+    expect(header).not.toContainElement(alert);
   });
 });
 

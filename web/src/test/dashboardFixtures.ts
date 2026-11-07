@@ -34,6 +34,73 @@ export function dashboardSummaryFixture(overrides: Partial<DashboardSummaryFixtu
   };
 }
 
+/** The UI-SPEC 12.4 values for a November day: 18 active orders (5 due this week, 2 overdue), up 12% on October. */
+export function dashboardNovemberSummary(overrides: Partial<DashboardSummaryFixture> = {}): DashboardSummaryFixture {
+  return dashboardSummaryFixture({
+    today: '2026-11-04',
+    orders: { active: 18, dueThisWeek: 5, overdue: 2, receivables: 84300 },
+    collected: { thisMonth: 126450, comparison: 112900, changePercent: 12, comparisonThrough: '2026-10-04' },
+    expenses: { thisMonth: 58320, count: 23, topCategory: 'Rent' },
+    statuses: [
+      { status: 'pending', count: 4 },
+      { status: 'mockup', count: 2 },
+      { status: 'production', count: 7 },
+      { status: 'ready', count: 3 },
+      { status: 'delivered', count: 2 },
+      { status: 'completed', count: 11 },
+    ],
+    ...overrides,
+  });
+}
+
+/** A shop with no orders, no money and no expenses: every figure is zero and nothing is listed. */
+export function dashboardNewShopSummary(overrides: Partial<DashboardSummaryFixture> = {}): DashboardSummaryFixture {
+  return dashboardSummaryFixture({
+    orders: { active: 0, dueThisWeek: 0, overdue: 0, receivables: 0 },
+    collected: { thisMonth: 0, comparison: 0, changePercent: null, comparisonThrough: '2026-09-06' },
+    expenses: { thisMonth: 0, count: 0, topCategory: null },
+    statuses: [
+      { status: 'pending', count: 0 },
+      { status: 'mockup', count: 0 },
+      { status: 'production', count: 0 },
+      { status: 'ready', count: 0 },
+      { status: 'delivered', count: 0 },
+      { status: 'completed', count: 0 },
+    ],
+    recentOrders: [],
+    ...overrides,
+  });
+}
+
+/** Mar 31 (Manila): the server clamps the comparison to Feb 28, so the labels say Mar and Feb. */
+export function dashboardMarch31Summary(overrides: Partial<DashboardSummaryFixture> = {}): DashboardSummaryFixture {
+  return dashboardSummaryFixture({
+    today: '2026-03-31',
+    collected: { thisMonth: 40500, comparison: 38000, changePercent: 7, comparisonThrough: '2026-02-28' },
+    ...overrides,
+  });
+}
+
+/** A Monday (Nov 2): the week has just begun, so six orders are due this week and none are overdue. */
+export function dashboardMondaySummary(overrides: Partial<DashboardSummaryFixture> = {}): DashboardSummaryFixture {
+  return dashboardSummaryFixture({
+    today: '2026-11-02',
+    orders: { active: 9, dueThisWeek: 6, overdue: 0, receivables: 15250.5 },
+    collected: { thisMonth: 1200, comparison: 900, changePercent: 33, comparisonThrough: '2026-10-02' },
+    ...overrides,
+  });
+}
+
+/** A Sunday (Nov 8): the last day of the week, with one order due and one overdue. */
+export function dashboardSundaySummary(overrides: Partial<DashboardSummaryFixture> = {}): DashboardSummaryFixture {
+  return dashboardSummaryFixture({
+    today: '2026-11-08',
+    orders: { active: 12, dueThisWeek: 1, overdue: 1, receivables: 22000 },
+    collected: { thisMonth: 54000, comparison: 61000, changePercent: -11, comparisonThrough: '2026-10-08' },
+    ...overrides,
+  });
+}
+
 /** What `GET /api/v1/dashboard/summary` was asked for. */
 export interface DashboardCalls {
   readonly calls: URL[];
