@@ -104,4 +104,326 @@ public sealed class MoneyTransferEndpointTests(CspsDatabase database) : IClassFi
         ]);
         text.ShouldNotContain("421.00");
     }
+
+    [Fact]
+    public async Task AnAmountOneCentavoAboveWhatTheSenderHoldsIsRefusedUnderAmount()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 3200.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 3200.01m, today);
+
+        (await MoneyFixtures.ReadFieldErrorsAsync(response, "amount")).ShouldBe(["You only have ₱3,200.00 on hand."]);
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SendingEverythingTheSenderHoldsIsAllowedAndLeavesZero()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 3200.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 3200.00m, today);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await MoneyFixtures.ReadBalanceAsync(client, carmen.AccessToken)).ShouldBe(0.00m);
+    }
+
+    [Fact]
+    public async Task ASenderWithNothingOnHandIsToldSo()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 10.00m, today);
+
+        (await MoneyFixtures.ReadFieldErrorsAsync(response, "amount")).ShouldBe(["You have nothing on hand to transfer."]);
+    }
+
+    [Fact]
+    public async Task ATransferToYourselfIsRefusedUnderToUserId()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 500.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, carmen.UserId, 10.00m, today);
+
+        (await MoneyFixtures.ReadFieldErrorsAsync(response, "toUserId")).ShouldBe(["Choose someone other than yourself."]);
+    }
+
+    [Fact]
+    public async Task ACoworkerWhoIsLockedByAManagerCanReceive()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 500.00m, today, Now);
+        await MoneyFixtures.LockAccountAsync(database, liza.UserId, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 100.00m, today);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ACoworkerWhoHasNotFinishedSetUpCanReceive()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 500.00m, today, Now);
+        await MoneyFixtures.MakeNotSetUpAsync(database, liza.UserId);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 100.00m, today);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await MoneyFixtures.ReadBalanceAsync(client, liza.AccessToken)).ShouldBe(100.00m);
+    }
+
+    [Fact]
+    public async Task ADeactivatedPersonAtZeroCannotReceiveAndIsNamed()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var jomar = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Jomar", "Santos");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 500.00m, today, Now);
+        await MoneyFixtures.DeactivateAccountAsync(database, jomar.UserId);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, jomar.UserId, 100.00m, today);
+
+        (await MoneyFixtures.ReadFieldErrorsAsync(response, "toUserId")).ShouldBe(["Jomar Santos can't receive transfers now. Choose someone else."]);
+    }
+
+    [Fact]
+    public async Task ADeletedPersonWithMoneyOnHandCannotReceive()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var jomar = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Jomar", "Santos");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 500.00m, today, Now);
+        await MoneyFixtures.SeedPaymentAsync(database, jomar.UserId, "ORD-2026-0002", 300.00m, today, Now);
+        await MoneyFixtures.DeleteAccountAsync(database, jomar.UserId, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, jomar.UserId, 100.00m, today);
+
+        (await MoneyFixtures.ReadFieldErrorsAsync(response, "toUserId")).ShouldBe(["Jomar Santos can't receive transfers now. Choose someone else."]);
+    }
+
+    [Fact]
+    public async Task AnUnknownIdTheLegacyHolderAndAnAccountWithNoStaffRoleAreAllRefusedWithTheUnknownRecipientLine()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 500.00m, today, Now);
+        var roleless = await OrderSeeding.AddStaffAsync(database, "Ana", Now, "Abad");
+
+        foreach (var recipient in new[] { Guid.NewGuid(), Csps.Domain.Identity.LegacyHolder.Id, roleless })
+        {
+            using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, recipient, 100.00m, today);
+
+            (await MoneyFixtures.ReadFieldErrorsAsync(response, "toUserId")).ShouldBe(["This person can't receive transfers now. Choose someone else."], recipient.ToString());
+        }
+
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AManagerCanSendUpToWhatALeaverIsOwedAndNotOneCentavoMore()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var jomar = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Jomar", "Santos");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 2000.00m, today, Now);
+        await MoneyFixtures.SeedCompanyExpenseAsync(database, jomar.UserId, jomar.UserId, 500.00m, today, Now);
+        await MoneyFixtures.DeleteAccountAsync(database, jomar.UserId, Now);
+
+        using var tooMuch = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, jomar.UserId, 500.01m, today);
+        using var exact = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, jomar.UserId, 500.00m, today);
+
+        (await MoneyFixtures.ReadFieldErrorsAsync(tooMuch, "amount")).ShouldBe(["Jomar Santos is owed only ₱500.00. Enter that or less."]);
+        exact.StatusCode.ShouldBe(HttpStatusCode.Created, await exact.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldHaveSingleItem().Amount.ShouldBe(500.00m);
+    }
+
+    [Fact]
+    public async Task AnAdminSendingMoreThanALeaverIsOwedIsToldToAskAManagerAndTheAnswerHasNoOwedFigure()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var jomar = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Jomar", "Santos");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, liza.UserId, "ORD-2026-0001", 2000.00m, today, Now);
+        await MoneyFixtures.SeedCompanyExpenseAsync(database, jomar.UserId, jomar.UserId, 500.00m, today, Now);
+        await MoneyFixtures.DeactivateAccountAsync(database, jomar.UserId);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, liza.AccessToken, jomar.UserId, 500.01m, today);
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, text);
+        text.ShouldContain("That's more than Jomar Santos is owed. Ask a Manager for the amount.");
+        text.ShouldNotContain("500.00");
+    }
+
+    [Fact]
+    public async Task ATransferDatedInThePastIsAcceptedAgainstTheBalanceNow()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 900.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 400.00m, new DateOnly(2025, 1, 15));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldHaveSingleItem().TransferDate.ShouldBe(new DateOnly(2025, 1, 15));
+        (await MoneyFixtures.ReadBalanceAsync(client, carmen.AccessToken)).ShouldBe(500.00m);
+    }
+
+    [Fact]
+    public async Task ATransferDatedTomorrowIsRefusedUnderTransferDate()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 900.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 100.00m, today.AddDays(1));
+
+        (await MoneyFixtures.ReadFieldErrorsAsync(response, "transferDate")).ShouldBe(["The transfer date can't be in the future."]);
+    }
+
+    [Fact]
+    public async Task AnEmptyBodyListsTheRecipientTheAmountAndTheDateTogether()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, body: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await Csps.Server.IntegrationTests.Http.ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("money-transfers.invalid-request");
+        ExpenseFixtures.ErrorFields(problem).ShouldBe(["amount", "toUserId", "transferDate"]);
+        ExpenseFixtures.FieldErrors(problem, "toUserId").ShouldBe(["Choose who got the cash."]);
+        ExpenseFixtures.FieldErrors(problem, "amount").ShouldBe(["Enter the amount."]);
+        ExpenseFixtures.FieldErrors(problem, "transferDate").ShouldBe(["Enter the transfer date."]);
+    }
+
+    [Fact]
+    public async Task AnAnonymousPostWithNoBodyGets401NotAnErrorList()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, null, body: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task TheCreatedAnswerHasNoLocationBecauseThereIsNoSingleTransferRoute()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 900.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 100.00m, today);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        response.Headers.Location.ShouldBeNull();
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task TheSameKeyAndBodyTwiceRecordsOneTransferAndReplaysTheStored201()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 900.00m, today, Now);
+        var key = Guid.NewGuid();
+
+        using var first = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 400.00m, today, "Fabric", key);
+        using var second = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 400.00m, today, "Fabric", key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.Headers.Contains(Csps.Server.IntegrationTests.Auth.AuthClient.ReplayedHeader).ShouldBeTrue();
+        (await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .ShouldBe(await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldHaveSingleItem();
+        (await MoneyFixtures.ReadBalanceAsync(client, carmen.AccessToken)).ShouldBe(500.00m);
+    }
+
+    [Fact]
+    public async Task TheSameKeyWithAnotherAmountIsRefusedWith422AndRecordsNothingMore()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 900.00m, today, Now);
+        var key = Guid.NewGuid();
+
+        using var first = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 400.00m, today, null, key);
+        using var second = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 300.00m, today, null, key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldHaveSingleItem().Amount.ShouldBe(400.00m);
+    }
 }
