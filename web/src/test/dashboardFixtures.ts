@@ -2,7 +2,16 @@
 // with the UI-SPEC 12.4 demo values and made-up people, and an MSW handler that records every request.
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw';
-import { buildOrderListEntry } from '@/test/orderFixtures';
+import {
+  buildOrderListEntry,
+  cancelledOrderWithRefunds,
+  creditOrder,
+  deliveredOrder,
+  listEntryOf,
+  order0148,
+  order0151,
+  order0153,
+} from '@/test/orderFixtures';
 import type { components } from '@/types/api.generated';
 
 type Schemas = components['schemas'];
@@ -99,6 +108,17 @@ export function dashboardSundaySummary(overrides: Partial<DashboardSummaryFixtur
     collected: { thisMonth: 54000, comparison: 61000, changePercent: -11, comparisonThrough: '2026-10-08' },
     ...overrides,
   });
+}
+
+/** The business today of the recent orders below: ORD-2026-0153 (due Oct 5) is overdue by 3 days. */
+export const RECENT_ORDERS_TODAY = '2026-10-08';
+
+/**
+ * Six recent orders, newest first, one for each Balance and Due state: a balance due, Fully Paid, a walk-in Mockup order that is
+ * overdue, a customer credit, a Delivered order past its due date (no overdue flag) and a Cancelled order with money unpaid.
+ */
+export function dashboardRecentOrders(): DashboardSummaryFixture['recentOrders'] {
+  return [order0148, order0151, order0153, creditOrder, deliveredOrder, cancelledOrderWithRefunds].map(listEntryOf);
 }
 
 /** What `GET /api/v1/dashboard/summary` was asked for. */

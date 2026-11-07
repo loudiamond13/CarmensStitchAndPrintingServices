@@ -32,6 +32,10 @@ export interface SkeletonTableProps {
   columns: readonly SkeletonTableColumn[];
   /** No 680px floor on tablets (as on ResponsiveTable). */
   fitTablet?: boolean | undefined;
+  /** RED stub (plan 10-09): rows shown (4 by default). Used in the GREEN commit. */
+  rows?: number | undefined;
+  /** RED stub (plan 10-09): the frame sits in a card that draws the border. Used in the GREEN commit. */
+  embedded?: boolean | undefined;
 }
 
 /** The four skeleton rows (spec §8.5). */

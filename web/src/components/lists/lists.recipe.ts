@@ -30,6 +30,9 @@ export const tableWrapClasses = tw(
   'overflow-x-auto rounded-md border border-line bg-surface contain-paint pg-phone:overflow-visible pg-phone:border-0 pg-phone:bg-transparent pg-phone:contain-none',
 );
 
+/** RED stub (plan 10-09): the real embedded frame arrives in the GREEN commit. */
+export const tableWrapEmbeddedClasses = tw('overflow-x-auto');
+
 /** `.s-rt`: full width, 14px/20px; at least 680px on tablets; a block on phones (preflight collapses the borders). */
 export const tableClasses = tw('w-full text-[14px] leading-5 pg-phone:block pg-tablet:min-w-[680px]');
 

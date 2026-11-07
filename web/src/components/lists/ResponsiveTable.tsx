@@ -104,6 +104,10 @@ export interface ResponsiveTableProps<T> {
   onToggleRow?: ((key: string) => void) | undefined;
   /** Few short columns: no 680px floor on tablets, so the table fits its card with no sideways scroll. */
   fitTablet?: boolean | undefined;
+  /** RED stub (plan 10-09): the table sits in a card that draws the border. Used in the GREEN commit. */
+  embedded?: boolean | undefined;
+  /** RED stub (plan 10-09): how many rows the first-load skeleton shows. Used in the GREEN commit. */
+  skeletonRows?: number | undefined;
 }
 
 export interface FooterCellLayout {
