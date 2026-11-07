@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Application.Security;
 using Csps.Application.Staff;
 using Csps.Application.Users;
 using Csps.Domain.Common;
@@ -74,7 +75,8 @@ public sealed class CreateMoneyTransferHandler(
 
         var recipientId = request.ToUserId!.Value;
         var senderState = await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false);
-        if (senderState is null)
+        // Read under the lock: a sender who left, was locked or lost the role since sign-in may not move money (D-17).
+        if (senderState is not { IsActive: true, IsManagerLocked: false, IsDeleted: false, Role: Roles.Admin or Roles.Manager })
         {
             return Result.Failure<MoneyTransferSavedResponse>(AuthErrors.SessionEnded);
         }
