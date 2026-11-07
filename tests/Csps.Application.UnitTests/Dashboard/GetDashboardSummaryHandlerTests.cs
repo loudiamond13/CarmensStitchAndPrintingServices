@@ -162,6 +162,16 @@ public sealed class GetDashboardSummaryHandlerTests
     }
 
     [Fact]
+    public async Task ExpensesWithNoNamedTopCategoryKeepTheirTotalAndCountAndShowNoName()
+    {
+        var harness = new Harness { Totals = new ExpenseKpiTotals(700.00m, 2, 0m, 0, null, 0m) };
+
+        var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.Expenses.ShouldBe(new DashboardExpenseFigures(700.00m, 2, null));
+    }
+
+    [Fact]
     public async Task TheStatusesAreTheSixShownOnesInFixedOrderWithTheirKeysAndNothingMore()
     {
         var harness = new Harness { Figures = FiguresOf() with { Statuses = new DashboardStatusCounts(3, 1, 4, 2, 5, 7) } };

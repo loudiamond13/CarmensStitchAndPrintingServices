@@ -166,6 +166,22 @@ public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
+    public async Task TheReaderRunsExactlyFourCommandsWhateverTheData()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { Payments = [new SeedMoney(Day(11, 3), 100.00m)], Refunds = [new SeedMoney(Day(11, 3), 10.00m)] });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Completed));
+        var counter = new CommandCounter();
+        await using var context = database.CreateContext(counter);
+
+        counter.Reset();
+        var figures = await new DashboardReader(context).GetSummaryAsync(rig.StaffId, rig.Period, TestContext.Current.CancellationToken);
+
+        counter.Count.ShouldBe(4, string.Join(Environment.NewLine, counter.Commands));
+        figures.CollectedThisMonth.ShouldBe(90.00m);
+    }
+
+    [Fact]
     public async Task AnEmptyShopGivesZeroEverywhere()
     {
         var rig = await Rig.StartAsync(database, Wednesday);
@@ -278,6 +294,8 @@ public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<
         }
 
         public DashboardPeriod Period { get; }
+
+        public Guid StaffId => _staffId;
 
         public static async Task<Rig> StartAsync(CspsDatabase database, DateTimeOffset now)
         {
