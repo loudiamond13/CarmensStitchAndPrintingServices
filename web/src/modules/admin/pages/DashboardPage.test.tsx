@@ -7,7 +7,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { DashboardRoute } from '@/modules/admin/pages/DashboardPage';
-import { dashboardBackend, dashboardSummaryFixture } from '@/test/dashboardFixtures';
+import {
+  dashboardBackend,
+  dashboardNewShopSummary,
+  dashboardNovemberSummary,
+  dashboardRecentOrders,
+  dashboardSummaryFixture,
+  RECENT_ORDERS_TODAY,
+} from '@/test/dashboardFixtures';
+import { orderId } from '@/test/orderFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 
@@ -116,6 +124,137 @@ describe('the loaded header (DASH-01)', () => {
   });
 });
 
+describe('the KPI row under the header (DASH-02, plan 10-09)', () => {
+  it('shows the four cards from the same summary that feeds the header', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    renderPage();
+
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+    expect(screen.getByText('Active orders')).toBeVisible();
+    expect(screen.getByText('Total receivables')).toBeVisible();
+    expect(screen.getByText('Collected · Nov')).toBeVisible();
+    expect(screen.getByText('Company expenses · Nov')).toBeVisible();
+    expect(screen.getByText('₱126,450.00')).toBeVisible();
+  });
+
+  it('announces "Loading the shop figures…" while the summary loads', async () => {
+    dashboardBackend(async () => {
+      await delay(300);
+      return dashboardNovemberSummary();
+    });
+    renderPage();
+
+    expect(screen.getByText('Loading the shop figures…')).toBeInTheDocument();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+  });
+
+  it('shows the failure line in the KPI row, not under the header', async () => {
+    dashboardBackend(() => problemResponse(500));
+    renderPage();
+
+    const alert = (await screen.findByText("Couldn't load the shop figures.")).closest('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(screen.queryByText('Active orders')).toBeNull();
+    const header = screen.getByRole('heading', { level: 1, name: 'Dashboard' }).parentElement?.parentElement;
+    expect(header).not.toContainElement(alert as HTMLElement);
+  });
+});
+
+describe('the Orders by status card on the page (DASH-04, plan 10-09)', () => {
+  it('shows the six rows and the active total from the same summary', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    renderPage();
+
+    expect(await screen.findByText('18 orders')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Orders by status' })).toBeVisible();
+    expect(screen.getByText('Active (Pending to Delivered)')).toBeVisible();
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
+  });
+
+  it('announces "Loading order counts…" while the summary loads', async () => {
+    dashboardBackend(async () => {
+      await delay(300);
+      return dashboardNovemberSummary();
+    });
+    renderPage();
+
+    expect(screen.getByText('Loading order counts…')).toBeInTheDocument();
+    expect(await screen.findByText('18 orders')).toBeVisible();
+  });
+
+  it('shows its own failure line next to the KPI row failure line when the summary fails', async () => {
+    dashboardBackend(() => problemResponse(500));
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load order counts.")).toBeVisible();
+    expect(screen.getByText("Couldn't load the shop figures.")).toBeVisible();
+    expect(screen.getByText("Couldn't load recent orders.")).toBeVisible();
+    expect(screen.getAllByRole('button', { name: 'Try Again' })).toHaveLength(3);
+  });
+});
+
+describe('the Recent orders card on the page (DASH-05, plan 10-09)', () => {
+  it('lists the six newest orders from the same summary, under the status card', async () => {
+    dashboardBackend(dashboardNovemberSummary({ today: RECENT_ORDERS_TODAY, recentOrders: dashboardRecentOrders() }));
+    renderPage();
+
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${orderId(148)}`,
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent orders' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'All orders' })).toHaveAttribute('href', '/admin/orders');
+    expect(screen.getByRole('table', { name: 'Recent orders' })).toBeVisible();
+    const status = screen.getByRole('heading', { level: 2, name: 'Orders by status' });
+    const recent = screen.getByRole('heading', { level: 2, name: 'Recent orders' });
+    expect(status.compareDocumentPosition(recent) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('announces "Loading recent orders…" while the summary loads', async () => {
+    dashboardBackend(async () => {
+      await delay(300);
+      return dashboardNovemberSummary({ recentOrders: dashboardRecentOrders() });
+    });
+    renderPage();
+
+    expect(screen.getByText('Loading recent orders…')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
+  });
+
+  it('shows the empty state on a new shop, with zeros in the KPI row and no open orders', async () => {
+    dashboardBackend(dashboardNewShopSummary());
+    renderPage();
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'No orders yet' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 3, name: 'No open orders' })).toBeVisible();
+    expect(screen.getByText('None due this week')).toBeVisible();
+  });
+
+  it('brings all three cards back with one Try Again, which reads the summary once', async () => {
+    let answered = 0;
+    const backend = dashboardBackend(() => {
+      answered += 1;
+      return answered === 1
+        ? problemResponse(500)
+        : dashboardNovemberSummary({ recentOrders: dashboardRecentOrders() });
+    });
+    renderPage();
+
+    await screen.findByText("Couldn't load recent orders.");
+    const [retry] = screen.getAllByRole('button', { name: 'Try Again' });
+    if (retry === undefined) {
+      throw new Error('No Try Again button');
+    }
+    await userEvent.click(retry);
+
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
+    expect(screen.getByText('18 orders')).toBeVisible();
+    expect(screen.getByText('5 due this week · 2 overdue')).toBeVisible();
+    expect(backend.calls).toHaveLength(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
 describe('the summary query (D-13)', () => {
   it('is read again on every visit, not served from a fresh cache', async () => {
     const backend = dashboardBackend(EVENING);
@@ -139,13 +278,15 @@ describe('while the summary loads (DASH-06)', () => {
       await delay(300);
       return EVENING;
     });
-    const { container } = renderPage();
+    renderPage();
 
+    // The cards below have their own skeletons and bars, so the header's skeleton is looked up inside the header.
+    const headerOf = () => screen.getByRole('heading', { level: 1 }).parentElement;
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
-    expect(container.querySelector('span[aria-hidden="true"]')).not.toBeNull();
+    expect(headerOf()?.querySelector('span[aria-hidden="true"]')).not.toBeNull();
     expect(screen.queryByText(/Here's how the shop is doing this month/)).toBeNull();
     expect(await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' })).toBeVisible();
-    expect(container.querySelector('span[aria-hidden="true"]')).toBeNull();
+    expect(headerOf()?.querySelector('span[aria-hidden="true"]')).toBeNull();
   });
 
   it('still offers the two actions while it loads', () => {
@@ -173,7 +314,11 @@ describe('when the summary fails (DASH-06)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
     expect(screen.queryByText(/Here's how the shop is doing this month/)).toBeNull();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    const [retry] = screen.getAllByRole('button', { name: 'Try Again' });
+    if (retry === undefined) {
+      throw new Error('No Try Again button');
+    }
+    await userEvent.click(retry);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' })).toBeVisible();
     expect(backend.calls).toHaveLength(2);

@@ -30,6 +30,15 @@ export const tableWrapClasses = tw(
   'overflow-x-auto rounded-md border border-line bg-surface contain-paint pg-phone:overflow-visible pg-phone:border-0 pg-phone:bg-transparent pg-phone:contain-none',
 );
 
+/**
+ * `tableWrapClasses` for a table inside a card (UI-SPEC D1 Recent orders, App. E.6 `border: 0; border-radius: 0 0 12px 12px`):
+ * the card draws the border and the top corners, so the frame keeps only its bottom corners. Containment and the phone card
+ * look are the same as the standalone frame.
+ */
+export const tableWrapEmbeddedClasses = tw(
+  'overflow-x-auto rounded-b-md border-0 bg-surface contain-paint pg-phone:overflow-visible pg-phone:bg-transparent pg-phone:contain-none',
+);
+
 /** `.s-rt`: full width, 14px/20px; at least 680px on tablets; a block on phones (preflight collapses the borders). */
 export const tableClasses = tw('w-full text-[14px] leading-5 pg-phone:block pg-tablet:min-w-[680px]');
 
