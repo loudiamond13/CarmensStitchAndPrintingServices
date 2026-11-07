@@ -15,12 +15,14 @@ import {
   chartNetClasses,
   chartProfitHaloClasses,
   chartProfitLineClasses,
+  chartProfitLossClasses,
   chartProfitPointClasses,
   chartProfitSwatchClasses,
   chartSvgClasses,
   chartSwatchClasses,
   chartTickClasses,
   chartTipClasses,
+  chartZeroLineClasses,
 } from './data.recipe';
 
 // The converted App. D.3 IncomeExpenseChart (plan 02-24, CSPS-UI-SPEC.md §6.4, §8.3, §12.4): hand-rolled SVG bars, the
@@ -429,6 +431,155 @@ describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
 
     rerender(<IncomeExpenseChart data={SIX_WITH_PROFIT} labels={labels} />);
     expect(within(openTip('Oct')).getByText('Left ₱68,130.00')).toBeTruthy();
+  });
+});
+
+// A month with negative income (refunds over payments) beside a month with negative profit (D-36, UI-SPEC D3). The
+// top is ₱80,000 and the lowest figure is −₱12,000, so the axis bottom is −₱20,000 (the top's ₱10,000 step).
+const LOSS_MONTHS: ChartDatum[] = [
+  { month: 'Aug', label: 'Aug 2026', income: 80000, expenses: 60000, profit: 20000 },
+  { month: 'Sep', label: 'Sep 2026', income: -5000, expenses: 0, profit: -5000 },
+  { month: 'Oct', label: 'Oct 2026', income: 40000, expenses: 52000, profit: -12000 },
+];
+const MINUS = '−';
+
+function lines(container: HTMLElement): Element[] {
+  return [...container.querySelectorAll('line')];
+}
+
+function textsOf(container: HTMLElement): (string | null)[] {
+  return [...container.querySelectorAll('text')].map((text) => text.textContent);
+}
+
+/** Every number in a path's d attribute, in order. */
+function numbersIn(path: Element | undefined): number[] {
+  return (path?.getAttribute('d') ?? '').match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+}
+
+describe('IncomeExpenseChart below zero (D-36)', () => {
+  it('runs the axis from the lowest figure rounded down to the top step, with ticks at the bottom, zero, half and top', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+
+    expect(textsOf(container)).toEqual([`${MINUS}₱20k`, '₱0', '₱40k', '₱80k', 'Aug', 'Sep', 'Oct']);
+    const grid = lines(container).filter((line) => classTokens(line).join(' ') === tokens(chartGridClasses).join(' '));
+    expect(grid.map((line) => Number(line.getAttribute('y1')))).toEqual([192, 156, 84, 12]);
+  });
+
+  it('draws the zero line in the axis look, once, at the zero tick', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const zero = lines(container).filter(
+      (line) => classTokens(line).join(' ') === tokens(chartZeroLineClasses).join(' '),
+    );
+
+    expect(tokens(chartZeroLineClasses)).toEqual(tokens(chartAxisClasses));
+    expect(zero).toHaveLength(1);
+    expect(Number(zero[0]?.getAttribute('y1'))).toBe(156);
+  });
+
+  it('grows a below-zero income bar down from the zero line with rounded corners at the bottom', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const bars = [...container.querySelectorAll('svg > g[role="img"] > path')];
+    // Sep is the second group: income first, then expenses (no bar for a zero figure).
+    const sepIncome = bars.find((bar) => numbersIn(bar)[0] === 327);
+
+    expect(classTokens(sepIncome)).toEqual(tokens(chartBarClasses.income));
+    expect(sepIncome?.getAttribute('d')).toMatch(/^M327,156H345V161Q345,165 341,165H331Q327,165 327,161Z$/);
+  });
+
+  it('keeps expense bars and positive income bars rising from the zero line', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const [augIncome, augExpense] = [...container.querySelectorAll('svg > g[role="img"] > path')];
+
+    expect(numbersIn(augIncome)[1]).toBe(156);
+    expect(numbersIn(augExpense)[1]).toBe(156);
+  });
+
+  it('writes a below-zero tick with the U+2212 minus, also below one thousand', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -500, expenses: 300 }]} />);
+
+    expect(textsOf(container)).toContain(`${MINUS}₱500`);
+    expect(textsOf(container).join('')).not.toContain('-₱');
+  });
+
+  it('reads income below zero for the scale without showProfit, and profit only with it', () => {
+    const profitOnly: ChartDatum[] = [{ month: 'Jan', income: 10000, expenses: 40000, profit: -30000 }];
+    const { container, rerender } = render(<IncomeExpenseChart data={profitOnly} />);
+    expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱20k', '₱40k']);
+
+    rerender(<IncomeExpenseChart data={profitOnly} showProfit />);
+    expect(textsOf(container)[0]).toBe(`${MINUS}₱30k`);
+  });
+
+  it('keeps the scale and ticks as today when nothing is below zero, with and without showProfit', () => {
+    const { container, rerender } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+    expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱100k', '₱200k']);
+    expect(
+      lines(container).filter((line) => classTokens(line).join(' ') === tokens(chartAxisClasses).join(' ')),
+    ).toHaveLength(1);
+
+    rerender(<IncomeExpenseChart data={SIX_WITH_PROFIT} />);
+    expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱100k', '₱200k']);
+  });
+
+  it('splits the profit line at zero with two clipPaths whose ids come from useId, dashing the below-zero copy', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const clips = [...container.querySelectorAll('clipPath')];
+    const [above, below] = [
+      profitParts(container, 'path', chartProfitLineClasses.above)[0],
+      profitParts(container, 'path', chartProfitLineClasses.below)[0],
+    ];
+
+    expect(clips).toHaveLength(2);
+    expect(clips.map((clip) => clip.id)).not.toContain('');
+    expect(new Set(clips.map((clip) => clip.id)).size).toBe(2);
+    expect(above?.getAttribute('clip-path')).toBe(`url(#${clips[0]?.id ?? ''})`);
+    expect(below?.getAttribute('clip-path')).toBe(`url(#${clips[1]?.id ?? ''})`);
+    expect(above?.getAttribute('stroke-dasharray')).toBeNull();
+    expect(below?.getAttribute('stroke-dasharray')).toBe('4 3');
+    // The above clip covers the plot down to the zero line (y 156), the below clip from there to the bottom.
+    expect(clips[0]?.querySelector('rect')?.getAttribute('height')).toBe('156');
+    expect(clips[1]?.querySelector('rect')?.getAttribute('y')).toBe('156');
+  });
+
+  it('gives each chart on the page its own clip ids', () => {
+    const { container } = render(
+      <>
+        <IncomeExpenseChart data={LOSS_MONTHS} showProfit />
+        <IncomeExpenseChart data={LOSS_MONTHS} showProfit />
+      </>,
+    );
+    const ids = [...container.querySelectorAll('clipPath')].map((clip) => clip.id);
+
+    expect(new Set(ids).size).toBe(4);
+  });
+
+  it('colors each point by its side of zero', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const aboveOnes = profitParts(container, 'circle', chartProfitPointClasses.above);
+    const belowOnes = profitParts(container, 'circle', chartProfitPointClasses.below);
+
+    expect(aboveOnes.map((point) => point.getAttribute('cx'))).toEqual(['150']);
+    expect(belowOnes.map((point) => point.getAttribute('cx'))).toEqual(['346', '542']);
+  });
+
+  it('names a negative profit month with the U+2212 minus', () => {
+    render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+
+    expect(months().map((group) => group.getAttribute('aria-label'))).toEqual([
+      'Aug 2026: income ₱80,000.00, expenses ₱60,000.00, profit ₱20,000.00',
+      `Sep 2026: income ${MINUS}₱5,000.00, expenses ₱0.00, profit ${MINUS}₱5,000.00`,
+      `Oct 2026: income ₱40,000.00, expenses ₱52,000.00, profit ${MINUS}₱12,000.00`,
+    ]);
+  });
+
+  it('shows a below-zero profit in the tooltip in the danger color', () => {
+    render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+
+    fireEvent.focus(screen.getByRole('img', { name: /^Oct 2026/ }));
+    const figure = within(openTip('Oct')).getByText(`${MINUS}₱12,000.00`, { selector: 'span span' });
+
+    expect(classTokens(figure)).toEqual(tokens(chartProfitLossClasses));
+    expect(openTip('Oct').textContent).toContain(`Profit ${MINUS}₱12,000.00`);
   });
 });
 
