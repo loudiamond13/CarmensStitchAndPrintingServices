@@ -8,7 +8,14 @@ import { renderNode } from '@/dev/renderScenario';
 import { scenarios as navigationScenarios } from '@/dev/scenarios/groups/navigation';
 import type { Role } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
-import { ADMIN_NAV, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM, Sidebar, type AdminSection } from '@/components/navigation';
+import {
+  ADMIN_NAV,
+  AUDIT_NAV_ITEM,
+  MONEY_NAV_ITEM,
+  SETTINGS_NAV_ITEM,
+  Sidebar,
+  type AdminSection,
+} from '@/components/navigation';
 import {
   navTagClasses,
   sidebarClasses,
@@ -336,6 +343,70 @@ describe('Sidebar Settings item (D-14, OQ-3)', () => {
 
   it('has no axe violations with the item', async () => {
     const { container } = render(inRouter(<Sidebar role={MANAGER} user={CARMEN} active="settings" withAuditLog />));
+    await expectNoAxeViolations(container);
+  });
+});
+
+// SPEC-DEVIATION: D-39, D-40 the My Money item follows Company Expenses for both roles (plan 10-13); the tab bar keeps its four items.
+describe('Sidebar My Money item (D-39, D-40)', () => {
+  it('defines the My Money item beside ADMIN_NAV, for both roles, with the wallet icon', () => {
+    expect(ADMIN_NAV.map((item) => item.id)).not.toContain('money');
+    expect(MONEY_NAV_ITEM).toEqual({ id: 'money', label: 'My Money', icon: 'wallet', to: '/admin/money' });
+  });
+
+  it.each<[string, Role, string[]]>([
+    ['an Admin', ADMIN, ['Dashboard', 'Orders', 'Company Expenses', 'My Money', 'My Profile']],
+    ['a Manager', MANAGER, ['Dashboard', 'Orders', 'Company Expenses', 'My Money', 'UsersManager', 'My Profile']],
+  ])('shows %s My Money right after Company Expenses, with the wallet icon', (_who, role, labels) => {
+    render(inRouter(<Sidebar role={role} withMoney />));
+
+    expect(navLinks().map((item) => item.textContent)).toEqual(labels);
+    expect(link('My Money').getAttribute('href')).toBe('/admin/money');
+    expect(link('My Money').querySelector('svg.lucide-wallet')).not.toBeNull();
+    expect(within(link('My Money')).queryByText('Manager')).toBeNull();
+  });
+
+  it('keeps the order with the Audit Log and Settings added: Company Expenses, My Money, Users, Audit Log, Settings, My Profile', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog withMoney />));
+
+    expect(navLinks().map((item) => item.textContent)).toEqual([
+      'Dashboard',
+      'Orders',
+      'Company Expenses',
+      'My Money',
+      'UsersManager',
+      'Audit LogManager',
+      'SettingsManager',
+      'My Profile',
+    ]);
+  });
+
+  it('leaves the sidebar as it was without the prop (the parity scenarios stay equal)', () => {
+    render(inRouter(<Sidebar role={MANAGER} />));
+
+    expect(screen.queryByRole('link', { name: /^My Money/ })).toBeNull();
+    expect(navLinks()).toHaveLength(5);
+  });
+
+  it('marks My Money current for active "money"', () => {
+    const active: AdminSection = 'money';
+    render(inRouter(<Sidebar role={ADMIN} active={active} withMoney />));
+    const money = link('My Money');
+
+    expect(money.getAttribute('aria-current')).toBe('page');
+    expect(navLinks().filter((item) => item.getAttribute('aria-current') === 'page')).toEqual([money]);
+  });
+
+  it('names the item on the collapsed rail by its title and its label', () => {
+    render(inRouter(<Sidebar role={ADMIN} withMoney defaultCollapsed />));
+
+    const money = link('My Money');
+    expect(money.getAttribute('title')).toBe('My Money');
+    expect(money).toHaveAccessibleName('My Money');
+  });
+
+  it('has no axe violations with the item', async () => {
+    const { container } = render(inRouter(<Sidebar role={ADMIN} user={CARMEN} active="money" withMoney />));
     await expectNoAxeViolations(container);
   });
 });
