@@ -79,7 +79,6 @@ for (const { width, height } of PHONES) {
     request,
     guard,
   }) => {
-    test.setTimeout(90_000);
     await signInFreshStaff(page, request, guard);
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
     const short = await geometry(page);

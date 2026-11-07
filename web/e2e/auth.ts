@@ -1,7 +1,7 @@
 // Sign-in helpers for the auth specs (AUTH-02, D-01, QUAL-05). Import them with `./fixtures.ts` and `./testing-api.ts`.
 // Every test signs in with its own staff user (createStaff) and reads its own code from the Testing sink (D-27).
 import type { APIRequestContext, Page } from '@playwright/test';
-import { expect, type Guard } from './fixtures.ts';
+import { expect, test, type Guard } from './fixtures.ts';
 import { createStaff, latestEmail, type SinkEmail, type StaffRole, type TestStaff } from './testing-api.ts';
 
 /** The subject of the sign-in code email: "123456 is your CSPS sign-in code". */
@@ -31,6 +31,8 @@ export async function signInFreshStaff(
   guard: Guard,
   role: StaffRole = 'Manager',
 ): Promise<SignedInUser> {
+  // A sign-in takes several seconds on a busy machine, on top of what the spec itself does.
+  test.setTimeout(Math.max(test.info().timeout, 90_000));
   guard.expectStatus('/api/v1/auth/refresh', 401);
   return signInAs(page, request, await createStaff(request, role));
 }
