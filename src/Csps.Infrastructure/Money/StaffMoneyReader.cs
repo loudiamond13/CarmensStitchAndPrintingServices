@@ -70,7 +70,6 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
                         orderby role.Name
                         select role.Name).FirstOrDefault(),
                 user.IsActive,
-                Locked = user.ManagerLockedAtUtc != null,
                 Deleted = user.DeletedAtUtc != null,
             })
             .Where(row => row.Role != null)
@@ -80,7 +79,7 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.Role!, row.IsActive, row.Locked, row.Deleted))];
+        return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.IsActive, row.Deleted))];
     }
 
     // The one place that leaves deleted transfers out; the entity has no query filter (RESEARCH Pitfall 4).
