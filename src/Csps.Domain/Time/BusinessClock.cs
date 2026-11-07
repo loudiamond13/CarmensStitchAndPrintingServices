@@ -38,7 +38,11 @@ public sealed record BusinessClock(TimeZoneInfo Zone, ZoneSource Source, DateTim
     /// <summary>Returns the same day number in the previous month, clamped to that month's last day (D-05).</summary>
     /// <param name="today">The day to compare from.</param>
     /// <returns>The same day last month, or the last day of last month when it has fewer days.</returns>
-    public static DateOnly SameDayLastMonth(DateOnly today) => today;
+    public static DateOnly SameDayLastMonth(DateOnly today)
+    {
+        var (_, lastOfPrevious) = MonthOf(MonthOf(today).First.AddDays(-1));
+        return new DateOnly(lastOfPrevious.Year, lastOfPrevious.Month, Math.Min(today.Day, lastOfPrevious.Day));
+    }
 
     /// <summary>The part of the business day now, read from <see cref="LocalNow"/> (DASH-01).</summary>
     public DayPart DayPart => LocalNow.Hour switch
