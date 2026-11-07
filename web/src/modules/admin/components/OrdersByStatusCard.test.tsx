@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersByStatusCard } from '@/modules/admin/components/OrdersByStatusCard';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   dashboardNewShopSummary,
@@ -252,6 +253,24 @@ describe('while the counts load', () => {
     expect(container.querySelectorAll('.animate-csp-shimmer')).toHaveLength(6);
     expect(screen.queryByRole('list')).toBeNull();
     expect(screen.getByRole('heading', { level: 2, name: 'Orders by status' })).toBeVisible();
+  });
+
+  it('keeps its status and says "Order counts loaded." when the counts arrive', () => {
+    const { rerender } = render(<OrdersByStatusCard query={queryOf()} />);
+    const status = screen.getByRole('status');
+
+    rerender(<OrdersByStatusCard query={loaded()} />);
+
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent(STATES_COPY.loading.loaded('order counts'));
+  });
+
+  it('says the counts loaded for a new shop too', () => {
+    const { rerender } = render(<OrdersByStatusCard query={queryOf()} />);
+
+    rerender(<OrdersByStatusCard query={loaded(dashboardNewShopSummary())} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Order counts loaded.');
   });
 });
 

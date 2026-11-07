@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { RecentOrdersCard } from '@/modules/admin/components/RecentOrdersCard';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   dashboardNewShopSummary,
@@ -228,6 +229,20 @@ describe('while the orders load', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading recent orders…');
     expect(container.querySelectorAll('[aria-hidden="true"] tbody tr')).toHaveLength(6);
     expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('keeps its status and says "Recent orders loaded." when the orders arrive', () => {
+    const { rerender } = renderCard(queryOf());
+    const status = screen.getByRole('status');
+
+    rerender(
+      <MemoryRouter>
+        <RecentOrdersCard query={loaded()} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent(STATES_COPY.loading.loaded('recent orders'));
   });
 });
 

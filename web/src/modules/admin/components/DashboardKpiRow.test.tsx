@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DashboardKpiRow } from '@/modules/admin/components/DashboardKpiRow';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   dashboardMarch31Summary,
@@ -256,6 +257,16 @@ describe('while the figures load', () => {
       expect(cardOf(label), label).toHaveAttribute('aria-busy', 'true');
     }
     expect(screen.queryByText(/due this week/)).toBeNull();
+  });
+
+  it('keeps its status and says "The shop figures loaded." when the figures arrive', () => {
+    const { rerender } = render(<DashboardKpiRow query={queryOf()} />);
+    const status = screen.getByRole('status');
+
+    rerender(<DashboardKpiRow query={loaded()} />);
+
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent(STATES_COPY.loading.loaded('the shop figures'));
   });
 });
 
