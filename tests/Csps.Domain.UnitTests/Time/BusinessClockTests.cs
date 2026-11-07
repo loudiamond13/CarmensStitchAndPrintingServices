@@ -139,6 +139,20 @@ public sealed class BusinessClockTests
         BusinessClock.WeekOf(DateOnly.Parse(day, System.Globalization.CultureInfo.InvariantCulture))
             .ShouldBe((DateOnly.Parse(monday, System.Globalization.CultureInfo.InvariantCulture), DateOnly.Parse(sunday, System.Globalization.CultureInfo.InvariantCulture)));
 
+    [Theory]
+    [InlineData("2026-03-31", "2026-02-28")]
+    [InlineData("2026-05-31", "2026-04-30")]
+    [InlineData("2026-01-31", "2025-12-31")]
+    [InlineData("2026-10-15", "2026-09-15")]
+    [InlineData("2026-03-01", "2026-02-01")]
+    public void SameDayLastMonthIsClampedToTheLastDay(string today, string expected) =>
+        BusinessClock.SameDayLastMonth(DateOnly.Parse(today, System.Globalization.CultureInfo.InvariantCulture))
+            .ShouldBe(DateOnly.Parse(expected, System.Globalization.CultureInfo.InvariantCulture));
+
+    [Fact]
+    public void SameDayLastMonthInALeapYearClampsToFebruary29() =>
+        BusinessClock.SameDayLastMonth(new DateOnly(2028, 3, 31)).ShouldBe(new DateOnly(2028, 2, 29));
+
     // Manila is UTC+08, so local time is the UTC time plus eight hours.
     [Theory]
     [InlineData("2026-11-04T16:00:00Z", DayPart.Morning)]
