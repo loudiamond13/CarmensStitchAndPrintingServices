@@ -21,6 +21,7 @@ import {
 } from '@/test/expenseFixtures';
 import { dashboardBackend, dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { deletedOrderItem, deletedOrderList, deletedOrdersBackend } from '@/test/deletedOrderFixtures';
+import { myMoneyBackend, myMoneyFixture } from '@/test/moneyFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
@@ -328,6 +329,46 @@ describe('Company Expenses for both roles (CEXP-01, D-25, T-06-18)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/expenses')}`);
+  }, 15_000);
+});
+
+describe('My Money (MONEY-02, D-39, D-40; plan 10-13)', () => {
+  it.each([
+    ['Manager', () => sessionResponse()],
+    ['Admin', adminSession],
+  ])(
+    'when a %s opens /admin/money they see their balance, with My Money the only current item and no tab current',
+    async (_role, session) => {
+      answerRefresh(session());
+      const calls = myMoneyBackend(myMoneyFixture({ balance: 8450 }));
+      const router = createMemoryRouter(routes, { initialEntries: ['/admin/money'] });
+      render(<RouterProvider router={router} />);
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'My Money' }, { timeout: 10_000 })).toBeVisible();
+      expect(await screen.findByText('₱8,450.00')).toBeVisible();
+      expect(router.state.location.pathname).toBe('/admin/money');
+      expect(calls).toHaveLength(1);
+      expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+      const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+      const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+      expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['My Money']);
+      const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+      expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+      await waitFor(() => {
+        expect(document.title).toBe('My Money · CSPS Admin');
+      });
+    },
+    30_000,
+  );
+
+  it('a visitor without a session opening /admin/money goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/money'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/money')}`);
   }, 15_000);
 });
 

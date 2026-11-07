@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM } from '@/components/navigation';
+import { AUDIT_NAV_ITEM, MONEY_NAV_ITEM, SETTINGS_NAV_ITEM } from '@/components/navigation';
 import { adminNavItemForPath } from './sections';
 
 // adminNavItemForPath (plan 02-31) names the section the shell marks current; the Audit Log joined it in plan 05-32 (OQ-2).
@@ -32,6 +32,23 @@ describe('adminNavItemForPath', () => {
   it('finds the Orders item for /admin/orders/deleted, so the sidebar and tab bar keep it current (plan 08-20)', () => {
     expect(adminNavItemForPath('/admin/orders/deleted')?.id).toBe('orders');
     expect(adminNavItemForPath('/admin/orders/deleted/')?.id).toBe('orders');
+  });
+
+  it('finds the My Money item for /admin/money, so the shell marks it current and no tab is (D-39, D-40)', () => {
+    expect(adminNavItemForPath('/admin/money')).toBe(MONEY_NAV_ITEM);
+    expect(adminNavItemForPath('/admin/money/')?.id).toBe('money');
+  });
+
+  it("finds the My Money item for one person's money page under it (D-42)", () => {
+    const id = '0b0f6c1e-0000-4000-8000-000000000001';
+    expect(adminNavItemForPath(`/admin/money/staff/${id}`)).toBe(MONEY_NAV_ITEM);
+    expect(adminNavItemForPath(`/admin/money/staff/${id}/`)?.id).toBe('money');
+  });
+
+  it('does not take the bare staff path or another path under money for My Money', () => {
+    expect(adminNavItemForPath('/admin/money/staff')).toBeUndefined();
+    expect(adminNavItemForPath('/admin/money/other')).toBeUndefined();
+    expect(adminNavItemForPath('/admin/moneyline')).toBeUndefined();
   });
 
   it('returns undefined for a path that is no section', () => {

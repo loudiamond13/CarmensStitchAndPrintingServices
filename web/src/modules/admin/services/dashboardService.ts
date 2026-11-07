@@ -1,6 +1,7 @@
 // Dashboard calls (DASH-01, OR-5). Types come from the generated OpenAPI types, never from utils/csps.ts.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
 import type { components } from '@/types/api.generated';
+import { toFiniteFigure } from '@/utils/toFiniteFigure';
 
 type Schemas = components['schemas'];
 
@@ -36,9 +37,8 @@ export class DashboardChartContractError extends Error {
 
 /** A generated `number | string` figure as a finite number. Blank text, `null`, `NaN` and `Infinity` are refused. */
 function finiteFigure(value: unknown, what: string): number {
-  const figure =
-    typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
-  if (!Number.isFinite(figure)) throw new DashboardChartContractError(`The chart ${what} is not a finite number.`);
+  const figure = toFiniteFigure(value);
+  if (figure === null) throw new DashboardChartContractError(`The chart ${what} is not a finite number.`);
   return figure;
 }
 

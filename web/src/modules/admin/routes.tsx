@@ -112,6 +112,10 @@ const deletedOrderPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/DeletedOrderPage')).default,
 }));
 
+const moneyPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/MoneyPage')).MoneyRoute,
+}));
+
 const settingsPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/SettingsPage')).SettingsRoute,
 }));
@@ -180,6 +184,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'expenses', lazy: expensesPage },
           // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },
+          // D-39: My Money, the caller's own money on hand, for both roles (the Manager tabs arrive in plan 10-19).
+          { path: 'money', lazy: moneyPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
           // D-14: the Manager-only Settings page (expense categories); an Admin is sent to /admin by the loader.

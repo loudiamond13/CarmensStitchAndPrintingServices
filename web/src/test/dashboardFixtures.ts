@@ -1,6 +1,7 @@
 // Dashboard summary fixtures for component, service and route tests (plan 10-07): the answer typed from the generated contract
 // with the UI-SPEC 12.4 demo values and made-up people, and an MSW handler that records every request.
 import { http, HttpResponse } from 'msw';
+import { myMoneyBackend } from '@/test/moneyFixtures';
 import { server } from '@/test/msw';
 import {
   buildOrderListEntry,
@@ -183,6 +184,7 @@ function chartForRequest(url: URL): DashboardChartFixture {
 /**
  * Answers the summary with a fixture, or with a function that decides per call (a failure is a Response). The chart is answered
  * too, so a page test never reaches an unhandled request: by the months asked for, or by `chart` (a fixture or a function).
+ * The money strip's own read (`GET staff-money/me`) gets the default fixture; call `myMoneyBackend` after this to change it.
  */
 export function dashboardBackend(
   answer: DashboardSummaryFixture | DashboardResponder = dashboardSummaryFixture(),
@@ -190,6 +192,7 @@ export function dashboardBackend(
 ): DashboardCalls {
   const calls: URL[] = [];
   const chartCalls: URL[] = [];
+  myMoneyBackend();
   server.use(
     http.get('*/api/v1/dashboard/summary', async ({ request }) => {
       const url = new URL(request.url);
