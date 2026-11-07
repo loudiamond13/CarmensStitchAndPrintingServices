@@ -1,7 +1,7 @@
 ---
 phase: 10-admin-dashboard
 created: 2026-11-07T10:06:00-06:00
-updated: 2026-11-07T10:07:00-06:00
+updated: 2026-11-07T11:02:00-06:00
 reviewed: 2026-11-07T10:06:00-06:00
 scope: "wave 5: plan 10-10 and plan 10-11 (git diff 06efa0dc..ba1f2cd8), .planning/ excluded"
 depth: standard
@@ -176,11 +176,11 @@ _Depth: standard_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now (follows D-17): under the lock, refuse a sender who is deactivated, deleted, Manager-locked or has no role, with a race test that fails without the check. |
-| WR-02 | Fix now: keep the chart card's loading region mounted so Try Again shows it is working and says "The chart loaded.", with a test. |
-| IN-01 | Fix now in the chart path: a finite-number check on the narrowed figures and `months`, and read the server's `months`. Moving the ten copies into one helper is deferred to the phase-end code review. |
-| IN-02 | Fix now (test-only): make the transfer-against-expense race test able to fail, and show it failing with the lock removed. |
-| IN-03 | Fix now: map the lock timeout by exception type, log the cause, and add an infrastructure test for a real timeout. |
+| WR-01 | Fixed (`009483b8`, `b61ed52c`), following D-17: under the lock, a sender who is deactivated, deleted, Manager-locked or has no Admin or Manager role is refused with the existing "Your session ended. Sign in again." (401) and nothing is recorded. Tests failed first (unit 5 of 22, endpoint 3 of 25). The wording is added to P10-BL-07 for the owner. |
+| WR-02 | Fixed (`8485f0b2`, `58530c14`): one LoadingRegion stays mounted, so Try Again shows "Loading the chart…" and then "The chart loaded."; tests failed first (2 of 26). |
+| IN-01 | Fixed in the chart path (`80ef68e3`, `3e42a25d`): `parseDashboardChart` refuses non-finite figures and a `months` that does not match the request, and `chart()` takes only 6 or 12. The other `toNumber` copies are deferred to the phase-end code review. |
+| IN-02 | Fixed (`9e6c3e3c`): a new race (two transfers and one expense against 1000 held) fails with the lock removed and with the lock moved after the reads (checked twice each, then reverted). The old one-transfer test is kept with a comment that it cannot fail. |
+| IN-03 | Fixed (`65942b7a`, `26047727`): `DatabaseLockTimeoutException` maps to busy, the SQL cause is kept and logged once with no personal data, and a missing lock row throws `DatabaseLockMissingException` (a 500, never busy). A real LocalDB timeout test is added. Shared change: a missing row for the other locks now also gives the clear missing-row error. |
 | IN-04 | Deferred to the phase-end code review: the company-expense create has the same behavior, so both are changed together. |
 | IN-05 | Parked for the owner: P10-BL-08 (whether a normal transfer writes an audit entry). |
 | IN-06 | Parked for the owner: already P10-BL-07. |
