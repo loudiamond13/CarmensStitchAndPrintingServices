@@ -1,4 +1,4 @@
-| IN-10 | Fixed (`a67120e0`): `isPending` removed. || IN-08 | Fixed (`8e4a64c6`): `data-kpi-icon` on the KpiCard tile, targeted by the phone rule. || IN-06 | Fixed (`cb705e39`). || IN-05 | Fixed (`e0631141`). || IN-03 | Fixed (`dbaf025a`): a hand-over reads back `IsHandover = true`; seen failing with the flag forced off. || IN-02 | Fixed (`d4248542`): `/me` with another user's id returns the caller's own money and `no-store`; seen failing with the cache attribute removed. || IN-01 | Fixed (`d3097ba0`). || WR-02 | Fixed (`afae7a23`, `332dbf0c`): one LoadingRegion stays mounted, so the card says "Order counts loaded."; loaded-message tests for all three cards. || WR-01 | Partly fixed (`5ebecbd0`, `cff3b321`): the 24 px phone size is applied and a 320 px no-sideways-scroll check with a six-digit figure passes on chromium and iphone. A six-digit figure still runs 6 to 18 px into the card padding at 320 px, so the layout choice is parked for the owner: P10-BL-06 (its fit check is `test.fixme`). |---
+---
 phase: 10-admin-dashboard
 created: 2026-11-07T05:44:00-06:00
 updated: 2026-11-07T06:23:00-06:00
@@ -203,16 +203,16 @@ _Depth: standard_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now: add the UI-SPEC 24 px phone value size, and add a 320 px dashboard e2e check with a six-digit figure (`scrollWidth <= innerWidth`). If it still overflows at 320 px, the layout choice (one column on small phones, or a smaller size) is parked for the owner. |
-| WR-02 | Fix now: keep one LoadingRegion mounted in Orders by status so it says "Order counts loaded.", and add a loaded-message test for all three cards. |
-| IN-01 | Fix now: correct the decision number in the StaffMoneyReader comment. |
-| IN-02 | Fix now (test-only): `/me` ignores a query id and sends `no-store`. |
-| IN-03 | Fix now (test-only): read `IsHandover = true` back from the database. |
+| WR-01 | Partly fixed (`5ebecbd0`, `cff3b321`): the 24 px phone size is applied, and a 320 px no-sideways-scroll check with a six-digit figure passes on chromium and iphone. A six-digit figure still runs 6 to 18 px into the card padding at 320 px, so the layout choice is parked for the owner as P10-BL-06 (its fit check is `test.fixme`). |
+| WR-02 | Fixed (`afae7a23`, `332dbf0c`): one LoadingRegion stays mounted, so the card says "Order counts loaded."; loaded-message tests for all three cards. |
+| IN-01 | Fixed (`d3097ba0`). |
+| IN-02 | Fixed (`d4248542`): `/me` with another user id returns the caller own money and `no-store`; seen failing with the cache attribute removed. |
+| IN-03 | Fixed (`dbaf025a`): a hand-over reads back `IsHandover = true`; seen failing with the flag forced off. |
 | IN-04 | Accepted as recorded: the 10-08 SUMMARY states which tests were characterization tests. The mutation checks in later fix passes cover this. No change. |
-| IN-05 | Fix now (test-only): rename the "five payments" test. |
-| IN-06 | Fix now (test-only): make the new-shop fixture's comparison month match its today. |
+| IN-05 | Fixed (`e0631141`). |
+| IN-06 | Fixed (`cb705e39`). |
 | IN-07 | Deferred to the plan 10-21 screenshot and a11y review: thousands separator on the Active orders figure (shared KpiCard, needs a parity check). |
-| IN-08 | Fix now: mark the KPI icon tile with a data attribute and target it, instead of the borrowed `size-8` class. |
+| IN-08 | Fixed (`8e4a64c6`): `data-kpi-icon` on the KpiCard tile, targeted by the phone rule. |
 | IN-09 | Deferred to the plan 10-21 a11y review: the three same-named "Try Again" buttons on a first-load failure (matches UI-SPEC today). |
-| IN-10 | Fix now: remove the unused `isPending` from `DashboardCardQuery`, or use it. |
+| IN-10 | Fixed (`a67120e0`): `isPending` removed. |
 | IN-11 | Accepted: plan 10-11 adds the chart as the first child of that row (SPEC-GAP marked in the code). |
