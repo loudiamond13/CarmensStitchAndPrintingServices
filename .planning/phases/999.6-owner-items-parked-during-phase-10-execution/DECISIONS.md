@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T14:40:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T14:55:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -80,3 +80,12 @@ Today a transfer records who made it and when on the transfer itself, and the au
 
 - **A (recommended):** add a "money transfer added" audit entry with who sent, who received, the amount, the date and whether there is a note. Same style as the expense entries.
 - **B:** keep it as is: the stamps on the transfer are enough for a normal transfer.
+
+## P10-BL-09 · Staff status changes during a money hand-over (wave 6 review IN-05)
+
+**Status:** open · **Blocks:** nothing; no money can be overdrawn either way.
+
+A hand-over checks who is staff and who has left at the moment it runs. If, in the very same instant, another Manager deactivates the person receiving the money (or reactivates the person giving it), the hand-over can still go through using the status from a split second before. Example: Manager A hands Jomar's ₱2,000.00 to Liza while Manager B deactivates Liza. Liza is now a former staff member holding ₱2,000.00, and someone has to hand it over again.
+
+- **A (recommended):** accept this. It needs two Managers acting on the same people at the same second, nothing is lost or overdrawn, and a second hand-over fixes it.
+- **B:** make deactivate, activate and delete wait for the money lock too, so the two can never overlap. Staff admin then waits briefly whenever a money change is in progress.
