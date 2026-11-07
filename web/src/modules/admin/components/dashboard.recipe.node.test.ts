@@ -42,6 +42,13 @@ describe('dashboard recipe', () => {
     expect(blockOf('pg-phone:gap-3')).toBe('@container pg (max-width: 767px)');
   });
 
+  it('sets the KPI figure to 24px at 420px and below, except the long-figure clamp (UI-SPEC: stat / KPI value 24 at <=420)', () => {
+    const token = 'pg-xs:[&_[data-kpi-value=normal]]:text-[24px]';
+    expect(recipeTokens.map((entry) => entry.token)).toContain(token);
+    expect(blockOf(token)).toBe('@container pg (max-width: 420px)');
+    expect(css).toContain('[data-kpi-value=normal]');
+  });
+
   it('gives the cards 16px padding and hides the icon tile on phones, after the card own 20px padding', () => {
     expect(blockOf('pg-phone:*:p-4')).toBe('@container pg (max-width: 767px)');
     expect(blockOf('pg-phone:[&_[data-kpi-icon]]:hidden')).toBe('@container pg (max-width: 767px)');

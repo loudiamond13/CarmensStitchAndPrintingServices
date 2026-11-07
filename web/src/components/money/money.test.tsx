@@ -598,6 +598,19 @@ describe('KpiCard (App. D.3)', () => {
     expect(classTokens(tile)).toEqual(tokens(kpiIconClasses));
   });
 
+  it('marks the value with data-kpi-value: "normal" for a figure or text, "long" for the 15-character money clamp', () => {
+    const normal = renderCollected();
+    expect(normal.container.querySelector('[data-kpi-value]')?.getAttribute('data-kpi-value')).toBe('normal');
+    normal.unmount();
+
+    const long = render(<KpiCard label="This month" value={999_999_999.99} />);
+    expect(long.container.querySelector('[data-kpi-value]')?.getAttribute('data-kpi-value')).toBe('long');
+    long.unmount();
+
+    const text = render(<KpiCard label="Top category" value="Rent" money={false} />);
+    expect(text.container.querySelector('[data-kpi-value]')?.getAttribute('data-kpi-value')).toBe('normal');
+  });
+
   it('draws no icon marker when the card has no icon', () => {
     const { container } = render(<KpiCard label="Total receivables" value={1250} />);
 
