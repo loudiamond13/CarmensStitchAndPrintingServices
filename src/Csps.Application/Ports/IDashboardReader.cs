@@ -11,7 +11,31 @@ public interface IDashboardReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The figures.</returns>
     Task<DashboardFigures> GetSummaryAsync(Guid callerId, DashboardPeriod period, CancellationToken cancellationToken);
+
+    /// <summary>Reads the money sums per business month for the chart: payments, refunds, company expenses and order expenses.</summary>
+    /// <param name="firstDay">The first day of the window.</param>
+    /// <param name="lastDay">The last day of the window.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The four lists; a month with no rows is absent from its list.</returns>
+    Task<DashboardMonthSums> GetMonthSumsAsync(DateOnly firstDay, DateOnly lastDay, CancellationToken cancellationToken);
 }
+
+/// <summary>The total of one money source in one business month.</summary>
+/// <param name="Year">The calendar year.</param>
+/// <param name="Month">The calendar month, 1 to 12.</param>
+/// <param name="Total">The sum of the amounts dated in that month.</param>
+public sealed record MonthSum(int Year, int Month, decimal Total);
+
+/// <summary>The four sums the chart is built from, each placed by its own date and none holding a deleted row.</summary>
+/// <param name="Payments">Order payments by payment date.</param>
+/// <param name="Refunds">Order refunds by refund date.</param>
+/// <param name="CompanyExpenses">Company expenses by expense date.</param>
+/// <param name="OrderExpenses">Order expenses by expense date.</param>
+public sealed record DashboardMonthSums(
+    IReadOnlyList<MonthSum> Payments,
+    IReadOnlyList<MonthSum> Refunds,
+    IReadOnlyList<MonthSum> CompanyExpenses,
+    IReadOnlyList<MonthSum> OrderExpenses);
 
 /// <summary>The dashboard figures the read port returns.</summary>
 /// <param name="FirstName">The caller's first name; null when no user row has that id.</param>
