@@ -2,9 +2,9 @@
 // viewport, the phone tab bar sits at the viewport bottom, the sidebar and top bar stay pinned, and no shell page
 // scrolls sideways. The short admin page is the signed-in Signed-in Devices page, /admin/sessions, with one device listed; the long one
 // is /dev/components, which renders the real AdminLayout with the dev placeholder user and needs no sign-in.
-import type { APIRequestContext, Page } from '@playwright/test';
-import { signInAs } from './auth.ts';
-import { expect, expectNoAxeViolations, test, type Guard } from './fixtures.ts';
+import type { Page } from '@playwright/test';
+import { signInAs, signInFreshStaff } from './auth.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { settle } from './sweep.ts';
 import { createStaff } from './testing-api.ts';
 
@@ -62,12 +62,6 @@ async function openAt(page: Page, path: string, width: number, height: number): 
 }
 
 const SHORT_ADMIN_PAGE = '/admin/sessions';
-
-/** Signs a fresh Manager in for the short page. Opening the sign-in page asks the refresh cookie first, and with none that answer is a 401. */
-async function signInForShortPage(page: Page, request: APIRequestContext, guard: Guard): Promise<void> {
-  guard.expectStatus('/api/v1/auth/refresh', 401);
-  await signInAs(page, request, await createStaff(request, 'Manager'));
-}
 const LONG_ADMIN_PAGE = '/dev/components';
 
 const PHONES = [
@@ -86,7 +80,7 @@ for (const { width, height } of PHONES) {
     guard,
   }) => {
     test.setTimeout(90_000);
-    await signInForShortPage(page, request, guard);
+    await signInFreshStaff(page, request, guard);
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
     const short = await geometry(page);
     expect(short.tabBarBottom, 'short page: tab bar shows').not.toBeNull();
@@ -118,7 +112,7 @@ for (const { width, height } of [
   { width: 390, height: 844 },
 ] as const) {
   test(`@shell full bleed admin at ${String(width)}x${String(height)}`, async ({ page, request, guard }) => {
-    await signInForShortPage(page, request, guard);
+    await signInFreshStaff(page, request, guard);
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
     const reading = await geometry(page);
     expect(reading.documentHeight, 'a short page needs no scroll').toBeLessThanOrEqual(reading.innerHeight + 1);
@@ -214,7 +208,7 @@ for (const { width, height, mustScroll } of [
     request,
     guard,
   }) => {
-    await signInForShortPage(page, request, guard);
+    await signInFreshStaff(page, request, guard);
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
     const reading = await page.evaluate<ShortSidebar>(READ_SHORT_SIDEBAR);
     expect(reading.navOverflowY, 'the nav scrolls on its own').toBe('auto');
@@ -232,7 +226,7 @@ for (const { width, height, mustScroll } of [
 }
 
 test('@shell the scrolling nav passes axe at 1280x600', async ({ page, request, guard }) => {
-  await signInForShortPage(page, request, guard);
+  await signInFreshStaff(page, request, guard);
   await openAt(page, SHORT_ADMIN_PAGE, 1280, 600);
   await expectNoAxeViolations(page);
 });

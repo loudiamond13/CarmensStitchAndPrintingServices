@@ -1,26 +1,19 @@
 // Admin shell E2E (WEB-05, A11Y-01, A11Y-02, D-20): a signed-in Manager's dashboard renders the shell on the real host in all five
 // projects: its greeting h1, the Dashboard sidebar item current, the document title, the skip link first in the document, and no
 // console, page, CSP, response (the guard) or axe findings. The theme and layout checks below run on the same signed-in page.
-import type { APIRequestContext, Page } from '@playwright/test';
-import { dashboardHeading, signInAs } from './auth.ts';
-import { expect, expectNoAxeViolations, test, type Guard } from './fixtures.ts';
-import { createStaff } from './testing-api.ts';
+import type { Page } from '@playwright/test';
+import { dashboardHeading, signInFreshStaff } from './auth.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 
 /** The text of the first element in document order that Tab can reach (a page script: the node program has no DOM). */
 const FIRST_FOCUSABLE_TEXT = `document.querySelector('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')?.textContent ?? null`;
-
-/** Signs a fresh Manager in; the sign-in lands on the dashboard. Opening the sign-in page asks the refresh cookie first, and with none that answer is a 401. */
-async function signInManager(page: Page, request: APIRequestContext, guard: Guard) {
-  guard.expectStatus('/api/v1/auth/refresh', 401);
-  return signInAs(page, request, await createStaff(request, 'Manager'));
-}
 
 test('@admin /admin renders the admin shell with the dashboard greeting and Dashboard current', async ({
   page,
   request,
   guard,
 }) => {
-  const user = await signInManager(page, request, guard);
+  const user = await signInFreshStaff(page, request, guard);
   const response = await page.goto('/admin');
 
   expect(response?.status()).toBe(200);
@@ -47,7 +40,7 @@ test('@admin the theme toggle switches to Espresso, and the choice survives a re
   request,
   guard,
 }) => {
-  const user = await signInManager(page, request, guard);
+  const user = await signInFreshStaff(page, request, guard);
   await page.goto('/admin');
   const root = page.locator('[data-theme]').first();
   await expect(root).toHaveAttribute('data-theme', 'light');
@@ -127,7 +120,7 @@ test('@admin switches from the phone tab bar to the tablet rail at 768px and to 
   request,
   guard,
 }) => {
-  const user = await signInManager(page, request, guard);
+  const user = await signInFreshStaff(page, request, guard);
   await page.goto('/admin');
   await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
 

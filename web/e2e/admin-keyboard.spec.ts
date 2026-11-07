@@ -6,9 +6,9 @@
 //
 // WebKit's Tab stops on buttons and form fields only (Safari includes links only with "Press Tab to highlight each
 // item"), so in the webkit and iphone projects the Tab cycle in the drawer visits its buttons; the trap is the same.
-import type { Page } from '@playwright/test';
-import { dashboardHeading, signInAs } from './auth.ts';
-import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import type { APIRequestContext, Page } from '@playwright/test';
+import { dashboardHeading, signInAs, signInFreshStaff, type SignedInUser } from './auth.ts';
+import { expect, expectNoAxeViolations, test, type Guard } from './fixtures.ts';
 import { createStaff } from './testing-api.ts';
 
 /** The phone page width of the drawer journeys (the approved phone frame). */
@@ -34,18 +34,20 @@ async function focusState(page: Page): Promise<FocusState> {
   return page.evaluate<FocusState>(READ_FOCUS);
 }
 
-/** Opens the shell on a phone-wide page and waits for it: the dev Component Showcase, which needs no sign-in. */
-async function openShellOnPhone(page: Page): Promise<void> {
+/** Signs a fresh Manager in and shows the dashboard on a phone-wide page. The Component Showcase repeats the shell's parts, so it cannot stand in. */
+async function openShellOnPhone(page: Page, request: APIRequestContext, guard: Guard): Promise<SignedInUser> {
+  const user = await signInFreshStaff(page, request, guard);
   await page.setViewportSize(PHONE);
-  const response = await page.goto('/dev/components');
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
+  return user;
 }
 
 test('@keyboard @admin the navigation drawer opens from the menu button, traps Tab and closes on Esc back to the button', async ({
   page,
+  request,
+  guard,
 }) => {
-  await openShellOnPhone(page);
+  await openShellOnPhone(page, request, guard);
   const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await expect(menu).toBeVisible();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
@@ -126,8 +128,8 @@ test('@keyboard @admin following a link in the drawer goes there, closes the dra
   await expect(menu).toBeFocused();
 });
 
-test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page }) => {
-  await openShellOnPhone(page);
+test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page, request, guard }) => {
+  const user = await openShellOnPhone(page, request, guard);
   const menu = page.getByRole('button', { name: /^(Open|Close) navigation$/ });
   await menu.click();
   const drawer = page.getByRole('dialog', { name: 'Navigation' });
@@ -137,19 +139,18 @@ test('@keyboard @admin a tap on the scrim closes the drawer', async ({ page }) =
   await page.mouse.click(PHONE.width - 20, PHONE.height / 2);
 
   await expect(drawer).toHaveCount(0);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
   await expect(menu).toBeFocused();
 });
 
 test('@keyboard @admin the user menu opens from its button, moves with the arrow keys and closes on Esc back to the button', async ({
   page,
+  request,
   guard,
 }) => {
   // Logout lands on the sign-in page, which asks the refresh cookie for a session first; with none that answer is a 401.
-  guard.expectStatus('/api/v1/auth/refresh', 401);
-  const response = await page.goto('/dev/components');
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  const user = await signInFreshStaff(page, request, guard);
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
   const button = page.locator('button[aria-haspopup="menu"]');
   await expect(button).toBeVisible();
   await expect(button).toHaveAttribute('aria-expanded', 'false');
@@ -206,8 +207,10 @@ test('@keyboard @admin the user menu opens from its button, moves with the arrow
 
 test('@keyboard @admin "Sign Out Other Devices" opens a dialog over an inert page, and Esc returns focus to the menu button', async ({
   page,
+  request,
+  guard,
 }) => {
-  await openShellOnPhone(page);
+  await openShellOnPhone(page, request, guard);
   const button = page.locator('button[aria-haspopup="menu"]');
 
   await button.focus();
