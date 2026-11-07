@@ -2,9 +2,11 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { DashboardRoute } from '@/modules/admin/pages/DashboardPage';
 import {
@@ -32,12 +34,19 @@ afterEach(() => {
   queryClient.clear();
 });
 
-function renderPage() {
+function renderPage(search = '') {
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <DashboardRoute />
-      </MemoryRouter>
+      <NuqsTestingAdapter
+        searchParams={search}
+        defaultOptions={URL_STATE_DEFAULTS}
+        processUrlSearchParams={orderSearchParams}
+        hasMemory
+      >
+        <MemoryRouter>
+          <DashboardRoute />
+        </MemoryRouter>
+      </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
 }
@@ -190,6 +199,32 @@ describe('the Orders by status card on the page (DASH-04, plan 10-09)', () => {
     expect(screen.getByText("Couldn't load the shop figures.")).toBeVisible();
     expect(screen.getByText("Couldn't load recent orders.")).toBeVisible();
     expect(screen.getAllByRole('button', { name: 'Try Again' })).toHaveLength(3);
+  });
+});
+
+describe('the Income vs. expenses card on the page (DASH-03, plan 10-11)', () => {
+  it('sits first in the row, before Orders by status, and draws the server months', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    renderPage();
+
+    const chart = await screen.findByRole('heading', { level: 2, name: 'Income vs. expenses' });
+    const status = screen.getByRole('heading', { level: 2, name: 'Orders by status' });
+    expect(chart.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chart.closest('section')?.parentElement).toBe(status.closest('section')?.parentElement);
+    expect(
+      await screen.findByRole('img', {
+        name: 'Oct 2026: income ₱126,450.00, expenses ₱58,320.00, profit ₱68,130.00',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('asks the chart for 6 months by default', async () => {
+    const backend = dashboardBackend(dashboardNovemberSummary());
+    renderPage();
+
+    await screen.findByRole('img', { name: /^Oct 2026:/ });
+    expect(backend.chartCalls).toHaveLength(1);
+    expect(backend.chartCalls[0]?.searchParams.get('months')).toBe('6');
   });
 });
 
