@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { CHART_12_MONTHS, CHART_6_MONTHS, scenarios as dataScenarios } from '@/dev/scenarios/groups/data';
@@ -580,6 +580,129 @@ describe('IncomeExpenseChart below zero (D-36)', () => {
 
     expect(classTokens(figure)).toEqual(tokens(chartProfitLossClasses));
     expect(openTip('Oct').textContent).toContain(`Profit ${MINUS}₱12,000.00`);
+  });
+});
+
+/** A ResizeObserver stand-in: the test reports the frame width, and sees whether the chart disconnects. */
+function stubResizeObserver() {
+  const disconnect = vi.fn();
+  let callback: ResizeObserverCallback | undefined;
+  class StubResizeObserver {
+    constructor(onResize: ResizeObserverCallback) {
+      callback = onResize;
+    }
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = disconnect;
+  }
+  vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  return {
+    disconnect,
+    resize(width: number) {
+      act(() => {
+        callback?.([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver);
+      });
+    },
+  };
+}
+
+/** The month labels drawn under the bars, in order. */
+function monthLabels(container: HTMLElement): (string | null)[] {
+  return [...container.querySelectorAll('svg > g[role="img"] > text')].map((text) => text.textContent);
+}
+
+function viewBox(container: HTMLElement): string | null | undefined {
+  return container.querySelector('svg')?.getAttribute('viewBox');
+}
+
+describe('IncomeExpenseChart true-pixel width (D-51)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('draws a 640 wide view box until the frame is measured, and without ResizeObserver', () => {
+    const { container } = render(<IncomeExpenseChart data={SIX} />);
+
+    expect(typeof ResizeObserver).toBe('undefined');
+    expect(viewBox(container)).toBe('0 0 640 220');
+  });
+
+  it('uses the measured frame width as the view box width and follows a resize', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} />);
+
+    observer.resize(320);
+    expect(viewBox(container)).toBe('0 0 320 220');
+
+    observer.resize(900);
+    expect(viewBox(container)).toBe('0 0 900 220');
+  });
+
+  it('keeps 640 when the frame reports no width', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} />);
+
+    observer.resize(0);
+
+    expect(viewBox(container)).toBe('0 0 640 220');
+  });
+
+  it('spreads the groups and positions the tooltip over the measured width', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} />);
+
+    observer.resize(320);
+    fireEvent.focus(screen.getByRole('img', { name: OCT_NAME }));
+
+    // Oct is the sixth of six columns over (320 - 52) / 6: (52 + 44.666... * 5 + 22.33...) / 320.
+    const style = openTip('Oct').style;
+    expect(Number.parseFloat(style.getPropertyValue('--tip-x'))).toBeCloseTo(((52 + (268 / 6) * 5.5) / 320) * 100, 6);
+    expect(container.querySelector('line')?.getAttribute('x2')).toBe('320');
+  });
+
+  it('draws every other month label, counting back from the last, when a group is narrower than 28px', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} />);
+
+    observer.resize(320);
+
+    expect(monthLabels(container)).toEqual(['Dec', 'Feb', 'Apr', 'Jun', 'Aug', 'Oct']);
+    expect(months()).toHaveLength(12);
+    expect(months().every((group) => (group.getAttribute('aria-label') ?? '').includes(': income '))).toBe(true);
+    expect(months()[0]?.getAttribute('aria-label')).toBe('Nov 2025: income ₱76,500.00, expenses ₱52,100.00');
+  });
+
+  it('draws every month label for six months at 320, and at exactly 28px per group', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} />);
+
+    observer.resize(320);
+    expect(monthLabels(container)).toEqual(['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
+
+    const { container: twelve } = render(<IncomeExpenseChart data={TWELVE} />);
+    observer.resize(52 + 28 * 12);
+    expect(monthLabels(twelve)).toHaveLength(12);
+  });
+
+  it('keeps the last month labelled when the count is odd', () => {
+    const observer = stubResizeObserver();
+    const THIRTEEN: ChartDatum[] = [{ month: 'Oct', label: 'Oct 2025', income: 1000, expenses: 500 }, ...TWELVE];
+    const { container } = render(<IncomeExpenseChart data={THIRTEEN} />);
+
+    observer.resize(320);
+
+    expect(monthLabels(container).at(-1)).toBe('Oct');
+    expect(monthLabels(container)).toHaveLength(7);
+  });
+
+  it('disconnects the observer when the chart unmounts', () => {
+    const observer = stubResizeObserver();
+    const { unmount } = render(<IncomeExpenseChart data={SIX} />);
+
+    expect(observer.disconnect).not.toHaveBeenCalled();
+    unmount();
+
+    expect(observer.disconnect).toHaveBeenCalledTimes(1);
   });
 });
 
