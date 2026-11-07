@@ -18,7 +18,7 @@ import {
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import { useDashboardChartQuery } from '@/modules/admin/hooks/useDashboardChartQuery';
 import { useDashboardRange, type DashboardRange } from '@/modules/admin/hooks/useDashboardRange';
-import type { DashboardChartResponse } from '@/modules/admin/services/dashboardService';
+import type { DashboardChartMonthFigures } from '@/modules/admin/services/dashboardService';
 import { formatMonthShort } from '@/utils/format';
 
 const COPY = DASHBOARD_COPY.chart;
@@ -31,22 +31,17 @@ const REFETCH_MARK_DELAY_MS = 200;
 /** The first load's skeleton height, the chart's own default view box height. */
 const SKELETON_HEIGHT = 220;
 
-/** The generated types allow a number or text for a number; the server sends a number. */
-function toNumber(value: number | string): number {
-  return Number(value);
-}
-
 /** One server month as a bar group: "Oct" under the bars, "Oct 2026" for assistive technology. A key that is not `yyyy-MM` has no group. */
-function toDatum(item: DashboardChartResponse['items'][number]): ChartDatum[] {
+function toDatum(item: DashboardChartMonthFigures): ChartDatum[] {
   const short = MONTH_KEY.test(item.month) ? formatMonthShort(`${item.month}-01`) : null;
   if (short === null) return [];
   return [
     {
       month: short,
       label: `${short} ${item.month.slice(0, 4)}`,
-      income: toNumber(item.income),
-      expenses: toNumber(item.expenses),
-      profit: toNumber(item.profit),
+      income: item.income,
+      expenses: item.expenses,
+      profit: item.profit,
     },
   ];
 }
