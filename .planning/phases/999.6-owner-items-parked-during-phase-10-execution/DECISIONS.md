@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T11:02:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T14:40:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -66,6 +66,11 @@ When a staff member picks the old system's placeholder account ("Legacy / unassi
 
 Also still open from plan 10-08: the wording of two money errors no screen shows yet, "This person was not found." and "You can't do this." Later money plans should set them; if none does, this item will ask you.
 Added from the wave 5 review fix (WR-01): when a staff member who was just deactivated, deleted, locked or lost their role tries to send a transfer before their session ends, the server refuses it (as D-17 requires) with the existing line "Your session ended. Sign in again." No new wording was written. You may prefer a different sentence.
+
+Added from plan 10-12 (hand-overs), no new wording written:
+- When a Manager hands over money and the person whose money it is turns out to be unknown, not staff, or the old system placeholder, the server answers with the approved line "Only money held by former staff can be handed over."
+- When the chosen receiver of a hand-over is unknown, not staff, or the placeholder, it answers with the same general line as above: "This person can't receive transfers now. Choose someone else."
+- In the Audit Log, the "Done to" column is empty for a hand-over. Plan 10-20 sets the audit labels and can show the coworker who received the money there, if you want that.
 
 ## P10-BL-08 · Should a normal staff transfer write an audit entry? (wave 5 review IN-05)
 
