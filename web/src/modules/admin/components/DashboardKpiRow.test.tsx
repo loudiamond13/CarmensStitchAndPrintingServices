@@ -196,7 +196,12 @@ describe('the money figures', () => {
 
 describe('a new shop (DASH-06)', () => {
   it('shows zeros in the dim, not empty states, with the zero-case feet', () => {
-    render(<DashboardKpiRow query={loaded(dashboardNewShopSummary({ today: '2026-11-04' }))} />);
+    // The server sends the same day one month back with the date, so the pair is Nov 4 and Oct 4.
+    const newShop = dashboardNewShopSummary({
+      today: '2026-11-04',
+      collected: { thisMonth: 0, comparison: 0, changePercent: null, comparisonThrough: '2026-10-04' },
+    });
+    render(<DashboardKpiRow query={loaded(newShop)} />);
 
     const active = within(cardOf('Active orders')).getByText('0');
     expect(active.className).toContain('text-ink-subtle');
@@ -205,7 +210,7 @@ describe('a new shop (DASH-06)', () => {
       expect(figure.className, label).toContain('text-ink-subtle');
     }
     expect(within(cardOf('Active orders')).getByText('None due this week')).toBeVisible();
-    expect(within(cardOf('Collected · Nov')).getByText('Nothing collected by this day in Sep')).toBeVisible();
+    expect(within(cardOf('Collected · Nov')).getByText('Nothing collected by this day in Oct')).toBeVisible();
     expect(within(cardOf('Company expenses · Nov')).getByText('No expenses yet this month')).toBeVisible();
     expect(screen.queryByText('Not set')).toBeNull();
   });
