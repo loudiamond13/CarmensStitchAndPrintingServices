@@ -476,6 +476,42 @@ describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
     rerender(<IncomeExpenseChart data={SIX_WITH_PROFIT} labels={labels} />);
     expect(within(openTip('Oct')).getByText('Left ₱68,130.00')).toBeTruthy();
   });
+
+  it('keeps separate legend and tooltip words for income, expenses and profit (D-104, WR-02)', () => {
+    const labels = {
+      income: 'Income (payments minus refunds)',
+      expenses: 'Expenses (company + orders)',
+      profit: 'Profit (income minus expenses)',
+      net: 'Net',
+      incomeTip: 'Income',
+      expensesTip: 'Costs',
+      profitTip: 'Profit',
+    };
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit labels={labels} />);
+    const legend = screen.getByText('Income (payments minus refunds)').parentElement ?? document.body;
+
+    expect(within(legend).getByText('Expenses (company + orders)')).toBeTruthy();
+    expect(within(legend).getByText('Profit (income minus expenses)')).toBeTruthy();
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const tip = openTip('Oct');
+
+    expect(within(tip).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(tip).getByText('Costs ₱58,320.00')).toBeTruthy();
+    expect(within(tip).getByText('Profit ₱68,130.00')).toBeTruthy();
+    expect(tip.textContent).not.toContain('income minus expenses');
+  });
+
+  it("keeps today's tooltip words for any tooltip word that is not passed", () => {
+    const labels = { income: 'Money in', expenses: 'Money out', profit: 'Gain', net: 'Left' };
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit labels={labels} />);
+
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const tip = openTip('Oct');
+
+    expect(within(tip).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(tip).getByText('Expenses ₱58,320.00')).toBeTruthy();
+    expect(within(tip).getByText('Gain ₱68,130.00')).toBeTruthy();
+  });
 });
 
 // A month with negative income (refunds over payments) beside a month with negative profit (D-36, UI-SPEC D3). The
