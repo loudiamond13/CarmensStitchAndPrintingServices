@@ -120,8 +120,9 @@ An empty body lists `toUserId`, `amount` and `transferDate` together. An anonymo
 
 Only a transfer (and, in a later plan, a hand-over) takes the `staff-money` lock. It is the first statement in the transaction, before
 any person or balance is read, so two transfers at the same moment can never spend the same money twice. Expense, payment and refund
-saves do not take it: they may already take a balance below zero (D-15, D-16), and a race test proves a transfer still never
-overdraws. A lock that cannot be had within 10 seconds answers `409` with `Something changed at the same time. Try again.`
+saves do not take it: they may already take a balance below zero (D-15, D-16). An expense never checks a balance, so one transfer
+racing one expense always matches one serial order. The race tests that can fail are the ones that add a second transfer, with or
+without an expense: only the lock stops both from spending the same money. A lock that cannot be had within 10 seconds answers `409` with `Something changed at the same time. Try again.`
 The timeout is logged as a warning with its cause. A missing `staff-money` row is a setup fault: it answers `500`, never `409`.
 
 ## Errors
