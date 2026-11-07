@@ -7,7 +7,7 @@
 //   - Phase 3: every non-admin path renders the D-17 HoldingPage; PublicLayout returns with Phase 11.
 //   - The admin branch (./admin/routes.tsx) ships in every build, behind sign-in (plan 04-25, D-20 reversed): its layout
 //     route's loader boots the session or redirects to /admin/login. The dev-only branch (`devRoutes`: the unguarded
-//     section previews and the /dev showcase) exists only where the compile-time `__DEV_ROUTES__` switch is true:
+//     previews and the /dev showcase) exists only where the compile-time `__DEV_ROUTES__` switch is true:
 //     development and the e2e and budget builds. The production build gets a literal false, so that branch and the
 //     modules only it uses drop out of it. It comes first, so where both define a path the preview wins (Pitfall 11).
 //   - Both branches sit under one lazy pathless route, QueryRoot, which provides the TanStack Query client. The library

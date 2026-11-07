@@ -11,9 +11,10 @@
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - An unknown `/admin/...` address is the splat route inside the shell (D-89), not the public holding page.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
-//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the unguarded section previews and the same
-//     Component Showcase at /dev/components, inside the same AdminLayout with a placeholder user (Pitfall 11), and
-//     /dev/public, the real PublicLayout around a column of fields for the e2e focus checks. Nothing there ships.
+//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the same Component Showcase at /dev/components,
+//     inside the same AdminLayout with a placeholder user (Pitfall 11), and /dev/public, the real PublicLayout around a
+//     column of fields for the e2e focus checks. It holds no /admin entry, so no build shows a fake signed-in user at the
+//     dashboard (T-10-10). Nothing there ships.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
 // `@__PURE__` marks: an unused tree is then dropped whole, and its dynamic imports never become chunks.
 import type { LoaderFunction, RouteObject } from 'react-router';
@@ -22,10 +23,6 @@ import { lazyRoute } from '@/core/routes/lazyRoute';
 
 /** The placeholder user of the dev routes, loaded on demand so no admin navigation code joins the public entry. */
 const devUser: LoaderFunction = async () => (await import('@/modules/admin/sections')).DEV_USER;
-
-const previewPage = /* @__PURE__ */ lazyRoute(async () => ({
-  Component: (await import('@/modules/admin/pages/AdminPreviewPage')).AdminPreviewRoute,
-}));
 
 const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/layouts/PublicLayout')).PublicLayout,
@@ -221,19 +218,6 @@ export const adminRoutes: RouteObject[] = [
 ];
 
 export const devRoutes: RouteObject[] = [
-  {
-    path: 'admin',
-    ErrorBoundary: AdminRootErrorBoundary,
-    lazy: adminLayout,
-    loader: devUser,
-    children: [
-      {
-        ErrorBoundary: AdminRouteErrorBoundary,
-        lazy: urlStateLayout,
-        children: [{ index: true, lazy: previewPage }],
-      },
-    ],
-  },
   {
     path: 'dev',
     ErrorBoundary: AdminRootErrorBoundary,
