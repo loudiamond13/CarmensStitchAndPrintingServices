@@ -219,6 +219,9 @@ public static class AuthorizationMatrix
         // The dashboard chart (DASH-03): both roles read the same months; the only input is the months query.
         new("GET", "/api/v1/dashboard/chart", "/api/v1/dashboard/chart", Anonymous: 401, Admin: 200, Manager: 200),
 
+        // The caller's own money on hand (MONEY-01, MONEY-08): both roles read their own figure; the route takes no id.
+        new("GET", "/api/v1/staff-money/me", "/api/v1/staff-money/me", Anonymous: 401, Admin: 200, Manager: 200),
+
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
         // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.

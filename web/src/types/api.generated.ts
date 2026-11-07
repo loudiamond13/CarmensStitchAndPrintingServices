@@ -1603,6 +1603,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff-money/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the signed-in person's own money on hand: payments they received plus transfers to them, minus transfers from them,
+         *     expenses they paid and refunds they handed back. The figure can be below zero. The person is the token's user; the route takes
+         *     no id and no balance is ever accepted from a client. Nothing is cached.
+         */
+        get: operations["GetMyMoney"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -3616,6 +3637,26 @@ export interface components {
             id: string;
             /** @description The first and last name as saved, joined by one space. */
             name: string;
+        };
+        /** @description One person's money on hand, worked out on the server on every read (MONEY-01). */
+        StaffMoneyResponse: {
+            /**
+             * Format: double
+             * @description Money received plus transfers in, minus transfers out, expenses paid and refunds handed back; below zero when they are owed money.
+             */
+            balance: number | string;
+            /** @description Their display name, first then last. */
+            name: string;
+            /**
+             * Format: date
+             * @description The business today.
+             */
+            today: string;
+            /**
+             * Format: uuid
+             * @description The person.
+             */
+            userId: string;
         };
         /** @description The category with the highest total this month. */
         TopCategoryKpi: {
@@ -9341,6 +9382,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffMember"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMyMoney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMoneyResponse"];
                 };
             };
             /** @description Unauthorized */

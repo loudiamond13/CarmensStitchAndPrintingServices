@@ -50,8 +50,9 @@ public static class OrderSeeding
     /// <param name="database">The test database.</param>
     /// <param name="firstName">The first name.</param>
     /// <param name="now">The creation instant.</param>
+    /// <param name="lastName">The last name.</param>
     /// <returns>The new user id.</returns>
-    public static async Task<Guid> AddStaffAsync(CspsDatabase database, string firstName, DateTimeOffset now)
+    public static async Task<Guid> AddStaffAsync(CspsDatabase database, string firstName, DateTimeOffset now, string lastName = "Mercado")
     {
         ArgumentNullException.ThrowIfNull(database);
         var id = Guid.NewGuid();
@@ -67,7 +68,7 @@ public static class OrderSeeding
                 Email = email,
                 NormalizedEmail = email.ToUpperInvariant(),
                 FirstName = firstName,
-                LastName = "Mercado",
+                LastName = lastName,
                 SecurityStamp = Guid.NewGuid().ToString("N"),
                 CreatedAtUtc = now,
             });

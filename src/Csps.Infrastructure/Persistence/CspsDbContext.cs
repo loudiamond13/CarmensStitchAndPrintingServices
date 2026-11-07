@@ -2,6 +2,7 @@ using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Domain.Expenses;
 using Csps.Domain.Identity;
+using Csps.Domain.Money;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Email;
@@ -71,7 +72,13 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The company expenses; soft-deleted rows are hidden by the named <c>SoftDelete</c> query filter (CEXP-02, D-01).</summary>
     public DbSet<CompanyExpense> CompanyExpenses => Set<CompanyExpense>();
 
-    /// <summary>The database lock rows: 66 standing locks and short-lived idempotency claims (D-50).</summary>
+    /// <summary>
+    /// The money transfers between staff (MONEY-04). There is no query filter: readers leave deleted transfers out by an explicit
+    /// <c>DeletedAtUtc</c> check, so a view of deleted transfers never lifts the order filters.
+    /// </summary>
+    public DbSet<MoneyTransfer> MoneyTransfers => Set<MoneyTransfer>();
+
+    /// <summary>The database lock rows: 67 standing locks and short-lived idempotency claims (D-50).</summary>
     public DbSet<DatabaseLock> DatabaseLocks => Set<DatabaseLock>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>

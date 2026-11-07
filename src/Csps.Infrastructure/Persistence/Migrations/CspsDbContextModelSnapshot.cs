@@ -627,6 +627,91 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("UserSessions", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Money.MoneyTransfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FromUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsHandover")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("ToUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("TransferDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_MoneyTransfers_CreatedById");
+
+                    b.HasIndex("DeletedById")
+                        .HasDatabaseName("IX_MoneyTransfers_DeletedById");
+
+                    b.HasIndex("FromUserId")
+                        .HasDatabaseName("IX_MoneyTransfers_FromUserId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("FromUserId"), new[] { "Amount", "TransferDate", "CreatedAtUtc", "DeletedAtUtc" });
+
+                    b.HasIndex("ToUserId")
+                        .HasDatabaseName("IX_MoneyTransfers_ToUserId");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ToUserId"), new[] { "Amount", "TransferDate", "CreatedAtUtc", "DeletedAtUtc" });
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_MoneyTransfers_UpdatedById");
+
+                    b.HasIndex("TransferDate", "CreatedAtUtc", "Id")
+                        .IsDescending(true, true, false)
+                        .HasDatabaseName("IX_MoneyTransfers_List");
+
+                    b.ToTable("MoneyTransfers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MoneyTransfers_Amount_Positive", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_MoneyTransfers_FromTo_Different", "[FromUserId] <> [ToUserId]");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.OrderLists.OrderExpenseCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1963,6 +2048,10 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Name = "staff-money"
+                        },
+                        new
+                        {
                             Name = "account-token:00"
                         },
                         new
@@ -2477,6 +2566,36 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Csps.Domain.Money.MoneyTransfer", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("DeletedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("FromUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ToUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Csps.Domain.OrderLists.OrderExpenseCategory", b =>
