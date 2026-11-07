@@ -124,6 +124,15 @@ public sealed class CreateMoneyTransferRequestValidatorTests
         Should.Throw<InvalidOperationException>(() => new CreateMoneyTransferRequestValidator().Validate(context));
     }
 
+    [Fact]
+    public void ATodayThatIsNotADateIsRefusedLikeAMissingOne()
+    {
+        var context = new ValidationContext<CreateMoneyTransferRequest>(Valid());
+        context.RootContextData[CreateMoneyTransferRequestValidator.TodayKey] = "2026-11-07";
+
+        Should.Throw<InvalidOperationException>(() => new CreateMoneyTransferRequestValidator().Validate(context));
+    }
+
     private static CreateMoneyTransferRequest Valid() => new(RecipientId, 2000.00m, "2026-11-07", "Cash for the fabric run");
 
     private static ValidationResult Validate(CreateMoneyTransferRequest request)
