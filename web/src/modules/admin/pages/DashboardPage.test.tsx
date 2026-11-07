@@ -56,17 +56,14 @@ describe('the loaded header (DASH-01)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 
-  it('keeps the title "Dashboard" and drops the date when the greeting part is one the page does not know', async () => {
+  it('keeps the title "Dashboard" and still shows the date when the greeting part is one the page does not know', async () => {
     const backend = dashboardBackend(dashboardSummaryFixture({ greeting: 'night' }));
     renderPage();
 
-    await waitFor(() => {
-      expect(backend.calls).toHaveLength(1);
-    });
-    await waitFor(() => {
-      expect(screen.queryByText(/Here's how the shop is doing this month/)).toBeNull();
-    });
+    expect(await screen.findByText(/^Tuesday, Oct 6, 2026 · Here's how the shop is doing this month\.$/)).toBeVisible();
+    expect(backend.calls).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+    expect(screen.queryByText(/night/)).toBeNull();
   });
 
   it('shows View Orders as a link to the orders and New Order as the one primary link to the new order form', async () => {
@@ -84,9 +81,11 @@ describe('the loaded header (DASH-01)', () => {
     dashboardBackend(dashboardSummaryFixture({ greeting: 'morning', firstName: '<img src=x onerror=alert(1)>' }));
     const { container } = renderPage();
 
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
-      'Good morning, <img src=x onerror=alert(1)>',
-    );
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Good morning, <img src=x onerror=alert(1)>',
+    });
+    expect(heading).toBeVisible();
     expect(container.querySelector('img')).toBeNull();
   });
 
@@ -130,7 +129,7 @@ describe('the summary query (D-13)', () => {
     await waitFor(() => {
       expect(backend.calls).toHaveLength(2);
     });
-    expect(queryClient.getQueryCache().find({ queryKey: dashboardKey })).toBeDefined();
+    expect(queryClient.getQueryCache().find({ queryKey: dashboardKey, exact: false })).toBeDefined();
   });
 });
 

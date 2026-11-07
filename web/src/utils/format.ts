@@ -104,9 +104,14 @@ export function formatCalendarDate(ymd: string): string | null {
   return formatterFor('UTC').format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+const weekdayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long' });
+
 /** "Tuesday": the full weekday of a calendar date from the API ("2026-10-06"), with no zone shift. Any other text gives null. */
 export function formatCalendarWeekday(ymd: string): string | null {
-  return ymd === '' ? null : null;
+  const parts = calendarParts(CALENDAR_DATE.exec(ymd));
+  if (parts === null) return null;
+  const [year, month, day] = parts;
+  return weekdayFormatter.format(new Date(Date.UTC(year, month - 1, day)));
 }
 
 const monthShortFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short' });
