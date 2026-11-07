@@ -1,7 +1,9 @@
 // Every order write reads the order lists, the deleted list and, because a name or color shows on orders and their counts decide
-// whether Settings offers Delete, the three order list-entry lists again (RESEARCH Pattern 4; plan 08-10). The answer resolves once
-// all have been asked, so a caller can move focus after the new rows are in the cache.
+// whether Settings offers Delete, the three order list-entry lists again (RESEARCH Pattern 4; plan 08-10). Every order, item, payment,
+// refund, discount and order expense write also changes the dashboard's figures and chart, so its root key is read again (D-13). The
+// answer resolves once all have been asked, so a caller can move focus after the new rows are in the cache.
 import { useQueryClient } from '@tanstack/react-query';
+import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { orderExpenseCategoriesKey } from '@/modules/admin/hooks/useOrderExpenseCategoriesQuery';
 import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
 import { paymentMethodsKey } from '@/modules/admin/hooks/usePaymentMethodsQuery';
@@ -16,6 +18,7 @@ const REFRESHED_KEYS: readonly (readonly string[])[] = [
   productTypesKey,
   paymentMethodsKey,
   orderExpenseCategoriesKey,
+  dashboardKey,
 ];
 
 export function useRefreshOrders(): () => Promise<unknown> {
