@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T01:05:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T03:30:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -25,3 +25,21 @@ The chart counts an expense in the month of its date. So an expense dated later 
 
 - **A (recommended):** keep it. It matches how the Collected card and the expenses page read dates.
 - **B:** count only expenses dated up to today, so this month's bar never includes future-dated items.
+
+## P10-BL-04 · What the dashboard shows when a background refresh fails (wave 3 review WR-01)
+
+**Status:** open · **Blocks:** nothing; plans 10-09 and later follow the current pattern until ruled.
+
+The plan says that on an error the heading stays "Dashboard" and the date line is dropped. That only holds on the first load. If the page loaded once and a later background refresh fails, it shows the earlier greeting and date next to the error line, so staff may read old figures as current.
+
+- **A (recommended):** on any failed load, keep the last good figures but mark them clearly ("Showing figures from 9:41 AM. Couldn't refresh.") with Try Again.
+- **B:** on any failed load, hide the figures and show only the error line, as on a first load.
+
+## P10-BL-05 · WebKit cancelled-request errors in the browser tests (wave 3 review WR-03)
+
+**Status:** open · **Blocks:** nothing now; may cause WebKit/iPhone test failures once plans 10-09, 10-11 and 10-13 add more dashboard requests.
+
+WebKit reports a request that a page navigation cancels as a page error ("due to access control checks"), and the test guard fails on any page error. Plan 10-07 worked around it only for the summary request, in the sign-in helper.
+
+- **A (recommended):** teach the test guard to ignore exactly this message for the app's own `/api/` requests on WebKit, documented in docs/web/e2e.md next to the existing WebKit preload rule. All other page errors still fail.
+- **B:** keep failing on it, and add a wait to each spec that navigates away from the dashboard.
