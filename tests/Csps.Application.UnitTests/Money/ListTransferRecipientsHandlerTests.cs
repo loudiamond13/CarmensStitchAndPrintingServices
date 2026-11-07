@@ -2,6 +2,7 @@ using Csps.Application.Auth;
 using Csps.Application.Money;
 using Csps.Application.Ports;
 using Csps.Application.Users;
+using Csps.Domain.Identity;
 using NSubstitute;
 
 namespace Csps.Application.UnitTests.Money;
@@ -105,6 +106,41 @@ public sealed class ListTransferRecipientsHandlerTests
         MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", "Admin", false, false, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deleted);
         MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", "Admin", true, false, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deleted);
         Should.Throw<ArgumentNullException>(() => MoneyParties.FromPerson(null!, 0m));
+    }
+
+    [Fact]
+    public void TheLegacyHolderIsNotStaffWhateverItsFlagsSay()
+    {
+        MoneyParties.FromPerson(new StaffPerson(LegacyHolder.Id, "Legacy / unassigned", "Admin", true, false, false), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.NotStaff);
+        MoneyParties.FromPerson(new StaffPerson(LegacyHolder.Id, "Legacy / unassigned", "Admin", false, false, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.NotStaff);
+    }
+
+    [Fact]
+    public async Task TheLegacyHolderIsNeverOfferedEvenIfTheReaderReturnsIt()
+    {
+        var harness = new Harness(
+            people:
+            [
+                new StaffPerson(CallerId, "Carmen Reyes", "Manager", true, false, false),
+                new StaffPerson(LegacyHolder.Id, "Legacy / unassigned", "Admin", true, false, false),
+                new StaffPerson(JomarId, "Jomar Santos", "Admin", false, false, true),
+            ],
+            sums:
+            [
+                new StaffMoneySums(JomarId, "Jomar Santos", 0m, 0m, 0m, 0m, 500.00m, 0m),
+                new StaffMoneySums(LegacyHolder.Id, "Legacy / unassigned", 0m, 0m, 0m, 0m, 500.00m, 0m),
+            ]);
+
+        var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.ShouldBe(
+        [
+            new TransferRecipientResponse(CallerId, "Carmen Reyes", "active", true),
+            new TransferRecipientResponse(JomarId, "Jomar Santos", "deleted", false),
+        ]);
+        await harness.Reader.Received(1).GetSumsAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(JomarId)),
+            Arg.Any<CancellationToken>());
     }
 
     private sealed class Harness
