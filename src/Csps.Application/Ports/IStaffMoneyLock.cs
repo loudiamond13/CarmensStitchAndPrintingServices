@@ -13,5 +13,6 @@ public interface IStaffMoneyLock
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>A task that completes when the lock is held.</returns>
     /// <exception cref="StaffMoneyBusyException">The lock could not be had in time, or the wait deadlocked.</exception>
+    /// <exception cref="InvalidOperationException">The standing lock row is missing; this is a setup fault and is never answered as busy.</exception>
     Task LockAsync(CancellationToken cancellationToken);
 }

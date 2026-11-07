@@ -10,7 +10,7 @@ namespace Csps.Infrastructure.Money;
 /// <see cref="IStaffMoneyLock"/> over the request's scoped <see cref="CspsDbContext"/> (MONEY-05, D-53). The lock is the update of the
 /// standing <c>staff-money</c> row, so it needs no trigger (OR-7) and no inline SQL (D-50).
 /// </summary>
-internal sealed class StaffMoneyLock : IStaffMoneyLock
+internal sealed partial class StaffMoneyLock : IStaffMoneyLock
 {
     private readonly CspsDbContext _context;
     private readonly TimeProvider _time;
@@ -44,9 +44,13 @@ internal sealed class StaffMoneyLock : IStaffMoneyLock
                     cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (InvalidOperationException error) when (error.Message == MoneyErrors.BusyMessage)
+        catch (DatabaseLockTimeoutException error)
         {
-            throw new StaffMoneyBusyException();
+            LogBusy(_logger, error, DatabaseLocks.StaffMoney, (int)Math.Ceiling(_wait.TotalSeconds));
+            throw new StaffMoneyBusyException(error);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The lock {LockName} was not had within {WaitSeconds} seconds; the transfer answers busy.")]
+    private static partial void LogBusy(ILogger logger, Exception exception, string lockName, int waitSeconds);
 }
