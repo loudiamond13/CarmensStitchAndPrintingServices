@@ -97,6 +97,10 @@ export async function signInAs(
   await expect(page.getByRole('heading', { level: 1, name: 'Check your email' })).toBeVisible();
   const mail = await latestEmail(request, staff.email, { subject: CODE_SUBJECT });
   const verified = page.waitForResponse((response) => response.url().endsWith('/api/v1/auth/two-factor/verify'));
+  // Started before the code is sent so the dashboard answer cannot be missed; the catch keeps it from rejecting unseen.
+  const summary = page
+    .waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/dashboard/summary', { timeout: 20_000 })
+    .catch(() => null);
   await typeCode(page, codeFromEmail(mail));
   await page.getByRole('button', { name: 'Verify Code' }).click();
 
@@ -112,7 +116,9 @@ export async function signInAs(
   // The greeting shows once the dashboard summary has arrived. A spec that goes straight on to another page would cancel that
   // request in flight, which WebKit reports as a page error, so wait for it here.
   if (new URL(page.url()).pathname === '/admin') {
-    await expect(page.locator('h1')).toHaveText(dashboardHeading(sessionUser));
+    const answer = await summary;
+    expect(answer?.status(), 'the dashboard summary after sign-in').toBe(200);
+    await expect(page.locator('h1')).toHaveText(dashboardHeading(sessionUser), { timeout: 15_000 });
   }
   return sessionUser;
 }
