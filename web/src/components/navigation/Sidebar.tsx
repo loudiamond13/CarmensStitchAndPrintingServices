@@ -130,15 +130,22 @@ export function Sidebar({
   onLogout,
   user,
   withAuditLog = false,
+  withMoney = false,
 }: SidebarProps) {
   const [collapsedState, setCollapsedState] = useState(defaultCollapsed);
   const collapsed = collapsedProp ?? collapsedState;
   const layout = collapsed ? 'collapsed' : 'expanded';
   const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
   const idBase = useId();
-  const items = withAuditLog
-    ? ADMIN_NAV.flatMap((item) => (item.id === 'users' ? [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM] : [item]))
-    : ADMIN_NAV;
+  // SPEC-DEVIATION: D-39, D-40 My Money follows Company Expenses; the Audit Log and Settings follow Users.
+  const items =
+    withAuditLog || withMoney
+      ? ADMIN_NAV.flatMap((item) => {
+          if (withMoney && item.id === 'expenses') return [item, MONEY_NAV_ITEM];
+          if (withAuditLog && item.id === 'users') return [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM];
+          return [item];
+        })
+      : ADMIN_NAV;
   return (
     <aside className={clsx(sidebarClasses, sidebarWidthClasses[layout])}>
       <div className={clsx(sidebarTopClasses, sidebarTopLayoutClasses[layout])}>

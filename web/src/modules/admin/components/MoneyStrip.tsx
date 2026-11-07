@@ -1,3 +1,4 @@
+// SPEC-GAP: D-46 App. E.6 has no money card, so the strip is composed from `.s-card`, the KpiCard tile look and the button recipes.
 // The personal money strip under the dashboard greeting (D-46, D-21, MONEY-02; UI-SPEC D1 "MoneyStrip"): the wallet tile, the label
 // "Your money on hand" over the caller's own figure from the server, and View Ledger. Plan 10-15 puts Transfer before it through
 // `actions`. The strip works out nothing: the figure is the server's, in the danger tone below zero and dimmed at ₱0.00. It reads
@@ -18,7 +19,7 @@ import {
   moneyStripLabelClasses,
   moneyStripTileClasses,
   moneyStripToneClasses,
-} from '@/modules/admin/components/dashboard.recipe';
+} from '@/modules/admin/components/money.recipe';
 import type { MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
 import { formatPeso, isNegativeMoney, round2 } from '@/utils/csps';

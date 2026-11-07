@@ -77,6 +77,8 @@ export interface AdminFrameProps {
   loading?: boolean | undefined;
   /** Adds the Audit Log item to the sidebar and the drawer (OQ-2); the real shell sets it, the dev scenarios do not. */
   withAuditLog?: boolean | undefined;
+  /** Adds the My Money item after Company Expenses to the sidebar and the drawer (D-39); the real shell sets it, the dev scenarios do not. */
+  withMoney?: boolean | undefined;
   children?: ReactNode;
 }
 
@@ -95,6 +97,7 @@ export function AdminFrame({
   onSearch,
   loading = false,
   withAuditLog = false,
+  withMoney = false,
   children,
 }: AdminFrameProps) {
   const [navOpen, setNavOpen] = useState(false);
@@ -109,6 +112,7 @@ export function AdminFrame({
             user={user}
             onLogout={onLogout}
             withAuditLog={withAuditLog}
+            withMoney={withMoney}
           />
         </div>
         <div data-ui="s-admin-main" className={adminMainClasses}>
@@ -146,6 +150,7 @@ export function AdminFrame({
           user={user}
           onLogout={onLogout}
           withAuditLog={withAuditLog}
+          withMoney={withMoney}
         />
       </MobileNavDrawer>
     </>
@@ -229,6 +234,7 @@ function AdminShell({ themeContext }: { themeContext: AdminThemeContext }) {
         }}
         loading={loading}
         withAuditLog
+        withMoney
       >
         <Outlet context={themeContext} />
       </AdminFrame>
