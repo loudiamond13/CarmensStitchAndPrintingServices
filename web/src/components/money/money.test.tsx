@@ -589,6 +589,21 @@ describe('KpiCard (App. D.3)', () => {
     expect(foot?.lastElementChild?.textContent).toBe('vs Sep, same day');
   });
 
+  it('marks the icon tile with data-kpi-icon, so a caller can style it without borrowing a class', () => {
+    const { container } = renderCollected();
+    const tile = container.querySelector('[data-kpi-icon]');
+
+    expect(container.querySelectorAll('[data-kpi-icon]')).toHaveLength(1);
+    expect(tile?.querySelector('svg')).not.toBeNull();
+    expect(classTokens(tile)).toEqual(tokens(kpiIconClasses));
+  });
+
+  it('draws no icon marker when the card has no icon', () => {
+    const { container } = render(<KpiCard label="Total receivables" value={1250} />);
+
+    expect(container.querySelector('[data-kpi-icon]')).toBeNull();
+  });
+
   it('draws the 18px icon in the tile, hidden from assistive technology', () => {
     const { container } = renderCollected();
     const icon = container.querySelector('svg');

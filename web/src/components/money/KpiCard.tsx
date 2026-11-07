@@ -76,7 +76,7 @@ export function KpiCard({
       <div className={kpiHeadClasses}>
         <span className={overlineClasses}>{label}</span>
         {icon !== undefined && (
-          <span className={kpiIconClasses}>
+          <span className={kpiIconClasses} data-kpi-icon="">
             <Icon name={icon} size={18} />
           </span>
         )}

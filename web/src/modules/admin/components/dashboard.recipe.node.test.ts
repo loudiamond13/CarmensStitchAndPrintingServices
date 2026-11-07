@@ -44,7 +44,9 @@ describe('dashboard recipe', () => {
 
   it('gives the cards 16px padding and hides the icon tile on phones, after the card own 20px padding', () => {
     expect(blockOf('pg-phone:*:p-4')).toBe('@container pg (max-width: 767px)');
-    expect(blockOf('pg-phone:[&_.size-8]:hidden')).toBe('@container pg (max-width: 767px)');
+    expect(blockOf('pg-phone:[&_[data-kpi-icon]]:hidden')).toBe('@container pg (max-width: 767px)');
+    expect(css).toContain('[data-kpi-icon]');
+    expect(css).not.toContain('size-8\\]');
     expect(css.indexOf(classSelector('pg-phone:*:p-4'))).toBeGreaterThan(css.indexOf('.p-5'));
   });
 });
