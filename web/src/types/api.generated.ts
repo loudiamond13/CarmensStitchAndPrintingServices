@@ -547,6 +547,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/money-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any
+         *     such member is ignored. The amount is at least 0.01 with at most two decimal places and no more than the sender holds. The date is
+         *     any day up to today in the business zone. The recipient must be an active Admin or Manager, or former staff who are owed money,
+         *     and a transfer into former staff cannot go above what brings them to 0.00. The answer carries the sender's new balance and never
+         *     the recipient's. Who recorded it and when come from the token and the clock; any such member in the body is ignored. A retry
+         *     with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.
+         */
+        post: operations["CreateMoneyTransfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/order-expense-categories": {
         parameters: {
             query?: never;
@@ -2302,6 +2326,27 @@ export interface components {
             tone: null | string;
         };
         /**
+         * @description The Transfer Money form (MONEY-04). The sender is always the signed-in user, so the form has no sender. Any other member in
+         *     the body, such as a forged sender or `createdById`, is ignored: who recorded the transfer and when come from the token and
+         *     the clock (SEC-08).
+         */
+        CreateMoneyTransferRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Optional note. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The coworker who gets the money.
+             */
+            toUserId: null | string;
+            /** @description The day the money changed hands, `yyyy-MM-dd`. */
+            transferDate: null | string;
+        };
+        /**
          * @description The New Order form (ORD-03). Any other member in the body, such as a forged `createdById`, `number` or `totals`, is
          *     ignored: who recorded the order, its number and its money figures come from the token, the clock and the server (SEC-08, ORD-20).
          */
@@ -2753,6 +2798,58 @@ export interface components {
         InviteTokenRequest: {
             /** @description The 43-character token. */
             token: null | string;
+        };
+        /** @description One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance. */
+        MoneyTransferResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /**
+             * Format: date-time
+             * @description When it was deleted; null while it counts.
+             */
+            deletedAtUtc: null | string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description The sender; for a hand-over, the former staff member. */
+            from: components["schemas"]["ActorRef"];
+            /**
+             * Format: uuid
+             * @description The transfer id.
+             */
+            id: string;
+            /** @description True once it is in the bin. */
+            isDeleted: boolean;
+            /** @description True when a Manager recorded it for a former staff member (D-17). */
+            isHandover: boolean;
+            /** @description The note; null when none. */
+            note: null | string;
+            /**
+             * Format: date-time
+             * @description When it was recorded.
+             */
+            recordedAtUtc: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The recipient. */
+            to: components["schemas"]["ActorRef"];
+            /**
+             * Format: date
+             * @description The day the money changed hands.
+             */
+            transferDate: string;
+            /** @description The base64 of the eight-byte row version a later change must send back. */
+            version: string;
+        };
+        /** @description A saved transfer and the sender's new money on hand. The recipient's balance is never in the answer (OD-19, D-49). */
+        MoneyTransferSavedResponse: {
+            /**
+             * Format: double
+             * @description The sender's money on hand after the transfer.
+             */
+            senderBalance: number | string;
+            /** @description The saved transfer. */
+            transfer: components["schemas"]["MoneyTransferResponse"];
         };
         /** @description One month of the KPI row. */
         MonthKpi: {
@@ -5641,6 +5738,60 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateMoneyTransfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateMoneyTransferRequest"];
+                "application/json": null | components["schemas"]["CreateMoneyTransferRequest"];
+                "text/json": null | components["schemas"]["CreateMoneyTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyTransferSavedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
