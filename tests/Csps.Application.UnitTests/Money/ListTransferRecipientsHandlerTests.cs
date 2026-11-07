@@ -2,6 +2,7 @@ using Csps.Application.Auth;
 using Csps.Application.Money;
 using Csps.Application.Ports;
 using Csps.Application.Users;
+using Csps.Domain.Identity;
 using NSubstitute;
 
 namespace Csps.Application.UnitTests.Money;
@@ -31,8 +32,8 @@ public sealed class ListTransferRecipientsHandlerTests
     {
         var harness = new Harness(people:
         [
-            new StaffPerson(CallerId, "Carmen Reyes", "Manager", true, false, false),
-            new StaffPerson(LizaId, "Liza Mercado", "Admin", true, true, false),
+            new StaffPerson(CallerId, "Carmen Reyes", true, false),
+            new StaffPerson(LizaId, "Liza Mercado", true, false),
         ]);
 
         var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
@@ -51,10 +52,10 @@ public sealed class ListTransferRecipientsHandlerTests
         var harness = new Harness(
             people:
             [
-                new StaffPerson(CallerId, "Carmen Reyes", "Manager", true, false, false),
-                new StaffPerson(AnaId, "Ana Abad", "Admin", false, false, true),
-                new StaffPerson(BenId, "Ben Lim", "Admin", false, false, false),
-                new StaffPerson(JomarId, "Jomar Santos", "Admin", false, false, true),
+                new StaffPerson(CallerId, "Carmen Reyes", true, false),
+                new StaffPerson(AnaId, "Ana Abad", false, true),
+                new StaffPerson(BenId, "Ben Lim", false, false),
+                new StaffPerson(JomarId, "Jomar Santos", false, true),
             ],
             sums:
             [
@@ -79,7 +80,7 @@ public sealed class ListTransferRecipientsHandlerTests
     public async Task ADeactivatedLeaverWhoIsOwedMoneyReadsAsDeactivated()
     {
         var harness = new Harness(
-            people: [new StaffPerson(JomarId, "Jomar Santos", "Admin", false, false, false)],
+            people: [new StaffPerson(JomarId, "Jomar Santos", false, false)],
             sums: [new StaffMoneySums(JomarId, "Jomar Santos", 0m, 0m, 0m, 0m, 0.01m, 0m)]);
 
         var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
@@ -90,7 +91,7 @@ public sealed class ListTransferRecipientsHandlerTests
     [Fact]
     public async Task ALeaverWithNoSumsRowIsTreatedAsHoldingNothingAndLeftOut()
     {
-        var harness = new Harness(people: [new StaffPerson(JomarId, "Jomar Santos", "Admin", false, false, false)]);
+        var harness = new Harness(people: [new StaffPerson(JomarId, "Jomar Santos", false, false)]);
 
         var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
 
@@ -100,11 +101,46 @@ public sealed class ListTransferRecipientsHandlerTests
     [Fact]
     public void ThePersonFromTheListMapsToTheSameStatusesAsTheAccountRules()
     {
-        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", "Admin", true, true, false), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Active);
-        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", "Admin", false, false, false), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deactivated);
-        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", "Admin", false, false, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deleted);
-        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", "Admin", true, false, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deleted);
+        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", true, false), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Active);
+        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", false, false), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deactivated);
+        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", false, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deleted);
+        MoneyParties.FromPerson(new StaffPerson(LizaId, "Liza Mercado", true, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.Deleted);
         Should.Throw<ArgumentNullException>(() => MoneyParties.FromPerson(null!, 0m));
+    }
+
+    [Fact]
+    public void TheLegacyHolderIsNotStaffWhateverItsFlagsSay()
+    {
+        MoneyParties.FromPerson(new StaffPerson(LegacyHolder.Id, "Legacy / unassigned", true, false), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.NotStaff);
+        MoneyParties.FromPerson(new StaffPerson(LegacyHolder.Id, "Legacy / unassigned", false, true), 5m).Status.ShouldBe(Csps.Domain.Money.MoneyPartyStatus.NotStaff);
+    }
+
+    [Fact]
+    public async Task TheLegacyHolderIsNeverOfferedEvenIfTheReaderReturnsIt()
+    {
+        var harness = new Harness(
+            people:
+            [
+                new StaffPerson(CallerId, "Carmen Reyes", true, false),
+                new StaffPerson(LegacyHolder.Id, "Legacy / unassigned", true, false),
+                new StaffPerson(JomarId, "Jomar Santos", false, true),
+            ],
+            sums:
+            [
+                new StaffMoneySums(JomarId, "Jomar Santos", 0m, 0m, 0m, 0m, 500.00m, 0m),
+                new StaffMoneySums(LegacyHolder.Id, "Legacy / unassigned", 0m, 0m, 0m, 0m, 500.00m, 0m),
+            ]);
+
+        var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.ShouldBe(
+        [
+            new TransferRecipientResponse(CallerId, "Carmen Reyes", "active", true),
+            new TransferRecipientResponse(JomarId, "Jomar Santos", "deleted", false),
+        ]);
+        await harness.Reader.Received(1).GetSumsAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(JomarId)),
+            Arg.Any<CancellationToken>());
     }
 
     private sealed class Harness

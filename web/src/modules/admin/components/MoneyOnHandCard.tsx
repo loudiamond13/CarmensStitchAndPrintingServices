@@ -3,6 +3,7 @@
 // below zero is danger-toned with the true minus sign, ₱0.00 is dimmed. It owns its loading and failure states; plan 10-19 puts the
 // same card on one person's page for a Manager.
 import clsx from 'clsx';
+import { useId } from 'react';
 import { Money, overlineClasses } from '@/components/money';
 import { Skeleton } from '@/components/feedback';
 import { ErrorState, LoadingRegion } from '@/components/states';
@@ -27,11 +28,16 @@ export interface MoneyOnHandCardProps {
 }
 
 export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
+  const overlineId = useId();
   const money = query.data;
 
-  let body;
-  if (query.isError) {
-    body = (
+  // A read that failed shows its alert until Try Again runs; while the retry runs the skeleton stands in, even over an older figure.
+  const failed = query.isError && !query.isFetching;
+  const loading = query.isFetching && (money === undefined || query.isError);
+
+  let content;
+  if (failed) {
+    content = (
       <div className={moneyCardStateClasses}>
         <ErrorState
           things={COPY.failedThings}
@@ -43,34 +49,37 @@ export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
         />
       </div>
     );
+  } else if (money === undefined || query.isError) {
+    content = <Skeleton width={220} height={40} />;
   } else {
-    // One region stays mounted from loading to loaded, so its status node can say the figure arrived.
-    body = (
-      <>
-        <LoadingRegion loading={money === undefined} things={COPY.loadingThings}>
-          {money === undefined ? (
-            <Skeleton width={220} height={40} />
-          ) : (
-            <Money
-              amount={money.balance}
-              size="lg"
-              tone={isNegativeMoney(money.balance) ? 'danger' : undefined}
-              className={clsx(
-                round2(money.balance) === 0 && moneyCardZeroClasses,
-                formatPeso(money.balance).length >= LONG_FIGURE && moneyCardLongFigureClasses,
-              )}
-            />
-          )}
-        </LoadingRegion>
-        <p className={moneyCardExplanationClasses}>{COPY.explanation}</p>
-      </>
+    content = (
+      <Money
+        amount={money.balance}
+        size="lg"
+        tone={isNegativeMoney(money.balance) ? 'danger' : undefined}
+        className={clsx(
+          round2(money.balance) === 0 && moneyCardZeroClasses,
+          formatPeso(money.balance).length >= LONG_FIGURE && moneyCardLongFigureClasses,
+        )}
+      />
     );
   }
+  // One region stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
+  const body = (
+    <>
+      <LoadingRegion loading={loading} failed={failed} things={COPY.loadingThings}>
+        {content}
+      </LoadingRegion>
+      {failed ? null : <p className={moneyCardExplanationClasses}>{COPY.explanation}</p>}
+    </>
+  );
 
   return (
-    <section className={moneyCardClasses}>
+    <section className={moneyCardClasses} aria-labelledby={overlineId}>
       <div className={moneyCardBodyClasses}>
-        <span className={overlineClasses}>{COPY.overline}</span>
+        <span id={overlineId} className={overlineClasses}>
+          {COPY.overline}
+        </span>
         {body}
       </div>
     </section>

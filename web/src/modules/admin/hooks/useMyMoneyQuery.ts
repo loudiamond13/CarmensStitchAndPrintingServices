@@ -7,6 +7,8 @@ import { moneyService, parseMyMoney, type MyMoney } from '@/modules/admin/servic
 export interface MyMoneyCardQuery {
   readonly data: MyMoney | undefined;
   readonly isError: boolean;
+  /** True while a read runs, so a card can say that Try Again is working. */
+  readonly isFetching: boolean;
   readonly error: unknown;
   readonly refetch: () => unknown;
 }

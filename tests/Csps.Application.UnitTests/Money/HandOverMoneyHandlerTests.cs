@@ -76,6 +76,22 @@ public sealed class HandOverMoneyHandlerTests
     }
 
     [Fact]
+    public async Task TheAuditEntryIsAddedBeforeTheOneSaveSoItIsWrittenWithTheTransfer()
+    {
+        var harness = new Harness();
+        var savesWhenRecorded = new List<int>();
+        harness.Audit
+            .When(audit => audit.Record(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>()))
+            .Do(_ => savesWhenRecorded.Add(harness.Unit.Saves));
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        savesWhenRecorded.ShouldBe([0]);
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task ASavedHandOverAnswersWithTheLeaversNewBalanceAndTheThreePeople()
     {
         var harness = new Harness();

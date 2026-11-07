@@ -5,7 +5,7 @@
 // its own query, so a failed read leaves the rest of the dashboard alone, and View Ledger works whatever the state.
 // Phones (money.recipe.ts): the tile is hidden, the figure stays on one line (whitespace-nowrap) and the buttons wrap to their own row.
 import clsx from 'clsx';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button, ButtonLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Skeleton } from '@/components/feedback';
@@ -36,6 +36,7 @@ export interface MoneyStripProps {
 }
 
 export function MoneyStrip({ query, actions }: MoneyStripProps) {
+  const labelId = useId();
   const money = query.data;
   const tone =
     money === undefined
@@ -46,8 +47,12 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
           ? 'zero'
           : 'plain';
 
+  // A read that failed shows its alert until Try Again runs; while the retry runs the skeleton stands in, even over an older figure.
+  const failed = query.isError && !query.isFetching;
+  const loading = query.isFetching && (money === undefined || query.isError);
+
   let figure;
-  if (query.isError) {
+  if (failed) {
     figure = (
       <div className={moneyStripFailedClasses}>
         <p role="alert" className={moneyStripFailedTextClasses}>
@@ -64,7 +69,7 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
         </Button>
       </div>
     );
-  } else if (money === undefined) {
+  } else if (money === undefined || query.isError) {
     figure = <Skeleton width={160} height={28} />;
   } else {
     figure = (
@@ -73,17 +78,14 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
   }
 
   return (
-    <section className={moneyStripClasses}>
+    <section className={moneyStripClasses} aria-labelledby={labelId}>
       <span className={moneyStripTileClasses}>
         <Icon name="wallet" size={18} />
       </span>
-      <LoadingRegion
-        loading={money === undefined && !query.isError}
-        failed={query.isError}
-        things={COPY.things}
-        className={moneyStripBodyClasses}
-      >
-        <span className={moneyStripLabelClasses}>{COPY.label}</span>
+      <LoadingRegion loading={loading} failed={failed} things={COPY.things} className={moneyStripBodyClasses}>
+        <span id={labelId} className={moneyStripLabelClasses}>
+          {COPY.label}
+        </span>
         {figure}
       </LoadingRegion>
       <div className={moneyStripActionsClasses}>

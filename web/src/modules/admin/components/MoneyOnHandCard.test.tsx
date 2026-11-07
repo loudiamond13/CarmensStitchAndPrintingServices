@@ -1,17 +1,28 @@
-import { render, screen } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { delay } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
+import { createQueryClient } from '@/lib/query/queryClient';
 import { MoneyOnHandCard } from '@/modules/admin/components/MoneyOnHandCard';
-import type { MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { myMoneyKey, useMyMoneyQuery, type MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import type { MyMoney } from '@/modules/admin/services/moneyService';
 import { expectNoAxeViolations } from '@/test/axe';
-import { MY_MONEY_USER_ID } from '@/test/moneyFixtures';
+import { problemResponse } from '@/test/expenseFixtures';
+import { MY_MONEY_USER_ID, myMoneyBackend, myMoneyFixture } from '@/test/moneyFixtures';
 
 // The My Money balance card (D-39, D-21, MONEY-02): the overline, the server figure at the large size, and what the figure is
 // made of. It works out nothing.
 
 function queryOf(overrides: Partial<MyMoneyCardQuery> = {}): MyMoneyCardQuery {
-  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  // With nothing to show and no failure, a plain query is still reading.
+  const isFetching = overrides.data === undefined && overrides.isError !== true;
+  return { data: undefined, isError: false, isFetching, error: null, refetch: vi.fn(), ...overrides };
+}
+
+/** The card fed by the real hook, so the request, the retry and the states are the ones the page has. */
+function Fed() {
+  return <MoneyOnHandCard query={useMyMoneyQuery()} />;
 }
 
 function moneyOf(balance: number): MyMoney {
@@ -29,6 +40,15 @@ describe('the card with a figure (D-39)', () => {
         'Payments received and transfers in, minus transfers out, expenses paid and refunds handed back.',
       ),
     ).toBeVisible();
+  });
+
+  it('is a region named by its visible overline, so a screen reader can find it by landmark (wave 6 IN-02)', () => {
+    render(<MoneyOnHandCard query={queryOf({ data: moneyOf(8450) })} />);
+
+    const region = screen.getByRole('region', { name: 'Money on hand' });
+    expect(region).toContainElement(screen.getByText('₱8,450.00'));
+    expect(region).toHaveAttribute('aria-labelledby', screen.getByText('Money on hand').id);
+    expect(region).not.toHaveAttribute('aria-label');
   });
 
   it('shows the figure at the large display size (Money lg)', () => {
@@ -165,5 +185,70 @@ describe('failure (UI-SPEC M1 MoneyOnHandCard)', () => {
     const { container } = render(<MoneyOnHandCard query={queryOf({ isError: true, error: new Error('x') })} />);
 
     await expectNoAxeViolations(container);
+  });
+
+  it('keeps one status: silent on the failure, "Loading money on hand…" during Try Again, then "Money on hand loaded."', async () => {
+    let answered = 0;
+    myMoneyBackend(async () => {
+      answered += 1;
+      if (answered === 1) return problemResponse(500);
+      await delay(300);
+      return myMoneyFixture({ balance: 300 });
+    });
+    const queryClient = createQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Fed />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("Couldn't load the money on hand.");
+    const status = screen.getByRole('status');
+    expect(status).toBeEmptyDOMElement();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading money on hand…');
+    });
+    expect(status.previousElementSibling).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByText('₱300.00')).toBeVisible();
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('Money on hand loaded.');
+    expect(status.previousElementSibling).not.toHaveAttribute('aria-busy');
+    queryClient.clear();
+  });
+
+  it('keeps one status when a later read fails over a good figure: "Loading money on hand…" during Try Again, then "Money on hand loaded."', async () => {
+    let answered = 0;
+    myMoneyBackend(async () => {
+      answered += 1;
+      if (answered === 1) return myMoneyFixture({ balance: 8450 });
+      if (answered === 2) return problemResponse(500);
+      await delay(300);
+      return myMoneyFixture({ balance: 300 });
+    });
+    const queryClient = createQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Fed />
+      </QueryClientProvider>,
+    );
+    await screen.findByText('₱8,450.00');
+    const status = screen.getByRole('status');
+    await act(() => queryClient.invalidateQueries({ queryKey: myMoneyKey }));
+    await screen.findByText("Couldn't load the money on hand.");
+    expect(screen.getByRole('status')).toBe(status);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading money on hand…');
+    });
+    expect(status.previousElementSibling).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByText('₱300.00')).toBeVisible();
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('Money on hand loaded.');
+    expect(status.previousElementSibling).not.toHaveAttribute('aria-busy');
+    queryClient.clear();
   });
 });

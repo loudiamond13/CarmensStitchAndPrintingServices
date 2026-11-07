@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import type { ReactNode } from 'react';
@@ -7,7 +7,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { MoneyStrip } from '@/modules/admin/components/MoneyStrip';
-import { useMyMoneyQuery, type MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { myMoneyKey, useMyMoneyQuery, type MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import type { MyMoney } from '@/modules/admin/services/moneyService';
 import { expectNoAxeViolations } from '@/test/axe';
 import { problemResponse } from '@/test/expenseFixtures';
@@ -49,7 +49,9 @@ function renderFed(actions?: ReactNode) {
 }
 
 function queryOf(overrides: Partial<MyMoneyCardQuery> = {}): MyMoneyCardQuery {
-  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  // With nothing to show and no failure, a plain query is still reading.
+  const isFetching = overrides.data === undefined && overrides.isError !== true;
+  return { data: undefined, isError: false, isFetching, error: null, refetch: vi.fn(), ...overrides };
 }
 
 function moneyOf(balance: number): MyMoney {
@@ -74,6 +76,17 @@ describe('the figure from the server (D-46, MONEY-02)', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.pathname).toBe('/api/v1/staff-money/me');
     expect(calls[0]?.search).toBe('');
+  });
+
+  it('is a region named by its visible label, so a screen reader can find it by landmark (wave 6 IN-02)', async () => {
+    myMoneyBackend();
+    renderFed();
+
+    await screen.findByText('₱8,450.00');
+    const region = screen.getByRole('region', { name: 'Your money on hand' });
+    expect(region).toContainElement(screen.getByText('₱8,450.00'));
+    expect(region).toHaveAttribute('aria-labelledby', screen.getByText('Your money on hand').id);
+    expect(region).not.toHaveAttribute('aria-label');
   });
 
   it('links View Ledger to the My Money page', async () => {
@@ -209,6 +222,58 @@ describe('failure (UI-SPEC D1 MoneyStrip, Error)', () => {
     await waitFor(() => {
       expect(screen.queryByText("Couldn't load your money on hand.")).toBeNull();
     });
+  });
+
+  it('keeps one status: silent on the failure, "Loading your money on hand…" during Try Again, then "Your money on hand loaded."', async () => {
+    let answered = 0;
+    myMoneyBackend(async () => {
+      answered += 1;
+      if (answered === 1) return problemResponse(500);
+      await delay(300);
+      return myMoneyFixture({ balance: 120 });
+    });
+    renderFed();
+    await screen.findByText("Couldn't load your money on hand.");
+    const status = screen.getByRole('status');
+    expect(status).toBeEmptyDOMElement();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading your money on hand…');
+    });
+    expect(status.previousElementSibling).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByText('₱120.00')).toBeVisible();
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('Your money on hand loaded.');
+    expect(status.previousElementSibling).not.toHaveAttribute('aria-busy');
+  });
+
+  it('keeps one status when a later read fails over a good figure: "Loading your money on hand…" during Try Again, then "Your money on hand loaded."', async () => {
+    let answered = 0;
+    myMoneyBackend(async () => {
+      answered += 1;
+      if (answered === 1) return myMoneyFixture({ balance: 8450 });
+      if (answered === 2) return problemResponse(500);
+      await delay(300);
+      return myMoneyFixture({ balance: 120 });
+    });
+    renderFed();
+    await screen.findByText('₱8,450.00');
+    const status = screen.getByRole('status');
+    await act(() => queryClient.invalidateQueries({ queryKey: myMoneyKey }));
+    await screen.findByText("Couldn't load your money on hand.");
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading your money on hand…');
+    });
+    expect(status.previousElementSibling).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByText('₱120.00')).toBeVisible();
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('Your money on hand loaded.');
+    expect(status.previousElementSibling).not.toHaveAttribute('aria-busy');
   });
 
   it('shows the failure, not a figure, when the server sends a balance the browser cannot read', async () => {
