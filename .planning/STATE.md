@@ -4,15 +4,15 @@ current_phase: 10
 current_phase_name: Admin Dashboard
 status: executing
 stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-11-07T05:11:17.434Z"
+last_updated: "2026-11-07T06:18:03.121Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 10 execution started
-state_head: a9f2eda2cafda5bcff792818ac4af1911ee0ce64
+state_head: 6c569dcb20b69ff1b342df5e17e343b1f0d6ec73
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 302
-  completed_plans: 285
+  completed_plans: 286
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-06T10:53:00-06:00"
@@ -909,6 +909,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 10]: D-104 (owner, 2026-11-06): chart labels prop takes separate legend and tooltip words (UI-SPEC D3); review WR-02
 - [Phase 10]: D-105 (owner, 2026-11-06): plan 10-14 runs the four ledger reads in one serializable read transaction, no DB option change; review WR-04
 - [Phase 10]: D-106 (owner, 2026-11-06): fix chart WR-01 and WR-03 now, before 10-11; other wave 1 review items go to the phase-end review
+- [Phase 10]: Wave 2 (10-05) post-merge gate: build 0 warnings; dotnet format, typecheck, lint and OpenAPI check clean. Web 8086 of 8087 passed; third-party-notices --check test timed out at 120 s under load, passed alone 11 of 11. Full .NET run had 50 load failures (email transport, migration script, matrix HEAD /health, user create races); each project re-run alone: all 7227 pass (2 skipped). 10-05 executor also saw OrderImagesEndpointTests last-free-slot race return 500 once under load (passed alone): watch it. 10-05 followed D-05 over a contradicting Task 2 test note (Oct 31 payment in neither figure).
 
 ### Pending Todos
 
