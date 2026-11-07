@@ -28,9 +28,23 @@ public static class MoneyParties
             return new MoneyParty(state.Id, state.Name, MoneyPartyStatus.NotStaff, balance);
         }
 
-        var status = state.IsDeleted
-            ? MoneyPartyStatus.Deleted
-            : state.IsActive ? MoneyPartyStatus.Active : MoneyPartyStatus.Deactivated;
-        return new MoneyParty(state.Id, state.Name, status, balance);
+        return new MoneyParty(state.Id, state.Name, StatusOf(state.IsActive, state.IsDeleted), balance);
     }
+
+    /// <summary>
+    /// Maps an Admin or Manager from the recipients list to a transfer party. The reader already left out the legacy holder and
+    /// accounts without the role, so the status is Active, Deactivated or Deleted, with the same rules as <see cref="From"/>.
+    /// </summary>
+    /// <param name="person">The Admin or Manager.</param>
+    /// <param name="balance">The person's money on hand.</param>
+    /// <returns>The party.</returns>
+    public static MoneyParty FromPerson(StaffPerson person, decimal balance)
+    {
+        ArgumentNullException.ThrowIfNull(person);
+        return new MoneyParty(person.Id, person.Name, StatusOf(person.IsActive, person.IsDeleted), balance);
+    }
+
+    // Deleted is checked before deactivated.
+    private static MoneyPartyStatus StatusOf(bool isActive, bool isDeleted) =>
+        isDeleted ? MoneyPartyStatus.Deleted : isActive ? MoneyPartyStatus.Active : MoneyPartyStatus.Deactivated;
 }

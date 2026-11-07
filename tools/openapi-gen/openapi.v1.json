@@ -341,7 +341,7 @@
         "description": "One \"What changed\" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed.",
         "properties": {
           "field": {
-            "description": "One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,\n`dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,\n`payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,\n`sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.",
+            "description": "One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,\n`dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,\n`payer`, `refunder`, `from` and `to`, or the name of a text field that changed: `description`, `notes`, `reference`,\n`sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.",
             "type": "string"
           },
           "from": {
@@ -376,7 +376,7 @@
               },
               {
                 "$ref": "#/components/schemas/ActorRef",
-                "description": "For `payer`, `receiver` and `refunder`: the new person."
+                "description": "For `payer`, `receiver` and `refunder`: the new person; for a hand-over's `from` and `to`: that person."
               }
             ]
           }
@@ -4565,6 +4565,35 @@
         ],
         "type": "object"
       },
+      "TransferRecipientResponse": {
+        "description": "One person the transfer window may offer in its To list (D-19, D-49, D-56). It has a name and a status word only: nothing about\nwhat the person holds or is owed, for any caller.",
+        "properties": {
+          "id": {
+            "description": "The person's id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isYou": {
+            "description": "True for the signed-in person.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The first and last name.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of `active`, `deactivated` or `deleted`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "isYou"
+        ],
+        "type": "object"
+      },
       "UpdateCompanyExpenseRequest": {
         "description": "The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a\nforged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when\ncome from the token and the clock (SEC-08).",
         "properties": {
@@ -7932,6 +7961,40 @@
           }
         },
         "summary": "Records a hand-over, Managers only: money held by a deactivated or deleted Admin or Manager moves to a current coworker. The body\nnames the former staff member (`fromUserId`) and the coworker (`toUserId`). The amount is at least 0.01 with at most two\ndecimal places and no more than the former staff member holds. The coworker must be an active Admin or Manager, a Manager-locked\nor not-yet-set-up person included. The answer carries the former staff member's new balance and never the coworker's. The\nsigned-in Manager is recorded as who did it and is written to the audit log; any `createdById` or `isHandover` in the\nbody is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/money-transfers/recipients": {
+      "get": {
+        "operationId": "ListTransferRecipients",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TransferRecipientResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists who the transfer window may offer, for either role. Every active Admin and Manager comes first, a person a Manager has\nlocked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or\ndeleted Admins and Managers who are owed money, with status `deactivated` or `deleted`. An entry has an id, a name, a\nstatus and `isYou` and never a figure, for any caller. The legacy placeholder and accounts with no staff role never appear.\nEach group is sorted by first name, last name, then id.",
         "tags": [
           "MoneyTransfers"
         ]

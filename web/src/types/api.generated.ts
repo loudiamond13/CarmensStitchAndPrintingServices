@@ -595,6 +595,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/money-transfers/recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists who the transfer window may offer, for either role. Every active Admin and Manager comes first, a person a Manager has
+         *     locked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or
+         *     deleted Admins and Managers who are owed money, with status `deactivated` or `deleted`. An entry has an id, a name, a
+         *     status and `isYou` and never a figure, for any caller. The legacy placeholder and accounts with no staff role never appear.
+         *     Each group is sorted by first name, last name, then id.
+         */
+        get: operations["ListTransferRecipients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/order-expense-categories": {
         parameters: {
             query?: never;
@@ -2055,7 +2078,7 @@ export interface components {
             /**
              * @description One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,
              *     `dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,
-             *     `payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,
+             *     `payer`, `refunder`, `from` and `to`, or the name of a text field that changed: `description`, `notes`, `reference`,
              *     `sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.
              */
             field: string;
@@ -3819,6 +3842,23 @@ export interface components {
              * @description Its total this month.
              */
             total: number | string;
+        };
+        /**
+         * @description One person the transfer window may offer in its To list (D-19, D-49, D-56). It has a name and a status word only: nothing about
+         *     what the person holds or is owed, for any caller.
+         */
+        TransferRecipientResponse: {
+            /**
+             * Format: uuid
+             * @description The person's id.
+             */
+            id: string;
+            /** @description True for the signed-in person. */
+            isYou: boolean;
+            /** @description The first and last name. */
+            name: string;
+            /** @description One of `active`, `deactivated` or `deleted`. */
+            status: string;
         };
         /**
          * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
@@ -5905,6 +5945,35 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTransferRecipients: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRecipientResponse"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

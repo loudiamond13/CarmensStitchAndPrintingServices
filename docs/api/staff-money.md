@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-07T10:30:00-06:00
+updated: 2026-11-07T14:20:00-06:00
 ---
 
 # The staff money API
@@ -8,7 +8,7 @@ updated: 2026-11-07T10:30:00-06:00
 This is the contract behind the money each staff member holds, and the one a future Android app will use. Everything here is under
 `/api/v1`. The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this
 page; the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
-[auth.md](auth.md). The transfer route is below; later plans add the hand-over and ledger routes.
+[auth.md](auth.md). The transfer, hand-over and recipients routes are below; a later plan adds the ledger routes.
 
 ## In plain words
 
@@ -118,12 +118,73 @@ An empty body lists `toUserId`, `amount` and `transferDate` together. An anonymo
 
 ### The lock (D-53)
 
-Only a transfer (and, in a later plan, a hand-over) takes the `staff-money` lock. It is the first statement in the transaction, before
-any person or balance is read, so two transfers at the same moment can never spend the same money twice. Expense, payment and refund
+Only a transfer and a hand-over take the `staff-money` lock. It is the first statement in the transaction, before
+any person or balance is read, so two transfers, or two hand-overs, at the same moment can never spend the same money twice. Expense, payment and refund
 saves do not take it: they may already take a balance below zero (D-15, D-16). An expense never checks a balance, so one transfer
 racing one expense always matches one serial order. The race tests that can fail are the ones that add a second transfer, with or
 without an expense: only the lock stops both from spending the same money. A lock that cannot be had within 10 seconds answers `409` with `Something changed at the same time. Try again.`
 The timeout is logged as a warning with its cause. A missing `staff-money` row is a setup fault: it answers `500`, never `409`.
+
+## POST /api/v1/money-transfers/handovers
+
+A Manager moves money held by a deactivated or deleted Admin or Manager to a current coworker (D-17, D-18, MONEY-06). Managers only.
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `POST /money-transfers/handovers` | Manager | `{ fromUserId, toUserId, amount, transferDate, note }` | `201` the saved hand-over and the former staff member's new balance, `400` field errors, `401` without a valid token, `403` for an Admin, `409` when the lock was busy too long, `422` when the `Idempotency-Key` was used with a different body. |
+
+- **The sender is the former staff member named in `fromUserId`.** The signed-in Manager only records the hand-over: the answer says
+  `isHandover: true` and `recordedBy` is the Manager. A `createdById`, `createdAtUtc`, `updatedById`, `updatedAtUtc` or `isHandover`
+  in the body is ignored (SEC-08).
+- The Manager is read again under the lock. A Manager who has been deactivated, deleted or locked, or who is no longer a Manager, since
+  signing in gets `401` `Your session ended. Sign in again.` and nothing is recorded.
+- `transferDate` is `yyyy-MM-dd`, any past day up to today. The amount is at least `0.01`, has at most two decimals and is at most what
+  the former staff member holds now (D-18).
+- **The coworker must be an active Admin or Manager.** A person a Manager has locked, or who has not finished set-up, can receive (D-56).
+  A former staff member cannot receive a hand-over, even one who is owed money.
+- Send an `Idempotency-Key` header. The same key and body twice records one hand-over and one audit entry, and the second answer
+  replays the stored `201`. The same key with a different body answers `422`.
+- The answer is `{ transfer, senderBalance }`, the same shape as a transfer. `senderBalance` is the former staff member's balance after
+  the hand-over. It never carries the coworker's balance.
+- One audit entry, `money-transfer.handed-over`, is written in the same save, with the Manager as actor. Its detail holds ids, the
+  amount, the date and `note=yes` or `note=no`, never the note text or a name (D-52). See
+  [the audit log](../operations/audit-log.md).
+
+### Hand-over refusals (all `400` under the named field)
+
+| Field | Message |
+|---|---|
+| `fromUserId` | `Choose whose money to hand over.` (missing) |
+| `fromUserId` | `Only money held by former staff can be handed over.` (an active person, the legacy placeholder, a non-staff account or an unknown id) |
+| `toUserId` | `Choose who got the cash.` (missing) |
+| `toUserId` | `Choose someone other than {name}.` (the former staff member) |
+| `toUserId` | `{name} can't receive transfers now. Choose someone else.` (a deactivated or deleted person) |
+| `toUserId` | `This person can't receive transfers now. Choose someone else.` (unknown id, the legacy placeholder, or a non-staff account) |
+| `amount` | `Enter the amount.`, `Enter an amount of at least ₱0.01.`, `Use at most 2 decimal places.` |
+| `amount` | `{name} has nothing on hand to hand over.` (at or below `0.00`) |
+| `amount` | `{name} only has {₱2,000.00} on hand.` (above what they hold) |
+| `transferDate` | `Enter the transfer date.`, `Enter a real date.`, `The transfer date can't be in the future.` |
+| `note` | `Keep the note to 200 characters or fewer.` |
+
+An empty body lists `fromUserId`, `toUserId`, `amount` and `transferDate` together. The two server-only lines, `Choose whose money to
+hand over.` and `Only money held by former staff can be handed over.`, are never shown by the web window (D-58).
+
+## GET /api/v1/money-transfers/recipients
+
+Who the transfer window may offer in its To list (D-19, D-49, D-56). Both roles use it.
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `GET /money-transfers/recipients` | Staff | none | `200` a list of `{ id, name, status, isYou }`, `401` without a valid token. |
+
+- First every **active** Admin and Manager, a person a Manager has locked and a person who has not finished set-up included. The
+  signed-in person is there with `isYou: true`. `status` is `active`.
+- Then every **deactivated or deleted** Admin or Manager whose balance is **below zero** (the shop owes them money), with `status`
+  `deactivated` or `deleted`. These are the people a transfer can bring back to `0.00` (D-19).
+- Each group is sorted by first name, last name, then id.
+- **No entry carries a figure.** There is no balance, no amount and no owed number, for any caller (D-49, OD-19). A former staff member
+  who holds money or is at `0.00` is not listed. The legacy placeholder and accounts with no staff role never appear.
+- Nothing is cached: the answer carries `Cache-Control: no-store`.
 
 ## Errors
 

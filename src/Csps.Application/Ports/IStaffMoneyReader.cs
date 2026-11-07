@@ -10,4 +10,12 @@ public interface IStaffMoneyReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>One entry for each asked person who exists and is not the legacy holder; a person with no money rows has zero in every sum.</returns>
     Task<IReadOnlyList<StaffMoneySums>> GetSumsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists every Admin and Manager account except the legacy holder, with its account flags, in one untracked statement. There is no
+    /// set-up or lock filter: that is not the recipient rule (D-56). It carries no figure.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The people sorted by first name, last name, then id.</returns>
+    Task<IReadOnlyList<StaffPerson>> ListStaffPeopleAsync(CancellationToken cancellationToken);
 }

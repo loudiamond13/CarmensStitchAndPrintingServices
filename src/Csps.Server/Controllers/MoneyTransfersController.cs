@@ -13,12 +13,16 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="create">The record-a-transfer handler.</param>
 /// <param name="handOver">The record-a-hand-over handler.</param>
+/// <param name="recipients">The who-can-receive handler.</param>
 [ApiController]
 [Route("api/v1/money-transfers")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class MoneyTransfersController(CreateMoneyTransferHandler create, HandOverMoneyHandler handOver) : ControllerBase
+public sealed class MoneyTransfersController(
+    CreateMoneyTransferHandler create,
+    HandOverMoneyHandler handOver,
+    ListTransferRecipientsHandler recipients) : ControllerBase
 {
     /// <summary>
     /// Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any
@@ -70,5 +74,24 @@ public sealed class MoneyTransfersController(CreateMoneyTransferHandler create, 
     {
         var result = await handOver.HandleAsync(body ?? CreateMoneyHandoverRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static saved => TypedResults.Created((string?)null, saved));
+    }
+
+    /// <summary>
+    /// Lists who the transfer window may offer, for either role. Every active Admin and Manager comes first, a person a Manager has
+    /// locked or who has not finished set-up included, with the signed-in person marked <c>isYou</c>. Then come the deactivated or
+    /// deleted Admins and Managers who are owed money, with status <c>deactivated</c> or <c>deleted</c>. An entry has an id, a name, a
+    /// status and <c>isYou</c> and never a figure, for any caller. The legacy placeholder and accounts with no staff role never appear.
+    /// Each group is sorted by first name, last name, then id.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the people, or 401 without a valid token.</returns>
+    [HttpGet("recipients")]
+    [EndpointName("ListTransferRecipients")]
+    [ProducesResponseType<IReadOnlyList<TransferRecipientResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IResult> ListRecipients(CancellationToken cancellationToken)
+    {
+        var result = await recipients.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static people => TypedResults.Ok(people));
     }
 }

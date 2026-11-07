@@ -19,6 +19,7 @@ public static class MoneyApplicationRegistration
         services.AddScoped<GetMyMoneyHandler>();
         services.AddScoped<CreateMoneyTransferHandler>();
         services.AddScoped<HandOverMoneyHandler>();
+        services.AddScoped<ListTransferRecipientsHandler>();
         return services;
     }
 }
