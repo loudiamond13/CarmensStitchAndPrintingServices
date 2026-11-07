@@ -3,6 +3,7 @@
 // below zero is danger-toned with the true minus sign, ₱0.00 is dimmed. It owns its loading and failure states; plan 10-19 puts the
 // same card on one person's page for a Manager.
 import clsx from 'clsx';
+import { useId } from 'react';
 import { Money, overlineClasses } from '@/components/money';
 import { Skeleton } from '@/components/feedback';
 import { ErrorState, LoadingRegion } from '@/components/states';
@@ -27,6 +28,7 @@ export interface MoneyOnHandCardProps {
 }
 
 export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
+  const overlineId = useId();
   const money = query.data;
 
   // A read that failed shows its alert until Try Again runs; while the retry runs the skeleton stands in, even over an older figure.
@@ -73,9 +75,11 @@ export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
   );
 
   return (
-    <section className={moneyCardClasses}>
+    <section className={moneyCardClasses} aria-labelledby={overlineId}>
       <div className={moneyCardBodyClasses}>
-        <span className={overlineClasses}>{COPY.overline}</span>
+        <span id={overlineId} className={overlineClasses}>
+          {COPY.overline}
+        </span>
         {body}
       </div>
     </section>
