@@ -19,7 +19,7 @@ import {
 // server's, the browser only formats them, and the month names come from the summary's dates, never the device clock.
 
 function queryOf(overrides: Partial<DashboardCardQuery> = {}): DashboardCardQuery {
-  return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
 }
 
 function loaded(data: DashboardSummaryFixture = dashboardNovemberSummary()): DashboardCardQuery {
@@ -255,7 +255,7 @@ describe('the month names come from the summary (D-05)', () => {
 
 describe('while the figures load', () => {
   it('shows four loading cards inside one region announced as "Loading the shop figures…"', () => {
-    render(<DashboardKpiRow query={queryOf({ isPending: true })} />);
+    render(<DashboardKpiRow query={queryOf()} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading the shop figures…');
     for (const label of ['Active orders', 'Total receivables', 'Collected', 'Company expenses']) {
@@ -300,7 +300,7 @@ describe('accessibility', () => {
     await expectNoAxeViolations(loadedView.container);
     loadedView.unmount();
 
-    const loadingView = render(<DashboardKpiRow query={queryOf({ isPending: true })} />);
+    const loadingView = render(<DashboardKpiRow query={queryOf()} />);
     await expectNoAxeViolations(loadingView.container);
     loadingView.unmount();
 

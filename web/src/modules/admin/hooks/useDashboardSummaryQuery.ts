@@ -6,8 +6,6 @@ import { dashboardService, type DashboardSummaryResponse } from '@/modules/admin
 /** What a summary card reads of the query, so a card never owns the request and a test can hand it plain values. */
 export interface DashboardCardQuery {
   readonly data: DashboardSummaryResponse | undefined;
-  /** True until the first answer arrives. */
-  readonly isPending: boolean;
   readonly isError: boolean;
   readonly error: unknown;
   readonly refetch: () => unknown;

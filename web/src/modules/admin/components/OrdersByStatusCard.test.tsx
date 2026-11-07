@@ -15,7 +15,7 @@ import {
 // the largest count, and the active total from the server. Cancelled is never shown.
 
 function queryOf(overrides: Partial<DashboardCardQuery> = {}): DashboardCardQuery {
-  return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
 }
 
 function loaded(data: DashboardSummaryFixture = dashboardNovemberSummary()): DashboardCardQuery {
@@ -247,7 +247,7 @@ describe('a shop with no open orders (DASH-06)', () => {
 
 describe('while the counts load', () => {
   it('shows six skeleton rows in a region announced as "Loading order counts…"', () => {
-    const { container } = render(<OrdersByStatusCard query={queryOf({ isPending: true })} />);
+    const { container } = render(<OrdersByStatusCard query={queryOf()} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading order counts…');
     expect(container.querySelectorAll('.animate-csp-shimmer')).toHaveLength(6);
@@ -304,7 +304,7 @@ describe('accessibility', () => {
     await expectNoAxeViolations(emptyView.container);
     emptyView.unmount();
 
-    const loadingView = render(<OrdersByStatusCard query={queryOf({ isPending: true })} />);
+    const loadingView = render(<OrdersByStatusCard query={queryOf()} />);
     await expectNoAxeViolations(loadingView.container);
     loadingView.unmount();
 

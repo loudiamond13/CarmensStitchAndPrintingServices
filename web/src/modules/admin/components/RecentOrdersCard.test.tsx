@@ -19,7 +19,7 @@ import { buildOrderListEntry, listEntryOf, order0151, orderId } from '@/test/ord
 // its eye link, with the due flag and the balance state of the Orders list. Every figure is the server's.
 
 function queryOf(overrides: Partial<DashboardCardQuery> = {}): DashboardCardQuery {
-  return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
 }
 
 function summaryOf(overrides: Partial<DashboardSummaryFixture> = {}): DashboardSummaryFixture {
@@ -224,7 +224,7 @@ describe('with no orders (DASH-06)', () => {
 
 describe('while the orders load', () => {
   it('shows six skeleton rows in a region announced as "Loading recent orders…"', () => {
-    const { container } = renderCard(queryOf({ isPending: true }));
+    const { container } = renderCard(queryOf());
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading recent orders…');
     expect(container.querySelectorAll('[aria-hidden="true"] tbody tr')).toHaveLength(6);
@@ -279,7 +279,7 @@ describe('accessibility', () => {
     await expectNoAxeViolations(emptyView.container);
     emptyView.unmount();
 
-    const loadingView = renderCard(queryOf({ isPending: true }));
+    const loadingView = renderCard(queryOf());
     await expectNoAxeViolations(loadingView.container);
     loadingView.unmount();
 
