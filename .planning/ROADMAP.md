@@ -1509,6 +1509,15 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.6: Owner items parked during Phase 10 execution (BACKLOG)
+
+**Goal:** Settle the owner decisions and manual checks parked while the owner was away during the Phase 10 run (2026-11-06 onward). Each item is in `.planning/phases/999.6-owner-items-parked-during-phase-10-execution/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
 *Roadmap created: 2026-10-07*
 *Last updated: 2026-10-17T09:30:00-05:00 after plans 03-20 to 03-22 were marked complete (CSPS live, first Manager signed in, owner acceptance 2026-10-17). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*
