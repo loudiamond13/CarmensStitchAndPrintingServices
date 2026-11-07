@@ -1,4 +1,6 @@
+using Csps.Application.Security;
 using Csps.Application.Staff;
+using Csps.Domain.Identity;
 using Csps.Domain.Money;
 
 namespace Csps.Application.Money;
@@ -7,8 +9,9 @@ namespace Csps.Application.Money;
 public static class MoneyParties
 {
     /// <summary>
-    /// Maps an account to a transfer party. Deleted is checked before deactivated. A Manager-locked or not-yet-set-up active person is
-    /// <see cref="MoneyPartyStatus.Active"/>, not a stranger (D-56).
+    /// Maps an account to a transfer party. No account, the legacy holder and an account without the Admin or Manager role are
+    /// <see cref="MoneyPartyStatus.NotStaff"/>. Deleted is checked before deactivated. A Manager-locked or not-yet-set-up active
+    /// person is <see cref="MoneyPartyStatus.Active"/>, not a stranger (D-56).
     /// </summary>
     /// <param name="state">The account, or null when no such account exists.</param>
     /// <param name="balance">The person's money on hand.</param>
@@ -18,6 +21,11 @@ public static class MoneyParties
         if (state is null)
         {
             return new MoneyParty(Guid.Empty, string.Empty, MoneyPartyStatus.NotStaff, balance);
+        }
+
+        if (state.Id == LegacyHolder.Id || state.Role is not (Roles.Admin or Roles.Manager))
+        {
+            return new MoneyParty(state.Id, state.Name, MoneyPartyStatus.NotStaff, balance);
         }
 
         var status = state.IsDeleted
