@@ -1,7 +1,6 @@
 using System.Data.SqlTypes;
 using Csps.Domain.Common;
 using Csps.Domain.Expenses;
-using CompanyExpenseRecord = Csps.Domain.Expenses.CompanyExpense;
 using Csps.Domain.Money;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
@@ -9,6 +8,7 @@ using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Money;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
+using CompanyExpenseRecord = Csps.Domain.Expenses.CompanyExpense;
 
 namespace Csps.Infrastructure.IntegrationTests.Money;
 
@@ -160,6 +160,22 @@ public sealed class StaffLedgerQueryTests(CspsDatabase database) : IClassFixture
         beforePageTwo.ShouldBe(expected.Take(10).Sum(row => row.Signed));
         beforePageThree.ShouldBe(expected.Take(20).Sum(row => row.Signed));
         beforePageTwo.ShouldNotBe(0m);
+    }
+
+    [Fact]
+    public async Task SumNewerRunsOneStatementThatSumsInTheDatabase()
+    {
+        var (person, expected) = await SeedTwentyFiveRowsAsync();
+        var counter = new CommandCounter();
+        await using var context = database.CreateContext(counter);
+        var ordered = StaffLedgerQuery.Ordered(StaffLedgerQuery.For(context, person.Id));
+
+        counter.Reset();
+        var sum = await StaffLedgerQuery.SumNewerAsync(ordered, 10, TestContext.Current.CancellationToken);
+
+        sum.ShouldBe(expected.Take(10).Sum(row => row.Signed));
+        counter.Count.ShouldBe(1);
+        counter.Commands.Single().ShouldContain("SUM(");
     }
 
     [Fact]

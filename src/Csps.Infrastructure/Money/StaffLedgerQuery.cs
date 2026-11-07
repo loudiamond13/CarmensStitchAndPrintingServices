@@ -1,4 +1,3 @@
-using Csps.Domain.Expenses;
 using Csps.Domain.Money;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Persistence;
@@ -33,6 +32,18 @@ internal static class StaffLedgerQuery
                 Deleted = false,
             });
 
+        var refunds = context.Set<OrderRefund>().AsNoTracking()
+            .Where(refund => refund.RefundedByUserId == userId)
+            .Select(refund => new StaffLedgerRow
+            {
+                Kind = (int)LedgerEntryKind.RefundHandedBack,
+                SourceId = refund.Id,
+                Date = refund.RefundDate,
+                RecordedAtUtc = refund.CreatedAtUtc,
+                Signed = -refund.Amount,
+                Deleted = false,
+            });
+
         var companyExpenses = context.CompanyExpenses.AsNoTracking()
             .Where(expense => expense.PaidByUserId == userId)
             .Select(expense => new StaffLedgerRow
@@ -45,7 +56,19 @@ internal static class StaffLedgerQuery
                 Deleted = false,
             });
 
-        return payments.Concat(companyExpenses);
+        var orderExpenses = context.Set<OrderExpense>().AsNoTracking()
+            .Where(expense => expense.PaidByUserId == userId)
+            .Select(expense => new StaffLedgerRow
+            {
+                Kind = (int)LedgerEntryKind.OrderExpensePaid,
+                SourceId = expense.Id,
+                Date = expense.ExpenseDate,
+                RecordedAtUtc = expense.CreatedAtUtc,
+                Signed = -expense.Amount,
+                Deleted = false,
+            });
+
+        return payments.Concat(refunds).Concat(companyExpenses).Concat(orderExpenses);
     }
 
     /// <summary>Puts the rows newest first: date, then recorded time, both descending, then kind and source id ascending so every read gives the same order.</summary>
@@ -73,16 +96,29 @@ internal static class StaffLedgerQuery
         return await ordered.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Adds up the signed amounts of the first <paramref name="skip"/> rows of an ordered ledger. Not built yet: always 0.</summary>
+    /// <summary>Adds up the signed amounts of the first <paramref name="skip"/> rows of an ordered ledger: the rows newer than a page.</summary>
     /// <param name="ordered">The query from <see cref="Ordered"/>.</param>
     /// <param name="skip">How many of the newest rows to add up; <c>(page - 1) * pageSize</c> for a page.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>The sum.</returns>
-    public static Task<decimal> SumNewerAsync(IQueryable<StaffLedgerRow> ordered, int skip, CancellationToken cancellationToken) => Task.FromResult(0m);
+    /// <returns>The sum, 0.00 when there are no such rows.</returns>
+    public static async Task<decimal> SumNewerAsync(IQueryable<StaffLedgerRow> ordered, int skip, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ordered);
+        if (skip <= 0)
+        {
+            return 0.00m;
+        }
 
-    /// <summary>Counts every row of a ledger. Not built yet: always 0.</summary>
+        return await ordered.Take(skip).SumAsync(row => row.Signed, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Counts the rows of a ledger.</summary>
     /// <param name="rows">The query from <see cref="For"/>.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The number of rows.</returns>
-    public static Task<int> CountAsync(IQueryable<StaffLedgerRow> rows, CancellationToken cancellationToken) => Task.FromResult(0);
+    public static async Task<int> CountAsync(IQueryable<StaffLedgerRow> rows, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        return await rows.CountAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
