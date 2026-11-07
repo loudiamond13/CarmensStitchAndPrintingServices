@@ -213,6 +213,9 @@ public static class AuthorizationMatrix
         // Deleting for good (CEXP-02, D-04): Managers only. A fresh random id is no expense, so a Manager meets 404 company-expenses.not-found.
         new("DELETE", "/api/v1/company-expenses/{id:guid}/permanent", "/api/v1/company-expenses/d7a1b9e3-5c28-4f60-a4d2-1b8e6f3c0a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
 
+        // The dashboard summary (DASH-01, D-12): both roles read the same figures, and the route takes no input.
+        new("GET", "/api/v1/dashboard/summary", "/api/v1/dashboard/summary", Anonymous: 401, Admin: 200, Manager: 200),
+
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
         // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.
