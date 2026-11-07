@@ -19,6 +19,7 @@ import {
   expenseList,
   expensesBackend,
 } from '@/test/expenseFixtures';
+import { dashboardBackend, dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { deletedOrderItem, deletedOrderList, deletedOrdersBackend } from '@/test/deletedOrderFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -107,15 +108,31 @@ describe('guarded admin routes (AUTH-05, D-07)', () => {
     expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
   });
 
-  it('opening /admin with a session goes to Orders (D-61) until the dashboard exists', async () => {
+  it('opening /admin with a session shows the dashboard, with no redirect to Orders (DASH-01)', async () => {
     answerRefresh(sessionResponse());
-    // The Orders page loads its list after the redirect; answer it so the request never goes unhandled.
-    const backend = useOrderHandlers();
+    const backend = dashboardBackend(dashboardSummaryFixture({ greeting: 'evening', firstName: 'Carmen' }));
     const router = createMemoryRouter(routes, { initialEntries: ['/admin'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
-    await expect.poll(() => backend.lists.length, { timeout: 5000 }).toBe(1);
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(backend.calls).toHaveLength(1);
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+    await waitFor(() => {
+      expect(document.title).toBe('Dashboard · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('opening /admin without a session lands on sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin')}`);
   });
 
   it('keeps the return path of a deep link with a query', async () => {
@@ -142,18 +159,22 @@ const adminSession = () =>
 
 describe('Manager-only routes (USER-08)', () => {
   it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
-    'an Admin who opens %s lands on /admin and then Orders',
+    'an Admin who opens %s lands on the dashboard at /admin',
     async (path) => {
       answerRefresh(adminSession());
-      useOrderHandlers();
+      dashboardBackend(dashboardSummaryFixture({ greeting: 'afternoon', firstName: 'Lito' }));
       const router = createMemoryRouter(routes, { initialEntries: [path] });
       render(<RouterProvider router={router} />);
 
-      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Good afternoon, Lito' }, { timeout: 10_000 }),
+      ).toBeVisible();
+      expect(router.state.location.pathname).toBe('/admin');
 
       await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
       expect(screen.queryByRole('link', { name: /^Users/ })).toBeNull();
     },
+    30_000,
   );
 
   it('a Manager who opens /admin/audit-log stays and sees the Audit Log (AUDIT-02)', async () => {
@@ -495,17 +516,20 @@ describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
     });
   }, 30_000);
 
-  it('an Admin who opens /admin/components lands on /admin and then Orders, like /admin/users', async () => {
+  it('an Admin who opens /admin/components lands on the dashboard at /admin, like /admin/users', async () => {
     answerRefresh(adminSession());
-    useOrderHandlers();
+    dashboardBackend(dashboardSummaryFixture({ greeting: 'afternoon', firstName: 'Lito' }));
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/components'] });
     render(<RouterProvider router={router} />);
 
-    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/orders');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good afternoon, Lito' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
 
     await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
     expect(screen.queryByRole('heading', { level: 1, name: /Component Showcase/ })).toBeNull();
-  }, 15_000);
+  }, 30_000);
 
   it('a visitor without a session opening /admin/components goes to sign-in with the return path', async () => {
     answerRefresh();
