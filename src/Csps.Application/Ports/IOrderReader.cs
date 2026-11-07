@@ -39,6 +39,16 @@ public interface IOrderReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rows of the page, the total count and the two list-wide counts.</returns>
     Task<OrderListPage> ListAsync(OrderListQuery query, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the newest created orders of any status in the list row shape, newest first, ties by id descending, in one SQL command
+    /// (DASH-05, D-38). Deleted orders are never read. This is not the active list: the status is not filtered and the sort is by when
+    /// the order was created, not by its order date.
+    /// </summary>
+    /// <param name="count">How many orders to read, from 1.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>Up to <paramref name="count"/> rows.</returns>
+    Task<IReadOnlyList<OrderListRow>> ListNewestAsync(int count, CancellationToken cancellationToken);
 }
 
 /// <summary>Which orders the status part of the list keeps.</summary>

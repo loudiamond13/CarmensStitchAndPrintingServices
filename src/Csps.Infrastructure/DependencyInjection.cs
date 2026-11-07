@@ -1,6 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Infrastructure.Auditing;
 using Csps.Infrastructure.Content;
+using Csps.Infrastructure.Dashboard;
 using Csps.Infrastructure.DataProtection;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Expenses;
@@ -89,6 +90,7 @@ public static class DependencyInjection
         services.AddCspsIdentity();
         services.AddCspsExpenses();
         services.AddCspsOrders();
+        services.AddCspsDashboard();
         services.AddCspsIdempotency();
         services.AddCspsEmail(configuration, environment);
         services.AddCspsImages(configuration, environment);

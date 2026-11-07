@@ -407,6 +407,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the dashboard summary: the business today, the part of the day for the greeting (`morning`, `afternoon` or
+         *     `evening`), the signed-in person's first name and the order figures. Both roles get the same figures; only the first name
+         *     and the greeting can differ. Nothing is cached, so every visit shows live numbers.
+         */
+        get: operations["GetDashboardSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-categories": {
         parameters: {
             query?: never;
@@ -2294,6 +2315,99 @@ export interface components {
              * @description The new account id.
              */
             id: string;
+        };
+        /** @description The money collected this month and the comparison. */
+        DashboardCollectedFigures: {
+            /**
+             * Format: int32
+             * @description The whole-number change against the absolute value of the comparison, rounded away from zero; null when the comparison is 0.00.
+             */
+            changePercent: null | number | string;
+            /**
+             * Format: double
+             * @description The same figure for the first of last month through the same day number last month.
+             */
+            comparison: number | string;
+            /**
+             * Format: date
+             * @description The last day of the comparison.
+             */
+            comparisonThrough: string;
+            /**
+             * Format: double
+             * @description Payments dated in this business month minus refunds dated in it; Cancelled orders included, deleted orders excluded; may be below zero.
+             */
+            thisMonth: number | string;
+        };
+        /** @description The company expense figures of the dashboard card. */
+        DashboardExpenseFigures: {
+            /**
+             * Format: int32
+             * @description How many company expenses this month holds.
+             */
+            count: number | string;
+            /**
+             * Format: double
+             * @description The sum of this month's company expenses.
+             */
+            thisMonth: number | string;
+            /** @description The name of the category with the most money this month, ties to the alphabetically first name; null with no expenses. */
+            topCategory: null | string;
+        };
+        /** @description The order figures of the dashboard cards. */
+        DashboardOrderFigures: {
+            /**
+             * Format: int32
+             * @description Orders in Pending, Mockup, In Production, Ready or Delivered; deleted orders never count.
+             */
+            active: number | string;
+            /**
+             * Format: int32
+             * @description Active orders due Monday to Sunday of the business week that are not overdue; an order with no due date counts in neither this nor Overdue.
+             */
+            dueThisWeek: number | string;
+            /**
+             * Format: int32
+             * @description Pending, Mockup, In Production and Ready orders due before the business today.
+             */
+            overdue: number | string;
+            /**
+             * Format: double
+             * @description The sum over all active orders, overdue ones included, of the balance when it is above zero, else zero.
+             */
+            receivables: number | string;
+        };
+        /** @description One status of the orders-by-status bar. */
+        DashboardStatusCount: {
+            /**
+             * Format: int32
+             * @description Pending to Delivered: orders now in the status. Completed: orders moved to Completed in this business month.
+             */
+            count: number | string;
+            /** @description The status key: `pending`, `mockup`, `production`, `ready`, `delivered` or `completed`. */
+            status: string;
+        };
+        /** @description Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ. */
+        DashboardSummaryResponse: {
+            /** @description The money collected this month. */
+            collected: components["schemas"]["DashboardCollectedFigures"];
+            /** @description The company expenses this month. */
+            expenses: components["schemas"]["DashboardExpenseFigures"];
+            /** @description The signed-in person's first name. */
+            firstName: string;
+            /** @description The part of the business day: `morning`, `afternoon` or `evening`. */
+            greeting: string;
+            /** @description The order figures. */
+            orders: components["schemas"]["DashboardOrderFigures"];
+            /** @description The 6 newest created orders of any status that are not deleted, newest first, in the order list entry shape. */
+            recentOrders: components["schemas"]["OrderListEntry"][];
+            /** @description Exactly six entries in this order: pending, mockup, production, ready, delivered, completed. Cancelled is never listed. */
+            statuses: components["schemas"]["DashboardStatusCount"][];
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
         };
         /** @description One deleted expense in the deleted list. It carries no notes (D-19). */
         DeletedExpenseListItem: {
@@ -4961,6 +5075,35 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetDashboardSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

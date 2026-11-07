@@ -1262,6 +1262,213 @@
         ],
         "type": "object"
       },
+      "DashboardCollectedFigures": {
+        "description": "The money collected this month and the comparison.",
+        "properties": {
+          "changePercent": {
+            "description": "The whole-number change against the absolute value of the comparison, rounded away from zero; null when the comparison is 0.00.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "comparison": {
+            "description": "The same figure for the first of last month through the same day number last month.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "comparisonThrough": {
+            "description": "The last day of the comparison.",
+            "format": "date",
+            "type": "string"
+          },
+          "thisMonth": {
+            "description": "Payments dated in this business month minus refunds dated in it; Cancelled orders included, deleted orders excluded; may be below zero.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "thisMonth",
+          "comparison",
+          "comparisonThrough",
+          "changePercent"
+        ],
+        "type": "object"
+      },
+      "DashboardExpenseFigures": {
+        "description": "The company expense figures of the dashboard card.",
+        "properties": {
+          "count": {
+            "description": "How many company expenses this month holds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "thisMonth": {
+            "description": "The sum of this month's company expenses.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "topCategory": {
+            "description": "The name of the category with the most money this month, ties to the alphabetically first name; null with no expenses.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "thisMonth",
+          "count",
+          "topCategory"
+        ],
+        "type": "object"
+      },
+      "DashboardOrderFigures": {
+        "description": "The order figures of the dashboard cards.",
+        "properties": {
+          "active": {
+            "description": "Orders in Pending, Mockup, In Production, Ready or Delivered; deleted orders never count.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "dueThisWeek": {
+            "description": "Active orders due Monday to Sunday of the business week that are not overdue; an order with no due date counts in neither this nor Overdue.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "overdue": {
+            "description": "Pending, Mockup, In Production and Ready orders due before the business today.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "receivables": {
+            "description": "The sum over all active orders, overdue ones included, of the balance when it is above zero, else zero.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "active",
+          "dueThisWeek",
+          "overdue",
+          "receivables"
+        ],
+        "type": "object"
+      },
+      "DashboardStatusCount": {
+        "description": "One status of the orders-by-status bar.",
+        "properties": {
+          "count": {
+            "description": "Pending to Delivered: orders now in the status. Completed: orders moved to Completed in this business month.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "status": {
+            "description": "The status key: `pending`, `mockup`, `production`, `ready`, `delivered` or `completed`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ],
+        "type": "object"
+      },
+      "DashboardSummaryResponse": {
+        "description": "Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ.",
+        "properties": {
+          "collected": {
+            "$ref": "#/components/schemas/DashboardCollectedFigures",
+            "description": "The money collected this month."
+          },
+          "expenses": {
+            "$ref": "#/components/schemas/DashboardExpenseFigures",
+            "description": "The company expenses this month."
+          },
+          "firstName": {
+            "description": "The signed-in person's first name.",
+            "type": "string"
+          },
+          "greeting": {
+            "description": "The part of the business day: `morning`, `afternoon` or `evening`.",
+            "type": "string"
+          },
+          "orders": {
+            "$ref": "#/components/schemas/DashboardOrderFigures",
+            "description": "The order figures."
+          },
+          "recentOrders": {
+            "description": "The 6 newest created orders of any status that are not deleted, newest first, in the order list entry shape.",
+            "items": {
+              "$ref": "#/components/schemas/OrderListEntry"
+            },
+            "type": "array"
+          },
+          "statuses": {
+            "description": "Exactly six entries in this order: pending, mockup, production, ready, delivered, completed. Cancelled is never listed.",
+            "items": {
+              "$ref": "#/components/schemas/DashboardStatusCount"
+            },
+            "type": "array"
+          },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "today",
+          "greeting",
+          "firstName",
+          "orders",
+          "collected",
+          "expenses",
+          "statuses",
+          "recentOrders"
+        ],
+        "type": "object"
+      },
       "DeletedExpenseListItem": {
         "description": "One deleted expense in the deleted list. It carries no notes (D-19).",
         "properties": {
@@ -6591,6 +6798,37 @@
         "summary": "Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by\nis the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no\nversion, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "operationId": "GetDashboardSummary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the dashboard summary: the business today, the part of the day for the greeting (`morning`, `afternoon` or\n`evening`), the signed-in person's first name and the order figures. Both roles get the same figures; only the first name\nand the greeting can differ. Nothing is cached, so every visit shows live numbers.",
+        "tags": [
+          "Dashboard"
         ]
       }
     },
@@ -13700,6 +13938,9 @@
     },
     {
       "name": "CompanyExpenses"
+    },
+    {
+      "name": "Dashboard"
     },
     {
       "name": "ExpenseCategories"

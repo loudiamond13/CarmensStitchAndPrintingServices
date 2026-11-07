@@ -50,6 +50,21 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
+    public async Task TheSixNewestOrdersRunExactlyOneCommandWhateverTheStatusMix()
+    {
+        await SeedAsync();
+        var counter = new CommandCounter();
+        await using var context = database.CreateContext(counter);
+
+        counter.Reset();
+        var rows = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).ListNewestAsync(6, TestContext.Current.CancellationToken);
+
+        counter.Count.ShouldBe(1, string.Join(Environment.NewLine, counter.Commands));
+        rows.Count.ShouldBe(6);
+        rows.Select(row => row.Pieces).ShouldAllBe(pieces => pieces == 2 || pieces == 4);
+    }
+
+    [Fact]
     public async Task AnEmptyResultStillRunsExactlyThreeCommands()
     {
         await SeedAsync();
