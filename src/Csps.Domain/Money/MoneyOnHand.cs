@@ -11,5 +11,5 @@ public static class MoneyOnHand
     /// <param name="refundsHandedBack">Refunds they handed back.</param>
     /// <returns>The balance.</returns>
     public static decimal Of(decimal received, decimal transfersIn, decimal transfersOut, decimal expensesPaid, decimal refundsHandedBack) =>
-        0m;
+        received + transfersIn - transfersOut - expensesPaid - refundsHandedBack;
 }

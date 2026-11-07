@@ -85,6 +85,16 @@ public sealed class MoneyTransfer : IAttributedRecord
         string? note,
         bool callerIsManager,
         DateOnly today,
-        DateTimeOffset now) =>
-        Result.Failure<MoneyTransfer>(Error.BusinessRule("money-transfers.not-built", "Not built yet."));
+        DateTimeOffset now)
+    {
+        var trimmedNote = note?.Trim();
+        return Result.Success(new MoneyTransfer(
+            Guid.CreateVersion7(now),
+            sender.Id,
+            recipient.Id,
+            amount,
+            transferDate,
+            string.IsNullOrEmpty(trimmedNote) ? null : trimmedNote,
+            isHandover: false));
+    }
 }
