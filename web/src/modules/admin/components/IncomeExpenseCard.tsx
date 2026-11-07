@@ -23,7 +23,7 @@ import { formatMonthShort } from '@/utils/format';
 
 const COPY = DASHBOARD_COPY.chart;
 
-const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
+const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /** The chart keeps the last months on screen and dims them only after this long (the P2 refetch rule). */
 const REFETCH_MARK_DELAY_MS = 200;
@@ -38,13 +38,12 @@ function toNumber(value: number | string): number {
 
 /** One server month as a bar group: "Oct" under the bars, "Oct 2026" for assistive technology. A key that is not `yyyy-MM` has no group. */
 function toDatum(item: DashboardChartResponse['items'][number]): ChartDatum[] {
-  const match = MONTH_KEY.exec(item.month);
-  const short = match === null ? null : formatMonthShort(`${item.month}-01`);
-  if (match === null || short === null) return [];
+  const short = MONTH_KEY.test(item.month) ? formatMonthShort(`${item.month}-01`) : null;
+  if (short === null) return [];
   return [
     {
       month: short,
-      label: `${short} ${match[1] ?? ''}`,
+      label: `${short} ${item.month.slice(0, 4)}`,
       income: toNumber(item.income),
       expenses: toNumber(item.expenses),
       profit: toNumber(item.profit),
