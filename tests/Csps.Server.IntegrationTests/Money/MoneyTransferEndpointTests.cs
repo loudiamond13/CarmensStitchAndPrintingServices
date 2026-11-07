@@ -239,6 +239,38 @@ public sealed class MoneyTransferEndpointTests(CspsDatabase database) : IClassFi
         (await MoneyFixtures.ReadFieldErrorsAsync(response, "toUserId")).ShouldBe(["Jomar Santos can't receive transfers now. Choose someone else."]);
     }
 
+    [Theory]
+    [InlineData("deactivated")]
+    [InlineData("deleted")]
+    [InlineData("locked")]
+    public async Task ASenderWhoLeavesAfterSigningInCannotMoveTheirMoneyWithTheOldToken(string change)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, liza.UserId, "ORD-2026-0001", 900.00m, today, Now);
+        switch (change)
+        {
+            case "deactivated":
+                await MoneyFixtures.DeactivateAccountAsync(database, liza.UserId);
+                break;
+            case "deleted":
+                await MoneyFixtures.DeleteAccountAsync(database, liza.UserId, Now);
+                break;
+            default:
+                await MoneyFixtures.LockAccountAsync(database, liza.UserId, Now);
+                break;
+        }
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, liza.AccessToken, carmen.UserId, 600.00m, today);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task AnUnknownIdTheLegacyHolderAndAnAccountWithNoStaffRoleAreAllRefusedWithTheUnknownRecipientLine()
     {

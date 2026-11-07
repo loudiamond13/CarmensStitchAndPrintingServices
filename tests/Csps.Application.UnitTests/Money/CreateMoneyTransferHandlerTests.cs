@@ -118,6 +118,31 @@ public sealed class CreateMoneyTransferHandlerTests
         harness.Transfers.DidNotReceiveWithAnyArgs().Add(default!);
     }
 
+    [Theory]
+    [InlineData("deactivated")]
+    [InlineData("deleted")]
+    [InlineData("locked")]
+    [InlineData("no-role")]
+    [InlineData("other-role")]
+    public async Task ASenderWhoIsNoLongerCurrentStaffIsRefusedAsASessionEndedAndNothingIsSaved(string state)
+    {
+        var caller = state switch
+        {
+            "deactivated" => new StaffState(CallerId, "Carmen Reyes", Roles.Manager, false, false, false, true),
+            "deleted" => new StaffState(CallerId, "Carmen Reyes", Roles.Manager, false, false, true, true),
+            "locked" => new StaffState(CallerId, "Carmen Reyes", Roles.Manager, true, true, false, true),
+            "no-role" => new StaffState(CallerId, "Carmen Reyes", null, true, false, false, true),
+            _ => new StaffState(CallerId, "Carmen Reyes", "Visitor", true, false, false, true),
+        };
+        var harness = new Harness(callerState: caller);
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(AuthErrors.SessionEnded);
+        harness.Transfers.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
     [Fact]
     public async Task AnUnknownRecipientIsRefusedUnderToUserIdAndNothingIsSaved()
     {
