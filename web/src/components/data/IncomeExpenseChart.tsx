@@ -12,7 +12,9 @@
 // "Oct 2026"; without it the short month is used. Attributes and handlers only; the look at rest is unchanged.
 // SPEC-DEVIATION: D-36, D-50 (Phase 10) `showProfit` draws the server's monthly profit as a line and swaps the tooltip's
 // Net row for a Profit row; `labels` sets the legend and tooltip words. Without them the chart draws as before.
-import { useId, useState, type KeyboardEvent } from 'react';
+// SPEC-DEVIATION: D-51 (Phase 10) the view box is as wide as the frame (ResizeObserver), so text stays 11px and points stay
+// round on a phone; the 640 width is kept until the frame is measured. A group under 28px gets every other month label.
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { formatPeso } from '@/utils/csps';
 import {
   chartBarClasses,
@@ -76,8 +78,11 @@ const DEFAULT_LABELS: ChartLabels = {
 const POINT_RADIUS = 3.5;
 const POINT_RADIUS_ACTIVE = 5;
 
-/** The view box width and the plot's left, bottom and top margins (App. D.3). */
-const W = 640;
+/** The view box width until the frame is measured, and the plot's left, bottom and top margins (App. D.3). */
+const FALLBACK_WIDTH = 640;
+
+/** A month group narrower than this (px) gets every other month label (D-51). */
+const MIN_LABEL_GROUP = 28;
 const L = 52;
 const B = 28;
 const T = 12;
@@ -121,12 +126,28 @@ export function IncomeExpenseChart({
   labels = DEFAULT_LABELS,
 }: IncomeExpenseChartProps) {
   const [hover, setHover] = useState<number | null>(null);
+  const [measured, setMeasured] = useState<number | null>(null);
+  const frame = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const node = frame.current;
+    if (node === null || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const width = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (width > 0) setMeasured(width);
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  const W = measured ?? FALLBACK_WIDTH;
   const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.expenses)));
   const step = Math.pow(10, Math.floor(Math.log10(max)));
   const top = Math.ceil(max / step) * step;
   const H = height;
   const gw = (W - L) / Math.max(1, data.length);
   const bw = Math.min(18, gw / 3.2);
+  const thinLabels = gw < MIN_LABEL_GROUP;
   // SPEC-DEVIATION: D-36 when income (or profit, with showProfit) is below zero, the axis bottom is the lowest figure
   // rounded down to the top's step; otherwise `bottom` is 0 and every position is as in App. D.3.
   const lowest = Math.min(
@@ -152,7 +173,7 @@ export function IncomeExpenseChart({
     if (event.key === 'Escape') setHover(null);
   };
   return (
-    <figure className={chartClasses}>
+    <figure ref={frame} className={chartClasses}>
       <div className={chartLegendClasses}>
         <span className={chartKeyClasses}>
           <i className={chartSwatchClasses.income} />
@@ -220,9 +241,11 @@ export function IncomeExpenseChart({
                 className={chartBarClasses.income}
               />
               <path d={bar(cx0 + 1, y(d.expenses), bw, zeroY - y(d.expenses))} className={chartBarClasses.expense} />
-              <text x={cx0} y={H - 8} textAnchor="middle" className={chartTickClasses}>
-                {d.month}
-              </text>
+              {(!thinLabels || (data.length - 1 - i) % 2 === 0) && (
+                <text x={cx0} y={H - 8} textAnchor="middle" className={chartTickClasses}>
+                  {d.month}
+                </text>
+              )}
             </g>
           );
         })}
