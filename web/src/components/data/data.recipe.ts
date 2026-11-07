@@ -167,6 +167,39 @@ export const chartTipClasses = tw(
 /** `.csp-chart-net`: the net line in `--ink-muted`. */
 export const chartNetClasses = tw('text-ink-muted');
 
+// SPEC-DEVIATION: D-36 the profit line, drawn only with `showProfit`; existing tokens only (UI-SPEC § Color).
+
+/** The profit drawing: it never takes the pointer, so the month groups under it keep their hover and focus. */
+export const chartProfitGroupClasses = tw('pointer-events-none');
+
+/** The 4px `--surface` halo drawn first under the whole profit line, so it reads over any bar. */
+export const chartProfitHaloClasses = tw(
+  'fill-none stroke-surface stroke-4 [stroke-linecap:round] [stroke-linejoin:round]',
+);
+
+/** The 2px profit line: `--success` at or above zero, `--danger` below it (dashed by the component, WCAG 1.4.1). */
+export const chartProfitLineClasses = {
+  above: tw('fill-none stroke-success stroke-2 [stroke-linecap:round] [stroke-linejoin:round]'),
+  below: tw('fill-none stroke-danger stroke-2 [stroke-linecap:round] [stroke-linejoin:round]'),
+} as const;
+
+/** A profit point: `--surface` fill with a 2px ring in the color of its side of zero. */
+export const chartProfitPointClasses = {
+  above: tw('fill-surface stroke-success stroke-2'),
+  below: tw('fill-surface stroke-danger stroke-2'),
+} as const;
+
+/** The legend key for the profit line: a 16 x 2px `--success` bar with a 6px dot in its middle. */
+export const chartProfitSwatchClasses = tw(
+  "relative inline-block h-0.5 w-4 bg-success after:absolute after:top-1/2 after:left-1/2 after:size-1.5 after:-translate-1/2 after:rounded-full after:bg-success after:content-['']",
+);
+
+/** The tooltip's profit figure when it is below zero. */
+export const chartProfitLossClasses = tw('text-danger');
+
+/** The zero line of a chart that goes below zero: the axis look (`--line-strong`). */
+export const chartZeroLineClasses = chartAxisClasses;
+
 /* ───────────── ActorName and RecordMeta (SEC-08) ───────────── */
 
 /** The deleted-actor suffix: muted, so the name stays the loud part (D-11, OQ-8). */
