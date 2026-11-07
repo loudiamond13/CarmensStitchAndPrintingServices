@@ -2,7 +2,7 @@
 phase: 10-admin-dashboard
 scope: wave 2 (plan 10-05, dashboard summary endpoint)
 created: 2026-11-07T00:40:00-06:00
-updated: 2026-11-07T00:45:00-06:00
+updated: 2026-11-07T05:05:00-06:00
 reviewed: 2026-11-07T00:40:00-06:00
 depth: standard (with cross-file checks against Order.Import, BusinessClock, CompanyExpenseReader and plans 10-06, 10-07)
 diff_range: 8586933e..8886c2ad (excluding .planning/)
@@ -224,7 +224,7 @@ _Depth: standard with cross-file checks_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Deferred to the phase-end code review fix pass: add a reader test at the Manila Monday 00:00 and Sunday 23:59 instants. Not fixed now because plan 10-06 is editing `DashboardReaderTests.cs`. |
+| WR-01 | Fixed (`ecf977d6`): handler and reader tests at Monday 00:00 Manila (Sunday 16:00Z) and Sunday 23:59 Manila (15:59Z). The Monday case fails when the period uses the UTC date (checked, then reverted). |
 | WR-02 | Parked for the owner: P10-BL-01 in phase 999.6 (legacy import dates). Nothing to change in Phase 10. |
 | Info: date parsing and plain-string types | Sent to the plan 10-07 executor while it runs; its SUMMARY records the result. |
 | Info: "View all" sort | Parked for the owner: P10-BL-02. |

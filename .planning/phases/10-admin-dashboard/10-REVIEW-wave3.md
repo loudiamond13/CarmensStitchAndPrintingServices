@@ -1,7 +1,7 @@
 ---
 phase: 10-admin-dashboard
 created: 2026-11-07T02:58:00-06:00
-updated: 2026-11-07T03:30:00-06:00
+updated: 2026-11-07T05:05:00-06:00
 reviewed: 2026-11-07T02:58:00-06:00
 scope: "wave 3: plan 10-06 (git diff 8886c2ad 687b7cfd^2) and plan 10-07 (git diff 8886c2ad 95129c9c^2), .planning/ excluded"
 depth: standard
@@ -199,7 +199,7 @@ _Depth: standard_
 | Finding | Outcome |
 |---|---|
 | WR-01 | Parked for the owner: P10-BL-04 (what a failed background refresh shows). |
-| WR-02 | Fix now (test-only): give the sign-in helper's dashboard wait a longer, explicit timeout. |
+| WR-02 | Fixed (`cd837310`): `signInAs` waits for the summary response (20 s), checks it is 200, then the greeting with a 15 s timeout. |
 | WR-03 | Parked for the owner: P10-BL-05 (test guard policy for WebKit cancelled requests). |
-| WR-04 | Fix now (test-only): add chart tests at the Manila month edges 2026-10-31T16:30Z and 2026-11-30T15:59Z. |
+| WR-04 | Fixed (`2b11031b`): endpoint and handler tests at 2026-10-31T16:30Z and 2026-11-30T15:59Z. The 16:30Z case fails when the handler uses the UTC date (checked, then reverted). The 15:59Z case is the same day in UTC and Manila, so it guards the month end only. |
 | Info items | Deferred to the phase-end code review. Plan 10-11 executor is told to narrow the `number \| string` figures and `months`. |
