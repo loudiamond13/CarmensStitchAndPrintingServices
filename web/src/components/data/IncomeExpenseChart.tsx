@@ -181,8 +181,14 @@ export function IncomeExpenseChart({
         d.profit === undefined ? [] : [{ i, x: L + gw * i + gw / 2, y: y(d.profit), loss: d.profit < 0 }],
       )
     : [];
-  const profitPath =
-    profitPoints.length === 0 ? '' : `M${profitPoints.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`;
+  // One subpath per run of consecutive months with a profit, so the line breaks at a missing month (WR-03).
+  const profitRuns = profitPoints.reduce<(typeof profitPoints)[]>((runs, p) => {
+    const last = runs.at(-1);
+    if (last?.at(-1)?.i === p.i - 1) last.push(p);
+    else runs.push([p]);
+    return runs;
+  }, []);
+  const profitPath = profitRuns.map((run) => `M${run.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`).join('');
   const dismiss = (event: KeyboardEvent) => {
     if (event.key === 'Escape') setHover(null);
   };
