@@ -48,6 +48,21 @@ public sealed class MoneyTransfersMigrationTests(CspsDatabase database) : IClass
     }
 
     [Fact]
+    public async Task AHandoverIsStoredWithTheHandoverFlagSet()
+    {
+        var (leaver, recipient) = await TwoPeopleAsync();
+
+        await SaveAsync(leaver, recipient, mutate: null, handover: true);
+
+        await using var context = database.CreateContext();
+        var stored = await context.Set<MoneyTransfer>().AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+        stored.IsHandover.ShouldBeTrue();
+        stored.FromUserId.ShouldBe(leaver);
+        stored.ToUserId.ShouldBe(recipient);
+        stored.Amount.ShouldBe(25.50m);
+    }
+
+    [Fact]
     public async Task AnAmountOfOneCentavoIsAccepted()
     {
         var (from, to) = await TwoPeopleAsync();
@@ -155,18 +170,31 @@ public sealed class MoneyTransfersMigrationTests(CspsDatabase database) : IClass
         return (from, to);
     }
 
-    // Builds a valid transfer through the domain factory, lets the test bend one value, then saves it.
-    private async Task SaveAsync(Guid from, Guid to, Action<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<MoneyTransfer>>? mutate)
+    // Builds a valid transfer (or hand-over) through the domain factory, lets the test bend one value, then saves it.
+    private async Task SaveAsync(
+        Guid from,
+        Guid to,
+        Action<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<MoneyTransfer>>? mutate,
+        bool handover = false)
     {
-        var transfer = MoneyTransfer.Record(
-            new MoneyParty(from, "Liza Mercado", MoneyPartyStatus.Active, 25.50m),
-            new MoneyParty(to, "Paolo Mercado", MoneyPartyStatus.Active, 0m),
-            25.50m,
-            Day,
-            null,
-            callerIsManager: true,
-            Day,
-            Now).Value;
+        var transfer = (handover
+            ? MoneyTransfer.RecordHandover(
+                new MoneyParty(from, "Liza Mercado", MoneyPartyStatus.Deactivated, 25.50m),
+                new MoneyParty(to, "Paolo Mercado", MoneyPartyStatus.Active, 0m),
+                25.50m,
+                Day,
+                null,
+                Day,
+                Now)
+            : MoneyTransfer.Record(
+                new MoneyParty(from, "Liza Mercado", MoneyPartyStatus.Active, 25.50m),
+                new MoneyParty(to, "Paolo Mercado", MoneyPartyStatus.Active, 0m),
+                25.50m,
+                Day,
+                null,
+                callerIsManager: true,
+                Day,
+                Now)).Value;
         await using var context = database.CreateContext();
         context.Set<MoneyTransfer>().Add(transfer);
         var entry = context.Entry(transfer);
