@@ -49,6 +49,14 @@ describe('dashboard recipe', () => {
     expect(css).toContain('[data-kpi-value=normal]');
   });
 
+  it('dims a refetching chart by colour only: --surface-2 on the body, never an opacity (D-02)', () => {
+    const token = 'data-[refetching=true]:bg-surface-2';
+    expect(recipeTokens.map((entry) => entry.token)).toContain(token);
+    expect(css).toContain(`${classSelector(token)}[data-refetching="true"]`);
+    expect(css.slice(css.indexOf(classSelector(token)))).toMatch(/^[^}]*background-color: var\(--surface-2\)/);
+    expect(recipeTokens.some((entry) => entry.token.includes('opacity'))).toBe(false);
+  });
+
   it('gives the cards 16px padding and hides the icon tile on phones, after the card own 20px padding', () => {
     expect(blockOf('pg-phone:*:p-4')).toBe('@container pg (max-width: 767px)');
     expect(blockOf('pg-phone:[&_[data-kpi-icon]]:hidden')).toBe('@container pg (max-width: 767px)');

@@ -234,7 +234,7 @@ describe('the Income vs. expenses card on the page (DASH-03, plan 10-11)', () =>
 
     expect(await screen.findByText('Last 12 months')).toBeVisible();
     await waitFor(() => {
-      expect(screen.getAllByRole('img', { name: /income/ })).toHaveLength(12);
+      expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(12);
     });
     expect(backend.chartCalls.map((url) => url.searchParams.get('months'))).toEqual(['12']);
   });
@@ -251,10 +251,7 @@ describe('the Income vs. expenses card on the page (DASH-03, plan 10-11)', () =>
   });
 
   it('keeps the KPI row, the status card and Recent orders when the chart fails (DASH-06)', async () => {
-    dashboardBackend(
-      dashboardNovemberSummary({ recentOrders: dashboardRecentOrders() }),
-      () => problemResponse(500),
-    );
+    dashboardBackend(dashboardNovemberSummary({ recentOrders: dashboardRecentOrders() }), () => problemResponse(500));
     renderPage();
 
     expect(await screen.findByText("Couldn't load the chart.")).toBeVisible();
@@ -278,11 +275,11 @@ describe('the Income vs. expenses card on the page (DASH-03, plan 10-11)', () =>
 
     await screen.findByText("Couldn't load the shop figures.");
     await screen.findByText("Couldn't load the chart.");
-    const retry = within(screen.getByText("Couldn't load the chart.").closest('section') as HTMLElement).getByRole(
-      'button',
-      { name: 'Try Again' },
-    );
-    await userEvent.click(retry);
+    const card = screen.getByRole('heading', { level: 2, name: 'Income vs. expenses' }).closest('section');
+    if (card === null) {
+      throw new Error('No chart card');
+    }
+    await userEvent.click(within(card).getByRole('button', { name: 'Try Again' }));
 
     expect(await screen.findByRole('img', { name: /^Oct 2026:/ })).toBeVisible();
     expect(backend.chartCalls).toHaveLength(2);

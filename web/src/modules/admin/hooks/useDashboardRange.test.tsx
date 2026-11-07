@@ -60,17 +60,20 @@ describe('useDashboardRange reading', () => {
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
 
-  it.each(['7m', '12M', '12', '', 'all', '6m%20'])('falls back from range=%s and removes it with one replace', async (value) => {
-    const { result, onUrlUpdate } = renderRange(`?range=${value}`);
+  it.each(['7m', '12M', '12', '', 'all', '6m%20'])(
+    'falls back from range=%s and removes it with one replace',
+    async (value) => {
+      const { result, onUrlUpdate } = renderRange(`?range=${value}`);
 
-    expect(result.current.range).toBe('6m');
-    expect(result.current.months).toBe(6);
-    await waitFor(() => {
-      expect(onUrlUpdate).toHaveBeenCalled();
-    });
-    await settle();
-    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
-  });
+      expect(result.current.range).toBe('6m');
+      expect(result.current.months).toBe(6);
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    },
+  );
 
   it('removes a range=6m that only repeats the default with one replace', async () => {
     const { result, onUrlUpdate } = renderRange('?range=6m');
@@ -127,6 +130,6 @@ describe('useDashboardRange writing', () => {
       expect(onUrlUpdate).toHaveBeenCalled();
     });
     await settle();
-    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=money&range=12m' }]);
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?range=12m&tab=money' }]);
   });
 });

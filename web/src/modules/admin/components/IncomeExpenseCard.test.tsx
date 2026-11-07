@@ -163,7 +163,7 @@ describe('the months (DASH-03, D-36)', () => {
     );
     renderCard();
 
-    expect(await screen.findAllByRole('img', { name: /income/ })).toHaveLength(1);
+    expect((await screen.findAllByRole('img', { name: /income/ })).length).toBe(1);
   });
 
   it('has no axe violations with the months drawn', async () => {
@@ -203,7 +203,7 @@ describe('the range switch (DASH-03, WEB-10)', () => {
 
     expect(await screen.findByText('Last 12 months')).toBeVisible();
     await waitFor(() => {
-      expect(screen.getAllByRole('img', { name: /income/ })).toHaveLength(12);
+      expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(12);
     });
     expect(calls.map((url) => url.searchParams.get('months'))).toEqual(['12']);
     expect(screen.getByRole('radio', { name: '12M' })).toBeChecked();
@@ -220,7 +220,7 @@ describe('the range switch (DASH-03, WEB-10)', () => {
 
     expect(await screen.findByText('Last 12 months')).toBeVisible();
     await waitFor(() => {
-      expect(screen.getAllByRole('img', { name: /income/ })).toHaveLength(12);
+      expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(12);
     });
     expect(calls.map((url) => url.searchParams.get('months'))).toEqual(['6', '12']);
     expect(twelve).toHaveFocus();
@@ -241,18 +241,21 @@ describe('the range switch (DASH-03, WEB-10)', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: '12M' }));
 
-    expect(screen.getAllByRole('img', { name: /income/ })).toHaveLength(6);
-    expect(body).not.toHaveAttribute('data-refetching');
+    expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(6);
+    expect(body?.getAttribute('data-refetching')).toBeNull();
     await waitFor(() => {
-      expect(body).toHaveAttribute('data-refetching', 'true');
+      expect(body?.getAttribute('data-refetching')).toBe('true');
     });
-    expect(screen.getAllByRole('img', { name: /income/ })).toHaveLength(6);
+    expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(6);
     await waitFor(() => {
-      expect(screen.getAllByRole('img', { name: /income/ })).toHaveLength(12);
+      expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(12);
     });
-    expect(screen.getByRole('img', { name: /^Dec 2025:/ }).closest('figure')?.parentElement).not.toHaveAttribute(
-      'data-refetching',
-    );
+    expect(
+      screen
+        .getByRole('img', { name: /^Dec 2025:/ })
+        .closest('figure')
+        ?.parentElement?.getAttribute('data-refetching'),
+    ).toBeNull();
   });
 
   it('does not dim when the new months arrive within 200 ms', async () => {
@@ -262,10 +265,10 @@ describe('the range switch (DASH-03, WEB-10)', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: '12M' }));
     await waitFor(() => {
-      expect(screen.getAllByRole('img', { name: /income/ })).toHaveLength(12);
+      expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(12);
     });
 
-    expect(body).not.toHaveAttribute('data-refetching');
+    expect(body?.getAttribute('data-refetching')).toBeNull();
   });
 });
 
@@ -312,11 +315,11 @@ describe('the card states (DASH-06)', () => {
     });
     renderCard();
 
-    expect(await screen.findAllByRole('img', { name: /income/ })).toHaveLength(6);
+    expect((await screen.findAllByRole('img', { name: /income/ })).length).toBe(6);
     expect(screen.queryByText('No money in or out yet')).toBeNull();
   });
 
-  it("shows \"Couldn't load the chart.\" with Try Again, and Try Again reads the chart again", async () => {
+  it('shows "Couldn\'t load the chart." with Try Again, and Try Again reads the chart again', async () => {
     let answered = 0;
     const calls = dashboardChartBackend(() => {
       answered += 1;
