@@ -87,14 +87,74 @@ public sealed class MoneyTransfer : IAttributedRecord
         DateOnly today,
         DateTimeOffset now)
     {
+        if (recipient.Id == Guid.Empty)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.ToUserIdField, MoneyRules.ToRequired);
+        }
+
+        if (recipient.Id == sender.Id)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.ToUserIdField, MoneyRules.ToSelf);
+        }
+
+        var checkedNote = CheckFields(amount, transferDate, note, today);
+        if (checkedNote.IsFailure)
+        {
+            return Result.Failure<MoneyTransfer>(checkedNote.Error);
+        }
+
+        // Former staff can receive only while they are owed money (D-19).
+        var canReceive = recipient.Status is MoneyPartyStatus.Active || (recipient.IsLeaver && recipient.Balance < 0m);
+        if (!canReceive)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.ToUserIdField, MoneyRules.RecipientUnavailable(recipient.Name));
+        }
+
+        if (sender.Balance <= 0m)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.AmountField, MoneyRules.NothingOnHand);
+        }
+
+        if (amount > sender.Balance)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.AmountField, MoneyRules.AboveBalance(sender.Balance));
+        }
+
+        if (recipient.IsLeaver && amount > -recipient.Balance)
+        {
+            // An Admin learns the bound exists but not the figure (D-49).
+            return MoneyRules.Reject<MoneyTransfer>(
+                MoneyRules.AmountField,
+                callerIsManager ? MoneyRules.OwedOnlyForManager(recipient.Name, -recipient.Balance) : MoneyRules.OwedForAdmin(recipient.Name));
+        }
+
+        return Result.Success(new MoneyTransfer(Guid.CreateVersion7(now), sender.Id, recipient.Id, amount, transferDate, checkedNote.Value, isHandover: false));
+    }
+
+    // Checks the amount, date and note in that order; returns the trimmed note, or null when it is blank.
+    private static Result<string?> CheckFields(decimal amount, DateOnly transferDate, string? note, DateOnly today)
+    {
+        if (amount <= 0m)
+        {
+            return MoneyRules.Reject<string?>(MoneyRules.AmountField, MoneyRules.AmountTooSmall);
+        }
+
+        if (!MoneyRules.HasValidScale(amount))
+        {
+            return MoneyRules.Reject<string?>(MoneyRules.AmountField, MoneyRules.AmountDecimals);
+        }
+
+        if (transferDate > today)
+        {
+            return MoneyRules.Reject<string?>(MoneyRules.TransferDateField, MoneyRules.DateInFuture);
+        }
+
         var trimmedNote = note?.Trim();
-        return Result.Success(new MoneyTransfer(
-            Guid.CreateVersion7(now),
-            sender.Id,
-            recipient.Id,
-            amount,
-            transferDate,
-            string.IsNullOrEmpty(trimmedNote) ? null : trimmedNote,
-            isHandover: false));
+        if (trimmedNote is { Length: > MoneyRules.NoteMaxLength })
+        {
+            return MoneyRules.Reject<string?>(MoneyRules.NoteField, MoneyRules.NoteTooLong);
+        }
+
+        return Result.Success<string?>(string.IsNullOrEmpty(trimmedNote) ? null : trimmedNote);
     }
 }
