@@ -621,15 +621,25 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
   });
 
   it('draws a 640 wide view box until the frame is measured, and without ResizeObserver', () => {
-    const { container } = render(<IncomeExpenseChart data={SIX} />);
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
 
     expect(typeof ResizeObserver).toBe('undefined');
     expect(viewBox(container)).toBe('0 0 640 220');
   });
 
+  it('keeps the 640 scaled drawing and every month label without showProfit, so the approved look is unchanged', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} />);
+
+    observer.resize(320);
+
+    expect(viewBox(container)).toBe('0 0 640 220');
+    expect(monthLabels(container)).toHaveLength(12);
+  });
+
   it('uses the measured frame width as the view box width and follows a resize', () => {
     const observer = stubResizeObserver();
-    const { container } = render(<IncomeExpenseChart data={SIX} />);
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
 
     observer.resize(320);
     expect(viewBox(container)).toBe('0 0 320 220');
@@ -640,7 +650,7 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
 
   it('keeps 640 when the frame reports no width', () => {
     const observer = stubResizeObserver();
-    const { container } = render(<IncomeExpenseChart data={SIX} />);
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
 
     observer.resize(0);
 
@@ -649,7 +659,7 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
 
   it('spreads the groups and positions the tooltip over the measured width', () => {
     const observer = stubResizeObserver();
-    const { container } = render(<IncomeExpenseChart data={SIX} />);
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
 
     observer.resize(320);
     fireEvent.focus(screen.getByRole('img', { name: OCT_NAME }));
@@ -662,7 +672,7 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
 
   it('draws every other month label, counting back from the last, when a group is narrower than 28px', () => {
     const observer = stubResizeObserver();
-    const { container } = render(<IncomeExpenseChart data={TWELVE} />);
+    const { container } = render(<IncomeExpenseChart data={TWELVE} showProfit />);
 
     observer.resize(320);
 
@@ -674,12 +684,12 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
 
   it('draws every month label for six months at 320, and at exactly 28px per group', () => {
     const observer = stubResizeObserver();
-    const { container } = render(<IncomeExpenseChart data={SIX} />);
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
 
     observer.resize(320);
     expect(monthLabels(container)).toEqual(['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
 
-    const { container: twelve } = render(<IncomeExpenseChart data={TWELVE} />);
+    const { container: twelve } = render(<IncomeExpenseChart data={TWELVE} showProfit />);
     observer.resize(52 + 28 * 12);
     expect(monthLabels(twelve)).toHaveLength(12);
   });
@@ -687,7 +697,7 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
   it('keeps the last month labelled when the count is odd', () => {
     const observer = stubResizeObserver();
     const THIRTEEN: ChartDatum[] = [{ month: 'Oct', label: 'Oct 2025', income: 1000, expenses: 500 }, ...TWELVE];
-    const { container } = render(<IncomeExpenseChart data={THIRTEEN} />);
+    const { container } = render(<IncomeExpenseChart data={THIRTEEN} showProfit />);
 
     observer.resize(320);
 
@@ -697,7 +707,7 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
 
   it('disconnects the observer when the chart unmounts', () => {
     const observer = stubResizeObserver();
-    const { unmount } = render(<IncomeExpenseChart data={SIX} />);
+    const { unmount } = render(<IncomeExpenseChart data={SIX} showProfit />);
 
     expect(observer.disconnect).not.toHaveBeenCalled();
     unmount();
