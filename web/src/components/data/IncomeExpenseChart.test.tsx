@@ -409,6 +409,50 @@ describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
     expect(within(openTip('Jan')).queryByText(/^Net/)).toBeNull();
   });
 
+  it('breaks the profit line at a month with no profit instead of drawing across it (WR-03)', () => {
+    const { container } = render(
+      <IncomeExpenseChart
+        data={[
+          { month: 'Aug', income: 1000, expenses: 500, profit: 500 },
+          { month: 'Sep', income: 1000, expenses: 500 },
+          { month: 'Oct', income: 1000, expenses: 500, profit: 400 },
+        ]}
+        showProfit
+      />,
+    );
+    const line = profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d') ?? '';
+    const halo = profitParts(container, 'path', chartProfitHaloClasses)[0]?.getAttribute('d') ?? '';
+
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line).not.toContain('L');
+    expect(halo).toBe(line);
+    expect(profitParts(container, 'circle', chartProfitPointClasses.above)).toHaveLength(2);
+  });
+
+  it('joins the months on each side of a gap and breaks only at the gap (WR-03)', () => {
+    const profits = [100, 200, undefined, 300, 400];
+    const data: ChartDatum[] = profits.map((profit, index) => ({
+      month: `M${String(index)}`,
+      income: 1000,
+      expenses: 500,
+      profit,
+    }));
+    const { container } = render(<IncomeExpenseChart data={data} showProfit />);
+    const line = profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d') ?? '';
+
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line.match(/L/g)).toHaveLength(2);
+    expect(line).toMatch(/^M[\d.]+,[\d.]+L[\d.]+,[\d.]+M[\d.]+,[\d.]+L[\d.]+,[\d.]+$/);
+  });
+
+  it('draws no profit line at all when no month has a profit', () => {
+    const { container } = render(
+      <IncomeExpenseChart data={[{ month: 'Jan', income: 1000, expenses: 250 }]} showProfit />,
+    );
+
+    expect(profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d')).toBe('');
+  });
+
   it('draws no profit line, key or name, and keeps the Net row, without showProfit even when profit is given', () => {
     const { container } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} />);
 
