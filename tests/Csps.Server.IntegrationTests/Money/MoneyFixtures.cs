@@ -260,6 +260,31 @@ internal static class MoneyFixtures
         }
     }
 
+    /// <summary>Reads who can receive a transfer.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetRecipientsAsync(HttpClient client, string? accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get(RecipientsRoute, accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Gives an account a role, as the dev seed or a Manager would.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="userId">The account.</param>
+    /// <param name="roleName">The role name, <c>Admin</c> or <c>Manager</c>.</param>
+    /// <returns>A task that completes once the role is linked.</returns>
+    public static async Task AddRoleAsync(CspsDatabase database, Guid userId, string roleName)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var roleId = await context.Roles.Where(role => role.Name == roleName).Select(role => role.Id).SingleAsync(TestContext.Current.CancellationToken);
+        context.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid> { UserId = userId, RoleId = roleId });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads the audit entries of one action written by one actor, oldest first. The log is append-only, so a test scopes by its own actor.</summary>
     /// <param name="database">The test database.</param>
     /// <param name="action">The action code.</param>
