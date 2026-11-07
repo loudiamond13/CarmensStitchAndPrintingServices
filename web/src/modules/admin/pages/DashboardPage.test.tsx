@@ -144,11 +144,43 @@ describe('the KPI row under the header (DASH-02, plan 10-09)', () => {
     dashboardBackend(() => problemResponse(500));
     renderPage();
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent("Couldn't load the shop figures.");
+    const alert = (await screen.findByText("Couldn't load the shop figures.")).closest('[role="alert"]');
+    expect(alert).not.toBeNull();
     expect(screen.queryByText('Active orders')).toBeNull();
     const header = screen.getByRole('heading', { level: 1, name: 'Dashboard' }).parentElement?.parentElement;
-    expect(header).not.toContainElement(alert);
+    expect(header).not.toContainElement(alert as HTMLElement);
+  });
+});
+
+describe('the Orders by status card on the page (DASH-04, plan 10-09)', () => {
+  it('shows the six rows and the active total from the same summary', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    renderPage();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Orders by status' })).toBeVisible();
+    expect(screen.getByText('Active (Pending to Delivered)')).toBeVisible();
+    expect(screen.getByText('18 orders')).toBeVisible();
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
+  });
+
+  it('announces "Loading order counts…" while the summary loads', async () => {
+    dashboardBackend(async () => {
+      await delay(300);
+      return dashboardNovemberSummary();
+    });
+    renderPage();
+
+    expect(screen.getByText('Loading order counts…')).toBeInTheDocument();
+    expect(await screen.findByText('18 orders')).toBeVisible();
+  });
+
+  it('shows its own failure line next to the KPI row failure line when the summary fails', async () => {
+    dashboardBackend(() => problemResponse(500));
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load order counts.")).toBeVisible();
+    expect(screen.getByText("Couldn't load the shop figures.")).toBeVisible();
+    expect(screen.getAllByRole('button', { name: 'Try Again' })).toHaveLength(2);
   });
 });
 
@@ -209,7 +241,7 @@ describe('when the summary fails (DASH-06)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
     expect(screen.queryByText(/Here's how the shop is doing this month/)).toBeNull();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Try Again' })[0] as HTMLElement);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' })).toBeVisible();
     expect(backend.calls).toHaveLength(2);
