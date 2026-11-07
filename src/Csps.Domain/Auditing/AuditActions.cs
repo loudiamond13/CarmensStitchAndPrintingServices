@@ -135,6 +135,15 @@ public static class AuditActions
     /// <summary>A deleted company expense was removed for good (D-27).</summary>
     public const string CompanyExpensePermanentlyDeleted = "company-expense.permanently-deleted";
 
+    /// <summary>A staff money transfer was deleted into the bin (D-23).</summary>
+    public const string MoneyTransferDeleted = "money-transfer.deleted";
+
+    /// <summary>A deleted staff money transfer was removed for good (D-24).</summary>
+    public const string MoneyTransferPermanentlyDeleted = "money-transfer.permanently-deleted";
+
+    /// <summary>A Manager handed money from a former staff member to a coworker (D-17).</summary>
+    public const string MoneyHandedOver = "money-transfer.handed-over";
+
     /// <summary>An expense category was added (D-27).</summary>
     public const string ExpenseCategoryAdded = "expense-category.added";
 
@@ -510,5 +519,8 @@ public static class AuditActions
         OrderImageCoverChanged,
         OrderImageDescriptionChanged,
         OrderImageDeleted,
+        MoneyTransferDeleted,
+        MoneyTransferPermanentlyDeleted,
+        MoneyHandedOver,
     ];
 }

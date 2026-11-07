@@ -11,7 +11,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixAndPhaseSevenCodes()
     {
-        AuditActions.All.Count.ShouldBe(97);
+        AuditActions.All.Count.ShouldBe(100);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -247,7 +247,20 @@ public sealed class AuditActionsTests
     {
         PhaseSeven.Length.ShouldBe(43);
         AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
-        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted"]);
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over"]);
+    }
+
+    [Theory]
+    [InlineData("MoneyTransferDeleted", "money-transfer.deleted")]
+    [InlineData("MoneyTransferPermanentlyDeleted", "money-transfer.permanently-deleted")]
+    [InlineData("MoneyHandedOver", "money-transfer.handed-over")]
+    public void ThePhaseTenMoneyCodesAreInTheCatalogAndAcceptedByAuditEntry(string constantName, string code)
+    {
+        var field = typeof(AuditActions).GetField(constantName).ShouldNotBeNull();
+
+        ((string)field.GetRawConstantValue()!).ShouldBe(code);
+        AuditActions.All.ShouldContain(code);
+        AuditEntry.Create(Now, null, code, null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null).Action.ShouldBe(code);
     }
 
     [Fact]
