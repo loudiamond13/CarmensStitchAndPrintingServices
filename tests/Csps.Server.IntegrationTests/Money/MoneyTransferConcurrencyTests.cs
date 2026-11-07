@@ -199,6 +199,72 @@ public sealed class MoneyTransferConcurrencyTests(CspsDatabase database) : IClas
         (await MoneyFixtures.ReadBalanceAsync(client, sender.AccessToken)).ShouldBe(700.00m);
     }
 
+    // Fails without the lock: both hand-overs read 2000.00 before either commits, so both are recorded and 3000.00 leaves a 2000.00 holder.
+    [Fact]
+    public async Task TwoHandoversThatTogetherExceedWhatTheLeaverHoldsGiveExactlyOneSuccess()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var orderNumber = 0;
+
+        for (var round = 1; round <= Rounds; round++)
+        {
+            var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+            var leaver = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Jomar", "Santos");
+            var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+            var paolo = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Paolo", "Garcia");
+            await MoneyFixtures.SeedPaymentAsync(database, leaver.UserId, NextOrderNumber(ref orderNumber), 2000.00m, today, Now);
+            await MoneyFixtures.DeactivateAccountAsync(database, leaver.UserId);
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => MoneyFixtures.PostHandoverAsync(client, carmen.AccessToken, leaver.UserId, liza.UserId, 1500.00m, today),
+                () => MoneyFixtures.PostHandoverAsync(client, carmen.AccessToken, leaver.UserId, paolo.UserId, 1500.00m, today));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode }.Order().ToArray();
+            statuses.ShouldBe([HttpStatusCode.Created, HttpStatusCode.BadRequest], $"round {round}");
+            var (loser, winnerPerson, loserPerson) = firstResponse.StatusCode == HttpStatusCode.BadRequest
+                ? (firstResponse, paolo, liza)
+                : (secondResponse, liza, paolo);
+            (await MoneyFixtures.ReadFieldErrorsAsync(loser, "amount")).ShouldBe(["Jomar Santos only has ₱500.00 on hand."], $"round {round}");
+            (await ReadBalanceByIdAsync(factory, leaver.UserId)).ShouldBe(500.00m, $"round {round}");
+            (await MoneyFixtures.ReadBalanceAsync(client, winnerPerson.AccessToken)).ShouldBe(1500.00m, $"round {round}");
+            (await MoneyFixtures.ReadBalanceAsync(client, loserPerson.AccessToken)).ShouldBe(0.00m, $"round {round}");
+            (await MoneyFixtures.ReadBalanceAsync(client, carmen.AccessToken)).ShouldBe(0.00m, $"round {round}: the Manager who records it gains nothing");
+        }
+    }
+
+    [Fact]
+    public async Task ADoubleClickOnAHandoverWithOneKeyAndOneBodyRecordsOneRowAndOneAuditEntry()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var leaver = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Jomar", "Santos");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        await MoneyFixtures.SeedPaymentAsync(database, leaver.UserId, "ORD-2026-0001", 1000.00m, today, Now);
+        await MoneyFixtures.DeactivateAccountAsync(database, leaver.UserId);
+        var key = Guid.NewGuid();
+
+        var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+            () => MoneyFixtures.PostHandoverAsync(client, carmen.AccessToken, leaver.UserId, liza.UserId, 300.00m, today, "Fabric", key),
+            () => MoneyFixtures.PostHandoverAsync(client, carmen.AccessToken, leaver.UserId, liza.UserId, 300.00m, today, "Fabric", key));
+        using var firstResponse = first;
+        using var secondResponse = second;
+
+        var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+        statuses.ShouldContain(HttpStatusCode.Created);
+        statuses.ShouldAllBe(status => status == HttpStatusCode.Created || status == HttpStatusCode.Conflict);
+        (await MoneyFixtures.ReadTransfersAsync(database)).ShouldHaveSingleItem();
+        (await MoneyFixtures.ReadAuditAsync(database, Csps.Domain.Auditing.AuditActions.MoneyHandedOver, carmen.UserId)).ShouldHaveSingleItem();
+        (await ReadBalanceByIdAsync(factory, leaver.UserId)).ShouldBe(700.00m);
+    }
+
     private static string NextOrderNumber(ref int counter) => $"ORD-2026-{++counter:D4}";
 
     private static async Task<decimal> ReadBalanceByIdAsync(CspsApiFactory factory, Guid userId)

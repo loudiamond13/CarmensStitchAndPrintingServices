@@ -260,15 +260,16 @@ internal static class MoneyFixtures
         }
     }
 
-    /// <summary>Reads every audit entry with one action, oldest first.</summary>
+    /// <summary>Reads the audit entries of one action written by one actor, oldest first. The log is append-only, so a test scopes by its own actor.</summary>
     /// <param name="database">The test database.</param>
     /// <param name="action">The action code.</param>
+    /// <param name="actorUserId">Who did it.</param>
     /// <returns>The entries.</returns>
-    public static async Task<IReadOnlyList<Csps.Domain.Auditing.AuditEntry>> ReadAuditAsync(CspsDatabase database, string action)
+    public static async Task<IReadOnlyList<Csps.Domain.Auditing.AuditEntry>> ReadAuditAsync(CspsDatabase database, string action, Guid actorUserId)
     {
         ArgumentNullException.ThrowIfNull(database);
         await using var context = database.CreateContext();
-        return await context.AuditLog.AsNoTracking().Where(entry => entry.Action == action).OrderBy(entry => entry.Id)
+        return await context.AuditLog.AsNoTracking().Where(entry => entry.Action == action && entry.ActorUserId == actorUserId).OrderBy(entry => entry.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
     }
 

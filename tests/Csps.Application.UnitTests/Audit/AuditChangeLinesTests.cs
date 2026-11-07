@@ -435,6 +435,55 @@ public sealed class AuditChangeLinesTests
     }
 
     [Fact]
+    public void AHandOverGivesTheFromAndToPeopleTheAmountAndTheDateAndLeavesTheNoteFlagOut()
+    {
+        var parsed = AuditChangeLines.For(AuditActions.MoneyHandedOver, $"from={Ana:D};to={Bea:D};amount=2000.00;date=2026-11-04;note=yes");
+
+        parsed.Lines.ShouldBe(
+        [
+            new ParsedAuditChange("from", null, Ana.ToString("D")),
+            new ParsedAuditChange("to", null, Bea.ToString("D")),
+            new ParsedAuditChange("amount", null, "2000.00"),
+            new ParsedAuditChange("date", null, "2026-11-04"),
+        ]);
+        parsed.PersonIds().ShouldBe([Ana, Bea]);
+        parsed.Snapshot.ShouldBeNull();
+    }
+
+    [Fact]
+    public void AHandOverWithValuesOfTheWrongShapeKeepsOnlyTheValuesThatFit()
+    {
+        var parsed = AuditChangeLines.For(AuditActions.MoneyHandedOver, $"from=Jomar Santos;to={Bea:D};amount=lots;date=soon;secret=hunter2;note=no");
+
+        parsed.Lines.ShouldBe([new ParsedAuditChange("to", null, Bea.ToString("D"))]);
+    }
+
+    [Fact]
+    public void AHandOverWithNothingReadableGivesNoLines()
+    {
+        AuditChangeLines.For(AuditActions.MoneyHandedOver, "from=x;to=y;amount=z;date=w").ShouldBe(ParsedAuditChanges.None);
+    }
+
+    [Fact]
+    public void ResolveNamesTheFromAndToPeopleOfAHandOverAndMarksADeletedOneFormerStaff()
+    {
+        var anaRef = new ActorRef(Ana, "Ana Reyes", true);
+        var beaRef = new ActorRef(Bea, "Bea Navarro", false);
+        var parsed = AuditChangeLines.For(AuditActions.MoneyHandedOver, $"from={Ana:D};to={Bea:D};amount=2000.00;date=2026-11-04;note=no");
+
+        var (lines, snapshot) = AuditChangeLines.Resolve(parsed, new Dictionary<Guid, string>(), id => id == Ana ? anaRef : id == Bea ? beaRef : null);
+
+        lines.ShouldBe(
+        [
+            new AuditChangeLine("from", null, null, null, anaRef),
+            new AuditChangeLine("to", null, null, null, beaRef),
+            new AuditChangeLine("amount", null, "2000.00", null, null),
+            new AuditChangeLine("date", null, "2026-11-04", null, null),
+        ]);
+        snapshot.ShouldBeNull();
+    }
+
+    [Fact]
     public void ResolveWithNoListsLeavesTheNamesNull()
     {
         var parsed = new ParsedAuditChanges([new ParsedAuditChange("productType", null, Supplies.ToString("D"))], null, null);
