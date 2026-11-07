@@ -521,6 +521,32 @@ describe('IncomeExpenseChart below zero (D-36)', () => {
     expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱100k', '₱200k']);
   });
 
+  it('drops the tick that would crowd the zero tick when a big loss stretches the scale (WR-01)', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -15000, expenses: 2000 }]} />);
+    const grid = lines(container)
+      .filter((line) => classTokens(line).join(' ') === tokens(chartGridClasses).join(' '))
+      .map((line) => Number(line.getAttribute('y1')))
+      .sort((a, b) => a - b);
+
+    expect(textsOf(container)).toEqual([`${MINUS}₱15k`, '₱0', '₱2k', 'Jan']);
+    expect(grid).toHaveLength(3);
+    for (const [index, value] of grid.entries()) {
+      if (index > 0) expect(value - (grid[index - 1] ?? 0)).toBeGreaterThanOrEqual(14);
+    }
+  });
+
+  it('keeps the zero tick and spaces the rest at least 14px apart on a very large loss (WR-01)', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -50000, expenses: 3000 }]} />);
+    const ticks = [...container.querySelectorAll('svg > g:not([role]) > text')];
+    const labelYs = ticks.map((text) => Number(text.getAttribute('y'))).sort((a, b) => a - b);
+
+    expect(textsOf(container)).toContain('₱0');
+    expect(ticks.length).toBeGreaterThanOrEqual(2);
+    for (const [index, value] of labelYs.entries()) {
+      if (index > 0) expect(value - (labelYs[index - 1] ?? 0)).toBeGreaterThanOrEqual(14);
+    }
+  });
+
   it('splits the profit line at zero with two clipPaths whose ids come from useId, dashing the below-zero copy', () => {
     const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
     const clips = [...container.querySelectorAll('clipPath')];
