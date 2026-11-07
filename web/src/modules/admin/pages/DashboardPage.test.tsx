@@ -18,6 +18,7 @@ import {
   dashboardSummaryFixture,
   RECENT_ORDERS_TODAY,
 } from '@/test/dashboardFixtures';
+import { myMoneyBackend, myMoneyNegativeFixture } from '@/test/moneyFixtures';
 import { orderId } from '@/test/orderFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -425,6 +426,73 @@ describe('when the summary fails (DASH-06)', () => {
     const { container } = renderPage();
 
     await screen.findByText("Couldn't load the shop figures.");
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the money strip on the page (MONEY-02, D-46, plan 10-13)', () => {
+  it('sits after the header and before the KPI row, with the caller own figure and a link to the ledger', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    myMoneyBackend();
+    renderPage();
+
+    const label = await screen.findByText('Your money on hand');
+    expect(await screen.findByText('₱8,450.00')).toBeVisible();
+    const title = screen.getByRole('heading', { level: 1 });
+    const kpi = await screen.findByText('Active orders');
+    expect(title.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(label.compareDocumentPosition(kpi) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'View Ledger' })).toHaveAttribute('href', '/admin/money');
+  });
+
+  it('keeps the strip alive when the summary fails, and the KPI row alive when the money fails', async () => {
+    dashboardBackend(() => problemResponse(500));
+    myMoneyBackend();
+    const { unmount } = renderPage();
+
+    expect(await screen.findByText('₱8,450.00')).toBeVisible();
+    expect(await screen.findByText("Couldn't load the shop figures.")).toBeVisible();
+    unmount();
+    queryClient.clear();
+
+    dashboardBackend(dashboardNovemberSummary());
+    myMoneyBackend(() => problemResponse(500));
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load your money on hand.")).toBeVisible();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+  });
+
+  it('shows a negative balance in the danger tone', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    myMoneyBackend(myMoneyNegativeFixture());
+    renderPage();
+
+    expect((await screen.findByText('−₱500.00')).className).toContain('text-danger');
+  });
+
+  it('reads the money again on every visit (D-13)', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    const calls = myMoneyBackend();
+    const first = renderPage();
+    await screen.findByText('₱8,450.00');
+    first.unmount();
+
+    renderPage();
+    await screen.findByText('₱8,450.00');
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+  });
+
+  it('has no axe violations with the strip drawn', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    myMoneyBackend();
+    const { container } = renderPage();
+
+    await screen.findByText('₱8,450.00');
+    await screen.findByText('5 due this week · 2 overdue');
     await expectNoAxeViolations(container);
   });
 });
