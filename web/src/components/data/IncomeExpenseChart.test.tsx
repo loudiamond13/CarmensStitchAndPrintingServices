@@ -369,7 +369,7 @@ describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
     expect(classTokens(legend)).toEqual(tokens(chartLegendClasses));
   });
 
-  it('shows the Profit row from the server figure and no Net row in the tooltip', () => {
+  it('shows the profit row from the server figure and no Net row in the tooltip', () => {
     render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
 
     fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
@@ -403,8 +403,8 @@ describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
     expect(profitParts(container, 'circle', chartProfitPointClasses.above)).toHaveLength(0);
     expect(months()[0]?.getAttribute('aria-label')).toBe('Jan 2026: income ₱1,000.00, expenses ₱250.00');
     fireEvent.focus(firstMonth());
-    expect(screen.queryByText(/^Profit/)).toBeNull();
-    expect(screen.queryByText(/^Net/)).toBeNull();
+    expect(within(openTip('Jan')).queryByText(/^Profit/)).toBeNull();
+    expect(within(openTip('Jan')).queryByText(/^Net/)).toBeNull();
   });
 
   it('draws no profit line, key or name, and keeps the Net row, without showProfit even when profit is given', () => {

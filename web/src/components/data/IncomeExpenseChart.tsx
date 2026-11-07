@@ -10,6 +10,8 @@
 // blur, and Escape dismisses it. The drawing is therefore a named group, not one image (an image's children are hidden
 // from assistive technology). `ChartDatum.label` (an added prop, spec §0 rule 3) names the month in full, for example
 // "Oct 2026"; without it the short month is used. Attributes and handlers only; the look at rest is unchanged.
+// SPEC-DEVIATION: D-36, D-50 (Phase 10) `showProfit` draws the server's monthly profit as a line and swaps the tooltip's
+// Net row for a Profit row; `labels` sets the legend and tooltip words. Without them the chart draws as before.
 import { useState, type KeyboardEvent } from 'react';
 import { formatPeso } from '@/utils/csps';
 import {
@@ -21,6 +23,11 @@ import {
   chartKeyClasses,
   chartLegendClasses,
   chartNetClasses,
+  chartProfitGroupClasses,
+  chartProfitHaloClasses,
+  chartProfitLineClasses,
+  chartProfitPointClasses,
+  chartProfitSwatchClasses,
   chartSvgClasses,
   chartSwatchClasses,
   chartTickClasses,
@@ -35,13 +42,38 @@ export interface ChartDatum {
   expenses: number;
   /** The month in full for assistive technology, for example "Oct 2026" (defaults to `month`). */
   label?: string | undefined;
+  /** The server's profit for the month; drawn and read out as sent, never worked out here (D-36). */
+  profit?: number | undefined;
+}
+
+/** The legend and tooltip words (D-50). */
+export interface ChartLabels {
+  income: string;
+  expenses: string;
+  profit: string;
+  net: string;
 }
 
 export interface IncomeExpenseChartProps {
   data: ChartDatum[];
   /** The view box height (default 220). */
   height?: number | undefined;
+  /** Draw the server's `profit` per month as a line, with its legend key and tooltip row (default false). */
+  showProfit?: boolean | undefined;
+  /** The legend and tooltip words (defaults: today's). */
+  labels?: ChartLabels | undefined;
 }
+
+const DEFAULT_LABELS: ChartLabels = {
+  income: 'Income (payments)',
+  expenses: 'Expenses (company + orders)',
+  profit: 'Profit',
+  net: 'Net',
+};
+
+/** The profit point radius at rest and for the hovered or focused month. */
+const POINT_RADIUS = 3.5;
+const POINT_RADIUS_ACTIVE = 5;
 
 /** The view box width and the plot's left, bottom and top margins (App. D.3). */
 const W = 640;
@@ -64,12 +96,18 @@ function bar(x: number, y: number, w: number, h: number): string {
   return `M${String(x)},${String(y + h)}V${String(y + r)}Q${String(x)},${String(y)} ${String(x + r)},${String(y)}H${String(x + w - r)}Q${String(x + w)},${String(y)} ${String(x + w)},${String(y + r)}V${String(y + h)}Z`;
 }
 
-/** The accessible name of one month group. */
-function monthName(datum: ChartDatum): string {
-  return `${datum.label ?? datum.month}: income ${formatPeso(datum.income)}, expenses ${formatPeso(datum.expenses)}`;
+/** The accessible name of one month group; with `showProfit` it ends with the server's profit. */
+function monthName(datum: ChartDatum, showProfit: boolean): string {
+  const name = `${datum.label ?? datum.month}: income ${formatPeso(datum.income)}, expenses ${formatPeso(datum.expenses)}`;
+  return showProfit && datum.profit !== undefined ? `${name}, profit ${formatPeso(datum.profit)}` : name;
 }
 
-export function IncomeExpenseChart({ data, height = 220 }: IncomeExpenseChartProps) {
+export function IncomeExpenseChart({
+  data,
+  height = 220,
+  showProfit = false,
+  labels = DEFAULT_LABELS,
+}: IncomeExpenseChartProps) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.expenses)));
   const step = Math.pow(10, Math.floor(Math.log10(max)));
@@ -80,6 +118,11 @@ export function IncomeExpenseChart({ data, height = 220 }: IncomeExpenseChartPro
   const y = (v: number) => T + (H - T - B) * (1 - v / top);
   const ticks = TICK_FRACTIONS.map((f) => top * f);
   const cur = hover === null ? undefined : data[hover];
+  const profitPoints = showProfit
+    ? data.flatMap((d, i) => (d.profit === undefined ? [] : [{ i, x: L + gw * i + gw / 2, y: y(d.profit) }]))
+    : [];
+  const profitPath =
+    profitPoints.length === 0 ? '' : `M${profitPoints.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`;
   const dismiss = (event: KeyboardEvent) => {
     if (event.key === 'Escape') setHover(null);
   };
@@ -88,12 +131,18 @@ export function IncomeExpenseChart({ data, height = 220 }: IncomeExpenseChartPro
       <div className={chartLegendClasses}>
         <span className={chartKeyClasses}>
           <i className={chartSwatchClasses.income} />
-          Income (payments)
+          {labels.income}
         </span>
         <span className={chartKeyClasses}>
           <i className={chartSwatchClasses.expense} />
-          Expenses (company + orders)
+          {labels.expenses}
         </span>
+        {showProfit && (
+          <span className={chartKeyClasses}>
+            <i className={chartProfitSwatchClasses} />
+            {labels.profit}
+          </span>
+        )}
       </div>
       <svg
         viewBox={`0 0 ${String(W)} ${String(H)}`}
@@ -120,7 +169,7 @@ export function IncomeExpenseChart({ data, height = 220 }: IncomeExpenseChartPro
               // than 12 months or one that crosses a year; the bars are positional, so the key is the position.
               key={`${String(i)}-${d.label ?? d.month}`}
               role="img"
-              aria-label={monthName(d)}
+              aria-label={monthName(d, showProfit)}
               tabIndex={0}
               onMouseEnter={() => {
                 setHover(i);
@@ -146,6 +195,21 @@ export function IncomeExpenseChart({ data, height = 220 }: IncomeExpenseChartPro
           );
         })}
         <line x1={L} x2={W} y1={H - B} y2={H - B} className={chartAxisClasses} />
+        {showProfit && (
+          <g aria-hidden="true" className={chartProfitGroupClasses}>
+            <path d={profitPath} className={chartProfitHaloClasses} />
+            <path d={profitPath} className={chartProfitLineClasses.above} />
+            {profitPoints.map((p) => (
+              <circle
+                key={p.i}
+                cx={p.x}
+                cy={p.y}
+                r={hover === p.i ? POINT_RADIUS_ACTIVE : POINT_RADIUS}
+                className={chartProfitPointClasses.above}
+              />
+            ))}
+          </g>
+        )}
       </svg>
       {cur !== undefined && hover !== null && (
         <div className={chartTipClasses} style={{ '--tip-x': `${String(((L + gw * hover + gw / 2) / W) * 100)}%` }}>
@@ -158,7 +222,17 @@ export function IncomeExpenseChart({ data, height = 220 }: IncomeExpenseChartPro
             <i className={chartSwatchClasses.expense} />
             Expenses {formatPeso(cur.expenses)}
           </span>
-          <span className={chartNetClasses}>Net {formatPeso(cur.income - cur.expenses)}</span>
+          {showProfit ? (
+            cur.profit !== undefined && (
+              <span>
+                {labels.profit} {formatPeso(cur.profit)}
+              </span>
+            )
+          ) : (
+            <span className={chartNetClasses}>
+              {labels.net} {formatPeso(cur.income - cur.expenses)}
+            </span>
+          )}
         </div>
       )}
     </figure>
