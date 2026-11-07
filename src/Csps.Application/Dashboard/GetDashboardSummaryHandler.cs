@@ -34,15 +34,34 @@ public sealed class GetDashboardSummaryHandler(IDashboardReader reader, ICompany
         }
 
         var (lastFirst, lastLast) = BusinessClock.MonthOf(period.MonthFirst.AddDays(-1));
-        _ = await expenses.GetKpisAsync(new KpiMonths(period.MonthFirst, period.MonthLast, lastFirst, lastLast), cancellationToken).ConfigureAwait(false);
+        var totals = await expenses.GetKpisAsync(new KpiMonths(period.MonthFirst, period.MonthLast, lastFirst, lastLast), cancellationToken).ConfigureAwait(false);
 
         return Result.Success(new DashboardSummaryResponse(
             period.Today,
             GreetingOf(clock.DayPart),
             firstName,
             new DashboardOrderFigures(figures.ActiveOrders, figures.DueThisWeek, figures.Overdue, figures.Receivables),
-            new DashboardCollectedFigures(0m, 0m, period.Today, null),
-            new DashboardExpenseFigures(0m, 0, null)));
+            new DashboardCollectedFigures(
+                figures.CollectedThisMonth,
+                figures.CollectedComparison,
+                period.ComparisonLast,
+                ChangePercent(figures.CollectedThisMonth, figures.CollectedComparison)),
+            new DashboardExpenseFigures(
+                totals.ThisMonthTotal,
+                totals.ThisMonthCount,
+                totals.ThisMonthCount > 0 ? totals.TopCategory?.Name : null)));
+    }
+
+    // Whole-number change against the absolute comparison, half away from zero (D-06, D-54); null when there is nothing to compare.
+    private static int? ChangePercent(decimal thisMonth, decimal comparison)
+    {
+        if (comparison == 0m)
+        {
+            return null;
+        }
+
+        var percent = Math.Round((thisMonth - comparison) / Math.Abs(comparison) * 100m, 0, MidpointRounding.AwayFromZero);
+        return (int)Math.Clamp(percent, int.MinValue, int.MaxValue);
     }
 
     private static string GreetingOf(DayPart part) => part switch

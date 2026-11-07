@@ -2316,6 +2316,44 @@ export interface components {
              */
             id: string;
         };
+        /** @description The money collected this month and the comparison. */
+        DashboardCollectedFigures: {
+            /**
+             * Format: int32
+             * @description The whole-number change against the absolute value of the comparison, rounded away from zero; null when the comparison is 0.00.
+             */
+            changePercent: null | number | string;
+            /**
+             * Format: double
+             * @description The same figure for the first of last month through the same day number last month.
+             */
+            comparison: number | string;
+            /**
+             * Format: date
+             * @description The last day of the comparison.
+             */
+            comparisonThrough: string;
+            /**
+             * Format: double
+             * @description Payments dated in this business month minus refunds dated in it; Cancelled orders included, deleted orders excluded; may be below zero.
+             */
+            thisMonth: number | string;
+        };
+        /** @description The company expense figures of the dashboard card. */
+        DashboardExpenseFigures: {
+            /**
+             * Format: int32
+             * @description How many company expenses this month holds.
+             */
+            count: number | string;
+            /**
+             * Format: double
+             * @description The sum of this month's company expenses.
+             */
+            thisMonth: number | string;
+            /** @description The name of the category with the most money this month, ties to the alphabetically first name; null with no expenses. */
+            topCategory: null | string;
+        };
         /** @description The order figures of the dashboard cards. */
         DashboardOrderFigures: {
             /**
@@ -2323,9 +2361,28 @@ export interface components {
              * @description Orders in Pending, Mockup, In Production, Ready or Delivered; deleted orders never count.
              */
             active: number | string;
+            /**
+             * Format: int32
+             * @description Active orders due Monday to Sunday of the business week that are not overdue; an order with no due date counts in neither this nor Overdue.
+             */
+            dueThisWeek: number | string;
+            /**
+             * Format: int32
+             * @description Pending, Mockup, In Production and Ready orders due before the business today.
+             */
+            overdue: number | string;
+            /**
+             * Format: double
+             * @description The sum over all active orders, overdue ones included, of the balance when it is above zero, else zero.
+             */
+            receivables: number | string;
         };
         /** @description Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ. */
         DashboardSummaryResponse: {
+            /** @description The money collected this month. */
+            collected: components["schemas"]["DashboardCollectedFigures"];
+            /** @description The company expenses this month. */
+            expenses: components["schemas"]["DashboardExpenseFigures"];
             /** @description The signed-in person's first name. */
             firstName: string;
             /** @description The part of the business day: `morning`, `afternoon` or `evening`. */

@@ -30,6 +30,19 @@ public sealed record DashboardPeriod(
     {
         ArgumentNullException.ThrowIfNull(clock);
         var today = clock.Today;
-        return new DashboardPeriod(today, today, today, today, today, today, today, clock.UtcNow, clock.UtcNow);
+        var (monday, sunday) = BusinessClock.WeekOf(today);
+        var (monthFirst, monthLast) = BusinessClock.MonthOf(today);
+        var (comparisonFirst, _) = BusinessClock.MonthOf(monthFirst.AddDays(-1));
+        var (monthStartUtc, monthEndUtc) = clock.MonthUtcRange(today);
+        return new DashboardPeriod(
+            today,
+            monday,
+            sunday,
+            monthFirst,
+            monthLast,
+            comparisonFirst,
+            BusinessClock.SameDayLastMonth(today),
+            monthStartUtc,
+            monthEndUtc);
     }
 }
