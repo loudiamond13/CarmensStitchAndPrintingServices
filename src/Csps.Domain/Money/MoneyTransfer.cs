@@ -147,18 +147,67 @@ public sealed class MoneyTransfer : IAttributedRecord
         DateOnly transferDate,
         string? note,
         DateOnly today,
-        DateTimeOffset now) =>
-        Result.Failure<MoneyTransfer>(Error.BusinessRule("money-transfers.not-built", "Not built yet."));
+        DateTimeOffset now)
+    {
+        if (!leaver.IsLeaver)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.FromUserIdField, MoneyRules.HandoverSenderActive);
+        }
+
+        if (recipient.Id == Guid.Empty)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.ToUserIdField, MoneyRules.ToRequired);
+        }
+
+        if (recipient.Id == leaver.Id)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.ToUserIdField, MoneyRules.ToSelfHandover(leaver.Name));
+        }
+
+        if (recipient.Status is not MoneyPartyStatus.Active)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.ToUserIdField, MoneyRules.RecipientUnavailable(recipient.Name));
+        }
+
+        var checkedNote = CheckFields(amount, transferDate, note, today);
+        if (checkedNote.IsFailure)
+        {
+            return Result.Failure<MoneyTransfer>(checkedNote.Error);
+        }
+
+        if (leaver.Balance <= 0m)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.AmountField, MoneyRules.LeaverNothingOnHand(leaver.Name));
+        }
+
+        if (amount > leaver.Balance)
+        {
+            return MoneyRules.Reject<MoneyTransfer>(MoneyRules.AmountField, MoneyRules.LeaverAboveBalance(leaver.Name, leaver.Balance));
+        }
+
+        return Result.Success(new MoneyTransfer(Guid.CreateVersion7(now), leaver.Id, recipient.Id, amount, transferDate, checkedNote.Value, isHandover: true));
+    }
 
     /// <summary>Soft-deletes the transfer so it stops counting in any balance (D-23). A second call changes nothing.</summary>
     /// <param name="by">The Manager who deleted it.</param>
     /// <param name="now">The current instant.</param>
     /// <returns>True when it was deleted now; false when it was already deleted.</returns>
-    public bool SoftDelete(Guid by, DateTimeOffset now) => IsDeleted && by == Guid.Empty && now == default;
+    public bool SoftDelete(Guid by, DateTimeOffset now)
+    {
+        if (IsDeleted)
+        {
+            return false;
+        }
+
+        DeletedAtUtc = now;
+        DeletedById = by;
+        return true;
+    }
 
     /// <summary>Checks that the transfer may be removed for good: it must be in the bin first (D-24).</summary>
     /// <returns>Success, or the business rule that says to delete it first.</returns>
-    public Result EnsureRemovable() => IsDeleted ? Result.Success() : Result.Success();
+    public Result EnsureRemovable() =>
+        IsDeleted ? Result.Success() : Result.Failure(Error.BusinessRule(MoneyRules.NotDeletedCode, MoneyRules.DeleteFirst));
 
     // Checks the amount, date and note in that order; returns the trimmed note, or null when it is blank.
     private static Result<string?> CheckFields(decimal amount, DateOnly transferDate, string? note, DateOnly today)
