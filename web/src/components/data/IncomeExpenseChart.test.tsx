@@ -409,6 +409,50 @@ describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
     expect(within(openTip('Jan')).queryByText(/^Net/)).toBeNull();
   });
 
+  it('breaks the profit line at a month with no profit instead of drawing across it (WR-03)', () => {
+    const { container } = render(
+      <IncomeExpenseChart
+        data={[
+          { month: 'Aug', income: 1000, expenses: 500, profit: 500 },
+          { month: 'Sep', income: 1000, expenses: 500 },
+          { month: 'Oct', income: 1000, expenses: 500, profit: 400 },
+        ]}
+        showProfit
+      />,
+    );
+    const line = profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d') ?? '';
+    const halo = profitParts(container, 'path', chartProfitHaloClasses)[0]?.getAttribute('d') ?? '';
+
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line).not.toContain('L');
+    expect(halo).toBe(line);
+    expect(profitParts(container, 'circle', chartProfitPointClasses.above)).toHaveLength(2);
+  });
+
+  it('joins the months on each side of a gap and breaks only at the gap (WR-03)', () => {
+    const profits = [100, 200, undefined, 300, 400];
+    const data: ChartDatum[] = profits.map((profit, index) => ({
+      month: `M${String(index)}`,
+      income: 1000,
+      expenses: 500,
+      profit,
+    }));
+    const { container } = render(<IncomeExpenseChart data={data} showProfit />);
+    const line = profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d') ?? '';
+
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line.match(/L/g)).toHaveLength(2);
+    expect(line).toMatch(/^M[\d.]+,[\d.]+L[\d.]+,[\d.]+M[\d.]+,[\d.]+L[\d.]+,[\d.]+$/);
+  });
+
+  it('draws no profit line at all when no month has a profit', () => {
+    const { container } = render(
+      <IncomeExpenseChart data={[{ month: 'Jan', income: 1000, expenses: 250 }]} showProfit />,
+    );
+
+    expect(profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d')).toBe('');
+  });
+
   it('draws no profit line, key or name, and keeps the Net row, without showProfit even when profit is given', () => {
     const { container } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} />);
 
@@ -431,6 +475,42 @@ describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
 
     rerender(<IncomeExpenseChart data={SIX_WITH_PROFIT} labels={labels} />);
     expect(within(openTip('Oct')).getByText('Left ₱68,130.00')).toBeTruthy();
+  });
+
+  it('keeps separate legend and tooltip words for income, expenses and profit (D-104, WR-02)', () => {
+    const labels = {
+      income: 'Income (payments minus refunds)',
+      expenses: 'Expenses (company + orders)',
+      profit: 'Profit (income minus expenses)',
+      net: 'Net',
+      incomeTip: 'Income',
+      expensesTip: 'Costs',
+      profitTip: 'Profit',
+    };
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit labels={labels} />);
+    const legend = screen.getByText('Income (payments minus refunds)').parentElement ?? document.body;
+
+    expect(within(legend).getByText('Expenses (company + orders)')).toBeTruthy();
+    expect(within(legend).getByText('Profit (income minus expenses)')).toBeTruthy();
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const tip = openTip('Oct');
+
+    expect(within(tip).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(tip).getByText('Costs ₱58,320.00')).toBeTruthy();
+    expect(within(tip).getByText('Profit ₱68,130.00')).toBeTruthy();
+    expect(tip.textContent).not.toContain('income minus expenses');
+  });
+
+  it("keeps today's tooltip words for any tooltip word that is not passed", () => {
+    const labels = { income: 'Money in', expenses: 'Money out', profit: 'Gain', net: 'Left' };
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit labels={labels} />);
+
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const tip = openTip('Oct');
+
+    expect(within(tip).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(tip).getByText('Expenses ₱58,320.00')).toBeTruthy();
+    expect(within(tip).getByText('Gain ₱68,130.00')).toBeTruthy();
   });
 });
 
@@ -519,6 +599,32 @@ describe('IncomeExpenseChart below zero (D-36)', () => {
 
     rerender(<IncomeExpenseChart data={SIX_WITH_PROFIT} />);
     expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱100k', '₱200k']);
+  });
+
+  it('drops the tick that would crowd the zero tick when a big loss stretches the scale (WR-01)', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -15000, expenses: 2000 }]} />);
+    const grid = lines(container)
+      .filter((line) => classTokens(line).join(' ') === tokens(chartGridClasses).join(' '))
+      .map((line) => Number(line.getAttribute('y1')))
+      .sort((a, b) => a - b);
+
+    expect(textsOf(container)).toEqual([`${MINUS}₱15k`, '₱0', '₱2k', 'Jan']);
+    expect(grid).toHaveLength(3);
+    for (const [index, value] of grid.entries()) {
+      if (index > 0) expect(value - (grid[index - 1] ?? 0)).toBeGreaterThanOrEqual(14);
+    }
+  });
+
+  it('keeps the zero tick and spaces the rest at least 14px apart on a very large loss (WR-01)', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -50000, expenses: 3000 }]} />);
+    const ticks = [...container.querySelectorAll('svg > g:not([role]) > text')];
+    const labelYs = ticks.map((text) => Number(text.getAttribute('y'))).sort((a, b) => a - b);
+
+    expect(textsOf(container)).toContain('₱0');
+    expect(ticks.length).toBeGreaterThanOrEqual(2);
+    for (const [index, value] of labelYs.entries()) {
+      if (index > 0) expect(value - (labelYs[index - 1] ?? 0)).toBeGreaterThanOrEqual(14);
+    }
   });
 
   it('splits the profit line at zero with two clipPaths whose ids come from useId, dashing the below-zero copy', () => {

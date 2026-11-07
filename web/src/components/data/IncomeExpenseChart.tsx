@@ -51,12 +51,18 @@ export interface ChartDatum {
   profit?: number | undefined;
 }
 
-/** The legend and tooltip words (D-50). */
+/** The legend words (`income`, `expenses`, `profit`), the Net word, and the tooltip words (D-50, D-104). */
 export interface ChartLabels {
   income: string;
   expenses: string;
   profit: string;
   net: string;
+  /** The tooltip's Income word (default "Income"). */
+  incomeTip?: string | undefined;
+  /** The tooltip's Expenses word (default "Expenses"). */
+  expensesTip?: string | undefined;
+  /** The tooltip's Profit word (default: the legend's `profit`). */
+  profitTip?: string | undefined;
 }
 
 export interface IncomeExpenseChartProps {
@@ -92,6 +98,9 @@ const T = 12;
 /** The three gridline fractions of the axis top. */
 const TICK_FRACTIONS = [0, 0.5, 1] as const;
 
+/** The least distance (px) between two tick labels, a little over the 11px text height (WR-01). */
+const MIN_TICK_GAP = 14;
+
 /** The minus sign (U+2212) for a below-zero tick (D-36); never a hyphen. */
 const MINUS = '−';
 
@@ -99,6 +108,15 @@ const MINUS = '−';
 function tick(value: number): string {
   if (value < 0) return `${MINUS}${tick(-value)}`;
   return value >= 1000 ? `₱${String(Math.round(value / 1000))}k` : `₱${String(value)}`;
+}
+
+/** Keeps the ticks in priority order unless one sits closer than the label height to a kept one; returns them bottom-up. */
+function spreadTicks(candidates: readonly number[], y: (v: number) => number): number[] {
+  const kept: number[] = [];
+  for (const value of candidates) {
+    if (kept.every((other) => Math.abs(y(value) - y(other)) >= MIN_TICK_GAP)) kept.push(value);
+  }
+  return kept.sort((a, b) => a - b);
 }
 
 /** A bar with 4px rounded top corners as an SVG path (App. D.3 `bar`); no bar for a zero or negative height. */
@@ -159,7 +177,7 @@ export function IncomeExpenseChart({
   const bottom = lowest < 0 ? Math.floor(lowest / step) * step : 0;
   const y = (v: number) => T + (H - T - B) * (1 - (v - bottom) / (top - bottom));
   const zeroY = y(0);
-  const ticks = bottom < 0 ? [bottom, 0, top / 2, top] : TICK_FRACTIONS.map((f) => top * f);
+  const ticks = spreadTicks(bottom < 0 ? [0, bottom, top, top / 2] : TICK_FRACTIONS.map((f) => top * f), y);
   const clipId = useId();
   const aboveClip = `${clipId}-above`;
   const belowClip = `${clipId}-below`;
@@ -169,8 +187,14 @@ export function IncomeExpenseChart({
         d.profit === undefined ? [] : [{ i, x: L + gw * i + gw / 2, y: y(d.profit), loss: d.profit < 0 }],
       )
     : [];
-  const profitPath =
-    profitPoints.length === 0 ? '' : `M${profitPoints.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`;
+  // One subpath per run of consecutive months with a profit, so the line breaks at a missing month (WR-03).
+  const profitRuns = profitPoints.reduce<(typeof profitPoints)[]>((runs, p) => {
+    const last = runs.at(-1);
+    if (last?.at(-1)?.i === p.i - 1) last.push(p);
+    else runs.push([p]);
+    return runs;
+  }, []);
+  const profitPath = profitRuns.map((run) => `M${run.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`).join('');
   const dismiss = (event: KeyboardEvent) => {
     if (event.key === 'Escape') setHover(null);
   };
@@ -287,16 +311,16 @@ export function IncomeExpenseChart({
           <strong>{cur.month}</strong>
           <span className={chartKeyClasses}>
             <i className={chartSwatchClasses.income} />
-            Income {formatPeso(cur.income)}
+            {labels.incomeTip ?? 'Income'} {formatPeso(cur.income)}
           </span>
           <span className={chartKeyClasses}>
             <i className={chartSwatchClasses.expense} />
-            Expenses {formatPeso(cur.expenses)}
+            {labels.expensesTip ?? 'Expenses'} {formatPeso(cur.expenses)}
           </span>
           {showProfit ? (
             cur.profit !== undefined && (
               <span>
-                {labels.profit}{' '}
+                {labels.profitTip ?? labels.profit}{' '}
                 {cur.profit < 0 ? (
                   <span className={chartProfitLossClasses}>{formatPeso(cur.profit)}</span>
                 ) : (
