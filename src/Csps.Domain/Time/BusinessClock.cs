@@ -26,6 +26,32 @@ public sealed record BusinessClock(TimeZoneInfo Zone, ZoneSource Source, DateTim
     public static (DateOnly First, DateOnly Last) MonthOf(DateOnly day) =>
         (new DateOnly(day.Year, day.Month, 1), new DateOnly(day.Year, day.Month, DateTime.DaysInMonth(day.Year, day.Month)));
 
+    /// <summary>Returns the Monday and the Sunday of the week that holds <paramref name="day"/> (D-01).</summary>
+    /// <param name="day">Any day of the week.</param>
+    /// <returns>The Monday and the Sunday of that week.</returns>
+    public static (DateOnly Monday, DateOnly Sunday) WeekOf(DateOnly day)
+    {
+        var monday = day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
+        return (monday, monday.AddDays(6));
+    }
+
+    /// <summary>Returns the same day number in the previous month, clamped to that month's last day (D-05).</summary>
+    /// <param name="today">The day to compare from.</param>
+    /// <returns>The same day last month, or the last day of last month when it has fewer days.</returns>
+    public static DateOnly SameDayLastMonth(DateOnly today)
+    {
+        var (_, lastOfPrevious) = MonthOf(MonthOf(today).First.AddDays(-1));
+        return new DateOnly(lastOfPrevious.Year, lastOfPrevious.Month, Math.Min(today.Day, lastOfPrevious.Day));
+    }
+
+    /// <summary>The part of the business day now, read from <see cref="LocalNow"/> (DASH-01).</summary>
+    public DayPart DayPart => LocalNow.Hour switch
+    {
+        < 12 => DayPart.Morning,
+        < 18 => DayPart.Afternoon,
+        _ => DayPart.Evening,
+    };
+
     /// <summary>
     /// Returns the UTC instants that bound the business days <paramref name="from"/> through
     /// <paramref name="toInclusive"/>: the start of the first day and the start of the day after the last.

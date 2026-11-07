@@ -130,6 +130,40 @@ public sealed class BusinessClockTests
         (endUtcExclusive - startUtc).ShouldBe(TimeSpan.FromHours(25));
     }
 
+    [Theory]
+    [InlineData("2026-11-04", "2026-11-02", "2026-11-08")]
+    [InlineData("2026-11-02", "2026-11-02", "2026-11-08")]
+    [InlineData("2026-11-08", "2026-11-02", "2026-11-08")]
+    [InlineData("2026-01-01", "2025-12-29", "2026-01-04")]
+    public void WeekRunsMondayToSunday(string day, string monday, string sunday) =>
+        BusinessClock.WeekOf(DateOnly.Parse(day, System.Globalization.CultureInfo.InvariantCulture))
+            .ShouldBe((DateOnly.Parse(monday, System.Globalization.CultureInfo.InvariantCulture), DateOnly.Parse(sunday, System.Globalization.CultureInfo.InvariantCulture)));
+
+    [Theory]
+    [InlineData("2026-03-31", "2026-02-28")]
+    [InlineData("2026-05-31", "2026-04-30")]
+    [InlineData("2026-01-31", "2025-12-31")]
+    [InlineData("2026-10-15", "2026-09-15")]
+    [InlineData("2026-03-01", "2026-02-01")]
+    public void SameDayLastMonthIsClampedToTheLastDay(string today, string expected) =>
+        BusinessClock.SameDayLastMonth(DateOnly.Parse(today, System.Globalization.CultureInfo.InvariantCulture))
+            .ShouldBe(DateOnly.Parse(expected, System.Globalization.CultureInfo.InvariantCulture));
+
+    [Fact]
+    public void SameDayLastMonthInALeapYearClampsToFebruary29() =>
+        BusinessClock.SameDayLastMonth(new DateOnly(2028, 3, 31)).ShouldBe(new DateOnly(2028, 2, 29));
+
+    // Manila is UTC+08, so local time is the UTC time plus eight hours.
+    [Theory]
+    [InlineData("2026-11-04T16:00:00Z", DayPart.Morning)]
+    [InlineData("2026-11-04T03:59:59Z", DayPart.Morning)]
+    [InlineData("2026-11-04T04:00:00Z", DayPart.Afternoon)]
+    [InlineData("2026-11-04T09:59:59Z", DayPart.Afternoon)]
+    [InlineData("2026-11-04T10:00:00Z", DayPart.Evening)]
+    [InlineData("2026-11-04T15:59:59Z", DayPart.Evening)]
+    public void DayPartFollowsTheBusinessClockToTheSecond(string utc, DayPart expected) =>
+        ManilaClockAt(utc).DayPart.ShouldBe(expected);
+
     private static BusinessClock ManilaClockAt(string utc) => new(Manila, ZoneSource.Stored, Utc(utc));
 
     private static DateTimeOffset Utc(string value) =>

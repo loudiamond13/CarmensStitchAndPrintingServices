@@ -33,6 +33,21 @@ public static class OrderStatusRules
         OrderStatus.Delivered,
     ];
 
+    /// <summary>Gets the statuses whose orders can be overdue (08 D-37, D-55).</summary>
+    public static IReadOnlyList<OrderStatus> OverdueStatuses { get; } =
+    [
+        OrderStatus.Pending,
+        OrderStatus.Mockup,
+        OrderStatus.InProduction,
+        OrderStatus.Ready,
+    ];
+
+    /// <summary>Tells whether an order in this status can be overdue.</summary>
+    /// <param name="status">The status.</param>
+    /// <returns>True for Pending, Mockup, InProduction and Ready only.</returns>
+    public static bool CanBeOverdue(OrderStatus status) =>
+        status is OrderStatus.Pending or OrderStatus.Mockup or OrderStatus.InProduction or OrderStatus.Ready;
+
     /// <summary>Builds the message for a Completed request while money is owed.</summary>
     /// <param name="balance">The balance still owed.</param>
     /// <returns>The plain-English message.</returns>
