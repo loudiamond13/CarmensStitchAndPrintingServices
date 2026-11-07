@@ -1,5 +1,6 @@
 using Csps.Application.Money;
 using Csps.Application.Ports;
+using Csps.Application.Security;
 using Csps.Domain.Identity;
 using Csps.Domain.Money;
 using Csps.Domain.Orders;
@@ -51,6 +52,35 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
                 row.CompanyExpensesPaid,
                 row.RefundsHandedBack)),
         ];
+    }
+
+    public async Task<IReadOnlyList<StaffPerson>> ListStaffPeopleAsync(CancellationToken cancellationToken)
+    {
+        // The role is the account's own Admin or Manager link; an account with neither is not staff and is left out with the holder.
+        var rows = await context.Users.AsNoTracking()
+            .Where(user => user.Id != LegacyHolder.Id)
+            .Select(user => new
+            {
+                user.Id,
+                user.FirstName,
+                user.LastName,
+                Role = (from userRole in context.UserRoles
+                        join role in context.Roles on userRole.RoleId equals role.Id
+                        where userRole.UserId == user.Id && (role.Name == Roles.Admin || role.Name == Roles.Manager)
+                        orderby role.Name
+                        select role.Name).FirstOrDefault(),
+                user.IsActive,
+                Locked = user.ManagerLockedAtUtc != null,
+                Deleted = user.DeletedAtUtc != null,
+            })
+            .Where(row => row.Role != null)
+            .OrderBy(row => row.FirstName)
+            .ThenBy(row => row.LastName)
+            .ThenBy(row => row.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.Role!, row.IsActive, row.Locked, row.Deleted))];
     }
 
     // The one place that leaves deleted transfers out; the entity has no query filter (RESEARCH Pitfall 4).

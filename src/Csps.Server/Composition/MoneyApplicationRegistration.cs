@@ -14,9 +14,12 @@ public static class MoneyApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<IValidator<CreateMoneyTransferRequest>, CreateMoneyTransferRequestValidator>();
+        services.AddSingleton<IValidator<CreateMoneyHandoverRequest>, CreateMoneyHandoverRequestValidator>();
 
         services.AddScoped<GetMyMoneyHandler>();
         services.AddScoped<CreateMoneyTransferHandler>();
+        services.AddScoped<HandOverMoneyHandler>();
+        services.AddScoped<ListTransferRecipientsHandler>();
         return services;
     }
 }

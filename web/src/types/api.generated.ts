@@ -571,6 +571,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/money-transfers/handovers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a hand-over, Managers only: money held by a deactivated or deleted Admin or Manager moves to a current coworker. The body
+         *     names the former staff member (`fromUserId`) and the coworker (`toUserId`). The amount is at least 0.01 with at most two
+         *     decimal places and no more than the former staff member holds. The coworker must be an active Admin or Manager, a Manager-locked
+         *     or not-yet-set-up person included. The answer carries the former staff member's new balance and never the coworker's. The
+         *     signed-in Manager is recorded as who did it and is written to the audit log; any `createdById` or `isHandover` in the
+         *     body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.
+         */
+        post: operations["CreateMoneyHandover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/money-transfers/recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists who the transfer window may offer, for either role. Every active Admin and Manager comes first, a person a Manager has
+         *     locked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or
+         *     deleted Admins and Managers who are owed money, with status `deactivated` or `deleted`. An entry has an id, a name, a
+         *     status and `isYou` and never a figure, for any caller. The legacy placeholder and accounts with no staff role never appear.
+         *     Each group is sorted by first name, last name, then id.
+         */
+        get: operations["ListTransferRecipients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/order-expense-categories": {
         parameters: {
             query?: never;
@@ -2031,7 +2078,7 @@ export interface components {
             /**
              * @description One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,
              *     `dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,
-             *     `payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,
+             *     `payer`, `refunder`, `from` and `to`, or the name of a text field that changed: `description`, `notes`, `reference`,
              *     `sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.
              */
             field: string;
@@ -2324,6 +2371,32 @@ export interface components {
             name: null | string;
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
             tone: null | string;
+        };
+        /**
+         * @description The Hand Over form (D-17): a Manager moves money held by a former staff member to a current coworker. The sender is the former
+         *     staff member named in the form, because the signed-in Manager only records the hand-over. Any other member in the body, such as
+         *     `createdById` or `isHandover`, is ignored: who recorded it and when come from the token and the clock (SEC-08).
+         */
+        CreateMoneyHandoverRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /**
+             * Format: uuid
+             * @description The former staff member who holds the money.
+             */
+            fromUserId: null | string;
+            /** @description Optional note. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The current coworker who gets the money.
+             */
+            toUserId: null | string;
+            /** @description The day the money changed hands, `yyyy-MM-dd`. */
+            transferDate: null | string;
         };
         /**
          * @description The Transfer Money form (MONEY-04). The sender is always the signed-in user, so the form has no sender. Any other member in
@@ -3769,6 +3842,23 @@ export interface components {
              * @description Its total this month.
              */
             total: number | string;
+        };
+        /**
+         * @description One person the transfer window may offer in its To list (D-19, D-49, D-56). It has a name and a status word only: nothing about
+         *     what the person holds or is owed, for any caller.
+         */
+        TransferRecipientResponse: {
+            /**
+             * Format: uuid
+             * @description The person's id.
+             */
+            id: string;
+            /** @description True for the signed-in person. */
+            isYou: boolean;
+            /** @description The first and last name. */
+            name: string;
+            /** @description One of `active`, `deactivated` or `deleted`. */
+            status: string;
         };
         /**
          * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
@@ -5792,6 +5882,98 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateMoneyHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+                "application/json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+                "text/json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyTransferSavedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTransferRecipients: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRecipientResponse"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

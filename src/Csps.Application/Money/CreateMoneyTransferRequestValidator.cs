@@ -44,7 +44,11 @@ public sealed class CreateMoneyTransferRequestValidator : AbstractValidator<Crea
             && DateOnly.TryParseExact(text.Trim(), MoneyRules.DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
     }
 
-    private static void CheckDate(string? text, ValidationContext<CreateMoneyTransferRequest> context)
+    /// <summary>Checks a transfer date for either form: required, a real <c>yyyy-MM-dd</c> day, not after the business today in the context.</summary>
+    /// <typeparam name="T">The form type; the context must hold the business today under <see cref="TodayKey"/>.</typeparam>
+    /// <param name="text">The text sent by the form.</param>
+    /// <param name="context">The validation context.</param>
+    internal static void CheckDate<T>(string? text, ValidationContext<T> context)
     {
         if (string.IsNullOrWhiteSpace(text))
         {

@@ -5,6 +5,7 @@ using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Money;
 
@@ -189,6 +190,113 @@ internal static class MoneyFixtures
     public static Task<HttpResponseMessage> PostTransferAsync(
         HttpClient client, string? accessToken, Guid toUserId, decimal amount, DateOnly date, string? note = null, Guid? idempotencyKey = null) =>
         PostTransferAsync(client, accessToken, TransferBody(toUserId, amount, date, note), idempotencyKey);
+
+    /// <summary>The route that records a hand-over.</summary>
+    public const string HandoversRoute = "/api/v1/money-transfers/handovers";
+
+    /// <summary>The route that lists who can receive a transfer.</summary>
+    public const string RecipientsRoute = "/api/v1/money-transfers/recipients";
+
+    /// <summary>A hand-over body the server accepts, as a dictionary so a test can override or add one member.</summary>
+    /// <param name="fromUserId">The former staff member who holds the money.</param>
+    /// <param name="toUserId">The coworker who receives it.</param>
+    /// <param name="amount">The amount.</param>
+    /// <param name="date">The transfer date.</param>
+    /// <param name="note">The note; none when null.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> HandoverBody(Guid fromUserId, Guid toUserId, decimal amount, DateOnly date, string? note = null)
+    {
+        var body = TransferBody(toUserId, amount, date, note);
+        body["fromUserId"] = fromUserId;
+        return body;
+    }
+
+    /// <summary>Posts a hand-over body with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PostHandoverAsync(HttpClient client, string? accessToken, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, HandoversRoute, accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = System.Net.Http.Json.JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts a hand-over built from its parts with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="fromUserId">The former staff member who holds the money.</param>
+    /// <param name="toUserId">The coworker who receives it.</param>
+    /// <param name="amount">The amount.</param>
+    /// <param name="date">The transfer date.</param>
+    /// <param name="note">The note; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static Task<HttpResponseMessage> PostHandoverAsync(
+        HttpClient client, string? accessToken, Guid fromUserId, Guid toUserId, decimal amount, DateOnly date, string? note = null, Guid? idempotencyKey = null) =>
+        PostHandoverAsync(client, accessToken, HandoverBody(fromUserId, toUserId, amount, date, note), idempotencyKey);
+
+    /// <summary>Reads one person's money on hand straight from the read port, so it works for people who can no longer sign in.</summary>
+    /// <param name="factory">The test host.</param>
+    /// <param name="userId">The person.</param>
+    /// <returns>The balance.</returns>
+    public static async Task<decimal> ReadBalanceByIdAsync(WebApplicationFactory<Program> factory, Guid userId)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            var reader = scope.ServiceProvider.GetRequiredService<Csps.Application.Ports.IStaffMoneyReader>();
+            var sums = await reader.GetSumsAsync([userId], TestContext.Current.CancellationToken);
+            return sums.Single(row => row.UserId == userId).Balance();
+        }
+    }
+
+    /// <summary>Reads who can receive a transfer.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetRecipientsAsync(HttpClient client, string? accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get(RecipientsRoute, accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Gives an account a role, as the dev seed or a Manager would.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="userId">The account.</param>
+    /// <param name="roleName">The role name, <c>Admin</c> or <c>Manager</c>.</param>
+    /// <returns>A task that completes once the role is linked.</returns>
+    public static async Task AddRoleAsync(CspsDatabase database, Guid userId, string roleName)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        var roleId = await context.Roles.Where(role => role.Name == roleName).Select(role => role.Id).SingleAsync(TestContext.Current.CancellationToken);
+        context.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<Guid> { UserId = userId, RoleId = roleId });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the audit entries of one action written by one actor, oldest first. The log is append-only, so a test scopes by its own actor.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="action">The action code.</param>
+    /// <param name="actorUserId">Who did it.</param>
+    /// <returns>The entries.</returns>
+    public static async Task<IReadOnlyList<Csps.Domain.Auditing.AuditEntry>> ReadAuditAsync(CspsDatabase database, string action, Guid actorUserId)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        await using var context = database.CreateContext();
+        return await context.AuditLog.AsNoTracking().Where(entry => entry.Action == action && entry.ActorUserId == actorUserId).OrderBy(entry => entry.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+    }
 
     /// <summary>Reads a 400 answer and returns the messages under one field.</summary>
     /// <param name="response">The response; it must be a 400.</param>

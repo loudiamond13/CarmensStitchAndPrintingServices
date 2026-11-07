@@ -12,7 +12,7 @@ namespace Csps.Application.Audit;
 /// <param name="Field">
 /// One of <c>amount</c>, <c>date</c>, <c>category</c>, <c>name</c>, <c>tone</c>, the order fields <c>status</c>, <c>orderDate</c>,
 /// <c>dueDate</c>, <c>quantity</c>, <c>unitPrice</c>, <c>kind</c>, <c>value</c>, <c>productType</c>, <c>method</c>, <c>receiver</c>,
-/// <c>payer</c> and <c>refunder</c>, or the name of a text field that changed: <c>description</c>, <c>notes</c>, <c>reference</c>,
+/// <c>payer</c>, <c>refunder</c>, <c>from</c> and <c>to</c>, or the name of a text field that changed: <c>description</c>, <c>notes</c>, <c>reference</c>,
 /// <c>sizeVariant</c>, <c>reason</c>, <c>customerName</c>, <c>teamName</c>, <c>contactNumber</c>, <c>email</c> or <c>address</c>.
 /// </param>
 /// <param name="From">
@@ -22,7 +22,7 @@ namespace Csps.Application.Audit;
 /// </param>
 /// <param name="To">The new value; null when there is none or the field is a text field.</param>
 /// <param name="FromPerson">For <c>payer</c>, <c>receiver</c> and <c>refunder</c>: the old person.</param>
-/// <param name="ToPerson">For <c>payer</c>, <c>receiver</c> and <c>refunder</c>: the new person.</param>
+/// <param name="ToPerson">For <c>payer</c>, <c>receiver</c> and <c>refunder</c>: the new person; for a hand-over's <c>from</c> and <c>to</c>: that person.</param>
 public sealed record AuditChangeLine(string Field, string? From, string? To, ActorRef? FromPerson, ActorRef? ToPerson);
 
 /// <summary>The facts of an expense as an entry saw it: added, deleted, restored or permanently deleted.</summary>
@@ -151,6 +151,8 @@ public static class AuditChangeLines
     internal const string PayerField = "payer";
     internal const string ReceiverField = "receiver";
     internal const string RefunderField = "refunder";
+    internal const string FromField = "from";
+    internal const string ToField = "to";
     internal const string MethodField = "method";
     internal const string ProductTypeField = "productType";
 
@@ -184,7 +186,7 @@ public static class AuditChangeLines
     ];
 
     /// <summary>The line fields that name a person by id.</summary>
-    internal static readonly string[] PersonFields = [PayerField, ReceiverField, RefunderField];
+    internal static readonly string[] PersonFields = [PayerField, ReceiverField, RefunderField, FromField, ToField];
 
     /// <summary>Parses the detail of an entry.</summary>
     /// <param name="action">The action code.</param>
@@ -207,6 +209,7 @@ public static class AuditChangeLines
                 or AuditActions.CompanyExpensePermanentlyDeleted => ReadSnapshot(detail),
             AuditActions.CompanyExpenseChanged => ReadEdit(detail),
             AuditActions.CompanyExpensePayerChanged => ReadPayerChange(detail),
+            AuditActions.MoneyHandedOver => ReadHandover(detail),
             AuditActions.ExpenseCategoryAdded
                 or AuditActions.ExpenseCategoryRenamed
                 or AuditActions.ExpenseCategoryRecolored
@@ -290,7 +293,7 @@ public static class AuditChangeLines
                 ProductTypeField => new AuditChangeLine(line.Field, NameOf(lists?.ProductTypes, line.From), NameOf(lists?.ProductTypes, line.To), null, null),
                 OrderCategoryField => new AuditChangeLine(
                     CategoryField, NameOf(lists?.OrderExpenseCategories, line.From), NameOf(lists?.OrderExpenseCategories, line.To), null, null),
-                PayerField or ReceiverField or RefunderField =>
+                PayerField or ReceiverField or RefunderField or FromField or ToField =>
                     new AuditChangeLine(line.Field, null, null, person(IdOf(line.From)), person(IdOf(line.To))),
                 _ => new AuditChangeLine(line.Field, line.From, line.To, null, null),
             }),
@@ -384,6 +387,29 @@ public static class AuditChangeLines
         return part is not null && TryReadId(part.From, out var from) && TryReadId(part.To, out var to)
             ? Build([new ParsedAuditChange(PayerField, from.ToString("D"), to.ToString("D"))], null, to)
             : ParsedAuditChanges.None;
+    }
+
+    // from=<id>;to=<id>;amount=0.00;date=yyyy-MM-dd;note=yes|no. Each value must have the shape the writer gives it; the note flag is left out.
+    private static ParsedAuditChanges ReadHandover(string detail)
+    {
+        List<ParsedAuditChange> lines = [];
+        foreach (var part in AuditDetailFormat.Parse(detail).Where(part => part.From is null))
+        {
+            switch (part.Key)
+            {
+                case FromField or ToField when TryReadId(part.To, out var id):
+                    lines.Add(new ParsedAuditChange(part.Key, null, id.ToString("D")));
+                    break;
+                case AmountField when TryReadAmount(part.To, out _):
+                case DateField when TryReadDate(part.To, out _):
+                    lines.Add(new ParsedAuditChange(part.Key, null, part.To));
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return Build(lines, null, null);
     }
 
     // name=<name>, name=<old>><new>, tone=<tone> or tone=<old>><new>. A tone that is not one of the six, on either side, leaves the line out.
