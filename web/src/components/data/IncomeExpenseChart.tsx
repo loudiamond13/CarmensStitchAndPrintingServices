@@ -51,12 +51,18 @@ export interface ChartDatum {
   profit?: number | undefined;
 }
 
-/** The legend and tooltip words (D-50). */
+/** The legend words (`income`, `expenses`, `profit`), the Net word, and the tooltip words (D-50, D-104). */
 export interface ChartLabels {
   income: string;
   expenses: string;
   profit: string;
   net: string;
+  /** The tooltip's Income word (default "Income"). */
+  incomeTip?: string | undefined;
+  /** The tooltip's Expenses word (default "Expenses"). */
+  expensesTip?: string | undefined;
+  /** The tooltip's Profit word (default: the legend's `profit`). */
+  profitTip?: string | undefined;
 }
 
 export interface IncomeExpenseChartProps {
@@ -305,16 +311,16 @@ export function IncomeExpenseChart({
           <strong>{cur.month}</strong>
           <span className={chartKeyClasses}>
             <i className={chartSwatchClasses.income} />
-            Income {formatPeso(cur.income)}
+            {labels.incomeTip ?? 'Income'} {formatPeso(cur.income)}
           </span>
           <span className={chartKeyClasses}>
             <i className={chartSwatchClasses.expense} />
-            Expenses {formatPeso(cur.expenses)}
+            {labels.expensesTip ?? 'Expenses'} {formatPeso(cur.expenses)}
           </span>
           {showProfit ? (
             cur.profit !== undefined && (
               <span>
-                {labels.profit}{' '}
+                {labels.profitTip ?? labels.profit}{' '}
                 {cur.profit < 0 ? (
                   <span className={chartProfitLossClasses}>{formatPeso(cur.profit)}</span>
                 ) : (
