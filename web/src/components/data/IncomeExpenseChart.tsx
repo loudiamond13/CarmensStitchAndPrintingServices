@@ -92,6 +92,9 @@ const T = 12;
 /** The three gridline fractions of the axis top. */
 const TICK_FRACTIONS = [0, 0.5, 1] as const;
 
+/** The least distance (px) between two tick labels, a little over the 11px text height (WR-01). */
+const MIN_TICK_GAP = 14;
+
 /** The minus sign (U+2212) for a below-zero tick (D-36); never a hyphen. */
 const MINUS = '−';
 
@@ -99,6 +102,15 @@ const MINUS = '−';
 function tick(value: number): string {
   if (value < 0) return `${MINUS}${tick(-value)}`;
   return value >= 1000 ? `₱${String(Math.round(value / 1000))}k` : `₱${String(value)}`;
+}
+
+/** Keeps the ticks in priority order unless one sits closer than the label height to a kept one; returns them bottom-up. */
+function spreadTicks(candidates: readonly number[], y: (v: number) => number): number[] {
+  const kept: number[] = [];
+  for (const value of candidates) {
+    if (kept.every((other) => Math.abs(y(value) - y(other)) >= MIN_TICK_GAP)) kept.push(value);
+  }
+  return kept.sort((a, b) => a - b);
 }
 
 /** A bar with 4px rounded top corners as an SVG path (App. D.3 `bar`); no bar for a zero or negative height. */
@@ -159,7 +171,7 @@ export function IncomeExpenseChart({
   const bottom = lowest < 0 ? Math.floor(lowest / step) * step : 0;
   const y = (v: number) => T + (H - T - B) * (1 - (v - bottom) / (top - bottom));
   const zeroY = y(0);
-  const ticks = bottom < 0 ? [bottom, 0, top / 2, top] : TICK_FRACTIONS.map((f) => top * f);
+  const ticks = spreadTicks(bottom < 0 ? [0, bottom, top, top / 2] : TICK_FRACTIONS.map((f) => top * f), y);
   const clipId = useId();
   const aboveClip = `${clipId}-above`;
   const belowClip = `${clipId}-below`;
