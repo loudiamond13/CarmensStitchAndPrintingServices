@@ -4,15 +4,15 @@ current_phase: 10
 current_phase_name: Admin Dashboard
 status: executing
 stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-11-07T02:43:07.487Z"
+last_updated: "2026-11-07T04:54:35.558Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 10 execution started
-state_head: 7c64299c9e65113da5f3312a1c2e8578e83aba99
+state_head: b45beaa678d0bca20c1c7b143433f74696a79e75
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 302
-  completed_plans: 281
+  completed_plans: 285
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-06T10:53:00-06:00"
@@ -905,6 +905,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: 09-09: fail-next takes a count from 0 to 50 and answers 204; the rules endpoint names types jpeg, png, webp, heic
 - [Phase 09]: D-103 (owner, 2026-11-03): wave 5 is marked complete although `ExpenseListTimingTests` (300 ms p95) failed in the post-merge gate and again alone; it is the known machine timing issue already in the backlog (09-01 timing tests), wave 5 changed no expense code, and the test stays open there
 - [Phase 09]: D-49 (owner, 2026-11-03, 09-CONTEXT): the host probe may ask the SQL server one read-only question, its default backup folder (`POST /probe/backup-folder`), the second named exception to the no-inline-SQL rule next to the D-40 backup statement
+- [Phase 10]: Wave 1 post-merge gate: build 0 warnings; web typecheck and lint clean; web 8080 tests passed; .NET 7172 of 7175 passed (2 skipped), 1 failed: ExpenseListTimingTests five-years last page p95 311 ms vs 300 ms, failed again alone. Known machine timing issue (D-76, D-103, backlog 09-01 timing tests); wave 1 changed no expense code.
 
 ### Pending Todos
 
