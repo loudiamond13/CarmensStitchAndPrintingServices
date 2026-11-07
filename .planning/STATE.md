@@ -4,10 +4,10 @@ current_phase: 10
 current_phase_name: Admin Dashboard
 status: executing
 stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-11-07T04:54:35.558Z"
+last_updated: "2026-11-07T05:11:17.434Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 10 execution started
-state_head: b45beaa678d0bca20c1c7b143433f74696a79e75
+state_head: a9f2eda2cafda5bcff792818ac4af1911ee0ce64
 progress:
   total_phases: 18
   completed_phases: 8
@@ -906,6 +906,9 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: D-103 (owner, 2026-11-03): wave 5 is marked complete although `ExpenseListTimingTests` (300 ms p95) failed in the post-merge gate and again alone; it is the known machine timing issue already in the backlog (09-01 timing tests), wave 5 changed no expense code, and the test stays open there
 - [Phase 09]: D-49 (owner, 2026-11-03, 09-CONTEXT): the host probe may ask the SQL server one read-only question, its default backup folder (`POST /probe/backup-folder`), the second named exception to the no-inline-SQL rule next to the D-40 backup statement
 - [Phase 10]: Wave 1 post-merge gate: build 0 warnings; web typecheck and lint clean; web 8080 tests passed; .NET 7172 of 7175 passed (2 skipped), 1 failed: ExpenseListTimingTests five-years last page p95 311 ms vs 300 ms, failed again alone. Known machine timing issue (D-76, D-103, backlog 09-01 timing tests); wave 1 changed no expense code.
+- [Phase 10]: D-104 (owner, 2026-11-06): chart labels prop takes separate legend and tooltip words (UI-SPEC D3); review WR-02
+- [Phase 10]: D-105 (owner, 2026-11-06): plan 10-14 runs the four ledger reads in one serializable read transaction, no DB option change; review WR-04
+- [Phase 10]: D-106 (owner, 2026-11-06): fix chart WR-01 and WR-03 now, before 10-11; other wave 1 review items go to the phase-end review
 
 ### Pending Todos
 

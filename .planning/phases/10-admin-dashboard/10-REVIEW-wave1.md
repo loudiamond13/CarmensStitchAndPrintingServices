@@ -2,7 +2,7 @@
 phase: 10-admin-dashboard
 scope: wave 1 (plans 10-01, 10-02, 10-03, 10-04)
 created: 2026-11-06T23:02:57-06:00
-updated: 2026-11-06T23:02:57-06:00
+updated: 2026-11-06T23:12:00-06:00
 reviewed: 2026-11-06T23:02:57-06:00
 depth: standard (with cross-file checks against plans 10-11 and 10-14)
 diff_range: b8d2494f23b4de7a6734ecea1ae8c6ef88438d1c..f080de66e114dcd193debf57e055f31cdfc1e81c
@@ -141,3 +141,15 @@ I traced the default drawing by hand. `zeroY` equals the old `H - B`, `y()` redu
 _Reviewed: 2026-11-06T23:02:57-06:00_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+## Outcomes (owner rulings 2026-11-06)
+
+| Finding | Outcome |
+|---|---|
+| WR-01 | Fix now, test-first (D-106). |
+| WR-02 | Fix now: separate legend and tooltip words, tooltip Income and Expenses from `labels` (D-104). |
+| WR-03 | Fix now, test-first (D-106). |
+| WR-04 | Deferred to plan 10-14: one serializable read transaction (D-105). |
+| WR-05 | Deferred: parity pixel snapshots get confirmed by the CI run on the phase PR. |
+| IN-01 to IN-05 | Deferred to the phase-end code review (D-106). |
+| IN-06 | Recorded: true-pixel drawing only with `showProfit` is the 10-04 parity fix; fold into the phase-end review. |

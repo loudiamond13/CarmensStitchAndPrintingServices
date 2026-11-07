@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-05T16:40:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-06T23:10:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -112,6 +112,11 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - The API shape and resource names for dashboard, balances, ledger, transfers and hand-over, following the one-controller-per-resource rule.
 - The chart's profit-line styling, legend and accessible text, within UI-SPEC tokens.
 - Empty, loading and error copy for each card (DASH-06), in plain English.
+
+### Owner rulings during execution (wave 1 review, 2026-11-06)
+- **D-104 (owner, 2026-11-06):** the chart's `labels` prop takes a separate legend word and tooltip word, so the legend reads "Profit (income minus expenses)" and the tooltip "Profit" (UI-SPEC D3). The tooltip's Income and Expenses words also come from `labels`. Fixed in the wave 1 chart fix; plan 10-11 passes both words. (Review WR-02.)
+- **D-105 (owner, 2026-11-06):** plan 10-14 runs the four ledger reads (page, newer-rows sum, count, balance) inside one serializable read transaction so they agree. No database option change (no snapshot isolation). (Review WR-04.)
+- **D-106 (owner, 2026-11-06):** the chart bugs WR-01 (tick labels overlap on a big loss) and WR-03 (profit line drawn across a month with no figure) are fixed now, test-first, before plan 10-11. The other wave 1 review items go to the phase-end code review.
 
 </decisions>
 
