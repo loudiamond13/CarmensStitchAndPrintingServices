@@ -58,9 +58,10 @@ export function IncomeExpenseCard() {
   const marked = useDelayedFlag(refetching, REFETCH_MARK_DELAY_MS);
   const data = query.data === undefined ? null : query.data.items.flatMap(toDatum);
 
-  let body;
+  // One region stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
+  let content;
   if (query.isError) {
-    body = (
+    content = (
       <div className={dashboardCardStateClasses}>
         <ErrorState
           things={COPY.things}
@@ -72,23 +73,26 @@ export function IncomeExpenseCard() {
         />
       </div>
     );
+  } else if (data === null) {
+    content = (
+      <div className={dashboardCardStateClasses}>
+        <Skeleton height={SKELETON_HEIGHT} />
+      </div>
+    );
+  } else if (data.every((datum) => datum.income === 0 && datum.expenses === 0)) {
+    content = <EmptyState icon="trending-up" level={3} title={COPY.emptyTitle} message={COPY.emptyMessage(months)} />;
   } else {
-    body = (
-      <LoadingRegion loading={data === null || marked} things={COPY.things}>
-        {data === null ? (
-          <div className={dashboardCardStateClasses}>
-            <Skeleton height={SKELETON_HEIGHT} />
-          </div>
-        ) : data.every((datum) => datum.income === 0 && datum.expenses === 0) ? (
-          <EmptyState icon="trending-up" level={3} title={COPY.emptyTitle} message={COPY.emptyMessage(months)} />
-        ) : (
-          <div className={chartBodyClasses} data-refetching={marked ? 'true' : undefined}>
-            <IncomeExpenseChart data={data} showProfit labels={COPY.labels} />
-          </div>
-        )}
-      </LoadingRegion>
+    content = (
+      <div className={chartBodyClasses} data-refetching={marked ? 'true' : undefined}>
+        <IncomeExpenseChart data={data} showProfit labels={COPY.labels} />
+      </div>
     );
   }
+  const body = (
+    <LoadingRegion loading={data === null ? query.isPending : marked} failed={query.isError} things={COPY.things}>
+      {content}
+    </LoadingRegion>
+  );
 
   return (
     <section className={dashboardCardClasses}>
