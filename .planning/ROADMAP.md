@@ -1092,7 +1092,7 @@ Plans:
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
 
-**Plans**: 5/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
+**Plans**: 7/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
 
 **Wave 1**
 - [x] 10-01-PLAN.md — Ledger union query proven on SQL Server, the Wave 0 spike (MONEY-02; RESEARCH A1, A2)
@@ -1104,8 +1104,8 @@ Plans:
 - [x] 10-05-PLAN.md — Dashboard summary API: greeting, KPIs, statuses, recent orders (DASH-01, DASH-02, DASH-04, DASH-05; D-01 to D-08, D-11 to D-13, D-38, D-54, D-55)
 
 **Wave 3**
-- [ ] 10-06-PLAN.md — Dashboard chart API for 6 or 12 months (DASH-03; D-04, D-09 to D-11, D-36)
-- [ ] 10-07-PLAN.md — Sign-in lands on the dashboard greeting; the dev /admin preview is removed (DASH-01, DASH-06)
+- [x] 10-06-PLAN.md — Dashboard chart API for 6 or 12 months (DASH-03; D-04, D-09 to D-11, D-36)
+- [x] 10-07-PLAN.md — Sign-in lands on the dashboard greeting; the dev /admin preview is removed (DASH-01, DASH-06)
 
 **Wave 4**
 - [ ] 10-08-PLAN.md — Money on hand API and the MoneyTransfers table, the phase's one migration (MONEY-01, MONEY-02, MONEY-08; D-15, D-16, D-23)
@@ -1456,7 +1456,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
-| 10. Admin Dashboard | 5/21 | In Progress | - |
+| 10. Admin Dashboard | 7/21 | In Progress | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
