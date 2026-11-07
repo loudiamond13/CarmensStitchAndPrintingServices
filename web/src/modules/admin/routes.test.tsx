@@ -692,22 +692,37 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
   }, 30_000);
 
-  it('with the dev routes added, /dev/components and the section previews render without a session or a refresh', async () => {
+  it('with the dev routes added, /dev/components renders without a session or a refresh', async () => {
     const probe = answerRefresh();
     const showcase = createMemoryRouter(devTree(), { initialEntries: ['/dev/components'] });
-    const first = render(<RouterProvider router={showcase} />);
+    render(<RouterProvider router={showcase} />);
     expect(
       await screen.findByRole('heading', { level: 1, name: /Component Showcase/ }, { timeout: 15_000 }),
     ).toBeVisible();
     expect(screen.getByText('Demo data')).toBeVisible();
-    first.unmount();
-
-    const preview = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
-    render(<RouterProvider router={preview} />);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' }, { timeout: 5000 })).toBeVisible();
-    expect(screen.getByText('Development only. This screen is built in a later phase.')).toBeVisible();
-    expect(preview.state.location.pathname).toBe('/admin');
     expect(probe.count).toBe(0);
+  }, 30_000);
+
+  it('with the dev routes added, /admin is still the guarded real dashboard: no preview shadows it (Pitfall 1, T-10-10)', async () => {
+    answerRefresh(sessionResponse());
+    dashboardBackend(dashboardSummaryFixture({ greeting: 'evening', firstName: 'Carmen' }));
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good evening, Carmen' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
+    expect(router.state.location.pathname).toBe('/admin');
+  }, 30_000);
+
+  it('with the dev routes added, /admin without a session still goes to sign-in: there is no placeholder user at /admin', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(devTree(), { initialEntries: ['/admin'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+    expect(screen.queryByText('Development only. This screen is built in a later phase.')).toBeNull();
   });
 
   it('with the dev routes added, /dev/public shows the real public layout around labelled fields, with no session request', async () => {

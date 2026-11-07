@@ -20,6 +20,12 @@ export interface SignInOptions {
   readonly keepSignedIn?: boolean;
 }
 
+/** The dashboard h1 of a person: "Good morning, Carmen". The part of the day depends on the server clock, so any of the three matches. */
+export function dashboardHeading(user: Pick<SignedInUser, 'firstName'>): RegExp {
+  const name = user.firstName.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  return new RegExp(`^Good (morning|afternoon|evening), ${name}$`);
+}
+
 /** The six digits from the subject of a sign-in code email. */
 export function codeFromEmail(email: SinkEmail): string {
   const match = /^(\d{6}) is your CSPS sign-in code$/.exec(email.subject);
@@ -83,7 +89,7 @@ export async function signInAs(
   if (!isSignedInUser(sessionUser)) {
     throw new Error('The verify answer carried no signed-in user.');
   }
-  // The e2e bundle lands on the dev preview at /admin; a production bundle goes on to /admin/sessions.
+  // Every bundle, the e2e one included, lands on the dashboard at /admin (DASH-01).
   await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
   await expect(page.getByRole('main')).toBeVisible();
   return sessionUser;

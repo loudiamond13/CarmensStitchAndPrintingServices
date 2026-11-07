@@ -1,50 +1,53 @@
-// Admin shell E2E (WEB-05, A11Y-01, A11Y-02, D-20): the e2e bundle has the dev-only admin routes, and each admin path
-// renders the shell on the real host in all five projects: its preview page h1, the matching current sidebar item, the
-// document title, the skip link first in the document, and no console, page, CSP, response (the guard) or axe findings.
-import type { Page } from '@playwright/test';
-import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-
-interface AdminPath {
-  readonly path: string;
-  /** The nav label: the h1, the current item and the first half of the document title. */
-  readonly label: string;
-}
-
-// /admin/orders is the real signed-in Orders page since plan 08-06, so it has no dev preview; its journey is orders-list.spec.ts.
-const PATHS: readonly AdminPath[] = [{ path: '/admin', label: 'Dashboard' }];
+// Admin shell E2E (WEB-05, A11Y-01, A11Y-02, D-20): a signed-in Manager's dashboard renders the shell on the real host in all five
+// projects: its greeting h1, the Dashboard sidebar item current, the document title, the skip link first in the document, and no
+// console, page, CSP, response (the guard) or axe findings. The theme and layout checks below run on the same signed-in page.
+import type { APIRequestContext, Page } from '@playwright/test';
+import { dashboardHeading, signInAs } from './auth.ts';
+import { expect, expectNoAxeViolations, test, type Guard } from './fixtures.ts';
+import { createStaff } from './testing-api.ts';
 
 /** The text of the first element in document order that Tab can reach (a page script: the node program has no DOM). */
 const FIRST_FOCUSABLE_TEXT = `document.querySelector('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')?.textContent ?? null`;
 
-for (const { path, label } of PATHS) {
-  test(`@admin ${path} renders the admin shell with ${label} current`, async ({ page }) => {
-    const response = await page.goto(path);
-
-    expect(response?.status()).toBe(200);
-    await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('h1')).toHaveText(label);
-    await expect(page.getByRole('main')).toHaveCount(1);
-    await expect(page).toHaveTitle(`${label} · CSPS Admin`);
-    await expect(page.getByText('Development only. This screen is built in a later phase.')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Open Component Showcase' })).toHaveAttribute(
-      'href',
-      '/dev/components',
-    );
-
-    // The current item: the sidebar's where the sidebar shows (768px and up), and in the DOM at every width.
-    const current = page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]');
-    await expect(current).toHaveCount(1);
-    await expect(current).toContainText(label);
-
-    // A11Y-02: nothing focusable comes before the skip link (WebKit's Tab skips links, so the order is read here).
-    expect(await page.evaluate(FIRST_FOCUSABLE_TEXT)).toBe('Skip to main content');
-
-    await expectNoAxeViolations(page);
-  });
+/** Signs a fresh Manager in; the sign-in lands on the dashboard. Opening the sign-in page asks the refresh cookie first, and with none that answer is a 401. */
+async function signInManager(page: Page, request: APIRequestContext, guard: Guard) {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  return signInAs(page, request, await createStaff(request, 'Manager'));
 }
 
+test('@admin /admin renders the admin shell with the dashboard greeting and Dashboard current', async ({
+  page,
+  request,
+  guard,
+}) => {
+  const user = await signInManager(page, request, guard);
+  const response = await page.goto('/admin');
+
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toHaveCount(1);
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
+  await expect(page.getByRole('main')).toHaveCount(1);
+  await expect(page).toHaveTitle('Dashboard · CSPS Admin');
+  await expect(page.getByText('Development only. This screen is built in a later phase.')).toHaveCount(0);
+
+  // The current item: the sidebar's where the sidebar shows (768px and up), and in the DOM at every width.
+  const current = page.locator('aside nav[aria-label="Admin"] a[aria-current="page"]');
+  await expect(current).toHaveCount(1);
+  await expect(current).toContainText('Dashboard');
+
+  // A11Y-02: nothing focusable comes before the skip link (WebKit's Tab skips links, so the order is read here).
+  expect(await page.evaluate(FIRST_FOCUSABLE_TEXT)).toBe('Skip to main content');
+
+  await expectNoAxeViolations(page);
+});
+
 // D-13: the theme choice survives a reload; the admin always starts in Blush with nothing saved.
-test('@admin the theme toggle switches to Espresso, and the choice survives a reload', async ({ page }) => {
+test('@admin the theme toggle switches to Espresso, and the choice survives a reload', async ({
+  page,
+  request,
+  guard,
+}) => {
+  const user = await signInManager(page, request, guard);
   await page.goto('/admin');
   const root = page.locator('[data-theme]').first();
   await expect(root).toHaveAttribute('data-theme', 'light');
@@ -54,7 +57,7 @@ test('@admin the theme toggle switches to Espresso, and the choice survives a re
   expect(await page.evaluate(`localStorage.getItem('csps-theme')`)).toBe('dark');
 
   await page.reload();
-  await expect(page.locator('h1')).toHaveText('Dashboard');
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
   await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', 'dark');
   await expect(page.getByRole('button', { name: 'Switch to light mode' })).toBeVisible();
   await expectNoAxeViolations(page);
@@ -121,9 +124,12 @@ async function setFrameWidth(page: Page, width: number): Promise<ShellAtWidth> {
 // WEB-05 boundary edge: the shell switches layout at exactly the approved page widths (App. C container rules).
 test('@admin switches from the phone tab bar to the tablet rail at 768px and to the full sidebar at 1024px', async ({
   page,
+  request,
+  guard,
 }) => {
+  const user = await signInManager(page, request, guard);
   await page.goto('/admin');
-  await expect(page.locator('h1')).toHaveText('Dashboard');
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
 
   const phone = await setFrameWidth(page, 767);
   expect(phone.side).toBe(0);

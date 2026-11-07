@@ -173,9 +173,9 @@ interface DrawerSample {
 async function openAdminOnPhone(page: Page): Promise<void> {
   test.setTimeout(120_000);
   await page.setViewportSize(PHONE);
-  const response = await page.goto('/admin');
+  const response = await page.goto('/dev/components');
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Dashboard');
+  await expect(page.locator('h1')).toHaveText('Component Showcase');
 }
 
 const DESCRIBE_DRAWER = `(() => {
@@ -317,9 +317,9 @@ const DESCRIBE_MENU = `(() => {
 async function openAdminAt(page: Page, width: number, height: number): Promise<void> {
   test.setTimeout(120_000);
   await page.setViewportSize({ width, height });
-  const response = await page.goto('/admin');
+  const response = await page.goto('/dev/components');
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Dashboard');
+  await expect(page.locator('h1')).toHaveText('Component Showcase');
 }
 
 /** Clicks the user-menu button and describes the menu `delay` ms later, inside one page task. */
