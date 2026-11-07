@@ -121,11 +121,11 @@ describe('the KPI row under the header (DASH-02, plan 10-09)', () => {
     dashboardBackend(dashboardNovemberSummary());
     renderPage();
 
-    expect(await screen.findByText('Active orders')).toBeVisible();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+    expect(screen.getByText('Active orders')).toBeVisible();
     expect(screen.getByText('Total receivables')).toBeVisible();
     expect(screen.getByText('Collected · Nov')).toBeVisible();
     expect(screen.getByText('Company expenses · Nov')).toBeVisible();
-    expect(screen.getByText('5 due this week · 2 overdue')).toBeVisible();
     expect(screen.getByText('₱126,450.00')).toBeVisible();
   });
 

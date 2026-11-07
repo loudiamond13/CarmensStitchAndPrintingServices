@@ -1,6 +1,6 @@
-// D1 Dashboard, /admin (DASH-01, DASH-06, D-13). The header: the greeting, the business date and the two actions, all built
-// from the server's summary, never the device clock. The cards arrive in later plans. While the summary loads or has failed
-// the h1 reads "Dashboard", so the page always has a title.
+// D1 Dashboard, /admin (DASH-01, DASH-02, DASH-06, D-13). The header: the greeting, the business date and the two actions, all
+// built from the server's summary, never the device clock; under it the cards that the same summary feeds. While the summary
+// loads or has failed the h1 reads "Dashboard", so the page always has a title; each card shows its own loading and failure.
 import clsx from 'clsx';
 import { useEffect } from 'react';
 import { ButtonLink } from '@/components/actions';
@@ -10,7 +10,8 @@ import {
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
-import { ErrorState, SkeletonText } from '@/components/states';
+import { SkeletonText } from '@/components/states';
+import { DashboardKpiRow } from '@/modules/admin/components/DashboardKpiRow';
 import { dashboardHeadActionsClasses, dashboardTitleClasses } from '@/modules/admin/components/dashboard.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
@@ -49,16 +50,7 @@ export function DashboardRoute() {
           </ButtonLink>
         </div>
       </div>
-      {summary.isError && (
-        <ErrorState
-          align="start"
-          title={COPY.loadFailed}
-          error={summary.error}
-          onRetry={() => {
-            void summary.refetch();
-          }}
-        />
-      )}
+      <DashboardKpiRow query={summary} />
     </>
   );
 }
