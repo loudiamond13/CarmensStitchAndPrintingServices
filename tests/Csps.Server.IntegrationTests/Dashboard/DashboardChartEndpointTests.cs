@@ -73,6 +73,139 @@ public sealed class DashboardChartEndpointTests(CspsDatabase database) : IClassF
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task TwelveMonthsGiveTwelveItemsFromLastDecemberToThisNovember()
+    {
+        await using var rig = await Rig.StartAsync(database, NovemberFourth);
+        await rig.SeedAsync(database, new SeedOrder("ORD-2025-0001", OrderStatus.Pending)
+        {
+            OrderDate = new DateOnly(2025, 12, 1),
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2025, 12, 31), 40.00m), new SeedMoney(new DateOnly(2026, 1, 1), 60.00m)],
+        });
+
+        var chart = await rig.ReadAsync(rig.Admin.AccessToken, "months=12");
+
+        chart.GetProperty("months").GetInt32().ShouldBe(12);
+        var items = Months(chart);
+        items.Count.ShouldBe(12);
+        items[0].ShouldBe(("2025-12", 40.00m, 0.00m, 40.00m));
+        items[1].ShouldBe(("2026-01", 60.00m, 0.00m, 60.00m));
+        items[^1].Month.ShouldBe("2026-11");
+    }
+
+    [Fact]
+    public async Task NoMonthsParameterMeansSix()
+    {
+        await using var rig = await Rig.StartAsync(database, NovemberFourth);
+
+        var chart = await rig.ReadAsync(rig.Manager.AccessToken, string.Empty);
+
+        chart.GetProperty("months").GetInt32().ShouldBe(6);
+        Months(chart).Select(item => item.Month).ShouldBe(["2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11"]);
+    }
+
+    [Theory]
+    [InlineData("7")]
+    [InlineData("0")]
+    [InlineData("-6")]
+    [InlineData("1000")]
+    [InlineData("abc")]
+    public async Task AnyWindowOtherThanSixOrTwelveIsA400OnMonths(string months)
+    {
+        await using var rig = await Rig.StartAsync(database, NovemberFourth);
+
+        using var response = await rig.GetAsync(rig.Manager.AccessToken, $"months={months}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        ExpenseFixtures.ErrorFields(problem).ShouldBe(["months"]);
+        ExpenseFixtures.FieldErrors(problem, "months").ShouldBe(["Choose 6 or 12 months."]);
+    }
+
+    [Fact]
+    public async Task TheCurrentMonthsIncomeEqualsCollectedThisMonthFromTheSummaryAtTheSamePinnedInstant()
+    {
+        await using var rig = await Rig.StartAsync(database, NovemberFourth);
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2026, 11, 1), 700.00m), new SeedMoney(new DateOnly(2026, 10, 2), 400.00m)],
+            Refunds = [new SeedMoney(new DateOnly(2026, 11, 3), 120.00m)],
+        });
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0002", OrderStatus.Cancelled)
+        {
+            Payments = [new SeedMoney(new DateOnly(2026, 11, 4), 200.00m)],
+            Refunds = [new SeedMoney(new DateOnly(2026, 11, 2), 50.00m)],
+        });
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0003", OrderStatus.Pending)
+        {
+            Payments = [new SeedMoney(new DateOnly(2026, 11, 2), 999.00m)],
+            Deleted = true,
+        });
+
+        var chart = await rig.ReadAsync(rig.Manager.AccessToken, "months=6");
+        var summary = await rig.ReadSummaryAsync(rig.Manager.AccessToken);
+
+        var collected = summary.GetProperty("collected").GetProperty("thisMonth").GetDecimal();
+        collected.ShouldBe(730.00m);
+        Months(chart)[^1].Income.ShouldBe(collected);
+    }
+
+    [Fact]
+    public async Task CancelledOrderMoneyCountsDeletedMoneyDoesNotAndAnExpenseLaterThisMonthCounts()
+    {
+        await using var rig = await Rig.StartAsync(database, NovemberFourth);
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0001", OrderStatus.Cancelled)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2026, 11, 2), 300.00m)],
+            Expenses = [new SeedMoney(new DateOnly(2026, 11, 3), 20.00m)],
+        });
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0002", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2026, 11, 2), 5000.00m)],
+            Refunds = [new SeedMoney(new DateOnly(2026, 11, 2), 4000.00m)],
+            Expenses = [new SeedMoney(new DateOnly(2026, 11, 2), 900.00m)],
+            Deleted = true,
+        });
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 11, 3), 600.00m, deleted: true);
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 11, 25), 80.00m);
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 12, 2), 90.00m);
+
+        var chart = await rig.ReadAsync(rig.Admin.AccessToken, "months=6");
+
+        Months(chart)[^1].ShouldBe(("2026-11", 300.00m, 100.00m, 200.00m));
+        Months(chart).Sum(item => item.Expenses).ShouldBe(100.00m);
+    }
+
+    [Fact]
+    public async Task AtFebruaryTenthSixMonthsRunSeptember2025ToFebruary2026()
+    {
+        await using var rig = await Rig.StartAsync(database, new DateTimeOffset(2026, 2, 10, 2, 0, 0, TimeSpan.Zero));
+        await rig.SeedAsync(database, new SeedOrder("ORD-2025-0001", OrderStatus.Pending)
+        {
+            OrderDate = new DateOnly(2025, 9, 1),
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2025, 8, 31), 1.00m), new SeedMoney(new DateOnly(2025, 9, 1), 5.00m), new SeedMoney(new DateOnly(2026, 2, 9), 7.00m)],
+        });
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 2, 28), 12.00m);
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 3, 1), 99.00m);
+
+        var chart = await rig.ReadAsync(rig.Admin.AccessToken, "months=6");
+
+        Months(chart).ShouldBe(
+        [
+            ("2025-09", 5.00m, 0.00m, 5.00m),
+            ("2025-10", 0.00m, 0.00m, 0.00m),
+            ("2025-11", 0.00m, 0.00m, 0.00m),
+            ("2025-12", 0.00m, 0.00m, 0.00m),
+            ("2026-01", 0.00m, 0.00m, 0.00m),
+            ("2026-02", 7.00m, 12.00m, -5.00m),
+        ]);
+    }
+
     private static List<(string Month, decimal Income, decimal Expenses, decimal Profit)> Months(JsonElement chart) =>
     [
         .. chart.GetProperty("items").EnumerateArray().Select(item => (
@@ -139,6 +272,15 @@ public sealed class DashboardChartEndpointTests(CspsDatabase database) : IClassF
         public async Task<JsonElement> ReadAsync(string accessToken, string query)
         {
             using var response = await GetAsync(accessToken, query);
+            var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+            return JsonSerializer.Deserialize<JsonElement>(text, Web);
+        }
+
+        public async Task<JsonElement> ReadSummaryAsync(string accessToken)
+        {
+            using var request = ApiRequests.Get("/api/v1/dashboard/summary", accessToken);
+            using var response = await Client.SendAsync(request, TestContext.Current.CancellationToken);
             var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
             return JsonSerializer.Deserialize<JsonElement>(text, Web);
