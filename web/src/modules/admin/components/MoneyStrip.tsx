@@ -3,6 +3,7 @@
 // "Your money on hand" over the caller's own figure from the server, and View Ledger. Plan 10-15 puts Transfer before it through
 // `actions`. The strip works out nothing: the figure is the server's, in the danger tone below zero and dimmed at ₱0.00. It reads
 // its own query, so a failed read leaves the rest of the dashboard alone, and View Ledger works whatever the state.
+// Phones (money.recipe.ts): the tile is hidden, the figure stays on one line (whitespace-nowrap) and the buttons wrap to their own row.
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { Button, ButtonLink } from '@/components/actions';

@@ -2,6 +2,7 @@
 // figure from the server at the large size, and a line that says what the figure is made of. The card works out nothing. A balance
 // below zero is danger-toned with the true minus sign, ₱0.00 is dimmed. It owns its loading and failure states; plan 10-19 puts the
 // same card on one person's page for a Manager.
+import clsx from 'clsx';
 import { Money, overlineClasses } from '@/components/money';
 import { Skeleton } from '@/components/feedback';
 import { ErrorState, LoadingRegion } from '@/components/states';
@@ -9,14 +10,17 @@ import {
   moneyCardBodyClasses,
   moneyCardClasses,
   moneyCardExplanationClasses,
+  moneyCardLongFigureClasses,
   moneyCardStateClasses,
   moneyCardZeroClasses,
 } from '@/modules/admin/components/money.recipe';
 import type { MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
-import { isNegativeMoney, round2 } from '@/utils/csps';
+import { formatPeso, isNegativeMoney, round2 } from '@/utils/csps';
 
 const COPY = MONEY_COPY.card;
+/** A figure this long (₱100,000,000.00 and up) takes the card-width clamp so it stays inside the card (plan 06-18). */
+const LONG_FIGURE = 15;
 
 export interface MoneyOnHandCardProps {
   query: MyMoneyCardQuery;
@@ -51,7 +55,10 @@ export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
               amount={money.balance}
               size="lg"
               tone={isNegativeMoney(money.balance) ? 'danger' : undefined}
-              className={round2(money.balance) === 0 ? moneyCardZeroClasses : undefined}
+              className={clsx(
+                round2(money.balance) === 0 && moneyCardZeroClasses,
+                formatPeso(money.balance).length >= LONG_FIGURE && moneyCardLongFigureClasses,
+              )}
             />
           )}
         </LoadingRegion>

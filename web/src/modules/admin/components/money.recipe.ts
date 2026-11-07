@@ -51,8 +51,18 @@ export const moneyStripActionsClasses = tw(
 /** `.s-card` for the My Money balance card: full width, `min-width: 0` so a long figure never widens the page. */
 export const moneyCardClasses = clsx(cardClasses, tw('min-w-0'));
 
-/** `.s-card-b`: the card body, content left aligned, 20px padding, 8px between the overline, the figure and the line. */
-export const moneyCardBodyClasses = tw('flex flex-col items-start gap-2 p-5');
+/**
+ * `.s-card-b`: the card body, content left aligned, 20px padding, 8px between the overline, the figure and the line. It is the inline-size
+ * container the long-figure clamp below measures, as the KPI card is for its value.
+ */
+export const moneyCardBodyClasses = tw('@container flex flex-col items-start gap-2 p-5');
+
+/**
+ * The large figure when the formatted money has 15 characters or more (₱100,000,000.00 and up): the usual 40px is clamped to the card width
+ * so it stays inside the card at 320px, as the KPI cards do (plan 06-18). It is important because Money sets its own 40px. Shorter figures
+ * keep the large size.
+ */
+export const moneyCardLongFigureClasses = tw('text-[length:clamp(22px,13.5cqi,40px)]!');
 
 /** The zero dim of the large figure (D-39): colour only, as the KPI cards dim a zero. */
 export const moneyCardZeroClasses = tw('text-ink-subtle');

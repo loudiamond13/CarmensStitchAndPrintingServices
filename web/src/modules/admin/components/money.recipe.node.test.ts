@@ -60,7 +60,7 @@ describe('money recipe', () => {
   it('shrinks a very large My Money figure with the card width, and the clamp wins over the large size', () => {
     const token = 'text-[length:clamp(22px,13.5cqi,40px)]!';
     expect(recipeTokens.map((entry) => entry.token)).toContain(token);
-    expect(ruleOf(token)).toContain('clamp(22px,13.5cqi,40px)');
+    expect(ruleOf(token)).toContain('font-size: clamp(22px, 13.5cqi, 40px)');
     expect(ruleOf(token)).toContain('!important');
   });
 
