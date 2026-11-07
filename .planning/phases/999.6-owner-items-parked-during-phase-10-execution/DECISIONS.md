@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T06:23:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T08:15:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -46,10 +46,10 @@ WebKit reports a request that a page navigation cancels as a page error ("due to
 
 ## P10-BL-06 · Dashboard figures on a 320 px phone (wave 4 review WR-01)
 
-**Status:** open · **Blocks:** nothing now; one e2e check ("every KPI figure fits inside its card at 320px" in `web/e2e/dashboard.spec.ts`) is `test.fixme` until you choose.
+**Status:** open · **Blocks:** the browser test gate. In the full browser run (2026-11-07) the dashboard scrolls sideways at 320 px on Firefox, WebKit and iPhone (page 347 px wide in a 320 px window). Two checks fail until you choose: `admin.spec.ts` "switches from the phone tab bar ..." (its 320 px no-sideways-scroll step) and `dashboard.spec.ts` "does not scroll sideways at 320px with a six-digit Collected figure". They are left failing on purpose, not switched off. A third check ("every KPI figure fits inside its card at 320px") is `test.fixme`.
 
-On phones the four dashboard figures sit in a 2 x 2 grid, as the UI spec says. The UI spec's 24 px phone size is now applied. At 320 px wide, each card has 104 px for its figure, but a six-digit amount needs more: ₱58,517.50 needs 110 px and ₱126,450.00 needs 122 px. The figure runs 6 to 18 px into the card's padding. The page itself does not scroll sideways (that is tested and passes). At 390 px and wider the figures fit.
+On phones the four dashboard figures sit in a 2 x 2 grid, as the UI spec says. The UI spec's 24 px phone size is now applied. At 320 px wide, each card has 104 px for its figure, but a six-digit amount needs more: ₱58,517.50 needs 110 px and ₱126,450.00 needs 122 px. The figure runs 6 to 18 px into the card's padding. With the smaller figures of a short test run the page did not scroll sideways, but with the larger figures that build up during a full run it does, which breaks the project rule of no sideways scroll from 320 px. At 390 px and wider the figures fit.
 
 - **A (recommended):** one column on small phones (420 px and below), as the Expenses figures already do. Every figure fits at full size. The dashboard gets longer on a phone.
 - **B:** keep 2 x 2 and shrink six-digit figures on small phones (about 20 px). The figures stay side by side but are smaller to read.
-- **C:** accept the overflow into the padding. Nothing is cut off, but the figure touches the card edge.
+- **C:** let a long figure wrap onto a second line inside its card (for example after the peso sign). The grid stays 2 x 2 at full size, but some cards get taller. (Simply accepting the overflow is no longer an option: it makes the page scroll sideways.)
