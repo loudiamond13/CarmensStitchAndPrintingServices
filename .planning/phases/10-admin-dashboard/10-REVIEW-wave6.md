@@ -1,7 +1,7 @@
 ---
 phase: 10-admin-dashboard
 created: 2026-11-07T15:41:00-05:00
-updated: 2026-11-07T15:55:00-05:00
+updated: 2026-11-07T16:45:00-05:00
 reviewed: 2026-11-07T15:41:00-05:00
 scope: "wave 6: plan 10-12 and plan 10-13 (git diff 8f2dd1ff..6ce241cc), .planning/ excluded"
 depth: standard
@@ -251,11 +251,11 @@ _Depth: standard_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now: one loading region stays mounted in the strip and the card, so Try Again announces loading and then loaded (the wave 5 WR-02 pattern). |
-| IN-01 | Fix now: `toFiniteFigure` accepts only plain decimal text (optional minus, digits, optional fraction). |
-| IN-02 | Fix now, no visual or copy change: each section points at its existing visible label with `aria-labelledby`. Whether the label becomes an `h2` is left to the plan 10-21 UI review. |
+| WR-01 | Fixed (`028912f2`, `eda67d32`): one loading region stays mounted in the strip and the card, so Try Again says loading and then loaded, both after a first failed read and after a later failure over a good figure. Tests failed first (3 of 48); a mutation of the loading rule failed the later-failure tests. No new wording. |
+| IN-01 | Fixed (`c3c14dc1`, `709fee1f`): `toFiniteFigure` reads text only as plain decimal; hex, binary, octal, exponent, `+12`, `12.` and `.5` are refused. Tests failed first (7 of 26). |
+| IN-02 | Fixed (`aad7e031`, `a036fcc1`): each section is named by its visible label through `aria-labelledby`; no visual or copy change. Tests failed first (2 of 50). Heading choice stays with the plan 10-21 UI review. |
 | IN-03 | Deferred to plan 10-15 (the transfer and hand-over windows): filter the list to the right people per window; type `status` as a union in the contract if 10-15 regenerates it. |
-| IN-04 | Fix now: remove the unused `StaffPerson.Role` and `IsManagerLocked`, and make `FromPerson` refuse the legacy holder itself. |
+| IN-04 | Fixed (`35ed62f3`, `1122524e`): `StaffPerson` drops `Role` and `IsManagerLocked`; `FromPerson` refuses the legacy holder itself. Tests failed first (2 of 8). |
 | IN-05 | Parked for the owner: P10-BL-09 (whether deactivate, activate and delete take the staff-money lock). |
-| IN-06 | Fix now: a test that fails if the audit entry is written after the save. |
+| IN-06 | Fixed (`663516a3`): a guard test checks that the audit entry is added before the save; moving the audit call after the save failed only this test, then the code was restored. |
 | IN-07 | Covered by the orchestrator's full browser run after these fixes. The parity snapshot baseline stays deferred to a CI or quiet-machine run (10-13 coverage item D7). |
