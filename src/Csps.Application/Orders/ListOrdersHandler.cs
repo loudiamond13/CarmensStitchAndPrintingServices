@@ -52,45 +52,7 @@ public sealed class ListOrdersHandler(
             request.PageSize);
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var page = await reader.ListAsync(query, clock.UtcNow, cancellationToken).ConfigureAwait(false);
-        IReadOnlyList<OrderListEntry> items =
-        [
-            .. page.Items.Select(row => new OrderListEntry(
-                row.Id,
-                row.Number,
-                row.CustomerName,
-                row.TeamName,
-                row.OrderDate,
-                row.DueDate,
-                OrderStatusNames.ToKey(row.Status),
-                row.StatusChangedAtUtc,
-                row.Subtotal,
-                row.Discount,
-                row.Total,
-                row.Paid,
-                row.Refunded,
-                row.Balance,
-                row.CustomerCredit,
-                row.FullyPaid,
-                row.Pieces,
-                row.ImageCount,
-                CoverOf(row))),
-        ];
+        IReadOnlyList<OrderListEntry> items = [.. page.Items.Select(row => OrderListEntries.From(row, imageDelivery))];
         return Result.Success(new OrderListResponse(items, page.Total, request.Page, request.PageSize, page.AllOrders, page.ActiveOrders, clock.Today));
-    }
-
-    // The addresses are built per row at read time; an order with no photo has no cover.
-    private OrderCoverResponse? CoverOf(OrderListRow row)
-    {
-        if (row.CoverPublicId is not { } publicId || row.CoverWidth is not { } width || row.CoverHeight is not { } height)
-        {
-            return null;
-        }
-
-        var urls = imageDelivery.ForCover(publicId, width, height);
-        return new OrderCoverResponse(
-            new ImageSourceResponse(urls.Card.Src, urls.Card.SrcSet),
-            new ImageSourceResponse(urls.Table.Src, urls.Table.SrcSet),
-            width,
-            height);
     }
 }
