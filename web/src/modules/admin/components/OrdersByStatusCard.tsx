@@ -69,40 +69,44 @@ export function OrdersByStatusCard({ query }: OrdersByStatusCardProps) {
         />
       </div>
     );
-  } else if (summary === undefined || counts === null) {
-    body = (
-      <LoadingRegion loading things={COPY.things}>
-        <div className={statusListClasses}>
-          {ROWS.map((row) => (
-            <SkeletonText key={row} lines={1} />
-          ))}
-        </div>
-      </LoadingRegion>
-    );
-  } else if (largest === 0) {
-    body = <EmptyState icon="clipboard-list" level={3} title={COPY.emptyTitle} message={COPY.emptyMessage} />;
   } else {
+    // One region stays mounted from loading to loaded, so its status node can say the counts arrived.
     body = (
-      <>
-        <ul className={statusListClasses}>
-          {ROWS.map((row, index) => (
-            <li key={row} className={statusRowClasses}>
-              <span>
-                <StatusBadge status={row} />
-                {row === 'completed' && <span className={srOnlyClasses}>{COPY.thisMonth}</span>}
-              </span>
-              <span className={statusTrackClasses} aria-hidden="true">
-                <span className={statusFillClasses[row]} style={{ '--bar-w': barWidth(counts[index] ?? 0, largest) }} />
-              </span>
-              <strong className={statusCountClasses}>{formatCount(counts[index] ?? 0)}</strong>
-            </li>
-          ))}
-        </ul>
-        <div className={statusTotalClasses}>
-          <span>{COPY.activeLabel}</span>
-          <strong className={statusTotalFigureClasses}>{COPY.orders(toNumber(summary.orders.active))}</strong>
-        </div>
-      </>
+      <LoadingRegion loading={summary === undefined} things={COPY.things}>
+        {summary === undefined || counts === null ? (
+          <div className={statusListClasses}>
+            {ROWS.map((row) => (
+              <SkeletonText key={row} lines={1} />
+            ))}
+          </div>
+        ) : largest === 0 ? (
+          <EmptyState icon="clipboard-list" level={3} title={COPY.emptyTitle} message={COPY.emptyMessage} />
+        ) : (
+          <>
+            <ul className={statusListClasses}>
+              {ROWS.map((row, index) => (
+                <li key={row} className={statusRowClasses}>
+                  <span>
+                    <StatusBadge status={row} />
+                    {row === 'completed' && <span className={srOnlyClasses}>{COPY.thisMonth}</span>}
+                  </span>
+                  <span className={statusTrackClasses} aria-hidden="true">
+                    <span
+                      className={statusFillClasses[row]}
+                      style={{ '--bar-w': barWidth(counts[index] ?? 0, largest) }}
+                    />
+                  </span>
+                  <strong className={statusCountClasses}>{formatCount(counts[index] ?? 0)}</strong>
+                </li>
+              ))}
+            </ul>
+            <div className={statusTotalClasses}>
+              <span>{COPY.activeLabel}</span>
+              <strong className={statusTotalFigureClasses}>{COPY.orders(toNumber(summary.orders.active))}</strong>
+            </div>
+          </>
+        )}
+      </LoadingRegion>
     );
   }
 
