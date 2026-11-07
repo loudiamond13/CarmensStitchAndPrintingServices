@@ -12,7 +12,7 @@ namespace Csps.Infrastructure.Money;
 /// <see cref="IStaffMoneyReader"/> over EF: one untracked statement over the asked people with six correlated sums (MONEY-01). Payments,
 /// refunds and order expenses carry the named SoftDelete filter of their order, and company expenses their own, so money of a deleted
 /// order or a deleted expense never counts. Deleted transfers are left out by <see cref="CountedTransfers"/>, and the legacy holder is
-/// never read (D-37). Nothing is stored or cached.
+/// never read (07 D-37). Nothing is stored or cached.
 /// </summary>
 internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReader
 {
