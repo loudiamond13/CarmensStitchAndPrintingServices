@@ -1,0 +1,48 @@
+using Csps.Application.Auth;
+using Csps.Application.Ports;
+using Csps.Domain.Common;
+using Csps.Domain.Time;
+
+namespace Csps.Application.Dashboard;
+
+/// <summary>
+/// Use case: staff of either role read the dashboard summary (DASH-01). One clock read gives the business today, the greeting part
+/// and the period, so one answer is one consistent snapshot. The first name is read for the token's user, never from the request.
+/// </summary>
+/// <param name="reader">The dashboard read port.</param>
+/// <param name="requestContext">The signed-in user.</param>
+/// <param name="calendar">The business calendar.</param>
+public sealed class GetDashboardSummaryHandler(IDashboardReader reader, IRequestContext requestContext, IBusinessCalendar calendar)
+{
+    /// <summary>Reads the summary.</summary>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>The summary, or a 401 when the token names no usable account.</returns>
+    public async Task<Result<DashboardSummaryResponse>> HandleAsync(CancellationToken cancellationToken)
+    {
+        if (requestContext.UserId is not { } callerId)
+        {
+            return Result.Failure<DashboardSummaryResponse>(AuthErrors.SessionEnded);
+        }
+
+        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
+        var period = DashboardPeriod.From(clock);
+        var figures = await reader.GetSummaryAsync(callerId, period, cancellationToken).ConfigureAwait(false);
+        if (figures.FirstName is not { } firstName)
+        {
+            return Result.Failure<DashboardSummaryResponse>(AuthErrors.SessionEnded);
+        }
+
+        return Result.Success(new DashboardSummaryResponse(
+            period.Today,
+            GreetingOf(clock.DayPart),
+            firstName,
+            new DashboardOrderFigures(figures.ActiveOrders)));
+    }
+
+    private static string GreetingOf(DayPart part) => part switch
+    {
+        DayPart.Morning => "morning",
+        DayPart.Afternoon => "afternoon",
+        _ => "evening",
+    };
+}

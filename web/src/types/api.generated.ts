@@ -407,6 +407,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the dashboard summary: the business today, the part of the day for the greeting (`morning`, `afternoon` or
+         *     `evening`), the signed-in person's first name and the order figures. Both roles get the same figures; only the first name
+         *     and the greeting can differ. Nothing is cached, so every visit shows live numbers.
+         */
+        get: operations["GetDashboardSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-categories": {
         parameters: {
             query?: never;
@@ -2294,6 +2315,28 @@ export interface components {
              * @description The new account id.
              */
             id: string;
+        };
+        /** @description The order figures of the dashboard cards. */
+        DashboardOrderFigures: {
+            /**
+             * Format: int32
+             * @description Orders in Pending, Mockup, In Production, Ready or Delivered; deleted orders never count.
+             */
+            active: number | string;
+        };
+        /** @description Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ. */
+        DashboardSummaryResponse: {
+            /** @description The signed-in person's first name. */
+            firstName: string;
+            /** @description The part of the business day: `morning`, `afternoon` or `evening`. */
+            greeting: string;
+            /** @description The order figures. */
+            orders: components["schemas"]["DashboardOrderFigures"];
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
         };
         /** @description One deleted expense in the deleted list. It carries no notes (D-19). */
         DeletedExpenseListItem: {
@@ -4961,6 +5004,35 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetDashboardSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

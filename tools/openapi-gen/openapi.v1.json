@@ -1262,6 +1262,53 @@
         ],
         "type": "object"
       },
+      "DashboardOrderFigures": {
+        "description": "The order figures of the dashboard cards.",
+        "properties": {
+          "active": {
+            "description": "Orders in Pending, Mockup, In Production, Ready or Delivered; deleted orders never count.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "active"
+        ],
+        "type": "object"
+      },
+      "DashboardSummaryResponse": {
+        "description": "Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ.",
+        "properties": {
+          "firstName": {
+            "description": "The signed-in person's first name.",
+            "type": "string"
+          },
+          "greeting": {
+            "description": "The part of the business day: `morning`, `afternoon` or `evening`.",
+            "type": "string"
+          },
+          "orders": {
+            "$ref": "#/components/schemas/DashboardOrderFigures",
+            "description": "The order figures."
+          },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "today",
+          "greeting",
+          "firstName",
+          "orders"
+        ],
+        "type": "object"
+      },
       "DeletedExpenseListItem": {
         "description": "One deleted expense in the deleted list. It carries no notes (D-19).",
         "properties": {
@@ -6591,6 +6638,37 @@
         "summary": "Restores a deleted expense, Managers only: it counts again in the list, its total, the month KPIs and the detail. Last changed by\nis the Manager who restored it. Restoring an expense that is not deleted is a 204 that changes and records nothing. It takes no\nversion, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "CompanyExpenses"
+        ]
+      }
+    },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "operationId": "GetDashboardSummary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the dashboard summary: the business today, the part of the day for the greeting (`morning`, `afternoon` or\n`evening`), the signed-in person's first name and the order figures. Both roles get the same figures; only the first name\nand the greeting can differ. Nothing is cached, so every visit shows live numbers.",
+        "tags": [
+          "Dashboard"
         ]
       }
     },
@@ -13700,6 +13778,9 @@
     },
     {
       "name": "CompanyExpenses"
+    },
+    {
+      "name": "Dashboard"
     },
     {
       "name": "ExpenseCategories"
