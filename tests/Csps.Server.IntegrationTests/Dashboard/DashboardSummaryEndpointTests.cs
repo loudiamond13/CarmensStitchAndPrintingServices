@@ -112,6 +112,53 @@ public sealed class DashboardSummaryEndpointTests(CspsDatabase database) : IClas
     }
 
     [Fact]
+    public async Task TheStatusesListSixEntriesInFixedOrderAndTheRecentOrdersHoldTheSixNewestCreated()
+    {
+        await using var rig = await Rig.StartAsync(database, NineThirtyManila);
+        var created = new DateTimeOffset(2026, 11, 2, 3, 0, 0, TimeSpan.Zero);
+        var statuses = new[]
+        {
+            OrderStatus.Pending, OrderStatus.Pending, OrderStatus.Mockup, OrderStatus.InProduction,
+            OrderStatus.Ready, OrderStatus.Delivered, OrderStatus.Completed, OrderStatus.Cancelled,
+        };
+        for (var index = 0; index < statuses.Length; index++)
+        {
+            await rig.SeedAsync(database, new SeedOrder($"ORD-2026-{index + 1:D4}", statuses[index])
+            {
+                CreatedAtUtc = created.AddMinutes(index),
+                StatusChangedAtUtc = statuses[index] == OrderStatus.Completed ? new DateTimeOffset(2026, 11, 3, 3, 0, 0, TimeSpan.Zero) : null,
+            });
+        }
+
+        var summary = await rig.ReadAsync(rig.Manager.AccessToken);
+
+        var listed = summary.GetProperty("statuses").EnumerateArray().Select(entry => (entry.GetProperty("status").GetString(), entry.GetProperty("count").GetInt32())).ToList();
+        listed.ShouldBe([("pending", 2), ("mockup", 1), ("production", 1), ("ready", 1), ("delivered", 1), ("completed", 1)]);
+        var recent = summary.GetProperty("recentOrders").EnumerateArray().ToList();
+        recent.Select(order => order.GetProperty("number").GetString()).ShouldBe(["ORD-2026-0008", "ORD-2026-0007", "ORD-2026-0006", "ORD-2026-0005", "ORD-2026-0004", "ORD-2026-0003"]);
+        recent[0].GetProperty("status").GetString().ShouldBe("cancelled");
+        recent[0].GetProperty("balance").GetDecimal().ShouldBe(1000.00m);
+        recent[0].GetProperty("cover").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task AnAdminAndAManagerGetTheSameFiguresStatusesAndRecentOrdersAtTheSameInstant()
+    {
+        await using var rig = await Rig.StartAsync(database, NineThirtyManila);
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { DueDate = new DateOnly(2026, 11, 5), Payments = [new SeedMoney(new DateOnly(2026, 11, 3), 250.00m)] });
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0002", OrderStatus.Delivered) { DueDate = new DateOnly(2026, 11, 2) });
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 11, 3), ExpenseFixtures.SuppliesId, 500.00m);
+
+        var forAdmin = await rig.ReadAsync(rig.Admin.AccessToken);
+        var forManager = await rig.ReadAsync(rig.Manager.AccessToken);
+
+        foreach (var name in new[] { "today", "orders", "collected", "expenses", "statuses", "recentOrders" })
+        {
+            forAdmin.GetProperty(name).GetRawText().ShouldBe(forManager.GetProperty(name).GetRawText(), name);
+        }
+    }
+
+    [Fact]
     public async Task WithNoComparisonMoneyThePercentIsNullAndWithNoExpensesThereIsNoTopCategory()
     {
         await using var rig = await Rig.StartAsync(database, NineThirtyManila);

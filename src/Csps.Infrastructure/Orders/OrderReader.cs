@@ -74,6 +74,9 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         return new OrderListPage(rows, total, counts?.All ?? 0, counts?.Active ?? 0);
     }
 
+    public Task<IReadOnlyList<OrderListRow>> ListNewestAsync(int count, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<OrderListRow>>([]);
+
     // The statuses, the search, the order dates, the product type and the balance. A typed wildcard stays literal (CWE-943).
     private IQueryable<Order> Filter(IQueryable<Order> orders, OrderListQuery query, DateTimeOffset now)
     {

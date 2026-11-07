@@ -1,7 +1,10 @@
 using Csps.Application.Auth;
 using Csps.Application.Dashboard;
 using Csps.Application.Expenses;
+using Csps.Application.Images;
+using Csps.Application.Orders;
 using Csps.Application.Ports;
+using Csps.Domain.Orders;
 using Csps.Domain.Time;
 using NSubstitute;
 
@@ -130,7 +133,7 @@ public sealed class GetDashboardSummaryHandlerTests
     [Fact]
     public async Task TheOrderAndMoneyFiguresOfThePortAreCarriedToTheAnswer()
     {
-        var harness = new Harness { Figures = new DashboardFigures("Carmen", 9, 4, 2, 1234.50m, 1125.00m, 1000.00m) };
+        var harness = new Harness { Figures = new DashboardFigures("Carmen", 9, 4, 2, 1234.50m, 1125.00m, 1000.00m, new DashboardStatusCounts(0, 0, 0, 0, 0, 0)) };
 
         var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
 
@@ -158,6 +161,59 @@ public sealed class GetDashboardSummaryHandlerTests
         result.Value.Expenses.ShouldBe(new DashboardExpenseFigures(0m, 0, null));
     }
 
+    [Fact]
+    public async Task TheStatusesAreTheSixShownOnesInFixedOrderWithTheirKeysAndNothingMore()
+    {
+        var harness = new Harness { Figures = FiguresOf() with { Statuses = new DashboardStatusCounts(3, 1, 4, 2, 5, 7) } };
+
+        var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.Statuses.ShouldBe(
+        [
+            new DashboardStatusCount("pending", 3),
+            new DashboardStatusCount("mockup", 1),
+            new DashboardStatusCount("production", 4),
+            new DashboardStatusCount("ready", 2),
+            new DashboardStatusCount("delivered", 5),
+            new DashboardStatusCount("completed", 7),
+        ]);
+    }
+
+    [Fact]
+    public async Task TheSixNewestOrdersAreAskedForAndShapedLikeOrderListEntriesWithTheirCovers()
+    {
+        var harness = new Harness
+        {
+            Newest =
+            [
+                RowOf("ORD-2026-0009", OrderStatus.Delivered),
+                RowOf("ORD-2026-0008", OrderStatus.Completed) with { ImageCount = 2, CoverPublicId = "csps/orders/abc123", CoverWidth = 4000, CoverHeight = 3000 },
+            ],
+        };
+        harness.Delivery.ForCover("csps/orders/abc123", 4000, 3000).Returns(
+            new CoverUrls(new ImageSource("/card.jpg", "/card.jpg 640w"), new ImageSource("/table.jpg", "/table.jpg 1x")));
+
+        var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        await harness.Orders.Received(1).ListNewestAsync(6, Arg.Any<CancellationToken>());
+        result.Value.RecentOrders.Select(entry => (entry.Number, entry.Status)).ShouldBe([("ORD-2026-0009", "delivered"), ("ORD-2026-0008", "completed")]);
+        result.Value.RecentOrders[0].Cover.ShouldBeNull();
+        result.Value.RecentOrders[1].Cover.ShouldBe(new OrderCoverResponse(new ImageSourceResponse("/card.jpg", "/card.jpg 640w"), new ImageSourceResponse("/table.jpg", "/table.jpg 1x"), 4000, 3000));
+    }
+
+    [Fact]
+    public async Task WithNoOrdersTheRecentListIsEmpty()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.RecentOrders.ShouldBeEmpty();
+    }
+
+    private static OrderListRow RowOf(string number, OrderStatus status) =>
+        new(Guid.NewGuid(), number, "Juan Dela Cruz", null, new DateOnly(2026, 11, 1), null, status, Wednesday, 100.00m, 0.00m, 100.00m, 0.00m, 0.00m, 100.00m, 0.00m, false, 2, 0, null, null, null);
+
     private static DashboardFigures FiguresOf(string thisMonth = "0.00", string comparison = "0.00") =>
         new(
             "Carmen",
@@ -166,7 +222,8 @@ public sealed class GetDashboardSummaryHandlerTests
             0,
             0m,
             decimal.Parse(thisMonth, System.Globalization.CultureInfo.InvariantCulture),
-            decimal.Parse(comparison, System.Globalization.CultureInfo.InvariantCulture));
+            decimal.Parse(comparison, System.Globalization.CultureInfo.InvariantCulture),
+            new DashboardStatusCounts(0, 0, 0, 0, 0, 0));
 
     private sealed class Harness
     {
@@ -176,7 +233,10 @@ public sealed class GetDashboardSummaryHandlerTests
             Expenses = Substitute.For<ICompanyExpenseReader>();
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new GetDashboardSummaryHandler(Reader, Expenses, request, new FixedCalendar(now ?? Wednesday));
+            Orders = Substitute.For<IOrderReader>();
+            Orders.ListNewestAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Newest));
+            Delivery = Substitute.For<IImageDelivery>();
+            Handler = new GetDashboardSummaryHandler(Reader, Orders, Expenses, Delivery, request, new FixedCalendar(now ?? Wednesday));
             Reader.GetSummaryAsync(Arg.Any<Guid>(), Arg.Any<DashboardPeriod>(), Arg.Any<CancellationToken>())
                 .Returns(call =>
                 {
@@ -191,6 +251,10 @@ public sealed class GetDashboardSummaryHandlerTests
 
         public IDashboardReader Reader { get; }
 
+        public IOrderReader Orders { get; }
+
+        public IImageDelivery Delivery { get; }
+
         public ICompanyExpenseReader Expenses { get; }
 
         public GetDashboardSummaryHandler Handler { get; }
@@ -202,6 +266,8 @@ public sealed class GetDashboardSummaryHandlerTests
         public DashboardFigures Figures { get; set; } = FiguresOf();
 
         public ExpenseKpiTotals Totals { get; set; } = new(0m, 0, 0m, 0, null, 0m);
+
+        public IReadOnlyList<OrderListRow> Newest { get; set; } = [];
     }
 
     private sealed class FixedCalendar(DateTimeOffset now) : IBusinessCalendar

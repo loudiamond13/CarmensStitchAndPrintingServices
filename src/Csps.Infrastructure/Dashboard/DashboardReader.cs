@@ -79,6 +79,7 @@ internal sealed class DashboardReader(CspsDbContext context) : IDashboardReader
             orders?.Overdue ?? 0,
             orders?.Receivables ?? 0m,
             (payments?.ThisMonth ?? 0m) - (refunds?.ThisMonth ?? 0m),
-            (payments?.Comparison ?? 0m) - (refunds?.Comparison ?? 0m));
+            (payments?.Comparison ?? 0m) - (refunds?.Comparison ?? 0m),
+            new DashboardStatusCounts(0, 0, 0, 0, 0, 0));
     }
 }

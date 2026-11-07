@@ -1,3 +1,5 @@
+using Csps.Application.Orders;
+
 namespace Csps.Application.Dashboard;
 
 /// <summary>The order figures of the dashboard cards.</summary>
@@ -20,6 +22,11 @@ public sealed record DashboardCollectedFigures(decimal ThisMonth, decimal Compar
 /// <param name="TopCategory">The name of the category with the most money this month, ties to the alphabetically first name; null with no expenses.</param>
 public sealed record DashboardExpenseFigures(decimal ThisMonth, int Count, string? TopCategory);
 
+/// <summary>One status of the orders-by-status bar.</summary>
+/// <param name="Status">The status key: <c>pending</c>, <c>mockup</c>, <c>production</c>, <c>ready</c>, <c>delivered</c> or <c>completed</c>.</param>
+/// <param name="Count">Pending to Delivered: orders now in the status. Completed: orders moved to Completed in this business month.</param>
+public sealed record DashboardStatusCount(string Status, int Count);
+
 /// <summary>Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ.</summary>
 /// <param name="Today">The business today, so the browser never reads the device clock for it.</param>
 /// <param name="Greeting">The part of the business day: <c>morning</c>, <c>afternoon</c> or <c>evening</c>.</param>
@@ -27,10 +34,14 @@ public sealed record DashboardExpenseFigures(decimal ThisMonth, int Count, strin
 /// <param name="Orders">The order figures.</param>
 /// <param name="Collected">The money collected this month.</param>
 /// <param name="Expenses">The company expenses this month.</param>
+/// <param name="Statuses">Exactly six entries in this order: pending, mockup, production, ready, delivered, completed. Cancelled is never listed.</param>
+/// <param name="RecentOrders">The 6 newest created orders of any status that are not deleted, newest first, in the order list entry shape.</param>
 public sealed record DashboardSummaryResponse(
     DateOnly Today,
     string Greeting,
     string FirstName,
     DashboardOrderFigures Orders,
     DashboardCollectedFigures Collected,
-    DashboardExpenseFigures Expenses);
+    DashboardExpenseFigures Expenses,
+    IReadOnlyList<DashboardStatusCount> Statuses,
+    IReadOnlyList<OrderListEntry> RecentOrders);

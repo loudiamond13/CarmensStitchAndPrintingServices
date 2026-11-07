@@ -2,7 +2,10 @@ using Csps.Application.Dashboard;
 using Csps.Application.Ports;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Dashboard;
+using Csps.Infrastructure.Images;
+using Csps.Infrastructure.Orders;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.IntegrationTests.Dashboard;
 
@@ -177,6 +180,87 @@ public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<
         figures.CollectedComparison.ShouldBe(0m);
     }
 
+    [Fact]
+    public async Task StatusesCountCurrentOrdersPerStatusAndCompletedOnlyInTheBusinessMonthByUtcRange()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Pending));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Mockup));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0004", OrderStatus.InProduction));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0005", OrderStatus.InProduction));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0006", OrderStatus.InProduction));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0007", OrderStatus.Ready));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0008", OrderStatus.Delivered));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0009", OrderStatus.Delivered));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0010", OrderStatus.Cancelled));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0011", OrderStatus.Pending) { Deleted = true });
+
+        // 00:30 on Nov 1 in the business zone is 16:30 UTC the day before: inside this month.
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0012", OrderStatus.Completed) { StatusChangedAtUtc = new DateTimeOffset(2026, 10, 31, 16, 30, 0, TimeSpan.Zero) });
+
+        // The month starts at exactly 16:00 UTC on Oct 31 and ends before the same hour on Nov 30.
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0013", OrderStatus.Completed) { StatusChangedAtUtc = new DateTimeOffset(2026, 10, 31, 16, 0, 0, TimeSpan.Zero) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0014", OrderStatus.Completed) { StatusChangedAtUtc = new DateTimeOffset(2026, 10, 31, 15, 59, 59, TimeSpan.Zero) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0015", OrderStatus.Completed) { StatusChangedAtUtc = new DateTimeOffset(2026, 10, 31, 2, 0, 0, TimeSpan.Zero) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0016", OrderStatus.Completed) { StatusChangedAtUtc = new DateTimeOffset(2026, 11, 30, 16, 0, 0, TimeSpan.Zero) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0017", OrderStatus.Completed) { StatusChangedAtUtc = new DateTimeOffset(2026, 11, 3, 12, 0, 0, TimeSpan.Zero), Deleted = true });
+
+        var figures = await rig.ReadAsync();
+
+        figures.Statuses.ShouldBe(new DashboardStatusCounts(Pending: 2, Mockup: 1, Production: 3, Ready: 1, Delivered: 2, CompletedThisMonth: 2));
+    }
+
+    [Fact]
+    public async Task TheNewestOrdersAreTheSixLatestCreatedOfAnyStatusNewestFirstAndLeaveOutDeletedOnes()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        var created = new DateTimeOffset(2026, 11, 1, 3, 0, 0, TimeSpan.Zero);
+        var ids = new List<Guid>();
+        var statuses = new[] { OrderStatus.Pending, OrderStatus.Completed, OrderStatus.Cancelled, OrderStatus.Delivered, OrderStatus.Ready, OrderStatus.Mockup, OrderStatus.InProduction, OrderStatus.Pending };
+        for (var index = 0; index < 8; index++)
+        {
+            ids.Add(await rig.SeedAsync(new SeedOrder($"ORD-2026-{index + 1:D4}", statuses[index]) { CreatedAtUtc = created.AddMinutes(index) }));
+        }
+
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0099", OrderStatus.Pending) { CreatedAtUtc = created.AddMinutes(30), Deleted = true });
+
+        var rows = await rig.ListNewestAsync(6);
+
+        rows.Select(row => row.Id).ShouldBe([ids[7], ids[6], ids[5], ids[4], ids[3], ids[2]]);
+        rows.Select(row => row.Status).ShouldBe([OrderStatus.Pending, OrderStatus.InProduction, OrderStatus.Mockup, OrderStatus.Ready, OrderStatus.Delivered, OrderStatus.Cancelled]);
+    }
+
+    [Fact]
+    public async Task TheNewestOrdersListEveryOrderWhenThereAreFewerThanAsked()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        var created = new DateTimeOffset(2026, 11, 1, 3, 0, 0, TimeSpan.Zero);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { CreatedAtUtc = created });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Completed) { CreatedAtUtc = created.AddMinutes(1) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Cancelled) { CreatedAtUtc = created.AddMinutes(2) });
+
+        var rows = await rig.ListNewestAsync(6);
+
+        rows.Select(row => row.Number).ShouldBe(["ORD-2026-0003", "ORD-2026-0002", "ORD-2026-0001"]);
+    }
+
+    [Fact]
+    public async Task TheNewestOrdersBreakACreationTieByIdDescending()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        var created = new DateTimeOffset(2026, 11, 1, 3, 0, 0, TimeSpan.Zero);
+        var first = await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { CreatedAtUtc = created });
+        var second = await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Pending) { CreatedAtUtc = created });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Pending) { CreatedAtUtc = created.AddMinutes(-5) });
+
+        var rows = await rig.ListNewestAsync(2);
+
+        // The database orders ids its own way, so the expected pair is asked of the database with the same sort.
+        var expected = await rig.IdsByDescendingIdAsync([first, second]);
+        rows.Select(row => row.Id).ShouldBe(expected);
+    }
+
     private static DateOnly Day(int month, int day) => new(2026, month, day);
 
     private sealed class Rig
@@ -204,6 +288,22 @@ public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<
         }
 
         public Task<Guid> SeedAsync(SeedOrder order) => OrderSeeding.AddAsync(_database, order, _staffId, _now);
+
+        public async Task<IReadOnlyList<OrderListRow>> ListNewestAsync(int count)
+        {
+            await using var context = _database.CreateContext();
+            return await new OrderReader(context, new FixedBusinessCalendar(_now), new TestingImageDelivery()).ListNewestAsync(count, TestContext.Current.CancellationToken);
+        }
+
+        public async Task<List<Guid>> IdsByDescendingIdAsync(IReadOnlyCollection<Guid> ids)
+        {
+            await using var context = _database.CreateContext();
+            return await context.Orders.AsNoTracking()
+                .Where(order => ids.Contains(order.Id))
+                .OrderByDescending(order => order.Id)
+                .Select(order => order.Id)
+                .ToListAsync(TestContext.Current.CancellationToken);
+        }
 
         public Task<DashboardFigures> ReadAsync() => ReadAsync(_staffId);
 

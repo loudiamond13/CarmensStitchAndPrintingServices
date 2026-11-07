@@ -21,6 +21,7 @@ public interface IDashboardReader
 /// <param name="Receivables">The sum of the positive balances of the active orders.</param>
 /// <param name="CollectedThisMonth">Payments minus refunds dated in this business month, on orders that are not deleted.</param>
 /// <param name="CollectedComparison">The same figure for the comparison dates of the period.</param>
+/// <param name="Statuses">The order count of each status the bar shows.</param>
 public sealed record DashboardFigures(
     string? FirstName,
     int ActiveOrders,
@@ -28,4 +29,14 @@ public sealed record DashboardFigures(
     int Overdue,
     decimal Receivables,
     decimal CollectedThisMonth,
-    decimal CollectedComparison);
+    decimal CollectedComparison,
+    DashboardStatusCounts Statuses);
+
+/// <summary>The order counts per status for the bar. Cancelled orders have no entry.</summary>
+/// <param name="Pending">Orders now in Pending.</param>
+/// <param name="Mockup">Orders now in Mockup.</param>
+/// <param name="Production">Orders now in In Production.</param>
+/// <param name="Ready">Orders now in Ready.</param>
+/// <param name="Delivered">Orders now in Delivered.</param>
+/// <param name="CompletedThisMonth">Orders moved to Completed inside the period's business month.</param>
+public sealed record DashboardStatusCounts(int Pending, int Mockup, int Production, int Ready, int Delivered, int CompletedThisMonth);

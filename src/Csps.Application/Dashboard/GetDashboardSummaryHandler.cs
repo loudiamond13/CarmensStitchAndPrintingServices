@@ -10,10 +10,18 @@ namespace Csps.Application.Dashboard;
 /// and the period, so one answer is one consistent snapshot. The first name is read for the token's user, never from the request.
 /// </summary>
 /// <param name="reader">The dashboard read port.</param>
+/// <param name="orders">The order read port, for the newest orders.</param>
 /// <param name="expenses">The company expense read port, for the expenses card.</param>
+/// <param name="imageDelivery">Builds the cover addresses of the newest orders.</param>
 /// <param name="requestContext">The signed-in user.</param>
 /// <param name="calendar">The business calendar.</param>
-public sealed class GetDashboardSummaryHandler(IDashboardReader reader, ICompanyExpenseReader expenses, IRequestContext requestContext, IBusinessCalendar calendar)
+public sealed class GetDashboardSummaryHandler(
+    IDashboardReader reader,
+    IOrderReader orders,
+    ICompanyExpenseReader expenses,
+    IImageDelivery imageDelivery,
+    IRequestContext requestContext,
+    IBusinessCalendar calendar)
 {
     /// <summary>Reads the summary.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -35,6 +43,7 @@ public sealed class GetDashboardSummaryHandler(IDashboardReader reader, ICompany
 
         var (lastFirst, lastLast) = BusinessClock.MonthOf(period.MonthFirst.AddDays(-1));
         var totals = await expenses.GetKpisAsync(new KpiMonths(period.MonthFirst, period.MonthLast, lastFirst, lastLast), cancellationToken).ConfigureAwait(false);
+        _ = (orders, imageDelivery);
 
         return Result.Success(new DashboardSummaryResponse(
             period.Today,
@@ -49,7 +58,9 @@ public sealed class GetDashboardSummaryHandler(IDashboardReader reader, ICompany
             new DashboardExpenseFigures(
                 totals.ThisMonthTotal,
                 totals.ThisMonthCount,
-                totals.ThisMonthCount > 0 ? totals.TopCategory?.Name : null)));
+                totals.ThisMonthCount > 0 ? totals.TopCategory?.Name : null),
+            [],
+            []));
     }
 
     // Whole-number change against the absolute comparison, half away from zero (D-06, D-54); null when there is nothing to compare.
