@@ -107,5 +107,10 @@ export async function signInAs(
   // Every bundle, the e2e one included, lands on the dashboard at /admin (DASH-01).
   await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
   await expect(page.getByRole('main')).toBeVisible();
+  // The greeting shows once the dashboard summary has arrived. A spec that goes straight on to another page would cancel that
+  // request in flight, which WebKit reports as a page error, so wait for it here.
+  if (new URL(page.url()).pathname === '/admin') {
+    await expect(page.locator('h1')).toHaveText(dashboardHeading(sessionUser));
+  }
   return sessionUser;
 }
