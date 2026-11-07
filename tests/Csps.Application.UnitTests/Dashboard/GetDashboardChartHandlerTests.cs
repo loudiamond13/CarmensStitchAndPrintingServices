@@ -62,6 +62,30 @@ public sealed class GetDashboardChartHandlerTests
         result.Value.Items.Select(item => item.Month).ShouldBe(["2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02"]);
     }
 
+    [Fact]
+    public async Task At0030ManilaOnNovemberFirstTheWindowEndsInNovemberNotOctober()
+    {
+        // 16:30Z on Oct 31 is 00:30 on Nov 1 in Manila.
+        var harness = new Harness(new DateTimeOffset(2026, 10, 31, 16, 30, 0, TimeSpan.Zero));
+
+        var result = await harness.Handler.HandleAsync(new GetDashboardChartRequest("6"), TestContext.Current.CancellationToken);
+
+        harness.Asked.ShouldBe((new DateOnly(2026, 6, 1), new DateOnly(2026, 11, 30)));
+        result.Value.Items[^1].Month.ShouldBe("2026-11");
+    }
+
+    [Fact]
+    public async Task At2359ManilaOnNovemberThirtiethTheWindowStillEndsInNovember()
+    {
+        // 15:59Z on Nov 30 is 23:59 the same day in Manila.
+        var harness = new Harness(new DateTimeOffset(2026, 11, 30, 15, 59, 0, TimeSpan.Zero));
+
+        var result = await harness.Handler.HandleAsync(new GetDashboardChartRequest("6"), TestContext.Current.CancellationToken);
+
+        harness.Asked.ShouldBe((new DateOnly(2026, 6, 1), new DateOnly(2026, 11, 30)));
+        result.Value.Items[^1].Month.ShouldBe("2026-11");
+    }
+
     [Theory]
     [InlineData("7")]
     [InlineData("0")]

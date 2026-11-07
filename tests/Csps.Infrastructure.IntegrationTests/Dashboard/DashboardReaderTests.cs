@@ -40,6 +40,37 @@ public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
+    public async Task AtMondayMidnightManilaTheWeekStartsThatMondayAndSundayIsOverdue()
+    {
+        // Sunday 16:00 UTC is Monday 2026-11-02 00:00 in Manila.
+        var rig = await Rig.StartAsync(database, new DateTimeOffset(2026, 11, 1, 16, 0, 0, TimeSpan.Zero));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { DueDate = Day(11, 1) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Pending) { DueDate = Day(11, 2) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Pending) { DueDate = Day(11, 8) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0004", OrderStatus.Pending) { DueDate = Day(11, 9) });
+
+        var figures = await rig.ReadAsync();
+
+        figures.DueThisWeek.ShouldBe(2);
+        figures.Overdue.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AtSunday2359ManilaTheWeekStillHoldsThatSundaysOrders()
+    {
+        // Sunday 15:59 UTC is Sunday 2026-11-08 23:59 in Manila.
+        var rig = await Rig.StartAsync(database, new DateTimeOffset(2026, 11, 8, 15, 59, 0, TimeSpan.Zero));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { DueDate = Day(11, 7) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Pending) { DueDate = Day(11, 8) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Pending) { DueDate = Day(11, 9) });
+
+        var figures = await rig.ReadAsync();
+
+        figures.DueThisWeek.ShouldBe(1);
+        figures.Overdue.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task OverdueCountsOpenOrdersDueBeforeTodayAndNeverDeliveredOrEndedOnes()
     {
         var rig = await Rig.StartAsync(database, Wednesday);

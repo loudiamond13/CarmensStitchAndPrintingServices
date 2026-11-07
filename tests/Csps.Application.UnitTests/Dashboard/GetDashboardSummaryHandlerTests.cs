@@ -63,6 +63,22 @@ public sealed class GetDashboardSummaryHandlerTests
         result.Value.FirstName.ShouldBe("Carmen");
     }
 
+    [Theory]
+    [InlineData("2026-11-01T16:00:00Z", "2026-11-02", "2026-11-02", "2026-11-08")] // Monday 00:00 in Manila: the week starts that Monday.
+    [InlineData("2026-11-08T15:59:00Z", "2026-11-08", "2026-11-02", "2026-11-08")] // Sunday 23:59 in Manila: the week still holds that Sunday.
+    public async Task TheWeekFollowsTheManilaDateAtItsEdges(string utc, string today, string monday, string sunday)
+    {
+        var harness = new Harness(DateTimeOffset.Parse(utc, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal));
+
+        var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Asked.Today.ShouldBe(DateOnly.Parse(today, System.Globalization.CultureInfo.InvariantCulture));
+        harness.Asked.WeekMonday.ShouldBe(DateOnly.Parse(monday, System.Globalization.CultureInfo.InvariantCulture));
+        harness.Asked.WeekSunday.ShouldBe(DateOnly.Parse(sunday, System.Globalization.CultureInfo.InvariantCulture));
+        result.Value.Today.ShouldBe(DateOnly.Parse(today, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     [Fact]
     public async Task OnMarchThirtyFirstTheComparisonRunsFebruaryFirstToFebruaryTwentyEighth()
     {

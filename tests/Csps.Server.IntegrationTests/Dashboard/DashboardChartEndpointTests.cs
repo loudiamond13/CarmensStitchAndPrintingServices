@@ -206,6 +206,49 @@ public sealed class DashboardChartEndpointTests(CspsDatabase database) : IClassF
         ]);
     }
 
+    [Fact]
+    public async Task At0030ManilaOnNovemberFirstTheLastMonthIsNovemberAndHoldsThePaymentDatedThatDay()
+    {
+        // 00:30 Manila on Nov 1 is still Oct 31 in UTC.
+        await using var rig = await Rig.StartAsync(database, new DateTimeOffset(2026, 10, 31, 16, 30, 0, TimeSpan.Zero));
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2026, 10, 31), 100.00m), new SeedMoney(new DateOnly(2026, 11, 1), 300.00m)],
+        });
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 11, 1), 40.00m);
+
+        var chart = await rig.ReadAsync(rig.Manager.AccessToken, "months=6");
+
+        Months(chart).ShouldBe(
+        [
+            ("2026-06", 0.00m, 0.00m, 0.00m),
+            ("2026-07", 0.00m, 0.00m, 0.00m),
+            ("2026-08", 0.00m, 0.00m, 0.00m),
+            ("2026-09", 0.00m, 0.00m, 0.00m),
+            ("2026-10", 100.00m, 0.00m, 100.00m),
+            ("2026-11", 300.00m, 40.00m, 260.00m),
+        ]);
+    }
+
+    [Fact]
+    public async Task At2359ManilaOnNovemberThirtiethTheLastMonthIsStillNovember()
+    {
+        // 23:59 Manila on Nov 30 is 15:59 UTC the same day.
+        await using var rig = await Rig.StartAsync(database, new DateTimeOffset(2026, 11, 30, 15, 59, 0, TimeSpan.Zero));
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(new DateOnly(2026, 11, 30), 250.00m), new SeedMoney(new DateOnly(2026, 12, 1), 900.00m)],
+        });
+
+        var chart = await rig.ReadAsync(rig.Manager.AccessToken, "months=6");
+
+        var items = Months(chart);
+        items.Select(item => item.Month).ShouldBe(["2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11"]);
+        items[^1].ShouldBe(("2026-11", 250.00m, 0.00m, 250.00m));
+    }
+
     private static List<(string Month, decimal Income, decimal Expenses, decimal Profit)> Months(JsonElement chart) =>
     [
         .. chart.GetProperty("items").EnumerateArray().Select(item => (
