@@ -1,6 +1,7 @@
 using System.Net;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.CompanyExpenses;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Money;
@@ -130,6 +131,29 @@ public sealed class StaffMoneyBalanceTests(CspsDatabase database) : IClassFixtur
 
         (await MoneyFixtures.ReadBalanceAsync(client, liza.AccessToken)).ShouldBe(500.00m);
         (await MoneyFixtures.ReadBalanceAsync(client, carmen.AccessToken)).ShouldBe(0.00m);
+    }
+
+    [Fact]
+    public async Task AQueryIdForAnotherPersonIsIgnoredAndTheAnswerIsNeverCached()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var paolo = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Paolo", "Garcia");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, liza.UserId, "ORD-2026-0001", 250.00m, today, Now);
+        await MoneyFixtures.SeedPaymentAsync(database, paolo.UserId, "ORD-2026-0002", 900.00m, today, Now);
+
+        using var request = ApiRequests.Get($"{MoneyFixtures.MeRoute}?userId={paolo.UserId}", liza.AccessToken);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        var body = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(text);
+        body.GetProperty("userId").GetGuid().ShouldBe(liza.UserId);
+        body.GetProperty("balance").GetDecimal().ShouldBe(250.00m);
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
     }
 
     [Fact]

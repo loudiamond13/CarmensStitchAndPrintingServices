@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersByStatusCard } from '@/modules/admin/components/OrdersByStatusCard';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   dashboardNewShopSummary,
@@ -14,7 +15,7 @@ import {
 // the largest count, and the active total from the server. Cancelled is never shown.
 
 function queryOf(overrides: Partial<DashboardCardQuery> = {}): DashboardCardQuery {
-  return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
 }
 
 function loaded(data: DashboardSummaryFixture = dashboardNovemberSummary()): DashboardCardQuery {
@@ -246,12 +247,30 @@ describe('a shop with no open orders (DASH-06)', () => {
 
 describe('while the counts load', () => {
   it('shows six skeleton rows in a region announced as "Loading order counts…"', () => {
-    const { container } = render(<OrdersByStatusCard query={queryOf({ isPending: true })} />);
+    const { container } = render(<OrdersByStatusCard query={queryOf()} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading order counts…');
     expect(container.querySelectorAll('.animate-csp-shimmer')).toHaveLength(6);
     expect(screen.queryByRole('list')).toBeNull();
     expect(screen.getByRole('heading', { level: 2, name: 'Orders by status' })).toBeVisible();
+  });
+
+  it('keeps its status and says "Order counts loaded." when the counts arrive', () => {
+    const { rerender } = render(<OrdersByStatusCard query={queryOf()} />);
+    const status = screen.getByRole('status');
+
+    rerender(<OrdersByStatusCard query={loaded()} />);
+
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent(STATES_COPY.loading.loaded('order counts'));
+  });
+
+  it('says the counts loaded for a new shop too', () => {
+    const { rerender } = render(<OrdersByStatusCard query={queryOf()} />);
+
+    rerender(<OrdersByStatusCard query={loaded(dashboardNewShopSummary())} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Order counts loaded.');
   });
 });
 
@@ -285,7 +304,7 @@ describe('accessibility', () => {
     await expectNoAxeViolations(emptyView.container);
     emptyView.unmount();
 
-    const loadingView = render(<OrdersByStatusCard query={queryOf({ isPending: true })} />);
+    const loadingView = render(<OrdersByStatusCard query={queryOf()} />);
     await expectNoAxeViolations(loadingView.container);
     loadingView.unmount();
 

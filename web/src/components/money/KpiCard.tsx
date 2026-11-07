@@ -65,18 +65,15 @@ export function KpiCard({
   const hasFoot = delta !== undefined || (hint !== undefined && hint !== '');
   const zero = typeof value === 'number' && (money ? round2(value) === 0 : value === 0);
   const figure = money && typeof value === 'number' ? formatPeso(value) : value;
+  const long = !empty && money && typeof figure === 'string' && figure.length >= LONG_FIGURE;
   const valueClasses =
-    typeof value === 'string' && !empty
-      ? kpiTextValueClasses
-      : !empty && money && typeof figure === 'string' && figure.length >= LONG_FIGURE
-        ? kpiLongValueClasses
-        : kpiValueClasses;
+    typeof value === 'string' && !empty ? kpiTextValueClasses : long ? kpiLongValueClasses : kpiValueClasses;
   return (
     <div className={kpiClasses} aria-busy={loading || undefined}>
       <div className={kpiHeadClasses}>
         <span className={overlineClasses}>{label}</span>
         {icon !== undefined && (
-          <span className={kpiIconClasses}>
+          <span className={kpiIconClasses} data-kpi-icon="">
             <Icon name={icon} size={18} />
           </span>
         )}
@@ -84,7 +81,10 @@ export function KpiCard({
       {loading ? (
         <Skeleton width="70%" height={36} />
       ) : (
-        <div className={clsx(valueClasses, (zero || empty) && kpiZeroValueClasses)}>
+        <div
+          className={clsx(valueClasses, (zero || empty) && kpiZeroValueClasses)}
+          data-kpi-value={long ? 'long' : 'normal'}
+        >
           {empty ? <EmptyValue /> : figure}
         </div>
       )}

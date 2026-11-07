@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DashboardKpiRow } from '@/modules/admin/components/DashboardKpiRow';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   dashboardMarch31Summary,
@@ -18,7 +19,7 @@ import {
 // server's, the browser only formats them, and the month names come from the summary's dates, never the device clock.
 
 function queryOf(overrides: Partial<DashboardCardQuery> = {}): DashboardCardQuery {
-  return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn(), ...overrides };
+  return { data: undefined, isError: false, error: null, refetch: vi.fn(), ...overrides };
 }
 
 function loaded(data: DashboardSummaryFixture = dashboardNovemberSummary()): DashboardCardQuery {
@@ -195,7 +196,12 @@ describe('the money figures', () => {
 
 describe('a new shop (DASH-06)', () => {
   it('shows zeros in the dim, not empty states, with the zero-case feet', () => {
-    render(<DashboardKpiRow query={loaded(dashboardNewShopSummary({ today: '2026-11-04' }))} />);
+    // The server sends the same day one month back with the date, so the pair is Nov 4 and Oct 4.
+    const newShop = dashboardNewShopSummary({
+      today: '2026-11-04',
+      collected: { thisMonth: 0, comparison: 0, changePercent: null, comparisonThrough: '2026-10-04' },
+    });
+    render(<DashboardKpiRow query={loaded(newShop)} />);
 
     const active = within(cardOf('Active orders')).getByText('0');
     expect(active.className).toContain('text-ink-subtle');
@@ -204,7 +210,7 @@ describe('a new shop (DASH-06)', () => {
       expect(figure.className, label).toContain('text-ink-subtle');
     }
     expect(within(cardOf('Active orders')).getByText('None due this week')).toBeVisible();
-    expect(within(cardOf('Collected · Nov')).getByText('Nothing collected by this day in Sep')).toBeVisible();
+    expect(within(cardOf('Collected · Nov')).getByText('Nothing collected by this day in Oct')).toBeVisible();
     expect(within(cardOf('Company expenses · Nov')).getByText('No expenses yet this month')).toBeVisible();
     expect(screen.queryByText('Not set')).toBeNull();
   });
@@ -249,13 +255,23 @@ describe('the month names come from the summary (D-05)', () => {
 
 describe('while the figures load', () => {
   it('shows four loading cards inside one region announced as "Loading the shop figures…"', () => {
-    render(<DashboardKpiRow query={queryOf({ isPending: true })} />);
+    render(<DashboardKpiRow query={queryOf()} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading the shop figures…');
     for (const label of ['Active orders', 'Total receivables', 'Collected', 'Company expenses']) {
       expect(cardOf(label), label).toHaveAttribute('aria-busy', 'true');
     }
     expect(screen.queryByText(/due this week/)).toBeNull();
+  });
+
+  it('keeps its status and says "The shop figures loaded." when the figures arrive', () => {
+    const { rerender } = render(<DashboardKpiRow query={queryOf()} />);
+    const status = screen.getByRole('status');
+
+    rerender(<DashboardKpiRow query={loaded()} />);
+
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent(STATES_COPY.loading.loaded('the shop figures'));
   });
 });
 
@@ -284,7 +300,7 @@ describe('accessibility', () => {
     await expectNoAxeViolations(loadedView.container);
     loadedView.unmount();
 
-    const loadingView = render(<DashboardKpiRow query={queryOf({ isPending: true })} />);
+    const loadingView = render(<DashboardKpiRow query={queryOf()} />);
     await expectNoAxeViolations(loadingView.container);
     loadingView.unmount();
 

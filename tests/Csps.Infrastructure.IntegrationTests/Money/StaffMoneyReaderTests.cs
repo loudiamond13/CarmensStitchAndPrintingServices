@@ -38,7 +38,7 @@ public sealed class StaffMoneyReaderTests(CspsDatabase database) : IClassFixture
     }
 
     [Fact]
-    public async Task DeletingTheOrderThatHeldTheFivePaymentsTakesThePersonBelowZero()
+    public async Task DeletingTheOrderThatHeldTheFiveThousandTakesThePersonBelowZero()
     {
         await database.ResetAsync();
         var paolo = await OrderSeeding.AddStaffAsync(database, "Paolo", Now, "Garcia");
