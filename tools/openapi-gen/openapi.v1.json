@@ -1071,6 +1071,59 @@
         ],
         "type": "object"
       },
+      "CreateMoneyHandoverRequest": {
+        "description": "The Hand Over form (D-17): a Manager moves money held by a former staff member to a current coworker. The sender is the former\nstaff member named in the form, because the signed-in Manager only records the hand-over. Any other member in the body, such as\n`createdById` or `isHandover`, is ignored: who recorded it and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "fromUserId": {
+            "description": "The former staff member who holds the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "Optional note.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toUserId": {
+            "description": "The current coworker who gets the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "transferDate": {
+            "description": "The day the money changed hands, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "fromUserId",
+          "toUserId",
+          "amount",
+          "transferDate",
+          "note"
+        ],
+        "type": "object"
+      },
       "CreateMoneyTransferRequest": {
         "description": "The Transfer Money form (MONEY-04). The sender is always the signed-in user, so the form has no sender. Any other member in\nthe body, such as a forged sender or `createdById`, is ignored: who recorded the transfer and when come from the token and\nthe clock (SEC-08).",
         "properties": {
@@ -7777,6 +7830,108 @@
           }
         },
         "summary": "Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any\nsuch member is ignored. The amount is at least 0.01 with at most two decimal places and no more than the sender holds. The date is\nany day up to today in the business zone. The recipient must be an active Admin or Manager, or former staff who are owed money,\nand a transfer into former staff cannot go above what brings them to 0.00. The answer carries the sender's new balance and never\nthe recipient's. Who recorded it and when come from the token and the clock; any such member in the body is ignored. A retry\nwith the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/money-transfers/handovers": {
+      "post": {
+        "operationId": "CreateMoneyHandover",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyHandoverRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyHandoverRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyHandoverRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyTransferSavedResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Records a hand-over, Managers only: money held by a deactivated or deleted Admin or Manager moves to a current coworker. The body\nnames the former staff member (`fromUserId`) and the coworker (`toUserId`). The amount is at least 0.01 with at most two\ndecimal places and no more than the former staff member holds. The coworker must be an active Admin or Manager, a Manager-locked\nor not-yet-set-up person included. The answer carries the former staff member's new balance and never the coworker's. The\nsigned-in Manager is recorded as who did it and is written to the audit log; any `createdById` or `isHandover` in the\nbody is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
         "tags": [
           "MoneyTransfers"
         ]

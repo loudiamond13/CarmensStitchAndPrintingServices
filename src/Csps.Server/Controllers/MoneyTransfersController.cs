@@ -8,15 +8,17 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace Csps.Server.Controllers;
 
 /// <summary>
-/// Staff money transfers (MONEY-04, MONEY-05): staff of either role send part of their money on hand to a coworker. Never cached.
+/// Staff money transfers (MONEY-04, MONEY-05, MONEY-06): staff of either role send part of their money on hand to a coworker, and a
+/// Manager hands over money held by former staff. Never cached.
 /// </summary>
 /// <param name="create">The record-a-transfer handler.</param>
+/// <param name="handOver">The record-a-hand-over handler.</param>
 [ApiController]
 [Route("api/v1/money-transfers")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class MoneyTransfersController(CreateMoneyTransferHandler create) : ControllerBase
+public sealed class MoneyTransfersController(CreateMoneyTransferHandler create, HandOverMoneyHandler handOver) : ControllerBase
 {
     /// <summary>
     /// Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any
@@ -40,6 +42,33 @@ public sealed class MoneyTransfersController(CreateMoneyTransferHandler create) 
         CancellationToken cancellationToken)
     {
         var result = await create.HandleAsync(body ?? CreateMoneyTransferRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static saved => TypedResults.Created((string?)null, saved));
+    }
+
+    /// <summary>
+    /// Records a hand-over, Managers only: money held by a deactivated or deleted Admin or Manager moves to a current coworker. The body
+    /// names the former staff member (<c>fromUserId</c>) and the coworker (<c>toUserId</c>). The amount is at least 0.01 with at most two
+    /// decimal places and no more than the former staff member holds. The coworker must be an active Admin or Manager, a Manager-locked
+    /// or not-yet-set-up person included. The answer carries the former staff member's new balance and never the coworker's. The
+    /// signed-in Manager is recorded as who did it and is written to the audit log; any <c>createdById</c> or <c>isHandover</c> in the
+    /// body is ignored. A retry with the same <c>Idempotency-Key</c> and body answers with the stored 201 and records nothing more.
+    /// </summary>
+    /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>201 with the hand-over and the former staff member's balance, 400 for field errors, 401 without a valid token, 403 for an Admin, or 409 when another transfer held the lock too long.</returns>
+    [HttpPost("handovers")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("CreateMoneyHandover")]
+    [ProducesResponseType<MoneyTransferSavedResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> HandOver(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CreateMoneyHandoverRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await handOver.HandleAsync(body ?? CreateMoneyHandoverRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static saved => TypedResults.Created((string?)null, saved));
     }
 }

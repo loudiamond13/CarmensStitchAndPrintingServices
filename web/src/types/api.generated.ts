@@ -571,6 +571,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/money-transfers/handovers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a hand-over, Managers only: money held by a deactivated or deleted Admin or Manager moves to a current coworker. The body
+         *     names the former staff member (`fromUserId`) and the coworker (`toUserId`). The amount is at least 0.01 with at most two
+         *     decimal places and no more than the former staff member holds. The coworker must be an active Admin or Manager, a Manager-locked
+         *     or not-yet-set-up person included. The answer carries the former staff member's new balance and never the coworker's. The
+         *     signed-in Manager is recorded as who did it and is written to the audit log; any `createdById` or `isHandover` in the
+         *     body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.
+         */
+        post: operations["CreateMoneyHandover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/order-expense-categories": {
         parameters: {
             query?: never;
@@ -2324,6 +2348,32 @@ export interface components {
             name: null | string;
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
             tone: null | string;
+        };
+        /**
+         * @description The Hand Over form (D-17): a Manager moves money held by a former staff member to a current coworker. The sender is the former
+         *     staff member named in the form, because the signed-in Manager only records the hand-over. Any other member in the body, such as
+         *     `createdById` or `isHandover`, is ignored: who recorded it and when come from the token and the clock (SEC-08).
+         */
+        CreateMoneyHandoverRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /**
+             * Format: uuid
+             * @description The former staff member who holds the money.
+             */
+            fromUserId: null | string;
+            /** @description Optional note. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The current coworker who gets the money.
+             */
+            toUserId: null | string;
+            /** @description The day the money changed hands, `yyyy-MM-dd`. */
+            transferDate: null | string;
         };
         /**
          * @description The Transfer Money form (MONEY-04). The sender is always the signed-in user, so the form has no sender. Any other member in
@@ -5783,6 +5833,69 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateMoneyHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+                "application/json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+                "text/json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyTransferSavedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

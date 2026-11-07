@@ -15,6 +15,9 @@ public static class MoneyErrors
     /// <summary>The plain-English text for a recipient who does not exist or is not staff (D-58).</summary>
     public const string UnknownRecipientMessage = "This person can't receive transfers now. Choose someone else.";
 
+    /// <summary>The plain-English text for a hand-over with no former staff member chosen (D-58, server only).</summary>
+    public const string FromRequiredMessage = "Choose whose money to hand over.";
+
     /// <summary>The code of a call the signed-in role may not make.</summary>
     public const string ForbiddenCode = "staff-money.forbidden";
 
