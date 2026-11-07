@@ -1071,6 +1071,50 @@
         ],
         "type": "object"
       },
+      "CreateMoneyTransferRequest": {
+        "description": "The Transfer Money form (MONEY-04). The sender is always the signed-in user, so the form has no sender. Any other member in\nthe body, such as a forged sender or `createdById`, is ignored: who recorded the transfer and when come from the token and\nthe clock (SEC-08).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "Optional note.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toUserId": {
+            "description": "The coworker who gets the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "transferDate": {
+            "description": "The day the money changed hands, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "toUserId",
+          "amount",
+          "transferDate",
+          "note"
+        ],
+        "type": "object"
+      },
       "CreateOrderRequest": {
         "description": "The New Order form (ORD-03). Any other member in the body, such as a forged `createdById`, `number` or `totals`, is\nignored: who recorded the order, its number and its money figures come from the token, the clock and the server (SEC-08, ORD-20).",
         "properties": {
@@ -2188,6 +2232,131 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "MoneyTransferResponse": {
+        "description": "One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "deletedAtUtc": {
+            "description": "When it was deleted; null while it counts.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted it; null while it counts."
+              }
+            ]
+          },
+          "from": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The sender; for a hand-over, the former staff member."
+          },
+          "id": {
+            "description": "The transfer id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isDeleted": {
+            "description": "True once it is in the bin.",
+            "type": "boolean"
+          },
+          "isHandover": {
+            "description": "True when a Manager recorded it for a former staff member (D-17).",
+            "type": "boolean"
+          },
+          "note": {
+            "description": "The note; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recordedAtUtc": {
+            "description": "When it was recorded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded it; null reads as System."
+              }
+            ]
+          },
+          "to": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The recipient."
+          },
+          "transferDate": {
+            "description": "The day the money changed hands.",
+            "format": "date",
+            "type": "string"
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a later change must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "to",
+          "amount",
+          "transferDate",
+          "note",
+          "isHandover",
+          "recordedBy",
+          "recordedAtUtc",
+          "isDeleted",
+          "deletedBy",
+          "deletedAtUtc",
+          "version"
+        ],
+        "type": "object"
+      },
+      "MoneyTransferSavedResponse": {
+        "description": "A saved transfer and the sender's new money on hand. The recipient's balance is never in the answer (OD-19, D-49).",
+        "properties": {
+          "senderBalance": {
+            "description": "The sender's money on hand after the transfer.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "transfer": {
+            "$ref": "#/components/schemas/MoneyTransferResponse",
+            "description": "The saved transfer."
+          }
+        },
+        "required": [
+          "transfer",
+          "senderBalance"
         ],
         "type": "object"
       },
@@ -7518,6 +7687,98 @@
         "summary": "Retires a category, Managers only: it can no longer be chosen on a new expense but stays in the list and the list filter,\nmarked `retired`, and old expenses keep it. Others can never be retired. Retiring a retired category is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/money-transfers": {
+      "post": {
+        "operationId": "CreateMoneyTransfer",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyTransferRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyTransferRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyTransferRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyTransferSavedResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any\nsuch member is ignored. The amount is at least 0.01 with at most two decimal places and no more than the sender holds. The date is\nany day up to today in the business zone. The recipient must be an active Admin or Manager, or former staff who are owed money,\nand a transfer into former staff cannot go above what brings them to 0.00. The answer carries the sender's new balance and never\nthe recipient's. Who recorded it and when come from the token and the clock; any such member in the body is ignored. A retry\nwith the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "MoneyTransfers"
         ]
       }
     },
@@ -14133,6 +14394,9 @@
     },
     {
       "name": "Invite"
+    },
+    {
+      "name": "MoneyTransfers"
     },
     {
       "name": "OrderDiscounts"

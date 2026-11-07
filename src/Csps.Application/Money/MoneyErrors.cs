@@ -12,6 +12,9 @@ public static class MoneyErrors
     /// <summary>The plain-English text for a person who does not exist or is not staff.</summary>
     public const string NotFoundMessage = "This person was not found.";
 
+    /// <summary>The plain-English text for a recipient who does not exist or is not staff (D-58).</summary>
+    public const string UnknownRecipientMessage = "This person can't receive transfers now. Choose someone else.";
+
     /// <summary>The code of a call the signed-in role may not make.</summary>
     public const string ForbiddenCode = "staff-money.forbidden";
 
