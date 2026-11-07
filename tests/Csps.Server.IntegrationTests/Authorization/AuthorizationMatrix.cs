@@ -221,6 +221,8 @@ public static class AuthorizationMatrix
 
         // The caller's own money on hand (MONEY-01, MONEY-08): both roles read their own figure; the route takes no id.
         new("GET", "/api/v1/staff-money/me", "/api/v1/staff-money/me", Anonymous: 401, Admin: 200, Manager: 200),
+        // Transferring money to a coworker (MONEY-04, MONEY-08): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 money-transfers.invalid-request.
+        new("POST", "/api/v1/money-transfers", "/api/v1/money-transfers", Anonymous: 401, Admin: 400, Manager: 400),
 
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),

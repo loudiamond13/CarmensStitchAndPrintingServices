@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.CompanyExpenses;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
@@ -75,6 +76,67 @@ internal static class MoneyFixtures
         await using var context = database.CreateContext();
         await context.Orders.Where(row => row.Id == orderId)
             .ExecuteUpdateAsync(set => set.SetProperty(row => row.DeletedAtUtc, now), TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>The route that records a transfer.</summary>
+    public const string TransfersRoute = "/api/v1/money-transfers";
+
+    /// <summary>A transfer body the server accepts, as a dictionary so a test can override or add one member.</summary>
+    /// <param name="toUserId">The recipient.</param>
+    /// <param name="amount">The amount.</param>
+    /// <param name="date">The transfer date.</param>
+    /// <param name="note">The note; none when null.</param>
+    /// <returns>The body members.</returns>
+    public static Dictionary<string, object?> TransferBody(Guid toUserId, decimal amount, DateOnly date, string? note = null) => new()
+    {
+        ["toUserId"] = toUserId,
+        ["amount"] = amount,
+        ["transferDate"] = date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+        ["note"] = note,
+    };
+
+    /// <summary>Posts a transfer body with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> PostTransferAsync(HttpClient client, string? accessToken, object? body, Guid? idempotencyKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Post, TransfersRoute, accessToken);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
+        if (body is not null)
+        {
+            request.Content = System.Net.Http.Json.JsonContent.Create(body);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Posts a transfer built from its parts with an idempotency key.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="toUserId">The recipient.</param>
+    /// <param name="amount">The amount.</param>
+    /// <param name="date">The transfer date.</param>
+    /// <param name="note">The note; none when null.</param>
+    /// <param name="idempotencyKey">The key; a fresh one when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static Task<HttpResponseMessage> PostTransferAsync(
+        HttpClient client, string? accessToken, Guid toUserId, decimal amount, DateOnly date, string? note = null, Guid? idempotencyKey = null) =>
+        PostTransferAsync(client, accessToken, TransferBody(toUserId, amount, date, note), idempotencyKey);
+
+    /// <summary>Reads a 400 answer and returns the messages under one field.</summary>
+    /// <param name="response">The response; it must be a 400.</param>
+    /// <param name="field">The field name.</param>
+    /// <returns>The messages under the field; empty when it has none.</returns>
+    public static async Task<IReadOnlyList<string>> ReadFieldErrorsAsync(HttpResponseMessage response, string field)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        return ExpenseFixtures.FieldErrors(problem, field);
     }
 
     /// <summary>Reads the caller's own money on hand.</summary>
