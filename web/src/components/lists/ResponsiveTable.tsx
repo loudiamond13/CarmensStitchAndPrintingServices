@@ -44,6 +44,7 @@ import {
   tableRowClasses,
   tableSectionClasses,
   tableWrapClasses,
+  tableWrapEmbeddedClasses,
 } from './lists.recipe';
 import { headSide, kindOf, type ResponsiveTableColumn } from './columns';
 import { SkeletonTable } from './SkeletonTable';
@@ -104,9 +105,9 @@ export interface ResponsiveTableProps<T> {
   onToggleRow?: ((key: string) => void) | undefined;
   /** Few short columns: no 680px floor on tablets, so the table fits its card with no sideways scroll. */
   fitTablet?: boolean | undefined;
-  /** RED stub (plan 10-09): the table sits in a card that draws the border. Used in the GREEN commit. */
+  /** The table sits in a card that draws the border: the frame has no border and rounds only its bottom corners. */
   embedded?: boolean | undefined;
-  /** RED stub (plan 10-09): how many rows the first-load skeleton shows. Used in the GREEN commit. */
+  /** How many rows the first-load skeleton shows (4 by default). */
   skeletonRows?: number | undefined;
 }
 
@@ -208,6 +209,8 @@ export function ResponsiveTable<T>({
   detail,
   expandedKeys,
   fitTablet = false,
+  embedded = false,
+  skeletonRows,
 }: ResponsiveTableProps<T>) {
   const shown = rows ?? [];
   const hasRows = shown.length > 0;
@@ -218,7 +221,7 @@ export function ResponsiveTable<T>({
 
   let body: ReactNode = null;
   if (firstLoad) {
-    body = <SkeletonTable columns={columns} fitTablet={fitTablet} />;
+    body = <SkeletonTable columns={columns} fitTablet={fitTablet} rows={skeletonRows} embedded={embedded} />;
   } else if (empty) {
     body = narrowed ? (
       <EmptyState
@@ -249,7 +252,7 @@ export function ResponsiveTable<T>({
   } else if (hasRows) {
     body = (
       <div
-        className={tableWrapClasses}
+        className={embedded ? tableWrapEmbeddedClasses : tableWrapClasses}
         role="region"
         // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a sideways-scrolling region must take keyboard focus (WCAG 2.1.1)
         tabIndex={0}

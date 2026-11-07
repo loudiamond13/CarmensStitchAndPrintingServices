@@ -3,7 +3,7 @@
 // page loads) come from ResponsiveTable, fed by the page. Every figure is the server's, as sent (D-09): no sum here. The table
 // carries Total, Paid and Balance only: no discount figure (D-04), no expenses or profit (D-06) and no delete (D-22).
 import { UiLink } from '@/components/actions';
-import { Icon, MediaPlaceholder } from '@/components/brand';
+import { MediaPlaceholder } from '@/components/brand';
 import {
   CustomerCell,
   ResponsiveTable,
@@ -14,13 +14,10 @@ import {
 } from '@/components/lists';
 import { Money } from '@/components/money';
 import { LazyImage } from '@/components/states';
-import { Badge, StatusBadge, isOrderStatus } from '@/components/status';
+import { StatusBadge, isOrderStatus } from '@/components/status';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
+import { OrderBalanceCell } from '@/modules/admin/components/OrderBalanceCell';
 import {
-  ordersBalanceFigureClasses,
-  ordersBalanceStackClasses,
-  ordersFullyPaidClasses,
-  ordersNotCollectedClasses,
   ordersNumberLinkClasses,
   ordersOrderCellClasses,
   ordersThumbClasses,
@@ -66,37 +63,6 @@ function isPlainClick(event: {
   altKey: boolean;
 }): boolean {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
-}
-
-/** The balance block's state, first match wins (D-02, ORD-12, D-45): the same rule as the card's OrderTotals. */
-function balanceKind(entry: OrderListEntry): 'credit' | 'paid' | 'notCollected' | 'due' {
-  if (isPositiveMoney(entry.customerCredit)) return 'credit';
-  if (entry.fullyPaid) return 'paid';
-  if (entry.status === 'cancelled' && isPositiveMoney(entry.balance)) return 'notCollected';
-  return 'due';
-}
-
-function BalanceCell({ entry }: { entry: OrderListEntry }) {
-  switch (balanceKind(entry)) {
-    case 'credit':
-      return <Badge tone="info">{COPY.table.credit(formatPeso(entry.customerCredit))}</Badge>;
-    case 'paid':
-      return (
-        <span className={ordersFullyPaidClasses}>
-          <Icon name="circle-check" size={18} />
-          {COPY.table.fullyPaid}
-        </span>
-      );
-    case 'notCollected':
-      return (
-        <span className={ordersBalanceStackClasses}>
-          <span className={ordersBalanceFigureClasses.muted}>{formatPeso(entry.balance)}</span>
-          <span className={ordersNotCollectedClasses}>{COPY.table.notCollected}</span>
-        </span>
-      );
-    case 'due':
-      return <span className={ordersBalanceFigureClasses.due}>{formatPeso(entry.balance)}</span>;
-  }
 }
 
 interface Wiring {
@@ -182,7 +148,7 @@ function columnsFor({ today, onOpen, onEdit }: Wiring): readonly ResponsiveTable
       key: 'balance',
       header: heads.balance,
       money: true,
-      cell: (entry) => <BalanceCell entry={entry} />,
+      cell: (entry) => <OrderBalanceCell entry={entry} />,
     },
     {
       key: 'actions',

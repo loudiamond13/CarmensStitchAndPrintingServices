@@ -18,6 +18,7 @@ import {
   dashboardTitleClasses,
 } from '@/modules/admin/components/dashboard.recipe';
 import { OrdersByStatusCard } from '@/modules/admin/components/OrdersByStatusCard';
+import { RecentOrdersCard } from '@/modules/admin/components/RecentOrdersCard';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import { useDashboardSummaryQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
@@ -60,6 +61,7 @@ export function DashboardRoute() {
       <div className={dashboardRowClasses}>
         <OrdersByStatusCard query={summary} />
       </div>
+      <RecentOrdersCard query={summary} />
     </>
   );
 }

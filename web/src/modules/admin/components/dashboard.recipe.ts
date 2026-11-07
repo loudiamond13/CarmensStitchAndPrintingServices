@@ -1,5 +1,7 @@
 // The dashboard's looks as complete Tailwind tokens (D-33; plans 10-07 and 10-09). Every string here is a class list.
 import clsx from 'clsx';
+import { hitAreaClasses } from '@/components/actions';
+import { loginLinkClasses } from '@/components/layout/layout.recipe';
 import { cardClasses } from '@/components/money';
 import { tw } from '@/ui/tw';
 
@@ -73,3 +75,6 @@ export const statusTotalClasses = tw(
 
 /** The footer's figure in the full ink. */
 export const statusTotalFigureClasses = tw('text-ink');
+
+/** "All orders" in the Recent orders head: the accent link at 14px (`.s-link.s-small`) with a 44px tap area. */
+export const dashboardAllOrdersClasses = clsx(loginLinkClasses, hitAreaClasses);

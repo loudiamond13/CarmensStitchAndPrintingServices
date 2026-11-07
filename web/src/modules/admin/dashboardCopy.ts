@@ -64,4 +64,27 @@ export const DASHBOARD_COPY = {
     emptyTitle: 'No open orders',
     emptyMessage: 'New orders show here by status.',
   },
+  /** Recent orders (DASH-05, D-38). */
+  recent: {
+    title: 'Recent orders',
+    sub: 'Newest first',
+    allOrders: 'All orders',
+    /** The noun of the loading region and of the failure line: "Loading recent orders…", "Couldn't load recent orders." */
+    things: 'recent orders',
+    emptyTitle: 'No orders yet',
+    emptyMessage: 'New orders show here, newest first.',
+    columns: {
+      order: 'Order',
+      customer: 'Customer / team',
+      status: 'Status',
+      due: 'Due',
+      total: 'Total',
+      balance: 'Balance',
+      actions: 'Actions',
+    },
+    /** The phone label of the Customer / team cell (App. E.6 `data-label`). */
+    customerLabel: 'Customer',
+    /** The eye link, named by its order: "View ORD-2026-0148". */
+    view: (number: string): string => `View ${number}`,
+  },
 } as const;

@@ -7,7 +7,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { DashboardRoute } from '@/modules/admin/pages/DashboardPage';
-import { dashboardBackend, dashboardNovemberSummary, dashboardSummaryFixture } from '@/test/dashboardFixtures';
+import {
+  dashboardBackend,
+  dashboardNewShopSummary,
+  dashboardNovemberSummary,
+  dashboardRecentOrders,
+  dashboardSummaryFixture,
+  RECENT_ORDERS_TODAY,
+} from '@/test/dashboardFixtures';
+import { orderId } from '@/test/orderFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 
@@ -180,7 +188,70 @@ describe('the Orders by status card on the page (DASH-04, plan 10-09)', () => {
 
     expect(await screen.findByText("Couldn't load order counts.")).toBeVisible();
     expect(screen.getByText("Couldn't load the shop figures.")).toBeVisible();
-    expect(screen.getAllByRole('button', { name: 'Try Again' })).toHaveLength(2);
+    expect(screen.getByText("Couldn't load recent orders.")).toBeVisible();
+    expect(screen.getAllByRole('button', { name: 'Try Again' })).toHaveLength(3);
+  });
+});
+
+describe('the Recent orders card on the page (DASH-05, plan 10-09)', () => {
+  it('lists the six newest orders from the same summary, under the status card', async () => {
+    dashboardBackend(dashboardNovemberSummary({ today: RECENT_ORDERS_TODAY, recentOrders: dashboardRecentOrders() }));
+    renderPage();
+
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${orderId(148)}`,
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent orders' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'All orders' })).toHaveAttribute('href', '/admin/orders');
+    expect(screen.getByRole('table', { name: 'Recent orders' })).toBeVisible();
+    const status = screen.getByRole('heading', { level: 2, name: 'Orders by status' });
+    const recent = screen.getByRole('heading', { level: 2, name: 'Recent orders' });
+    expect(status.compareDocumentPosition(recent) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('announces "Loading recent orders…" while the summary loads', async () => {
+    dashboardBackend(async () => {
+      await delay(300);
+      return dashboardNovemberSummary({ recentOrders: dashboardRecentOrders() });
+    });
+    renderPage();
+
+    expect(screen.getByText('Loading recent orders…')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
+  });
+
+  it('shows the empty state on a new shop, with zeros in the KPI row and no open orders', async () => {
+    dashboardBackend(dashboardNewShopSummary());
+    renderPage();
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'No orders yet' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 3, name: 'No open orders' })).toBeVisible();
+    expect(screen.getByText('None due this week')).toBeVisible();
+  });
+
+  it('brings all three cards back with one Try Again, which reads the summary once', async () => {
+    let answered = 0;
+    const backend = dashboardBackend(() => {
+      answered += 1;
+      return answered === 1
+        ? problemResponse(500)
+        : dashboardNovemberSummary({ recentOrders: dashboardRecentOrders() });
+    });
+    renderPage();
+
+    await screen.findByText("Couldn't load recent orders.");
+    const [retry] = screen.getAllByRole('button', { name: 'Try Again' });
+    if (retry === undefined) {
+      throw new Error('No Try Again button');
+    }
+    await userEvent.click(retry);
+
+    expect(await screen.findByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
+    expect(screen.getByText('18 orders')).toBeVisible();
+    expect(screen.getByText('5 due this week · 2 overdue')).toBeVisible();
+    expect(backend.calls).toHaveLength(2);
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
 
