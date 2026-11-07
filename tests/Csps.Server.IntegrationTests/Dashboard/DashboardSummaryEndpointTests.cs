@@ -1,8 +1,10 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Application.Security;
+using Csps.Domain.Expenses;
 using Csps.Domain.Orders;
 using Csps.Server.IntegrationTests.Auth;
+using Csps.Server.IntegrationTests.CompanyExpenses;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -75,6 +77,50 @@ public sealed class DashboardSummaryEndpointTests(CspsDatabase database) : IClas
         var summary = await rig.ReadAsync(rig.Admin.AccessToken);
 
         summary.GetProperty("orders").GetProperty("active").GetInt32().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task TheAnswerCarriesTheWeekOverdueReceivablesCollectedAndExpenseFigures()
+    {
+        await using var rig = await Rig.StartAsync(database, NineThirtyManila);
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            DueDate = new DateOnly(2026, 11, 5),
+            Total = 1000.00m,
+            Payments = [new SeedMoney(new DateOnly(2026, 11, 3), 400.00m), new SeedMoney(new DateOnly(2026, 10, 2), 100.00m)],
+        });
+        await rig.SeedAsync(database, new SeedOrder("ORD-2026-0002", OrderStatus.Pending) { DueDate = new DateOnly(2026, 11, 2), Total = 250.00m });
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 11, 3), ExpenseFixtures.SuppliesId, 500.00m);
+        await rig.SeedExpenseAsync(database, new DateOnly(2026, 11, 1), ExpenseCategorySeed.Rows.Single(row => row.Name == "Rent").Id, 200.00m);
+
+        var summary = await rig.ReadAsync(rig.Manager.AccessToken);
+
+        var orders = summary.GetProperty("orders");
+        orders.GetProperty("active").GetInt32().ShouldBe(2);
+        orders.GetProperty("dueThisWeek").GetInt32().ShouldBe(1);
+        orders.GetProperty("overdue").GetInt32().ShouldBe(1);
+        orders.GetProperty("receivables").GetDecimal().ShouldBe(750.00m);
+        var collected = summary.GetProperty("collected");
+        collected.GetProperty("thisMonth").GetDecimal().ShouldBe(400.00m);
+        collected.GetProperty("comparison").GetDecimal().ShouldBe(100.00m);
+        collected.GetProperty("comparisonThrough").GetString().ShouldBe("2026-10-04");
+        collected.GetProperty("changePercent").GetInt32().ShouldBe(300);
+        var expenses = summary.GetProperty("expenses");
+        expenses.GetProperty("thisMonth").GetDecimal().ShouldBe(700.00m);
+        expenses.GetProperty("count").GetInt32().ShouldBe(2);
+        expenses.GetProperty("topCategory").GetString().ShouldBe("Supplies");
+    }
+
+    [Fact]
+    public async Task WithNoComparisonMoneyThePercentIsNullAndWithNoExpensesThereIsNoTopCategory()
+    {
+        await using var rig = await Rig.StartAsync(database, NineThirtyManila);
+
+        var summary = await rig.ReadAsync(rig.Admin.AccessToken);
+
+        summary.GetProperty("collected").GetProperty("changePercent").ValueKind.ShouldBe(JsonValueKind.Null);
+        summary.GetProperty("expenses").GetProperty("topCategory").ValueKind.ShouldBe(JsonValueKind.Null);
+        summary.GetProperty("expenses").GetProperty("count").GetInt32().ShouldBe(0);
     }
 
     [Fact]
@@ -170,6 +216,9 @@ public sealed class DashboardSummaryEndpointTests(CspsDatabase database) : IClas
         }
 
         public Task<Guid> SeedAsync(CspsDatabase db, SeedOrder order) => OrderSeeding.AddAsync(db, order, Manager.UserId, _now);
+
+        public Task<Guid> SeedExpenseAsync(CspsDatabase db, DateOnly date, Guid categoryId, decimal amount) =>
+            ExpenseFixtures.SeedAsync(db, new ExpenseSeed(date, Admin.UserId, Manager.UserId, _now.AddDays(-2), categoryId, $"Row {date:MM-dd}", amount));
 
         public async ValueTask DisposeAsync()
         {

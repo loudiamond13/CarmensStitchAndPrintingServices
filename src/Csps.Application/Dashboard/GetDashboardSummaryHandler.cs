@@ -10,9 +10,10 @@ namespace Csps.Application.Dashboard;
 /// and the period, so one answer is one consistent snapshot. The first name is read for the token's user, never from the request.
 /// </summary>
 /// <param name="reader">The dashboard read port.</param>
+/// <param name="expenses">The company expense read port, for the expenses card.</param>
 /// <param name="requestContext">The signed-in user.</param>
 /// <param name="calendar">The business calendar.</param>
-public sealed class GetDashboardSummaryHandler(IDashboardReader reader, IRequestContext requestContext, IBusinessCalendar calendar)
+public sealed class GetDashboardSummaryHandler(IDashboardReader reader, ICompanyExpenseReader expenses, IRequestContext requestContext, IBusinessCalendar calendar)
 {
     /// <summary>Reads the summary.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -32,11 +33,16 @@ public sealed class GetDashboardSummaryHandler(IDashboardReader reader, IRequest
             return Result.Failure<DashboardSummaryResponse>(AuthErrors.SessionEnded);
         }
 
+        var (lastFirst, lastLast) = BusinessClock.MonthOf(period.MonthFirst.AddDays(-1));
+        _ = await expenses.GetKpisAsync(new KpiMonths(period.MonthFirst, period.MonthLast, lastFirst, lastLast), cancellationToken).ConfigureAwait(false);
+
         return Result.Success(new DashboardSummaryResponse(
             period.Today,
             GreetingOf(clock.DayPart),
             firstName,
-            new DashboardOrderFigures(figures.ActiveOrders)));
+            new DashboardOrderFigures(figures.ActiveOrders, figures.DueThisWeek, figures.Overdue, figures.Receivables),
+            new DashboardCollectedFigures(0m, 0m, period.Today, null),
+            new DashboardExpenseFigures(0m, 0, null)));
     }
 
     private static string GreetingOf(DayPart part) => part switch

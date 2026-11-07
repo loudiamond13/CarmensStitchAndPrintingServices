@@ -31,6 +31,6 @@ internal sealed class DashboardReader(CspsDbContext context) : IDashboardReader
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new DashboardFigures(firstName, counts?.Active ?? 0);
+        return new DashboardFigures(firstName, counts?.Active ?? 0, 0, 0, 0m, 0m, 0m);
     }
 }

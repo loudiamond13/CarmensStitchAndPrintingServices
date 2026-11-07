@@ -1,0 +1,216 @@
+using Csps.Application.Dashboard;
+using Csps.Application.Ports;
+using Csps.Domain.Orders;
+using Csps.Infrastructure.Dashboard;
+using Csps.Testing;
+
+namespace Csps.Infrastructure.IntegrationTests.Dashboard;
+
+/// <summary>DASH-01, DASH-02, D-01 to D-05, D-11, D-55: the dashboard reader's figures follow the owner's rules at week, month and month-end boundaries.</summary>
+public sealed class DashboardReaderTests(CspsDatabase database) : IClassFixture<CspsDatabase>
+{
+    // 10:00 in the fixed UTC+8 business zone on Wednesday 2026-11-04.
+    private static readonly DateTimeOffset Wednesday = new(2026, 11, 4, 2, 0, 0, TimeSpan.Zero);
+
+    // 10:00 on Tuesday 2026-03-31.
+    private static readonly DateTimeOffset MarchThirtyFirst = new(2026, 3, 31, 2, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task DueThisWeekCountsActiveOrdersDueMondayToSundayThatAreNotOverdue()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { DueDate = Day(11, 5) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Delivered) { DueDate = Day(11, 2) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Pending) { DueDate = Day(11, 2) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0004", OrderStatus.Pending) { DueDate = Day(11, 9) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0005", OrderStatus.Pending) { DueDate = Day(11, 8) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0006", OrderStatus.Pending) { DueDate = Day(11, 4) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0007", OrderStatus.Pending));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0008", OrderStatus.Completed) { DueDate = Day(11, 5) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0009", OrderStatus.Pending) { DueDate = Day(11, 5), Deleted = true });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0010", OrderStatus.Mockup) { DueDate = new DateOnly(2026, 10, 26) });
+
+        var figures = await rig.ReadAsync();
+
+        figures.DueThisWeek.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task OverdueCountsOpenOrdersDueBeforeTodayAndNeverDeliveredOrEndedOnes()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { DueDate = Day(11, 2) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Ready) { DueDate = new DateOnly(2026, 10, 30) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Mockup) { DueDate = Day(11, 3) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0004", OrderStatus.InProduction) { DueDate = Day(11, 4) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0005", OrderStatus.Delivered) { DueDate = new DateOnly(2026, 10, 30) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0006", OrderStatus.Completed) { DueDate = new DateOnly(2026, 10, 30) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0007", OrderStatus.Cancelled) { DueDate = new DateOnly(2026, 10, 30) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0008", OrderStatus.Pending));
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0009", OrderStatus.Pending) { DueDate = new DateOnly(2026, 10, 30), Deleted = true });
+
+        var figures = await rig.ReadAsync();
+
+        figures.Overdue.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task ReceivablesSumTheOwedBalanceOfActiveOrdersAndLeaveOutOverpaidEndedAndDeletedOnes()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending) { Total = 1000.00m, Payments = [new SeedMoney(Day(11, 3), 400.00m)] });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Delivered) { Total = 500.00m });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Pending) { Total = 250.00m, DueDate = new DateOnly(2026, 10, 1) });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0004", OrderStatus.Mockup) { Total = 300.00m, Payments = [new SeedMoney(Day(11, 3), 350.00m)] });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0005", OrderStatus.Completed) { Total = 900.00m });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0006", OrderStatus.Cancelled) { Total = 800.00m });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0007", OrderStatus.Pending) { Total = 700.00m, Deleted = true });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0008", OrderStatus.Pending) { Total = 0.01m });
+
+        var figures = await rig.ReadAsync();
+
+        figures.Receivables.ShouldBe(1350.01m);
+    }
+
+    [Fact]
+    public async Task CollectedIsPaymentsMinusRefundsInTheBusinessMonthWithCancelledOrdersInAndDeletedOnesOut()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments =
+            [
+                new SeedMoney(Day(11, 1), 700.00m),
+                new SeedMoney(Day(11, 4), 300.00m),
+                new SeedMoney(new DateOnly(2026, 10, 2), 400.00m),
+                new SeedMoney(new DateOnly(2026, 10, 5), 999.00m),
+                new SeedMoney(new DateOnly(2026, 10, 31), 111.00m),
+            ],
+            Refunds = [new SeedMoney(new DateOnly(2026, 10, 3), 50.00m)],
+        });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0002", OrderStatus.Cancelled)
+        {
+            Total = 500.00m,
+            Payments = [new SeedMoney(Day(11, 4), 200.00m)],
+            Refunds = [new SeedMoney(Day(11, 3), 150.00m)],
+        });
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0003", OrderStatus.Pending)
+        {
+            Total = 5000.00m,
+            Payments = [new SeedMoney(Day(11, 2), 5000.00m)],
+            Refunds = [new SeedMoney(Day(11, 2), 4000.00m)],
+            Deleted = true,
+        });
+
+        var figures = await rig.ReadAsync();
+
+        figures.CollectedThisMonth.ShouldBe(1050.00m);
+        figures.CollectedComparison.ShouldBe(350.00m);
+    }
+
+    [Fact]
+    public async Task CollectedMayBeBelowZeroAndKeepsEveryCentExactly()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Cancelled)
+        {
+            Total = 1000.00m,
+            Payments = [new SeedMoney(Day(11, 1), 0.01m), new SeedMoney(new DateOnly(2026, 10, 1), 0.03m)],
+            Refunds = [new SeedMoney(Day(11, 2), 300.00m), new SeedMoney(new DateOnly(2026, 10, 4), 0.01m)],
+        });
+
+        var figures = await rig.ReadAsync();
+
+        figures.CollectedThisMonth.ShouldBe(-299.99m);
+        figures.CollectedComparison.ShouldBe(0.02m);
+    }
+
+    [Fact]
+    public async Task CollectedComparisonRunsFebruaryFirstToFebruaryTwentyEighthOnMarchThirtyFirst()
+    {
+        var rig = await Rig.StartAsync(database, MarchThirtyFirst);
+        await rig.SeedAsync(new SeedOrder("ORD-2026-0001", OrderStatus.Pending)
+        {
+            Total = 1000.00m,
+            Payments =
+            [
+                new SeedMoney(new DateOnly(2026, 1, 31), 7.00m),
+                new SeedMoney(new DateOnly(2026, 2, 1), 50.00m),
+                new SeedMoney(new DateOnly(2026, 2, 28), 100.00m),
+                new SeedMoney(new DateOnly(2026, 3, 1), 10.00m),
+                new SeedMoney(new DateOnly(2026, 3, 31), 5.00m),
+            ],
+        });
+
+        var figures = await rig.ReadAsync();
+
+        rig.Period.ComparisonLast.ShouldBe(new DateOnly(2026, 2, 28));
+        figures.CollectedComparison.ShouldBe(150.00m);
+        figures.CollectedThisMonth.ShouldBe(15.00m);
+    }
+
+    [Fact]
+    public async Task TheCallersFirstNameIsReadAndAnUnknownCallerGetsNone()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+
+        var known = await rig.ReadAsync();
+        var unknown = await rig.ReadAsync(Guid.NewGuid());
+
+        known.FirstName.ShouldBe("Mina");
+        unknown.FirstName.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task AnEmptyShopGivesZeroEverywhere()
+    {
+        var rig = await Rig.StartAsync(database, Wednesday);
+
+        var figures = await rig.ReadAsync();
+
+        figures.ActiveOrders.ShouldBe(0);
+        figures.DueThisWeek.ShouldBe(0);
+        figures.Overdue.ShouldBe(0);
+        figures.Receivables.ShouldBe(0m);
+        figures.CollectedThisMonth.ShouldBe(0m);
+        figures.CollectedComparison.ShouldBe(0m);
+    }
+
+    private static DateOnly Day(int month, int day) => new(2026, month, day);
+
+    private sealed class Rig
+    {
+        private readonly CspsDatabase _database;
+        private readonly DateTimeOffset _now;
+        private readonly Guid _staffId;
+
+        private Rig(CspsDatabase database, DateTimeOffset now, Guid staffId, DashboardPeriod period)
+        {
+            _database = database;
+            _now = now;
+            _staffId = staffId;
+            Period = period;
+        }
+
+        public DashboardPeriod Period { get; }
+
+        public static async Task<Rig> StartAsync(CspsDatabase database, DateTimeOffset now)
+        {
+            await database.ResetAsync();
+            var staffId = await OrderSeeding.AddStaffAsync(database, "Mina", now);
+            var clock = await new FixedBusinessCalendar(now).GetClockAsync(TestContext.Current.CancellationToken);
+            return new Rig(database, now, staffId, DashboardPeriod.From(clock));
+        }
+
+        public Task<Guid> SeedAsync(SeedOrder order) => OrderSeeding.AddAsync(_database, order, _staffId, _now);
+
+        public Task<DashboardFigures> ReadAsync() => ReadAsync(_staffId);
+
+        public async Task<DashboardFigures> ReadAsync(Guid callerId)
+        {
+            await using var context = _database.CreateContext();
+            return await new DashboardReader(context).GetSummaryAsync(callerId, Period, TestContext.Current.CancellationToken);
+        }
+    }
+}
