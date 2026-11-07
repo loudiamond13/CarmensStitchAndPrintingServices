@@ -333,6 +333,35 @@ public sealed class MoneyHandoverEndpointTests(CspsDatabase database) : IClassFi
         (await MoneyFixtures.ReadAuditAsync(database, AuditActions.MoneyHandedOver, world.Carmen.UserId)).ShouldHaveSingleItem();
     }
 
+    [Fact]
+    public async Task TheAuditScreenNamesTheLeaverAndTheCoworkerAndMarksADeletedLeaverFormerStaff()
+    {
+        await using var world = await StartWorldAsync(leaverMoney: 2000.00m, deactivate: false);
+        await MoneyFixtures.DeleteAccountAsync(database, world.Jomar.UserId, Now);
+        using var post = await MoneyFixtures.PostHandoverAsync(world.Client, world.Carmen.AccessToken, world.Jomar.UserId, world.Liza.UserId, 500.00m, world.Today, "Fabric");
+        post.StatusCode.ShouldBe(HttpStatusCode.Created, await post.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        using var request = Csps.Server.IntegrationTests.Http.ApiRequests.Get("/api/v1/audit-log?pageSize=100", world.Carmen.AccessToken);
+        using var response = await world.Client.SendAsync(request, TestContext.Current.CancellationToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        var item = document.RootElement.GetProperty("items").EnumerateArray().Single(entry =>
+            entry.GetProperty("action").GetString() == AuditActions.MoneyHandedOver
+            && entry.GetProperty("doneBy").GetProperty("person") is { ValueKind: JsonValueKind.Object } person
+            && person.GetProperty("id").GetGuid() == world.Carmen.UserId);
+        var lines = item.GetProperty("changes").EnumerateArray().ToList();
+        lines.Select(line => line.GetProperty("field").GetString()).ShouldBe(["from", "to", "amount", "date"]);
+        lines[0].GetProperty("toPerson").GetProperty("id").GetGuid().ShouldBe(world.Jomar.UserId);
+        lines[0].GetProperty("toPerson").GetProperty("name").GetString().ShouldBe("Jomar Santos");
+        lines[0].GetProperty("toPerson").GetProperty("formerStaff").GetBoolean().ShouldBeTrue();
+        lines[1].GetProperty("toPerson").GetProperty("id").GetGuid().ShouldBe(world.Liza.UserId);
+        lines[1].GetProperty("toPerson").GetProperty("formerStaff").GetBoolean().ShouldBeFalse();
+        lines[2].GetProperty("to").GetString().ShouldBe("500.00");
+        text.ShouldNotContain("Fabric");
+    }
+
     private async Task NothingWasWrittenAsync(Guid carmenId)
     {
         (await MoneyFixtures.ReadTransfersAsync(database)).ShouldBeEmpty();
