@@ -68,6 +68,14 @@ describe('dashboardService.chart (DASH-03)', () => {
     expect(new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid').search).toBe('?months=6');
   });
 
+  it.each([0, 5, 7, 24, 6.5, Number.NaN])('refuses %s months and sends no request', async (months) => {
+    const { fake, service } = serviceWith([{ body: dashboardChartFixture(6) }]);
+
+    await expect(service.chart(months as never)).rejects.toBeInstanceOf(RangeError);
+
+    expect(fake.calls).toHaveLength(0);
+  });
+
   it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
     const { fake, service } = serviceWith([{ hang: true }]);
     const controller = new AbortController();

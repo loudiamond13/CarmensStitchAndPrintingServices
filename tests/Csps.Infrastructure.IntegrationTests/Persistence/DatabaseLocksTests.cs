@@ -130,6 +130,8 @@ public sealed class DatabaseLocksTests(CspsDatabase database) : IClassFixture<Cs
                     () => DatabaseLocks.TakeAsync(second, DatabaseLocks.ActiveManagers, Now, TimeSpan.FromSeconds(1), Message, TestContext.Current.CancellationToken));
 
                 error.Message.ShouldBe(Message);
+                error.ShouldBeOfType<DatabaseLockTimeoutException>();
+                SqlErrors.Has(error, SqlErrors.Timeout).ShouldBeTrue("the SQL timeout must travel as the cause");
             }
 
             await transaction.RollbackAsync(TestContext.Current.CancellationToken);
@@ -181,7 +183,8 @@ public sealed class DatabaseLocksTests(CspsDatabase database) : IClassFixture<Cs
         {
             var error = await Should.ThrowAsync<InvalidOperationException>(() => TakeAsync(context, "no-such-lock"));
 
-            error.Message.ShouldBe(Message);
+            error.ShouldBeOfType<DatabaseLockMissingException>();
+            error.Message.ShouldContain("no-such-lock");
         }
     }
 

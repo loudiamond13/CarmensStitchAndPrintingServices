@@ -7,11 +7,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { IncomeExpenseCard } from '@/modules/admin/components/IncomeExpenseCard';
-import { dashboardChartBackend, dashboardChartEmptyFixture, dashboardChartFixture } from '@/test/dashboardFixtures';
+import {
+  dashboardChartBackend,
+  dashboardChartEmptyFixture,
+  dashboardChartFixture,
+  type DashboardChartFixture,
+} from '@/test/dashboardFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 
 // D3 Income vs. expenses card (DASH-03, D-36, D-50): the chart of plan 10-04 fed by the chart endpoint, with the owner's words.
+
+type DashboardChartItem = DashboardChartFixture['items'][number];
 
 let queryClient: QueryClient;
 
@@ -337,6 +344,58 @@ describe('the card states (DASH-06)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('keeps one status: silent on the failure, "Loading the chart…" during Try Again, then "The chart loaded."', async () => {
+    let answered = 0;
+    dashboardChartBackend(async () => {
+      answered += 1;
+      if (answered === 1) return problemResponse(500);
+      await delay(300);
+      return dashboardChartFixture(6);
+    });
+    renderCard();
+    await screen.findByText("Couldn't load the chart.");
+    const status = screen.getByRole('status');
+    expect(status).toBeEmptyDOMElement();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading the chart…');
+    });
+    expect(status.previousElementSibling).toHaveAttribute('aria-busy', 'true');
+    expect(await screen.findByRole('img', { name: OCT_NAME })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('The chart loaded.');
+    expect(status.previousElementSibling).not.toHaveAttribute('aria-busy');
+  });
+
+  it('says it is busy and then that the chart loaded when Try Again follows a failed 12 months', async () => {
+    let twelve = 0;
+    dashboardChartBackend(async (url) => {
+      if (url.searchParams.get('months') !== '12') return dashboardChartFixture(6);
+      twelve += 1;
+      if (twelve === 1) return problemResponse(500);
+      await delay(300);
+      return dashboardChartFixture(12);
+    });
+    renderCard();
+    await screen.findByRole('img', { name: OCT_NAME });
+    await userEvent.click(screen.getByRole('radio', { name: '12M' }));
+    await screen.findByText("Couldn't load the chart.");
+    const status = screen.getByRole('status');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(status).toHaveTextContent('Loading the chart…');
+    });
+    await waitFor(() => {
+      expect(screen.getAllByRole('img', { name: /income/ }).length).toBe(12);
+    });
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('The chart loaded.');
+  });
+
   it('shows the failure when the 12 months cannot be read, and the switch still works', async () => {
     dashboardChartBackend((url) =>
       url.searchParams.get('months') === '12' ? problemResponse(500) : dashboardChartFixture(6),
@@ -374,5 +433,63 @@ describe('the card states (DASH-06)', () => {
     const failed = renderCard();
     await screen.findByText("Couldn't load the chart.");
     await expectNoAxeViolations(failed.container);
+  });
+});
+
+describe('an answer the browser cannot draw (DASH-03, wave 5 IN-01)', () => {
+  const bad: [string, DashboardChartItem][] = [
+    ['text that is not a number', { month: '2026-11', income: 'abc', expenses: 5, profit: 5 }],
+    ['grouped text', { month: '2026-11', income: '1,250.50', expenses: 5, profit: 5 }],
+    ['blank text', { month: '2026-11', income: 10, expenses: '', profit: 5 }],
+    ['Infinity as text', { month: '2026-11', income: 10, expenses: 5, profit: 'Infinity' }],
+    ['NaN as text', { month: '2026-11', income: 'NaN', expenses: 5, profit: 5 }],
+    ['a missing figure', { month: '2026-11', income: 10, expenses: 5, profit: null as never }],
+  ];
+
+  it.each(bad)('shows the failure and draws nothing for %s', async (_name, item) => {
+    dashboardChartBackend(dashboardChartFixture(6, { items: [item] }));
+    renderCard();
+
+    expect(await screen.findByText("Couldn't load the chart.")).toBeVisible();
+    expect(screen.queryByRole('img', { name: /income/ })).toBeNull();
+    expect(document.body.innerHTML).not.toContain('NaN');
+  });
+
+  it('shows the failure when the server answers another window than the one asked for', async () => {
+    dashboardChartBackend(dashboardChartFixture(12, { months: 12 }));
+    renderCard();
+
+    expect(await screen.findByText("Couldn't load the chart.")).toBeVisible();
+    expect(screen.queryByRole('img', { name: /income/ })).toBeNull();
+  });
+
+  it('shows the failure when the server months is not a whole 6 or 12', async () => {
+    dashboardChartBackend(dashboardChartFixture(6, { months: 6.5 }));
+    renderCard();
+
+    expect(await screen.findByText("Couldn't load the chart.")).toBeVisible();
+  });
+
+  it('reads the server months when it arrives as text', async () => {
+    dashboardChartBackend(dashboardChartFixture(6, { months: '6' }));
+    renderCard();
+
+    expect(await screen.findByRole('img', { name: OCT_NAME })).toBeInTheDocument();
+  });
+
+  it('draws the chart when Try Again meets a good answer after a bad one', async () => {
+    let answered = 0;
+    dashboardChartBackend(() => {
+      answered += 1;
+      return answered === 1
+        ? dashboardChartFixture(6, { items: [{ month: '2026-11', income: 'abc', expenses: 5, profit: 5 }] })
+        : dashboardChartFixture(6);
+    });
+    renderCard();
+    await screen.findByText("Couldn't load the chart.");
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('img', { name: OCT_NAME })).toBeInTheDocument();
   });
 });

@@ -48,6 +48,9 @@ public sealed class MoneyTransferConcurrencyTests(CspsDatabase database) : IClas
         }
     }
 
+    // D-53: an expense never checks a balance and takes no lock, so any mix of one transfer and one expense matches one serial order.
+    // This test pins that: the expense is never refused and the end balances are one of the two serial outcomes. It cannot prove the lock;
+    // the test below does, by adding the second transfer the lock exists to stop.
     [Fact]
     public async Task ATransferRacingAnExpenseThePayerAlsoPaysEndsInOneOfTheTwoSerialOutcomes()
     {
@@ -85,6 +88,56 @@ public sealed class MoneyTransferConcurrencyTests(CspsDatabase database) : IClas
                 (await MoneyFixtures.ReadFieldErrorsAsync(transferResponse, "amount")).ShouldBe(["You only have ₱500.00 on hand."], $"round {round}");
                 senderBalance.ShouldBe(500.00m, $"round {round}: transfer refused after the expense");
                 lizaBalance.ShouldBe(0.00m, $"round {round}");
+            }
+        }
+    }
+
+    // Fails without the lock: both transfers read 1000.00 before either commits, so both are recorded and 1200.00 leaves a 1000.00 holder.
+    [Fact]
+    public async Task TwoTransfersRacingAnExpenseStillSpendOnlyWhatWasHeldAndTheExpenseIsNeverRefused()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        var orderNumber = 0;
+
+        for (var round = 1; round <= Rounds; round++)
+        {
+            var sender = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+            var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+            var paolo = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Paolo", "Garcia");
+            await MoneyFixtures.SeedPaymentAsync(database, sender.UserId, NextOrderNumber(ref orderNumber), 1000.00m, today, Now);
+            var expense = ExpenseFixtures.ValidBody(ExpenseFixtures.SuppliesId, sender.UserId, today);
+            expense["amount"] = 300.00m;
+
+            var responses = await ConcurrentRequests.SendAllTogetherAsync(
+            [
+                () => MoneyFixtures.PostTransferAsync(client, sender.AccessToken, liza.UserId, 600.00m, today),
+                () => MoneyFixtures.PostTransferAsync(client, sender.AccessToken, paolo.UserId, 600.00m, today),
+                () => ExpenseFixtures.PostAsync(client, sender.AccessToken, expense),
+            ]);
+            try
+            {
+                responses[2].StatusCode.ShouldBe(HttpStatusCode.Created, $"round {round}: the expense is never refused");
+                var statuses = new[] { responses[0].StatusCode, responses[1].StatusCode }.Order().ToArray();
+                statuses.ShouldBe([HttpStatusCode.Created, HttpStatusCode.BadRequest], $"round {round}: exactly one transfer fits");
+                var (winner, loser, winnerPerson, loserPerson) = responses[0].StatusCode == HttpStatusCode.Created
+                    ? (responses[0], responses[1], liza, paolo)
+                    : (responses[1], responses[0], paolo, liza);
+                winner.StatusCode.ShouldBe(HttpStatusCode.Created);
+                var refusal = await MoneyFixtures.ReadFieldErrorsAsync(loser, "amount");
+                refusal.ShouldHaveSingleItem().ShouldBeOneOf("You only have ₱400.00 on hand.", "You only have ₱100.00 on hand.");
+                (await MoneyFixtures.ReadBalanceAsync(client, sender.AccessToken)).ShouldBe(100.00m, $"round {round}: 1000.00 minus 600.00 minus 300.00");
+                (await MoneyFixtures.ReadBalanceAsync(client, winnerPerson.AccessToken)).ShouldBe(600.00m, $"round {round}");
+                (await MoneyFixtures.ReadBalanceAsync(client, loserPerson.AccessToken)).ShouldBe(0.00m, $"round {round}");
+            }
+            finally
+            {
+                foreach (var response in responses)
+                {
+                    response.Dispose();
+                }
             }
         }
     }

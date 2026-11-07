@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-07T09:35:00-06:00
+updated: 2026-11-07T10:30:00-06:00
 ---
 
 # The staff money API
@@ -81,6 +81,9 @@ A staff member sends part of their money on hand to a coworker (MONEY-04, MONEY-
 - **The sender is always the signed-in person.** The body has no sender. A `fromUserId`, `createdById`, `createdAtUtc`, `updatedById`,
   `updatedAtUtc` or `isHandover` in the body is ignored. Who recorded the transfer and when come from the token and the clock (SEC-08).
 - `transferDate` is `yyyy-MM-dd`. Any past day is accepted; the balance check uses the sender's balance now (D-20).
+- The sender is checked again under the lock. A sender who has been deactivated, deleted or locked, or who no longer has the `Admin` or
+  `Manager` role, since signing in gets `401` `Your session ended. Sign in again.` and nothing is recorded. Money held by a leaver is moved
+  only by a Manager hand-over (D-17).
 - Send an `Idempotency-Key` header. The same key and body twice records one transfer, and the second answer replays the stored `201`
   with an `Idempotent-Replayed` header. The same key with a different body answers `422` (SEC-06).
 - The answer is `{ transfer, senderBalance }`. It never carries the recipient's balance (OD-19).
@@ -117,8 +120,10 @@ An empty body lists `toUserId`, `amount` and `transferDate` together. An anonymo
 
 Only a transfer (and, in a later plan, a hand-over) takes the `staff-money` lock. It is the first statement in the transaction, before
 any person or balance is read, so two transfers at the same moment can never spend the same money twice. Expense, payment and refund
-saves do not take it: they may already take a balance below zero (D-15, D-16), and a race test proves a transfer still never
-overdraws. A lock that cannot be had within 10 seconds answers `409` with `Something changed at the same time. Try again.`
+saves do not take it: they may already take a balance below zero (D-15, D-16). An expense never checks a balance, so one transfer
+racing one expense always matches one serial order. The race tests that can fail are the ones that add a second transfer, with or
+without an expense: only the lock stops both from spending the same money. A lock that cannot be had within 10 seconds answers `409` with `Something changed at the same time. Try again.`
+The timeout is logged as a warning with its cause. A missing `staff-money` row is a setup fault: it answers `500`, never `409`.
 
 ## Errors
 
