@@ -72,4 +72,17 @@ internal static class StaffLedgerQuery
         ArgumentNullException.ThrowIfNull(ordered);
         return await ordered.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Adds up the signed amounts of the first <paramref name="skip"/> rows of an ordered ledger. Not built yet: always 0.</summary>
+    /// <param name="ordered">The query from <see cref="Ordered"/>.</param>
+    /// <param name="skip">How many of the newest rows to add up; <c>(page - 1) * pageSize</c> for a page.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The sum.</returns>
+    public static Task<decimal> SumNewerAsync(IQueryable<StaffLedgerRow> ordered, int skip, CancellationToken cancellationToken) => Task.FromResult(0m);
+
+    /// <summary>Counts every row of a ledger. Not built yet: always 0.</summary>
+    /// <param name="rows">The query from <see cref="For"/>.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The number of rows.</returns>
+    public static Task<int> CountAsync(IQueryable<StaffLedgerRow> rows, CancellationToken cancellationToken) => Task.FromResult(0);
 }
