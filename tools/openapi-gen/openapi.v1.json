@@ -4275,6 +4275,41 @@
         ],
         "type": "object"
       },
+      "StaffMoneyResponse": {
+        "description": "One person's money on hand, worked out on the server on every read (MONEY-01).",
+        "properties": {
+          "balance": {
+            "description": "Money received plus transfers in, minus transfers out, expenses paid and refunds handed back; below zero when they are owed money.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "name": {
+            "description": "Their display name, first then last.",
+            "type": "string"
+          },
+          "today": {
+            "description": "The business today.",
+            "format": "date",
+            "type": "string"
+          },
+          "userId": {
+            "description": "The person.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "balance",
+          "today"
+        ],
+        "type": "object"
+      },
       "TopCategoryKpi": {
         "description": "The category with the highest total this month.",
         "properties": {
@@ -12923,6 +12958,37 @@
         ]
       }
     },
+    "/api/v1/staff-money/me": {
+      "get": {
+        "operationId": "GetMyMoney",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffMoneyResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the signed-in person's own money on hand: payments they received plus transfers to them, minus transfers from them,\nexpenses they paid and refunds they handed back. The figure can be below zero. The person is the token's user; the route takes\nno id and no balance is ever accepted from a client. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "operationId": "ListUsers",
@@ -14118,6 +14184,9 @@
     },
     {
       "name": "Staff"
+    },
+    {
+      "name": "StaffMoney"
     },
     {
       "name": "Users"
