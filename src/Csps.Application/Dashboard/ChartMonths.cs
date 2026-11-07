@@ -13,7 +13,7 @@ public static class ChartMonths
     /// <param name="refunds">The refund sums by month.</param>
     /// <param name="companyExpenses">The company expense sums by month.</param>
     /// <param name="orderExpenses">The order expense sums by month.</param>
-    /// <returns>The months, with zeros where a month has no rows.</returns>
+    /// <returns>The months, with zeros where a month has no rows. Profit is income minus expenses.</returns>
     public static IReadOnlyList<DashboardChartMonth> Build(
         DateOnly firstMonth,
         int months,

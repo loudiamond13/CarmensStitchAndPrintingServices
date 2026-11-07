@@ -1,6 +1,6 @@
 ---
 created: 2026-11-06T23:30:00-06:00
-updated: 2026-11-06T23:30:00-06:00
+updated: 2026-11-07T00:33:09-06:00
 ---
 
 # The dashboard API
@@ -8,7 +8,7 @@ updated: 2026-11-06T23:30:00-06:00
 This is the contract behind the admin dashboard, and the one a future Android app will use. Everything here is under `/api/v1`.
 The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the
 web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in [auth.md](auth.md).
-The money-over-time chart has its own route and is added by a later plan.
+The money-over-time chart has its own route, `GET /api/v1/dashboard/chart`, described near the end of this page.
 
 ## In plain words
 
@@ -108,3 +108,62 @@ This is not the order list: it does not hide old Completed or Cancelled orders a
 The server makes a fixed number of SQL commands whatever the data: one for the caller's first name, one grouped read of the
 orders (counts, receivables and statuses), one for the payments, one for the refunds, two for the expense figures and one for
 the six newest orders. Every figure is a LINQ aggregate; there is no inline SQL.
+
+## The chart: `GET /api/v1/dashboard/chart`
+
+Income, expenses and profit for each of the last 6 or 12 months, worked out on the server (DASH-03). The browser draws what it
+gets: it never fills a missing month and never works out a profit.
+
+| Method and path | Who | Query | Answers |
+|---|---|---|---|
+| `GET /dashboard/chart` | Staff | `months`: `6` or `12`; `6` when not sent | `200` the chart, `400` for any other `months`, `401` without a valid token. |
+
+Both roles get the same answer. Nothing is cached (`Cache-Control: no-store`).
+
+```text
+{
+  months,
+  items [ { month, income, expenses, profit } x months ]
+}
+```
+
+Example for `GET /dashboard/chart?months=6` on 4 November 2026 (business zone):
+
+```json
+{
+  "months": 6,
+  "items": [
+    { "month": "2026-06", "income": 0.00, "expenses": 0.00, "profit": 0.00 },
+    { "month": "2026-07", "income": 0.00, "expenses": 0.00, "profit": 0.00 },
+    { "month": "2026-08", "income": 0.00, "expenses": 0.00, "profit": 0.00 },
+    { "month": "2026-09", "income": 0.00, "expenses": 0.00, "profit": 0.00 },
+    { "month": "2026-10", "income": 1000.00, "expenses": 300.00, "profit": 700.00 },
+    { "month": "2026-11", "income": 300.00, "expenses": 100.00, "profit": 200.00 }
+  ]
+}
+```
+
+### The window
+
+- `items` holds exactly `months` entries, **oldest first**, and the last one is the current business month. The window crosses
+  a year end without a gap: on 10 February 2026 with `months=6` it runs `2025-09` to `2026-02`.
+- `month` is the business month as `yyyy-MM`.
+- A month with no money is still listed, with `0.00` for all three figures. The server fills the gaps.
+- Only `6` and `12` are accepted. `7`, `0`, `-6`, `1000` and text such as `abc` answer `400` with the field `months` and the
+  message "Choose 6 or 12 months." No figure is read for a bad request (CWE-20).
+
+### The figures
+
+| Field | Rule |
+|---|---|
+| `income` | Payments dated in the month (by payment date) minus refunds dated in it (by refund date). It can be below zero (D-09). |
+| `expenses` | Company expenses plus order expenses, each placed by its own expense date (D-10). |
+| `profit` | `income` minus `expenses`, computed on the server (D-36). |
+
+- Money on Cancelled orders counts. Money on deleted orders and deleted company expenses does not (D-11).
+- The current month's `income` equals `collected.thisMonth` from `GET /dashboard/summary` at the same instant (D-04).
+- A company expense may be dated up to 30 days ahead. One dated later in the current month counts in the current month; one
+  dated in a later month counts in no month of the window yet.
+
+How the server reads it: four grouped LINQ sums over the window (payments, refunds, company expenses, order expenses), each
+grouped by the year and month of its own date, merged and gap-filled in code. No inline SQL, no cache.
