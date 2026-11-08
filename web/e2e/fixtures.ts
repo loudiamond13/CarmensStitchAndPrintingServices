@@ -413,15 +413,19 @@ async function withoutBarCoveredNodes(page: Page, violations: Result[]): Promise
  * sticky bar (the admin top bar, the phone tab bar, the public header), is scrolled to the middle of the window inside the
  * page's scroll padding, checked again for target-size alone, and the scroll is put back. It fails only if it is still
  * covered. Every other finding, and the message format, are unchanged.
+ *
+ * `scope` is a CSS selector: only that part of the page is checked. A page of hundreds of cases (the Component Showcase) takes
+ * minutes per whole-page pass, so a check that only cares about one section or one open dialog names it.
  */
-export async function expectNoAxeViolations(page: Page): Promise<void> {
+export async function expectNoAxeViolations(page: Page, scope?: string): Promise<void> {
   // Axe reads colors as painted, so a toast or dialog still fading in fails contrast. Finite animations finish first.
   await page.evaluate<boolean>(`(async () => {
     const running = document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
     await Promise.allSettled(running.map((animation) => animation.finished));
     return true;
   })()`);
-  const results = await pageAxe(page).analyze();
+  const builder = pageAxe(page);
+  const results = await (scope === undefined ? builder : builder.include(scope)).analyze();
   const lines = (await withoutBarCoveredNodes(page, results.violations))
     .map((violation) => ({
       id: violation.id,

@@ -9,6 +9,13 @@ import { assertNoFindings, expect, expectNoAxeViolations, listFindings, pageAxe,
 
 const DELIBERATE = 'e2e fixture: deliberate console error';
 
+// An empty region to scope an axe check to, beside the page's own content.
+const INSERT_EMPTY_REGION = `(() => {
+  const region = document.createElement('div');
+  region.id = 'e2e-axe-scope';
+  document.body.append(region);
+})()`;
+
 // Resolves true once the browser reports the blocked <style> element (false after 5 s, so a missing report fails the
 // assertion instead of hanging the test).
 const INSERT_STYLE = `new Promise((resolve) => {
@@ -146,6 +153,20 @@ test('@fixture an unlabelled image fails the axe check', async ({ page, guard })
 
   await page.evaluate(INSERT_UNLABELLED_IMAGE);
 
+  await expect(expectNoAxeViolations(page)).rejects.toThrow(/image-alt/);
+  expect(listFindings(await guard.take())).toEqual([]);
+});
+
+test('@fixture a scoped axe check ignores a finding outside its scope and still finds one inside it', async ({
+  page,
+  guard,
+}) => {
+  await page.goto('/');
+  await page.evaluate(INSERT_EMPTY_REGION);
+  await page.evaluate(INSERT_UNLABELLED_IMAGE);
+
+  await expectNoAxeViolations(page, '#e2e-axe-scope');
+  await expect(expectNoAxeViolations(page, 'main')).rejects.toThrow(/image-alt/);
   await expect(expectNoAxeViolations(page)).rejects.toThrow(/image-alt/);
   expect(listFindings(await guard.take())).toEqual([]);
 });
