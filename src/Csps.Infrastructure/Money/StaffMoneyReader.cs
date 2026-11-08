@@ -18,6 +18,8 @@ namespace Csps.Infrastructure.Money;
 /// </summary>
 internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReader
 {
+    private const int LedgerReadAttempts = 3;
+
     public Task<IReadOnlyList<StaffMoneySums>> GetSumsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(userIds);
@@ -96,12 +98,23 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
             return await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
         }
 
-        var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
-        await using (transaction.ConfigureAwait(false))
+        // A serializable read can lose a deadlock to a writer. The read changes nothing, so it is read again, up to three times.
+        for (var attempt = 1; ; attempt++)
         {
-            var result = await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return result;
+            try
+            {
+                var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
+                await using (transaction.ConfigureAwait(false))
+                {
+                    var result = await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    return result;
+                }
+            }
+            catch (Exception error) when (attempt < LedgerReadAttempts && SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+            {
+                // The server rolled the transaction back; the next attempt starts clean.
+            }
         }
     }
 
