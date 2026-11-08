@@ -42,6 +42,18 @@ export function RemoveTransferDialog({ transfer, open, onClose, onDone }: Remove
     return undefined;
   };
 
+  return <RemoveTransferView transfer={transfer} open={open} onConfirm={confirm} onClose={onClose} />;
+}
+
+export interface RemoveTransferViewProps {
+  transfer: TransferTarget;
+  open: boolean;
+  onConfirm: () => unknown;
+  onClose: () => void;
+}
+
+/** The dialog as the screen draws it, from plain values: the Component Showcase hands it demo data and a confirm that only closes. */
+export function RemoveTransferView({ transfer, open, onConfirm, onClose }: RemoveTransferViewProps) {
   return (
     <ConfirmDialog
       open={open}
@@ -62,7 +74,7 @@ export function RemoveTransferDialog({ transfer, open, onClose, onDone }: Remove
       confirmLabel={COPY.confirm}
       confirmIcon="eraser"
       pendingLabel={COPY.pending}
-      onConfirm={confirm}
+      onConfirm={onConfirm}
       onCancel={onClose}
     />
   );

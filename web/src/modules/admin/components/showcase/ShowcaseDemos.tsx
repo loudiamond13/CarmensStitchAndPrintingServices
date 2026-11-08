@@ -45,6 +45,7 @@ import { Phase5Demos } from './Phase5Demos';
 import { Phase6Demos } from './Phase6Demos';
 import { Phase8Demos } from './Phase8Demos';
 import { Phase9Demos } from './Phase9Demos';
+import { Phase10Demos } from './Phase10Demos';
 import { SHOWCASE_COPY } from './showcaseCopy';
 import type { ShowcaseSectionId } from './showcaseSections';
 
@@ -432,6 +433,28 @@ function Phase9OnRequest() {
   );
 }
 
+/**
+ * The Dashboard and staff money cases mount when asked for, as the Order photos cases do: about 20 frames with five tables, a chart and
+ * several dialogs would slow the page's first load on WebKit. Phase10Demos.test.tsx and the `@dashboard-showcase` showcase test cover them.
+ */
+function Phase10OnRequest() {
+  const [shown, setShown] = useState(false);
+  if (shown) {
+    return <Phase10Demos />;
+  }
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => {
+        setShown(true);
+      }}
+    >
+      {SHOWCASE_COPY.dashboard.show}
+    </Button>
+  );
+}
+
 export interface ExtraCase {
   readonly id: string;
   readonly Component: ComponentType;
@@ -453,4 +476,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
   expenses: [{ id: 'showcase-company-expenses', Component: Phase6Demos, demo: true }],
   orders: [{ id: 'showcase-orders', Component: Phase8Demos, demo: true }],
   photos: [{ id: 'showcase-order-photos', Component: Phase9OnRequest, demo: true }],
+  dashboard: [{ id: 'showcase-dashboard-and-money', Component: Phase10OnRequest, demo: true }],
 };

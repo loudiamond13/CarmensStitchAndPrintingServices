@@ -84,7 +84,9 @@ describe('Phase10Demos: the dashboard cards', () => {
     expect(frame.getByRole('heading', { name: 'Income vs. expenses' })).toBeInTheDocument();
     expect(frame.getByText('Profit (income minus expenses)')).toBeInTheDocument();
     expect(frame.getAllByRole('img', { name: /income/i })).toHaveLength(6);
-    const statuses = within(frame.getByRole('heading', { name: 'Orders by status' }).closest('section') ?? document.body);
+    const statuses = within(
+      frame.getByRole('heading', { name: 'Orders by status' }).closest('section') ?? document.body,
+    );
     expect(statuses.getAllByRole('listitem')).toHaveLength(6);
     const recent = frame.getByRole('table', { name: 'Recent orders' });
     expect(within(recent).getAllByRole('row')).toHaveLength(7);
@@ -151,7 +153,7 @@ describe('Phase10Demos: the dashboard cards', () => {
     expect(frame.getByText('Not collected')).toBeInTheDocument();
     expect(frame.getByText(/Credit/)).toBeInTheDocument();
     expect(frame.getByText(/overdue/i)).toBeInTheDocument();
-    expect(frame.getByText(/Due in|due in/)).toBeInTheDocument();
+    expect(frame.getByText('2 days left')).toBeInTheDocument();
   });
 });
 
@@ -195,11 +197,11 @@ describe('Phase10Demos: the ledger, All Staff and the Transfers table', () => {
     expect(table.getAllByRole('row')).toHaveLength(8);
     expect(table.getByText('Payment received')).toBeInTheDocument();
     expect(table.getByText('Refund handed back')).toBeInTheDocument();
-    expect(table.getByText('Transfer in')).toBeInTheDocument();
-    expect(table.getAllByText('Transfer out').length).toBeGreaterThan(0);
+    expect(table.getByText('Transfer from Paolo Garcia')).toBeInTheDocument();
+    expect(table.getAllByText('Transfer to Liza Mercado').length).toBeGreaterThan(0);
     expect(table.getByText('Company expense')).toBeInTheDocument();
     expect(table.getByText('Order expense')).toBeInTheDocument();
-    expect(table.getByText('Hand-over')).toBeInTheDocument();
+    expect(table.getByText('Handed over by Carmen Reyes')).toBeInTheDocument();
     expect(table.getAllByText('−₱500.00').length).toBeGreaterThan(0);
     expect(table.getByText('Deleted')).toBeInTheDocument();
   });
@@ -209,13 +211,13 @@ describe('Phase10Demos: the ledger, All Staff and the Transfers table', () => {
     const frame = within(caseFrame('money-ledger-states'));
 
     expect(frame.getAllByText(/Loading the ledger/).length).toBeGreaterThan(0);
-    expect(frame.getByText('No money moves yet')).toBeInTheDocument();
+    expect(frame.getByText('No money in or out yet')).toBeInTheDocument();
     expect(frame.getByText(/Couldn't load the ledger/)).toBeInTheDocument();
   });
 
   it('shows All Staff with a negative active person, a deactivated person holding money and a deleted person owed money', () => {
     renderDemos();
-    const table = within(within(caseFrame('money-all-staff')).getByRole('table', { name: 'All Staff' }));
+    const table = within(within(caseFrame('money-all-staff')).getByRole('table', { name: 'Staff money on hand' }));
 
     expect(table.getByText('Liza Mercado')).toBeInTheDocument();
     expect(table.getAllByText('−₱500.00').length).toBeGreaterThan(0);
@@ -269,7 +271,7 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Record Transfer' }));
 
     expect(await within(dialog).findByText('You only have ₱200.00 on hand.')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/^Amount/)).toHaveValue('1,000.00');
+    expect(within(dialog).getByLabelText(/^Amount/)).toHaveValue('1000.00');
   });
 
   it('opens Hand Over Money for a leaver with its note, and shows its server refusal', async () => {
@@ -277,15 +279,17 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     renderDemos();
 
     await user.click(
-      within(caseFrame('money-hand-over-window')).getByRole('button', { name: 'Open Hand Over Money (server refuses)' }),
+      within(caseFrame('money-hand-over-window')).getByRole('button', {
+        name: 'Open Hand Over Money (server refuses)',
+      }),
     );
     const dialog = await screen.findByRole('dialog', { name: 'Hand Over Money' });
     expect(within(dialog).getByText('From Jomar Santos (deactivated). They hold ₱2,000.00.')).toBeInTheDocument();
     await user.selectOptions(within(dialog).getByLabelText(/^To/), 'Carmen Reyes (you)');
     await user.type(within(dialog).getByLabelText(/^Amount/), '500');
-    await user.click(within(dialog).getByRole('button', { name: 'Hand Over' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Record Handover' }));
 
-    expect(await within(dialog).findByText('Jomar Santos holds only ₱1,500.00.')).toBeInTheDocument();
+    expect(await within(dialog).findByText('Jomar Santos only has ₱300.00 on hand.')).toBeInTheDocument();
   });
 
   it('opens Delete Transfer with the resulting-balance warning, and without it', async () => {
@@ -323,7 +327,9 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     const user = userEvent.setup();
     renderDemos();
 
-    await user.click(within(caseFrame('money-delete-transfer-dialog')).getByRole('button', { name: 'Open Delete Transfer' }));
+    await user.click(
+      within(caseFrame('money-delete-transfer-dialog')).getByRole('button', { name: 'Open Delete Transfer' }),
+    );
     let dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
     await waitFor(() => {
@@ -347,8 +353,12 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     });
     // Strip, tables and cards: a press on any of them does nothing.
     await user.click(within(caseFrame('money-strip-negative')).getByRole('button', { name: 'Transfer' }));
-    await user.click(within(caseFrame('money-all-staff')).getByRole('button', { name: 'Hand over money from Jomar Santos' }));
-    fireEvent.click(within(caseFrame('dashboard-cards-error')).getAllByRole('button', { name: 'Try Again' })[0] as HTMLElement);
+    await user.click(
+      within(caseFrame('money-all-staff')).getByRole('button', { name: 'Hand over money from Jomar Santos' }),
+    );
+    for (const retry of within(caseFrame('dashboard-cards-error')).getAllByRole('button', { name: 'Try Again' })) {
+      fireEvent.click(retry);
+    }
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(requests).toEqual([]);
