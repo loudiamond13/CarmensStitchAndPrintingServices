@@ -130,6 +130,9 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
         return new LedgerPage(views, total, newerSum, sums.Count == 0 ? 0m : sums[0].Balance());
     }
 
+    public Task<MoneyTransferListResponse> ListTransfersAsync(Guid? involving, bool includeDeleted, int page, int pageSize, CancellationToken cancellationToken) =>
+        Task.FromResult(new MoneyTransferListResponse([], 0, page, pageSize));
+
     // The one place that leaves deleted transfers out; the entity has no query filter (RESEARCH Pitfall 4).
     private static IQueryable<MoneyTransfer> CountedTransfers(CspsDbContext db) =>
         db.Set<MoneyTransfer>().Where(transfer => transfer.DeletedAtUtc == null);

@@ -153,6 +153,49 @@ public sealed class StaffMoneyAccessEndpointTests(CspsDatabase database) : IClas
     }
 
     [Fact]
+    public async Task NoOtherFiguresReachAnAdminOnAnyMoneyReadRefusalOrRefusedTransfer()
+    {
+        await using var world = await StartWorldAsync();
+        var today = await ExpenseFixtures.TodayAsync(world.Factory);
+        var token = world.Liza.AccessToken;
+        var bodies = new List<string>();
+
+        foreach (var route in new[] { MoneyFixtures.MeRoute, MoneyFixtures.LedgerRoute, MoneyFixtures.TransfersRoute, MoneyFixtures.RecipientsRoute })
+        {
+            using var request = ApiRequests.Get(route, token);
+            using var response = await world.Client.SendAsync(request, TestContext.Current.CancellationToken);
+            var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, $"{route}: {text}");
+            bodies.Add(text);
+        }
+
+        using var all = await MoneyFixtures.GetStaffBalancesAsync(world.Client, token);
+        all.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        bodies.Add(await all.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        foreach (var coworker in new[] { world.Carmen.UserId, world.Paolo.UserId, world.Jomar })
+        {
+            using var money = await MoneyFixtures.GetStaffMoneyAsync(world.Client, token, coworker);
+            using var ledger = await MoneyFixtures.GetStaffLedgerAsync(world.Client, token, coworker);
+            bodies.Add(await AssertOwnMoneyOnlyAsync(money));
+            bodies.Add(await AssertOwnMoneyOnlyAsync(ledger));
+        }
+
+        // Jomar is owed 333.33, so 500.00 is refused; an Admin learns the limit exists but not the figure (D-49).
+        using var refused = await MoneyFixtures.PostTransferAsync(world.Client, token, world.Jomar, 500.00m, today);
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        bodies.Add(await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        bodies.Count.ShouldBe(12);
+        foreach (var body in bodies)
+        {
+            body.ShouldNotContain("7777.77");
+            body.ShouldNotContain("333.33");
+            body.ShouldNotContain(world.DeletedTransferId.ToString("D"));
+            body.ShouldNotContain("\"isDeleted\":true");
+        }
+    }
+
+    [Fact]
     public async Task AnAnonymousCallerGets401OnBothRoutes()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -210,12 +253,14 @@ public sealed class StaffMoneyAccessEndpointTests(CspsDatabase database) : IClas
         await MoneyFixtures.SeedPaymentAsync(database, paolo.UserId, "ORD-2026-0001", 7777.77m, today, Now);
         await MoneyFixtures.SeedCompanyExpenseAsync(database, jomar.UserId, jomar.UserId, 333.33m, today, Now);
         await MoneyFixtures.SeedPaymentAsync(database, LegacyHolder.Id, "ORD-2026-0002", 111.11m, today, Now);
-        await MoneySeeding.AddTransferAsync(database, new SeedTransfer(paolo.UserId, jomar.UserId, 50.00m, today) { Deleted = true }, Now);
+        await MoneyFixtures.SeedPaymentAsync(database, liza.UserId, "ORD-2026-0003", 1000.00m, today, Now);
+        await MoneySeeding.AddTransferAsync(database, new SeedTransfer(carmen.UserId, liza.UserId, 25.00m, today), Now);
+        var deletedId = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(paolo.UserId, jomar.UserId, 50.00m, today) { Deleted = true }, Now);
         await MoneyFixtures.DeactivateAccountAsync(database, jomar.UserId);
-        return new World(factory, client, carmen, liza, paolo, jomar.UserId, roleless);
+        return new World(factory, client, carmen, liza, paolo, jomar.UserId, roleless, deletedId);
     }
 
-    private sealed record World(CspsApiFactory Factory, HttpClient Client, StartedSession Carmen, StartedSession Liza, StartedSession Paolo, Guid Jomar, Guid Roleless)
+    private sealed record World(CspsApiFactory Factory, HttpClient Client, StartedSession Carmen, StartedSession Liza, StartedSession Paolo, Guid Jomar, Guid Roleless, Guid DeletedTransferId)
         : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
