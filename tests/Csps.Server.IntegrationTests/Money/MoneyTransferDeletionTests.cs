@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Net;
 using Csps.Application.Security;
 using Csps.Domain.Auditing;
+using Csps.Infrastructure.Persistence;
+using Csps.Infrastructure.Persistence.Locking;
 using Csps.Server.IntegrationTests.CompanyExpenses;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
@@ -387,6 +389,57 @@ public sealed class MoneyTransferDeletionTests(CspsDatabase database) : IClassFi
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await CountEmailsAsync(world.Database)).ShouldBe(before);
+    }
+
+    // D-53: only a transfer and a hand-over take the staff-money lock. The rowversion guards the delete, so a lock held by another
+    // transaction must not hold a delete or a remove up.
+    [Fact]
+    public async Task ADeleteSucceedsWhileAnotherTransactionHoldsTheStaffMoneyLock()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (id, version) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 500.00m, world.Today);
+
+        await using var held = await HoldStaffMoneyLockAsync(world.Database);
+        using var response = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, id, version);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ARemoveSucceedsWhileAnotherTransactionHoldsTheStaffMoneyLock()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (id, version) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 500.00m, world.Today);
+        using (var deleted = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, id, version))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        await using var held = await HoldStaffMoneyLockAsync(world.Database);
+        using var response = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    // Takes the staff-money lock row in an open transaction, as a transfer would, and keeps it until the returned handle is disposed.
+    private static async Task<IAsyncDisposable> HoldStaffMoneyLockAsync(CspsDatabase database)
+    {
+        var context = database.CreateContext();
+        var transaction = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var changed = await context.Set<DatabaseLock>().Where(row => row.Name == "staff-money")
+            .ExecuteUpdateAsync(set => set.SetProperty(row => row.TakenAtUtc, TimeProvider.System.GetUtcNow()), TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+        return new LockHold(context, transaction);
+    }
+
+    private sealed class LockHold(CspsDbContext context, Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync()
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            await transaction.DisposeAsync();
+            await context.DisposeAsync();
+        }
     }
 
     private static async Task<int> CountEmailsAsync(CspsDatabase database)
