@@ -226,9 +226,18 @@ export function UsersRoute() {
     }
   }, [fresh, pageCount, clampPage]);
 
+  // A person who is added, edited, deactivated, activated or deleted changes who is on the roster or how they are named, or moves between
+  // active staff and leavers, so the staff money and the transfer lists (All Staff names, roles and badges, who can receive money) are read
+  // again too (D-43). The roster read decides when the caller carries on.
+  const refreshRoster = (): Promise<unknown> => {
+    void queryClient.invalidateQueries({ queryKey: staffMoneyKey });
+    void queryClient.invalidateQueries({ queryKey: moneyTransfersKey });
+    return queryClient.invalidateQueries({ queryKey: usersKey });
+  };
+
   // The roster reads again so the new person shows at once; an invitation also gets its toast (the panel closes itself).
   const created = (user: CreatedUser): void => {
-    void queryClient.invalidateQueries({ queryKey: usersKey });
+    void refreshRoster();
     if (user.access === 'invitation') {
       toast.show({
         tone: 'success',
@@ -249,19 +258,11 @@ export function UsersRoute() {
       message = COPY.edit.toast.moved(name, person.role, person.email);
     }
     toast.show({ tone: 'success', title: COPY.edit.toast.title, message });
-    void queryClient.invalidateQueries({ queryKey: usersKey }).then(() => {
+    void refreshRoster().then(() => {
       if (!rowFocus.focusRow(person.id)) {
         headingRef.current?.focus();
       }
     });
-  };
-
-  // A person who is deactivated, activated or deleted moves between active staff and leavers, so the staff money and the transfer lists
-  // (All Staff badges, who can receive money) are read again too (D-43). The roster read decides when the caller carries on.
-  const refreshRoster = (): Promise<unknown> => {
-    void queryClient.invalidateQueries({ queryKey: staffMoneyKey });
-    void queryClient.invalidateQueries({ queryKey: moneyTransfersKey });
-    return queryClient.invalidateQueries({ queryKey: usersKey });
   };
 
   // The roster reads again; once it has, the flipped toggle takes focus (a dialog's own focus return may have run first).
