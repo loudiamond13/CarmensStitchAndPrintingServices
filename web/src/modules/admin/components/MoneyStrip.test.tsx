@@ -180,6 +180,75 @@ describe('the Transfer button (D-46, D-47; plan 10-15)', () => {
   });
 });
 
+describe('Transfer with nothing to send (D-14, P8 D-14 pattern)', () => {
+  it.each([
+    ['₱0.00', 0],
+    ['−₱500.00', -500],
+  ])(
+    'with %s the button is aria-disabled, still focusable, and tied to its visible reason',
+    async (_figure, balance) => {
+      renderWith(queryOf({ data: moneyOf(balance) }));
+
+      const transfer = screen.getByRole('button', { name: 'Transfer' });
+      expect(transfer).toHaveAttribute('aria-disabled', 'true');
+      expect(transfer).not.toBeDisabled();
+      transfer.focus();
+      expect(transfer).toHaveFocus();
+      const reason = screen.getByText('Nothing on hand to transfer.');
+      expect(reason).toBeVisible();
+      expect(transfer).toHaveAttribute('aria-describedby', reason.id);
+      expect(reason.id).not.toBe('');
+    },
+  );
+
+  it('does not open the window when it is pressed', async () => {
+    renderWith(queryOf({ data: moneyOf(0) }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Transfer' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('is never hidden: View Ledger and the slot actions stay beside it', () => {
+    renderWith(queryOf({ data: moneyOf(0) }), <button type="button">Slot action</button>);
+
+    expect(screen.getByRole('button', { name: 'Transfer' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'View Ledger' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Slot action' })).toBeVisible();
+  });
+
+  it('is enabled with money on hand, and shows no reason', () => {
+    renderWith(queryOf({ data: moneyOf(0.01) }));
+
+    expect(screen.getByRole('button', { name: 'Transfer' })).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
+  });
+
+  it('is aria-disabled while the figure loads, with no reason line', () => {
+    renderWith(queryOf());
+
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer).toHaveAttribute('aria-disabled', 'true');
+    expect(transfer).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
+  });
+
+  it('is aria-disabled when the figure could not load, with no reason line', () => {
+    renderWith(queryOf({ isError: true, error: new Error('x') }));
+
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer).toHaveAttribute('aria-disabled', 'true');
+    expect(transfer).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
+  });
+
+  it('has no axe violations with the reason shown', async () => {
+    const { container } = renderWith(queryOf({ data: moneyOf(0) }));
+
+    await expectNoAxeViolations(container);
+  });
+});
+
 describe('loading (UI-SPEC D1 MoneyStrip, Loading)', () => {
   it('announces "Loading your money on hand…" and shows the 160 x 28 figure skeleton while View Ledger still works', async () => {
     myMoneyBackend(async () => {
