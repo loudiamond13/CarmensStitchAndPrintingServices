@@ -14,7 +14,9 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { problemResponse } from '@/test/expenseFixtures';
 import {
   deleteTransferBackend,
+  removeTransferBackend,
   staffBalancesBackend,
+  transferDeletedFixture,
   transferItemFixture,
   transferListFixture,
   transfersBackend,
@@ -331,5 +333,131 @@ describe('deleting from the list (D-29, D-35; plan 10-20)', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 2, name: 'Transfers' })).toHaveFocus();
     });
+  });
+});
+
+const removeName = (amount: string) =>
+  `Remove transfer of ${amount} from Paolo Garcia to Liza Mercado, Oct 6, 2026 permanently`;
+
+const ID_D = '0b0f6c1e-0000-4000-8000-0000000000e4';
+
+describe('Show deleted (D-30, D-31)', () => {
+  it('shows a Manager an unticked "Show deleted" and asks for no deleted transfers at first', async () => {
+    const calls = transfersBackend();
+    renderCard();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    expect(screen.getByRole('checkbox', { name: 'Show deleted' })).not.toBeChecked();
+    expect(calls.every((call) => !call.searchParams.has('deleted'))).toBe(true);
+  });
+
+  it('asks for deleted=true when it is ticked, replaces the URL and resets the page', async () => {
+    const calls = transfersBackend(transferListFixture([item(ID_A, 100)], { total: 45 }));
+    const updates: Parameters<OnUrlUpdateFunction>[0][] = [];
+    renderCard('?page=2', (update) => updates.push(update));
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('checkbox', { name: 'Show deleted' }));
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('deleted')).toBe('true');
+    });
+    expect(calls.at(-1)?.searchParams.get('page')).toBe('1');
+    expect(updates.at(-1)?.queryString).toBe('?deleted=true');
+    expect(updates.at(-1)?.options.history).toBe('replace');
+    expect(screen.getByRole('checkbox', { name: 'Show deleted' })).toBeChecked();
+  });
+
+  it('reads Show deleted from the URL and asks for deleted transfers on the first read', async () => {
+    const calls = transfersBackend(transferListFixture([transferDeletedFixture()]));
+    renderCard('?deleted=true');
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    expect(calls[0]?.searchParams.get('deleted')).toBe('true');
+    expect(screen.getByRole('checkbox', { name: 'Show deleted' })).toBeChecked();
+  });
+
+  it('draws a deleted transfer with the Deleted badge, a struck amount, who deleted it and a Remove action', async () => {
+    transfersBackend(transferListFixture([transferDeletedFixture(), item(ID_A, 300)]));
+    renderCard('?deleted=true');
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    const deletedRow = rowAt(0);
+    expect(within(deletedRow).getByText('Deleted')).toBeVisible();
+    expect(deletedRow).toHaveTextContent('Deleted by Carmen Reyes · Oct 8, 2026, 3:42 PM');
+    expect(within(deletedRow).getByRole('button', { name: removeName('₱2,000.00') })).toBeVisible();
+    expect(within(rowAt(1)).getByRole('button', { name: deleteName('₱300.00') })).toBeVisible();
+  });
+
+  it('offers no restore, edit or bulk action, and no checkbox but Show deleted (D-27, D-28, MONEY-07)', async () => {
+    transfersBackend(transferListFixture([transferDeletedFixture(), item(ID_A, 300)]));
+    renderCard('?deleted=true');
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    expect(screen.queryByRole('button', { name: /restore|edit|remove all|delete all/i })).toBeNull();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+  });
+
+  it('keeps a counted transfer in the list as a deleted row after a delete, and focus goes to the next row', async () => {
+    let deleted = false;
+    transfersBackend(() =>
+      transferListFixture(
+        deleted
+          ? [transferDeletedFixture({ id: ID_A, version: 'ver-a' }), item(ID_B, 300)]
+          : [item(ID_A, 100), item(ID_B, 300)],
+      ),
+    );
+    deleteTransferBackend(() => {
+      deleted = true;
+      return new Response(null, { status: 204 });
+    });
+    renderCard('?deleted=true');
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('button', { name: deleteName('₱100.00') }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    await waitFor(() => {
+      expect(within(rowAt(0)).getByText('Deleted')).toBeVisible();
+    });
+    await waitFor(() => {
+      expect(within(rowAt(1)).getByRole('button', { name: deleteName('₱300.00') })).toHaveFocus();
+    });
+  });
+});
+
+describe('removing for good (D-24, D-27)', () => {
+  it('opens the stronger confirm for the row, sends DELETE .../permanent, drops the row and moves focus to the next row', async () => {
+    let removed = false;
+    const calls = transfersBackend(() =>
+      transferListFixture(
+        removed ? [item(ID_B, 300)] : [transferDeletedFixture({ id: ID_D, version: 'ver-d' }), item(ID_B, 300)],
+      ),
+    );
+    const removals = removeTransferBackend(() => {
+      removed = true;
+      return new Response(null, { status: 204 });
+    });
+    renderCard('?deleted=true');
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('button', { name: removeName('₱2,000.00') }));
+    const dialog = await screen.findByRole('dialog', { name: 'Permanently remove this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Permanently' }));
+
+    expect(await screen.findByText('Transfer removed for good')).toBeVisible();
+    expect(removals.urls).toHaveLength(1);
+    expect(removals.urls[0]?.pathname).toBe(`/api/v1/money-transfers/${ID_D}/permanent`);
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+    });
+    await waitFor(() => {
+      expect(within(rowAt(0)).getByRole('button', { name: deleteName('₱300.00') })).toHaveFocus();
+    });
+    expect(screen.queryByRole('button', { name: removeName('₱2,000.00') })).toBeNull();
   });
 });

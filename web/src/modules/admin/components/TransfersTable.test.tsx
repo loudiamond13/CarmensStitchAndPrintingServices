@@ -10,6 +10,7 @@ import {
   PAOLO_ID,
   TRANSFER_ID,
   TRANSFER_VERSION,
+  transferDeletedFixture,
   transferItemFixture,
   transferListFixture,
   type TransferItemFixture,
@@ -140,6 +141,77 @@ describe('the Delete action (D-29, MONEY-06)', () => {
 
     expect(within(cellAt(0, ACTIONS)).getAllByRole('button')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /edit|restore/i })).toBeNull();
+  });
+});
+
+const REMOVE_NAME = 'Remove transfer of ₱2,000.00 from Paolo Garcia to Liza Mercado, Oct 6, 2026 permanently';
+
+describe('a deleted transfer (D-30, D-31, D-24)', () => {
+  it('shows the "Deleted" badge after the date, a muted struck amount, and who deleted it and when under the note', () => {
+    renderTable([transferDeletedFixture({ note: 'Cash for the fabric run' })]);
+
+    expect(cellAt(0, DATE)).toHaveTextContent('Oct 6, 2026');
+    expect(within(cellAt(0, DATE)).getByText('Deleted')).toBeVisible();
+    const amount = within(cellAt(0, AMOUNT)).getByText('₱2,000.00');
+    expect(amount.parentElement?.className).toContain('line-through');
+    expect(amount.parentElement?.className).toContain('text-ink-muted');
+    expect(cellAt(0, NOTE)).toHaveTextContent('Cash for the fabric run');
+    expect(cellAt(0, NOTE)).toHaveTextContent('Deleted by Carmen Reyes · Oct 8, 2026, 3:42 PM');
+  });
+
+  it('shows only the deleted line, no empty marker, when a deleted transfer has no note', () => {
+    renderTable([transferDeletedFixture({ note: null })]);
+
+    expect(cellAt(0, NOTE)).toHaveTextContent('Deleted by Carmen Reyes · Oct 8, 2026, 3:42 PM');
+    expect(cellAt(0, NOTE)).not.toHaveTextContent('Not set');
+  });
+
+  it('has the Remove action instead of Delete, named with "permanently" and a matching title', () => {
+    renderTable([transferDeletedFixture()]);
+
+    const button = within(cellAt(0, ACTIONS)).getByRole('button', { name: REMOVE_NAME });
+    expect(button).toHaveAttribute('title', REMOVE_NAME);
+    expect(within(cellAt(0, ACTIONS)).getAllByRole('button')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /^Delete transfer/ })).toBeNull();
+  });
+
+  it('calls onRemove with who deleted it and when, and never onDelete', async () => {
+    const onRemove = vi.fn();
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    renderTable([transferDeletedFixture()], { onRemove, onDelete });
+
+    await user.click(screen.getByRole('button', { name: REMOVE_NAME }));
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(onRemove.mock.calls[0]?.[0]).toMatchObject({
+      id: '0b0f6c1e-0000-4000-8000-0000000000d2',
+      deletedBy: { name: 'Carmen Reyes' },
+      deletedAtUtc: '2026-10-08T07:42:00Z',
+    });
+  });
+
+  it('keeps a counted transfer next to it plain: no badge, no strike, a Delete action', () => {
+    renderTable([transferDeletedFixture(), transferItemFixture({ id: '0b0f6c1e-0000-4000-8000-0000000000d7' })]);
+
+    expect(within(cellAt(1, DATE)).queryByText('Deleted')).toBeNull();
+    expect(within(cellAt(1, AMOUNT)).getByText('₱2,000.00').parentElement?.className ?? '').not.toContain(
+      'line-through',
+    );
+    expect(within(cellAt(1, ACTIONS)).getByRole('button', { name: DELETE_NAME })).toBeVisible();
+  });
+
+  it('offers no restore, no edit and no bulk action on any row (D-27, D-28, MONEY-07)', () => {
+    renderTable([transferDeletedFixture(), transferItemFixture({ id: '0b0f6c1e-0000-4000-8000-0000000000d7' })]);
+
+    expect(screen.queryByRole('button', { name: /restore|edit|remove all|delete all|select/i })).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('has no axe violations with a deleted row', async () => {
+    const { container } = renderTable([transferDeletedFixture({ note: 'Cash' }), transferItemFixture()]);
+
+    await expectNoAxeViolations(container);
   });
 });
 
