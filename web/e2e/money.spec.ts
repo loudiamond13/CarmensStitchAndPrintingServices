@@ -230,6 +230,31 @@ test('@money a Manager deletes a wrong transfer from the Transfers tab and both 
   await expect(row).toHaveCount(0);
   await expect(page.getByRole('tabpanel', { name: 'Transfers' }).locator(':focus')).toHaveCount(1);
 
+  // Show deleted brings it back as a deleted row with Remove Permanently (never a restore or an edit); the stronger confirm removes it.
+  await page.getByRole('checkbox', { name: 'Show deleted' }).check();
+  await expect.poll(() => new URL(page.url()).searchParams.get('deleted')).toBe('true');
+  await expect(row).toHaveCount(1);
+  await expect(row.getByText('Deleted', { exact: true })).toBeVisible();
+  await expect(row).toContainText(`Deleted by ${senderName}`);
+  await expect(page.getByRole('button', { name: /restore|edit/i })).toHaveCount(0);
+  await row.getByRole('button', { name: /^Remove transfer of ₱1,250\.50 from .* permanently$/ }).click();
+  const strong = page.getByRole('dialog', { name: 'Permanently remove this transfer?' });
+  await expect(strong).toBeVisible();
+  await expect(strong.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await expect(strong).toContainText("This can't be undone.");
+  await expect(strong).toContainText(`₱1,250.50 from ${senderName} to ${receiverName}`);
+  await expect(strong).toContainText(
+    "Balances don't change. Only the record is removed. A copy stays in the audit log.",
+  );
+  await expectNoAxeViolations(page);
+
+  await strong.getByRole('button', { name: 'Remove Permanently' }).click();
+
+  await expect(strong).toBeHidden();
+  await expect(page.getByText('Transfer removed for good')).toBeVisible();
+  await expect(page.getByText("Balances didn't change.")).toBeVisible();
+  await expect(row).toHaveCount(0);
+
   // The sender is back to 5,000.00 on My Money, and the receiver holds nothing again.
   await page.goto('/admin/money');
   await expect(page.getByRole('region', { name: 'Money on hand' })).toContainText('₱5,000.00');

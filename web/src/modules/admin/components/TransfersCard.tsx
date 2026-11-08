@@ -1,11 +1,12 @@
 // SPEC-GAP: The Transfers card (D-48, MONEY-03, WEB-10; UI-SPEC M1 "Transfers panel"; plan 10-20): a Manager's list of every transfer
 // between staff, newest first: the head, the result bar, the table and the paging, with the Delete confirm behind each row. Every figure
 // is the server's; the card works out nothing.
-//   - The page and the rows per page live in the URL through useMoneyListParams and nowhere else (WEB-10), so a reload, a shared link
+//   - The page, the rows per page and the Manager's Show deleted live in the URL through useMoneyListParams and nowhere else (WEB-10), so a reload, a shared link
 //     and Back restore them. A page past the last counts as loading, then becomes the last page once fresh data says so.
 //   - It asks only as a Manager: the Transfers tab is not drawn for an Admin, and `enabled` is the role check as well. The API answers
 //     403 to an Admin anyway (T-10-45).
 import { useEffect, useId } from 'react';
+import { Checkbox } from '@/components/entry';
 import { Pagination, ResultBar } from '@/components/lists';
 import { PAGE_SIZES } from '@/lib/url-state/parsers';
 import {
@@ -13,7 +14,12 @@ import {
   dashboardCardSubClasses,
   dashboardCardTitleClasses,
 } from '@/modules/admin/components/dashboard.recipe';
-import { ledgerBarClasses, ledgerCardClasses, ledgerPagerClasses } from '@/modules/admin/components/money.recipe';
+import {
+  ledgerBarClasses,
+  ledgerCardClasses,
+  ledgerPagerClasses,
+  ledgerToolsClasses,
+} from '@/modules/admin/components/money.recipe';
 import { TransferActionDialogs } from '@/modules/admin/components/TransferActionDialogs';
 import { TransfersTable } from '@/modules/admin/components/TransfersTable';
 import { useMoneyListParams } from '@/modules/admin/hooks/useMoneyListParams';
@@ -30,7 +36,9 @@ export function TransfersCard() {
   const { user } = useSession();
   const isManager = user?.role === 'manager';
   const [values, set] = useMoneyListParams();
-  const query = useTransfersQuery({ page: values.page, pageSize: values.size, deleted: false }, isManager);
+  // Only a Manager can ask for deleted transfers; for anyone else the parameter is never sent.
+  const showDeleted = isManager && values.deleted === 'true';
+  const query = useTransfersQuery({ page: values.page, pageSize: values.size, deleted: showDeleted }, isManager);
   const page = query.data;
   // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
   const failed = query.isError && !query.isFetching;
@@ -55,6 +63,9 @@ export function TransfersCard() {
     fallbackId: headingId,
   });
 
+  // The Transfers tab is not drawn for an Admin; if the card is ever mounted for one, it draws nothing and has asked for nothing (T-10-45).
+  if (!isManager) return null;
+
   return (
     <section className={ledgerCardClasses} aria-labelledby={headingId}>
       <div className={dashboardCardHeadClasses}>
@@ -64,6 +75,15 @@ export function TransfersCard() {
           </h2>
           <p className={dashboardCardSubClasses}>{COPY.sub}</p>
         </div>
+      </div>
+      <div className={ledgerToolsClasses}>
+        <Checkbox
+          label={MONEY_COPY.ledger.showDeleted}
+          checked={showDeleted}
+          onChange={(checked) => {
+            set.setFilter('deleted', checked ? 'true' : null);
+          }}
+        />
       </div>
       {page !== undefined && !pastTheEnd && (
         <div className={ledgerBarClasses}>
@@ -86,6 +106,7 @@ export function TransfersCard() {
           void query.refetch();
         }}
         onDelete={actions.openDelete}
+        onRemove={actions.openRemove}
         register={actions.register}
       />
       {total > PAGE_SIZES[0] && !pastTheEnd && (

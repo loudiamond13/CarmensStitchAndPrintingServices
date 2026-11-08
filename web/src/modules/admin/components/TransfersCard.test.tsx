@@ -429,6 +429,32 @@ describe('Show deleted (D-30, D-31)', () => {
   });
 });
 
+describe('an Admin (D-31, D-32, T-10-45)', () => {
+  it('draws nothing and asks for no transfers, even with deleted=true in the URL', async () => {
+    clearSession();
+    acceptSession(
+      sessionResponse({
+        user: {
+          id: '6a0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+          email: 'lito@example.ph',
+          firstName: 'Lito',
+          lastName: 'Santos',
+          role: 'Admin',
+        },
+      }),
+    );
+    const calls = transfersBackend();
+    renderCard('?deleted=true');
+
+    await delay(50);
+    expect(calls).toHaveLength(0);
+    expect(screen.queryByRole('heading', { name: 'Transfers' })).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByText('No transfers yet')).toBeNull();
+  });
+});
+
 describe('removing for good (D-24, D-27)', () => {
   it('opens the stronger confirm for the row, sends DELETE .../permanent, drops the row and moves focus to the next row', async () => {
     let removed = false;

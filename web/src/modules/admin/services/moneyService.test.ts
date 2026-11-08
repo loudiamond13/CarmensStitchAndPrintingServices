@@ -567,6 +567,27 @@ describe('moneyService.deleteTransfer (MONEY-06, D-23; plan 10-20)', () => {
   });
 });
 
+describe('moneyService.removeTransfer (MONEY-06, D-24; plan 10-20)', () => {
+  it('calls DELETE /api/v1/money-transfers/{id}/permanent with no version and no body', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.removeTransfer(TRANSFER_ID);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/money-transfers/${TRANSFER_ID}/permanent`);
+    expect(fake.calls[0]?.body).toBeNull();
+  });
+
+  it('encodes the id, so a path-like value can never leave the route', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.removeTransfer('../x');
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers/..%2Fx/permanent');
+  });
+});
+
 describe('parseTransferPage (MONEY-03, wave 5 IN-01; plan 10-20)', () => {
   it('keeps every transfer in the order sent with the server amount as a finite number', () => {
     const parsed = parseTransferPage(

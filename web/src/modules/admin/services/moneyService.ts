@@ -430,6 +430,12 @@ export interface MoneyService {
    */
   deleteTransfer(id: string, version: string, signal?: AbortSignal): Promise<void>;
   /**
+   * `DELETE /api/v1/money-transfers/{id}/permanent`: a Manager removes a deleted transfer for good; balances do not change and a copy of
+   * the record stays in the audit log. It acts on the latest state, so it sends no version. 204 on success, 404 when it is not there,
+   * 422 when the transfer is not deleted yet.
+   */
+  removeTransfer(id: string, signal?: AbortSignal): Promise<void>;
+  /**
    * `POST /api/v1/money-transfers/handovers`: a Manager hands money held by a former staff member to a current coworker (D-17). The body
    * names the former staff member as the sender (`fromUserId`); the signed-in Manager is only the one who records it. One
    * Idempotency-Key per submission. 400 lists the field errors, 409 means another change won, 201 answers the saved hand-over and the
@@ -480,6 +486,7 @@ export function createMoneyService(client: HttpClient): MoneyService {
       }),
     deleteTransfer: (id, version, signal) =>
       client.delete(`/money-transfers/${encodeURIComponent(id)}`, { params: { version }, signal }),
+    removeTransfer: (id, signal) => client.delete(`/money-transfers/${encodeURIComponent(id)}/permanent`, { signal }),
     handover: (body, idempotencyKey, signal) =>
       client.post<TransferSavedResponse>('/money-transfers/handovers', body, { idempotencyKey, signal }),
     person: (userId, signal) =>

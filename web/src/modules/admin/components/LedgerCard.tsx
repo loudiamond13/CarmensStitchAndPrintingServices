@@ -116,6 +116,7 @@ export function LedgerCard({ userId, ownerName }: LedgerCardProps) {
         canSeeActions={isManager}
         owner={owner}
         onDelete={actions.openDelete}
+        onRemove={actions.openRemove}
         register={actions.register}
         ownLedger={userId === 'me'}
         pending={loading}

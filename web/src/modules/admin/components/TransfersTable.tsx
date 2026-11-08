@@ -5,8 +5,15 @@
 import { ActorName } from '@/components/data';
 import { ResponsiveTable, RowAction, RowActions, type ResponsiveTableColumn } from '@/components/lists';
 import { Money } from '@/components/money';
-import { Avatar } from '@/components/status';
-import { ledgerSubClasses, staffNameClasses, staffPersonClasses } from '@/modules/admin/components/money.recipe';
+import { Avatar, Badge } from '@/components/status';
+import {
+  ledgerStruckClasses,
+  ledgerSubClasses,
+  staffNameClasses,
+  staffPersonClasses,
+  transferDateCellClasses,
+  transferNoteCellClasses,
+} from '@/modules/admin/components/money.recipe';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
 import {
   toTransferTarget,
@@ -14,10 +21,11 @@ import {
   type TransferPage,
   type TransferTarget,
 } from '@/modules/admin/services/moneyService';
-import { formatCalendarDate } from '@/utils/format';
+import { formatBusinessDateTime, formatCalendarDate } from '@/utils/format';
 import { formatPeso } from '@/utils/csps';
 
 const COPY = MONEY_COPY.transfers;
+const LEDGER = MONEY_COPY.ledger;
 
 type Actor = TransferItem['from'];
 
@@ -56,7 +64,7 @@ export interface TransfersTableProps {
   captionId?: string | undefined;
   /** Delete was pressed on a counted transfer. */
   onDelete: (target: TransferTarget) => void;
-  /** Remove was pressed on a deleted transfer (the permanent remove, task 3). */
+  /** Remove was pressed on a deleted transfer (the permanent remove). */
   onRemove?: ((target: TransferTarget) => void) | undefined;
   /** Remembers each row's action button, so focus can go to a neighbour after a row changes. */
   register?: ((id: string, button: HTMLButtonElement | null) => void) | undefined;
@@ -71,6 +79,7 @@ export function TransfersTable({
   onRetry,
   captionId,
   onDelete,
+  onRemove,
   register,
 }: TransfersTableProps) {
   const columns: readonly ResponsiveTableColumn<TransferItem>[] = [
@@ -80,18 +89,46 @@ export function TransfersTable({
       lead: true,
       cell: (row) => {
         const text = formatCalendarDate(row.date);
-        return text === null ? null : <time dateTime={row.date}>{text}</time>;
+        if (text === null) return null;
+        return (
+          <span className={transferDateCellClasses}>
+            <time dateTime={row.date}>{text}</time>
+            {row.isDeleted && <Badge tone="danger">{LEDGER.deleted}</Badge>}
+          </span>
+        );
       },
     },
     { key: 'from', header: COPY.columns.from, cell: (row) => <PersonCell actor={row.from} /> },
     { key: 'to', header: COPY.columns.to, cell: (row) => <PersonCell actor={row.to} /> },
-    { key: 'amount', header: COPY.columns.amount, money: true, cell: (row) => <Money amount={row.amount} /> },
+    {
+      key: 'amount',
+      header: COPY.columns.amount,
+      money: true,
+      cell: (row) =>
+        row.isDeleted ? (
+          <span className={ledgerStruckClasses}>
+            <Money amount={row.amount} />
+          </span>
+        ) : (
+          <Money amount={row.amount} />
+        ),
+    },
     {
       key: 'note',
       header: COPY.columns.note,
       cell: (row) => {
         const note = noteOf(row);
-        return note === null ? null : <span className={ledgerSubClasses}>{note}</span>;
+        if (!row.isDeleted) return note === null ? null : <span className={ledgerSubClasses}>{note}</span>;
+        const when = row.deletedAtUtc === null ? null : formatBusinessDateTime(row.deletedAtUtc);
+        return (
+          <span className={transferNoteCellClasses}>
+            {note !== null && <span className={ledgerSubClasses}>{note}</span>}
+            <span className={ledgerSubClasses}>
+              {LEDGER.deletedBy} <ActorName actor={row.deletedBy} />
+              {when !== null && `${LEDGER.joiner}${when}`}
+            </span>
+          </span>
+        );
       },
     },
     { key: 'recordedBy', header: COPY.columns.recordedBy, cell: (row) => <ActorName actor={row.recordedBy} /> },
@@ -100,16 +137,17 @@ export function TransfersTable({
       header: COPY.columns.actions,
       actions: true,
       cell: (row) => {
-        const name = COPY.deleteName(
+        const args = [
           formatPeso(row.amount),
           row.from.name,
           row.to.name,
           formatCalendarDate(row.date) ?? row.date,
-        );
+        ] as const;
+        const name = row.isDeleted ? COPY.removeName(...args) : COPY.deleteName(...args);
         return (
           <RowActions>
             <RowAction
-              icon="trash-2"
+              icon={row.isDeleted ? 'eraser' : 'trash-2'}
               label={name}
               title={name}
               danger
@@ -117,7 +155,7 @@ export function TransfersTable({
                 register?.(row.id, button);
               }}
               onClick={() => {
-                onDelete(toTransferTarget(row));
+                (row.isDeleted ? onRemove : onDelete)?.(toTransferTarget(row));
               }}
             />
           </RowActions>

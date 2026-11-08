@@ -77,6 +77,26 @@ export const MONEY_COPY = {
     /** The info toast when someone else deleted the transfer first (404). */
     alreadyDeleted: 'Already deleted',
   },
+  /** The Remove Transfer confirm, the permanent remove of a deleted transfer (UI-SPEC T3, D-24 to D-27; plan 10-20). */
+  removeTransfer: {
+    title: 'Permanently remove this transfer?',
+    message: "This can't be undone.",
+    /** The details box: "₱2,000.00 from Paolo Garcia to Liza Mercado". */
+    record: (amount: string, from: string, to: string): string => `${amount} from ${from} to ${to}`,
+    /** "Dated Oct 6, 2026 · Deleted by Carmen Reyes on Oct 8, 2026"; the deleted-by part is left out when the record has no name. */
+    dated: (date: string): string => `Dated ${date}`,
+    deletedBy: (name: string, when: string | null): string =>
+      when === null ? `Deleted by ${name}` : `Deleted by ${name} on ${when}`,
+    joiner: ' · ',
+    note: "Balances don't change. Only the record is removed. A copy stays in the audit log.",
+    cancel: 'Cancel',
+    confirm: 'Remove Permanently',
+    pending: 'Removing',
+    // SPEC-GAP: T3 the toast's words.
+    toast: { title: 'Transfer removed for good', message: "Balances didn't change." },
+    /** The info toast when someone else removed the transfer first (404). */
+    alreadyRemoved: 'Already removed',
+  },
   /** The All Staff panel (UI-SPEC M1 "All Staff panel", D-42 to D-45; plan 10-19). */
   staff: {
     // SPEC-GAP: D-42 the card's head and line.

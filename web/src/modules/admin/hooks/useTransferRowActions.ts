@@ -22,6 +22,8 @@ interface Pending {
 
 interface AfterChange {
   id: string;
+  /** A delete is settled when the row is gone or shown as deleted; a remove, when the row is gone. */
+  kind: 'delete' | 'remove';
   focusId: string | null;
 }
 
@@ -38,6 +40,7 @@ export interface TransferRowActions {
   /** A ref callback target for each row's action button. */
   register: (id: string, button: HTMLButtonElement | null) => void;
   openDelete: (target: TransferTarget) => void;
+  openRemove: (target: TransferTarget) => void;
   /** Props for the card's `<TransferActionDialogs>`. */
   dialogs: TransferActionDialogsProps;
 }
@@ -45,6 +48,7 @@ export interface TransferRowActions {
 export function useTransferRowActions({ rows, captionId, fallbackId }: TransferRowActionsOptions): TransferRowActions {
   const rowFocus = useRowFocus();
   const [deleting, setDeleting] = useState<Pending | null>(null);
+  const [removing, setRemoving] = useState<Pending | null>(null);
   const after = useRef<AfterChange | null>(null);
 
   // Focus lands on the next row's action, else the previous row's.
@@ -59,7 +63,8 @@ export function useTransferRowActions({ rows, captionId, fallbackId }: TransferR
     const wanted = after.current;
     if (wanted === null || rows === undefined) return;
     const row = rows.find((candidate) => candidate.id === wanted.id);
-    if (row !== undefined && !row.isDeleted) return;
+    const settled = wanted.kind === 'delete' ? row === undefined || row.isDeleted : row === undefined;
+    if (!settled) return;
     after.current = null;
     if (wanted.focusId === null || !rowFocus.focusRow(wanted.focusId)) {
       (document.getElementById(captionId) ?? document.getElementById(fallbackId))?.focus();
@@ -71,13 +76,23 @@ export function useTransferRowActions({ rows, captionId, fallbackId }: TransferR
     openDelete: (target) => {
       setDeleting({ target, open: true });
     },
+    openRemove: (target) => {
+      setRemoving({ target, open: true });
+    },
     dialogs: {
       deleting,
       onCloseDelete: () => {
         setDeleting((current) => (current === null ? null : { ...current, open: false }));
       },
       onDeleteDone: (target) => {
-        after.current = { id: target.id, focusId: chooseFocusAfter(target.id) };
+        after.current = { id: target.id, kind: 'delete', focusId: chooseFocusAfter(target.id) };
+      },
+      removing,
+      onCloseRemove: () => {
+        setRemoving((current) => (current === null ? null : { ...current, open: false }));
+      },
+      onRemoveDone: (target) => {
+        after.current = { id: target.id, kind: 'remove', focusId: chooseFocusAfter(target.id) };
       },
     },
   };
