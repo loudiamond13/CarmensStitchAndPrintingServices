@@ -8,8 +8,12 @@ import {
   ledgerDeletedEntryFixture,
   ledgerEntryFixture,
   ledgerPageFixture,
+  handoverSavedFixture,
+  MY_MONEY_USER_ID,
   myMoneyFixture,
   PAOLO_ID,
+  staffBalancesFixture,
+  staffPersonFixture,
   transferRecipientsFixture,
   transferSavedFixture,
 } from '@/test/moneyFixtures';
@@ -19,6 +23,12 @@ import {
   MyMoneyContractError,
   parseLedgerPage,
   parseMyMoney,
+  parsePersonMoney,
+  parseStaffBalances,
+  pickHandoverRecipients,
+  pickTransferRecipients,
+  StaffBalancesContractError,
+  toTransferPeople,
   toTransferRecipients,
 } from './moneyService';
 
@@ -263,5 +273,227 @@ describe('parseMyMoney (wave 5 IN-01)', () => {
     ['Infinity', Number.POSITIVE_INFINITY],
   ])('refuses a balance that is %s, so the card shows its failure instead of a wrong figure', (_what, balance) => {
     expect(() => parseMyMoney(myMoneyFixture({ balance }))).toThrow(MyMoneyContractError);
+  });
+});
+
+describe('moneyService.handover (D-17, MONEY-04, SEC-06)', () => {
+  const body = {
+    fromUserId: JOMAR_ID,
+    toUserId: LIZA_ID,
+    amount: '2000.00',
+    transferDate: '2026-11-04',
+    note: null,
+  };
+
+  it('calls POST /api/v1/money-transfers/handovers with the body and the Idempotency-Key and resolves the saved hand-over', async () => {
+    const saved = handoverSavedFixture();
+    const { fake, service } = serviceWith([{ status: 201, body: saved }]);
+
+    await expect(service.handover(body, 'key-1')).resolves.toEqual(saved);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers/handovers');
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+  });
+});
+
+describe('the recipients answer (D-56, wave 6 IN-03; plan 10-19)', () => {
+  it('toTransferPeople keeps the signed-in person, marked, and leaves out any status the browser does not know', () => {
+    const odd = { id: LIZA_ID, name: 'Liza Mercado', status: 'suspended', isYou: false };
+
+    expect(
+      toTransferPeople([odd, ...transferRecipientsFixture()]).map((person) => [person.name, person.isYou]),
+    ).toEqual([
+      ['Carmen Reyes', true],
+      ['Liza Mercado', false],
+      ['Paolo Garcia', false],
+      ['Jomar Santos', false],
+      ['Ana Villanueva', false],
+    ]);
+    expect(toTransferPeople([odd])).toEqual([]);
+  });
+
+  it('pickTransferRecipients is toTransferRecipients: the signed-in person left out, no isYou', () => {
+    expect(pickTransferRecipients(toTransferPeople(transferRecipientsFixture()))).toEqual(
+      toTransferRecipients(transferRecipientsFixture()),
+    );
+  });
+
+  it('pickHandoverRecipients offers active staff only, the signed-in Manager first, and never a leaver (wave 6 IN-03)', () => {
+    const people = toTransferPeople([
+      { id: LIZA_ID, name: 'Liza Mercado', status: 'active', isYou: false },
+      { id: JOMAR_ID, name: 'Jomar Santos', status: 'deactivated', isYou: false },
+      { id: MY_MONEY_USER_ID, name: 'Carmen Reyes', status: 'active', isYou: true },
+      { id: ANA_ID, name: 'Ana Villanueva', status: 'deleted', isYou: false },
+      { id: PAOLO_ID, name: 'Paolo Garcia', status: 'active', isYou: false },
+    ]);
+
+    expect(pickHandoverRecipients(people)).toEqual([
+      { id: MY_MONEY_USER_ID, name: 'Carmen Reyes', isYou: true },
+      { id: LIZA_ID, name: 'Liza Mercado', isYou: false },
+      { id: PAOLO_ID, name: 'Paolo Garcia', isYou: false },
+    ]);
+  });
+
+  it('pickHandoverRecipients is empty when no one is active', () => {
+    expect(
+      pickHandoverRecipients(
+        toTransferPeople([{ id: JOMAR_ID, name: 'Jomar Santos', status: 'deactivated', isYou: false }]),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe('moneyService.person (MONEY-03, D-42)', () => {
+  it('calls GET /api/v1/staff-money/{userId} with no parameters and resolves the answer as sent', async () => {
+    const jomar = staffPersonFixture();
+    const { fake, service } = serviceWith([{ body: jomar }]);
+
+    await expect(service.person(JOMAR_ID)).resolves.toEqual(jomar);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/staff-money/${JOMAR_ID}`);
+  });
+
+  it('encodes the id, so a path-like value can never leave the route', async () => {
+    const { fake, service } = serviceWith([{ body: staffPersonFixture() }]);
+
+    await service.person('../me');
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/staff-money/..%2Fme');
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.person(JOMAR_ID, controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('parsePersonMoney (MONEY-03, wave 5 IN-01)', () => {
+  it('keeps the person, the date, the role and the standing, and narrows the balance', () => {
+    expect(parsePersonMoney(staffPersonFixture())).toEqual({
+      userId: JOMAR_ID,
+      name: 'Jomar Santos',
+      role: 'Admin',
+      status: 'deactivated',
+      balance: 2000,
+      today: '2026-11-04',
+    });
+  });
+
+  it('narrows a balance that arrives as text, keeping the sign', () => {
+    expect(parsePersonMoney(staffPersonFixture({ balance: '-300.00' })).balance).toBe(-300);
+  });
+
+  it.each([
+    ['blank text', ''],
+    ['words', 'lots'],
+    ['NaN', Number.NaN],
+  ])('refuses a balance that is %s', (_what, balance) => {
+    expect(() => parsePersonMoney(staffPersonFixture({ balance }))).toThrow(MyMoneyContractError);
+  });
+
+  it('refuses a standing the browser does not know, so no wrong badge is drawn', () => {
+    expect(() => parsePersonMoney(staffPersonFixture({ status: 'suspended' }))).toThrow(MyMoneyContractError);
+  });
+});
+
+/** The first row of the All Staff fixture (Carmen). */
+function firstItem() {
+  const [first] = staffBalancesFixture().items;
+  if (first === undefined) throw new Error('The All Staff fixture has no rows.');
+  return first;
+}
+
+describe('moneyService.staff (MONEY-03, D-42)', () => {
+  it('calls GET /api/v1/staff-money with no parameters and resolves the answer as sent', async () => {
+    const everyone = staffBalancesFixture();
+    const { fake, service } = serviceWith([{ body: everyone }]);
+
+    await expect(service.staff()).resolves.toEqual(everyone);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe('/api/v1/staff-money');
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.staff(controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('parseStaffBalances (MONEY-03, wave 5 IN-01)', () => {
+  it('keeps every row in the order sent with the server figures as numbers, and the total', () => {
+    const parsed = parseStaffBalances(staffBalancesFixture());
+
+    expect(parsed.rows.map((row) => [row.name, row.status, row.balance, row.isYou])).toEqual([
+      ['Carmen Reyes', 'active', 8450, true],
+      ['Liza Mercado', 'active', -500, false],
+      ['Paolo Garcia', 'active', 0, false],
+      ['Ana Villanueva', 'deleted', -300, false],
+      ['Jomar Santos', 'deactivated', 2000, false],
+    ]);
+    expect(parsed.rows[0]).toMatchObject({ userId: MY_MONEY_USER_ID, role: 'Manager' });
+    expect(parsed.total).toBe(9650);
+  });
+
+  it('narrows balances and a total that arrive as text, keeping the sign', () => {
+    const parsed = parseStaffBalances(
+      staffBalancesFixture({ total: '-1200.50', items: [{ ...firstItem(), balance: '-1200.50' }] }),
+    );
+
+    expect(parsed.rows[0]?.balance).toBe(-1200.5);
+    expect(parsed.total).toBe(-1200.5);
+  });
+
+  it('adds nothing: a total that is not the sum of the rows is shown as the server sent it', () => {
+    expect(parseStaffBalances(staffBalancesFixture({ total: 1 })).total).toBe(1);
+  });
+
+  it.each([
+    ['blank text', ''],
+    ['words', 'lots'],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+  ])('refuses a row balance that is %s, so the tab shows its failure instead of a wrong row', (_what, balance) => {
+    expect(() => parseStaffBalances(staffBalancesFixture({ items: [{ ...firstItem(), balance }] }))).toThrow(
+      StaffBalancesContractError,
+    );
+  });
+
+  it('refuses a total that is not a finite number', () => {
+    expect(() => parseStaffBalances(staffBalancesFixture({ total: 'many' }))).toThrow(StaffBalancesContractError);
+  });
+
+  it('refuses a status the browser does not know, so no row is drawn with a wrong badge', () => {
+    expect(() =>
+      parseStaffBalances(staffBalancesFixture({ items: [{ ...firstItem(), status: 'suspended' }] })),
+    ).toThrow(StaffBalancesContractError);
   });
 });

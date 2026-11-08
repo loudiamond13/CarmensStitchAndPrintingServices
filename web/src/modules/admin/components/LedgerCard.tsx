@@ -91,6 +91,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
       <LedgerTable
         page={page}
         captionId={captionId}
+        ownLedger={userId === 'me'}
         pending={loading}
         refetching={query.isPlaceholderData && query.isFetching}
         failed={failed}

@@ -10,6 +10,8 @@ import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { staffBalancesKey } from '@/modules/admin/hooks/useStaffBalancesQuery';
+import { transferRecipientsKey } from '@/modules/admin/hooks/useTransferRecipientsQuery';
 import { UsersRoute } from '@/modules/admin/pages/UsersPage';
 import type { UserListItem, UserListResponse } from '@/modules/admin/services/usersService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
@@ -1036,6 +1038,32 @@ describe('U4 Deactivate and Activate from the page (USER-03, OQ-1, OQ-3)', () =>
     });
   });
 
+  it('marks the staff money and money-transfers answers old after Deactivate User and after Activate, so All Staff and the To lists follow (D-43)', async () => {
+    rosterWithToggles();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+
+    await user.click(toggle('Deactivate Paolo'));
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+    await screen.findByText('User deactivated');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
+
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await user.click(await screen.findByRole('button', { name: 'Activate Paolo' }));
+    await screen.findByText('User activated');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
+  });
+
   it('can deactivate, activate and deactivate the same person again, each with a request of its own', async () => {
     const { posted } = rosterWithToggles();
     await openPage();
@@ -1202,6 +1230,24 @@ describe('U4 Delete from the page (USER-03, USER-04, D-09)', () => {
     });
     expect(deleted).toHaveLength(0);
     expect(deleteButton('Paolo Garcia')).toHaveFocus();
+  });
+
+  it('marks the staff money and money-transfers answers old after Delete User, so All Staff and the To lists follow (D-43)', async () => {
+    rosterThatDeletes();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+
+    await user.click(deleteButton('Paolo Garcia'));
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    await screen.findByText('User deleted');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
   });
 
   it("removes the row after Delete User, sends a DELETE with no Idempotency-Key, toasts, and focuses the next row's Edit", async () => {

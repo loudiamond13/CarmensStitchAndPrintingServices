@@ -182,16 +182,142 @@ function isRecipientStatus(status: string): status is RecipientStatus {
 
 /** Narrows the generated list (the status is a plain string there): the signed-in person and any unknown status are left out. */
 export function toTransferRecipients(list: readonly TransferRecipientResponse[]): TransferRecipient[] {
-  const people: TransferRecipient[] = [];
+  return pickTransferRecipients(toTransferPeople(list));
+}
+
+export type CreateHandoverRequest = Schemas['CreateMoneyHandoverRequest'];
+
+/** One person the recipients answer names once the browser has checked the status; the signed-in person is kept and marked. */
+export interface TransferPerson extends TransferRecipient {
+  isYou: boolean;
+}
+
+/** Narrows the generated list (the status is a plain string there): a person with a status the browser does not know is left out. */
+export function toTransferPeople(list: readonly TransferRecipientResponse[]): TransferPerson[] {
+  const people: TransferPerson[] = [];
   for (const person of list) {
-    if (!person.isYou && isRecipientStatus(person.status)) {
-      people.push({ id: person.id, name: person.name, status: person.status });
+    if (isRecipientStatus(person.status)) {
+      people.push({ id: person.id, name: person.name, status: person.status, isYou: person.isYou });
     }
   }
   return people;
 }
 
+/** The Transfer Money window's To list: everyone but the signed-in person, in the order the server sent, with no `isYou`. */
+export function pickTransferRecipients(people: readonly TransferPerson[]): TransferRecipient[] {
+  return people.filter((person) => !person.isYou).map(({ id, name, status }) => ({ id, name, status }));
+}
+
+/** One person the Hand Over window's To list offers. */
+export interface HandoverRecipient {
+  id: string;
+  name: string;
+  isYou: boolean;
+}
+
+/**
+ * The Hand Over window's To list (wave 6 IN-03): active staff only, the signed-in Manager first, then the others in the order sent. A
+ * leaver is never offered as a receiver.
+ */
+export function pickHandoverRecipients(people: readonly TransferPerson[]): HandoverRecipient[] {
+  const active = people.filter((person) => person.status === 'active');
+  return [...active.filter((person) => person.isYou), ...active.filter((person) => !person.isYou)].map(
+    ({ id, name, isYou }) => ({ id, name, isYou }),
+  );
+}
+
+export type StaffBalancesResponse = Schemas['StaffBalancesResponse'];
+type StaffBalanceRowResponse = Schemas['StaffBalanceRow'];
+
+/** One person's row in All Staff once the browser has checked it: the balance is the server's, as a finite number. */
+export interface StaffBalance {
+  userId: string;
+  name: string;
+  /** `Admin` or `Manager`. */
+  role: string;
+  status: RecipientStatus;
+  balance: number;
+  /** True for the signed-in Manager. */
+  isYou: boolean;
+}
+
+/** Everyone's money on hand once the browser has checked it. */
+export interface StaffBalances {
+  rows: StaffBalance[];
+  /** What staff hold together, from the server. */
+  total: number;
+}
+
+/** The All Staff answer holds a figure or a status the browser cannot trust, so the tab shows its failure instead of a wrong row. */
+export class StaffBalancesContractError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StaffBalancesContractError';
+  }
+}
+
+function staffFigure(value: unknown, what: string): number {
+  const figure = toFiniteFigure(value);
+  if (figure === null) throw new StaffBalancesContractError(`The staff ${what} is not a finite number.`);
+  return figure;
+}
+
+function toStaffBalance(row: StaffBalanceRowResponse): StaffBalance {
+  if (!isRecipientStatus(row.status)) {
+    throw new StaffBalancesContractError(`The staff status "${row.status}" is not known.`);
+  }
+  return {
+    userId: row.userId,
+    name: row.name,
+    role: row.role,
+    status: row.status,
+    balance: staffFigure(row.balance, 'balance'),
+    isYou: row.isYou,
+  };
+}
+
+/**
+ * Narrows the generated All Staff answer (figures are `number | string` there). Every balance and the total are the server's; none is
+ * worked out here. A figure that is not a plain decimal, or a status the browser does not know, refuses the whole answer.
+ */
+export function parseStaffBalances(response: StaffBalancesResponse): StaffBalances {
+  return { rows: response.items.map(toStaffBalance), total: staffFigure(response.total, 'total') };
+}
+
+/** One person's money on hand as a Manager reads it (M2): the same figure as `MyMoney`, with the person's role and standing. */
+export interface PersonMoney extends MyMoney {
+  /** `Admin` or `Manager`. */
+  role: string;
+  status: RecipientStatus;
+}
+
+/** Narrows the generated answer like `parseMyMoney`, and refuses a standing the browser does not know (no wrong badge is drawn). */
+export function parsePersonMoney(response: StaffMoneyResponse): PersonMoney {
+  const money = parseMyMoney(response);
+  if (!isRecipientStatus(response.status)) {
+    throw new MyMoneyContractError(`The standing "${response.status}" is not known.`);
+  }
+  return { ...money, role: response.role, status: response.status };
+}
+
 export interface MoneyService {
+  /**
+   * `POST /api/v1/money-transfers/handovers`: a Manager hands money held by a former staff member to a current coworker (D-17). The body
+   * names the former staff member as the sender (`fromUserId`); the signed-in Manager is only the one who records it. One
+   * Idempotency-Key per submission. 400 lists the field errors, 409 means another change won, 201 answers the saved hand-over and the
+   * former staff member's new balance in `senderBalance`.
+   */
+  handover(body: CreateHandoverRequest, idempotencyKey: string, signal?: AbortSignal): Promise<TransferSavedResponse>;
+  /**
+   * `GET /api/v1/staff-money/{userId}`: one person's money on hand with their role and standing, for a Manager (an Admin gets 403 for
+   * anyone but themselves). 404 means the person is not staff.
+   */
+  person(userId: string, signal?: AbortSignal): Promise<StaffMoneyResponse>;
+  /**
+   * `GET /api/v1/staff-money`: everyone's money on hand, for a Manager only (the server answers 403 to an Admin). Active people by
+   * name, then former staff whose balance is not 0.00, each with the server's figure, plus the total held by staff. No parameters.
+   */
+  staff(signal?: AbortSignal): Promise<StaffBalancesResponse>;
   /**
    * `GET /api/v1/staff-money/me`: the caller's own money on hand, worked out by the server on every read: payments received and
    * transfers in, minus transfers out, expenses paid and refunds handed back. It can be below zero. It takes no parameters.
@@ -219,6 +345,11 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
+    handover: (body, idempotencyKey, signal) =>
+      client.post<TransferSavedResponse>('/money-transfers/handovers', body, { idempotencyKey, signal }),
+    person: (userId, signal) =>
+      client.get<StaffMoneyResponse>(`/staff-money/${encodeURIComponent(userId)}`, { signal }),
+    staff: (signal) => client.get<StaffBalancesResponse>('/staff-money', { signal }),
     me: (signal) => client.get<StaffMoneyResponse>('/staff-money/me', { signal }),
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),
     create: (body, idempotencyKey, signal) =>

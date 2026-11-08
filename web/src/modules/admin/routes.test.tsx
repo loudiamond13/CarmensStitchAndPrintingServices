@@ -21,7 +21,7 @@ import {
 } from '@/test/expenseFixtures';
 import { dashboardBackend, dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { deletedOrderItem, deletedOrderList, deletedOrdersBackend } from '@/test/deletedOrderFixtures';
-import { ledgerBackend, myMoneyBackend, myMoneyFixture } from '@/test/moneyFixtures';
+import { JOMAR_ID, ledgerBackend, myMoneyBackend, myMoneyFixture, staffPersonBackend } from '@/test/moneyFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
@@ -370,6 +370,90 @@ describe('My Money (MONEY-02, D-39, D-40; plan 10-13)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/money')}`);
+  }, 15_000);
+});
+
+describe("One person's money for Managers (MONEY-03, D-42; plan 10-19)", () => {
+  const MANAGER_ID = '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f';
+
+  it("a Manager who opens another person's page stays, sees it with My Money the current item, and the title names the person", async () => {
+    answerRefresh(sessionResponse());
+    const person = staffPersonBackend(JOMAR_ID);
+    ledgerBackend(undefined, JOMAR_ID);
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/money/staff/${JOMAR_ID}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Jomar Santos' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe(`/admin/money/staff/${JOMAR_ID}`);
+    expect(person).toHaveLength(1);
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['My Money']);
+    await waitFor(() => {
+      expect(document.title).toBe('Jomar Santos · Money · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin who opens it is redirected to /admin/money before any request for the person', async () => {
+    answerRefresh(adminSession());
+    const person = staffPersonBackend(JOMAR_ID);
+    const ledger = ledgerBackend(undefined, JOMAR_ID);
+    myMoneyBackend(myMoneyFixture({ name: 'Lito Santos' }));
+    ledgerBackend();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/money/staff/${JOMAR_ID}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'My Money' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/money');
+    expect(screen.queryByRole('heading', { level: 1, name: 'Jomar Santos' })).toBeNull();
+    expect(person).toHaveLength(0);
+    expect(ledger).toHaveLength(0);
+  }, 30_000);
+
+  it('a Manager who opens their own id is redirected to /admin/money (replace)', async () => {
+    answerRefresh(sessionResponse());
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    ledgerBackend();
+    const person = staffPersonBackend(MANAGER_ID);
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/money/staff/${MANAGER_ID}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'My Money' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/money');
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(person).toHaveLength(0);
+  }, 30_000);
+
+  it('the Manager own id in capitals is redirected the same way', async () => {
+    answerRefresh(sessionResponse());
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    ledgerBackend();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/money/staff/${MANAGER_ID.toUpperCase()}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'My Money' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/money');
+  }, 30_000);
+
+  it('a Manager who opens a made-up address sees the not-found state in the shell and no request is sent', async () => {
+    answerRefresh(sessionResponse());
+    const person = staffPersonBackend(JOMAR_ID);
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/money/staff/not-a-guid'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText("This person wasn't found.", {}, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/money/staff/not-a-guid');
+    expect(person).toHaveLength(0);
+  }, 30_000);
+
+  it('a visitor without a session goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/money/staff/${JOMAR_ID}`] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(`/admin/money/staff/${JOMAR_ID}`)}`);
   }, 15_000);
 });
 

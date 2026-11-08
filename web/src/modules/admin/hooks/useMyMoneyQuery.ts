@@ -17,11 +17,13 @@ export interface MyMoneyCardQuery {
 export const staffMoneyKey = ['staff-money'] as const;
 export const myMoneyKey = ['staff-money', 'me'] as const;
 
-export function useMyMoneyQuery() {
+/** `enabled` false asks nothing (the Hand Over window needs no figure of the signed-in person). */
+export function useMyMoneyQuery(enabled = true) {
   return useQuery({
     queryKey: myMoneyKey,
     // An answer with a figure the browser cannot trust fails the query, so the card shows its alert instead of a wrong balance.
     queryFn: async ({ signal }) => parseMyMoney(await moneyService.me(signal)),
+    enabled,
     staleTime: 0,
     refetchOnMount: 'always',
   });

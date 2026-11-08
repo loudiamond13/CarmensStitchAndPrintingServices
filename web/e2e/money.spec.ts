@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Browser, BrowserContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, guardContext, test } from './fixtures.ts';
-import { manilaDate } from './helpers.ts';
+import { manilaDate, press } from './helpers.ts';
 import { BASKETBALL_JERSEY_ID, CASH_ID, createOrder, createStaff, type TestStaff } from './testing-api.ts';
 
 /** The second person: a signed-in page in its own context, watched by the same guard as the test's own page (IN-05). */
@@ -143,5 +143,92 @@ test('@money the ledger keeps its page, rows per page and Show deleted through a
   expect(restored.get('page')).toBe('2');
   expect(restored.get('size')).toBe('10');
   expect(restored.get('deleted')).toBe('true');
+  // With the Manager tabs above it, Show deleted sits under the phone tab bar when the page is at the top; axe measures a target's size
+  // against what covers it, so the page is scrolled down a little first, which brings the box clear of the bar.
+  await page.evaluate<boolean>('(() => { window.scrollBy(0, 300); return true; })()');
   await expectNoAxeViolations(page);
+});
+
+test("@money a Manager hands over a leaver's money from All Staff, and an Admin who opens that person's page lands on My Money", async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().replaceAll('-', '').slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mara', lastName: `Boss${token}` });
+  const leaver = await createStaff(request, 'Admin', undefined, { firstName: 'Joel', lastName: `Leaver${token}` });
+  const receiver = await createStaff(request, 'Admin', undefined, { firstName: 'Rina', lastName: `Recv${token}` });
+  const leaverName = `Joel Leaver${token}`;
+  const receiverName = `Rina Recv${token}`;
+  await seedPaymentTo(request, leaver);
+  await signInAs(page, request, manager);
+
+  // The Manager deactivates the person in Users: they now hold 5,000.00 as a leaver.
+  await page.goto('/admin/users');
+  await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
+  await page.getByPlaceholder('Name or email').fill(leaver.email);
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await press(page, page.locator('tbody tr').first().getByRole('button', { name: 'Deactivate Joel', exact: true }));
+  await page
+    .getByRole('dialog', { name: `Deactivate ${leaverName}?` })
+    .getByRole('button', { name: 'Deactivate User' })
+    .click();
+  await expect(page.getByText('User deactivated')).toBeVisible();
+
+  // All Staff lists the leaver after the active people, deactivated, holding 5,000.00, with Hand Over.
+  await page.goto('/admin/money?tab=staff');
+  await expect(page.getByRole('tab', { name: 'All Staff' })).toHaveAttribute('aria-selected', 'true');
+  const staffTable = page.getByRole('table', { name: 'Staff money on hand' });
+  const leaverRow = staffTable.getByRole('row').filter({ hasText: leaverName });
+  await expect(leaverRow).toContainText('Deactivated');
+  await expect(leaverRow).toContainText('₱5,000.00');
+  await expectNoAxeViolations(page);
+
+  // Hand Over opens the window for that person, with the Manager first in To and nothing chosen.
+  await leaverRow.getByRole('button', { name: `Hand over money from ${leaverName}` }).click();
+  const dialog = page.getByRole('dialog', { name: 'Hand Over Money' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(`From ${leaverName} (deactivated). They hold ₱5,000.00.`)).toBeVisible();
+  const to = dialog.getByLabel(/^To/);
+  await expect(to).toBeEnabled();
+  await expect(to).toBeFocused();
+  await expect(to).toHaveValue('');
+  await expect(to.locator('option').nth(1)).toHaveText(`Mara Boss${token} (you)`);
+  await expect(dialog.getByText(`${leaverName} holds ₱5,000.00.`)).toBeVisible();
+  await expect(dialog.getByText('Enter the amount.')).toBeHidden();
+  // More than the leaver holds is refused in the browser before any request.
+  await to.selectOption({ label: receiverName });
+  await dialog.getByLabel(/^Amount/).fill('5000.01');
+  await dialog.getByRole('button', { name: 'Record Handover' }).click();
+  await expect(dialog.getByText(`${leaverName} only has ₱5,000.00 on hand.`)).toBeVisible();
+  await dialog.getByLabel(/^Amount/).fill('5000');
+  await expectNoAxeViolations(page);
+
+  await dialog.getByRole('button', { name: 'Record Handover' }).click();
+
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Handover recorded')).toBeVisible();
+  await expect(page.getByText(`${leaverName} now holds ₱0.00.`)).toBeVisible();
+  // The leaver holds nothing, so All Staff no longer lists them or offers Hand Over; focus goes to the table caption.
+  await expect(staffTable.getByRole('row').filter({ hasText: leaverName })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: `Hand over money from ${leaverName}` })).toHaveCount(0);
+  await expect(page.locator('caption', { hasText: 'Staff money on hand' })).toBeFocused();
+  // The receiver now holds the amount.
+  await expect(staffTable.getByRole('row').filter({ hasText: receiverName })).toContainText('₱5,000.00');
+
+  // An Admin who opens a person's page is sent to My Money before any request for that person.
+  const other = await signInSecondPerson(browser, baseURL, request, receiver);
+  try {
+    await other.page.goto(`/admin/money/staff/${leaver.userId}`);
+    await expect(other.page.getByRole('heading', { level: 1, name: 'My Money' })).toBeVisible();
+    await expect(other.page).toHaveURL(/\/admin\/money$/);
+    await expect(other.page.getByRole('tab')).toHaveCount(0);
+    await other.finish();
+  } finally {
+    await other.context.close();
+  }
 });

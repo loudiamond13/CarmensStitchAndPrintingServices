@@ -326,15 +326,119 @@ export function ledgerPageFixture(
 
 type LedgerResponder = (url: URL) => Response | LedgerPageFixture | Promise<Response | LedgerPageFixture>;
 
-/** Answers `GET /api/v1/staff-money/me/ledger` with a page, or with a function that decides per call. Returns every request made. */
-export function ledgerBackend(answer: LedgerPageFixture | LedgerResponder = ledgerPageFixture()): URL[] {
+/**
+ * Answers `GET /api/v1/staff-money/{userId}/ledger` (`me` unless a person is named) with a page, or with a function that decides per
+ * call. Returns every request made.
+ */
+export function ledgerBackend(answer: LedgerPageFixture | LedgerResponder = ledgerPageFixture(), userId = 'me'): URL[] {
   const calls: URL[] = [];
   server.use(
-    http.get('*/api/v1/staff-money/me/ledger', async ({ request }) => {
+    http.get(`*/api/v1/staff-money/${userId}/ledger`, async ({ request }) => {
       const url = new URL(request.url);
       calls.push(url);
       const body = typeof answer === 'function' ? await answer(url) : answer;
       return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return calls;
+}
+
+// The Manager screens' fixtures (plan 10-19): everyone's money on hand, one person's money, and the hand-over save, typed from the
+// generated contract with made-up people.
+
+export type StaffBalanceFixture = Schemas['StaffBalanceRow'];
+export type StaffBalancesFixture = Schemas['StaffBalancesResponse'];
+
+/**
+ * What All Staff answers for the signed-in Carmen (Manager): the active people by name (Carmen 8,450.00, Liza owed 500.00, Paolo at
+ * zero), then the leavers by name (Ana, deleted, owed 300.00; Jomar, deactivated, holding 2,000.00). The total is 9,650.00.
+ */
+export function staffBalancesFixture(overrides: Partial<StaffBalancesFixture> = {}): StaffBalancesFixture {
+  return {
+    items: [
+      { userId: MY_MONEY_USER_ID, name: 'Carmen Reyes', role: 'Manager', status: 'active', balance: 8450, isYou: true },
+      { userId: LIZA_ID, name: 'Liza Mercado', role: 'Admin', status: 'active', balance: -500, isYou: false },
+      { userId: PAOLO_ID, name: 'Paolo Garcia', role: 'Admin', status: 'active', balance: 0, isYou: false },
+      { userId: ANA_ID, name: 'Ana Villanueva', role: 'Admin', status: 'deleted', balance: -300, isYou: false },
+      { userId: JOMAR_ID, name: 'Jomar Santos', role: 'Admin', status: 'deactivated', balance: 2000, isYou: false },
+    ],
+    total: 9650,
+    ...overrides,
+  };
+}
+
+type StaffBalancesResponder = (url: URL) => Response | StaffBalancesFixture | Promise<Response | StaffBalancesFixture>;
+
+/** Answers `GET /api/v1/staff-money` (everyone's money, Manager only) and returns every request made. A later call overrides an earlier one. */
+export function staffBalancesBackend(
+  answer: StaffBalancesFixture | StaffBalancesResponder = staffBalancesFixture(),
+): URL[] {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/staff-money', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const body = typeof answer === 'function' ? await answer(url) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return calls;
+}
+
+/** One person's money as a Manager reads it: Jomar Santos, deactivated, holding 2,000.00. */
+export function staffPersonFixture(overrides: Partial<MyMoneyFixture> = {}): MyMoneyFixture {
+  return myMoneyFixture({
+    userId: JOMAR_ID,
+    name: 'Jomar Santos',
+    role: 'Admin',
+    status: 'deactivated',
+    balance: 2000,
+    ...overrides,
+  });
+}
+
+/** Answers `GET /api/v1/staff-money/{userId}` and returns every request made. */
+export function staffPersonBackend(
+  userId: string,
+  answer: MyMoneyFixture | MyMoneyResponder = staffPersonFixture({ userId }),
+): URL[] {
+  const calls: URL[] = [];
+  server.use(
+    http.get(`*/api/v1/staff-money/${userId}`, async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const body = typeof answer === 'function' ? await answer(url) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return calls;
+}
+
+/** A saved hand-over of 2,000.00 from Jomar to Liza, recorded by Carmen; Jomar now holds nothing. */
+export function handoverSavedFixture(overrides: Partial<TransferSavedFixture> = {}): TransferSavedFixture {
+  const saved = transferSavedFixture();
+  return {
+    ...saved,
+    senderBalance: 0,
+    transfer: {
+      ...saved.transfer,
+      from: { id: JOMAR_ID, name: 'Jomar Santos', formerStaff: true },
+      isHandover: true,
+    },
+    ...overrides,
+  };
+}
+
+/** Answers `POST /api/v1/money-transfers/handovers` (201 with the saved hand-over unless told otherwise) and records body and key. */
+export function createHandoverBackend(
+  reply: () => Response | Promise<Response> = () => HttpResponse.json(handoverSavedFixture(), { status: 201 }),
+): TransferCalls {
+  const calls: TransferCalls = { bodies: [], keys: [] };
+  server.use(
+    http.post('*/api/v1/money-transfers/handovers', async ({ request }) => {
+      calls.bodies.push(await request.json());
+      calls.keys.push(request.headers.get('Idempotency-Key'));
+      return reply();
     }),
   );
   return calls;

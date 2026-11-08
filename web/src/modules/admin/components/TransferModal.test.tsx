@@ -2,22 +2,33 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { delay } from 'msw';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { toastEdgeToneClasses } from '@/components/feedback/feedback.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { MoneyStrip } from '@/modules/admin/components/MoneyStrip';
+import { TransferModal, type HandoverLeaver } from '@/modules/admin/components/TransferModal';
 import { dashboardSummaryKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
-import { useMyMoneyQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { myMoneyKey, useMyMoneyQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
+import { sessionResponse } from '@/test/sessionFixtures';
 import { dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
 import { buildOrderList, useOrderHandlers } from '@/test/orderFixtures';
 import {
+  ANA_ID,
+  createHandoverBackend,
   createTransferBackend,
+  handoverSavedFixture,
+  JOMAR_ID,
   LIZA_ID,
+  MY_MONEY_USER_ID,
   myMoneyBackend,
   myMoneyFixture,
+  staffBalancesBackend,
+  staffBalancesFixture,
   transferBusyProblem,
   transferFieldProblem,
   transferRecipientsBackend,
@@ -108,6 +119,23 @@ describe('the window from the strip (D-47, D-56)', () => {
       'Jomar Santos (inactive)',
       'Ana Villanueva (former staff)',
     ]);
+  });
+
+  it('shows no error under Amount just because the window opened: the cursor moving to To is not leaving Amount', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await waitFor(() => {
+      expect(toBox()).toHaveFocus();
+    });
+
+    // Let any check started by the move finish before looking.
+    await delay(50);
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
+    expect(screen.getByText('You have ₱8,450.00 on hand.')).toBeVisible();
   });
 
   it('starts with the business today in Date, from the server and not the device clock', async () => {
@@ -685,5 +713,466 @@ describe('closing (08 D-58)', () => {
     await screen.findByRole('dialog', { name: 'Transfer Money' });
 
     expect(amountBox()).toHaveValue('');
+  });
+});
+
+// The Manager's owed-leaver cap (D-49, OR-3; plan 10-19): in transfer mode a Manager who picks a leaver who is owed money is checked in the
+// browser against the staff balances read when the window opened. An Admin is never sent any figure and relies on the server's refusal.
+
+describe('a Manager sending to a leaver who is owed money (D-49)', () => {
+  beforeEach(() => {
+    clearSession();
+    acceptSession(sessionResponse());
+  });
+
+  afterEach(() => {
+    clearSession();
+  });
+
+  it('reads the staff balances once when the window opens', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+
+    await waitFor(() => {
+      expect(staff).toHaveLength(1);
+    });
+  });
+
+  it('refuses more than Ana is owed in the browser: "Ana Villanueva is owed only ₱300.00. Enter that or less."', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const sent = createTransferBackend();
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await waitFor(() => {
+      expect(staff).toHaveLength(1);
+    });
+
+    await user.selectOptions(toBox(), 'Ana Villanueva (former staff)');
+    await user.type(amountBox(), '300.01');
+    await user.click(recordButton());
+
+    expect(await screen.findByText('Ana Villanueva is owed only ₱300.00. Enter that or less.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
+    expect(amountBox()).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('sends exactly what Ana is owed', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const sent = createTransferBackend();
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await waitFor(() => {
+      expect(staff).toHaveLength(1);
+    });
+
+    await user.selectOptions(toBox(), 'Ana Villanueva (former staff)');
+    await user.type(amountBox(), '300');
+    await user.click(recordButton());
+
+    await waitFor(() => {
+      expect(sent.bodies).toHaveLength(1);
+    });
+    expect(sent.bodies[0]).toMatchObject({ toUserId: ANA_ID, amount: '300.00' });
+  });
+
+  it('does not cap a payment to an active coworker who happens to be owed money', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const sent = createTransferBackend();
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await waitFor(() => {
+      expect(staff).toHaveLength(1);
+    });
+
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '5000');
+    await user.click(recordButton());
+
+    await waitFor(() => {
+      expect(sent.bodies).toHaveLength(1);
+    });
+  });
+
+  it('leaves the cap to the server when the staff balances could not be read, and still sends', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend(() => problemResponse(500));
+    const sent = createTransferBackend(() =>
+      transferFieldProblem('amount', 'Ana Villanueva is owed only ₱300.00. Enter that or less.'),
+    );
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await waitFor(() => {
+      expect(staff.length).toBeGreaterThanOrEqual(1);
+    });
+
+    await user.selectOptions(toBox(), 'Ana Villanueva (former staff)');
+    await user.type(amountBox(), '900');
+    await user.click(recordButton());
+
+    expect(await screen.findByText('Ana Villanueva is owed only ₱300.00. Enter that or less.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(1);
+  });
+});
+
+describe('an Admin sending to a leaver who is owed money (D-49, OD-19)', () => {
+  const ADMIN_USER = {
+    id: '6a0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+    email: 'lito@example.ph',
+    firstName: 'Lito',
+    lastName: 'Santos',
+    role: 'Admin',
+  };
+
+  beforeEach(() => {
+    clearSession();
+    acceptSession(sessionResponse({ user: ADMIN_USER }));
+  });
+
+  afterEach(() => {
+    clearSession();
+  });
+
+  it('is never sent the staff balances: no request is made, and the same choice goes to the server, whose Admin line shows', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Lito Santos' }));
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const sent = createTransferBackend(() =>
+      transferFieldProblem('amount', "That's more than Ana Villanueva is owed. Ask a Manager for the amount."),
+    );
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+
+    await user.selectOptions(toBox(), 'Ana Villanueva (former staff)');
+    await user.type(amountBox(), '300.01');
+    await user.click(recordButton());
+
+    expect(
+      await screen.findByText("That's more than Ana Villanueva is owed. Ask a Manager for the amount."),
+    ).toBeVisible();
+    expect(sent.bodies).toHaveLength(1);
+    expect(staff).toHaveLength(0);
+    // The owed figure never reaches an Admin's DOM, in the window or behind it.
+    expect(document.body).not.toHaveTextContent('300.00');
+  });
+});
+
+// The hand-over mode (D-17, D-18, D-45, D-56, OR-3; plan 10-19): a Manager moves money held by a person who left to an active coworker.
+
+describe('the hand-over mode (D-17, D-18)', () => {
+  const JOMAR_LEAVER: HandoverLeaver = {
+    userId: JOMAR_ID,
+    name: 'Jomar Santos',
+    status: 'deactivated',
+    balance: 2000,
+  };
+  const ANA_LEAVER: HandoverLeaver = { userId: ANA_ID, name: 'Ana Villanueva', status: 'deleted', balance: 750 };
+
+  beforeEach(() => {
+    clearSession();
+    acceptSession(sessionResponse());
+    // A held money answer carries the business today, as it does on My Money where the window is opened.
+    queryClient.setQueryData(myMoneyKey, {
+      userId: MY_MONEY_USER_ID,
+      name: 'Carmen Reyes',
+      balance: 8450,
+      today: '2026-11-04',
+    });
+  });
+
+  afterEach(() => {
+    clearSession();
+  });
+
+  function HandoverHost({ leaver }: { leaver: HandoverLeaver }) {
+    const [open, setOpen] = useState(true);
+    return (
+      <TransferModal
+        mode="handover"
+        leaver={leaver}
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+      />
+    );
+  }
+
+  function renderHandover(leaver: HandoverLeaver = JOMAR_LEAVER) {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <MemoryRouter>
+            <HandoverHost leaver={leaver} />
+          </MemoryRouter>
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  const handoverButton = () => screen.getByRole('button', { name: /^(Record Handover|Saving)$/ });
+
+  it('opens "Hand Over Money" from the leaver, with what they hold, and asks for no figure of the Manager', async () => {
+    const mine = myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderHandover();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Hand Over Money' });
+    expect(within(dialog).getByText('From Jomar Santos (deactivated). They hold ₱2,000.00.')).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeVisible();
+    expect(handoverButton()).toHaveTextContent('Record Handover');
+    await recipientsReady();
+    expect(mine).toHaveLength(0);
+  });
+
+  it('says "(deleted)" for a deleted person', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderHandover(ANA_LEAVER);
+
+    expect(await screen.findByText('From Ana Villanueva (deleted). They hold ₱750.00.')).toBeVisible();
+  });
+
+  it('lists the signed-in Manager first as "{name} (you)", then the other active staff, and never a leaver; nothing is chosen', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderHandover();
+    await recipientsReady();
+
+    expect(Array.from(toBox().options, (option) => option.text)).toEqual([
+      'Choose a coworker',
+      'Carmen Reyes (you)',
+      'Liza Mercado',
+      'Paolo Garcia',
+    ]);
+    expect(toBox()).toHaveValue('');
+  });
+
+  it('puts the cursor on To, shows "{name} holds {₱2,000.00}." under Amount and the recorded-by note', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderHandover();
+    await recipientsReady();
+
+    await waitFor(() => {
+      expect(toBox()).toHaveFocus();
+    });
+    await delay(50);
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
+    expect(screen.getByText('Jomar Santos holds ₱2,000.00.')).toBeVisible();
+    expect(
+      screen.getByText('This is recorded as a transfer from Jomar Santos, with you as the one who recorded it.'),
+    ).toBeVisible();
+    expect(dateBox()).toHaveValue('2026-11-04');
+  });
+
+  it('refuses more than the leaver holds in the browser: "{name} only has ₱2,000.00 on hand."', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    const sent = createHandoverBackend();
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '2000.01');
+    await user.click(handoverButton());
+
+    expect(await screen.findByText('Jomar Santos only has ₱2,000.00 on hand.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
+  });
+
+  it('shows the To and Amount lines for an empty window and sends nothing', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    const sent = createHandoverBackend();
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+
+    await user.click(handoverButton());
+
+    expect(await screen.findByText('Choose who got the cash.')).toBeVisible();
+    expect(screen.getByText('Enter the amount.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
+  });
+
+  it('records the hand-over with the leaver as the sender, one Idempotency-Key, and says what the leaver now holds', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const sent = createHandoverBackend();
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '2000');
+    await user.type(noteBox(), 'Final settlement');
+    const readsBefore = staff.length;
+    await user.click(handoverButton());
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(sent.bodies).toEqual([
+      {
+        fromUserId: JOMAR_ID,
+        toUserId: LIZA_ID,
+        amount: '2000.00',
+        transferDate: '2026-11-04',
+        note: 'Final settlement',
+      },
+    ]);
+    expect(sent.keys).toHaveLength(1);
+    expect(sent.keys[0]).toBeTruthy();
+    expect(await screen.findByText('Handover recorded')).toBeVisible();
+    expect(screen.getByText('Jomar Santos now holds ₱0.00.')).toBeVisible();
+    // The staff balances are read again, so the All Staff row follows the hand-over (D-13).
+    await waitFor(() => {
+      expect(staff.length).toBeGreaterThan(readsBefore);
+    });
+  });
+
+  it("reads the leaver's balance afresh when the window opens: the description and the cap follow it", async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend(
+      staffBalancesFixture({
+        items: staffBalancesFixture().items.map((row) => (row.userId === JOMAR_ID ? { ...row, balance: 500 } : row)),
+      }),
+    );
+    const sent = createHandoverBackend();
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+
+    expect(await screen.findByText('From Jomar Santos (deactivated). They hold ₱500.00.')).toBeVisible();
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '600');
+    await user.click(handoverButton());
+
+    expect(await screen.findByText('Jomar Santos only has ₱500.00 on hand.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
+  });
+
+  it('says there is nothing to hand over when the fresh read no longer lists the leaver', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend(
+      staffBalancesFixture({ items: staffBalancesFixture().items.filter((row) => row.userId !== JOMAR_ID) }),
+    );
+    const sent = createHandoverBackend();
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+
+    await screen.findByText('From Jomar Santos (deactivated). They hold ₱0.00.');
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '10');
+    await user.click(handoverButton());
+
+    expect(await screen.findByText('Jomar Santos has nothing on hand to hand over.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
+  });
+
+  it("puts the server's refusal under Amount, reads the balance again, keeps the typed values and gives the corrected body a new key", async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    let answers = 0;
+    const sent = createHandoverBackend(() => {
+      answers += 1;
+      return answers === 1
+        ? transferFieldProblem('amount', 'Jomar Santos only has ₱1,500.00 on hand.')
+        : Response.json(handoverSavedFixture(), { status: 201 });
+    });
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '2000');
+    const readsBefore = staff.length;
+
+    await user.click(handoverButton());
+
+    expect(await screen.findByText('Jomar Santos only has ₱1,500.00 on hand.')).toBeVisible();
+    expect(amountBox()).toHaveValue('2000.00');
+    expect(toBox()).toHaveValue(LIZA_ID);
+    await waitFor(() => {
+      expect(staff.length).toBeGreaterThan(readsBefore);
+    });
+    await user.clear(amountBox());
+    await user.type(amountBox(), '1500');
+    await user.click(handoverButton());
+
+    await waitFor(() => {
+      expect(sent.bodies).toHaveLength(2);
+    });
+    expect(sent.keys[1]).not.toBe(sent.keys[0]);
+  });
+
+  it('asks "Discard changes?" before closing a window that was changed', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    const user = userEvent.setup();
+    renderHandover();
+    const dialog = await screen.findByRole('dialog', { name: 'Hand Over Money' });
+    await recipientsReady();
+    await user.type(amountBox(), '50');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
+  });
+
+  it('wraps a very long leaver name inside the window text', async () => {
+    const longName = 'Maria Cristina Dela Cruz-Villanueva de los Santos y Fernandez-Montenegro';
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderHandover({ ...JOMAR_LEAVER, name: longName });
+
+    const dialog = await screen.findByRole('dialog', { name: 'Hand Over Money' });
+    const description = within(dialog).getByText(new RegExp(`^From ${longName}`));
+    expect(description.parentElement?.className).toContain('wrap-anywhere');
+  });
+
+  it('has no axe violations while open', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderHandover();
+    await recipientsReady();
+
+    await expectNoAxeViolations(document.body);
   });
 });

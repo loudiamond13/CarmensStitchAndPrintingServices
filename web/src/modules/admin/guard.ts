@@ -1,6 +1,6 @@
 // The admin route guard and the return-path check (D-07, CWE-601; plan 04-25). Redirects come from route loaders, never
 // from a <Navigate> element (nuqs #1245).
-import { redirect, type LoaderFunctionArgs } from 'react-router';
+import { redirect, replace, type LoaderFunctionArgs } from 'react-router';
 import { ensureSession, type SessionUser } from './services/session';
 
 const ADMIN_HOME = '/admin';
@@ -77,6 +77,23 @@ export async function requireManagerLoader(
   if (user.role !== 'manager') {
     // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's redirect() is thrown by design.
     throw redirect(fallbackPath);
+  }
+  return user;
+}
+
+/**
+ * The loader of one person's money page (MONEY-03, D-42): only a Manager passes, and an Admin goes to `fallbackPath` (My Money) before any
+ * request for the person. The Manager's own id is My Money too, so it is sent there with a replace (the address never joins the history).
+ * The comparison ignores case.
+ */
+export async function requireOtherStaffLoader(
+  args: Pick<LoaderFunctionArgs, 'request' | 'params'>,
+  fallbackPath: string,
+): Promise<SessionUser> {
+  const user = await requireManagerLoader(args, fallbackPath);
+  if (args.params.userId?.toLowerCase() === user.id.toLowerCase()) {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- React Router's replace() is thrown by design.
+    throw replace(fallbackPath);
   }
   return user;
 }
