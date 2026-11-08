@@ -34,6 +34,138 @@ export function parseMyMoney(response: StaffMoneyResponse): MyMoney {
   return { userId: response.userId, name: response.name, balance, today: response.today };
 }
 
+export type LedgerPageResponse = Schemas['LedgerPageResponse'];
+export type LedgerEntryResponse = Schemas['LedgerEntryResponse'];
+export type ActorRef = Schemas['ActorRef'];
+
+/** The kinds of row the server sends (GET staff-money/{id}/ledger); any other word is refused, not drawn. */
+export type LedgerKind =
+  'payment-received' | 'refund-handed-back' | 'transfer-in' | 'transfer-out' | 'company-expense' | 'order-expense';
+
+/** One ledger row once the browser has checked its figures: every amount is the server's, as a finite number or null. */
+export interface LedgerRow {
+  /** Stable for one page: the kind, the record behind it, when it was recorded and its place on the page. */
+  key: string;
+  kind: LedgerKind;
+  /** The day the money moved, `YYYY-MM-DD`. */
+  date: string;
+  moneyIn: number | null;
+  moneyOut: number | null;
+  /** The person's balance after this row; null for a deleted transfer, which counts toward no balance. */
+  balanceAfter: number | null;
+  orderId: string | null;
+  orderNumber: string | null;
+  team: string | null;
+  customer: string | null;
+  paymentMethod: string | null;
+  category: string | null;
+  description: string | null;
+  counterpart: ActorRef | null;
+  note: string | null;
+  transferId: string | null;
+  version: string | null;
+  isHandover: boolean;
+  recordedBy: ActorRef | null;
+  isDeleted: boolean;
+  deletedBy: ActorRef | null;
+  deletedAtUtc: string | null;
+}
+
+/** One server page of a ledger once the browser has checked it. */
+export interface LedgerPage {
+  rows: LedgerRow[];
+  /** How many rows the ledger has across all pages. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** The person's money on hand now, from the server. */
+  balance: number;
+  includesDeleted: boolean;
+}
+
+/** What a ledger read asks for. `deleted` is for a Manager only; the server answers 403 to an Admin who sends it. */
+export interface LedgerQuery {
+  page: number;
+  pageSize: number;
+  deleted: boolean;
+}
+
+/** The ledger answer holds a figure or a kind the browser cannot trust, so the card shows its failure instead of a wrong row. */
+export class LedgerContractError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LedgerContractError';
+  }
+}
+
+const LEDGER_KINDS: readonly string[] = [
+  'payment-received',
+  'refund-handed-back',
+  'transfer-in',
+  'transfer-out',
+  'company-expense',
+  'order-expense',
+] satisfies readonly LedgerKind[];
+
+function isLedgerKind(kind: string): kind is LedgerKind {
+  return LEDGER_KINDS.includes(kind);
+}
+
+/** A figure the page needs: a finite number, or the whole answer is refused. */
+function requiredFigure(value: unknown, what: string): number {
+  const figure = toFiniteFigure(value);
+  if (figure === null) throw new LedgerContractError(`The ledger ${what} is not a finite number.`);
+  return figure;
+}
+
+/** A figure a row may leave out (the empty side, a deleted row's balance): null stays null, anything else must be a finite number. */
+function optionalFigure(value: unknown, what: string): number | null {
+  return value === null || value === undefined ? null : requiredFigure(value, what);
+}
+
+function toLedgerRow(item: LedgerEntryResponse, index: number): LedgerRow {
+  if (!isLedgerKind(item.kind)) throw new LedgerContractError(`The ledger row kind "${item.kind}" is not known.`);
+  return {
+    key: `${String(index)}:${item.kind}:${item.transferId ?? item.orderId ?? ''}:${item.recordedAtUtc}`,
+    kind: item.kind,
+    date: item.date,
+    moneyIn: optionalFigure(item.moneyIn, 'money in'),
+    moneyOut: optionalFigure(item.moneyOut, 'money out'),
+    balanceAfter: optionalFigure(item.balanceAfter, 'balance'),
+    orderId: item.orderId,
+    orderNumber: item.orderNumber,
+    team: item.team,
+    customer: item.customer,
+    paymentMethod: item.paymentMethod,
+    category: item.category,
+    description: item.description,
+    counterpart: item.counterpart,
+    note: item.note,
+    transferId: item.transferId,
+    version: item.version,
+    isHandover: item.isHandover,
+    recordedBy: item.recordedBy,
+    isDeleted: item.isDeleted,
+    deletedBy: item.deletedBy,
+    deletedAtUtc: item.deletedAtUtc,
+  };
+}
+
+/**
+ * Narrows the generated ledger page (figures are `number | string` there). Every amount and balance is the server's; none is worked out
+ * here. A figure that is not a plain decimal, or a kind the browser does not know, refuses the whole answer, so no row is drawn wrong.
+ */
+export function parseLedgerPage(response: LedgerPageResponse): LedgerPage {
+  return {
+    rows: response.items.map(toLedgerRow),
+    total: requiredFigure(response.total, 'total'),
+    page: requiredFigure(response.page, 'page'),
+    pageSize: requiredFigure(response.pageSize, 'page size'),
+    balance: requiredFigure(response.balance, 'balance on hand'),
+    includesDeleted: response.includesDeleted,
+  };
+}
+
 /** The words the server uses for a person's standing; any other word is refused, not shown. */
 export type RecipientStatus = 'active' | 'deactivated' | 'deleted';
 
@@ -77,6 +209,12 @@ export interface MoneyService {
    * once. 400 lists the field errors, 409 means another change won, 201 answers the saved transfer and the sender's new balance.
    */
   create(body: CreateTransferRequest, idempotencyKey: string, signal?: AbortSignal): Promise<TransferSavedResponse>;
+  /**
+   * `GET /api/v1/staff-money/me/ledger` (or `/staff-money/{userId}/ledger` for another person): one page of a person's money rows,
+   * newest first, each with the running balance the server worked out after it (MONEY-02, D-41). Page and size are always sent;
+   * `deleted=true` only when asked, and only a Manager may (403 for an Admin).
+   */
+  ledger(userId: string, query: LedgerQuery, signal?: AbortSignal): Promise<LedgerPageResponse>;
 }
 
 export function createMoneyService(client: HttpClient): MoneyService {
@@ -85,6 +223,11 @@ export function createMoneyService(client: HttpClient): MoneyService {
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<TransferSavedResponse>('/money-transfers', body, { idempotencyKey, signal }),
+    ledger: (userId, query, signal) =>
+      client.get<LedgerPageResponse>(`/staff-money/${encodeURIComponent(userId)}/ledger`, {
+        params: { page: query.page, pageSize: query.pageSize, deleted: query.deleted ? true : undefined },
+        signal,
+      }),
   };
 }
 

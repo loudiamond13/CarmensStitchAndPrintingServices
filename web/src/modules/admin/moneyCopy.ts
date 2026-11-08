@@ -29,6 +29,46 @@ export const MONEY_COPY = {
     /** The noun of the failure line: "Couldn't load the money on hand.". */
     failedThings: 'the money on hand',
   },
+  /** The Ledger card of My Money (UI-SPEC M1 "Ledger card" and "Ledger rows", D-41, D-30). */
+  ledger: {
+    // SPEC-GAP: D-39 the card's head and line.
+    title: 'Ledger',
+    sub: 'Newest first. The balance after each entry is shown on the right.',
+    /** The noun of the loading region and of the failure line: "Loading the ledger…", "Couldn't load the ledger.". */
+    things: 'the ledger',
+    columns: { date: 'Date', details: 'Details', moneyIn: 'Money in', moneyOut: 'Money out', balance: 'Balance' },
+    /** The result bar: "Showing 6 entries · newest first" ("1 entry"). */
+    result: { thing: 'entry', things: 'entries', orderNote: 'newest first' },
+    /** The result bar with Show deleted on: "Showing 6 entries, deleted transfers included · newest first". */
+    resultWithDeleted: {
+      thing: 'entry, deleted transfers included',
+      things: 'entries, deleted transfers included',
+      orderNote: 'newest first',
+    },
+    // SPEC-GAP: D-39 the row titles. A transfer's title ends with the other person's name.
+    titles: {
+      payment: 'Payment received',
+      refund: 'Refund handed back',
+      transferFrom: 'Transfer from',
+      transferTo: 'Transfer to',
+      companyExpense: 'Company expense',
+      orderExpense: 'Order expense',
+    },
+    /** Between the parts of a sub line. */
+    joiner: ' · ',
+    /** A hand-over's sub line ends with the Manager's name. */
+    handedOverBy: 'Handed over by',
+    // SPEC-GAP: D-30 the Manager-only filter and the look of a deleted transfer.
+    showDeleted: 'Show deleted',
+    deleted: 'Deleted',
+    notCounted: 'Not counted',
+    deletedBy: 'Deleted by',
+    // SPEC-GAP: D-39 the empty state.
+    empty: {
+      title: 'No money in or out yet',
+      message: 'Payments you receive, transfers and expenses you pay show here.',
+    },
+  },
   /** The Transfer Money window (UI-SPEC T1, D-47) and the button that opens it (D-46, D-39). */
   transfer: {
     /** The button on the strip and on My Money. */

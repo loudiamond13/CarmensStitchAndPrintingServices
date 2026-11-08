@@ -21,7 +21,7 @@ import {
 } from '@/test/expenseFixtures';
 import { dashboardBackend, dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { deletedOrderItem, deletedOrderList, deletedOrdersBackend } from '@/test/deletedOrderFixtures';
-import { myMoneyBackend, myMoneyFixture } from '@/test/moneyFixtures';
+import { ledgerBackend, myMoneyBackend, myMoneyFixture } from '@/test/moneyFixtures';
 import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
@@ -341,6 +341,7 @@ describe('My Money (MONEY-02, D-39, D-40; plan 10-13)', () => {
     async (_role, session) => {
       answerRefresh(session());
       const calls = myMoneyBackend(myMoneyFixture({ balance: 8450 }));
+      ledgerBackend();
       const router = createMemoryRouter(routes, { initialEntries: ['/admin/money'] });
       render(<RouterProvider router={router} />);
 

@@ -5,12 +5,22 @@ import {
   ANA_ID,
   JOMAR_ID,
   LIZA_ID,
+  ledgerDeletedEntryFixture,
+  ledgerEntryFixture,
+  ledgerPageFixture,
   myMoneyFixture,
   PAOLO_ID,
   transferRecipientsFixture,
   transferSavedFixture,
 } from '@/test/moneyFixtures';
-import { createMoneyService, MyMoneyContractError, parseMyMoney, toTransferRecipients } from './moneyService';
+import {
+  createMoneyService,
+  LedgerContractError,
+  MyMoneyContractError,
+  parseLedgerPage,
+  parseMyMoney,
+  toTransferRecipients,
+} from './moneyService';
 
 // The money call (MONEY-02, OR-5): typed, over the one HTTP client. The browser asks only for the caller's own figure.
 
@@ -97,6 +107,113 @@ describe('moneyService.create (MONEY-04, SEC-06)', () => {
     expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers');
     expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
     expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+  });
+});
+
+describe('moneyService.ledger (MONEY-02, D-41)', () => {
+  it('calls GET /api/v1/staff-money/me/ledger?page=2&pageSize=20 for the caller and does not send deleted=false', async () => {
+    const page = ledgerPageFixture();
+    const { fake, service } = serviceWith([{ body: page }]);
+
+    await expect(service.ledger('me', { page: 2, pageSize: 20, deleted: false })).resolves.toEqual(page);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe('/api/v1/staff-money/me/ledger?page=2&pageSize=20');
+  });
+
+  it('sends deleted=true only when a Manager asks for deleted transfers', async () => {
+    const { fake, service } = serviceWith([{ body: ledgerPageFixture() }]);
+
+    await service.ledger('me', { page: 1, pageSize: 50, deleted: true });
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/staff-money/me/ledger?page=1&pageSize=50&deleted=true');
+  });
+
+  it("asks for another person's ledger by their id, encoded in the path", async () => {
+    const { fake, service } = serviceWith([{ body: ledgerPageFixture() }]);
+
+    await service.ledger(LIZA_ID, { page: 1, pageSize: 20, deleted: false });
+
+    expect(fake.calls[0]?.url).toBe(`/api/v1/staff-money/${LIZA_ID}/ledger?page=1&pageSize=20`);
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.ledger('me', { page: 1, pageSize: 20, deleted: false }, controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('parseLedgerPage (MONEY-02, wave 5 IN-01)', () => {
+  it('keeps every row in the order sent, with the server amounts and balances as finite numbers and the empty side null', () => {
+    const page = parseLedgerPage(ledgerPageFixture());
+
+    expect(page.rows.map((row) => row.kind)).toEqual([
+      'order-expense',
+      'company-expense',
+      'transfer-out',
+      'transfer-in',
+      'refund-handed-back',
+      'payment-received',
+    ]);
+    expect(page.rows.map((row) => row.balanceAfter)).toEqual([-500, 950, 1700, 3700, 1700, 2000]);
+    expect(page.rows[0]).toMatchObject({ moneyIn: null, moneyOut: 1450 });
+    expect(page.rows[5]).toMatchObject({ moneyIn: 2000, moneyOut: null });
+    expect(page).toMatchObject({ total: 6, page: 1, pageSize: 20, balance: -500, includesDeleted: false });
+  });
+
+  it('reads figures that arrive as plain decimal text, keeping the sign', () => {
+    const page = parseLedgerPage(
+      ledgerPageFixture([ledgerEntryFixture({ moneyIn: '2500.50', balanceAfter: '-12.25' })], {
+        balance: '-12.25',
+        total: '1',
+        page: '1',
+        pageSize: '20',
+      }),
+    );
+
+    expect(page.rows[0]).toMatchObject({ moneyIn: 2500.5, balanceAfter: -12.25 });
+    expect(page).toMatchObject({ balance: -12.25, total: 1, page: 1, pageSize: 20 });
+  });
+
+  it('keeps a deleted transfer with its face amount and no balance after it', () => {
+    const page = parseLedgerPage(ledgerPageFixture([ledgerDeletedEntryFixture()], { includesDeleted: true }));
+
+    expect(page.rows[0]).toMatchObject({ isDeleted: true, moneyOut: 2000, balanceAfter: null });
+  });
+
+  it.each([
+    ['a row amount', { moneyIn: 'abc' }],
+    ['a row balance', { balanceAfter: '0x10' }],
+    ['a row amount that is not finite', { moneyOut: Number.POSITIVE_INFINITY }],
+  ])('refuses the whole answer when %s is not a plain decimal', (_name, overrides) => {
+    const page = ledgerPageFixture([ledgerEntryFixture(overrides)]);
+
+    expect(() => parseLedgerPage(page)).toThrow(LedgerContractError);
+  });
+
+  it.each(['balance', 'total', 'page', 'pageSize'] as const)(
+    'refuses the whole answer when the page %s is not a figure',
+    (key) => {
+      expect(() => parseLedgerPage(ledgerPageFixture([], { [key]: 'many' }))).toThrow(LedgerContractError);
+    },
+  );
+
+  it('refuses a row with a kind the browser does not know, so no row is drawn with a wrong title', () => {
+    const page = ledgerPageFixture([ledgerEntryFixture({ kind: 'bonus' })]);
+
+    expect(() => parseLedgerPage(page)).toThrow(LedgerContractError);
   });
 });
 

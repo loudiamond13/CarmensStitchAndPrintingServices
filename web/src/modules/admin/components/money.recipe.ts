@@ -1,6 +1,7 @@
 // The money screens' looks as complete Tailwind tokens (D-33; plan 10-13): the dashboard strip (D-46) and the My Money balance
 // card (D-39). Every string here is a class list. No new token: spacing, radius, colour and type come from the theme.
 import clsx from 'clsx';
+import { hitAreaClasses } from '@/components/actions';
 import { cardClasses } from '@/components/money';
 import { pageSublineClasses } from '@/components/layout/layout.recipe';
 import { tw } from '@/ui/tw';
@@ -83,3 +84,40 @@ export const moneyCardExplanationClasses = pageSublineClasses;
 
 /** The failure banner inside the card body. */
 export const moneyCardStateClasses = tw('w-full');
+
+/* ───────────── Ledger card (D-41) ───────────── */
+
+/** The Ledger card: the surface card with `min-width: 0`, so a long note never widens the page. */
+export const ledgerCardClasses = clsx(cardClasses, tw('min-w-0'));
+
+/** The Show deleted row above the table (Manager only): 16px under the head, aligned with the card padding. */
+export const ledgerToolsClasses = tw('px-5 pt-4');
+
+/** The result bar inside the card, aligned with the card padding. */
+export const ledgerBarClasses = tw('px-5 pt-4 pb-3');
+
+/** The pagination row under the table, set off by a line. */
+export const ledgerPagerClasses = tw('border-t border-line px-5 py-4');
+
+/** The failure banner and the room around it inside the card. */
+export const ledgerStateClasses = tw('px-5 pt-4');
+
+/** A row's Details cell: the title over its sub line, 2px apart; the cell shrinks and wraps instead of widening the table. */
+export const ledgerDetailsClasses = tw('flex min-w-0 flex-col gap-0.5');
+
+/** A row title: Label 14/600, with the Deleted badge after it. Long names wrap anywhere. */
+export const ledgerTitleClasses = tw(
+  'flex min-w-0 flex-wrap items-center gap-x-2 text-[14px] leading-5 font-semibold wrap-anywhere',
+);
+
+/** A row sub line: Small 14/400, muted. Long notes and descriptions wrap anywhere. */
+export const ledgerSubClasses = tw('min-w-0 text-[14px] leading-5 font-normal wrap-anywhere text-ink-muted');
+
+/** The order number in a sub line: the accent link, underlined so it reads as a link inside muted text. */
+export const ledgerOrderLinkClasses = clsx(tw('text-accent-ink underline underline-offset-2'), hitAreaClasses);
+
+/** A deleted transfer's amount: muted and struck through. The Deleted badge, not the strike, carries the meaning. */
+export const ledgerStruckClasses = tw('text-ink-muted line-through');
+
+/** "Not counted" in the Balance column of a deleted transfer: Small, muted. */
+export const ledgerNotCountedClasses = tw('text-[14px] leading-5 text-ink-muted');
