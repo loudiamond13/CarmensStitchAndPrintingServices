@@ -1,7 +1,9 @@
 // Records one transfer through useSubmission (MONEY-04, SEC-06, WEB-09): one Idempotency-Key per submission, one request in flight, the
 // same key for a retry of the same body after a failure that may have run, and a new key for a corrected body. A saved transfer says
-// the sender's new balance from the server's answer and reads the money, transfer and dashboard answers again (D-13).
+// the sender's new balance from the server's answer and reads the money, transfer and dashboard answers again (D-13), after a failure
+// that may have saved as well.
 import { useToast } from '@/components/feedback';
+import { isHttpError } from '@/core/api/errors';
 import { useSubmission, type SubmissionState } from '@/lib/forms/useSubmission';
 import { useRefreshMoney } from '@/modules/admin/hooks/useRefreshMoney';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
@@ -38,6 +40,12 @@ export function useTransferAction({ onSaved, onFailure }: TransferActionOptions 
       });
       onSaved?.(saved);
     },
-    ...(onFailure === undefined ? {} : { onFailure }),
+    onFailure: (copy, error) => {
+      // A failure that may have saved (a server error, a timeout, no answer) leaves the money answers old, so they are read again.
+      if (!isHttpError(error) || error.kind !== 'http' || error.status >= 500 || error.status === 408) {
+        void refreshMoney();
+      }
+      onFailure?.(copy, error);
+    },
   });
 }
