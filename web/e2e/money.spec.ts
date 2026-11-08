@@ -100,3 +100,48 @@ test('@money a staff member sends part of their money to a coworker from the das
     await other.context.close();
   }
 });
+
+test('@money the ledger keeps its page, rows per page and Show deleted through an order page and Back (WEB-10)', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().replaceAll('-', '').slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Lena', lastName: `Ledger${token}` });
+  // Eleven payments received by this person: with 10 rows per page the ledger has two pages.
+  await Promise.all(Array.from({ length: 11 }, () => seedPaymentTo(request, manager)));
+  await signInAs(page, request, manager);
+
+  await page.goto('/admin/money?size=10');
+  const resultBar = page.getByText(/^Showing/);
+  const pagination = page.getByRole('navigation', { name: 'Pagination' });
+  await expect(resultBar).toHaveText('Showing 11 entries · newest first');
+  await expect(pagination).toContainText('Page 1 of 2');
+
+  // Show deleted replaces the entry; page 2 pushes one.
+  const showDeleted = page.getByRole('checkbox', { name: 'Show deleted' });
+  await showDeleted.check();
+  await expect(resultBar).toHaveText('Showing 11 entries, deleted transfers included · newest first');
+  await expect.poll(() => new URL(page.url()).searchParams.get('deleted')).toBe('true');
+  await page.getByRole('button', { name: 'Next page' }).click();
+  await expect(pagination).toContainText('Page 2 of 2');
+  await expect.poll(() => new URL(page.url()).searchParams.get('page')).toBe('2');
+
+  // Open the order behind the row, then Back: the page, the rows per page and Show deleted are all still there.
+  await page
+    .getByRole('link', { name: /^ORD-2095-/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}/);
+  await page.goBack();
+  await expect(pagination).toContainText('Page 2 of 2');
+  await expect(showDeleted).toBeChecked();
+  await expect(resultBar).toHaveText('Showing 11 entries, deleted transfers included · newest first');
+  const restored = new URL(page.url()).searchParams;
+  expect(restored.get('page')).toBe('2');
+  expect(restored.get('size')).toBe('10');
+  expect(restored.get('deleted')).toBe('true');
+  await expectNoAxeViolations(page);
+});

@@ -258,8 +258,10 @@ describe('the Ledger card under the balance card (D-41, MONEY-02; plan 10-17)', 
     myMoneyBackend();
     renderPage();
 
-    const region = await screen.findByRole('region', { name: 'Ledger' });
-    expect(region.tagName).toBe('SECTION');
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Ledger' });
+    const section = heading.closest('section');
+    expect(section).not.toBeNull();
+    expect(section).toHaveAttribute('aria-labelledby', heading.id);
   });
 
   it('has no axe violations with the ledger drawn', async () => {
