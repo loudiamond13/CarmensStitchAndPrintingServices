@@ -115,6 +115,26 @@ public sealed class GetLedgerHandlerTests
     }
 
     [Fact]
+    public void AnUnknownKindIsRefused()
+    {
+        var row = new LedgerRowView((LedgerEntryKind)99, Guid.NewGuid(), Day, At, 1.00m, IsDeleted: false);
+
+        Should.Throw<ArgumentOutOfRangeException>(() => LedgerEntryResponse.Of(row, 1.00m));
+    }
+
+    [Fact]
+    public void ADeletedRowWithNoFaceAmountShowsZeroAndNoBalance()
+    {
+        var row = new LedgerRowView(LedgerEntryKind.TransferOut, Guid.NewGuid(), Day, At, 0m, IsDeleted: true);
+
+        var entry = LedgerEntryResponse.Of(row, null);
+
+        entry.MoneyOut.ShouldBe(0m);
+        entry.MoneyIn.ShouldBeNull();
+        entry.BalanceAfter.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task OnlyTransferRowsCarryATransferId()
     {
         var transfer = Row(LedgerEntryKind.TransferIn, 30.00m);
