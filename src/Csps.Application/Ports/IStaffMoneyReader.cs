@@ -18,4 +18,16 @@ public interface IStaffMoneyReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The people sorted by first name, last name, then id.</returns>
     Task<IReadOnlyList<StaffPerson>> ListStaffPeopleAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads one page of a person's ledger, newest first, with the details each row names. The page, the sum of the newer rows, the
+    /// count and the balance are read together so they agree (D-105). Nothing is stored or cached.
+    /// </summary>
+    /// <param name="userId">The person whose ledger is read.</param>
+    /// <param name="page">The page number, from 1.</param>
+    /// <param name="pageSize">The rows per page.</param>
+    /// <param name="includeDeleted">True to show the person's deleted transfers too, each marked deleted and counting toward nothing.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The page, the total, the sum of the newer rows and the balance.</returns>
+    Task<LedgerPage> GetLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken);
 }

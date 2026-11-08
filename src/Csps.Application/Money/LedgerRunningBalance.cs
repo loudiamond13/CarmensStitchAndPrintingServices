@@ -10,6 +10,20 @@ public static class LedgerRunningBalance
     public static IReadOnlyList<decimal?> Apply(IReadOnlyList<LedgerRowView> rows, decimal balanceAfterFirst)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        return [];
+
+        var balances = new decimal?[rows.Count];
+        var running = balanceAfterFirst;
+        for (var index = 0; index < rows.Count; index++)
+        {
+            if (rows[index].IsDeleted)
+            {
+                continue;
+            }
+
+            balances[index] = running;
+            running -= rows[index].SignedAmount;
+        }
+
+        return balances;
     }
 }
