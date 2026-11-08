@@ -143,9 +143,31 @@ test('@money the ledger keeps its page, rows per page and Show deleted through a
   expect(restored.get('page')).toBe('2');
   expect(restored.get('size')).toBe('10');
   expect(restored.get('deleted')).toBe('true');
-  // With the Manager tabs above it, Show deleted sits under the phone tab bar when the page is at the top; axe measures a target's size
-  // against what covers it, so the page is scrolled down a little first, which brings the box clear of the bar.
-  await page.evaluate<boolean>('(() => { window.scrollBy(0, 300); return true; })()');
+  // On a phone Show deleted sits near the sticky bottom tab bar. Moving the keyboard focus to it must bring it clear of the bar (WCAG 2.4.11,
+  // the root's bottom scroll padding), so the check starts at the top of the page and lets the focus do the scrolling, as a person does.
+  await page.evaluate('window.scrollTo(0, 0)');
+  await showDeleted.focus();
+  await expect(showDeleted).toBeFocused();
+  const tabBar = page.locator('nav[aria-label="Admin"]:not(aside nav)');
+  const box = await showDeleted.boundingBox();
+  expect(box).not.toBeNull();
+  if (box !== null && (await tabBar.isVisible())) {
+    const bar = await tabBar.boundingBox();
+    expect(bar).not.toBeNull();
+    if (bar !== null) {
+      expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+    }
+  }
+  // Whatever is on top at the box's centre is the box or its label, never the tab bar or the top bar.
+  expect(
+    await page.evaluate<boolean>(`(() => {
+      const element = document.activeElement;
+      if (element === null) { return false; }
+      const rect = element.getBoundingClientRect();
+      const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return top !== null && (element.contains(top) || top.closest('label')?.contains(element) === true);
+    })()`),
+  ).toBe(true);
   await expectNoAxeViolations(page);
 });
 

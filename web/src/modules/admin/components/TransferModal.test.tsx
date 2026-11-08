@@ -83,6 +83,7 @@ async function openWindow(user: UserEvent, figure = '₱8,450.00') {
 async function recipientsReady() {
   await waitFor(() => {
     expect(toBox()).toBeEnabled();
+    expect(toBox()).not.toHaveAttribute('aria-disabled');
   });
 }
 
@@ -350,7 +351,7 @@ describe('the rules, checked before any request (OR-3, D-14)', () => {
 });
 
 describe('the people (D-56, D-49)', () => {
-  it('disables To with "Loading staff…" while the list loads', async () => {
+  it('marks To unavailable with "Loading staff…" while the list loads, yet keeps it able to take the cursor (wave 9 IN-01)', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
     transferRecipientsBackend(async () => {
       await delay(300);
@@ -360,10 +361,30 @@ describe('the people (D-56, D-49)', () => {
     renderStrip();
     await openWindow(user);
 
-    expect(toBox()).toBeDisabled();
+    expect(toBox()).toHaveAttribute('aria-disabled', 'true');
+    expect(toBox()).toBeEnabled();
     expect(within(toBox()).getByRole('option', { name: 'Loading staff…' })).toBeInTheDocument();
     await recipientsReady();
+    expect(toBox()).not.toHaveAttribute('aria-disabled');
     expect(within(toBox()).getByRole('option', { name: 'Choose a coworker' })).toBeInTheDocument();
+  });
+
+  it('puts the cursor on To as the window opens, while the people still load, so Amount is never left (wave 9 IN-01)', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend(async () => {
+      await delay(300);
+      return transferRecipientsFixture();
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+
+    // Before the people arrive: the window's own first focus is on To, not on Amount.
+    expect(toBox()).toHaveFocus();
+    await recipientsReady();
+    await delay(50);
+    expect(toBox()).toHaveFocus();
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
   });
 
   it('shows no figure for anyone in the list', async () => {
@@ -947,6 +968,24 @@ describe('the hand-over mode (D-17, D-18)', () => {
     expect(mine).toHaveLength(0);
   });
 
+  it('puts the cursor on To as the window opens, while the people still load, so Amount is never left (wave 9 IN-01)', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend(async () => {
+      await delay(300);
+      return transferRecipientsFixture();
+    });
+    staffBalancesBackend();
+    renderHandover();
+    await screen.findByRole('dialog', { name: 'Hand Over Money' });
+
+    // Before the people arrive: the window's own first focus is on To, not on Amount.
+    expect(toBox()).toHaveFocus();
+    await recipientsReady();
+    await delay(50);
+    expect(toBox()).toHaveFocus();
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
+  });
+
   it('says "(deleted)" for a deleted person', async () => {
     myMoneyBackend();
     transferRecipientsBackend();
@@ -1137,6 +1176,30 @@ describe('the hand-over mode (D-17, D-18)', () => {
       expect(sent.bodies).toHaveLength(2);
     });
     expect(sent.keys[1]).not.toBe(sent.keys[0]);
+  });
+
+  it("shows the server's line for a sender who is active again as a banner and reads the staff balances again (wave 9 WR-02)", async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const refusal = 'Only money held by former staff can be handed over.';
+    const sent = createHandoverBackend(() => transferFieldProblem('fromUserId', refusal));
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '1000');
+    const readsBefore = staff.length;
+
+    await user.click(handoverButton());
+
+    expect(await screen.findByText(refusal)).toBeVisible();
+    expect(sent.bodies).toHaveLength(1);
+    await waitFor(() => {
+      expect(staff.length).toBeGreaterThan(readsBefore);
+    });
+    expect(amountBox()).toHaveValue('1000.00');
+    expect(toBox()).toHaveValue(LIZA_ID);
   });
 
   it('asks "Discard changes?" before closing a window that was changed', async () => {

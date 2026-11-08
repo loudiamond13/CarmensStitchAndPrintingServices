@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-08T03:12:00-06:00
+updated: 2026-11-08T04:00:00-06:00
 ---
 
 # The staff money API
@@ -350,7 +350,7 @@ A Manager deletes a wrong transfer (MONEY-06, D-23, D-35). A transfer is **never
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
-| `DELETE /money-transfers/{id}?version=` | Manager | none | `204` deleted, `400` under `version` when it is missing or malformed, `401` without a valid token, `403` for an Admin, `404` when the transfer is unknown or already deleted, `409` when the version is stale. |
+| `DELETE /money-transfers/{id}?version=` | Manager | none | `204` deleted, `400` under `version` when it is missing or malformed, `401` without a valid token, `403` for an Admin, `404` when the transfer is unknown or already deleted, `409` when the version is stale (`edit.stale`) or when two saves lost a race twice (`money-transfers.busy`). |
 
 - `version` is the transfer's `version` as the Manager last saw it. Send it URL-encoded: standard base64 holds `+`, `/` and `=`.
 - The transfer stays stored with who deleted it and when, and stops counting toward both balances at once: the sender's balance

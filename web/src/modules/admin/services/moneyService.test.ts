@@ -29,7 +29,6 @@ import {
   pickTransferRecipients,
   StaffBalancesContractError,
   toTransferPeople,
-  toTransferRecipients,
 } from './moneyService';
 
 // The money call (MONEY-02, OR-5): typed, over the one HTTP client. The browser asks only for the caller's own figure.
@@ -227,9 +226,9 @@ describe('parseLedgerPage (MONEY-02, wave 5 IN-01)', () => {
   });
 });
 
-describe('toTransferRecipients (wave 6 IN-03)', () => {
+describe('pickTransferRecipients (wave 6 IN-03)', () => {
   it('leaves the signed-in person out and keeps the rest in the order sent, without isYou', () => {
-    expect(toTransferRecipients(transferRecipientsFixture())).toEqual([
+    expect(pickTransferRecipients(toTransferPeople(transferRecipientsFixture()))).toEqual([
       { id: LIZA_ID, name: 'Liza Mercado', status: 'active' },
       { id: PAOLO_ID, name: 'Paolo Garcia', status: 'active' },
       { id: JOMAR_ID, name: 'Jomar Santos', status: 'deactivated' },
@@ -240,12 +239,12 @@ describe('toTransferRecipients (wave 6 IN-03)', () => {
   it('refuses a person with a status the browser does not know, so they are never shown', () => {
     const odd = { id: LIZA_ID, name: 'Liza Mercado', status: 'suspended', isYou: false };
 
-    expect(toTransferRecipients([odd, ...transferRecipientsFixture()])).toHaveLength(4);
-    expect(toTransferRecipients([odd])).toEqual([]);
+    expect(pickTransferRecipients(toTransferPeople([odd, ...transferRecipientsFixture()]))).toHaveLength(4);
+    expect(pickTransferRecipients(toTransferPeople([odd]))).toEqual([]);
   });
 
   it('carries no figure: a person has an id, a name and a status only', () => {
-    const [first] = toTransferRecipients(transferRecipientsFixture());
+    const [first] = pickTransferRecipients(toTransferPeople(transferRecipientsFixture()));
 
     expect(Object.keys(first ?? {}).sort()).toEqual(['id', 'name', 'status']);
   });
@@ -313,12 +312,6 @@ describe('the recipients answer (D-56, wave 6 IN-03; plan 10-19)', () => {
       ['Ana Villanueva', false],
     ]);
     expect(toTransferPeople([odd])).toEqual([]);
-  });
-
-  it('pickTransferRecipients is toTransferRecipients: the signed-in person left out, no isYou', () => {
-    expect(pickTransferRecipients(toTransferPeople(transferRecipientsFixture()))).toEqual(
-      toTransferRecipients(transferRecipientsFixture()),
-    );
   });
 
   it('pickHandoverRecipients offers active staff only, the signed-in Manager first, and never a leaver (wave 6 IN-03)', () => {
