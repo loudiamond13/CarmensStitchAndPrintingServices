@@ -333,6 +333,34 @@ internal static class MoneyFixtures
         return JsonSerializer.Deserialize<JsonElement>(text, Web);
     }
 
+    /// <summary>The route that answers the signed-in person's own ledger.</summary>
+    public const string LedgerRoute = "/api/v1/staff-money/me/ledger";
+
+    /// <summary>Reads one page of the caller's own ledger.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="query">The raw query string without the question mark, such as <c>page=2&amp;pageSize=10</c>; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetLedgerAsync(HttpClient client, string? accessToken, string? query = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get(query is null ? LedgerRoute : $"{LedgerRoute}?{query}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads one page of the caller's own ledger and expects a 200 answer.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token.</param>
+    /// <param name="query">The raw query string without the question mark; none when null.</param>
+    /// <returns>The JSON body.</returns>
+    public static async Task<JsonElement> ReadLedgerAsync(HttpClient client, string accessToken, string? query = null)
+    {
+        using var response = await GetLedgerAsync(client, accessToken, query);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        return JsonSerializer.Deserialize<JsonElement>(text, Web);
+    }
+
     /// <summary>Reads the caller's balance from a 200 answer.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token.</param>
