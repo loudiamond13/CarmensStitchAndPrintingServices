@@ -48,8 +48,8 @@ const CASE_IDS = [
   'money-transfers-table',
   'money-transfer-window',
   'money-hand-over-window',
-  'money-delete-transfer-dialog',
-  'money-remove-transfer-dialog',
+  'money-delete-dialog',
+  'money-remove-dialog',
 ];
 
 /** Every request the page makes, seen two ways: MSW's request events and a spy on fetch. */
@@ -263,7 +263,7 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     renderDemos();
 
     await user.click(
-      within(caseFrame('money-transfer-window')).getByRole('button', { name: 'Open Transfer Money (server refuses)' }),
+      within(caseFrame('money-transfer-window')).getByRole('button', { name: 'Open Transfer (refused)' }),
     );
     const dialog = await screen.findByRole('dialog', { name: 'Transfer Money' });
     await user.selectOptions(within(dialog).getByLabelText(/^To/), 'Paolo Garcia');
@@ -280,7 +280,7 @@ describe('Phase10Demos: the windows and the dialogs', () => {
 
     await user.click(
       within(caseFrame('money-hand-over-window')).getByRole('button', {
-        name: 'Open Hand Over Money (server refuses)',
+        name: 'Open Hand Over (refused)',
       }),
     );
     const dialog = await screen.findByRole('dialog', { name: 'Hand Over Money' });
@@ -295,9 +295,9 @@ describe('Phase10Demos: the windows and the dialogs', () => {
   it('opens Delete Transfer with the resulting-balance warning, and without it', async () => {
     const user = userEvent.setup();
     renderDemos();
-    const frame = within(caseFrame('money-delete-transfer-dialog'));
+    const frame = within(caseFrame('money-delete-dialog'));
 
-    await user.click(frame.getByRole('button', { name: 'Open Delete Transfer (with warning)' }));
+    await user.click(frame.getByRole('button', { name: 'Open Delete (warning)' }));
     let dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
     expect(within(dialog).getByRole('alert')).toHaveTextContent(/balance will be −₱500\.00/);
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
@@ -315,9 +315,7 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     const user = userEvent.setup();
     renderDemos();
 
-    await user.click(
-      within(caseFrame('money-remove-transfer-dialog')).getByRole('button', { name: 'Open Remove Permanently' }),
-    );
+    await user.click(within(caseFrame('money-remove-dialog')).getByRole('button', { name: 'Open Remove Permanently' }));
     const dialog = await screen.findByRole('dialog', { name: 'Permanently remove this transfer?' });
     expect(within(dialog).getByText("This can't be undone.")).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
@@ -327,17 +325,13 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     const user = userEvent.setup();
     renderDemos();
 
-    await user.click(
-      within(caseFrame('money-delete-transfer-dialog')).getByRole('button', { name: 'Open Delete Transfer' }),
-    );
+    await user.click(within(caseFrame('money-delete-dialog')).getByRole('button', { name: 'Open Delete Transfer' }));
     let dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
     });
-    await user.click(
-      within(caseFrame('money-remove-transfer-dialog')).getByRole('button', { name: 'Open Remove Permanently' }),
-    );
+    await user.click(within(caseFrame('money-remove-dialog')).getByRole('button', { name: 'Open Remove Permanently' }));
     dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Remove Permanently' }));
     await waitFor(() => {
@@ -405,8 +399,8 @@ describe('Phase10Demos: strict mode and the data', () => {
   it.each([
     ['money-transfer-window', 'Open Transfer Money'],
     ['money-hand-over-window', 'Open Hand Over Money'],
-    ['money-delete-transfer-dialog', 'Open Delete Transfer (with warning)'],
-    ['money-remove-transfer-dialog', 'Open Remove Permanently'],
+    ['money-delete-dialog', 'Open Delete (warning)'],
+    ['money-remove-dialog', 'Open Remove Permanently'],
   ])('has no axe violations with a live case open: %s, %s', async (id, trigger) => {
     const user = userEvent.setup();
     renderDemos();

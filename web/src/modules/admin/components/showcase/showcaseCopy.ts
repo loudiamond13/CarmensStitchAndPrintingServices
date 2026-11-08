@@ -89,12 +89,12 @@ export const SHOWCASE_COPY = {
   },
   /** SPEC-GAP dev wording: the Dashboard and staff money demos (plan 10-21). Made-up people and figures only; the windows and dialogs open on demo data and send nothing. */
   dashboard: {
-    show: 'Show the Dashboard and staff money cases',
+    show: 'Show the Dashboard cases',
     openTransfer: 'Open Transfer Money',
-    openTransferRefused: 'Open Transfer Money (server refuses)',
+    openTransferRefused: 'Open Transfer (refused)',
     openHandover: 'Open Hand Over Money',
-    openHandoverRefused: 'Open Hand Over Money (server refuses)',
-    openDeleteWarning: 'Open Delete Transfer (with warning)',
+    openHandoverRefused: 'Open Hand Over (refused)',
+    openDeleteWarning: 'Open Delete (warning)',
     openDelete: 'Open Delete Transfer',
     openRemove: 'Open Remove Permanently',
   },

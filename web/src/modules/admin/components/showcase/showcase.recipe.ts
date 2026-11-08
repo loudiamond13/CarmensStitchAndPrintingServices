@@ -105,3 +105,6 @@ export const moneyCaseColumnClasses = tw('flex w-full min-w-0 flex-col gap-4');
 
 /** Wraps a static case so a press reaches nothing; it adds no box of its own. */
 export const stillClasses = tw('contents');
+
+/** A card list that needs a phone's width to lay a row out (All Staff: the name beside the eye link and Hand Over); the case frame scrolls sideways when it is narrower. */
+export const phoneRowWidthClasses = tw('min-w-72');

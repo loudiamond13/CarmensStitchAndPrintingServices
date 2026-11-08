@@ -22,6 +22,7 @@ import { StaffBalancesTable } from '@/modules/admin/components/StaffBalancesTabl
 import { DemoCase } from '@/modules/admin/components/showcase/Phase5Demos';
 import {
   moneyCaseColumnClasses,
+  phoneRowWidthClasses,
   orderTotalsGridClasses,
   staffStackClasses,
   stillClasses,
@@ -791,7 +792,9 @@ export function Phase10Demos() {
         </DemoCase>
         <DemoCase id="money-all-staff">
           <Still>
-            <StaffBalancesTable query={STAFF_QUERY} onHandOver={noop} />
+            <div className={phoneRowWidthClasses}>
+              <StaffBalancesTable query={STAFF_QUERY} onHandOver={noop} />
+            </div>
           </Still>
         </DemoCase>
         <DemoCase id="money-transfers-table">
@@ -807,11 +810,11 @@ export function Phase10Demos() {
           <WindowDemo mode="handover" trigger={DEMO.openHandover} />
           <WindowDemo mode="handover" refused trigger={DEMO.openHandoverRefused} />
         </DemoCase>
-        <DemoCase id="money-delete-transfer-dialog" live>
+        <DemoCase id="money-delete-dialog" live>
           <DeleteDemo warned trigger={DEMO.openDeleteWarning} />
           <DeleteDemo warned={false} trigger={DEMO.openDelete} />
         </DemoCase>
-        <DemoCase id="money-remove-transfer-dialog" live>
+        <DemoCase id="money-remove-dialog" live>
           <RemoveDemo />
         </DemoCase>
       </div>
