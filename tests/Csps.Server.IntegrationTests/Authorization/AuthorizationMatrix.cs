@@ -238,6 +238,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/money-transfers/handovers", "/api/v1/money-transfers/handovers", Anonymous: 401, Admin: 403, Manager: 400),
         // Who can receive a transfer (D-19, D-49, D-56): both roles read the same figure-free list.
         new("GET", "/api/v1/money-transfers/recipients", "/api/v1/money-transfers/recipients", Anonymous: 401, Admin: 200, Manager: 200),
+        // Deleting a wrong transfer (MONEY-06, D-23, OD-19): Managers only, so an Admin meets 403. The sample carries a well-formed version, so a Manager reaches the lookup and meets 404 for a fresh random id.
+        new("DELETE", "/api/v1/money-transfers/{id:guid}", "/api/v1/money-transfers/8d2f6a41-5b97-4e03-a1c8-7f0e3b9d6a52?version=AAAAAAAAB9E%3D", Anonymous: 401, Admin: 403, Manager: 404),
 
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
