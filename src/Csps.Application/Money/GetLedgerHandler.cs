@@ -37,7 +37,10 @@ public sealed class GetLedgerHandler(IStaffMoneyReader reader, IRequestContext r
             return Result.Failure<LedgerPageResponse>(ValidationResults.ToError(validation, MoneyErrors.LedgerInvalidCode, Domain.Money.MoneyRules.InvalidMessage));
         }
 
-        _ = await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false);
+        if (await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false) is null)
+        {
+            return Result.Failure<LedgerPageResponse>(AuthErrors.SessionEnded);
+        }
 
         if (userId is { } other && other != callerId)
         {

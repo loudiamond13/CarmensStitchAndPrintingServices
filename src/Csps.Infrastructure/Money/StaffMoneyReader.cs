@@ -1,3 +1,4 @@
+using System.Data;
 using Csps.Application.Money;
 using Csps.Application.Ports;
 using Csps.Application.Security;
@@ -87,6 +88,24 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
     }
 
     public async Task<LedgerPage> GetLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken)
+    {
+        // The page, the newer-rows sum, the count and the balance are four reads. One serializable read transaction keeps a row that
+        // lands between them from making them disagree (D-105). Inside a transaction the caller already opened, that one applies.
+        if (context.Database.CurrentTransaction is not null)
+        {
+            return await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
+        }
+
+        var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
+        await using (transaction.ConfigureAwait(false))
+        {
+            var result = await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+    }
+
+    private async Task<LedgerPage> ReadLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken)
     {
         var all = StaffLedgerQuery.For(context, userId, includeDeleted);
         var ordered = StaffLedgerQuery.Ordered(all);

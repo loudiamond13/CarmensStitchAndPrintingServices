@@ -33,8 +33,10 @@ internal static class StaffLedgerDetails
             var found = (LedgerEntryKind)group.Key switch
             {
                 LedgerEntryKind.PaymentReceived => await PaymentsAsync(context, ofKind, cancellationToken).ConfigureAwait(false),
+                LedgerEntryKind.RefundHandedBack => await RefundsAsync(context, ofKind, cancellationToken).ConfigureAwait(false),
                 LedgerEntryKind.TransferIn => await TransfersAsync(context, ofKind, cancellationToken).ConfigureAwait(false),
                 LedgerEntryKind.CompanyExpensePaid => await CompanyExpensesAsync(context, ofKind, cancellationToken).ConfigureAwait(false),
+                LedgerEntryKind.OrderExpensePaid => await OrderExpensesAsync(context, ofKind, cancellationToken).ConfigureAwait(false),
                 _ => [],
             };
             foreach (var view in found)
@@ -73,6 +75,45 @@ internal static class StaffLedgerDetails
                    Customer = detail.CustomerName,
                    PaymentMethod = detail.MethodName,
                },
+        ];
+    }
+
+    private static async Task<List<LedgerRowView>> RefundsAsync(CspsDbContext context, List<StaffLedgerRow> rows, CancellationToken cancellationToken)
+    {
+        var ids = rows.Select(row => row.SourceId).ToArray();
+        var found = await (
+            from refund in context.Set<OrderRefund>().AsNoTracking()
+            where ids.Contains(refund.Id)
+            join order in context.Orders.AsNoTracking() on refund.OrderId equals order.Id
+            select new { refund.Id, OrderId = order.Id, order.Number, order.TeamName, order.CustomerName })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. from row in rows
+               join detail in found on row.SourceId equals detail.Id
+               select Plain(row) with { OrderId = detail.OrderId, OrderNumber = detail.Number, Team = detail.TeamName, Customer = detail.CustomerName },
+        ];
+    }
+
+    private static async Task<List<LedgerRowView>> OrderExpensesAsync(CspsDbContext context, List<StaffLedgerRow> rows, CancellationToken cancellationToken)
+    {
+        var ids = rows.Select(row => row.SourceId).ToArray();
+        var found = await (
+            from expense in context.Set<OrderExpense>().AsNoTracking()
+            where ids.Contains(expense.Id)
+            join order in context.Orders.AsNoTracking() on expense.OrderId equals order.Id
+            join category in context.OrderExpenseCategories.AsNoTracking() on expense.OrderExpenseCategoryId equals category.Id
+            select new { expense.Id, OrderId = order.Id, order.Number, CategoryName = category.Name, expense.Description })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. from row in rows
+               join detail in found on row.SourceId equals detail.Id
+               select Plain(row) with { OrderId = detail.OrderId, OrderNumber = detail.Number, Category = detail.CategoryName, Description = detail.Description },
         ];
     }
 
