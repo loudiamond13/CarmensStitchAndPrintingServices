@@ -1,27 +1,24 @@
 // Staff money end to end (MONEY-04, MONEY-05, SEC-06; plan 10-15), in all five projects. A fresh staff member who holds money from a payment
 // sends part of it to a coworker from the dashboard strip, sees the server's new balance, and the coworker holds the amount. Every test runs
-// under the shared guard (console, page errors, CSP, failed responses). The shared CSPS_E2E database holds what other specs made, so nothing
-// here asserts a shop-wide figure: only the money of the two fresh people this test makes (RESEARCH Pitfall 11).
+// under the shared guard (console, page errors, CSP, failed responses), the second person's page included. The shared CSPS_E2E database
+// holds what other specs made, so nothing here asserts a shop-wide figure: only the money of the two fresh people this test makes
+// (RESEARCH Pitfall 11).
 import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Browser, BrowserContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, guardContext, test } from './fixtures.ts';
 import { manilaDate } from './helpers.ts';
 import { BASKETBALL_JERSEY_ID, CASH_ID, createOrder, createStaff, type TestStaff } from './testing-api.ts';
 
-/** The second person: a signed-in page in its own context, and what its console and page errors reported. */
+/** The second person: a signed-in page in its own context, watched by the same guard as the test's own page (IN-05). */
 interface SecondPerson {
   readonly context: BrowserContext;
   readonly page: Page;
-  readonly findings: string[];
+  /** Throws with every console error, page error, CSP violation and failed response the second page reported. */
+  readonly finish: () => Promise<void>;
 }
 
-/** The one failed load the sign-in page is expected to log: the refresh cookie check before any session exists. */
-function isSignInRefreshLoad(text: string, url: string): boolean {
-  return url.includes('/api/v1/auth/refresh') && text.includes('401');
-}
-
-/** Opens a second context, signs the person in, and watches its page for console errors and page errors. */
+/** Opens a second context, guards it, and signs the person in. */
 async function signInSecondPerson(
   browser: Browser,
   baseURL: string | undefined,
@@ -29,18 +26,12 @@ async function signInSecondPerson(
   staff: TestStaff,
 ): Promise<SecondPerson> {
   const context = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
+  const watched = await guardContext(context, baseURL);
+  // The sign-in page's refresh cookie check answers 401 before any session exists, as it does for the first person.
+  watched.guard.expectStatus('/api/v1/auth/refresh', 401);
   const page = await context.newPage();
-  const findings: string[] = [];
-  page.on('console', (message) => {
-    if (message.type() === 'error' && !isSignInRefreshLoad(message.text(), message.location().url)) {
-      findings.push(`console.error: ${message.text()}`);
-    }
-  });
-  page.on('pageerror', (error) => {
-    findings.push(`pageerror: ${error.message}`);
-  });
   await signInAs(page, request, staff);
-  return { context, page, findings };
+  return { context, page, finish: watched.finish };
 }
 
 /** Seeds an order of 5,000.00 paid in full, with the payment received by `receiver`: that person now holds 5,000.00. */
@@ -104,7 +95,7 @@ test('@money a staff member sends part of their money to a coworker from the das
     const body = (await answer.json()) as { balance: number | string };
     expect(Number(body.balance)).toBe(1250.5);
     await expect(other.page.getByRole('region', { name: 'Your money on hand' })).toContainText('₱1,250.50');
-    expect(other.findings).toEqual([]);
+    await other.finish();
   } finally {
     await other.context.close();
   }

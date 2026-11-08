@@ -5,6 +5,7 @@ import { delay } from 'msw';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
+import { toastEdgeToneClasses } from '@/components/feedback/feedback.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { MoneyStrip } from '@/modules/admin/components/MoneyStrip';
 import { dashboardSummaryKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
@@ -140,6 +141,28 @@ describe('the window from the strip (D-47, D-56)', () => {
       expect(dateBox()).toHaveValue('2026-11-04');
     });
     expect(asked.lists).toHaveLength(1);
+  });
+
+  it("reads the balance afresh when the window opens: the description and the cap use it, not the strip's older figure (wave 7 WR-04)", async () => {
+    let reads = 0;
+    myMoneyBackend(() => {
+      reads += 1;
+      return myMoneyFixture({ name: 'Carmen Reyes', balance: reads === 1 ? 8450 : 3200 });
+    });
+    transferRecipientsBackend();
+    const sent = createTransferBackend();
+    const user = userEvent.setup();
+    renderStrip();
+    const dialog = await openWindow(user);
+    await recipientsReady();
+
+    expect(await within(dialog).findByText('From Carmen Reyes (you). You have ₱3,200.00 on hand.')).toBeVisible();
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '5000');
+    await user.click(recordButton());
+
+    expect(await screen.findByText('You only have ₱3,200.00 on hand.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(0);
   });
 
   it('has no axe violations while open', async () => {
@@ -419,6 +442,40 @@ describe('what the server refuses (D-14, D-56, SEC-06)', () => {
     expect(amountBox()).toHaveValue('100.00');
   });
 
+  it('clears To when the people read again no longer hold the chosen person, so the hidden id is never sent (wave 7 WR-02)', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    let reads = 0;
+    const people = transferRecipientsBackend(() => {
+      reads += 1;
+      return reads === 1
+        ? transferRecipientsFixture()
+        : transferRecipientsFixture().filter((person) => person.id !== LIZA_ID);
+    });
+    const sent = createTransferBackend(() =>
+      transferFieldProblem('toUserId', "Liza Mercado can't receive transfers now. Choose someone else."),
+    );
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await fill(user, '100');
+
+    await user.click(recordButton());
+    expect(await screen.findByText("Liza Mercado can't receive transfers now. Choose someone else.")).toBeVisible();
+    await waitFor(() => {
+      expect(people).toHaveLength(2);
+    });
+    await waitFor(() => {
+      expect(toBox()).toHaveValue('');
+    });
+    expect(within(toBox()).queryByRole('option', { name: 'Liza Mercado' })).toBeNull();
+
+    await user.click(recordButton());
+
+    expect(await screen.findByText('Choose who got the cash.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(1);
+  });
+
   it('shows the server line for a busy answer as a danger toast and keeps the window and the typed values', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
     transferRecipientsBackend();
@@ -431,7 +488,12 @@ describe('what the server refuses (D-14, D-56, SEC-06)', () => {
 
     await user.click(recordButton());
 
-    expect(await screen.findByText('Something changed at the same time. Try again.')).toBeVisible();
+    const line = await screen.findByText('Something changed at the same time. Try again.');
+    expect(line).toBeVisible();
+    // The toast carries the danger tone (the colored edge), not the success one (wave 7 WR-04).
+    const toast = line.parentElement?.parentElement;
+    expect(toast).toHaveClass(toastEdgeToneClasses.danger);
+    expect(toast).not.toHaveClass(toastEdgeToneClasses.success);
     expect(screen.getByRole('dialog', { name: 'Transfer Money' })).toBeVisible();
     expect(amountBox()).toHaveValue('100.00');
   });
@@ -461,6 +523,76 @@ describe('what the server refuses (D-14, D-56, SEC-06)', () => {
     expect(sent.keys[1]).toBe(sent.keys[0]);
   });
 
+  it('reads the money again after a server failure that may have saved, so the strip shows the new figure (wave 7 WR-03)', async () => {
+    let balance = 8450;
+    const mine = myMoneyBackend(() => myMoneyFixture({ name: 'Carmen Reyes', balance }));
+    transferRecipientsBackend();
+    createTransferBackend(() => {
+      // The server saved the transfer but the answer was lost on the way.
+      balance = 6450;
+      return problemResponse(500);
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await fill(user, '2000');
+    const readsBefore = mine.length;
+
+    await user.click(recordButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
+    await waitFor(() => {
+      expect(mine.length).toBeGreaterThan(readsBefore);
+    });
+    expect(await screen.findByText('₱6,450.00')).toBeVisible();
+  });
+
+  it('does not read the money again after a refusal that saved nothing', async () => {
+    const mine = myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    createTransferBackend(() =>
+      transferFieldProblem('toUserId', "Liza Mercado can't receive transfers now. Choose someone else."),
+    );
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await fill(user, '100');
+    const readsBefore = mine.length;
+
+    await user.click(recordButton());
+
+    expect(await screen.findByText("Liza Mercado can't receive transfers now. Choose someone else.")).toBeVisible();
+    expect(mine.length).toBe(readsBefore);
+  });
+
+  it('keeps one Idempotency-Key when the same transfer is sent again after a busy answer (wave 7 WR-04)', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    let calls = 0;
+    const sent = createTransferBackend(() => {
+      calls += 1;
+      return calls === 1 ? transferBusyProblem() : Response.json(transferSavedFixture(), { status: 201 });
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await fill(user, '100');
+
+    await user.click(recordButton());
+    expect(await screen.findByText('Something changed at the same time. Try again.')).toBeVisible();
+    await user.click(recordButton());
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(sent.keys).toHaveLength(2);
+    expect(sent.keys[0]).toBeTruthy();
+    expect(sent.keys[1]).toBe(sent.keys[0]);
+  });
+
   it('shows "Saving" with aria-busy while the request runs and ignores Esc and the scrim until it ends', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
     transferRecipientsBackend();
@@ -481,6 +613,14 @@ describe('what the server refuses (D-14, D-56, SEC-06)', () => {
     expect(recordButton()).toHaveAttribute('aria-busy', 'true');
     await user.keyboard('{Escape}');
     expect(screen.getByRole('dialog', { name: 'Transfer Money' })).toBeVisible();
+    // A full press and click on the scrim closes nothing while the save runs, and no "Discard changes?" is asked (wave 7 WR-04).
+    const scrim = screen.getByRole('dialog', { name: 'Transfer Money' }).parentElement;
+    if (scrim === null) throw new Error('The window has no scrim.');
+    fireEvent.mouseDown(scrim);
+    fireEvent.mouseUp(scrim);
+    fireEvent.click(scrim);
+    expect(screen.getByRole('dialog', { name: 'Transfer Money' })).toBeVisible();
+    expect(screen.queryByRole('dialog', { name: 'Discard changes?' })).toBeNull();
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();

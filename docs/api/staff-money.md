@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-07T18:40:00-06:00
+updated: 2026-11-07T22:00:00-06:00
 ---
 
 # The staff money API
@@ -238,7 +238,11 @@ Every `balanceAfter` is worked out on the server; the browser never adds anythin
 
 So the newest row of page 1 has `balanceAfter` equal to `balance`, page 2 starts exactly where page 1 ended, and the oldest row of the
 last page ends on its own signed amount. The order is date (newest first), then the time recorded (newest first), then kind, then id, so
-pages never skip or repeat a row.
+within one read the order is stable and a tie never reorders.
+
+Paging is by offset, and each page is a separate request. Between two page requests a newly recorded row can shift older rows to the next
+page, so a row can show twice or be missed. A back-dated row also changes the `balanceAfter` of every row newer than it, so figures read on an earlier page can be out of date. A client that
+needs a steady view should read page 1 again before it trusts a long walk.
 
 The page, the sum of the newer rows, the count and the balance are read inside one serializable read transaction (D-105), so a row
 recorded at the same moment cannot make them disagree. A page costs the same number of database commands at any page size.

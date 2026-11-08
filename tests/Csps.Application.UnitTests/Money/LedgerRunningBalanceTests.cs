@@ -22,7 +22,7 @@ public sealed class LedgerRunningBalanceTests
     [Fact]
     public void ADeletedRowGetsNoBalanceAndLeavesTheRunningValueUnchangedForTheRowsAfterIt()
     {
-        IReadOnlyList<LedgerRowView> rows = [Row(1000.00m), DeletedRow(), Row(-300.00m), Row(200.00m)];
+        IReadOnlyList<LedgerRowView> rows = [Row(1000.00m), DeletedRow(500.00m), Row(-300.00m), Row(200.00m)];
 
         var balances = LedgerRunningBalance.Apply(rows, 900.00m);
 
@@ -32,7 +32,7 @@ public sealed class LedgerRunningBalanceTests
     [Fact]
     public void ADeletedFirstRowGetsNoBalanceAndTheNextRowTakesTheBalanceAfterFirst()
     {
-        IReadOnlyList<LedgerRowView> rows = [DeletedRow(), Row(-300.00m)];
+        IReadOnlyList<LedgerRowView> rows = [DeletedRow(500.00m), Row(-300.00m)];
 
         var balances = LedgerRunningBalance.Apply(rows, 700.00m);
 
@@ -64,6 +64,7 @@ public sealed class LedgerRunningBalanceTests
     private static LedgerRowView Row(decimal signed) =>
         new(signed >= 0 ? LedgerEntryKind.PaymentReceived : LedgerEntryKind.CompanyExpensePaid, Guid.NewGuid(), Day, At, signed, IsDeleted: false);
 
-    private static LedgerRowView DeletedRow() =>
-        new(LedgerEntryKind.TransferIn, Guid.NewGuid(), Day, At, 0m, IsDeleted: true) { DeletedAmount = 500.00m };
+    // The signed amount is non-zero on purpose: the walk must skip a deleted row whatever amount it carries.
+    private static LedgerRowView DeletedRow(decimal signed) =>
+        new(LedgerEntryKind.TransferIn, Guid.NewGuid(), Day, At, signed, IsDeleted: true) { DeletedAmount = 500.00m };
 }

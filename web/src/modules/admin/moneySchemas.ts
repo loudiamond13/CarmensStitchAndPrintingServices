@@ -39,7 +39,8 @@ function dateError(date: string, today: string): string | null {
  */
 function amountError(text: string, balance: number | null): string | null {
   if (text === '' || text === '.') return COPY.amountRequired;
-  if (/^\d*\.\d{3,}$/.test(text)) return COPY.amountDecimals;
+  // The server checks the minimum before the decimal places, so zero with extra decimals ("0.000") says "at least".
+  if (/^\d*\.\d{3,}$/.test(text)) return /[1-9]/.test(text) ? COPY.amountDecimals : COPY.amountTooSmall;
   if (!isMoneyText(text)) return moneyInputError(text);
   const centavos = moneyTextToCentavos(text);
   if (centavos < 1) return COPY.amountTooSmall;
