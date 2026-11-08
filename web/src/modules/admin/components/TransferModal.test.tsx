@@ -11,6 +11,7 @@ import { dashboardSummaryKey } from '@/modules/admin/hooks/useDashboardSummaryQu
 import { useMyMoneyQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { dashboardSummaryFixture } from '@/test/dashboardFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
+import { buildOrderList, useOrderHandlers } from '@/test/orderFixtures';
 import {
   createTransferBackend,
   LIZA_ID,
@@ -118,6 +119,27 @@ describe('the window from the strip (D-47, D-56)', () => {
     expect(dateBox()).toHaveValue('2026-11-04');
     expect(amountBox()).toHaveValue('');
     expect(noteBox()).toHaveValue('');
+  });
+
+  it('asks the server for the business today when no answer holds it, and shows a skeleton until it arrives', async () => {
+    // A money answer whose day is not a real date is not trusted, so the window asks (never the device clock).
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes', today: 'soon' }));
+    transferRecipientsBackend();
+    const asked = useOrderHandlers({
+      list: async () => {
+        await delay(200);
+        return buildOrderList([], { today: '2026-11-04' });
+      },
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    const dialog = await openWindow(user);
+
+    expect(within(dialog).queryByRole('button', { name: 'Record Transfer' })).toBeNull();
+    await waitFor(() => {
+      expect(dateBox()).toHaveValue('2026-11-04');
+    });
+    expect(asked.lists).toHaveLength(1);
   });
 
   it('has no axe violations while open', async () => {
