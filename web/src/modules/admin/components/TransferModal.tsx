@@ -36,15 +36,25 @@ const COPY = MONEY_COPY.transfer;
 const FIELD_ORDER = ['toUserId', 'amount', 'transferDate', 'note'] as const;
 type FieldName = (typeof FIELD_ORDER)[number];
 
-export interface TransferModalProps {
+/** The former staff member a Manager hands money over from: who they are, how they left, and what the All Staff row said they hold. */
+export interface HandoverLeaver {
+  userId: string;
+  name: string;
+  status: 'deactivated' | 'deleted';
+  balance: number;
+}
+
+interface TransferModalCommon {
   /** False plays the close animation and then renders nothing; each new open starts clean. Default true. */
   open?: boolean;
-  mode: 'transfer';
   /** Closes the window: Cancel, Esc, the scrim and the close button (after the discard question), and after a save. */
   onClose: () => void;
   /** The button that opened the window. Safari does not focus a button on a click, so focus is sent back here once the window is closed. */
   returnFocusTo?: RefObject<HTMLElement | null> | undefined;
 }
+
+export type TransferModalProps = TransferModalCommon &
+  ({ mode: 'transfer'; leaver?: undefined } | { mode: 'handover'; leaver: HandoverLeaver });
 
 export function TransferModal({ open = true, mode, onClose, returnFocusTo }: TransferModalProps) {
   const [wasOpen, setWasOpen] = useState(open);
@@ -65,7 +75,7 @@ export function TransferModal({ open = true, mode, onClose, returnFocusTo }: Tra
 }
 
 interface TransferWindowProps {
-  mode: 'transfer';
+  mode: 'transfer' | 'handover';
   open: boolean;
   onClose: () => void;
 }

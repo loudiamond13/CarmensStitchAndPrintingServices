@@ -5,6 +5,7 @@ import { delay } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { MoneyRoute } from '@/modules/admin/pages/MoneyPage';
@@ -12,6 +13,9 @@ import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { problemResponse } from '@/test/expenseFixtures';
 import {
+  createHandoverBackend,
+  handoverSavedFixture,
+  JOMAR_ID,
   ledgerBackend,
   myMoneyBackend,
   myMoneyFixture,
@@ -49,9 +53,11 @@ function renderPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefi
         processUrlSearchParams={orderSearchParams}
         hasMemory
       >
-        <MemoryRouter>
-          <MoneyRoute />
-        </MemoryRouter>
+        <ToastProvider>
+          <MemoryRouter>
+            <MoneyRoute />
+          </MemoryRouter>
+        </ToastProvider>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
@@ -287,6 +293,107 @@ describe('the Ledger card under the balance card (D-41, MONEY-02; plan 10-17)', 
 
     await screen.findByRole('table', { name: 'Ledger' });
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('Hand Over from the All Staff row (D-17, D-45; plan 10-19)', () => {
+  const handOverButton = () => screen.getByRole('button', { name: 'Hand over money from Jomar Santos' });
+  const caption = () => screen.getByText('Staff money on hand', { selector: 'caption' });
+
+  /** The All Staff answer with Jomar holding `jomar` (or not listed when it is 0), as the server would send it. */
+  function staffWithJomar(jomar: number) {
+    const base = staffBalancesFixture();
+    const items = base.items.filter((row) => row.userId !== JOMAR_ID || jomar > 0);
+    return staffBalancesFixture({
+      items: items.map((row) => (row.userId === JOMAR_ID ? { ...row, balance: jomar } : row)),
+      total: 9650 - 2000 + jomar,
+    });
+  }
+
+  it('opens "Hand Over Money" for that person when Hand Over is pressed, and Cancel puts focus back on the button', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    staffBalancesBackend();
+    transferRecipientsBackend();
+    const user = userEvent.setup();
+    renderPage('?tab=staff');
+
+    await user.click(await screen.findByRole('button', { name: 'Hand over money from Jomar Santos' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Hand Over Money' });
+    expect(within(dialog).getByText('From Jomar Santos (deactivated). They hold ₱2,000.00.')).toBeVisible();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(handOverButton()).toHaveFocus();
+    });
+  });
+
+  it('records the hand-over, then the row follows the new figure: a leaver left at zero loses the row and focus goes to the table caption', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    let jomar = 2000;
+    staffBalancesBackend(() => staffWithJomar(jomar));
+    transferRecipientsBackend();
+    const sent = createHandoverBackend(() => {
+      jomar = 0;
+      return Response.json(handoverSavedFixture(), { status: 201 });
+    });
+    const user = userEvent.setup();
+    renderPage('?tab=staff');
+
+    await user.click(await screen.findByRole('button', { name: 'Hand over money from Jomar Santos' }));
+    await screen.findByRole('dialog', { name: 'Hand Over Money' });
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLSelectElement>('combobox', { name: /^To/ })).toBeEnabled();
+    });
+    await user.selectOptions(screen.getByRole('combobox', { name: /^To/ }), 'Liza Mercado');
+    await user.type(screen.getByRole('textbox', { name: /^Amount/ }), '2000');
+    await user.click(screen.getByRole('button', { name: 'Record Handover' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(sent.bodies).toHaveLength(1);
+    expect(await screen.findByText('Handover recorded')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Hand over money from Jomar Santos' })).toBeNull();
+    });
+    expect(screen.queryByText('Jomar Santos')).toBeNull();
+    expect(screen.getByText('₱7,650.00')).toBeVisible();
+    await waitFor(() => {
+      expect(caption()).toHaveFocus();
+    });
+  });
+
+  it('puts focus back on the row Hand Over button when money is still left to hand over', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    let jomar = 2000;
+    staffBalancesBackend(() => staffWithJomar(jomar));
+    transferRecipientsBackend();
+    createHandoverBackend(() => {
+      jomar = 500;
+      return Response.json(handoverSavedFixture({ senderBalance: 500 }), { status: 201 });
+    });
+    const user = userEvent.setup();
+    renderPage('?tab=staff');
+
+    await user.click(await screen.findByRole('button', { name: 'Hand over money from Jomar Santos' }));
+    await screen.findByRole('dialog', { name: 'Hand Over Money' });
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLSelectElement>('combobox', { name: /^To/ })).toBeEnabled();
+    });
+    await user.selectOptions(screen.getByRole('combobox', { name: /^To/ }), 'Liza Mercado');
+    await user.type(screen.getByRole('textbox', { name: /^Amount/ }), '1500');
+    await user.click(screen.getByRole('button', { name: 'Record Handover' }));
+
+    expect(await screen.findByText('Jomar Santos now holds ₱500.00.')).toBeVisible();
+    await waitFor(() => {
+      expect(within(screen.getByRole('table', { name: 'Staff money on hand' })).getByText('₱500.00')).toBeVisible();
+    });
+    await waitFor(() => {
+      expect(handOverButton()).toHaveFocus();
+    });
   });
 });
 

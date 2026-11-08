@@ -191,6 +191,35 @@ export function toTransferRecipients(list: readonly TransferRecipientResponse[])
   return people;
 }
 
+export type CreateHandoverRequest = Schemas['CreateMoneyHandoverRequest'];
+
+/** One person the recipients answer names once the browser has checked the status; the signed-in person is kept and marked. */
+export interface TransferPerson extends TransferRecipient {
+  isYou: boolean;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- compile-only stub until the GREEN commit
+export function toTransferPeople(_list: readonly TransferRecipientResponse[]): TransferPerson[] {
+  return [];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- compile-only stub until the GREEN commit
+export function pickTransferRecipients(_people: readonly TransferPerson[]): TransferRecipient[] {
+  return [];
+}
+
+/** One person the Hand Over window's To list offers. */
+export interface HandoverRecipient {
+  id: string;
+  name: string;
+  isYou: boolean;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- compile-only stub until the GREEN commit
+export function pickHandoverRecipients(_people: readonly TransferPerson[]): HandoverRecipient[] {
+  return [];
+}
+
 export type StaffBalancesResponse = Schemas['StaffBalancesResponse'];
 type StaffBalanceRowResponse = Schemas['StaffBalanceRow'];
 
@@ -267,6 +296,13 @@ export function parsePersonMoney(response: StaffMoneyResponse): PersonMoney {
 
 export interface MoneyService {
   /**
+   * `POST /api/v1/money-transfers/handovers`: a Manager hands money held by a former staff member to a current coworker (D-17). The body
+   * names the former staff member as the sender (`fromUserId`); the signed-in Manager is only the one who records it. One
+   * Idempotency-Key per submission. 400 lists the field errors, 409 means another change won, 201 answers the saved hand-over and the
+   * former staff member's new balance in `senderBalance`.
+   */
+  handover(body: CreateHandoverRequest, idempotencyKey: string, signal?: AbortSignal): Promise<TransferSavedResponse>;
+  /**
    * `GET /api/v1/staff-money/{userId}`: one person's money on hand with their role and standing, for a Manager (an Admin gets 403 for
    * anyone but themselves). 404 means the person is not staff.
    */
@@ -303,6 +339,7 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
+    handover: () => Promise.reject(new Error('not built')),
     person: (userId, signal) =>
       client.get<StaffMoneyResponse>(`/staff-money/${encodeURIComponent(userId)}`, { signal }),
     staff: (signal) => client.get<StaffBalancesResponse>('/staff-money', { signal }),

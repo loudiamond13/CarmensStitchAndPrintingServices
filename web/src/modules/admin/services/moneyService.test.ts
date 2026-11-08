@@ -8,6 +8,7 @@ import {
   ledgerDeletedEntryFixture,
   ledgerEntryFixture,
   ledgerPageFixture,
+  handoverSavedFixture,
   MY_MONEY_USER_ID,
   myMoneyFixture,
   PAOLO_ID,
@@ -24,7 +25,10 @@ import {
   parseMyMoney,
   parsePersonMoney,
   parseStaffBalances,
+  pickHandoverRecipients,
+  pickTransferRecipients,
   StaffBalancesContractError,
+  toTransferPeople,
   toTransferRecipients,
 } from './moneyService';
 
@@ -269,6 +273,76 @@ describe('parseMyMoney (wave 5 IN-01)', () => {
     ['Infinity', Number.POSITIVE_INFINITY],
   ])('refuses a balance that is %s, so the card shows its failure instead of a wrong figure', (_what, balance) => {
     expect(() => parseMyMoney(myMoneyFixture({ balance }))).toThrow(MyMoneyContractError);
+  });
+});
+
+describe('moneyService.handover (D-17, MONEY-04, SEC-06)', () => {
+  const body = {
+    fromUserId: JOMAR_ID,
+    toUserId: LIZA_ID,
+    amount: '2000.00',
+    transferDate: '2026-11-04',
+    note: null,
+  };
+
+  it('calls POST /api/v1/money-transfers/handovers with the body and the Idempotency-Key and resolves the saved hand-over', async () => {
+    const saved = handoverSavedFixture();
+    const { fake, service } = serviceWith([{ status: 201, body: saved }]);
+
+    await expect(service.handover(body, 'key-1')).resolves.toEqual(saved);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers/handovers');
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+  });
+});
+
+describe('the recipients answer (D-56, wave 6 IN-03; plan 10-19)', () => {
+  it('toTransferPeople keeps the signed-in person, marked, and leaves out any status the browser does not know', () => {
+    const odd = { id: LIZA_ID, name: 'Liza Mercado', status: 'suspended', isYou: false };
+
+    expect(
+      toTransferPeople([odd, ...transferRecipientsFixture()]).map((person) => [person.name, person.isYou]),
+    ).toEqual([
+      ['Carmen Reyes', true],
+      ['Liza Mercado', false],
+      ['Paolo Garcia', false],
+      ['Jomar Santos', false],
+      ['Ana Villanueva', false],
+    ]);
+    expect(toTransferPeople([odd])).toEqual([]);
+  });
+
+  it('pickTransferRecipients is toTransferRecipients: the signed-in person left out, no isYou', () => {
+    expect(pickTransferRecipients(toTransferPeople(transferRecipientsFixture()))).toEqual(
+      toTransferRecipients(transferRecipientsFixture()),
+    );
+  });
+
+  it('pickHandoverRecipients offers active staff only, the signed-in Manager first, and never a leaver (wave 6 IN-03)', () => {
+    const people = toTransferPeople([
+      { id: LIZA_ID, name: 'Liza Mercado', status: 'active', isYou: false },
+      { id: JOMAR_ID, name: 'Jomar Santos', status: 'deactivated', isYou: false },
+      { id: MY_MONEY_USER_ID, name: 'Carmen Reyes', status: 'active', isYou: true },
+      { id: ANA_ID, name: 'Ana Villanueva', status: 'deleted', isYou: false },
+      { id: PAOLO_ID, name: 'Paolo Garcia', status: 'active', isYou: false },
+    ]);
+
+    expect(pickHandoverRecipients(people)).toEqual([
+      { id: MY_MONEY_USER_ID, name: 'Carmen Reyes', isYou: true },
+      { id: LIZA_ID, name: 'Liza Mercado', isYou: false },
+      { id: PAOLO_ID, name: 'Paolo Garcia', isYou: false },
+    ]);
+  });
+
+  it('pickHandoverRecipients is empty when no one is active', () => {
+    expect(
+      pickHandoverRecipients(
+        toTransferPeople([{ id: JOMAR_ID, name: 'Jomar Santos', status: 'deactivated', isYou: false }]),
+      ),
+    ).toEqual([]);
   });
 });
 

@@ -16,9 +16,24 @@ const COPY = MONEY_COPY.transfer.errors;
 /** The longest note, after trimming (MoneyRules.NoteMaxLength). */
 const NOTE_MAX = 200;
 
+/** A leaver who is owed money: their name and what they are owed (positive), for the Manager's cap (D-49). */
+export interface OwedLeaver {
+  name: string;
+  owed: number;
+}
+
 /** What the schema needs from the window: the sender's balance read when it opened (null until known) and the business today. */
 export interface TransferSchemaOptions {
   balance: number | null;
+  today: string;
+  /** A Manager only: what each leaver is owed, by id, from the staff balances read when the window opened. An Admin is never given it. */
+  owedByRecipient?: ReadonlyMap<string, OwedLeaver> | undefined;
+}
+
+/** What the hand-over schema needs: the leaver (the sender), what they hold (null until known) and the business today. */
+export interface HandoverSchemaOptions {
+  leaverName: string;
+  leaverBalance: number | null;
   today: string;
 }
 
@@ -84,6 +99,19 @@ export interface TransferBody {
   amount: string;
   transferDate: string;
   note: string | null;
+}
+
+export function handoverFormSchema({ today }: HandoverSchemaOptions) {
+  return transferFormSchema({ balance: null, today });
+}
+
+/** The hand-over request body: the leaver as the sender, then the same four fields. */
+export interface HandoverBody extends TransferBody {
+  fromUserId: string;
+}
+
+export function toHandoverBody(values: TransferFormOutput, fromUserId: string): HandoverBody {
+  return { ...toTransferBody(values), fromUserId };
 }
 
 /** Builds the body from a valid form: the amount as exact money text with two decimals ("2000" becomes "2000.00"). */
