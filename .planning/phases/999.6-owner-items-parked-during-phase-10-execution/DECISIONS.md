@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T23:55:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T03:55:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -110,7 +110,7 @@ Managers can switch the ledger to also show deleted transfers. The plan did not 
 
 Keep them, or give new wording.
 
-## P10-BL-12 · Ledger and staff money wording and layout choices (plans 10-16, 10-17)
+## P10-BL-12 · Ledger and staff money wording and layout choices (plans 10-16, 10-17, 10-19)
 
 **Status:** open · **Blocks:** nothing; the choices below are in use now and can be changed later.
 
@@ -119,4 +119,9 @@ Keep them, or give new wording.
 - **Screen reader landmarks.** The Ledger card is a named region "Ledger", and the table inside it is also a region named "Ledger", so a screen reader user hears "Ledger" twice. axe passes either way. A (recommended): keep only the outer one. B: keep both as now.
 - **From plan 10-16 (server), new lines the plan spelled out:** "You can only see your own money." (an Admin asking for a coworker's money or ledger) and "This person wasn't found." (a Manager asking for someone who is not staff). These replace the two unshown lines parked under P10-BL-07 ("You can't do this." and "This person was not found."). Keep them, or give new wording.
 - **Order of checks on another person's ledger.** If an Admin asks for a coworker's ledger with a bad page number, the server answers "bad page" before "only your own money". Nothing leaks either way. Recommended: accept it. Otherwise the role check moves first (a one-line change).
+- **From plan 10-19 (Manager money screens):**
+  - Another person's empty ledger shows only "No money in or out yet", without the line that speaks to "you".
+  - While a person's money page loads, fails or finds no one, the browser tab reads "Money · CSPS Admin" and the page has no main heading, as the Deleted Order page does.
+  - A link with `?tab=transfers` opens the Mine tab until plan 10-20 adds the Transfers tab.
+  Keep these, or give new wording.
 - **Admin links with Manager-only settings.** If an Admin opens a My Money link that has the Manager-only "Show deleted" setting, the setting is removed and the list goes back to page 1. Recommended: accept this.
