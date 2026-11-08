@@ -5,6 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { listKey } from '@/lib/query/keys';
 import { useBusinessToday, useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
+import { dashboardChartKey } from '@/modules/admin/hooks/useDashboardChartQuery';
+import { dashboardSummaryKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { myMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { dashboardNovemberSummary } from '@/test/dashboardFixtures';
+import { MY_MONEY_USER_ID } from '@/test/moneyFixtures';
 import { buildOrderList, orderProblem, standardOrderList, useOrderHandlers } from '@/test/orderFixtures';
 
 // The server's business today for the order date presets and the form defaults (D-59, ORD-02; plan 08-09): from any order
@@ -171,6 +176,61 @@ describe('a held day that has gone stale (WR-03)', () => {
     expect(result.current.today).toBe('2026-10-29');
     await settle();
     expect(backend.lists).toHaveLength(0);
+  });
+});
+
+// The dashboard summary and the staff-money answer carry the server's `today` too (plan 10-15, D-20): the transfer window starts
+// from it, so opening the window from the dashboard or My Money needs no extra call.
+describe('answers from the dashboard and My Money (plan 10-15)', () => {
+  function heldWith(setup: (held: QueryClient) => void) {
+    client = createQueryClient();
+    setup(client);
+    const held = client;
+    return renderHook(() => useBusinessToday(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={held}>{children}</QueryClientProvider>
+      ),
+    });
+  }
+
+  it('gives the today of a held dashboard summary with no request', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    const { result } = heldWith((held) => {
+      held.setQueryData(dashboardSummaryKey, dashboardNovemberSummary());
+    });
+
+    expect(result.current).toBe('2026-11-04');
+    await settle();
+    expect(backend.lists).toHaveLength(0);
+  });
+
+  it('gives the today of a held staff-money answer with no request', async () => {
+    const backend = useOrderHandlers({ list: standardOrderList() });
+    const { result } = heldWith((held) => {
+      held.setQueryData(myMoneyKey, {
+        userId: MY_MONEY_USER_ID,
+        name: 'Carmen Reyes',
+        balance: 8450,
+        today: '2026-11-05',
+      });
+    });
+
+    expect(result.current).toBe('2026-11-05');
+    await settle();
+    expect(backend.lists).toHaveLength(0);
+  });
+
+  it('ignores a dashboard chart answer, which carries no today', async () => {
+    const backend = useOrderHandlers({ list: buildOrderList([], { today: '2026-11-06' }) });
+    const { result } = heldWith((held) => {
+      held.setQueryData(dashboardChartKey(6), { months: [] });
+    });
+
+    expect(result.current).toBeNull();
+    await waitFor(() => {
+      expect(result.current).toBe('2026-11-06');
+    });
+    expect(backend.lists).toHaveLength(1);
   });
 });
 

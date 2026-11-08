@@ -7,6 +7,9 @@ import { toFiniteFigure } from '@/utils/toFiniteFigure';
 type Schemas = components['schemas'];
 
 export type StaffMoneyResponse = Schemas['StaffMoneyResponse'];
+export type TransferRecipientResponse = Schemas['TransferRecipientResponse'];
+export type CreateTransferRequest = Schemas['CreateMoneyTransferRequest'];
+export type TransferSavedResponse = Schemas['MoneyTransferSavedResponse'];
 
 /** The caller's money on hand once the browser has checked the figure: the server's balance as a finite number. */
 export interface MyMoney {
@@ -37,11 +40,17 @@ export interface MoneyService {
    * transfers in, minus transfers out, expenses paid and refunds handed back. It can be below zero. It takes no parameters.
    */
   me(signal?: AbortSignal): Promise<StaffMoneyResponse>;
+  /** RED stub. */
+  recipients(signal?: AbortSignal): Promise<TransferRecipientResponse[]>;
+  /** RED stub. */
+  create(body: CreateTransferRequest, idempotencyKey: string, signal?: AbortSignal): Promise<TransferSavedResponse>;
 }
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
     me: (signal) => client.get<StaffMoneyResponse>('/staff-money/me', { signal }),
+    recipients: () => Promise.resolve([]),
+    create: () => Promise.reject(new Error('RED stub')),
   };
 }
 

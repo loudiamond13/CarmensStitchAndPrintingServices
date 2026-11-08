@@ -17,6 +17,7 @@ import {
   myMoneyFixture,
   myMoneyNegativeFixture,
   myMoneyZeroFixture,
+  transferRecipientsBackend,
 } from '@/test/moneyFixtures';
 
 // The personal strip under the dashboard greeting (D-46, D-21, MONEY-02): the caller's own figure from the server, a link to
@@ -151,6 +152,31 @@ describe('the figure from the server (D-46, MONEY-02)', () => {
 
     await screen.findByText('₱8,450.00');
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Transfer button (D-46, D-47; plan 10-15)', () => {
+  it('is a secondary small arrow-right "Transfer" before the slot actions and View Ledger', () => {
+    renderWith(queryOf({ data: moneyOf(8450) }), <button type="button">Slot action</button>);
+
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer.className).toContain('h-9');
+    expect(transfer.querySelector('svg.lucide-arrow-right')).not.toBeNull();
+    const slot = screen.getByRole('button', { name: 'Slot action' });
+    const ledger = screen.getByRole('link', { name: 'View Ledger' });
+    expect(transfer.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(slot.compareDocumentPosition(ledger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('opens the Transfer Money window', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    renderFed();
+
+    await screen.findByText('₱8,450.00');
+    await userEvent.click(screen.getByRole('button', { name: 'Transfer' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Transfer Money' })).toBeVisible();
   });
 });
 
