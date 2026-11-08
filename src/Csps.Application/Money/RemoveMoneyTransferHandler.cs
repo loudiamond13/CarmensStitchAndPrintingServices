@@ -8,14 +8,14 @@ namespace Csps.Application.Money;
 
 /// <summary>
 /// Use case: a Manager removes a soft-deleted transfer for good (MONEY-06, D-24, D-25). Only a transfer already in the bin can go, so
-/// removing changes no balance. In one transaction, under the <c>staff-money</c> lock, the audit trail records
+/// removing changes no balance. In one transaction the audit trail records
 /// <c>money-transfer.permanently-deleted</c> first with the full record as ids and values, never the note text (D-52), and then the
 /// row is removed, so the entry stays when the row is gone. A tracked remove is used, not a bulk delete, so the audit row and the
-/// removal share one save. A transfer that is gone is a 404 that writes nothing, so a repeated or racing remove leaves one entry.
+/// removal share one save. The remove takes no <c>staff-money</c> lock (D-53). A transfer that is gone is a 404 that writes nothing, so
+/// a repeated or racing remove leaves one entry.
 /// </summary>
 public sealed class RemoveMoneyTransferHandler(
     IMoneyTransfers transfers,
-    IStaffMoneyLock moneyLock,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
@@ -27,7 +27,7 @@ public sealed class RemoveMoneyTransferHandler(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>
     /// Success, a 401 when the token names no usable account, a 404 when no such transfer exists, a 422 when it is not deleted yet, or a
-    /// 409 when the lock could not be had or two saves lost a race twice.
+    /// 409 when two saves lost a race twice.
     /// </returns>
     public async Task<Result> HandleAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -36,26 +36,16 @@ public sealed class RemoveMoneyTransferHandler(
             return Result.Failure(AuthErrors.SessionEnded);
         }
 
-        try
-        {
-            var outcome = await ConflictRetry
-                .RunAsync(
-                    () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, token), cancellationToken),
-                    Result.Failure<bool>(MoneyErrors.Busy))
-                .ConfigureAwait(false);
-            return outcome.IsFailure ? Result.Failure(outcome.Error) : Result.Success();
-        }
-        catch (StaffMoneyBusyException)
-        {
-            return Result.Failure(MoneyErrors.Busy);
-        }
+        var outcome = await ConflictRetry
+            .RunAsync(
+                () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, token), cancellationToken),
+                Result.Failure<bool>(MoneyErrors.Busy))
+            .ConfigureAwait(false);
+        return outcome.IsFailure ? Result.Failure(outcome.Error) : Result.Success();
     }
 
-    // The lock comes first, as in every other money write.
     private async Task<Result<bool>> AttemptAsync(Guid id, CancellationToken cancellationToken)
     {
-        await moneyLock.LockAsync(cancellationToken).ConfigureAwait(false);
-
         var transfer = await transfers.FindAsync(id, includeDeleted: true, cancellationToken).ConfigureAwait(false);
         if (transfer is null)
         {

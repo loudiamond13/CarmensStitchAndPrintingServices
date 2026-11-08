@@ -12,12 +12,11 @@ namespace Csps.Application.Money;
 /// so a stale screen cannot delete over a newer state (SEC-07). The transfer stays stored with who deleted it and when, and stops
 /// counting toward both balances at once. One transaction marks the row and records <c>money-transfer.deleted</c> with ids, the
 /// amount, the date and note=yes or note=no, never the note text (D-52). A transfer that is gone or already deleted is a 404 that
-/// writes nothing, so a repeated or racing delete leaves exactly one audit entry. Like a transfer, the delete takes the
-/// <c>staff-money</c> lock first, so it never overlaps a transfer or a hand-over.
+/// writes nothing, so a repeated or racing delete leaves exactly one audit entry. The delete takes no
+/// <c>staff-money</c> lock (D-53): the rowversion is its guard, and a lost save race is read again and decided again.
 /// </summary>
 public sealed class DeleteMoneyTransferHandler(
     IMoneyTransfers transfers,
-    IStaffMoneyLock moneyLock,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
@@ -51,26 +50,16 @@ public sealed class DeleteMoneyTransferHandler(
             return Result.Failure(InvalidVersion);
         }
 
-        try
-        {
-            var outcome = await ConflictRetry
-                .RunAsync(
-                    () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, sent, callerId, token), cancellationToken),
-                    Result.Failure<bool>(MoneyErrors.Busy))
-                .ConfigureAwait(false);
-            return outcome.IsFailure ? Result.Failure(outcome.Error) : Result.Success();
-        }
-        catch (StaffMoneyBusyException)
-        {
-            return Result.Failure(MoneyErrors.Busy);
-        }
+        var outcome = await ConflictRetry
+            .RunAsync(
+                () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, sent, callerId, token), cancellationToken),
+                Result.Failure<bool>(MoneyErrors.Busy))
+            .ConfigureAwait(false);
+        return outcome.IsFailure ? Result.Failure(outcome.Error) : Result.Success();
     }
 
-    // The lock comes first, as in every other money write: the row is read after it, so a delete never overlaps a transfer.
     private async Task<Result<bool>> AttemptAsync(Guid id, byte[] sent, Guid callerId, CancellationToken cancellationToken)
     {
-        await moneyLock.LockAsync(cancellationToken).ConfigureAwait(false);
-
         var transfer = await transfers.FindAsync(id, includeDeleted: false, cancellationToken).ConfigureAwait(false);
         if (transfer is null)
         {

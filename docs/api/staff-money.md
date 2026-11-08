@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-08T02:50:03-06:00
+updated: 2026-11-08T03:12:00-06:00
 ---
 
 # The staff money API
@@ -121,12 +121,14 @@ An empty body lists `toUserId`, `amount` and `transferDate` together. An anonymo
 
 ### The lock (D-53)
 
-A transfer, a hand-over, a delete and a remove take the `staff-money` lock. It is the first statement in the transaction, before
+Only a transfer and a hand-over take the `staff-money` lock. It is the first statement in the transaction, before
 any person or balance is read, so two transfers, or two hand-overs, at the same moment can never spend the same money twice. Expense, payment and refund
 saves do not take it: they may already take a balance below zero (D-15, D-16). An expense never checks a balance, so one transfer
 racing one expense always matches one serial order. The race tests that can fail are the ones that add a second transfer, with or
 without an expense: only the lock stops both from spending the same money. A lock that cannot be had within 10 seconds answers `409` with `Something changed at the same time. Try again.`
 The timeout is logged as a warning with its cause. A missing `staff-money` row is a setup fault: it answers `500`, never `409`.
+
+A delete and a remove do not take the lock: the row version guards the delete, and a lost save race is read again and decided again.
 
 ## POST /api/v1/money-transfers/handovers
 
@@ -348,7 +350,7 @@ A Manager deletes a wrong transfer (MONEY-06, D-23, D-35). A transfer is **never
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
-| `DELETE /money-transfers/{id}?version=` | Manager | none | `204` deleted, `400` under `version` when it is missing or malformed, `401` without a valid token, `403` for an Admin, `404` when the transfer is unknown or already deleted, `409` when the version is stale or the lock was busy too long. |
+| `DELETE /money-transfers/{id}?version=` | Manager | none | `204` deleted, `400` under `version` when it is missing or malformed, `401` without a valid token, `403` for an Admin, `404` when the transfer is unknown or already deleted, `409` when the version is stale. |
 
 - `version` is the transfer's `version` as the Manager last saw it. Send it URL-encoded: standard base64 holds `+`, `/` and `=`.
 - The transfer stays stored with who deleted it and when, and stops counting toward both balances at once: the sender's balance
@@ -370,7 +372,7 @@ A Manager removes a deleted transfer for good (MONEY-06, D-24, D-25).
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
-| `DELETE /money-transfers/{id}/permanent` | Manager | none | `204` removed, `401` without a valid token, `403` for an Admin, `404` when no such transfer exists, `409` when the lock was busy too long, `422` when the transfer is not deleted. |
+| `DELETE /money-transfers/{id}/permanent` | Manager | none | `204` removed, `401` without a valid token, `403` for an Admin, `404` when no such transfer exists, `409` when two saves lost a race twice, `422` when the transfer is not deleted. |
 
 - Only a transfer that was deleted first can go. A live one answers `422` `Delete the transfer first.` (`money-transfers.not-deleted`).
 - Removing changes no balance: a deleted transfer already counts for nothing.
@@ -398,4 +400,4 @@ defined and not yet used; `money-transfers.busy` is the `409` of the transfer ro
 
 The transfers table, `MoneyTransfers`, exists from this plan so that transfers count in the sums. It has two checks, not triggers:
 the amount is more than zero, and the sender is not the recipient. A standing lock row, `staff-money`, is seeded for the transfer
-routes, and the delete and remove routes take it too.
+routes that come later.

@@ -10,7 +10,7 @@ using NSubstitute;
 namespace Csps.Application.UnitTests.Money;
 
 /// <summary>
-/// MONEY-06, D-24, D-25, D-52: a permanent remove takes the staff-money lock first, refuses a transfer that is not deleted, writes
+/// MONEY-06, D-24, D-25, D-52, D-53: a permanent remove takes no lock, refuses a transfer that is not deleted, writes
 /// the full record to the audit log before the row goes, and does both in one save.
 /// </summary>
 public sealed class RemoveMoneyTransferHandlerTests
@@ -22,19 +22,18 @@ public sealed class RemoveMoneyTransferHandlerTests
     private static readonly Guid LizaId = Guid.Parse("5b8e2c71-4d90-4a3f-8c16-0f7d3a9e6b24");
 
     [Fact]
-    public async Task WithNoCallerTheSessionHasEndedAndNothingIsLockedOrRead()
+    public async Task WithNoCallerTheSessionHasEndedAndNothingIsRead()
     {
         var harness = new Harness(noCaller: true);
 
         var result = await harness.Handler.HandleAsync(harness.Transfer.Id, TestContext.Current.CancellationToken);
 
         result.Error.ShouldBe(AuthErrors.SessionEnded);
-        await harness.MoneyLock.DidNotReceive().LockAsync(Arg.Any<CancellationToken>());
         harness.Transfers.ReceivedCalls().ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task TheLockComesFirstThenTheReadThenTheAuditEntryThenTheRemoveAndOneSave()
+    public async Task TheReadComesFirstThenTheAuditEntryThenTheRemoveAndOneSave()
     {
         var harness = new Harness();
 
@@ -43,7 +42,6 @@ public sealed class RemoveMoneyTransferHandlerTests
         result.IsSuccess.ShouldBeTrue();
         Received.InOrder(() =>
         {
-            harness.MoneyLock.LockAsync(Arg.Any<CancellationToken>());
             harness.Transfers.FindAsync(harness.Transfer.Id, true, Arg.Any<CancellationToken>());
             harness.Audit.Record(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>());
             harness.Transfers.Remove(harness.Transfer);
@@ -95,19 +93,6 @@ public sealed class RemoveMoneyTransferHandlerTests
     }
 
     [Fact]
-    public async Task ALockThatCannotBeHadAnswersBusyAndWritesNothing()
-    {
-        var harness = new Harness();
-        harness.MoneyLock.LockAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new StaffMoneyBusyException()));
-
-        var result = await harness.Handler.HandleAsync(harness.Transfer.Id, TestContext.Current.CancellationToken);
-
-        result.Error.ShouldBe(MoneyErrors.Busy);
-        harness.Unit.Saves.ShouldBe(0);
-        harness.Transfers.DidNotReceiveWithAnyArgs().Remove(default!);
-    }
-
-    [Fact]
     public async Task ALostRaceIsReadAgainAndDecidedAgainAs404WhenTheOtherRemoveWon()
     {
         var harness = new Harness();
@@ -152,19 +137,15 @@ public sealed class RemoveMoneyTransferHandlerTests
 
             Transfers = Substitute.For<IMoneyTransfers>();
             Transfers.FindAsync(Transfer.Id, true, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<MoneyTransfer?>(Transfer));
-            MoneyLock = Substitute.For<IStaffMoneyLock>();
-            MoneyLock.LockAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
             Audit = Substitute.For<IAuditTrail>();
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new RemoveMoneyTransferHandler(Transfers, MoneyLock, Audit, Unit, request);
+            Handler = new RemoveMoneyTransferHandler(Transfers, Audit, Unit, request);
         }
 
         public MoneyTransfer Transfer { get; }
 
         public IMoneyTransfers Transfers { get; }
-
-        public IStaffMoneyLock MoneyLock { get; }
 
         public IAuditTrail Audit { get; }
 

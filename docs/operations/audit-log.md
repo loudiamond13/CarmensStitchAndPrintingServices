@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-11-08T02:50:03-06:00
+updated: 2026-11-08T03:12:00-06:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -213,8 +213,8 @@ A normal transfer between staff writes no audit entry of its own; a delete and a
 | Code | Written when | Target | Detail | Write path |
 |------|--------------|--------|--------|------------|
 | `money-transfer.handed-over` | A Manager hands money held by a deactivated or deleted staff member to a current coworker (`POST /api/v1/money-transfers/handovers`, D-17). Refused hand-overs (a Manager who is no longer allowed, an active sender, a bad amount, a coworker who cannot receive) write nothing | `MoneyTransfer` id (the new hand-over) | `from=<former staff id>;to=<coworker id>;amount=2000.00;date=2026-11-04;note=no`. `note=yes` when the hand-over has a note; the note text is never written | `Record`, in the same save as the hand-over, under the `staff-money` lock; the actor is the Manager who recorded it |
-| `money-transfer.deleted` | A Manager deletes a transfer (`DELETE /api/v1/money-transfers/{id}?version=`, D-23). A refused delete (missing or stale version, unknown or already deleted transfer) writes nothing | `MoneyTransfer` id | `from=<sender id>;to=<recipient id>;amount=2000.00;date=2026-11-04;note=yes;recordedBy=<id>`. `note=yes` when the transfer has a note; the note text is never written | `Record`, in the same save as the delete, under the `staff-money` lock; the actor is the Manager who deleted it |
-| `money-transfer.permanently-deleted` | A Manager removes a deleted transfer for good (`DELETE /api/v1/money-transfers/{id}/permanent`, D-24, D-25). A refused remove (a live transfer, an unknown id) writes nothing | `MoneyTransfer` id (the removed row) | The delete detail, then `;deletedBy=<id>;deletedAt=2026-11-05T01:02:03Z` (a UTC instant). The note text is never written | `Record` first, then the tracked remove, in one save under the `staff-money` lock; the entry outlives the row and follows the 8-month retention |
+| `money-transfer.deleted` | A Manager deletes a transfer (`DELETE /api/v1/money-transfers/{id}?version=`, D-23). A refused delete (missing or stale version, unknown or already deleted transfer) writes nothing | `MoneyTransfer` id | `from=<sender id>;to=<recipient id>;amount=2000.00;date=2026-11-04;note=yes;recordedBy=<id>`. `note=yes` when the transfer has a note; the note text is never written | `Record`, in the same save as the delete; the actor is the Manager who deleted it |
+| `money-transfer.permanently-deleted` | A Manager removes a deleted transfer for good (`DELETE /api/v1/money-transfers/{id}/permanent`, D-24, D-25). A refused remove (a live transfer, an unknown id) writes nothing | `MoneyTransfer` id (the removed row) | The delete detail, then `;deletedBy=<id>;deletedAt=2026-11-05T01:02:03Z` (a UTC instant). The note text is never written | `Record` first, then the tracked remove, in one save; the entry outlives the row and follows the 8-month retention |
 
 The audit screen reads `from`, `to`, `recordedBy` and `deletedBy` as people (a deleted person shows the former staff mark), and shows
 the amount and the date. The `deletedAt` instant stays in the stored detail and is not shown as a line.

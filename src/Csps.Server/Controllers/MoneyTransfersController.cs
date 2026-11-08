@@ -141,7 +141,7 @@ public sealed class MoneyTransfersController(
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>
     /// 204 when deleted, 400 under <c>version</c> when it is missing or malformed, 401 without a valid token, 403 for an Admin, 404 when
-    /// the transfer does not exist or is already deleted, or 409 when the version is stale or another change held the lock too long.
+    /// the transfer does not exist or is already deleted, or 409 when the version is stale or two saves lost a race twice.
     /// </returns>
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = Policies.Manager)]
@@ -166,7 +166,7 @@ public sealed class MoneyTransfersController(
     /// </summary>
     /// <param name="id">The deleted transfer.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>204 when removed, 401 without a valid token, 403 for an Admin, 404 when no such transfer exists, 409 when another change held the lock too long, or 422 when the transfer is not deleted.</returns>
+    /// <returns>204 when removed, 401 without a valid token, 403 for an Admin, 404 when no such transfer exists, 409 when two saves lost a race twice, or 422 when the transfer is not deleted.</returns>
     [HttpDelete("{id:guid}/permanent")]
     [Authorize(Policy = Policies.Manager)]
     [EndpointName("RemoveMoneyTransfer")]

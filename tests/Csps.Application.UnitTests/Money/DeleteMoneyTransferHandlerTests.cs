@@ -12,7 +12,7 @@ using NSubstitute;
 namespace Csps.Application.UnitTests.Money;
 
 /// <summary>
-/// MONEY-06, D-23, D-35, D-52, SEC-07: a delete checks the version before any lookup, takes the staff-money lock first, marks the
+/// MONEY-06, D-23, D-35, D-52, D-53, SEC-07: a delete checks the version before any lookup, takes no lock, marks the
 /// Manager and the clock, writes one audit entry in the same save, and refuses a stale, missing or already deleted transfer.
 /// </summary>
 public sealed class DeleteMoneyTransferHandlerTests
@@ -25,14 +25,13 @@ public sealed class DeleteMoneyTransferHandlerTests
     private static readonly byte[] StoredVersion = [0, 0, 0, 0, 0, 0, 0x07, 0xD1];
 
     [Fact]
-    public async Task WithNoCallerTheSessionHasEndedAndNothingIsLockedOrRead()
+    public async Task WithNoCallerTheSessionHasEndedAndNothingIsRead()
     {
         var harness = new Harness(noCaller: true);
 
         var result = await harness.Handler.HandleAsync(harness.Transfer.Id, harness.VersionText, TestContext.Current.CancellationToken);
 
         result.Error.ShouldBe(AuthErrors.SessionEnded);
-        await harness.MoneyLock.DidNotReceive().LockAsync(Arg.Any<CancellationToken>());
         harness.Transfers.ReceivedCalls().ShouldBeEmpty();
     }
 
@@ -43,7 +42,7 @@ public sealed class DeleteMoneyTransferHandlerTests
     [InlineData("abc")]
     [InlineData("AAAAAAAAB9E")]
     [InlineData("AAAAAAAAAAAAB9E=")]
-    public async Task AMissingOrMalformedVersionIs400UnderVersionBeforeAnyLockOrLookup(string? version)
+    public async Task AMissingOrMalformedVersionIs400UnderVersionBeforeAnyLookup(string? version)
     {
         var harness = new Harness();
 
@@ -51,13 +50,12 @@ public sealed class DeleteMoneyTransferHandlerTests
 
         result.Error.Code.ShouldBe(MoneyRules.InvalidCode);
         result.Error.FieldErrors.ShouldNotBeNull()["version"].ShouldBe([RowVersions.InvalidMessage]);
-        await harness.MoneyLock.DidNotReceive().LockAsync(Arg.Any<CancellationToken>());
         harness.Transfers.ReceivedCalls().ShouldBeEmpty();
         harness.Unit.Saves.ShouldBe(0);
     }
 
     [Fact]
-    public async Task TheLockIsTakenBeforeTheTransferIsReadAndTheAuditEntryJoinsTheSave()
+    public async Task TheTransferIsReadThenTheAuditEntryJoinsTheOneSave()
     {
         var harness = new Harness();
 
@@ -66,25 +64,11 @@ public sealed class DeleteMoneyTransferHandlerTests
         result.IsSuccess.ShouldBeTrue();
         Received.InOrder(() =>
         {
-            harness.MoneyLock.LockAsync(Arg.Any<CancellationToken>());
             harness.Transfers.FindAsync(harness.Transfer.Id, false, Arg.Any<CancellationToken>());
             harness.Audit.Record(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>());
         });
         harness.Unit.Saves.ShouldBe(1);
         harness.Unit.Commits.ShouldBe(1);
-    }
-
-    [Fact]
-    public async Task ALockThatCannotBeHadAnswersBusyAndWritesNothing()
-    {
-        var harness = new Harness();
-        harness.MoneyLock.LockAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new StaffMoneyBusyException()));
-
-        var result = await harness.Handler.HandleAsync(harness.Transfer.Id, harness.VersionText, TestContext.Current.CancellationToken);
-
-        result.Error.ShouldBe(MoneyErrors.Busy);
-        harness.Unit.Saves.ShouldBe(0);
-        harness.Audit.DidNotReceiveWithAnyArgs().Record(default!, default, default, default);
     }
 
     [Fact]
@@ -226,13 +210,11 @@ public sealed class DeleteMoneyTransferHandlerTests
 
                 return Task.FromResult<MoneyTransfer?>(Transfer);
             });
-            MoneyLock = Substitute.For<IStaffMoneyLock>();
-            MoneyLock.LockAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
             Audit = Substitute.For<IAuditTrail>();
             Time = new FakeTimeProvider(Now.AddHours(1));
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new DeleteMoneyTransferHandler(Transfers, MoneyLock, Audit, Unit, request, Time);
+            Handler = new DeleteMoneyTransferHandler(Transfers, Audit, Unit, request, Time);
         }
 
         public MoneyTransfer Transfer { get; }
@@ -240,8 +222,6 @@ public sealed class DeleteMoneyTransferHandlerTests
         public string VersionText { get; }
 
         public IMoneyTransfers Transfers { get; }
-
-        public IStaffMoneyLock MoneyLock { get; }
 
         public IAuditTrail Audit { get; }
 
