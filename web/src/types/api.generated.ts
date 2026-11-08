@@ -1695,6 +1695,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff-money/me/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one page of the signed-in person's own money rows, newest first by date and then by the time recorded. Each row has its
+         *     kind, date, money in or money out (the other is null), the details its kind names, and `balanceAfter`: the running balance
+         *     after that row, worked out on the server. The newest row's balance after equals the money on hand. A Manager may add
+         *     `deleted=true` to see deleted transfers in their own ledger; they carry no balance after. The route takes no id. Nothing is cached.
+         */
+        get: operations["GetMyLedger"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -2871,6 +2893,104 @@ export interface components {
         InviteTokenRequest: {
             /** @description The 43-character token. */
             token: null | string;
+        };
+        /**
+         * @description One ledger row. A row has either money in or money out, never both. Only the details its kind names are filled; the rest are null.
+         *     A deleted transfer shows its face amount and no balance after it, because it counts toward no balance.
+         */
+        LedgerEntryResponse: {
+            /**
+             * Format: double
+             * @description The person's balance after this row, like a bank statement; null for a deleted transfer.
+             */
+            balanceAfter: null | number | string;
+            /** @description The category of a company or order expense. */
+            category: null | string;
+            counterpart: null | components["schemas"]["ActorRef"];
+            /** @description That order's customer name. */
+            customer: null | string;
+            /**
+             * Format: date
+             * @description The day the money moved.
+             */
+            date: string;
+            /**
+             * Format: date-time
+             * @description When a transfer was deleted.
+             */
+            deletedAtUtc: null | string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description What a company or order expense was for. */
+            description: null | string;
+            /** @description True for a deleted transfer. */
+            isDeleted: boolean;
+            /** @description True for a transfer a Manager recorded for a former staff member. */
+            isHandover: boolean;
+            /** @description One of `payment-received`, `refund-handed-back`, `transfer-in`, `transfer-out`, `company-expense`, `order-expense`. */
+            kind: string;
+            /**
+             * Format: double
+             * @description The amount in pesos for money in; null for money out.
+             */
+            moneyIn: null | number | string;
+            /**
+             * Format: double
+             * @description The amount in pesos for money out; null for money in.
+             */
+            moneyOut: null | number | string;
+            /** @description The note of a transfer. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The order behind a payment, refund or order expense.
+             */
+            orderId: null | string;
+            /** @description That order's number. */
+            orderNumber: null | string;
+            /** @description The payment method of a payment. */
+            paymentMethod: null | string;
+            /**
+             * Format: date-time
+             * @description When the row was recorded.
+             */
+            recordedAtUtc: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description That order's team or club name. */
+            team: null | string;
+            /**
+             * Format: uuid
+             * @description The id of a transfer row.
+             */
+            transferId: null | string;
+            /** @description The base64 row version of a transfer. */
+            version: null | string;
+        };
+        /** @description One page of a person's ledger, newest first, with their money on hand (MONEY-02, D-41). */
+        LedgerPageResponse: {
+            /**
+             * Format: double
+             * @description The person's money on hand now, worked out on the server.
+             */
+            balance: number | string;
+            /** @description True when deleted transfers are in the page (a Manager asked for them). */
+            includesDeleted: boolean;
+            /** @description The rows of this page. */
+            items: components["schemas"]["LedgerEntryResponse"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many rows the ledger has across all pages.
+             */
+            total: number | string;
         };
         /** @description One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance. */
         MoneyTransferResponse: {
@@ -9748,6 +9868,60 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMyLedger: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+                /** @description True to show deleted transfers too; Managers only. */
+                deleted?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerPageResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

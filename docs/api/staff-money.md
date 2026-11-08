@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-07T14:20:00-06:00
+updated: 2026-11-07T18:40:00-06:00
 ---
 
 # The staff money API
@@ -8,7 +8,7 @@ updated: 2026-11-07T14:20:00-06:00
 This is the contract behind the money each staff member holds, and the one a future Android app will use. Everything here is under
 `/api/v1`. The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this
 page; the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
-[auth.md](auth.md). The transfer, hand-over and recipients routes are below; a later plan adds the ledger routes.
+[auth.md](auth.md). The ledger, transfer, hand-over and recipients routes are below.
 
 ## In plain words
 
@@ -186,11 +186,79 @@ Who the transfer window may offer in its To list (D-19, D-49, D-56). Both roles 
   who holds money or is at `0.00` is not listed. The legacy placeholder and accounts with no staff role never appear.
 - Nothing is cached: the answer carries `Cache-Control: no-store`.
 
+## GET /api/v1/staff-money/me/ledger
+
+The signed-in person's own money rows, one page at a time, newest first, each with the running balance after it (MONEY-02, D-41). Both
+roles use it, and each reads only their own ledger: the route takes no id. Another person's ledger is a later route.
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `GET /staff-money/me/ledger?page=&pageSize=&deleted=` | Staff | none | `200` the page, `400` for a bad page or page size, `401` without a valid token, `403` for an Admin who sends `deleted=true`. |
+
+| Parameter | Meaning |
+|---|---|
+| `page` | The page number, `1` to `100000`. Default `1`. |
+| `pageSize` | Rows per page, `1` to `100`. Default `20`. |
+| `deleted` | `true` to add deleted transfers. Managers only. Default `false`. |
+
+A page outside those limits answers `400` with the shared list words under the field: `Use a page from 1 to 100000.` under `page` and
+`Use a page size from 1 to 100.` under `pageSize` (SEC-03).
+
+### The answer
+
+```text
+{ items, total, page, pageSize, balance, includesDeleted }
+```
+
+`balance` is the person's money on hand now, the same figure as `GET /staff-money/me`. `total` counts the rows of every page. A person with no money rows
+gets `items: []`, `total: 0` and `balance: 0.00`.
+
+Each item is one row:
+
+| Field | Meaning |
+|---|---|
+| `kind` | `payment-received`, `refund-handed-back`, `transfer-in`, `transfer-out`, `company-expense` or `order-expense`. |
+| `date`, `recordedAtUtc` | The day the money moved, and when the row was recorded. |
+| `moneyIn`, `moneyOut` | The amount in pesos in one of them; the other is `null`. Payments and transfers in are money in. |
+| `balanceAfter` | The balance after this row, like a bank statement. `null` for a deleted transfer. |
+| `orderId`, `orderNumber`, `team`, `customer` | Payments, refunds and order expenses: the order. `team` is `null` when the order has none. |
+| `paymentMethod` | Payments: the method. |
+| `category`, `description` | Company and order expenses. `description` is `null` when none was given. |
+| `counterpart`, `note`, `transferId`, `version`, `isHandover`, `recordedBy` | Transfers: the other person (`{ id, name, formerStaff }`), the note, the transfer id and its version, the hand-over mark, and who recorded it. A hand-over is a transfer with `isHandover: true` and `recordedBy` the Manager. |
+| `isDeleted`, `deletedBy`, `deletedAtUtc` | A deleted transfer: `isDeleted` is `true` and the other two say who and when. |
+
+Fields a kind does not use are `null` (and `isHandover` and `isDeleted` are `false`).
+
+### The running balance
+
+Every `balanceAfter` is worked out on the server; the browser never adds anything up (MONEY-02).
+
+1. The balance after the **newest row of the page** is the current balance minus the sum of the rows newer than the page.
+2. Going down the page, each next row's balance is the previous row's balance minus the previous row's signed amount.
+
+So the newest row of page 1 has `balanceAfter` equal to `balance`, page 2 starts exactly where page 1 ended, and the oldest row of the
+last page ends on its own signed amount. The order is date (newest first), then the time recorded (newest first), then kind, then id, so
+pages never skip or repeat a row.
+
+The page, the sum of the newer rows, the count and the balance are read inside one serializable read transaction (D-105), so a row
+recorded at the same moment cannot make them disagree. A page costs the same number of database commands at any page size.
+
+### Deleted transfers (D-23, D-30, D-31)
+
+- A deleted transfer counts toward no balance. With `deleted=false` (the default) it is not in the ledger at all.
+- A **Manager** can send `deleted=true` to see deleted transfers in their own ledger. Each shows `isDeleted: true`, `deletedBy`,
+  `deletedAtUtc`, its face amount in `moneyIn` or `moneyOut`, and `balanceAfter: null`. Every other row's `balanceAfter` is the same
+  as without the flag. `includesDeleted` is `true`.
+- An **Admin** who sends `deleted=true` gets `403` `Only Managers can see deleted transfers.` before anything is read. An Admin's
+  ledger never contains a deleted transfer or anything about one (D-31, D-32).
+- Nothing is cached: the answer carries `Cache-Control: no-store`.
+
 ## Errors
 
 Errors are RFC 9457 Problem Details, the same as the rest of the API. `GET /staff-money/me` has only `401` (the token names no usable
 account). The error values `staff-money.not-found` and `staff-money.forbidden` are defined and used when the routes that return them
-arrive; `money-transfers.busy` is the `409` of the transfer route.
+arrive; `money-transfers.busy` is the `409` of the transfer route. The ledger route adds `staff-money.invalid-request` (`400`) and
+`staff-money.deleted-forbidden` (`403`).
 
 ## Schema note
 

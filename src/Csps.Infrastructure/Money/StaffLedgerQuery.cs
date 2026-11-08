@@ -15,8 +15,9 @@ internal static class StaffLedgerQuery
     /// <summary>All of one person's money rows, not yet in any order.</summary>
     /// <param name="context">The database context.</param>
     /// <param name="userId">The person whose money rows are wanted.</param>
+    /// <param name="includeDeletedTransfers">True to add the person's deleted transfers, each with a signed amount of 0 and the deleted mark; false to leave them out.</param>
     /// <returns>A query over the union.</returns>
-    public static IQueryable<StaffLedgerRow> For(CspsDbContext context, Guid userId)
+    public static IQueryable<StaffLedgerRow> For(CspsDbContext context, Guid userId, bool includeDeletedTransfers = false)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -68,7 +69,38 @@ internal static class StaffLedgerQuery
                 Deleted = false,
             });
 
-        return payments.Concat(refunds).Concat(companyExpenses).Concat(orderExpenses);
+        // The transfer entity has no query filter (RESEARCH Pitfall 4), so a deleted transfer is left out here, in one place.
+        var transfers = context.Set<MoneyTransfer>().AsNoTracking();
+        if (!includeDeletedTransfers)
+        {
+            transfers = transfers.Where(transfer => transfer.DeletedAtUtc == null);
+        }
+
+        var transfersIn = transfers
+            .Where(transfer => transfer.ToUserId == userId)
+            .Select(transfer => new StaffLedgerRow
+            {
+                Kind = (int)LedgerEntryKind.TransferIn,
+                SourceId = transfer.Id,
+                Date = transfer.TransferDate,
+                RecordedAtUtc = transfer.CreatedAtUtc,
+                Signed = transfer.DeletedAtUtc == null ? transfer.Amount : 0m,
+                Deleted = transfer.DeletedAtUtc != null,
+            });
+
+        var transfersOut = transfers
+            .Where(transfer => transfer.FromUserId == userId)
+            .Select(transfer => new StaffLedgerRow
+            {
+                Kind = (int)LedgerEntryKind.TransferOut,
+                SourceId = transfer.Id,
+                Date = transfer.TransferDate,
+                RecordedAtUtc = transfer.CreatedAtUtc,
+                Signed = transfer.DeletedAtUtc == null ? -transfer.Amount : 0m,
+                Deleted = transfer.DeletedAtUtc != null,
+            });
+
+        return payments.Concat(refunds).Concat(transfersIn).Concat(transfersOut).Concat(companyExpenses).Concat(orderExpenses);
     }
 
     /// <summary>Puts the rows newest first: date, then recorded time, both descending, then kind and source id ascending so every read gives the same order.</summary>

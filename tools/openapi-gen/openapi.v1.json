@@ -2288,6 +2288,262 @@
         ],
         "type": "object"
       },
+      "LedgerEntryResponse": {
+        "description": "One ledger row. A row has either money in or money out, never both. Only the details its kind names are filled; the rest are null.\nA deleted transfer shows its face amount and no balance after it, because it counts toward no balance.",
+        "properties": {
+          "balanceAfter": {
+            "description": "The person's balance after this row, like a bank statement; null for a deleted transfer.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "category": {
+            "description": "The category of a company or order expense.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "counterpart": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The other person on a transfer."
+              }
+            ]
+          },
+          "customer": {
+            "description": "That order's customer name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "description": "The day the money moved.",
+            "format": "date",
+            "type": "string"
+          },
+          "deletedAtUtc": {
+            "description": "When a transfer was deleted.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted a transfer."
+              }
+            ]
+          },
+          "description": {
+            "description": "What a company or order expense was for.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isDeleted": {
+            "description": "True for a deleted transfer.",
+            "type": "boolean"
+          },
+          "isHandover": {
+            "description": "True for a transfer a Manager recorded for a former staff member.",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "One of `payment-received`, `refund-handed-back`, `transfer-in`, `transfer-out`, `company-expense`, `order-expense`.",
+            "type": "string"
+          },
+          "moneyIn": {
+            "description": "The amount in pesos for money in; null for money out.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "moneyOut": {
+            "description": "The amount in pesos for money out; null for money in.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "The note of a transfer.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderId": {
+            "description": "The order behind a payment, refund or order expense.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderNumber": {
+            "description": "That order's number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentMethod": {
+            "description": "The payment method of a payment.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recordedAtUtc": {
+            "description": "When the row was recorded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded a transfer."
+              }
+            ]
+          },
+          "team": {
+            "description": "That order's team or club name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "transferId": {
+            "description": "The id of a transfer row.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 row version of a transfer.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "date",
+          "recordedAtUtc",
+          "moneyIn",
+          "moneyOut",
+          "balanceAfter",
+          "orderId",
+          "orderNumber",
+          "team",
+          "customer",
+          "paymentMethod",
+          "category",
+          "description",
+          "counterpart",
+          "note",
+          "transferId",
+          "version",
+          "isHandover",
+          "recordedBy",
+          "isDeleted",
+          "deletedBy",
+          "deletedAtUtc"
+        ],
+        "type": "object"
+      },
+      "LedgerPageResponse": {
+        "description": "One page of a person's ledger, newest first, with their money on hand (MONEY-02, D-41).",
+        "properties": {
+          "balance": {
+            "description": "The person's money on hand now, worked out on the server.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "includesDeleted": {
+            "description": "True when deleted transfers are in the page (a Manager asked for them).",
+            "type": "boolean"
+          },
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntryResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many rows the ledger has across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "balance",
+          "includesDeleted"
+        ],
+        "type": "object"
+      },
       "MoneyTransferResponse": {
         "description": "One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance.",
         "properties": {
@@ -13463,6 +13719,96 @@
           }
         },
         "summary": "Reads the signed-in person's own money on hand: payments they received plus transfers to them, minus transfers from them,\nexpenses they paid and refunds they handed back. The figure can be below zero. The person is the token's user; the route takes\nno id and no balance is ever accepted from a client. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/staff-money/me/ledger": {
+      "get": {
+        "operationId": "GetMyLedger",
+        "parameters": [
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "True to show deleted transfers too; Managers only.",
+            "in": "query",
+            "name": "deleted",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerPageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Reads one page of the signed-in person's own money rows, newest first by date and then by the time recorded. Each row has its\nkind, date, money in or money out (the other is null), the details its kind names, and `balanceAfter`: the running balance\nafter that row, worked out on the server. The newest row's balance after equals the money on hand. A Manager may add\n`deleted=true` to see deleted transfers in their own ledger; they carry no balance after. The route takes no id. Nothing is cached.",
         "tags": [
           "StaffMoney"
         ]

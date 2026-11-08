@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Data.SqlTypes;
 using Csps.Domain.Common;
 using Csps.Domain.Expenses;
@@ -8,6 +9,7 @@ using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Money;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using CompanyExpenseRecord = Csps.Domain.Expenses.CompanyExpense;
 
 namespace Csps.Infrastructure.IntegrationTests.Money;
@@ -231,6 +233,157 @@ public sealed class StaffLedgerQueryTests(CspsDatabase database) : IClassFixture
         all[^1].Signed.ShouldBe(140.00m);
         all.Skip(1).Take(3).Select(row => row.Kind).ShouldAllBe(kind => kind == Payment);
         all.Skip(4).Take(3).Select(row => row.Kind).ShouldBe([Refund, CompanyExpense, OrderExpense]);
+    }
+
+    [Fact]
+    public async Task TransferRowsJoinTheUnionAsPlusForTheRecipientAndMinusForTheSender()
+    {
+        await database.ResetAsync();
+        var ana = await NewPersonAsync("Ana");
+        var ben = await NewPersonAsync("Ben");
+        var cora = await NewPersonAsync("Cora");
+        var received = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 500.00m, new DateOnly(2026, 10, 5)), Now);
+        var sent = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ana.Id, ben.Id, 120.00m, new DateOnly(2026, 10, 6)), Now.AddMinutes(1));
+        await using var context = database.CreateContext();
+
+        var anas = await ReadAllAsync(context, ana.Id);
+        var bens = await ReadAllAsync(context, ben.Id);
+        var coras = await ReadAllAsync(context, cora.Id);
+
+        anas.Select(row => (row.Kind, row.SourceId, row.Signed)).ShouldBe([((int)LedgerEntryKind.TransferOut, sent, -120.00m), ((int)LedgerEntryKind.TransferIn, received, 500.00m)]);
+        bens.Select(row => (row.Kind, row.SourceId, row.Signed)).ShouldBe([((int)LedgerEntryKind.TransferIn, sent, 120.00m), ((int)LedgerEntryKind.TransferOut, received, -500.00m)]);
+        anas.Concat(bens).ShouldAllBe(row => !row.Deleted);
+        coras.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ATransferAndAPaymentOnTheSameDayOrderByRecordedTime()
+    {
+        await database.ResetAsync();
+        var ana = await NewPersonAsync("Ana");
+        var ben = await NewPersonAsync("Ben");
+        var day = new DateOnly(2026, 10, 5);
+        var payment = (await AddRowsAsync(ana.Id, new Spec(Payment, day, 100.00m, Now.AddMinutes(10)))).Single();
+        var earlier = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 50.00m, day), Now);
+        var later = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 60.00m, day), Now.AddMinutes(20));
+        await using var context = database.CreateContext();
+
+        var rows = await ReadAllAsync(context, ana.Id);
+
+        rows.Select(row => row.SourceId).ShouldBe([later, payment.Id, earlier]);
+    }
+
+    [Fact]
+    public async Task ADeletedTransferJoinsTheUnionOnlyWhenAskedWithASignedAmountOfZeroAndTheDeletedMark()
+    {
+        await database.ResetAsync();
+        var ana = await NewPersonAsync("Ana");
+        var ben = await NewPersonAsync("Ben");
+        var counted = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 500.00m, new DateOnly(2026, 10, 5)), Now);
+        var removed = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 300.00m, new DateOnly(2026, 10, 6)) { Deleted = true }, Now.AddMinutes(1));
+        await using var context = database.CreateContext();
+
+        var without = await StaffLedgerQuery.PageAsync(StaffLedgerQuery.Ordered(StaffLedgerQuery.For(context, ana.Id)), 1, 10, TestContext.Current.CancellationToken);
+        var with = await StaffLedgerQuery.PageAsync(StaffLedgerQuery.Ordered(StaffLedgerQuery.For(context, ana.Id, includeDeletedTransfers: true)), 1, 10, TestContext.Current.CancellationToken);
+
+        without.Select(row => row.SourceId).ShouldBe([counted]);
+        with.Select(row => (row.SourceId, row.Signed, row.Deleted)).ShouldBe([(removed, 0.00m, true), (counted, 500.00m, false)]);
+    }
+
+    [Fact]
+    public async Task AReaderPageWithDeletedTransfersCountsThemAsRowsButNotAsMoney()
+    {
+        await database.ResetAsync();
+        var ana = await NewPersonAsync("Ana");
+        var ben = await NewPersonAsync("Ben");
+        await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 500.00m, new DateOnly(2026, 10, 5)), Now);
+        var removed = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 300.00m, new DateOnly(2026, 10, 6)) { Deleted = true, CreatedById = ben.Id }, Now.AddMinutes(1));
+        await using var context = database.CreateContext();
+        var reader = new StaffMoneyReader(context);
+
+        var plain = await reader.GetLedgerPageAsync(ana.Id, 1, 10, false, TestContext.Current.CancellationToken);
+        var shown = await reader.GetLedgerPageAsync(ana.Id, 1, 10, true, TestContext.Current.CancellationToken);
+
+        plain.Total.ShouldBe(1);
+        shown.Total.ShouldBe(2);
+        plain.Balance.ShouldBe(500.00m);
+        shown.Balance.ShouldBe(500.00m);
+        shown.NewerSum.ShouldBe(0.00m);
+        var row = shown.Rows.Single(entry => entry.SourceId == removed);
+        row.IsDeleted.ShouldBeTrue();
+        row.SignedAmount.ShouldBe(0.00m);
+        row.DeletedAmount.ShouldBe(300.00m);
+        row.DeletedBy.ShouldNotBeNull().Id.ShouldBe(ben.Id);
+        row.DeletedAtUtc.ShouldNotBeNull();
+        row.Counterpart.ShouldNotBeNull().Id.ShouldBe(ben.Id);
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(100)]
+    public async Task AReaderPageRunsTheSameNumberOfCommandsAtAnyPageSize(int pageSize)
+    {
+        var (person, _) = await SeedTwentyFiveRowsAsync();
+        var other = await NewPersonAsync("Ben");
+        await MoneySeeding.AddTransferAsync(database, new SeedTransfer(other.Id, person.Id, 40.00m, new DateOnly(2026, 10, 26)), Now);
+        await MoneySeeding.AddTransferAsync(database, new SeedTransfer(person.Id, other.Id, 15.00m, new DateOnly(2026, 10, 27)), Now);
+        var counter = new CommandCounter();
+        await using var context = database.CreateContext(counter);
+
+        counter.Reset();
+        var page = await new StaffMoneyReader(context).GetLedgerPageAsync(person.Id, 1, pageSize, false, TestContext.Current.CancellationToken);
+
+        page.Rows.Count.ShouldBe(Math.Min(pageSize, 27));
+        page.Total.ShouldBe(27);
+        // The page, the count and the balance, then one detail read for each of the five source tables on the page (page 1 needs no newer-rows sum).
+        counter.Count.ShouldBe(8);
+    }
+
+    [Fact]
+    public async Task ThePageTheNewerSumTheCountAndTheBalanceAgreeWhenARowIsRecordedBetweenTheReads()
+    {
+        var (person, expected) = await SeedTwentyFiveRowsAsync();
+        var racer = new RecordAfterTheFirstRead(() => RecordCompanyExpenseAsync(person.Id));
+        await using var context = database.CreateContext(racer);
+
+        var page = await new StaffMoneyReader(context).GetLedgerPageAsync(person.Id, 2, 10, false, TestContext.Current.CancellationToken);
+        await racer.Written.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        page.Rows.Select(row => row.SourceId).ShouldBe(expected.Skip(10).Take(10).Select(row => row.Id));
+        page.Total.ShouldBe(25);
+        page.NewerSum.ShouldBe(expected.Take(10).Sum(row => row.Signed));
+        page.Balance.ShouldBe(expected.Sum(row => row.Signed));
+        var afterwards = await new StaffMoneyReader(database.CreateContext()).GetLedgerPageAsync(person.Id, 1, 10, false, TestContext.Current.CancellationToken);
+        afterwards.Total.ShouldBe(26);
+    }
+
+    private async Task RecordCompanyExpenseAsync(Guid userId)
+    {
+        await using var context = database.CreateContext();
+        var expense = CompanyExpenseRecord.Create(Today, SuppliesId, "Late thread", 99.00m, userId, null, Today, Now).Value;
+        context.CompanyExpenses.Add(expense);
+        Stamp(context, expense, Now.AddMinutes(500));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    // Starts a write on another connection right after the first read of the context it is attached to, and gives it two seconds to finish.
+    private sealed class RecordAfterTheFirstRead(Func<Task> write) : DbCommandInterceptor
+    {
+        private int _fired;
+
+        public Task Written { get; private set; } = Task.CompletedTask;
+
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(
+            DbCommand command, CommandExecutedEventData eventData, DbDataReader result, CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref _fired, 1) == 0)
+            {
+                Written = Task.Run(write, cancellationToken);
+                await Task.WhenAny(Written, Task.Delay(TimeSpan.FromSeconds(2), cancellationToken)).ConfigureAwait(false);
+            }
+
+            return result;
+        }
     }
 
     private async Task<(Person A, Person B)> SeedTwoPeopleAsync()

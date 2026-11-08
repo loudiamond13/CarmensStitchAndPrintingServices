@@ -1,3 +1,4 @@
+using System.Data;
 using Csps.Application.Money;
 using Csps.Application.Ports;
 using Csps.Application.Security;
@@ -17,10 +18,14 @@ namespace Csps.Infrastructure.Money;
 /// </summary>
 internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReader
 {
-    public async Task<IReadOnlyList<StaffMoneySums>> GetSumsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<StaffMoneySums>> GetSumsAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(userIds);
-        var ids = userIds.ToArray();
+        return ReadSumsAsync(userIds.ToArray(), cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<StaffMoneySums>> ReadSumsAsync(Guid[] ids, CancellationToken cancellationToken)
+    {
         var transfers = CountedTransfers(context);
 
         var rows = await context.Users.AsNoTracking()
@@ -80,6 +85,36 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
             .ConfigureAwait(false);
 
         return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.IsActive, row.Deleted))];
+    }
+
+    public async Task<LedgerPage> GetLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken)
+    {
+        // The page, the newer-rows sum, the count and the balance are four reads. One serializable read transaction keeps a row that
+        // lands between them from making them disagree (D-105). Inside a transaction the caller already opened, that one applies.
+        if (context.Database.CurrentTransaction is not null)
+        {
+            return await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
+        }
+
+        var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
+        await using (transaction.ConfigureAwait(false))
+        {
+            var result = await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+    }
+
+    private async Task<LedgerPage> ReadLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken)
+    {
+        var all = StaffLedgerQuery.For(context, userId, includeDeleted);
+        var ordered = StaffLedgerQuery.Ordered(all);
+        var rows = await StaffLedgerQuery.PageAsync(ordered, page, pageSize, cancellationToken).ConfigureAwait(false);
+        var newerSum = await StaffLedgerQuery.SumNewerAsync(ordered, (page - 1) * pageSize, cancellationToken).ConfigureAwait(false);
+        var total = await StaffLedgerQuery.CountAsync(all, cancellationToken).ConfigureAwait(false);
+        var sums = await ReadSumsAsync([userId], cancellationToken).ConfigureAwait(false);
+        var views = await StaffLedgerDetails.ReadAsync(context, rows, cancellationToken).ConfigureAwait(false);
+        return new LedgerPage(views, total, newerSum, sums.Count == 0 ? 0m : sums[0].Balance());
     }
 
     // The one place that leaves deleted transfers out; the entity has no query filter (RESEARCH Pitfall 4).

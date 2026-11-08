@@ -21,6 +21,6 @@ internal sealed record StaffLedgerRow
     /// <summary>Gets the amount with its sign: plus for money in, minus for money out.</summary>
     public decimal Signed { get; init; }
 
-    /// <summary>Gets a value indicating whether the row is deleted; always false until transfers join the ledger.</summary>
+    /// <summary>Gets a value indicating whether the row is a deleted transfer, which counts toward no balance.</summary>
     public bool Deleted { get; init; }
 }
