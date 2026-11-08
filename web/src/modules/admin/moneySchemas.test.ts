@@ -40,6 +40,13 @@ describe('Amount', () => {
     expect(messages(form({ amount: '0' }))).toEqual({ amount: 'Enter an amount of at least ₱0.01.' });
   });
 
+  it('says "at least" for an amount of zero however many decimals it has, as the server does (wave 7 IN-04)', () => {
+    expect(messages(form({ amount: '0.000' }))).toEqual({ amount: 'Enter an amount of at least ₱0.01.' });
+    expect(messages(form({ amount: '0.0000' }))).toEqual({ amount: 'Enter an amount of at least ₱0.01.' });
+    expect(messages(form({ amount: '.000' }))).toEqual({ amount: 'Enter an amount of at least ₱0.01.' });
+    expect(messages(form({ amount: '0.001' }))).toEqual({ amount: 'Use at most 2 decimal places.' });
+  });
+
   it('refuses a third decimal: "Use at most 2 decimal places."', () => {
     expect(messages(form({ amount: '10.005' }))).toEqual({ amount: 'Use at most 2 decimal places.' });
     expect(messages(form({ amount: '10.05' }))).toEqual({});
