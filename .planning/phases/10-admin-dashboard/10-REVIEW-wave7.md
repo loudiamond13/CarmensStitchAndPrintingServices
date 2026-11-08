@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 7
 plans: [10-14, 10-15]
 created: 2026-11-07T21:30:00-06:00
-updated: 2026-11-07T21:45:00-06:00
+updated: 2026-11-07T22:40:00-06:00
 reviewed_range: 16ed4992..a606baa0 (excluding .planning/)
 depth: deep
 files_reviewed: 50
@@ -263,15 +263,15 @@ _Depth: deep_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now: the serializable ledger read retries a deadlock-victim error up to three times inside the reader, following the existing write-path retry. |
-| WR-02 | Fix now: when the re-read people list no longer holds the chosen person, the To value is cleared, so the hidden id can never be sent. |
-| WR-03 | Fix now: after any failure that may have saved (5xx, 408, timeout, lost connection) the money answers are marked old and re-read. Keeping one key across a closed and reopened window is the same question for orders and expenses; it goes to the phase-end code review. |
-| WR-04 | Fix now: assertions for the danger busy toast, the same key on a retry after a 409, the scrim ignored while saving, and a fresh balance read when the window opens; each proved by a mutation. |
-| IN-01 | Fix now: the reader refuses to join an outer transaction (it fails loudly), with a test. |
-| IN-02 | Fix now: the API doc says what offset paging does promise. |
+| WR-01 | Fixed (`c7a5e99c`, `de5ab18b`): the ledger read retries a deadlock victim (SQL 1205) up to three times and the third failure surfaces. Tests with a real 1205 failed first (2 of 3). |
+| WR-02 | Fixed (`c99d2c1c`, `05682fae`): To is cleared when the re-read list no longer holds the chosen person; the refusal line stays. Test failed first (1 of 25). |
+| WR-03 | Fixed, refresh part (`69020b3d`, `064b8eae`): after a 5xx, 408, timeout or no answer the money is read again; a 400 does not refresh. Test failed first (1 of 27). Key handling across a closed and reopened window goes to the phase-end code review with orders and expenses. |
+| WR-04 | Fixed (`0d1f268d`): guard tests for the danger busy toast, the same key after a 409, the scrim ignored while saving and a fresh balance on open; each failed under a mutation, then the code was restored. |
+| IN-01 | Fixed (`a37a3c4b`, `9c414ffc`): the reader throws if it is called inside another transaction. Test failed first (1 of 1). |
+| IN-02 | Fixed (`4ecb022b`): the API doc says the order is stable within one read and what can shift between page requests. |
 | IN-03 | Deferred to the phase-end code review: the other list controllers share this pattern, so they change together. |
-| IN-04 | Fix now: the browser checks the minimum amount before the decimal places, so "0.000" shows the server's "Enter an amount of at least ₱0.01.". |
-| IN-05 | Fix now: the e2e second person's page uses the same guard as the first (CSP findings and failed responses too). |
-| IN-06 | Fix now: the deleted-row running-balance test uses a non-zero amount. |
+| IN-04 | Fixed (`14d9933e`, `1d372b5b`): "0.000" shows "Enter an amount of at least ₱0.01."; the server words are unchanged. Test failed first (1 of 18). |
+| IN-05 | Fixed (`061dac90`): `guardContext` gives the second person the same guard (CSP, failed responses, console); a 404 and an injected style failed all 5 projects, then were removed. |
+| IN-06 | Fixed (`c833ca9c`): the deleted-row test uses a non-zero amount; subtracting a deleted row failed 2 of 6, then was restored. |
 | IN-07 | Deferred to the plan 10-21 review: the reason wording while the figure loads or failed needs new copy (sits next to P10-BL-04). |
 | IN-08 | Deferred to the phase-end code review: re-read the business today when the window opens. Past dates are valid, so nothing wrong is saved meanwhile. |
