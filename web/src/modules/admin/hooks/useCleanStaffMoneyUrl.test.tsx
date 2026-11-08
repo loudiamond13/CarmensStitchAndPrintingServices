@@ -34,6 +34,8 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 30));
 }
 
+const hook: () => unknown = useCleanStaffMoneyUrl;
+
 function renderParams(searchParams = '') {
   const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -47,7 +49,16 @@ function renderParams(searchParams = '') {
       {children}
     </NuqsTestingAdapter>
   );
-  return { ...renderHook(() => useCleanStaffMoneyUrl(), { wrapper }), onUrlUpdate };
+  return {
+    ...renderHook(
+      () => {
+        const returned = hook();
+        return returned;
+      },
+      { wrapper },
+    ),
+    onUrlUpdate,
+  };
 }
 
 function updates(onUrlUpdate: UrlUpdateSpy): { history: string; query: string }[] {
