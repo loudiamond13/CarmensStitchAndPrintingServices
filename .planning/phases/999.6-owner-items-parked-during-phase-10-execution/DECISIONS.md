@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T08:54:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T16:34:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -148,3 +148,15 @@ When a Manager removes a deleted transfer for good, the audit log keeps who sent
 - A hand-over row on the Transfers tab looks like a normal transfer (it is not marked "Hand-over"). A (recommended): add a small "Hand-over" label. B: keep as is.
 - Still open, unchanged: the hand-over "Done to" column in the Audit Log is empty (P10-BL-07), and P10-BL-13. Also: the Audit Log does not show when a removed transfer had been deleted.
 - **Added from the wave 10 review (IN-03).** Delete Transfer no longer warns for a receiver who is missing from the staff balances, so the old system placeholder name never shows. Side effect: a deactivated person who holds exactly ₱0.00 is not in the staff balances either, so deleting a transfer to them gives no "balance will be below zero" warning. A (recommended): accept it; the delete still works and the ledger shows the result. B: bring the warning back for deactivated people, which needs a small server change so the screen can tell them apart from the placeholder.
+
+## P10-BL-15 · Showcase and phone layout choices for your screenshot review (plan 10-21)
+
+**Status:** open · **Blocks:** nothing. These are in use now; review them on the showcase page (/dev/components, section "Dashboard and staff money").
+
+- **Hand Over cards at 320 px (layout fix made).** On a small phone the eye link and Hand Over sit pinned at the top right of an All Staff card and covered a short name. The name now leaves room for both and wraps instead. A (recommended): keep this. B: put the two buttons on their own row under the name.
+- **Transfer reason line.** It takes its own row under the strip at every width, and on My Money it sits under the header button. The UI-SPEC says beside. A (recommended): keep its own row, which reads better on phones. B: put it beside, as the spec says.
+- **Strip failure line.** Small text (14 px) in the danger colour, with Try Again beside it. Keep it, or choose another size.
+- **Headings (wave 6 review IN-02).** The money strip and the My Money card are named regions, not headings, so a screen reader user's "next heading" key skips them. A (recommended): keep as is. B: give them headings.
+- **Showcase button wording (developer page only).** New trigger labels such as "Show the Dashboard cases" and "Open Transfer (refused)". No new app wording.
+- **Transfer window messages** show as the user types or leaves a box; server refusals are shown by the two "(refused)" demo buttons.
+
