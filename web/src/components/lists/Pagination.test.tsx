@@ -260,6 +260,19 @@ describe('Pagination size-only mode (opt-in, one page)', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('draws nothing for one page with a size setter when not opted in (the default)', () => {
+    const { container } = render(
+      <Pagination
+        page={1}
+        pageCount={1}
+        onPageChange={() => undefined}
+        pageSize={50}
+        onPageSizeChange={() => undefined}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('draws the full bar for several pages', () => {
     render(
       <Pagination

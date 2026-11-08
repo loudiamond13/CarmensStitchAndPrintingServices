@@ -37,6 +37,8 @@ export interface PaginationProps {
   pageSize?: PageSize | undefined;
   /** The list hook's setPageSize (a replace that resets the page). */
   onPageSizeChange?: ((size: PageSize) => void) | undefined;
+  /** Opt-in: for one page or none, draw only the "Rows per page" Select (needs `pageSize` and `onPageSizeChange`). */
+  sizeOnlyWhenSinglePage?: boolean | undefined;
 }
 
 const SIZE_OPTIONS = PAGE_SIZES.map((size) => String(size));
@@ -63,6 +65,7 @@ export function Pagination({
   focusTargetId,
   pageSize,
   onPageSizeChange,
+  sizeOnlyWhenSinglePage = false,
 }: PaginationProps) {
   const navRef = useRef<HTMLElement>(null);
   // Set by a page change from this bar; read once the new page has rendered.
@@ -80,10 +83,25 @@ export function Pagination({
     (target ?? nav.querySelector<HTMLElement>('button:not(:disabled)'))?.focus();
   }, [page, focusTargetId]);
 
-  if (pageCount <= 1) {
-    return null;
-  }
   const copy = LISTS_COPY.pagination;
+  const sizeSelect = onPageSizeChange !== undefined && pageSize !== undefined && (
+    <div className={toolbarEndClasses}>
+      <Select
+        label={copy.rowsPerPage}
+        options={SIZE_OPTIONS}
+        value={String(pageSize)}
+        onChange={(event) => {
+          const size = toPageSize(event.target.value);
+          if (size !== undefined) {
+            onPageSizeChange(size);
+          }
+        }}
+      />
+    </div>
+  );
+  if (pageCount <= 1) {
+    return sizeOnlyWhenSinglePage && sizeSelect !== false ? sizeSelect : null;
+  }
   const goTo = (target: number): void => {
     checkFocus.current = true;
     onPageChange(target);
@@ -123,21 +141,7 @@ export function Pagination({
       >
         {copy.next}
       </Button>
-      {onPageSizeChange !== undefined && pageSize !== undefined && (
-        <div className={toolbarEndClasses}>
-          <Select
-            label={copy.rowsPerPage}
-            options={SIZE_OPTIONS}
-            value={String(pageSize)}
-            onChange={(event) => {
-              const size = toPageSize(event.target.value);
-              if (size !== undefined) {
-                onPageSizeChange(size);
-              }
-            }}
-          />
-        </div>
-      )}
+      {sizeSelect}
     </nav>
   );
 }

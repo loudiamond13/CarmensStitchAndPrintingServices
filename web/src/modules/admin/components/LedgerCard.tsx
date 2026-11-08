@@ -7,6 +7,7 @@
 import { useEffect, useId } from 'react';
 import { Checkbox } from '@/components/entry';
 import { Pagination, ResultBar } from '@/components/lists';
+import { PAGE_SIZES } from '@/lib/url-state/parsers';
 import {
   dashboardCardHeadClasses,
   dashboardCardSubClasses,
@@ -97,7 +98,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
           void query.refetch();
         }}
       />
-      {pageCount > 1 && !pastTheEnd && (
+      {total > PAGE_SIZES[0] && !pastTheEnd && (
         <div className={ledgerPagerClasses}>
           <Pagination
             page={values.page}
@@ -106,6 +107,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
             focusTargetId={captionId}
             pageSize={values.size}
             onPageSizeChange={set.setPageSize}
+            sizeOnlyWhenSinglePage
           />
         </div>
       )}
