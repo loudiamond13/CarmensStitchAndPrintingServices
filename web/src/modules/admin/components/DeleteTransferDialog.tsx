@@ -60,10 +60,11 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
   const checking = balances.isFetching && !answered;
   const checkFailed = balances.isError && !balances.isFetching;
 
-  // A receiver the list leaves out is a leaver at ₱0.00 (the list holds former staff only while their balance is not 0.00).
-  const held = balances.data?.rows.find((row) => row.userId === transfer.to.id)?.balance ?? 0;
-  const after = round2(held - transfer.amount);
-  const warn = !checking && !checkFailed && balances.data !== undefined && isNegativeMoney(after);
+  // A receiver the list leaves out (a leaver at ₱0.00, the legacy holder, an account with no staff role) gets no warning: the browser
+  // cannot tell them apart, and the warning would put an internal placeholder name on screen (P10-BL-07 A).
+  const held = balances.data?.rows.find((row) => row.userId === transfer.to.id)?.balance;
+  const resulting = held === undefined ? null : round2(held - transfer.amount);
+  const warnAmount = !checking && !checkFailed && resulting !== null && isNegativeMoney(resulting) ? resulting : null;
 
   const confirm = async () => {
     const result = await deleteTransfer({ id: transfer.id, version: transfer.version });
@@ -85,10 +86,10 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
             transfer.to.name,
             formatCalendarDate(transfer.date) ?? transfer.date,
           )}
-          {warn && (
+          {warnAmount !== null && (
             <span role="alert" className={transferWarningClasses}>
               <Icon name="triangle-alert" size={16} className={transferWarningIconClasses} />
-              <span>{COPY.warning(transfer.to.name, formatPeso(after))}</span>
+              <span>{COPY.warning(transfer.to.name, formatPeso(warnAmount))}</span>
             </span>
           )}
           {checkFailed && (

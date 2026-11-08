@@ -216,6 +216,8 @@ function balancesWithLiza(liza: number | null): StaffBalancesFixture {
   return staffBalancesFixture({ items: liza === null ? others : [...others, { ...lizaRow, balance: liza }] });
 }
 
+const LEGACY_ID = '0b0f6c1e-0000-4000-8000-0000000000f9';
+
 const WARNING = "Liza Mercado's balance will be −₱500.00.";
 
 describe('the resulting-balance warning (D-33, T-10-44)', () => {
@@ -250,12 +252,16 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     expect(within(dialog).queryByText(/balance will be/)).toBeNull();
   });
 
-  it('treats a receiver the balances list leaves out (a leaver at zero) as holding nothing', async () => {
+  it('gives no warning when the receiver is missing from the balances, so a placeholder name is never put in one (wave 10 IN-03, P10-BL-07 A)', async () => {
     staffBalancesBackend(balancesWithLiza(null));
-    renderDialog();
+    renderDialog(target({ to: { id: LEGACY_ID, name: 'Legacy / unassigned', formerStaff: false } }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
-    expect(await within(dialog).findByText("Liza Mercado's balance will be −₱2,000.00.")).toBeVisible();
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeEnabled();
+    });
+    expect(within(dialog).queryByText(/balance will be/)).toBeNull();
+    expect(within(dialog).queryByRole('alert')).toBeNull();
   });
 
   it('draws the warning with an alert icon in front of the line', async () => {
