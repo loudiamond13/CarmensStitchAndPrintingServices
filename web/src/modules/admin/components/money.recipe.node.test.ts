@@ -69,6 +69,11 @@ describe('money recipe', () => {
     expect(css).toContain('container-type: inline-size');
   });
 
+  it('reserves 72px more beside the name of a row with Hand Over on phones only (plan 10-21 sweep, target-size at 320 px)', () => {
+    expect(blockOf('pg-phone:pr-18')).toBe('@container pg (max-width: 767px)');
+    expect(ruleOf('pg-phone:pr-18')).toContain('padding-right');
+  });
+
   it('dims by colour only: no opacity token', () => {
     expect(recipeTokens.some((entry) => entry.token.includes('opacity'))).toBe(false);
   });

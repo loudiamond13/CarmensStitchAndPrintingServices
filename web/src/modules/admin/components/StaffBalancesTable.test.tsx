@@ -194,6 +194,17 @@ describe('Hand Over (D-45)', () => {
     expect(screen.getAllByRole('button', { name: /^Hand over money from/ })).toHaveLength(1);
   });
 
+  // Plan 10-21 sweep, 320 px: a phone card pins the eye link and Hand Over to its top right, and the title reserves room for two icon
+  // buttons only. A short name beside the wider Hand Over button was partly covered (axe target-size), so a row with Hand Over reserves more.
+  it('keeps the name of a row with Hand Over clear of the pinned buttons on phones, and no other name', () => {
+    renderTable();
+
+    const person = (name: string) => screen.getByRole('link', { name }).parentElement?.parentElement;
+    expect(person('Jomar Santos')).toHaveClass('pg-phone:pr-18');
+    expect(person('Liza Mercado')).not.toHaveClass('pg-phone:pr-18');
+    expect(person('Ana Villanueva')).not.toHaveClass('pg-phone:pr-18');
+  });
+
   it('calls onHandOver with the row and the button that was pressed', async () => {
     const { onHandOver } = renderTable();
 
