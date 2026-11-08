@@ -153,8 +153,8 @@ for (const sweepCase of CASES) {
     expect(failures).toEqual([]);
   });
 
-  // OWNER DECISION P10-BL-06: at 320 px a large KPI figure is wider than its card, so the page can scroll sideways. The case stays in the
-  // sweep; the sideways-scroll finding is the one known failure and is fixme'd when it is the only finding (see the SUMMARY of plan 10-21).
+  // OWNER DECISION P10-BL-06 (open): at 320 px a six-digit KPI figure can be wider than its card, so this case can fail with "the page
+  // scrolls sideways". It stays in the sweep and is left failing on purpose until the owner rules. No fixme.
   test(`@dashboard-sweep ${sweepCase.name} has no axe finding and does not scroll sideways at 320 px in Blush and Espresso`, async ({
     page,
     request,
