@@ -1092,7 +1092,7 @@ Plans:
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
 
-**Plans**: 11/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
+**Plans**: 13/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
 
 **Wave 1**
 - [x] 10-01-PLAN.md — Ledger union query proven on SQL Server, the Wave 0 spike (MONEY-02; RESEARCH A1, A2)
@@ -1116,8 +1116,8 @@ Plans:
 - [x] 10-11-PLAN.md — Chart card with the range in the URL; the dashboard refreshes after writes (DASH-03, DASH-06; D-13, D-36, D-50)
 
 **Wave 6**
-- [ ] 10-12-PLAN.md — Manager hand-over and the recipients list (MONEY-04, MONEY-05, MONEY-06, MONEY-08; D-17, D-18, D-52, D-56)
-- [ ] 10-13-PLAN.md — Money strip, My Money page and the sidebar item (MONEY-02; D-21, D-39, D-40, D-46)
+- [x] 10-12-PLAN.md — Manager hand-over and the recipients list (MONEY-04, MONEY-05, MONEY-06, MONEY-08; D-17, D-18, D-52, D-56)
+- [x] 10-13-PLAN.md — Money strip, My Money page and the sidebar item (MONEY-02; D-21, D-39, D-40, D-46)
 
 **Wave 7**
 - [ ] 10-14-PLAN.md — Own ledger API with the running balance (MONEY-02, MONEY-08; D-30, D-31, D-41)
@@ -1456,7 +1456,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
-| 10. Admin Dashboard | 11/21 | In Progress | - |
+| 10. Admin Dashboard | 13/21 | In Progress | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
