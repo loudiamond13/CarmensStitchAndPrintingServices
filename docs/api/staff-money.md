@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-07T23:38:00-06:00
+updated: 2026-11-08T02:50:03-06:00
 ---
 
 # The staff money API
@@ -8,7 +8,7 @@ updated: 2026-11-07T23:38:00-06:00
 This is the contract behind the money each staff member holds, and the one a future Android app will use. Everything here is under
 `/api/v1`. The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this
 page; the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
-[auth.md](auth.md). The ledger, transfer, hand-over, recipients, all-staff, one-person and transfer list routes are below.
+[auth.md](auth.md). The ledger, transfer, hand-over, recipients, all-staff, one-person, transfer list, delete and remove routes are below.
 
 ## In plain words
 
@@ -121,7 +121,7 @@ An empty body lists `toUserId`, `amount` and `transferDate` together. An anonymo
 
 ### The lock (D-53)
 
-Only a transfer and a hand-over take the `staff-money` lock. It is the first statement in the transaction, before
+A transfer, a hand-over, a delete and a remove take the `staff-money` lock. It is the first statement in the transaction, before
 any person or balance is read, so two transfers, or two hand-overs, at the same moment can never spend the same money twice. Expense, payment and refund
 saves do not take it: they may already take a balance below zero (D-15, D-16). An expense never checks a balance, so one transfer
 racing one expense always matches one serial order. The race tests that can fail are the ones that add a second transfer, with or
@@ -342,12 +342,55 @@ A page outside those limits answers `400` with the shared list words under the f
   list never holds a deleted transfer (D-31).
 - Nothing is cached: the answer carries `Cache-Control: no-store`.
 
+## DELETE /api/v1/money-transfers/{id}
+
+A Manager deletes a wrong transfer (MONEY-06, D-23, D-35). A transfer is **never edited**: a wrong one is deleted and recorded again.
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `DELETE /money-transfers/{id}?version=` | Manager | none | `204` deleted, `400` under `version` when it is missing or malformed, `401` without a valid token, `403` for an Admin, `404` when the transfer is unknown or already deleted, `409` when the version is stale or the lock was busy too long. |
+
+- `version` is the transfer's `version` as the Manager last saw it. Send it URL-encoded: standard base64 holds `+`, `/` and `=`.
+- The transfer stays stored with who deleted it and when, and stops counting toward both balances at once: the sender's balance
+  rises and the recipient's falls by the amount.
+- A Manager may delete any transfer, one they sent or received included (D-35). A delete that leaves the recipient below zero is
+  allowed, and their balance then reads negative (D-33).
+- A missing or malformed `version` answers `400` `Reload the form and try again.` under `version`, before anything is looked up.
+  A version that is not the stored one answers `409` `This was changed by someone else. Reload and try again.` (`edit.stale`) and
+  changes nothing.
+- An unknown id and a transfer that is already deleted both answer `404` `This transfer wasn't found.` (`money-transfers.not-found`)
+  and write no second audit entry. Two deletes sent at the same moment with the same version give one `204`, one `404` or `409`,
+  and one audit entry.
+- One `money-transfer.deleted` audit entry joins the save with the Manager as the actor ([audit-log.md](../operations/audit-log.md)).
+- No email is queued.
+
+## DELETE /api/v1/money-transfers/{id}/permanent
+
+A Manager removes a deleted transfer for good (MONEY-06, D-24, D-25).
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `DELETE /money-transfers/{id}/permanent` | Manager | none | `204` removed, `401` without a valid token, `403` for an Admin, `404` when no such transfer exists, `409` when the lock was busy too long, `422` when the transfer is not deleted. |
+
+- Only a transfer that was deleted first can go. A live one answers `422` `Delete the transfer first.` (`money-transfers.not-deleted`).
+- Removing changes no balance: a deleted transfer already counts for nothing.
+- The full record is written to the audit log first, in the same save, as `money-transfer.permanently-deleted`: the people, the
+  amount, the date, whether there was a note, who recorded it, who deleted it and when. The note text is not written. The copy
+  follows the 8-month audit retention.
+- An unknown or already removed transfer answers `404`.
+
+## No edit, no restore, one at a time
+
+The API has no `PUT` or `PATCH` on a transfer, no restore route and no bulk delete. The only routes under `/money-transfers` are
+`GET` (the list and the recipients), `POST` (a transfer and a hand-over) and `DELETE` (one transfer, then one remove). A test lists
+them, so a new route fails it until someone looks (MONEY-07, D-22, D-27, D-28).
+
 ## Errors
 
 Errors are RFC 9457 Problem Details, the same as the rest of the API. `GET /staff-money/me` has only `401` (the token names no usable
 account). `staff-money.forbidden` (`403`, `You can only see your own money.`) is an Admin naming someone else, and
 `staff-money.person-not-found` (`404`, `This person wasn't found.`) is a Manager naming no staff member. `staff-money.not-found` is
-defined and not yet used; `money-transfers.busy` is the `409` of the transfer route. The ledger routes add
+defined and not yet used; `money-transfers.busy` is the `409` of the transfer routes. `money-transfers.not-found` (`404`) and `money-transfers.not-deleted` (`422`) belong to the delete and remove routes. The ledger routes add
 `staff-money.invalid-request` (`400`) and `staff-money.deleted-forbidden` (`403`); the transfer list uses `money-transfers.invalid-request`
 (`400`) and `staff-money.deleted-forbidden` (`403`).
 
@@ -355,4 +398,4 @@ defined and not yet used; `money-transfers.busy` is the `409` of the transfer ro
 
 The transfers table, `MoneyTransfers`, exists from this plan so that transfers count in the sums. It has two checks, not triggers:
 the amount is more than zero, and the sender is not the recipient. A standing lock row, `staff-money`, is seeded for the transfer
-routes that come later.
+routes, and the delete and remove routes take it too.

@@ -153,6 +153,8 @@ public static class AuditChangeLines
     internal const string RefunderField = "refunder";
     internal const string FromField = "from";
     internal const string ToField = "to";
+    internal const string RecordedByField = "recordedBy";
+    internal const string DeletedByField = "deletedBy";
     internal const string MethodField = "method";
     internal const string ProductTypeField = "productType";
 
@@ -186,7 +188,7 @@ public static class AuditChangeLines
     ];
 
     /// <summary>The line fields that name a person by id.</summary>
-    internal static readonly string[] PersonFields = [PayerField, ReceiverField, RefunderField, FromField, ToField];
+    internal static readonly string[] PersonFields = [PayerField, ReceiverField, RefunderField, FromField, ToField, RecordedByField, DeletedByField];
 
     /// <summary>Parses the detail of an entry.</summary>
     /// <param name="action">The action code.</param>
@@ -209,7 +211,9 @@ public static class AuditChangeLines
                 or AuditActions.CompanyExpensePermanentlyDeleted => ReadSnapshot(detail),
             AuditActions.CompanyExpenseChanged => ReadEdit(detail),
             AuditActions.CompanyExpensePayerChanged => ReadPayerChange(detail),
-            AuditActions.MoneyHandedOver => ReadHandover(detail),
+            AuditActions.MoneyHandedOver
+                or AuditActions.MoneyTransferDeleted
+                or AuditActions.MoneyTransferPermanentlyDeleted => ReadTransfer(detail),
             AuditActions.ExpenseCategoryAdded
                 or AuditActions.ExpenseCategoryRenamed
                 or AuditActions.ExpenseCategoryRecolored
@@ -293,7 +297,7 @@ public static class AuditChangeLines
                 ProductTypeField => new AuditChangeLine(line.Field, NameOf(lists?.ProductTypes, line.From), NameOf(lists?.ProductTypes, line.To), null, null),
                 OrderCategoryField => new AuditChangeLine(
                     CategoryField, NameOf(lists?.OrderExpenseCategories, line.From), NameOf(lists?.OrderExpenseCategories, line.To), null, null),
-                PayerField or ReceiverField or RefunderField or FromField or ToField =>
+                PayerField or ReceiverField or RefunderField or FromField or ToField or RecordedByField or DeletedByField =>
                     new AuditChangeLine(line.Field, null, null, person(IdOf(line.From)), person(IdOf(line.To))),
                 _ => new AuditChangeLine(line.Field, line.From, line.To, null, null),
             }),
@@ -389,15 +393,16 @@ public static class AuditChangeLines
             : ParsedAuditChanges.None;
     }
 
-    // from=<id>;to=<id>;amount=0.00;date=yyyy-MM-dd;note=yes|no. Each value must have the shape the writer gives it; the note flag is left out.
-    private static ParsedAuditChanges ReadHandover(string detail)
+    // from=<id>;to=<id>;amount=0.00;date=yyyy-MM-dd;note=yes|no, then recordedBy=<id> and deletedBy=<id> on a delete or remove. Each value
+    // must have the shape the writer gives it; the note flag and the deletedAt instant are left out.
+    private static ParsedAuditChanges ReadTransfer(string detail)
     {
         List<ParsedAuditChange> lines = [];
         foreach (var part in AuditDetailFormat.Parse(detail).Where(part => part.From is null))
         {
             switch (part.Key)
             {
-                case FromField or ToField when TryReadId(part.To, out var id):
+                case FromField or ToField or RecordedByField or DeletedByField when TryReadId(part.To, out var id):
                     lines.Add(new ParsedAuditChange(part.Key, null, id.ToString("D")));
                     break;
                 case AmountField when TryReadAmount(part.To, out _):

@@ -16,6 +16,7 @@ namespace Csps.Server.Controllers;
 /// <param name="recipients">The who-can-receive handler.</param>
 /// <param name="list">The transfer list handler.</param>
 /// <param name="delete">The delete-a-transfer handler.</param>
+/// <param name="remove">The remove-a-deleted-transfer handler.</param>
 [ApiController]
 [Route("api/v1/money-transfers")]
 [Authorize(Policy = Policies.Staff)]
@@ -26,7 +27,8 @@ public sealed class MoneyTransfersController(
     HandOverMoneyHandler handOver,
     ListTransferRecipientsHandler recipients,
     ListMoneyTransfersHandler list,
-    DeleteMoneyTransferHandler delete) : ControllerBase
+    DeleteMoneyTransferHandler delete,
+    RemoveMoneyTransferHandler remove) : ControllerBase
 {
     /// <summary>
     /// Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an
@@ -153,6 +155,30 @@ public sealed class MoneyTransfersController(
     public async Task<IResult> Delete(Guid id, [FromQuery] string? version, CancellationToken cancellationToken)
     {
         var result = await delete.HandleAsync(id, version, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Removes a deleted transfer for good, Managers only (D-24, D-25). Only a transfer that was deleted first can go; a live one is
+    /// refused with 422 "Delete the transfer first." Removing changes no balance, because a deleted transfer already counts for
+    /// nothing. The full record (the people, the amount, the date, whether there was a note, who recorded it, who deleted it and when) is
+    /// written to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.
+    /// </summary>
+    /// <param name="id">The deleted transfer.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204 when removed, 401 without a valid token, 403 for an Admin, 404 when no such transfer exists, 409 when another change held the lock too long, or 422 when the transfer is not deleted.</returns>
+    [HttpDelete("{id:guid}/permanent")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("RemoveMoneyTransfer")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Remove(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await remove.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

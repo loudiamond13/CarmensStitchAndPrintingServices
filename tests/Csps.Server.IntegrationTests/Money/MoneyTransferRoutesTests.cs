@@ -19,12 +19,12 @@ public sealed class MoneyTransferRoutesTests(CspsDatabase database) : IClassFixt
 
     private static readonly string[] ExpectedEndpoints =
     [
-        "DELETE api/v1/money-transfers/{id:guid}",
-        "DELETE api/v1/money-transfers/{id:guid}/permanent",
-        "GET api/v1/money-transfers",
-        "GET api/v1/money-transfers/recipients",
-        "POST api/v1/money-transfers",
-        "POST api/v1/money-transfers/handovers",
+        "DELETE /api/v1/money-transfers/{id:guid}",
+        "DELETE /api/v1/money-transfers/{id:guid}/permanent",
+        "GET /api/v1/money-transfers",
+        "GET /api/v1/money-transfers/recipients",
+        "POST /api/v1/money-transfers",
+        "POST /api/v1/money-transfers/handovers",
     ];
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class MoneyTransferRoutesTests(CspsDatabase database) : IClassFixt
 
         keys.ShouldNotContain(key => key.Contains("restore", StringComparison.OrdinalIgnoreCase));
         keys.ShouldNotContain(key => key.Contains("bulk", StringComparison.OrdinalIgnoreCase) || key.Contains("batch", StringComparison.OrdinalIgnoreCase));
-        keys.ShouldNotContain($"DELETE {Prefix}");
+        keys.ShouldNotContain($"DELETE /{Prefix}");
     }
 
     [Theory]
