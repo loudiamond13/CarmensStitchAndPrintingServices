@@ -400,6 +400,22 @@ public sealed class StaffLedgerQueryTests(CspsDatabase database) : IClassFixture
         failing.Thrown.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task ReadingInsideAnOuterTransactionIsRefusedBecauseItWouldDropTheSerializableGuarantee()
+    {
+        var (a, _) = await SeedTwoPeopleAsync();
+        await using var context = database.CreateContext();
+        var outer = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (outer)
+        {
+            var error = await Should.ThrowAsync<InvalidOperationException>(
+                () => new StaffMoneyReader(context).GetLedgerPageAsync(a.Id, 1, 10, false, TestContext.Current.CancellationToken));
+
+            error.Message.ShouldContain("another transaction");
+            await outer.RollbackAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
     // A real deadlock as EF reports it: two transactions each update one standing lock row, then reach for the other's.
     private async Task<Exception> DeadlockAsync()
     {
