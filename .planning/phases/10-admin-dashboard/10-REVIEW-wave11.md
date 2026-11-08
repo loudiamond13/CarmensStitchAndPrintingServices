@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 11
 plans: [10-21]
 created: 2026-11-08T16:48:00-06:00
-updated: 2026-11-08T16:48:00-06:00
+updated: 2026-11-08T16:49:00-06:00
 reviewed_range: fbc59c0a..c0669aff (excluding .planning/)
 depth: deep
 files_reviewed: 20
@@ -38,7 +38,7 @@ status: issues_found
 
 # Phase 10 Wave 11 Code Review (plan 10-21)
 
-*Created: 2026-11-08T16:48:00-06:00 · Updated: 2026-11-08T16:48:00-06:00*
+*Created: 2026-11-08T16:48:00-06:00 · Updated: 2026-11-08T16:49:00-06:00*
 
 ## Summary
 
@@ -212,3 +212,19 @@ The same applies to `Phase9OnRequest`. Check that the budget build keeps it out 
 _Reviewed: 2026-11-08T16:48:00-06:00_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: deep_
+
+## Outcomes
+
+| Finding | Outcome |
+|---|---|
+| WR-01 | Fix now: the P10-BL-06 comment says what the code does (no skip). |
+| WR-02 | Fix now: the sweeps stop adding this month's money to the shared shop totals on every run (seed once, or seed outside the current month, or clean up), so the 320 px dashboard checks do not depend on run order. |
+| WR-03 | Fix now: the demo strip cannot reach the real Transfer window or a real save, and a test proves the guard on an unblocked strip. |
+| WR-04 | Fix now: `@dashboard-showcase` runs axe on the Phase 10 section only, within the usual time budget. |
+| IN-01 | Fix now: load `Phase10Demos` lazily, so the showcase heading does not wait for it. |
+| IN-02 | Fix now: demo figures agree across cases, a hand-over shows the right way round, and dates sit on or before the demo's today. |
+| IN-03 | Deferred to the phase-end review (fixed 72 px reserve for Hand Over at 320 px). |
+| IN-04 | Fix now: `footerReachable`, `PANEL_FITS` and `TAB_STRIPS_FIT` check what the spec says, and can fail. |
+| IN-05 | Fix now: one shared no-sideways-scroll helper that measures against the page width without the scrollbar. |
+| IN-06 | Fix now: a test for the `send` seam, and app code cannot use it (a lint rule or an architecture test). |
+| IN-07 | Deferred to the phase-end review (demo windows close without the animation and focus return). |
