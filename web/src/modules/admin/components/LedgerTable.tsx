@@ -182,9 +182,23 @@ export interface LedgerTableProps {
   onRetry?: (() => void) | undefined;
   /** Makes the caption a focus target for Pagination. */
   captionId?: string | undefined;
+  /**
+   * The ledger is the signed-in person's own (the default). The empty state's line speaks to "you"; another person's ledger shows the
+   * title alone (wave 8 IN-08).
+   */
+  ownLedger?: boolean | undefined;
 }
 
-export function LedgerTable({ page, pending, refetching, failed, error, onRetry, captionId }: LedgerTableProps) {
+export function LedgerTable({
+  page,
+  pending,
+  refetching,
+  failed,
+  error,
+  onRetry,
+  captionId,
+  ownLedger = true,
+}: LedgerTableProps) {
   return (
     <ResponsiveTable<LedgerRow>
       caption={COPY.title}
@@ -200,7 +214,7 @@ export function LedgerTable({ page, pending, refetching, failed, error, onRetry,
       onRetry={onRetry}
       emptyIcon="wallet"
       emptyTitle={COPY.empty.title}
-      emptyMessage={COPY.empty.message}
+      emptyMessage={ownLedger ? COPY.empty.message : undefined}
       emptyLevel={3}
       embedded
     />

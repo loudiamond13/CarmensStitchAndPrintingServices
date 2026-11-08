@@ -256,8 +256,13 @@ export interface PersonMoney extends MyMoney {
   status: RecipientStatus;
 }
 
+/** Narrows the generated answer like `parseMyMoney`, and refuses a standing the browser does not know (no wrong badge is drawn). */
 export function parsePersonMoney(response: StaffMoneyResponse): PersonMoney {
-  return { ...parseMyMoney(response), role: '', status: 'active' };
+  const money = parseMyMoney(response);
+  if (!isRecipientStatus(response.status)) {
+    throw new MyMoneyContractError(`The standing "${response.status}" is not known.`);
+  }
+  return { ...money, role: response.role, status: response.status };
 }
 
 export interface MoneyService {
@@ -298,7 +303,8 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
-    person: () => Promise.reject(new Error('not built')),
+    person: (userId, signal) =>
+      client.get<StaffMoneyResponse>(`/staff-money/${encodeURIComponent(userId)}`, { signal }),
     staff: (signal) => client.get<StaffBalancesResponse>('/staff-money', { signal }),
     me: (signal) => client.get<StaffMoneyResponse>('/staff-money/me', { signal }),
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),

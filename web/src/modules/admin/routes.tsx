@@ -116,6 +116,10 @@ const moneyPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/MoneyPage')).MoneyRoute,
 }));
 
+const staffMoneyPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/StaffMoneyPage')).StaffMoneyRoute,
+}));
+
 const settingsPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/SettingsPage')).SettingsRoute,
 }));
@@ -152,6 +156,13 @@ const requireManagerOrExpenses: LoaderFunction = async (args) =>
 const requireManagerOrOrders: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).requireManagerLoader(args, '/admin/orders');
 
+/**
+ * requireOtherStaffLoader for one person's money page (MONEY-03, D-42): an Admin goes to My Money before any request, and so does a
+ * Manager who names their own id.
+ */
+const requireManagerOrMoney: LoaderFunction = async (args) =>
+  (await import('@/modules/admin/guard')).requireOtherStaffLoader(args, '/admin/money');
+
 /** redirectIfSignedInLoader, loaded with the admin chunks as above. */
 const redirectIfSignedIn: LoaderFunction = async (args) =>
   (await import('@/modules/admin/guard')).redirectIfSignedInLoader(args);
@@ -184,8 +195,10 @@ export const adminRoutes: RouteObject[] = [
           { path: 'expenses', lazy: expensesPage },
           // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },
-          // D-39: My Money, the caller's own money on hand, for both roles (the Manager tabs arrive in plan 10-19).
+          // D-39: My Money, the caller's own money on hand, for both roles; a Manager also gets the tabs Mine and All Staff (D-42).
           { path: 'money', lazy: moneyPage },
+          // D-42, MONEY-03: one person's money, for Managers. An Admin and the Manager's own id are sent to My Money by the loader.
+          { path: 'money/staff/:userId', loader: requireManagerOrMoney, lazy: staffMoneyPage },
           { path: 'users', loader: requireManager, lazy: usersPage },
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
           // D-14: the Manager-only Settings page (expense categories); an Admin is sent to /admin by the loader.

@@ -142,5 +142,17 @@ export const staffYouClasses = tw('text-ink-muted');
 /** A balance of exactly ₱0.00: dimmed by colour only, as the balance card does (D-39). */
 export const staffZeroClasses = tw('text-ink-subtle');
 
+/** One person's page (M2): the back link row above the title, kept clear of it. */
+export const personBackRowClasses = tw('flex');
+
+/** The name, the role badge and the standing badge in one wrapping row, 8px apart (the badges sit outside the h1). */
+export const personTitleRowClasses = tw('flex min-w-0 flex-wrap items-center gap-2');
+
+/** The name wraps anywhere, so a very long name is never cut off. */
+export const personNameClasses = tw('min-w-0 wrap-anywhere');
+
+/** The not-found message and its way back, 16px apart. */
+export const personNotFoundClasses = tw('flex flex-col items-start gap-4');
+
 /** The Actions cell's pinned buttons. */
 export const staffActionsClasses = tw('inline-flex items-center justify-end gap-2');

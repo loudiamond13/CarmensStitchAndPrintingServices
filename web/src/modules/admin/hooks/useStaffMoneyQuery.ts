@@ -6,15 +6,6 @@ import { moneyService, parsePersonMoney, type PersonMoney } from '@/modules/admi
 
 export const staffPersonKey = (userId: string) => [...staffMoneyKey, 'person', userId] as const;
 
-/** What a person's money card reads of the query: the same shape as the caller's own, with the person's role and standing. */
-export interface PersonMoneyQuery {
-  readonly data: PersonMoney | undefined;
-  readonly isError: boolean;
-  readonly isFetching: boolean;
-  readonly error: unknown;
-  readonly refetch: () => unknown;
-}
-
 export function useStaffMoneyQuery(userId: string | null) {
   return useQuery({
     queryKey: staffPersonKey(userId ?? ''),
