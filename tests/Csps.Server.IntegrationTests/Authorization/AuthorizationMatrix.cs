@@ -240,6 +240,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/money-transfers/recipients", "/api/v1/money-transfers/recipients", Anonymous: 401, Admin: 200, Manager: 200),
         // Deleting a wrong transfer (MONEY-06, D-23, OD-19): Managers only, so an Admin meets 403. The sample carries a well-formed version, so a Manager reaches the lookup and meets 404 for a fresh random id.
         new("DELETE", "/api/v1/money-transfers/{id:guid}", "/api/v1/money-transfers/8d2f6a41-5b97-4e03-a1c8-7f0e3b9d6a52?version=AAAAAAAAB9E%3D", Anonymous: 401, Admin: 403, Manager: 404),
+        // Removing a deleted transfer for good (MONEY-06, D-24): Managers only, so an Admin meets 403. A fresh random id is no transfer, so a Manager meets 404 money-transfers.not-found.
+        new("DELETE", "/api/v1/money-transfers/{id:guid}/permanent", "/api/v1/money-transfers/4e7b1c93-6a28-4d50-b3f9-2c8a5e0d7b61/permanent", Anonymous: 401, Admin: 403, Manager: 404),
 
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),

@@ -484,6 +484,68 @@ public sealed class AuditChangeLinesTests
     }
 
     [Fact]
+    public void ADeleteGivesTheFromToAndRecordedByPeopleTheAmountAndTheDateAndLeavesTheNoteFlagOut()
+    {
+        var parsed = AuditChangeLines.For(
+            AuditActions.MoneyTransferDeleted, $"from={Ana:D};to={Bea:D};amount=2000.00;date=2026-11-04;note=yes;recordedBy={Ana:D}");
+
+        parsed.Lines.ShouldBe(
+        [
+            new ParsedAuditChange("from", null, Ana.ToString("D")),
+            new ParsedAuditChange("to", null, Bea.ToString("D")),
+            new ParsedAuditChange("amount", null, "2000.00"),
+            new ParsedAuditChange("date", null, "2026-11-04"),
+            new ParsedAuditChange("recordedBy", null, Ana.ToString("D")),
+        ]);
+        parsed.PersonIds().ShouldBe([Ana, Bea, Ana]);
+        parsed.Snapshot.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ARemoveAlsoGivesTheDeletedByPersonAndLeavesTheDeletedAtInstantAndTheNoteFlagOut()
+    {
+        var parsed = AuditChangeLines.For(
+            AuditActions.MoneyTransferPermanentlyDeleted,
+            $"from={Ana:D};to={Bea:D};amount=2000.00;date=2026-11-04;note=no;recordedBy={Ana:D};deletedBy={Bea:D};deletedAt=2026-11-05T01:02:03Z");
+
+        parsed.Lines.Select(line => line.Field).ShouldBe(["from", "to", "amount", "date", "recordedBy", "deletedBy"]);
+        parsed.Lines[^1].ShouldBe(new ParsedAuditChange("deletedBy", null, Bea.ToString("D")));
+        parsed.PersonIds().ShouldBe([Ana, Bea, Ana, Bea]);
+    }
+
+    [Fact]
+    public void ADeleteWithPeopleOfTheWrongShapeKeepsOnlyTheValuesThatFit()
+    {
+        var parsed = AuditChangeLines.For(
+            AuditActions.MoneyTransferPermanentlyDeleted, $"from={Ana:D};to=Liza Mercado;amount=lots;recordedBy=me;deletedBy={Bea:D};secret=hunter2");
+
+        parsed.Lines.ShouldBe([new ParsedAuditChange("from", null, Ana.ToString("D")), new ParsedAuditChange("deletedBy", null, Bea.ToString("D"))]);
+    }
+
+    [Fact]
+    public void ResolveNamesTheRecordedByAndDeletedByPeopleAndMarksADeletedOneFormerStaff()
+    {
+        var anaRef = new ActorRef(Ana, "Ana Reyes", true);
+        var beaRef = new ActorRef(Bea, "Bea Navarro", false);
+        var parsed = AuditChangeLines.For(
+            AuditActions.MoneyTransferPermanentlyDeleted,
+            $"from={Ana:D};to={Bea:D};amount=2000.00;date=2026-11-04;note=no;recordedBy={Ana:D};deletedBy={Bea:D};deletedAt=2026-11-05T01:02:03Z");
+
+        var (lines, snapshot) = AuditChangeLines.Resolve(parsed, new Dictionary<Guid, string>(), id => id == Ana ? anaRef : id == Bea ? beaRef : null);
+
+        lines.ShouldBe(
+        [
+            new AuditChangeLine("from", null, null, null, anaRef),
+            new AuditChangeLine("to", null, null, null, beaRef),
+            new AuditChangeLine("amount", null, "2000.00", null, null),
+            new AuditChangeLine("date", null, "2026-11-04", null, null),
+            new AuditChangeLine("recordedBy", null, null, null, anaRef),
+            new AuditChangeLine("deletedBy", null, null, null, beaRef),
+        ]);
+        snapshot.ShouldBeNull();
+    }
+
+    [Fact]
     public void ResolveWithNoListsLeavesTheNamesNull()
     {
         var parsed = new ParsedAuditChanges([new ParsedAuditChange("productType", null, Supplies.ToString("D"))], null, null);

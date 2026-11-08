@@ -259,6 +259,136 @@ public sealed class MoneyTransferDeletionTests(CspsDatabase database) : IClassFi
         }
     }
 
+    [Fact]
+    public async Task RemovingALiveTransferIs422DeleteTheTransferFirstAndNothingChanges()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (id, _) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 500.00m, world.Today);
+
+        using var response = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("money-transfers.not-deleted");
+        problem.GetProperty("detail").GetString().ShouldBe("Delete the transfer first.");
+        (await MoneyFixtures.ReadTransfersAsync(world.Database)).ShouldContain(transfer => transfer.Id == id);
+        (await MoneyFixtures.ReadAuditAsync(world.Database, AuditActions.MoneyTransferPermanentlyDeleted, world.Carmen.UserId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADeletedTransferIsRemovedForGoodBalancesStayAndOneAuditEntryKeepsTheFullRecord()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (id, version) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 2000.00m, world.Today, "Cash for thread");
+        using (var deleted = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, id, version))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        var deletedAt = (await MoneyFixtures.ReadTransfersAsync(world.Database)).Single(transfer => transfer.Id == id).DeletedAtUtc.ShouldNotBeNull();
+        var paoloBefore = await MoneyFixtures.ReadBalanceAsync(world.Client, world.Paolo.AccessToken);
+        var lizaBefore = await MoneyFixtures.ReadBalanceAsync(world.Client, world.Liza.AccessToken);
+
+        using var response = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await MoneyFixtures.ReadTransfersAsync(world.Database)).ShouldNotContain(transfer => transfer.Id == id);
+        (await MoneyFixtures.ReadBalanceAsync(world.Client, world.Paolo.AccessToken)).ShouldBe(paoloBefore);
+        (await MoneyFixtures.ReadBalanceAsync(world.Client, world.Liza.AccessToken)).ShouldBe(lizaBefore);
+        var entry = (await MoneyFixtures.ReadAuditAsync(world.Database, AuditActions.MoneyTransferPermanentlyDeleted, world.Carmen.UserId)).ShouldHaveSingleItem();
+        entry.TargetType.ShouldBe("MoneyTransfer");
+        entry.TargetId.ShouldBe(id.ToString("D"));
+        var day = world.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var at = deletedAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        entry.Detail.ShouldBe(
+            $"from={world.Paolo.UserId:D};to={world.Liza.UserId:D};amount=2000.00;date={day};note=yes;recordedBy={world.Paolo.UserId:D};deletedBy={world.Carmen.UserId:D};deletedAt={at}");
+        entry.Detail.ShouldNotBeNull().ShouldNotContain("thread", Case.Insensitive);
+        entry.Detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
+    }
+
+    [Fact]
+    public async Task ASecondRemoveAndAnUnknownIdAre404AndWriteNoSecondAuditEntry()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (id, version) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 500.00m, world.Today);
+        using (var deleted = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, id, version))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using (var first = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id))
+        {
+            first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using var second = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id);
+        using var unknown = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, Guid.NewGuid());
+
+        second.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        unknown.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await ProblemJson.ReadAsync(second, TestContext.Current.CancellationToken)).GetProperty("detail").GetString().ShouldBe("This transfer wasn't found.");
+        (await MoneyFixtures.ReadAuditAsync(world.Database, AuditActions.MoneyTransferPermanentlyDeleted, world.Carmen.UserId)).Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveBeforeDeleteIs422AndRemoveAfterDeleteIs204()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (id, version) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 500.00m, world.Today);
+
+        using var early = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id);
+        using var deleted = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, id, version);
+        using var late = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id);
+
+        early.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        late.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task AnAdminGets403ForARemoveAndAnonymousGets401AndNothingIsRemoved()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (gone, goneVersion) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 654.00m, world.Today);
+        using (var deleted = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, gone, goneVersion))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        var bodies = new List<string>();
+        foreach (var id in new[] { gone, Guid.NewGuid() })
+        {
+            using var response = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Liza.AccessToken, id);
+            response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+            bodies.Add(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        using var anonymous = await MoneyFixtures.RemoveTransferAsync(world.Client, null, gone);
+
+        anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        bodies.ShouldAllBe(body => !body.Contains("654", StringComparison.Ordinal) && !body.Contains("Paolo", StringComparison.Ordinal));
+        (await MoneyFixtures.ReadTransfersAsync(world.Database)).ShouldContain(transfer => transfer.Id == gone);
+        (await MoneyFixtures.ReadAuditAsync(world.Database, AuditActions.MoneyTransferPermanentlyDeleted, world.Liza.UserId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task NoEmailIsQueuedByARemove()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+        var (id, version) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 100.00m, world.Today);
+        using (var deleted = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, id, version))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        var before = await CountEmailsAsync(world.Database);
+
+        using var response = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await CountEmailsAsync(world.Database)).ShouldBe(before);
+    }
+
     private static async Task<int> CountEmailsAsync(CspsDatabase database)
     {
         await using var context = database.CreateContext();
