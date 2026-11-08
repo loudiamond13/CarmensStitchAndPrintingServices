@@ -9,6 +9,8 @@ import {
   useDashboardSummaryQuery,
 } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { dashboardChartKey, useDashboardChartQuery } from '@/modules/admin/hooks/useDashboardChartQuery';
+import { myMoneyKey, staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { moneyTransfersKey, transferRecipientsKey } from '@/modules/admin/hooks/useTransferRecipientsQuery';
 import { orderExpenseCategoriesKey } from '@/modules/admin/hooks/useOrderExpenseCategoriesQuery';
 import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
 import { paymentMethodsKey } from '@/modules/admin/hooks/usePaymentMethodsQuery';
@@ -62,6 +64,23 @@ describe('useRefreshOrders (D-13)', () => {
       productTypesKey,
       paymentMethodsKey,
       orderExpenseCategoriesKey,
+    ];
+    keys.forEach(hold);
+    const { result } = renderHook(() => useRefreshOrders(), { wrapper });
+
+    await result.current();
+
+    keys.forEach((key) => {
+      expect(invalidated(key), JSON.stringify(key)).toBe(true);
+    });
+  });
+
+  it('also invalidates the staff-money and money-transfers answers, because payments, refunds and expenses change balances', async () => {
+    const keys = [
+      myMoneyKey,
+      [...staffMoneyKey, 'ledger', { page: 1 }],
+      transferRecipientsKey,
+      [...moneyTransfersKey, { page: 1 }],
     ];
     keys.forEach(hold);
     const { result } = renderHook(() => useRefreshOrders(), { wrapper });
