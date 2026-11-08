@@ -319,7 +319,7 @@ describe('accessibility', () => {
 // The Manager's row actions on transfer rows (D-22, D-29, D-30, MONEY-06, MONEY-07; plan 10-20): Delete on a counted transfer, Remove on a
 // deleted one, each named by the row. Nothing else gets an action, and the ledger never offers an edit.
 
-const OWNER = { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Carmen Reyes' };
+const OWNER = { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Carmen Reyes', formerStaff: false };
 const ACTIONS_COLUMN = 5;
 const DELETE_OUT = 'Delete transfer of ₱2,000.00 from Carmen Reyes to Liza Mercado, Nov 2, 2026';
 const DELETE_IN = 'Delete transfer of ₱2,000.00 from Paolo Garcia to Carmen Reyes, Nov 1, 2026';
@@ -327,7 +327,7 @@ const REMOVE_DELETED = 'Remove transfer of ₱2,000.00 from Carmen Reyes to Liza
 
 interface ActionOptions {
   canSeeActions?: boolean;
-  owner?: { id: string; name: string } | undefined;
+  owner?: { id: string; name: string; formerStaff: boolean } | undefined;
   onDelete?: (target: unknown) => void;
   onRemove?: (target: unknown) => void;
 }
@@ -405,6 +405,24 @@ describe('the Manager row actions (plan 10-20)', () => {
     expect(onDelete.mock.calls[0]?.[0]).toMatchObject({
       from: { name: 'Paolo Garcia' },
       to: { id: OWNER.id, name: 'Carmen Reyes' },
+    });
+  });
+
+  it("carries the ledger owner's own former-staff state onto the owner's side of the transfer (wave 10 IN-07)", async () => {
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    renderWithActions(ledgerEntriesFixture(), { onDelete, owner: { ...OWNER, formerStaff: true } });
+
+    await user.click(screen.getByRole('button', { name: DELETE_OUT }));
+    await user.click(screen.getByRole('button', { name: DELETE_IN }));
+
+    expect(onDelete.mock.calls[0]?.[0]).toMatchObject({
+      from: { id: OWNER.id, formerStaff: true },
+      to: { id: LIZA_ID, formerStaff: false },
+    });
+    expect(onDelete.mock.calls[1]?.[0]).toMatchObject({
+      from: { name: 'Paolo Garcia', formerStaff: false },
+      to: { id: OWNER.id, formerStaff: true },
     });
   });
 

@@ -8,6 +8,7 @@
 //     screens: it is built only from server balances, says what will happen, and the server's figures win after the delete (T-10-44).
 //     While the read runs the block is a skeleton and the confirm is off; if it fails the block says the delete still works.
 //   - 409 (changed by someone else) keeps the dialog open with the alert line. 404 (already deleted) closes it with an info toast.
+import { useState } from 'react';
 import { Icon } from '@/components/brand';
 import { ConfirmDialog } from '@/components/overlays';
 import {
@@ -34,9 +35,16 @@ export interface DeleteTransferDialogProps {
   onDone: (transfer: TransferTarget) => void;
 }
 
-/** The dialog's own failure line: a stale version has its approved words; anything else gets the mapper's line. */
+/** The server's code for two saves that lost a race twice: nothing changed, so the same press can go again. */
+const MONEY_BUSY = 'money-transfers.busy';
+
+/**
+ * The dialog's own failure line. A busy 409 shows the server's own busy line, as the Transfer window does (P10-BL-11); any other 409
+ * is a stale version and has its approved words; anything else gets the mapper's line.
+ */
 function describeFailure(error: unknown): string | undefined {
-  return isHttpError(error) && error.kind === 'http' && error.status === 409 ? COPY.stale : undefined;
+  if (!isHttpError(error) || error.kind !== 'http' || error.status !== 409) return undefined;
+  return error.code === MONEY_BUSY ? error.problem?.detail : COPY.stale;
 }
 
 export function DeleteTransferDialog({ transfer, open, onClose, onDone }: DeleteTransferDialogProps) {
@@ -44,13 +52,19 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
   // The read is fresh on every open: `refetchOnMount: 'always'` reads again even when an older answer is cached, and until it arrives
   // the older answer is not trusted (the block shows the skeleton).
   const balances = useStaffBalancesQuery(open);
-  const checking = balances.isFetching;
+  // Only the read this open starts gates the confirm. A later read (the window gaining focus, a refresh after a 409) keeps the last
+  // figures and leaves the focused button alone, so keyboard focus never drops out of the dialog (WCAG 2.4.3).
+  const [answered, setAnswered] = useState(false);
+  if (open && !balances.isFetching && !answered) setAnswered(true);
+  if (!open && answered) setAnswered(false);
+  const checking = balances.isFetching && !answered;
   const checkFailed = balances.isError && !balances.isFetching;
 
-  // A receiver the list leaves out is a leaver at ₱0.00 (the list holds former staff only while their balance is not 0.00).
-  const held = balances.data?.rows.find((row) => row.userId === transfer.to.id)?.balance ?? 0;
-  const after = round2(held - transfer.amount);
-  const warn = !checking && !checkFailed && balances.data !== undefined && isNegativeMoney(after);
+  // A receiver the list leaves out (a leaver at ₱0.00, the legacy holder, an account with no staff role) gets no warning: the browser
+  // cannot tell them apart, and the warning would put an internal placeholder name on screen (P10-BL-07 A).
+  const held = balances.data?.rows.find((row) => row.userId === transfer.to.id)?.balance;
+  const resulting = held === undefined ? null : round2(held - transfer.amount);
+  const warnAmount = !checking && !checkFailed && resulting !== null && isNegativeMoney(resulting) ? resulting : null;
 
   const confirm = async () => {
     const result = await deleteTransfer({ id: transfer.id, version: transfer.version });
@@ -72,13 +86,17 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
             transfer.to.name,
             formatCalendarDate(transfer.date) ?? transfer.date,
           )}
-          {warn && (
-            <span className={transferWarningClasses}>
+          {warnAmount !== null && (
+            <span role="alert" className={transferWarningClasses}>
               <Icon name="triangle-alert" size={16} className={transferWarningIconClasses} />
-              <span>{COPY.warning(transfer.to.name, formatPeso(after))}</span>
+              <span>{COPY.warning(transfer.to.name, formatPeso(warnAmount))}</span>
             </span>
           )}
-          {checkFailed && <span className={transferCheckFailedClasses}>{COPY.checkFailed}</span>}
+          {checkFailed && (
+            <span role="alert" className={transferCheckFailedClasses}>
+              {COPY.checkFailed}
+            </span>
+          )}
         </>
       }
       countsLoading={checking}

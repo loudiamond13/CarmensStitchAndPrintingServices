@@ -387,12 +387,15 @@ function toTransferItem(item: MoneyTransferResponse): TransferItem {
  * The target for a ledger row's transfer, or null for a row that is not a transfer or lacks what the dialogs need. The ledger belongs to
  * `owner`: a transfer in came to them from the counterpart, a transfer out went from them to the counterpart.
  */
-export function toLedgerTransferTarget(row: LedgerRow, owner: { id: string; name: string }): TransferTarget | null {
+export function toLedgerTransferTarget(
+  row: LedgerRow,
+  owner: { id: string; name: string; formerStaff: boolean },
+): TransferTarget | null {
   const incoming = row.kind === 'transfer-in';
   if (!incoming && row.kind !== 'transfer-out') return null;
   const amount = incoming ? row.moneyIn : row.moneyOut;
   if (row.transferId === null || row.version === null || row.counterpart === null || amount === null) return null;
-  const self: ActorRef = { id: owner.id, name: owner.name, formerStaff: false };
+  const self: ActorRef = { id: owner.id, name: owner.name, formerStaff: owner.formerStaff };
   return {
     id: row.transferId,
     version: row.version,

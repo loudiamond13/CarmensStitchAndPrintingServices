@@ -1,5 +1,5 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { focusManager, QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,6 +27,7 @@ import {
   staffBalancesFixture,
   TRANSFER_ID,
   TRANSFER_VERSION,
+  transferBusyProblem,
   transferItemFixture,
   transferListFixture,
   transferNotFoundProblem,
@@ -215,6 +216,8 @@ function balancesWithLiza(liza: number | null): StaffBalancesFixture {
   return staffBalancesFixture({ items: liza === null ? others : [...others, { ...lizaRow, balance: liza }] });
 }
 
+const LEGACY_ID = '0b0f6c1e-0000-4000-8000-0000000000f9';
+
 const WARNING = "Liza Mercado's balance will be −₱500.00.";
 
 describe('the resulting-balance warning (D-33, T-10-44)', () => {
@@ -227,7 +230,7 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeEnabled();
   });
 
-  it('shows no warning when the balance stays at or above zero: 3,000.00 held, and exactly 2,000.00 held', async () => {
+  it('shows no warning when the balance stays above zero: 3,000.00 held', async () => {
     staffBalancesBackend(balancesWithLiza(3000));
     renderDialog();
 
@@ -249,12 +252,16 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     expect(within(dialog).queryByText(/balance will be/)).toBeNull();
   });
 
-  it('treats a receiver the balances list leaves out (a leaver at zero) as holding nothing', async () => {
+  it('gives no warning when the receiver is missing from the balances, so a placeholder name is never put in one (wave 10 IN-03, P10-BL-07 A)', async () => {
     staffBalancesBackend(balancesWithLiza(null));
-    renderDialog();
+    renderDialog(target({ to: { id: LEGACY_ID, name: 'Legacy / unassigned', formerStaff: false } }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
-    expect(await within(dialog).findByText("Liza Mercado's balance will be −₱2,000.00.")).toBeVisible();
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeEnabled();
+    });
+    expect(within(dialog).queryByText(/balance will be/)).toBeNull();
+    expect(within(dialog).queryByRole('alert')).toBeNull();
   });
 
   it('draws the warning with an alert icon in front of the line', async () => {
@@ -311,7 +318,28 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     });
   });
 
-  it('has no axe violations with the warning shown, and with the check failed', async () => {
+  it('announces the late warning as an alert (wave 10 WR-03)', async () => {
+    staffBalancesBackend(async () => {
+      await delay(100);
+      return balancesWithLiza(1500);
+    });
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(WARNING);
+  });
+
+  it('announces "Couldn\'t check the new balances" as an alert (wave 10 WR-03)', async () => {
+    staffBalancesBackend(() => problemResponse(500));
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't check the new balances. The delete still works.");
+  });
+
+  it('has no axe violations with the warning shown', async () => {
     staffBalancesBackend(balancesWithLiza(1500));
     renderDialog();
 
@@ -319,9 +347,87 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     await within(dialog).findByText(WARNING);
     await expectNoAxeViolations(document.body);
   });
+
+  it('has no axe violations with the check failed', async () => {
+    staffBalancesBackend(() => problemResponse(500));
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await within(dialog).findByText("Couldn't check the new balances. The delete still works.");
+    await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('a later read of the balances (wave 10 WR-02)', () => {
+  const triggers: readonly [string, () => void][] = [
+    [
+      'a refresh after a 409',
+      () => {
+        void queryClient.invalidateQueries({ queryKey: staffBalancesKey });
+      },
+    ],
+    [
+      'the window gaining focus',
+      () => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      },
+    ],
+  ];
+
+  it.each(triggers)(
+    'keeps Delete Transfer enabled and focused, and the last figures shown, through %s',
+    async (_name, trigger) => {
+      let reads = 0;
+      const calls = staffBalancesBackend(async () => {
+        reads += 1;
+        if (reads > 1) await delay(400);
+        return balancesWithLiza(1500);
+      });
+      renderDialog();
+
+      const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+      await within(dialog).findByText(WARNING);
+      const confirmButton = within(dialog).getByRole('button', { name: 'Delete Transfer' });
+      expect(confirmButton).toBeEnabled();
+      act(() => {
+        confirmButton.focus();
+      });
+
+      act(trigger);
+      await waitFor(() => {
+        expect(calls).toHaveLength(2);
+      });
+      await delay(60);
+
+      expect(queryClient.isFetching({ queryKey: staffBalancesKey })).toBe(1);
+      expect(confirmButton).toBeEnabled();
+      expect(confirmButton).toHaveFocus();
+      expect(within(dialog).queryByText('Loading staff balances…')).toBeNull();
+      expect(within(dialog).getByText(WARNING)).toBeVisible();
+    },
+  );
+
+  it('still keeps Delete Transfer off while the read the dialog itself started runs', async () => {
+    staffBalancesBackend(async () => {
+      await delay(300);
+      return balancesWithLiza(1500);
+    });
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeDisabled();
+    expect(await within(dialog).findByText(WARNING)).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeEnabled();
+  });
 });
 
 describe('a stale or missing transfer (SEC-07)', () => {
+  beforeEach(() => {
+    // No resulting-balance warning, so the failure line is the only alert.
+    staffBalancesBackend(balancesWithLiza(3000));
+  });
+
   it('on a 409 keeps the dialog open with the alert line, and reads the lists again (stale)', async () => {
     deleteTransferBackend(() => transferStaleProblem());
     const key = transfersKey({ page: 1, pageSize: 20, deleted: false });
@@ -360,6 +466,28 @@ describe('a stale or missing transfer (SEC-07)', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       'This was changed by someone else. Reload and try again.',
     );
+  });
+
+  it('on the busy 409 shows the busy line the Transfer window shows, not "Reload and try again", and lets the same press go again (wave 10 IN-01)', async () => {
+    let answered = 0;
+    const deletions = deleteTransferBackend(() => {
+      answered += 1;
+      return answered === 1 ? transferBusyProblem() : new Response(null, { status: 204 });
+    });
+    const { onDone } = renderDialog();
+    const user = userEvent.setup();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent('Something changed at the same time. Try again.');
+    expect(alert).not.toHaveTextContent('Reload');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+    await waitFor(() => {
+      expect(onDone).toHaveBeenCalledTimes(1);
+    });
+    expect(deletions.urls).toHaveLength(2);
   });
 
   it('on a 404 closes with the info toast "Already deleted", tells the host, and reads the lists again', async () => {

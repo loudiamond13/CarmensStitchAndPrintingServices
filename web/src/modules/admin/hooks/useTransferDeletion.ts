@@ -63,7 +63,7 @@ export function useTransferDeletion(): TransferDeletion {
   });
 
   /** Turns an outcome into a result: a 404 is "gone" with its info toast, and a 409 reads the lists again. */
-  const settle = (outcome: SubmissionOutcome<void>, goneTitle: string): DeletionResult => {
+  const settle = async (outcome: SubmissionOutcome<void>, goneTitle: string): Promise<DeletionResult> => {
     if (outcome.ok) return { status: 'done' };
     const status = statusOf(outcome.error);
     if (status === 404) {
@@ -72,7 +72,8 @@ export function useTransferDeletion(): TransferDeletion {
       return { status: 'gone' };
     }
     if (status === 409) {
-      void refreshMoney();
+      // The failure shows after the lists are read, so the next try already carries the fresh version.
+      await refreshMoney();
     }
     return { status: 'failed', outcome };
   };

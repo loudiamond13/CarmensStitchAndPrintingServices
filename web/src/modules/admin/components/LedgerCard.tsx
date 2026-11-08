@@ -34,9 +34,11 @@ export interface LedgerCardProps {
   userId: string;
   /** The person's name on another person's page, so a transfer row's action can name both people. My Money uses the session. */
   ownerName?: string | undefined;
+  /** The person's account was deleted (the page knows their standing). Only read with `ownerName`. */
+  ownerFormerStaff?: boolean | undefined;
 }
 
-export function LedgerCard({ userId, ownerName }: LedgerCardProps) {
+export function LedgerCard({ userId, ownerName, ownerFormerStaff = false }: LedgerCardProps) {
   const headingId = useId();
   const captionId = useId();
   const { user } = useSession();
@@ -68,16 +70,17 @@ export function LedgerCard({ userId, ownerName }: LedgerCardProps) {
     userId === 'me'
       ? user === null
         ? undefined
-        : { id: user.id, name: user.name }
+        : { id: user.id, name: user.name, formerStaff: false }
       : ownerName === undefined
         ? undefined
-        : { id: userId, name: ownerName };
+        : { id: userId, name: ownerName, formerStaff: ownerFormerStaff };
   // Delete and Remove on transfer rows are a Manager's alone (D-31, D-32); an Admin's ledger has no Actions column.
   const actions = useTransferRowActions({
     rows: page?.rows.flatMap((row) =>
-      row.transferId === null ? [] : [{ id: row.transferId, isDeleted: row.isDeleted }],
+      row.transferId === null ? [] : [{ id: row.transferId, isDeleted: row.isDeleted, version: row.version }],
     ),
     captionId,
+    failed,
     fallbackId: headingId,
   });
 
