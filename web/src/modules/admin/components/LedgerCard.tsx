@@ -20,9 +20,11 @@ import {
   ledgerPagerClasses,
   ledgerToolsClasses,
 } from '@/modules/admin/components/money.recipe';
+import { TransferActionDialogs } from '@/modules/admin/components/TransferActionDialogs';
 import { useLedgerQuery } from '@/modules/admin/hooks/useLedgerQuery';
 import { useMoneyListParams } from '@/modules/admin/hooks/useMoneyListParams';
 import { useSession } from '@/modules/admin/hooks/useSession';
+import { useTransferRowActions } from '@/modules/admin/hooks/useTransferRowActions';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
 
 const COPY = MONEY_COPY.ledger;
@@ -34,7 +36,7 @@ export interface LedgerCardProps {
   ownerName?: string | undefined;
 }
 
-export function LedgerCard({ userId }: LedgerCardProps) {
+export function LedgerCard({ userId, ownerName }: LedgerCardProps) {
   const headingId = useId();
   const captionId = useId();
   const { user } = useSession();
@@ -61,6 +63,24 @@ export function LedgerCard({ userId }: LedgerCardProps) {
     }
   }, [fresh, pageCount, clampPage]);
 
+  // Whose ledger this is, so a transfer row's action can name both people: the session for My Money, the page's name for a person.
+  const owner =
+    userId === 'me'
+      ? user === null
+        ? undefined
+        : { id: user.id, name: user.name }
+      : ownerName === undefined
+        ? undefined
+        : { id: userId, name: ownerName };
+  // Delete and Remove on transfer rows are a Manager's alone (D-31, D-32); an Admin's ledger has no Actions column.
+  const actions = useTransferRowActions({
+    rows: page?.rows.flatMap((row) =>
+      row.transferId === null ? [] : [{ id: row.transferId, isDeleted: row.isDeleted }],
+    ),
+    captionId,
+    fallbackId: headingId,
+  });
+
   // The wording follows the answer on screen, not the checkbox, which can be ahead of the rows while the next answer loads.
   const result = page?.includesDeleted === true ? COPY.resultWithDeleted : COPY.result;
 
@@ -68,7 +88,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
     <section className={ledgerCardClasses} aria-labelledby={headingId}>
       <div className={dashboardCardHeadClasses}>
         <div>
-          <h2 id={headingId} className={dashboardCardTitleClasses}>
+          <h2 id={headingId} tabIndex={-1} className={dashboardCardTitleClasses}>
             {COPY.title}
           </h2>
           <p className={dashboardCardSubClasses}>{COPY.sub}</p>
@@ -93,6 +113,10 @@ export function LedgerCard({ userId }: LedgerCardProps) {
       <LedgerTable
         page={page}
         captionId={captionId}
+        canSeeActions={isManager}
+        owner={owner}
+        onDelete={actions.openDelete}
+        register={actions.register}
         ownLedger={userId === 'me'}
         pending={loading}
         refetching={query.isPlaceholderData && query.isFetching}
@@ -115,6 +139,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
           />
         </div>
       )}
+      <TransferActionDialogs {...actions.dialogs} />
     </section>
   );
 }

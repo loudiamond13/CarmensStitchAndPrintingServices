@@ -156,3 +156,16 @@ export const personNotFoundClasses = tw('flex flex-col items-start gap-4');
 
 /** The Actions cell's pinned buttons. */
 export const staffActionsClasses = tw('inline-flex items-center justify-end gap-2');
+
+/* ───────────── Delete and remove confirms (D-24, D-33; plan 10-20) ───────────── */
+
+/** The resulting-balance warning block under the Delete Transfer message: the warning-soft ground, an alert icon and the line. */
+export const transferWarningClasses = tw(
+  'mt-3 flex items-start gap-2 rounded-sm bg-warning-soft p-3 text-[14px] leading-5 font-semibold text-ink',
+);
+
+/** The alert icon in front of the warning line, in the warning colour. */
+export const transferWarningIconClasses = tw('mt-0.5 shrink-0 text-warning');
+
+/** "Couldn't check the new balances": Small, muted, under the message. */
+export const transferCheckFailedClasses = tw('mt-3 block text-[14px] leading-5 text-ink-muted');

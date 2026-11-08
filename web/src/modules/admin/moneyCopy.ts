@@ -51,6 +51,9 @@ export const MONEY_COPY = {
     /** A row's Delete action: "Delete transfer of ₱2,000.00 from Paolo Garcia to Liza Mercado, Oct 6, 2026". */
     deleteName: (amount: string, from: string, to: string, date: string): string =>
       `Delete transfer of ${amount} from ${from} to ${to}, ${date}`,
+    /** A deleted row's Remove action: "Remove transfer of ₱2,000.00 from Paolo Garcia to Liza Mercado, Oct 6, 2026 permanently". */
+    removeName: (amount: string, from: string, to: string, date: string): string =>
+      `Remove transfer of ${amount} from ${from} to ${to}, ${date} permanently`,
   },
   /** The Delete Transfer confirm (UI-SPEC T2, D-23, D-29; plan 10-20). */
   deleteTransfer: {
@@ -63,6 +66,16 @@ export const MONEY_COPY = {
     pending: 'Deleting',
     // SPEC-GAP: T2 the toast's words.
     toast: { title: 'Transfer deleted', message: 'It no longer counts toward any balance.' },
+    /** The labelled resulting-balance warning (D-33): "Liza Mercado's balance will be −₱500.00." */
+    warning: (name: string, balance: string): string => `${name}'s balance will be ${balance}.`,
+    // SPEC-GAP: T2 the line when the balances could not be read.
+    checkFailed: "Couldn't check the new balances. The delete still works.",
+    /** The words a screen reader gets for the skeleton while the balances are read (the All Staff loading line). */
+    checking: 'Loading staff balances…',
+    /** A 409: the transfer changed since it was listed (SEC-07), the server's own line. */
+    stale: 'This was changed by someone else. Reload and try again.',
+    /** The info toast when someone else deleted the transfer first (404). */
+    alreadyDeleted: 'Already deleted',
   },
   /** The All Staff panel (UI-SPEC M1 "All Staff panel", D-42 to D-45; plan 10-19). */
   staff: {

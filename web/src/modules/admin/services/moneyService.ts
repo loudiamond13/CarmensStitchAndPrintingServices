@@ -384,6 +384,28 @@ function toTransferItem(item: MoneyTransferResponse): TransferItem {
 }
 
 /**
+ * The target for a ledger row's transfer, or null for a row that is not a transfer or lacks what the dialogs need. The ledger belongs to
+ * `owner`: a transfer in came to them from the counterpart, a transfer out went from them to the counterpart.
+ */
+export function toLedgerTransferTarget(row: LedgerRow, owner: { id: string; name: string }): TransferTarget | null {
+  const incoming = row.kind === 'transfer-in';
+  if (!incoming && row.kind !== 'transfer-out') return null;
+  const amount = incoming ? row.moneyIn : row.moneyOut;
+  if (row.transferId === null || row.version === null || row.counterpart === null || amount === null) return null;
+  const self: ActorRef = { id: owner.id, name: owner.name, formerStaff: false };
+  return {
+    id: row.transferId,
+    version: row.version,
+    amount,
+    date: row.date,
+    from: incoming ? row.counterpart : self,
+    to: incoming ? self : row.counterpart,
+    deletedBy: row.deletedBy,
+    deletedAtUtc: row.deletedAtUtc,
+  };
+}
+
+/**
  * Narrows the generated transfer list (figures are `number | string` there). Every amount is the server's; none is worked out here. A
  * figure that is not a plain decimal refuses the whole answer, so no row is drawn wrong.
  */
