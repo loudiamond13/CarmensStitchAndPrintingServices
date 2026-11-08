@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T08:08:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T08:54:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -147,3 +147,4 @@ When a Manager removes a deleted transfer for good, the audit log keeps who sent
 - A Remove Permanently refused because the server is busy, or because the transfer is no longer deleted, shows the standard error line.
 - A hand-over row on the Transfers tab looks like a normal transfer (it is not marked "Hand-over"). A (recommended): add a small "Hand-over" label. B: keep as is.
 - Still open, unchanged: the hand-over "Done to" column in the Audit Log is empty (P10-BL-07), and P10-BL-13. Also: the Audit Log does not show when a removed transfer had been deleted.
+- **Added from the wave 10 review (IN-03).** Delete Transfer no longer warns for a receiver who is missing from the staff balances, so the old system placeholder name never shows. Side effect: a deactivated person who holds exactly ₱0.00 is not in the staff balances either, so deleting a transfer to them gives no "balance will be below zero" warning. A (recommended): accept it; the delete still works and the ledger shows the result. B: bring the warning back for deactivated people, which needs a small server change so the screen can tell them apart from the placeholder.

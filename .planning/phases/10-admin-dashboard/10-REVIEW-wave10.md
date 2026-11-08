@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 10
 plans: [10-20]
 created: 2026-11-08T08:25:00-06:00
-updated: 2026-11-08T08:19:00-06:00
+updated: 2026-11-08T08:54:00-06:00
 reviewed_range: 6b8322f1..3b69c14f (excluding .planning/)
 depth: deep
 files_reviewed: 29
@@ -47,7 +47,7 @@ status: issues_found
 
 # Phase 10 Wave 10 Code Review (plan 10-20)
 
-*Created: 2026-11-08T08:25:00-06:00 · Updated: 2026-11-08T08:19:00-06:00*
+*Created: 2026-11-08T08:25:00-06:00 · Updated: 2026-11-08T08:54:00-06:00*
 
 ## Summary
 
@@ -206,13 +206,13 @@ _Depth: deep_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now: after a 409 the dialog takes the fresh row version, and the test checks the version each try sends. |
-| WR-02 | Fix now: only the balance check the dialog starts counts as "checking", and focus stays on the button. |
-| WR-03 | Fix now: the late warning and the failed-check line are announced. |
-| IN-01 | Fix now: the busy 409 shows the existing busy line, not "Reload and try again". |
-| IN-02 | Fix now: a failed refetch disarms the focus rule. |
-| IN-03 | Fix now: a receiver missing from the staff balances gets no warning, and no placeholder name shows (P10-BL-07 A). |
-| IN-04 | Fix now: test name matches what it covers, or the 2,000.00 case is added. |
-| IN-05 | Fix now: the e2e checks the exact focus target. |
+| WR-01 | Fixed (`bb94c64c`): the open delete follows the row version the list shows; a 409 waits for the refresh, so the next press sends the fresh version. Tests assert each request version; failed first, mutation failed. |
+| WR-02 | Fixed (`7ed06e4c`): only the dialog own first balance read disables Delete; later reads keep the button enabled and focused. Two tests failed first; mutation failed both. |
+| WR-03 | Fixed (`ae981dfc`): the late warning and the failed-check line carry `role="alert"`. Tests failed first; axe split into two cases. |
+| IN-01 | Fixed (`71547122`): the busy 409 shows the same busy line as the Transfer window (P10-BL-11). Failed first; mutation failed. |
+| IN-02 | Fixed (`14323f78`): a failed list read clears the pending focus move. Failed first; mutation failed. |
+| IN-03 | Fixed (`ea67dce4`): a receiver missing from the staff balances gets no warning, so no placeholder name shows (P10-BL-07 A). Side effect parked in P10-BL-14. |
+| IN-04 | Fixed (`8db70a20`): test renamed; the 2,000.00 boundary has its own test. |
+| IN-05 | Fixed (`34a65bb6`): the e2e works out the exact focus target and checks it after the delete. |
 | IN-06 | Deferred to the phase-end review (shared paging and loading logic of TransfersCard and LedgerCard). |
-| IN-07 | Fix now: the ledger target carries the owner's real former-staff state. |
+| IN-07 | Fixed (`14880b56`): the ledger target carries the owner former-staff state (deleted account), with no server change. Tests failed first; mutations failed. |
