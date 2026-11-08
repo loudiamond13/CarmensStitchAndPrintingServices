@@ -273,6 +273,26 @@ describe('paging (WEB-10)', () => {
     expect(await screen.findByText('Bill 41')).toBeVisible();
   });
 
+  it('never says "No money in or out yet" while a page past the last is replaced by the last page (WR-01)', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const answer = pagedLedger(15);
+    ledgerBackend(async (url) => {
+      if (url.searchParams.get('page') === '2') await delay(600);
+      return answer(url);
+    });
+    renderCard('?page=3&size=10', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(onUrlUpdate.mock.calls.map(([event]) => event.queryString)).toContain('?page=2&size=10');
+    });
+    expect(screen.queryByText('No money in or out yet')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(screen.getByText('Loading the ledger…')).toBeInTheDocument();
+    expect(await screen.findByText('Bill 11')).toBeVisible();
+    expect(screen.queryByText('No money in or out yet')).toBeNull();
+  });
+
   it('offers 10, 20, 50 and 100 rows per page, and a size change replaces the URL, resets the page and asks for that size', async () => {
     const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
     const calls = ledgerBackend(pagedLedger(250));
