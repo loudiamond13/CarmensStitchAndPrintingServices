@@ -12,6 +12,9 @@ public sealed record SeedTransfer(Guid FromUserId, Guid ToUserId, decimal Amount
     /// <summary>Gets who recorded it; the sender when null.</summary>
     public Guid? CreatedById { get; init; }
 
+    /// <summary>Gets the note of the transfer; none when null.</summary>
+    public string? Note { get; init; }
+
     /// <summary>Gets a value indicating whether the row is a hand-over by a Manager for a former staff member.</summary>
     public bool IsHandover { get; init; }
 
@@ -40,7 +43,7 @@ public static class MoneySeeding
                 recipient,
                 spec.Amount,
                 spec.Date,
-                null,
+                spec.Note,
                 spec.Date,
                 now)
             : MoneyTransfer.Record(
@@ -48,7 +51,7 @@ public static class MoneySeeding
                 recipient,
                 spec.Amount,
                 spec.Date,
-                null,
+                spec.Note,
                 callerIsManager: true,
                 spec.Date,
                 now);

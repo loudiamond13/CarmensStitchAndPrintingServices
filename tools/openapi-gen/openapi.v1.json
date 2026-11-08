@@ -2544,6 +2544,52 @@
         ],
         "type": "object"
       },
+      "MoneyTransferListResponse": {
+        "description": "One page of staff money transfers, newest first (MONEY-03, D-48).",
+        "properties": {
+          "items": {
+            "description": "The transfers of this page.",
+            "items": {
+              "$ref": "#/components/schemas/MoneyTransferResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many transfers match across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "MoneyTransferResponse": {
         "description": "One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance.",
         "properties": {
@@ -4734,6 +4780,76 @@
         ],
         "type": "object"
       },
+      "StaffBalanceRow": {
+        "description": "One person's row in the all-staff list.",
+        "properties": {
+          "balance": {
+            "description": "Their money on hand; below zero when they are owed money.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "isYou": {
+            "description": "True for the signed-in person.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Their display name, first then last.",
+            "type": "string"
+          },
+          "role": {
+            "description": "Their role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of `active`, `deactivated` or `deleted`.",
+            "type": "string"
+          },
+          "userId": {
+            "description": "The person.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "role",
+          "status",
+          "balance",
+          "isYou"
+        ],
+        "type": "object"
+      },
+      "StaffBalancesResponse": {
+        "description": "Everyone's money on hand and what staff hold together, for a Manager (MONEY-03, D-42 to D-44).",
+        "properties": {
+          "items": {
+            "description": "The people: active Admins and Managers by name, then former staff whose balance is not 0.00 by name.",
+            "items": {
+              "$ref": "#/components/schemas/StaffBalanceRow"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "The sum of the listed balances; below zero when staff are owed more than they hold.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "StaffMember": {
         "description": "One person who can be named as the payer (CEXP-05): an id and a name, nothing else.",
         "properties": {
@@ -4754,7 +4870,7 @@
         "type": "object"
       },
       "StaffMoneyResponse": {
-        "description": "One person's money on hand, worked out on the server on every read (MONEY-01).",
+        "description": "One person's money on hand, worked out on the server on every read (MONEY-01, MONEY-03).",
         "properties": {
           "balance": {
             "description": "Money received plus transfers in, minus transfers out, expenses paid and refunds handed back; below zero when they are owed money.",
@@ -4767,6 +4883,14 @@
           },
           "name": {
             "description": "Their display name, first then last.",
+            "type": "string"
+          },
+          "role": {
+            "description": "Their role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of `active`, `deactivated` or `deleted`.",
             "type": "string"
           },
           "today": {
@@ -4783,6 +4907,8 @@
         "required": [
           "userId",
           "name",
+          "role",
+          "status",
           "balance",
           "today"
         ],
@@ -8029,6 +8155,94 @@
       }
     },
     "/api/v1/money-transfers": {
+      "get": {
+        "operationId": "ListMoneyTransfers",
+        "parameters": [
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "True to show deleted transfers too; Managers only.",
+            "in": "query",
+            "name": "deleted",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyTransferListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an\nAdmin sees only the transfers they sent or received. Each entry has the sender, the recipient, the amount, the date, the note,\nwho recorded it, whether it is a hand-over, its version, and never a balance. Deleted transfers are shown only to a Manager who\nadds `deleted=true`, each marked `isDeleted` with who deleted it and when; an Admin who adds it gets a 403.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      },
       "post": {
         "operationId": "CreateMoneyTransfer",
         "requestBody": {
@@ -13693,6 +13907,47 @@
         ]
       }
     },
+    "/api/v1/staff-money": {
+      "get": {
+        "operationId": "ListStaffBalances",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffBalancesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists what every staff member holds, Managers only. Every active Admin and Manager comes first by name, a person a Manager has\nlocked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or\ndeleted Admins and Managers whose balance is not 0.00, by name. Each entry has the person, name, role, status\n(`active`, `deactivated` or `deleted`), balance and `isYou`. `total` is the sum of the listed balances\nand may be below zero. The legacy placeholder and accounts with no staff role never appear. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
     "/api/v1/staff-money/me": {
       "get": {
         "operationId": "GetMyMoney",
@@ -13809,6 +14064,179 @@
           }
         },
         "summary": "Reads one page of the signed-in person's own money rows, newest first by date and then by the time recorded. Each row has its\nkind, date, money in or money out (the other is null), the details its kind names, and `balanceAfter`: the running balance\nafter that row, worked out on the server. The newest row's balance after equals the money on hand. A Manager may add\n`deleted=true` to see deleted transfers in their own ledger; they carry no balance after. The route takes no id. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/staff-money/{userId}": {
+      "get": {
+        "operationId": "GetStaffMoney",
+        "parameters": [
+          {
+            "description": "The person asked about.",
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffMoneyResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one named person's money on hand: name, role, status (`active`, `deactivated` or `deleted`), balance and the\nbusiness today. An Admin may ask only for their own id, which answers like `me`; any other id is a 403 decided from the\ntoken alone, before any lookup, so a real coworker and a made-up id look the same. A Manager may ask for any Admin or Manager,\nformer staff included; an unknown id, the legacy placeholder or an account with no staff role is a 404. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/staff-money/{userId}/ledger": {
+      "get": {
+        "operationId": "GetStaffLedger",
+        "parameters": [
+          {
+            "description": "The person asked about.",
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "True to show deleted transfers too; Managers only.",
+            "in": "query",
+            "name": "deleted",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerPageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one page of one named person's money rows, shaped like `me/ledger` and under the same access rule as the person's\nfigure: an Admin may name only themselves and gets a 403 for any other id before any lookup; a Manager may name any Admin or\nManager, former staff included, and gets a 404 for anyone else. Only a Manager may add `deleted=true` to see deleted\ntransfers. Nothing is cached.",
         "tags": [
           "StaffMoney"
         ]

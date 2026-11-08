@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-07T22:00:00-06:00
+updated: 2026-11-07T23:10:00-06:00
 ---
 
 # The staff money API
@@ -8,7 +8,7 @@ updated: 2026-11-07T22:00:00-06:00
 This is the contract behind the money each staff member holds, and the one a future Android app will use. Everything here is under
 `/api/v1`. The OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this
 page; the web app's types are generated from it (`web/src/types/api.generated.ts`). Sign-in and the access token are in
-[auth.md](auth.md). The ledger, transfer, hand-over and recipients routes are below.
+[auth.md](auth.md). The ledger, transfer, hand-over, recipients, all-staff, one-person and transfer list routes are below.
 
 ## In plain words
 
@@ -17,7 +17,8 @@ page; the web app's types are generated from it (`web/src/types/api.generated.ts
    every read, so the figure is always right (MONEY-01).
 3. The figure can be **below zero**. That means the shop owes the person money, for example when an expense is larger than what they
    hold, or when an order that held their payment was deleted. Nothing refuses it (D-15, D-16).
-4. Both roles use the same route and each person reads only their own figure. The route takes no id.
+4. Both roles use the same route and each person reads only their own figure. The route takes no id. A Manager can also read every
+   staff member's figure, ledger and the transfers; an Admin can read only their own (OD-19, MONEY-03). The rules are in the sections below.
 
 ## The route
 
@@ -31,20 +32,22 @@ page; the web app's types are generated from it (`web/src/types/api.generated.ts
 ## The answer
 
 ```text
-{ userId, name, balance, today }
+{ userId, name, role, status, balance, today }
 ```
 
 | Field | Meaning |
 |---|---|
 | `userId` | The signed-in person. |
 | `name` | Their name, first then last. |
+| `role` | `Admin` or `Manager`. |
+| `status` | `active`, `deactivated` or `deleted`. The signed-in person is always `active`. |
 | `balance` | Money on hand in pesos, with two decimals. Negative when they are owed money. A person with no money records reads `0.00`. |
 | `today` | The business today as `yyyy-MM-dd`, in the business zone. |
 
 Example:
 
 ```json
-{ "userId": "6f3c2a54-0b9d-4f0e-9f2a-3b1d7c5e8a10", "name": "Liza Mercado", "balance": 1100.00, "today": "2026-11-04" }
+{ "userId": "6f3c2a54-0b9d-4f0e-9f2a-3b1d7c5e8a10", "name": "Liza Mercado", "role": "Admin", "status": "active", "balance": 1100.00, "today": "2026-11-04" }
 ```
 
 ## The six sources
@@ -189,7 +192,8 @@ Who the transfer window may offer in its To list (D-19, D-49, D-56). Both roles 
 ## GET /api/v1/staff-money/me/ledger
 
 The signed-in person's own money rows, one page at a time, newest first, each with the running balance after it (MONEY-02, D-41). Both
-roles use it, and each reads only their own ledger: the route takes no id. Another person's ledger is a later route.
+roles use it, and each reads only their own ledger: the route takes no id. Another person's ledger is
+`GET /staff-money/{userId}/ledger`, described below.
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
@@ -257,12 +261,95 @@ recorded at the same moment cannot make them disagree. A page costs the same num
   ledger never contains a deleted transfer or anything about one (D-31, D-32).
 - Nothing is cached: the answer carries `Cache-Control: no-store`.
 
+## GET /api/v1/staff-money
+
+What every staff member holds, with the total held by staff, for Managers only (MONEY-03, D-42 to D-44, D-56).
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `GET /staff-money` | Manager | none; no query parameters | `200` the people and the total, `401` without a valid token, `403` for an Admin. |
+
+```text
+{ items: [{ userId, name, role, status, balance, isYou }], total }
+```
+
+- First every **active** Admin and Manager, by first name, last name, then id. A person a Manager has locked, and a person who has not
+  finished set-up, are listed as `active` (D-56). The signed-in person has `isYou: true`.
+- Then every **deactivated or deleted** Admin or Manager whose balance is **not** `0.00`, by name, with `status` `deactivated` or
+  `deleted`. A leaver at `0.00` is not listed (D-43).
+- `balance` is the person's money on hand; it is negative when the shop owes them money.
+- `total` is the sum of the listed balances, the **total held by staff** (D-44). It can be below zero. A shop with one Manager answers
+  one row and a `total` equal to it.
+- The legacy placeholder and accounts with no staff role never appear. There is no paging: every row is in one answer.
+- Nothing is cached: the answer carries `Cache-Control: no-store`.
+
+## GET /api/v1/staff-money/{userId}
+
+One named person's money on hand (MONEY-03, OD-19). The answer has the same shape as `GET /staff-money/me`.
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `GET /staff-money/{userId}` | Staff | none; no query parameters | `200` the figure, `401` without a valid token, `403` for an Admin asking about someone else, `404` for a Manager asking about no staff member. |
+
+- **The role is decided first, from the token alone** (CWE-639, CWE-204). An Admin who names any id but their own gets `403` `You can only see
+  your own money.` before anything about that id is looked up, so a real coworker and a made-up id look exactly the same.
+- An Admin who names their own id gets the same answer as `GET /staff-money/me`.
+- A Manager can name any Admin or Manager, current or former. The answer has `role` and `status` (`active`, `deactivated` or
+  `deleted`).
+- A Manager who names an unknown id, the legacy placeholder or an account with no staff role gets `404` `This person wasn't found.`
+- Nothing is cached: the answer carries `Cache-Control: no-store`.
+
+## GET /api/v1/staff-money/{userId}/ledger
+
+One named person's ledger, with the same query parameters, answer and running balance as `GET /staff-money/me/ledger`.
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `GET /staff-money/{userId}/ledger?page=&pageSize=&deleted=` | Staff | none | `200` the page, `400` for a bad page or page size, `401` without a valid token, `403` for an Admin, `404` for a Manager asking about no staff member. |
+
+- The access rule is the one above: an Admin may name only their own id and gets `403` for any other, real or made up, before any
+  lookup; a Manager may name any Admin or Manager and gets `404` for anyone else.
+- Only a Manager may send `deleted=true`. An Admin who sends it gets `403`, for their own id as well as for any other.
+- A deactivated or deleted person keeps their ledger and balance; a Manager can read both.
+- Nothing is cached: the answer carries `Cache-Control: no-store`.
+
+## GET /api/v1/money-transfers
+
+The staff money transfers, newest first (MONEY-03, D-31, D-48).
+
+| Method and path | Who | Body | Answers |
+|---|---|---|---|
+| `GET /money-transfers?page=&pageSize=&deleted=` | Staff | none | `200` the page, `400` for a bad page or page size, `401` without a valid token, `403` for an Admin who sends `deleted=true`. |
+
+| Parameter | Meaning |
+|---|---|
+| `page` | The page number, `1` to `100000`. Default `1`. |
+| `pageSize` | Rows per page, `1` to `100`. Default `20`. |
+| `deleted` | `true` to add deleted transfers. Managers only. Default `false`. |
+
+A page outside those limits answers `400` with the shared list words under the field (SEC-03).
+
+```text
+{ items, total, page, pageSize }
+```
+
+- The order is transfer date (newest first), then the time recorded (newest first), then id.
+- A **Manager** sees every transfer. An **Admin** sees only the transfers they sent or received, a hand-over to them included.
+- Each item has `id`, `from` and `to` (`{ id, name, formerStaff }`), `amount`, `transferDate`, `note`, `isHandover`, `recordedBy`,
+  `recordedAtUtc`, `isDeleted`, `deletedBy`, `deletedAtUtc` and `version`. **It never carries a balance.**
+- Deleted transfers are left out unless a Manager sends `deleted=true`. Then each shows `isDeleted: true` with who deleted it and when.
+  An Admin who sends `deleted=true` gets `403` `Only Managers can see deleted transfers.` before anything is read, and an Admin's
+  list never holds a deleted transfer (D-31).
+- Nothing is cached: the answer carries `Cache-Control: no-store`.
+
 ## Errors
 
 Errors are RFC 9457 Problem Details, the same as the rest of the API. `GET /staff-money/me` has only `401` (the token names no usable
-account). The error values `staff-money.not-found` and `staff-money.forbidden` are defined and used when the routes that return them
-arrive; `money-transfers.busy` is the `409` of the transfer route. The ledger route adds `staff-money.invalid-request` (`400`) and
-`staff-money.deleted-forbidden` (`403`).
+account). `staff-money.forbidden` (`403`, `You can only see your own money.`) is an Admin naming someone else, and
+`staff-money.person-not-found` (`404`, `This person wasn't found.`) is a Manager naming no staff member. `staff-money.not-found` is
+defined and not yet used; `money-transfers.busy` is the `409` of the transfer route. The ledger routes add
+`staff-money.invalid-request` (`400`) and `staff-money.deleted-forbidden` (`403`); the transfer list uses `money-transfers.invalid-request`
+(`400`) and `staff-money.deleted-forbidden` (`403`).
 
 ## Schema note
 

@@ -1,7 +1,9 @@
 using System.Data;
+using Csps.Application.Common;
 using Csps.Application.Money;
 using Csps.Application.Ports;
 using Csps.Application.Security;
+using Csps.Application.Users;
 using Csps.Domain.Identity;
 using Csps.Domain.Money;
 using Csps.Domain.Orders;
@@ -86,7 +88,7 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.IsActive, row.Deleted))];
+        return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.IsActive, row.Deleted) { Role = row.Role ?? string.Empty })];
     }
 
     public async Task<LedgerPage> GetLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken)
@@ -128,6 +130,86 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
         var sums = await ReadSumsAsync([userId], cancellationToken).ConfigureAwait(false);
         var views = await StaffLedgerDetails.ReadAsync(context, rows, cancellationToken).ConfigureAwait(false);
         return new LedgerPage(views, total, newerSum, sums.Count == 0 ? 0m : sums[0].Balance());
+    }
+
+    public async Task<MoneyTransferListResponse> ListTransfersAsync(Guid? involving, bool includeDeleted, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        // The transfer entity has no query filter, so a deleted transfer is left out here unless it is asked for.
+        var transfers = context.Set<MoneyTransfer>().AsNoTracking();
+        if (!includeDeleted)
+        {
+            transfers = transfers.Where(transfer => transfer.DeletedAtUtc == null);
+        }
+
+        if (involving is { } person)
+        {
+            transfers = transfers.Where(transfer => transfer.FromUserId == person || transfer.ToUserId == person);
+        }
+
+        var total = await transfers.CountAsync(cancellationToken).ConfigureAwait(false);
+        var rows = await (
+            from transfer in transfers
+            join sender in context.Users.AsNoTracking() on transfer.FromUserId equals sender.Id
+            join receiver in context.Users.AsNoTracking() on transfer.ToUserId equals receiver.Id
+            join recorderUser in context.Users.AsNoTracking() on transfer.CreatedById equals (Guid?)recorderUser.Id into recorders
+            from recorder in recorders.DefaultIfEmpty()
+            join deleterUser in context.Users.AsNoTracking() on transfer.DeletedById equals (Guid?)deleterUser.Id into deleters
+            from deleter in deleters.DefaultIfEmpty()
+            orderby transfer.TransferDate descending, transfer.CreatedAtUtc descending, transfer.Id
+            select new
+            {
+                transfer.Id,
+                transfer.FromUserId,
+                transfer.ToUserId,
+                transfer.Amount,
+                transfer.TransferDate,
+                transfer.Note,
+                transfer.IsHandover,
+                transfer.CreatedById,
+                transfer.CreatedAtUtc,
+                transfer.DeletedById,
+                transfer.DeletedAtUtc,
+                transfer.RowVersion,
+                SenderFirst = sender.FirstName,
+                SenderLast = sender.LastName,
+                SenderFormer = sender.DeletedAtUtc != null,
+                ReceiverFirst = receiver.FirstName,
+                ReceiverLast = receiver.LastName,
+                ReceiverFormer = receiver.DeletedAtUtc != null,
+                RecorderFirst = (string?)recorder.FirstName,
+                RecorderLast = (string?)recorder.LastName,
+                RecorderFormer = recorder.DeletedAtUtc != null,
+                DeleterFirst = (string?)deleter.FirstName,
+                DeleterLast = (string?)deleter.LastName,
+                DeleterFormer = deleter.DeletedAtUtc != null,
+            })
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        IReadOnlyList<MoneyTransferResponse> items =
+        [
+            .. rows.Select(row => new MoneyTransferResponse(
+                row.Id,
+                new ActorRef(row.FromUserId, $"{row.SenderFirst} {row.SenderLast}", row.SenderFormer),
+                new ActorRef(row.ToUserId, $"{row.ReceiverFirst} {row.ReceiverLast}", row.ReceiverFormer),
+                row.Amount,
+                row.TransferDate,
+                row.Note,
+                row.IsHandover,
+                row.CreatedById is { } recordedBy && row.RecorderFirst is not null
+                    ? new ActorRef(recordedBy, $"{row.RecorderFirst} {row.RecorderLast}", row.RecorderFormer)
+                    : null,
+                row.CreatedAtUtc,
+                row.DeletedAtUtc is not null,
+                row.DeletedById is { } deletedBy && row.DeleterFirst is not null
+                    ? new ActorRef(deletedBy, $"{row.DeleterFirst} {row.DeleterLast}", row.DeleterFormer)
+                    : null,
+                row.DeletedAtUtc,
+                RowVersions.ToText(row.RowVersion))),
+        ];
+        return new MoneyTransferListResponse(items, total, page, pageSize);
     }
 
     // The one place that leaves deleted transfers out; the entity has no query filter (RESEARCH Pitfall 4).

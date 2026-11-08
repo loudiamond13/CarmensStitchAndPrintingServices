@@ -14,6 +14,7 @@ namespace Csps.Server.Controllers;
 /// <param name="create">The record-a-transfer handler.</param>
 /// <param name="handOver">The record-a-hand-over handler.</param>
 /// <param name="recipients">The who-can-receive handler.</param>
+/// <param name="list">The transfer list handler.</param>
 [ApiController]
 [Route("api/v1/money-transfers")]
 [Authorize(Policy = Policies.Staff)]
@@ -22,8 +23,37 @@ namespace Csps.Server.Controllers;
 public sealed class MoneyTransfersController(
     CreateMoneyTransferHandler create,
     HandOverMoneyHandler handOver,
-    ListTransferRecipientsHandler recipients) : ControllerBase
+    ListTransferRecipientsHandler recipients,
+    ListMoneyTransfersHandler list) : ControllerBase
 {
+    /// <summary>
+    /// Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an
+    /// Admin sees only the transfers they sent or received. Each entry has the sender, the recipient, the amount, the date, the note,
+    /// who recorded it, whether it is a hand-over, its version, and never a balance. Deleted transfers are shown only to a Manager who
+    /// adds <c>deleted=true</c>, each marked <c>isDeleted</c> with who deleted it and when; an Admin who adds it gets a 403.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="page">The page number, from 1 to 100000.</param>
+    /// <param name="pageSize">Rows per page, from 1 to 100; 20 when not sent.</param>
+    /// <param name="deleted">True to show deleted transfers too; Managers only.</param>
+    /// <returns>200 with the page, 400 for a bad page or page size, 401 without a valid token, or 403 for an Admin who asks for deleted transfers.</returns>
+    [HttpGet]
+    [Authorize(Policy = Policies.Staff)]
+    [EndpointName("ListMoneyTransfers")]
+    [ProducesResponseType<MoneyTransferListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> List(
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = ListMoneyTransfersRequest.DefaultPageSize,
+        [FromQuery] bool deleted = false)
+    {
+        var result = await list.HandleAsync(new ListMoneyTransfersRequest(page, pageSize, deleted), cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static transfers => TypedResults.Ok(transfers));
+    }
+
     /// <summary>
     /// Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any
     /// such member is ignored. The amount is at least 0.01 with at most two decimal places and no more than the sender holds. The date is

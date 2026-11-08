@@ -12,7 +12,8 @@ namespace Csps.Application.Money;
 /// <param name="reader">The staff money read port.</param>
 /// <param name="requestContext">The signed-in user.</param>
 /// <param name="calendar">The business calendar.</param>
-public sealed class GetMyMoneyHandler(IStaffMoneyReader reader, IRequestContext requestContext, IBusinessCalendar calendar)
+/// <param name="staff">Reads the caller's role and account flags.</param>
+public sealed class GetMyMoneyHandler(IStaffMoneyReader reader, IRequestContext requestContext, IBusinessCalendar calendar, IStaffDirectory staff)
 {
     /// <summary>Reads the caller's money on hand.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -27,8 +28,14 @@ public sealed class GetMyMoneyHandler(IStaffMoneyReader reader, IRequestContext 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var sums = await reader.GetSumsAsync([callerId], cancellationToken).ConfigureAwait(false);
         var mine = sums.FirstOrDefault(row => row.UserId == callerId);
-        return mine is null
-            ? Result.Failure<StaffMoneyResponse>(AuthErrors.SessionEnded)
-            : Result.Success(new StaffMoneyResponse(mine.UserId, mine.Name, mine.Balance(), clock.Today));
+        var caller = await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false);
+        if (mine is null || caller is null)
+        {
+            return Result.Failure<StaffMoneyResponse>(AuthErrors.SessionEnded);
+        }
+
+        var balance = mine.Balance();
+        var status = MoneyParties.StatusWord(MoneyParties.From(caller, balance).Status);
+        return Result.Success(new StaffMoneyResponse(mine.UserId, mine.Name, caller.Role ?? string.Empty, status, balance, clock.Today));
     }
 }

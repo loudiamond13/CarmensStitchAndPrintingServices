@@ -168,7 +168,7 @@ public sealed class StaffMoneyBalanceTests(CspsDatabase database) : IClassFixtur
     }
 
     [Fact]
-    public async Task TheBodyCarriesOnlyTheUserTheNameTheBalanceAndToday()
+    public async Task TheBodyCarriesOnlyTheUserTheNameTheRoleTheStatusTheBalanceAndToday()
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -177,6 +177,6 @@ public sealed class StaffMoneyBalanceTests(CspsDatabase database) : IClassFixtur
 
         var body = await MoneyFixtures.ReadMeAsync(client, liza.AccessToken);
 
-        body.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal).ShouldBe(["balance", "name", "today", "userId"]);
+        body.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal).ShouldBe(["balance", "name", "role", "status", "today", "userId"]);
     }
 }

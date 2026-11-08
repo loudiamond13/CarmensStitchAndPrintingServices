@@ -1,6 +1,8 @@
 using Csps.Application.Auth;
 using Csps.Application.Money;
 using Csps.Application.Ports;
+using Csps.Application.Security;
+using Csps.Application.Staff;
 using Csps.Domain.Time;
 using NSubstitute;
 
@@ -16,18 +18,32 @@ public sealed class GetMyMoneyHandlerTests
     private static readonly Guid CallerId = Guid.Parse("11111111-1111-4111-8111-111111111111");
 
     [Fact]
-    public async Task TheCallersOwnFigureComesBackWithTheBusinessToday()
+    public async Task TheCallersOwnFigureComesBackWithTheirRoleStatusAndTheBusinessToday()
     {
         var reader = Substitute.For<IStaffMoneyReader>();
         reader.GetSumsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<StaffMoneySums>>([new StaffMoneySums(CallerId, "Liza Mercado", 1500m, 0m, 0m, 0m, 400m, 0m)]));
-        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar());
+        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar(), Directory(Roles.Admin));
 
         var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(new StaffMoneyResponse(CallerId, "Liza Mercado", 1100.00m, new DateOnly(2026, 11, 4)));
+        result.Value.ShouldBe(new StaffMoneyResponse(CallerId, "Liza Mercado", "Admin", "active", 1100.00m, new DateOnly(2026, 11, 4)));
         await reader.Received(1).GetSumsAsync(Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 1 && ids.Contains(CallerId)), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AManagerReadsTheirOwnRole()
+    {
+        var reader = Substitute.For<IStaffMoneyReader>();
+        reader.GetSumsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<StaffMoneySums>>([new StaffMoneySums(CallerId, "Carmen Reyes", 10m, 0m, 0m, 0m, 0m, 0m)]));
+        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar(), Directory(Roles.Manager));
+
+        var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.Role.ShouldBe("Manager");
+        result.Value.Status.ShouldBe("active");
     }
 
     [Fact]
@@ -36,7 +52,7 @@ public sealed class GetMyMoneyHandlerTests
         var reader = Substitute.For<IStaffMoneyReader>();
         reader.GetSumsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<StaffMoneySums>>([new StaffMoneySums(CallerId, "Liza Mercado", 0m, 0m, 0m, 0m, 400m, 0m)]));
-        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar());
+        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar(), Directory(Roles.Admin));
 
         var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
 
@@ -47,7 +63,7 @@ public sealed class GetMyMoneyHandlerTests
     public async Task ATokenWithNoUserIsRefusedAndNothingIsRead()
     {
         var reader = Substitute.For<IStaffMoneyReader>();
-        var handler = new GetMyMoneyHandler(reader, Caller(null), new FixedCalendar());
+        var handler = new GetMyMoneyHandler(reader, Caller(null), new FixedCalendar(), Directory(Roles.Admin));
 
         var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
 
@@ -62,11 +78,32 @@ public sealed class GetMyMoneyHandlerTests
         var reader = Substitute.For<IStaffMoneyReader>();
         reader.GetSumsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<StaffMoneySums>>([]));
-        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar());
+        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar(), Directory(Roles.Admin));
 
         var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
 
         result.Error.ShouldBe(AuthErrors.SessionEnded);
+    }
+
+    [Fact]
+    public async Task AUserTheDirectoryDoesNotKnowIsRefused()
+    {
+        var reader = Substitute.For<IStaffMoneyReader>();
+        reader.GetSumsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<StaffMoneySums>>([new StaffMoneySums(CallerId, "Liza Mercado", 10m, 0m, 0m, 0m, 0m, 0m)]));
+        var handler = new GetMyMoneyHandler(reader, Caller(CallerId), new FixedCalendar(), Directory(null, known: false));
+
+        var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(AuthErrors.SessionEnded);
+    }
+
+    private static IStaffDirectory Directory(string? role, bool known = true)
+    {
+        var directory = Substitute.For<IStaffDirectory>();
+        directory.GetStaffStateAsync(CallerId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<StaffState?>(known ? new StaffState(CallerId, "Liza Mercado", role, true, false, false, true) : null));
+        return directory;
     }
 
     private static IRequestContext Caller(Guid? userId)

@@ -13,7 +13,15 @@ export const MY_MONEY_USER_ID = '0b0f6c1e-0000-4000-8000-000000000001';
 
 /** A staff member holding 8,450.00 on a November day. Override any field. */
 export function myMoneyFixture(overrides: Partial<MyMoneyFixture> = {}): MyMoneyFixture {
-  return { userId: MY_MONEY_USER_ID, name: 'Liza Mercado', balance: 8450, today: '2026-11-04', ...overrides };
+  return {
+    userId: MY_MONEY_USER_ID,
+    name: 'Liza Mercado',
+    role: 'Admin',
+    status: 'active',
+    balance: 8450,
+    today: '2026-11-04',
+    ...overrides,
+  };
 }
 
 /** A staff member who spent more than they hold: 500.00 below zero (D-15, D-16). */

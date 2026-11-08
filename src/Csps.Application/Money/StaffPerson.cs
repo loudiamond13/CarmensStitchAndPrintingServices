@@ -5,4 +5,8 @@ namespace Csps.Application.Money;
 /// <param name="Name">The first and last name, joined by one space.</param>
 /// <param name="IsActive">False once the account is deactivated.</param>
 /// <param name="IsDeleted">True once the account is soft-deleted.</param>
-public sealed record StaffPerson(Guid Id, string Name, bool IsActive, bool IsDeleted);
+public sealed record StaffPerson(Guid Id, string Name, bool IsActive, bool IsDeleted)
+{
+    /// <summary>Gets the account's staff role, <c>Admin</c> or <c>Manager</c>; empty when the reader did not fill it.</summary>
+    public string Role { get; init; } = string.Empty;
+}
