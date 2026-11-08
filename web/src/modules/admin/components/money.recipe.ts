@@ -118,3 +118,29 @@ export const ledgerStruckClasses = tw('text-ink-muted line-through');
 
 /** "Not counted" in the Balance column of a deleted transfer: Small, muted. */
 export const ledgerNotCountedClasses = tw('text-[14px] leading-5 text-ink-muted');
+
+/* ───────────── Tabs and All Staff (D-42 to D-45; plan 10-19) ───────────── */
+
+/** One tab's content on My Money: the cards 24px apart (20px on phones), as the page spaces them without tabs. */
+export const moneyPanelClasses = tw('flex min-w-0 flex-col gap-6 pg-phone:gap-5');
+
+/** The All Staff card: the surface card with `min-width: 0`, so a long name never widens the page. */
+export const staffCardClasses = clsx(cardClasses, tw('min-w-0'));
+
+/** The Person cell: the 24px avatar and the name side by side; the name may wrap. */
+export const staffPersonClasses = tw('flex min-w-0 items-center gap-2');
+
+/** The person's name and the muted " (you)": one wrapping text run. */
+export const staffNameClasses = tw('min-w-0 wrap-anywhere');
+
+/** The name link: the accent link colour, 600, with a 44px tap area. */
+export const staffPersonLinkClasses = clsx(tw('font-semibold text-accent-ink hover:underline'), hitAreaClasses);
+
+/** " (you)" after the signed-in Manager's own name. */
+export const staffYouClasses = tw('text-ink-muted');
+
+/** A balance of exactly ₱0.00: dimmed by colour only, as the balance card does (D-39). */
+export const staffZeroClasses = tw('text-ink-subtle');
+
+/** The Actions cell's pinned buttons. */
+export const staffActionsClasses = tw('inline-flex items-center justify-end gap-2');

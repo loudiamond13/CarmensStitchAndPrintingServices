@@ -192,6 +192,7 @@ export function toTransferRecipients(list: readonly TransferRecipientResponse[])
 }
 
 export type StaffBalancesResponse = Schemas['StaffBalancesResponse'];
+type StaffBalanceRowResponse = Schemas['StaffBalanceRow'];
 
 /** One person's row in All Staff once the browser has checked it: the balance is the server's, as a finite number. */
 export interface StaffBalance {
@@ -220,9 +221,32 @@ export class StaffBalancesContractError extends Error {
   }
 }
 
+function staffFigure(value: unknown, what: string): number {
+  const figure = toFiniteFigure(value);
+  if (figure === null) throw new StaffBalancesContractError(`The staff ${what} is not a finite number.`);
+  return figure;
+}
+
+function toStaffBalance(row: StaffBalanceRowResponse): StaffBalance {
+  if (!isRecipientStatus(row.status)) {
+    throw new StaffBalancesContractError(`The staff status "${row.status}" is not known.`);
+  }
+  return {
+    userId: row.userId,
+    name: row.name,
+    role: row.role,
+    status: row.status,
+    balance: staffFigure(row.balance, 'balance'),
+    isYou: row.isYou,
+  };
+}
+
+/**
+ * Narrows the generated All Staff answer (figures are `number | string` there). Every balance and the total are the server's; none is
+ * worked out here. A figure that is not a plain decimal, or a status the browser does not know, refuses the whole answer.
+ */
 export function parseStaffBalances(response: StaffBalancesResponse): StaffBalances {
-  void response;
-  return { rows: [], total: 0 };
+  return { rows: response.items.map(toStaffBalance), total: staffFigure(response.total, 'total') };
 }
 
 export interface MoneyService {
@@ -258,7 +282,7 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
-    staff: () => Promise.resolve({ items: [], total: 0 }),
+    staff: (signal) => client.get<StaffBalancesResponse>('/staff-money', { signal }),
     me: (signal) => client.get<StaffMoneyResponse>('/staff-money/me', { signal }),
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),
     create: (body, idempotencyKey, signal) =>

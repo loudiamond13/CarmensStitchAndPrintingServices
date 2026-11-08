@@ -76,6 +76,13 @@ function bodyRows(): HTMLElement[] {
   return within(table()).getAllByRole('row').slice(1, -1);
 }
 
+/** The total row at the foot of the table. */
+function footerRow(): HTMLElement {
+  const footer = within(table()).getAllByRole('row').at(-1);
+  if (footer === undefined) throw new Error('The table has no total row.');
+  return footer;
+}
+
 function rowOf(name: string): HTMLElement {
   const row = bodyRows().find((candidate) => within(candidate).queryByRole('link', { name }) !== null);
   if (row === undefined) throw new Error(`No row for ${name}.`);
@@ -161,7 +168,7 @@ describe('the card and its rows (D-42, D-43)', () => {
     const long = 'Maria Cristina Dela Cruz-Villanueva '.repeat(6).trim();
     renderTable(loaded(everyone({ rows: [{ ...LIZA, name: long }] })));
 
-    expect(screen.getByRole('link', { name: long }).className).toContain('wrap-anywhere');
+    expect(screen.getByRole('link', { name: long }).parentElement?.className).toContain('wrap-anywhere');
   });
 });
 
@@ -202,25 +209,23 @@ describe('the total (D-44)', () => {
   it('ends with "Total held by staff" and the server total', () => {
     renderTable();
 
-    const rows = within(table()).getAllByRole('row');
-    const footer = rows.at(-1);
+    const footer = footerRow();
     expect(footer).toHaveTextContent('Total held by staff');
     expect(footer).toHaveTextContent('₱9,650.00');
-    expect(within(footer as HTMLElement).getByText('₱9,650.00').className).not.toContain('text-danger');
+    expect(within(footer).getByText('₱9,650.00').className).not.toContain('text-danger');
   });
 
   it('shows a total below zero in the danger tone with the true minus', () => {
     renderTable(loaded(everyone({ total: -1200 })));
 
-    const footer = within(table()).getAllByRole('row').at(-1) as HTMLElement;
-    expect(within(footer).getByText('−₱1,200.00').className).toContain('text-danger');
+    expect(within(footerRow()).getByText('−₱1,200.00').className).toContain('text-danger');
   });
 
   it('shows one row plus the total when only the Manager is listed', () => {
     renderTable(loaded({ rows: [CARMEN], total: 8450 }));
 
     expect(bodyRows()).toHaveLength(1);
-    const footer = within(table()).getAllByRole('row').at(-1) as HTMLElement;
+    const footer = footerRow();
     expect(footer).toHaveTextContent('Total held by staff');
     expect(footer).toHaveTextContent('₱8,450.00');
   });
