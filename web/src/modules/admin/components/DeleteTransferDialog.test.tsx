@@ -1,5 +1,5 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { focusManager, QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -318,6 +318,70 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
     await within(dialog).findByText(WARNING);
     await expectNoAxeViolations(document.body);
+  });
+});
+
+describe('a later read of the balances (wave 10 WR-02)', () => {
+  const triggers: readonly [string, () => void][] = [
+    [
+      'a refresh after a 409',
+      () => {
+        void queryClient.invalidateQueries({ queryKey: staffBalancesKey });
+      },
+    ],
+    [
+      'the window gaining focus',
+      () => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      },
+    ],
+  ];
+
+  it.each(triggers)(
+    'keeps Delete Transfer enabled and focused, and the last figures shown, through %s',
+    async (_name, trigger) => {
+      let reads = 0;
+      const calls = staffBalancesBackend(async () => {
+        reads += 1;
+        if (reads > 1) await delay(400);
+        return balancesWithLiza(1500);
+      });
+      renderDialog();
+
+      const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+      await within(dialog).findByText(WARNING);
+      const confirmButton = within(dialog).getByRole('button', { name: 'Delete Transfer' });
+      expect(confirmButton).toBeEnabled();
+      act(() => {
+        confirmButton.focus();
+      });
+
+      act(trigger);
+      await waitFor(() => {
+        expect(calls).toHaveLength(2);
+      });
+      await delay(60);
+
+      expect(queryClient.isFetching({ queryKey: staffBalancesKey })).toBe(1);
+      expect(confirmButton).toBeEnabled();
+      expect(confirmButton).toHaveFocus();
+      expect(within(dialog).queryByText('Loading staff balances…')).toBeNull();
+      expect(within(dialog).getByText(WARNING)).toBeVisible();
+    },
+  );
+
+  it('still keeps Delete Transfer off while the read the dialog itself started runs', async () => {
+    staffBalancesBackend(async () => {
+      await delay(300);
+      return balancesWithLiza(1500);
+    });
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeDisabled();
+    expect(await within(dialog).findByText(WARNING)).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeEnabled();
   });
 });
 

@@ -8,6 +8,7 @@
 //     screens: it is built only from server balances, says what will happen, and the server's figures win after the delete (T-10-44).
 //     While the read runs the block is a skeleton and the confirm is off; if it fails the block says the delete still works.
 //   - 409 (changed by someone else) keeps the dialog open with the alert line. 404 (already deleted) closes it with an info toast.
+import { useState } from 'react';
 import { Icon } from '@/components/brand';
 import { ConfirmDialog } from '@/components/overlays';
 import {
@@ -44,7 +45,12 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
   // The read is fresh on every open: `refetchOnMount: 'always'` reads again even when an older answer is cached, and until it arrives
   // the older answer is not trusted (the block shows the skeleton).
   const balances = useStaffBalancesQuery(open);
-  const checking = balances.isFetching;
+  // Only the read this open starts gates the confirm. A later read (the window gaining focus, a refresh after a 409) keeps the last
+  // figures and leaves the focused button alone, so keyboard focus never drops out of the dialog (WCAG 2.4.3).
+  const [answered, setAnswered] = useState(false);
+  if (open && !balances.isFetching && !answered) setAnswered(true);
+  if (!open && answered) setAnswered(false);
+  const checking = balances.isFetching && !answered;
   const checkFailed = balances.isError && !balances.isFetching;
 
   // A receiver the list leaves out is a leaver at ₱0.00 (the list holds former staff only while their balance is not 0.00).
