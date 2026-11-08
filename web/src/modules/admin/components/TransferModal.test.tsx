@@ -83,6 +83,7 @@ async function openWindow(user: UserEvent, figure = '₱8,450.00') {
 async function recipientsReady() {
   await waitFor(() => {
     expect(toBox()).toBeEnabled();
+    expect(toBox()).not.toHaveAttribute('aria-disabled');
   });
 }
 

@@ -9,7 +9,7 @@
 // Every rule is checked in the browser first with the server's own words (OR-3, moneySchemas.ts); the server decides. The window sits in
 // the order windows' frame, so a changed window asks "Discard changes?" before it closes, and nothing closes while a save runs.
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { MoneyInput } from '@/components/entry';
 import { DateInput, Field, Select } from '@/components/forms';
@@ -229,7 +229,6 @@ function TransferForm({
     control,
     handleSubmit,
     setError,
-    clearErrors,
     setValue,
     getValues,
     formState: { isDirty },
@@ -286,24 +285,7 @@ function TransferForm({
 
   const action = useTransferAction({ onSaved: onClose, onFailure: showFailure, leaverName: leaver?.name });
 
-  // D-47: the cursor starts on To. It is disabled while the people load, so it takes the cursor once they have arrived, unless the
-  // person has already started typing.
-  const focusTo = useEffectEvent(() => {
-    if (!isDirty) {
-      focusField('toUserId');
-      // The window first puts the cursor on the first box that can take it (Amount, while To is disabled). Moving it to To is not the
-      // person leaving Amount, so the blur check must not leave "Enter the amount." behind over the Amount hint.
-      window.setTimeout(() => {
-        clearErrors('amount');
-      }, 0);
-    }
-  });
   const peopleReady = recipients.isSuccess;
-  useEffect(() => {
-    if (peopleReady) {
-      focusTo();
-    }
-  }, [peopleReady]);
 
   const loadingPeople = recipients.isPending;
   const options = toOptions(recipients.data ?? [], handover);
@@ -373,7 +355,10 @@ function TransferForm({
                 name={field.name}
                 required
                 placeholder={loadingPeople ? COPY.to.loading : COPY.to.placeholder}
-                disabled={loadingPeople || recipients.isError}
+                // D-47: the cursor starts on To. While the people load it is only marked unavailable, so it still takes the first focus and
+                // Amount is never entered and left. A failed load disables it.
+                disabled={recipients.isError}
+                aria-disabled={loadingPeople || undefined}
                 options={options}
                 value={loadingPeople ? '' : field.value}
                 onChange={(event) => {
