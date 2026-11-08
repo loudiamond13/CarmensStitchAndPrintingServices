@@ -18,7 +18,7 @@ import {
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import { useDashboardChartQuery } from '@/modules/admin/hooks/useDashboardChartQuery';
 import { useDashboardRange, type DashboardRange } from '@/modules/admin/hooks/useDashboardRange';
-import type { DashboardChartMonthFigures } from '@/modules/admin/services/dashboardService';
+import type { DashboardChartMonthFigures, DashboardChartMonths } from '@/modules/admin/services/dashboardService';
 import { formatMonthShort } from '@/utils/format';
 
 const COPY = DASHBOARD_COPY.chart;
@@ -46,26 +46,44 @@ function toDatum(item: DashboardChartMonthFigures): ChartDatum[] {
   ];
 }
 
-export function IncomeExpenseCard() {
-  const { range, months, setRange } = useDashboardRange();
-  const query = useDashboardChartQuery(months);
-  const refetching = query.isPlaceholderData && query.isFetching;
-  const marked = useDelayedFlag(refetching, REFETCH_MARK_DELAY_MS);
-  const data = query.data === undefined ? null : query.data.items.flatMap(toDatum);
+/** The chart's bar groups from the server's months, oldest first. */
+export function toChartData(items: readonly DashboardChartMonthFigures[]): ChartDatum[] {
+  return items.flatMap(toDatum);
+}
 
+export interface IncomeExpenseCardViewProps {
+  range: DashboardRange;
+  months: DashboardChartMonths;
+  onRangeChange: (range: DashboardRange) => void;
+  /** The bar groups, or null while no answer is held. */
+  data: ChartDatum[] | null;
+  /** The status region says the chart is loading: the first load, or (with data held) a slow range change. */
+  loading: boolean;
+  failed: boolean;
+  error: unknown;
+  onRetry: () => void;
+  /** The held months are dimmed while another range loads. */
+  dimmed: boolean;
+}
+
+/** The card as the screen draws it, from plain values: the page reads the chart, and the Component Showcase hands it demo data. */
+export function IncomeExpenseCardView({
+  range,
+  months,
+  onRangeChange,
+  data,
+  loading,
+  failed,
+  error,
+  onRetry,
+  dimmed,
+}: IncomeExpenseCardViewProps) {
   // One region stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
   let content;
-  if (query.isError) {
+  if (failed) {
     content = (
       <div className={dashboardCardStateClasses}>
-        <ErrorState
-          things={COPY.things}
-          align="start"
-          error={query.error}
-          onRetry={() => {
-            void query.refetch();
-          }}
-        />
+        <ErrorState things={COPY.things} align="start" error={error} onRetry={onRetry} />
       </div>
     );
   } else if (data === null) {
@@ -78,16 +96,11 @@ export function IncomeExpenseCard() {
     content = <EmptyState icon="trending-up" level={3} title={COPY.emptyTitle} message={COPY.emptyMessage(months)} />;
   } else {
     content = (
-      <div className={chartBodyClasses} data-refetching={marked ? 'true' : undefined}>
+      <div className={chartBodyClasses} data-refetching={dimmed ? 'true' : undefined}>
         <IncomeExpenseChart data={data} showProfit labels={COPY.labels} />
       </div>
     );
   }
-  const body = (
-    <LoadingRegion loading={data === null ? query.isPending : marked} failed={query.isError} things={COPY.things}>
-      {content}
-    </LoadingRegion>
-  );
 
   return (
     <section className={dashboardCardClasses}>
@@ -100,10 +113,36 @@ export function IncomeExpenseCard() {
           label={COPY.rangeLabel}
           options={COPY.ranges}
           value={range}
-          onChange={setRange}
+          onChange={onRangeChange}
         />
       </div>
-      {body}
+      <LoadingRegion loading={loading} failed={failed} things={COPY.things}>
+        {content}
+      </LoadingRegion>
     </section>
+  );
+}
+
+export function IncomeExpenseCard() {
+  const { range, months, setRange } = useDashboardRange();
+  const query = useDashboardChartQuery(months);
+  const refetching = query.isPlaceholderData && query.isFetching;
+  const marked = useDelayedFlag(refetching, REFETCH_MARK_DELAY_MS);
+  const data = query.data === undefined ? null : toChartData(query.data.items);
+
+  return (
+    <IncomeExpenseCardView
+      range={range}
+      months={months}
+      onRangeChange={setRange}
+      data={data}
+      loading={data === null ? query.isPending : marked}
+      failed={query.isError}
+      error={query.error}
+      onRetry={() => {
+        void query.refetch();
+      }}
+      dimmed={marked}
+    />
   );
 }

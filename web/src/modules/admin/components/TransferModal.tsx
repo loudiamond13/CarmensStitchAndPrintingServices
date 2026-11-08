@@ -25,7 +25,7 @@ import { useMyMoneyQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import type { OrderWindowBanner } from '@/modules/admin/hooks/useOrderChildSave';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useStaffBalancesQuery } from '@/modules/admin/hooks/useStaffBalancesQuery';
-import { useTransferAction } from '@/modules/admin/hooks/useTransferAction';
+import { useTransferAction, type TransferActionOptions } from '@/modules/admin/hooks/useTransferAction';
 import { useTransferRecipientsQuery } from '@/modules/admin/hooks/useTransferRecipientsQuery';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
 import {
@@ -158,14 +158,14 @@ function TransferWindow({ leaver, open, onClose }: TransferWindowProps) {
   );
 }
 
-interface RecipientsState {
+export interface RecipientsState {
   readonly data: readonly TransferPerson[] | undefined;
   readonly isPending: boolean;
   readonly isSuccess: boolean;
   readonly isError: boolean;
 }
 
-interface TransferFormProps {
+export interface TransferFormProps {
   open: boolean;
   today: string;
   /** Set in hand-over mode: the former staff member the money comes from. */
@@ -181,6 +181,8 @@ interface TransferFormProps {
   /** Reads the people again, so To follows who can receive now. */
   onRefreshPeople: () => void;
   onClose: () => void;
+  /** Sends the body instead of the server: the Component Showcase's demo windows make no request. */
+  send?: TransferActionOptions['send'];
 }
 
 /** The label of one person in To: leavers carry the Paid by words. */
@@ -206,7 +208,8 @@ function toOptions(people: readonly TransferPerson[], handover: boolean): { valu
   ].map((person) => ({ value: person.id, label: recipientLabel(person) }));
 }
 
-function TransferForm({
+/** The window as the screen draws it, from plain values: the page reads the balance and the people, and the Component Showcase hands it demo data. */
+export function TransferForm({
   open,
   today,
   leaver,
@@ -217,6 +220,7 @@ function TransferForm({
   onRefreshBalance,
   onRefreshPeople,
   onClose,
+  send,
 }: TransferFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [banner, setBanner] = useState<OrderWindowBanner | null>(null);
@@ -283,7 +287,7 @@ function TransferForm({
     setBanner({ kind: 'message', text: errorLine(copy) });
   };
 
-  const action = useTransferAction({ onSaved: onClose, onFailure: showFailure, leaverName: leaver?.name });
+  const action = useTransferAction({ onSaved: onClose, onFailure: showFailure, leaverName: leaver?.name, send });
 
   const peopleReady = recipients.isSuccess;
 

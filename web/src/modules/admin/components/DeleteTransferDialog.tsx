@@ -75,6 +75,42 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
   };
 
   return (
+    <DeleteTransferView
+      transfer={transfer}
+      open={open}
+      warnAmount={warnAmount}
+      checking={checking}
+      checkFailed={checkFailed}
+      onConfirm={confirm}
+      onClose={onClose}
+    />
+  );
+}
+
+export interface DeleteTransferViewProps {
+  transfer: TransferTarget;
+  open: boolean;
+  /** The receiver's balance after the delete when it lands below zero, else null (no warning). */
+  warnAmount: number | null;
+  /** The balances read for the warning is still running: the confirm is off. */
+  checking: boolean;
+  /** The balances read failed: the block says the delete still works. */
+  checkFailed: boolean;
+  onConfirm: () => unknown;
+  onClose: () => void;
+}
+
+/** The dialog as the screen draws it, from plain values: the Component Showcase hands it demo data and a confirm that only closes. */
+export function DeleteTransferView({
+  transfer,
+  open,
+  warnAmount,
+  checking,
+  checkFailed,
+  onConfirm,
+  onClose,
+}: DeleteTransferViewProps) {
+  return (
     <ConfirmDialog
       open={open}
       title={COPY.title}
@@ -106,7 +142,7 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
       confirmIcon="trash-2"
       pendingLabel={COPY.pending}
       describeFailure={describeFailure}
-      onConfirm={confirm}
+      onConfirm={onConfirm}
       onCancel={onClose}
     />
   );

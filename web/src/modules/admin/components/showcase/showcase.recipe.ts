@@ -99,3 +99,12 @@ export const photoCaseColumnClasses = tw('flex w-full min-w-0 flex-col gap-4');
 
 /** The card head's two status lines side by side. */
 export const photoStatusRowClasses = tw('flex flex-wrap items-center gap-x-6 gap-y-2');
+
+/** The Phase 10 strips and cards of one case, one under another (plan 10-21). */
+export const moneyCaseColumnClasses = tw('flex w-full min-w-0 flex-col gap-4');
+
+/** Wraps a static case so a press reaches nothing; it adds no box of its own. */
+export const stillClasses = tw('contents');
+
+/** A card list that needs a phone's width to lay a row out (All Staff: the name beside the eye link and Hand Over); the case frame scrolls sideways when it is narrower. */
+export const phoneRowWidthClasses = tw('min-w-72');

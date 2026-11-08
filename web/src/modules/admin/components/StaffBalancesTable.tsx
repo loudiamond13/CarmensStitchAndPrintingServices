@@ -7,6 +7,7 @@
 //   - SPEC-GAP: D-45 a deactivated or deleted person who holds money (balance above 0.00) also has "Hand Over". A leaver who is owed
 //     money (below zero) has none: there is nothing to hand over.
 //   - One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
+import clsx from 'clsx';
 import { useId } from 'react';
 import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { Money } from '@/components/money';
@@ -21,6 +22,7 @@ import {
   staffCardClasses,
   staffNameClasses,
   staffPersonClasses,
+  staffPersonHandOverClasses,
   staffPersonLinkClasses,
   staffYouClasses,
   staffZeroClasses,
@@ -51,7 +53,7 @@ function canHandOver(row: StaffBalance): boolean {
 
 function PersonCell({ row }: { row: StaffBalance }) {
   return (
-    <span className={staffPersonClasses}>
+    <span className={clsx(staffPersonClasses, canHandOver(row) && staffPersonHandOverClasses)}>
       <span aria-hidden="true">
         <Avatar name={row.name} size={24} />
       </span>

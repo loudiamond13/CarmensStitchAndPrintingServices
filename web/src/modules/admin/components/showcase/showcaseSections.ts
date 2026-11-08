@@ -3,7 +3,7 @@
 // building block appears: Navigation (Sidebar, SiteHeader, Topbar, and the plan 02-32 user menu and drawer),
 // Marketing (CategoryCard, ProcessSteps, TestimonialCard) and Sign-in and devices (plan 04-32: the S1 to S6 cards, S7,
 // the sign-out dialogs, the four-item user menu, the session toasts and the Note uses), Staff and audit (plan 05-42: no
-// scenarios, only the live demos of the Phase 5 pieces) and Expenses and settings (plan 06-18: the same for the Phase 6 pieces) and Orders (plan 08-24: the same for the Phase 8 pieces) and Order photos (plan 09-30: the same for the Phase 9 pieces). A section takes whole scenario groups (the groups/*.ts
+// scenarios, only the live demos of the Phase 5 pieces) and Expenses and settings (plan 06-18: the same for the Phase 6 pieces) and Orders (plan 08-24: the same for the Phase 8 pieces) and Order photos (plan 09-30: the same for the Phase 9 pieces) and Dashboard and staff money (plan 10-21: the same for the Phase 10 pieces). A section takes whole scenario groups (the groups/*.ts
 // files) in the order listed, except the scenarios an id prefix moves to another section (LazyImage and
 // MediaPlaceholder belong to Media). The whole-page layout groups are left out: each is a page with its own h1, main
 // and skip link, shown by its own route (/, /admin/…), never inside this page.
@@ -24,6 +24,7 @@ export const SHOWCASE_SECTIONS = [
   { id: 'expenses', title: 'Expenses and settings', groups: [] },
   { id: 'orders', title: 'Orders', groups: [] },
   { id: 'photos', title: 'Order photos', groups: [] },
+  { id: 'dashboard', title: 'Dashboard and staff money', groups: [] },
 ] as const;
 
 export type ShowcaseSectionId = (typeof SHOWCASE_SECTIONS)[number]['id'];
