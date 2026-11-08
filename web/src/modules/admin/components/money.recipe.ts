@@ -130,6 +130,9 @@ export const staffCardClasses = clsx(cardClasses, tw('min-w-0'));
 /** The Person cell: the 24px avatar and the name side by side; the name may wrap. */
 export const staffPersonClasses = tw('flex min-w-0 items-center gap-2');
 
+/** A phone card pins the eye link and Hand Over to its top right and the title reserves 88px; Hand Over needs 72px more, so the name never sits under it. */
+export const staffPersonHandOverClasses = tw('pg-phone:pr-18');
+
 /** The person's name and the muted " (you)": one wrapping text run. */
 export const staffNameClasses = tw('min-w-0 wrap-anywhere');
 
