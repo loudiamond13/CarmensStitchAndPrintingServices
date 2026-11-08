@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T03:55:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T04:15:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -125,3 +125,12 @@ Keep them, or give new wording.
   - A link with `?tab=transfers` opens the Mine tab until plan 10-20 adds the Transfers tab.
   Keep these, or give new wording.
 - **Admin links with Manager-only settings.** If an Admin opens a My Money link that has the Manager-only "Show deleted" setting, the setting is removed and the list goes back to page 1. Recommended: accept this.
+
+## P10-BL-13 · Should a permanently removed transfer's audit record say it was a hand-over? (wave 9 review IN-06)
+
+**Status:** open · **Blocks:** nothing; the record follows D-25 as written.
+
+When a Manager removes a deleted transfer for good, the audit log keeps who sent it, who received it, the amount, the date, whether it had a note, and who recorded and deleted it. It does not say whether the transfer was a hand-over of a former staff member's money, so once it is removed nobody can tell.
+
+- **A (recommended):** add "hand-over: yes or no" to the record. Small change, no new screen.
+- **B:** keep it as is (D-25 as written).

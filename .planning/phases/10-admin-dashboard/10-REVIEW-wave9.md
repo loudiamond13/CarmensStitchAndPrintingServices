@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 9
 plans: [10-18, 10-19]
 created: 2026-11-08T03:57:00-06:00
-updated: 2026-11-08T03:57:00-06:00
+updated: 2026-11-08T04:15:00-06:00
 reviewed_range: 3630e04e..698bb0aa (excluding .planning/)
 depth: deep
 files_reviewed: 52
@@ -17,7 +17,7 @@ status: issues_found
 
 # Phase 10 Wave 9 Code Review (plans 10-18 and 10-19)
 
-*Created: 2026-11-08T03:57:00-06:00 · Updated: 2026-11-08T03:57:00-06:00*
+*Created: 2026-11-08T03:57:00-06:00 · Updated: 2026-11-08T04:15:00-06:00*
 
 ## Summary
 
@@ -161,3 +161,18 @@ Add a TransferModal test: a 400 under `fromUserId` shows the banner and makes a 
 _Reviewed: 2026-11-08T03:57:00-06:00_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: deep_
+
+## Outcomes
+
+| Finding | Outcome |
+|---|---|
+| WR-01 | Fix now: the e2e focuses Show deleted, checks it sits clear of the phone tab bar, then runs axe. If WebKit or iPhone shows it hidden, fix the layout (a real 2.4.11 gap). |
+| WR-02 | Fix now: a hand-over refused under `fromUserId` reads the staff balances again. |
+| IN-01 | Fix now: remove the 0 ms timer; keep To focusable while the people load (or focus To first) so the Amount blur never fires. |
+| IN-02 | Fix now: remove `toTransferRecipients` if only tests use it, or use it. |
+| IN-03 | Fix now: make the side effect explicit (no unused return value). |
+| IN-04 | Parked for the owner (P10-BL-12: the person page has no main heading while loading, failed or not found). No change until ruled. |
+| IN-05 | Fix now: adding or editing a user also marks the staff money answers old. |
+| IN-06 | Parked for the owner (P10-BL-13: whether a removed transfer's audit record says it was a hand-over). |
+| IN-07 | Fix now: list the second 409 on the DELETE row. |
+| IN-08 | Deferred to plan 10-21 (320 px sweep of the tab strip, All Staff cards and person header). |
