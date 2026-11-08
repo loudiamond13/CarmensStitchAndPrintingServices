@@ -151,6 +151,8 @@ function TransferForm({
     control,
     handleSubmit,
     setError,
+    setValue,
+    getValues,
     formState: { isDirty },
   } = useForm<TransferFormInput, unknown, TransferFormOutput>({
     resolver: zodResolver(transferFormSchema({ balance, today })),
@@ -212,6 +214,18 @@ function TransferForm({
       focusTo();
     }
   }, [peopleReady]);
+
+  // A chosen person the re-read list no longer holds is cleared, so the hidden id can never be sent (the server's line stays under To).
+  const offered = recipients.data;
+  useEffect(() => {
+    if (!peopleReady || offered === undefined) {
+      return;
+    }
+    const chosen = getValues('toUserId');
+    if (chosen !== '' && !offered.some((person) => person.id === chosen)) {
+      setValue('toUserId', '', { shouldDirty: true });
+    }
+  }, [peopleReady, offered, getValues, setValue]);
 
   const onValid = (values: TransferFormOutput): void => {
     setBanner(null);
