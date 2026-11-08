@@ -12,6 +12,8 @@ import type { TransferTarget } from '@/modules/admin/services/moneyService';
 export interface ActionableRow {
   readonly id: string;
   readonly isDeleted: boolean;
+  /** The row's current version, so an open delete follows a change the server made meanwhile. */
+  readonly version: string | null;
 }
 
 /** A confirm that is open, or was last open (kept while its close plays). */
@@ -71,6 +73,13 @@ export function useTransferRowActions({ rows, captionId, fallbackId }: TransferR
     }
   });
 
+  // An open delete sends the version the list shows now, so a try after a 409 carries the fresh one.
+  const freshVersion = rows?.find((row) => row.id === deleting?.target.id)?.version ?? null;
+  const liveDeleting =
+    deleting === null || freshVersion === null || freshVersion === deleting.target.version
+      ? deleting
+      : { ...deleting, target: { ...deleting.target, version: freshVersion } };
+
   return {
     register: rowFocus.register,
     openDelete: (target) => {
@@ -80,7 +89,7 @@ export function useTransferRowActions({ rows, captionId, fallbackId }: TransferR
       setRemoving({ target, open: true });
     },
     dialogs: {
-      deleting,
+      deleting: liveDeleting,
       onCloseDelete: () => {
         setDeleting((current) => (current === null ? null : { ...current, open: false }));
       },

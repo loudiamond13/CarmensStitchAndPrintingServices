@@ -22,6 +22,7 @@ import {
   ledgerEntriesFixture,
   ledgerEntryFixture,
   ledgerPageFixture,
+  transferStaleProblem,
   type LedgerEntryFixture,
 } from '@/test/moneyFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
@@ -543,6 +544,35 @@ describe('the Manager row actions on transfers (plan 10-20)', () => {
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: DELETE_OUT })).toBeNull();
     });
+  });
+
+  it('sends the fresh row version on the try after a 409 (wave 10 WR-01)', async () => {
+    let serverVersion = 'AAAAAAAAB9E=';
+    ledgerBackend(() =>
+      ledgerPageFixture(
+        ledgerEntriesFixture().map((row) =>
+          row.transferId === LEDGER_TRANSFER_ID ? { ...row, version: serverVersion } : row,
+        ),
+      ),
+    );
+    const deletions = deleteTransferBackend((url) =>
+      url.searchParams.get('version') === serverVersion ? new Response(null, { status: 204 }) : transferStaleProblem(),
+    );
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    await user.click(screen.getByRole('button', { name: DELETE_OUT }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    serverVersion = 'AAAAAAAAB9G=';
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+    await within(dialog).findByRole('alert');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    await waitFor(() => {
+      expect(deletions.urls).toHaveLength(2);
+    });
+    expect(deletions.urls.map((url) => url.searchParams.get('version'))).toEqual(['AAAAAAAAB9E=', 'AAAAAAAAB9G=']);
   });
 
   it("moves focus to the next transfer row's action once the deleted row has left the ledger", async () => {

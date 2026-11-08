@@ -75,7 +75,7 @@ export function LedgerCard({ userId, ownerName }: LedgerCardProps) {
   // Delete and Remove on transfer rows are a Manager's alone (D-31, D-32); an Admin's ledger has no Actions column.
   const actions = useTransferRowActions({
     rows: page?.rows.flatMap((row) =>
-      row.transferId === null ? [] : [{ id: row.transferId, isDeleted: row.isDeleted }],
+      row.transferId === null ? [] : [{ id: row.transferId, isDeleted: row.isDeleted, version: row.version }],
     ),
     captionId,
     fallbackId: headingId,

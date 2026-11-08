@@ -19,6 +19,7 @@ import {
   transferDeletedFixture,
   transferItemFixture,
   transferListFixture,
+  transferStaleProblem,
   transfersBackend,
   type TransferItemFixture,
 } from '@/test/moneyFixtures';
@@ -265,6 +266,34 @@ describe('deleting from the list (D-29, D-35; plan 10-20)', () => {
     });
     await waitFor(() => {
       expect(within(screen.getByRole('table', { name: 'Transfers' })).getAllByRole('row')).toHaveLength(2);
+    });
+  });
+
+  it('sends the fresh row version on the try after a 409, and the first try sent the stale one (wave 10 WR-01)', async () => {
+    // The row changed on the server after the Manager opened it: the list now carries version "ver-2".
+    let serverVersion = `ver-${ID_A}`;
+    transfersBackend(() => transferListFixture([item(ID_A, 100, { version: serverVersion })]));
+    const deletions = deleteTransferBackend((url) => {
+      if (url.searchParams.get('version') === serverVersion) return new Response(null, { status: 204 });
+      return transferStaleProblem();
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('button', { name: deleteName('₱100.00') }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    serverVersion = 'ver-2';
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+    await within(dialog).findByRole('alert');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    await waitFor(() => {
+      expect(deletions.urls).toHaveLength(2);
+    });
+    expect(deletions.urls.map((url) => url.searchParams.get('version'))).toEqual([`ver-${ID_A}`, 'ver-2']);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
   });
 
