@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { settle } from './sweep.ts';
 import { createStaff, latestEmail, type StaffIdentity } from './testing-api.ts';
 
@@ -32,9 +33,6 @@ function longIdentity(): Required<StaffIdentity> {
 }
 
 const FULL_NAME = `${LONG_FIRST} ${LONG_LAST}`;
-
-/** True when the page does not scroll sideways (a page script: the node program has no DOM). */
-const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
 
 /** The widest elements when the page scrolls sideways, so a failure names them (a page script). */
 const READ_OFFENDERS = `(() => {

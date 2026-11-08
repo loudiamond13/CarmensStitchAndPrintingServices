@@ -12,6 +12,7 @@
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { createStaff } from './testing-api.ts';
 
 const SECTIONS = [
@@ -342,8 +343,6 @@ const DASHBOARD_WINDOWS = [
   ['Open Delete Transfer', 'Delete this transfer?'],
   ['Open Remove Permanently', 'Permanently remove this transfer?'],
 ] as const;
-
-const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
 
 /** Marks the Phase 10 section for the axe checks, which scan it and not the whole page. */
 const AXE_SECTION = '[data-axe-scope]';

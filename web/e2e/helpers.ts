@@ -9,8 +9,11 @@ export const RENT = '6869715c-a01f-4053-87d8-8fd39feebebc';
 /** The seeded Supplies category (the id is the fixed migration seed literal). */
 export const SUPPLIES = '447ad32e-1433-4b70-8786-72e3dc3f9937';
 
-/** True when the page does not scroll sideways (a page script: the node program has no DOM). */
-export const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= window.innerWidth';
+/**
+ * True when the page does not scroll sideways (a page script: the node program has no DOM). It measures against the width without a
+ * classic vertical scrollbar (`clientWidth`), so an overflow narrower than the bar is still found.
+ */
+export const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= document.documentElement.clientWidth';
 
 /** The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd. */
 export function manilaDate(offsetDays: number): string {
