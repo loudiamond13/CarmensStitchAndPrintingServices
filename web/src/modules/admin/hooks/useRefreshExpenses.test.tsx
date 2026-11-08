@@ -9,6 +9,8 @@ import { expensesDeletedKey } from '@/modules/admin/hooks/useDeletedExpensesQuer
 import { expenseCategoriesKey } from '@/modules/admin/hooks/useExpenseCategoriesQuery';
 import { expenseKpisKey } from '@/modules/admin/hooks/useExpenseKpisQuery';
 import { expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
+import { myMoneyKey, staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { moneyTransfersKey, transferRecipientsKey } from '@/modules/admin/hooks/useTransferRecipientsQuery';
 import { useRefreshCategories } from '@/modules/admin/hooks/useRefreshCategories';
 import { useRefreshExpenses } from '@/modules/admin/hooks/useRefreshExpenses';
 import { dashboardBackend } from '@/test/dashboardFixtures';
@@ -58,6 +60,23 @@ describe('useRefreshExpenses (D-13)', () => {
       [...expensesDeletedKey, { page: 1 }],
       [...expensesKey, { page: 1 }],
       expenseCategoriesKey,
+    ];
+    keys.forEach(hold);
+    const { result } = renderHook(() => useRefreshExpenses(), { wrapper });
+
+    await result.current();
+
+    keys.forEach((key) => {
+      expect(invalidated(key), JSON.stringify(key)).toBe(true);
+    });
+  });
+
+  it('also invalidates the staff-money and money-transfers answers, because an expense changes the payer balance', async () => {
+    const keys = [
+      myMoneyKey,
+      [...staffMoneyKey, 'ledger', { page: 1 }],
+      transferRecipientsKey,
+      [...moneyTransfersKey, { page: 1 }],
     ];
     keys.forEach(hold);
     const { result } = renderHook(() => useRefreshExpenses(), { wrapper });

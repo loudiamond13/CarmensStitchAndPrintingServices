@@ -48,6 +48,17 @@ export const moneyStripActionsClasses = tw(
   'ml-auto flex flex-wrap items-center gap-2 pg-phone:ml-0 pg-phone:w-full pg-phone:*:flex-1',
 );
 
+/** The reason a Transfer button cannot be used (D-14): Small (14px), muted. On the strip it takes its own row under the content. */
+export const transferReasonClasses = tw(
+  'm-0 w-full text-right text-[14px] leading-5 text-ink-muted pg-phone:text-left',
+);
+
+/** My Money's header actions: the Transfer button over its reason, aligned right; on phones both take the row. */
+export const moneyHeadActionsClasses = tw('flex flex-col items-end gap-1 pg-phone:w-full pg-phone:items-stretch');
+
+/** The reason under the My Money header button. */
+export const moneyHeadReasonClasses = tw('m-0 text-right text-[14px] leading-5 text-ink-muted pg-phone:text-left');
+
 /** `.s-card` for the My Money balance card: full width, `min-width: 0` so a long figure never widens the page. */
 export const moneyCardClasses = clsx(cardClasses, tw('min-w-0'));
 

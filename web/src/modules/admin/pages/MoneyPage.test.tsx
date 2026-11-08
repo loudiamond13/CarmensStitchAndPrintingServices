@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import { MemoryRouter } from 'react-router';
@@ -8,7 +8,12 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { MoneyRoute } from '@/modules/admin/pages/MoneyPage';
 import { expectNoAxeViolations } from '@/test/axe';
 import { problemResponse } from '@/test/expenseFixtures';
-import { myMoneyBackend, myMoneyFixture, myMoneyNegativeFixture } from '@/test/moneyFixtures';
+import {
+  myMoneyBackend,
+  myMoneyFixture,
+  myMoneyNegativeFixture,
+  transferRecipientsBackend,
+} from '@/test/moneyFixtures';
 
 // My Money, /admin/money (D-39, MONEY-02): the header and the caller's own balance card. The Manager tabs and the ledger arrive
 // in later plans, so for now this is the Mine content for both roles.
@@ -95,6 +100,80 @@ describe('the page (D-39)', () => {
     const { container } = renderPage();
 
     await screen.findByText('₱8,450.00');
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the header Transfer button (D-39, D-14; plan 10-15)', () => {
+  it('is a primary md "Transfer" with the arrow-right icon and opens the Transfer Money window', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText('₱8,450.00');
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer.className).toContain('bg-primary');
+    expect(transfer.className).toContain('h-11');
+    expect(transfer.querySelector('svg.lucide-arrow-right')).not.toBeNull();
+    await user.click(transfer);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Transfer Money' });
+    expect(within(dialog).getByText('From Carmen Reyes (you). You have ₱8,450.00 on hand.')).toBeVisible();
+  });
+
+  it('sits in the header beside the title, not in the balance card', async () => {
+    myMoneyBackend();
+    renderPage();
+
+    await screen.findByText('₱8,450.00');
+    const heading = screen.getByRole('heading', { level: 1, name: 'My Money' });
+    const header = heading.parentElement?.parentElement;
+    expect(header).toContainElement(screen.getByRole('button', { name: 'Transfer' }));
+  });
+
+  it.each([
+    ['₱0.00', myMoneyFixture({ balance: 0 })],
+    ['−₱500.00', myMoneyNegativeFixture()],
+  ])(
+    'with %s it is aria-disabled and focusable, with its visible reason under the header actions',
+    async (figure, fixture) => {
+      myMoneyBackend(fixture);
+      renderPage();
+
+      await screen.findByText(figure);
+      const transfer = screen.getByRole('button', { name: 'Transfer' });
+      expect(transfer).toHaveAttribute('aria-disabled', 'true');
+      transfer.focus();
+      expect(transfer).toHaveFocus();
+      const reason = screen.getByText('Nothing on hand to transfer.');
+      expect(reason).toBeVisible();
+      expect(transfer).toHaveAttribute('aria-describedby', reason.id);
+      await userEvent.click(transfer);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    },
+  );
+
+  it('is aria-disabled with no reason line while the figure loads, and when it failed', async () => {
+    myMoneyBackend(async () => {
+      await delay(300);
+      return problemResponse(500);
+    });
+    renderPage();
+
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
+    await screen.findByText("Couldn't load the money on hand.");
+    expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
+  });
+
+  it('has no axe violations with the reason shown', async () => {
+    myMoneyBackend(myMoneyFixture({ balance: 0 }));
+    const { container } = renderPage();
+
+    await screen.findByText('₱0.00');
     await expectNoAxeViolations(container);
   });
 });
