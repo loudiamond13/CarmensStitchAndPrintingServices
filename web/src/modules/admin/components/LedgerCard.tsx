@@ -43,7 +43,9 @@ export function LedgerCard({ userId }: LedgerCardProps) {
   const page = query.data;
   // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
   const failed = query.isError && !query.isFetching;
-  const loading = query.isFetching && (page === undefined || query.isError);
+  // A page past the last comes back with no rows but the real total: it is not an empty ledger, it is about to be replaced.
+  const pastTheEnd = page !== undefined && page.rows.length === 0 && page.total > 0;
+  const loading = (query.isFetching && (page === undefined || query.isError)) || pastTheEnd;
 
   const total = page?.total ?? 0;
   const pageCount = Math.ceil(total / values.size);
@@ -79,7 +81,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
           />
         </div>
       )}
-      {page !== undefined && (
+      {page !== undefined && !pastTheEnd && (
         <div className={ledgerBarClasses}>
           <ResultBar count={total} thing={result.thing} things={result.things} orderNote={result.orderNote} />
         </div>
@@ -95,7 +97,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
           void query.refetch();
         }}
       />
-      {pageCount > 1 && (
+      {pageCount > 1 && !pastTheEnd && (
         <div className={ledgerPagerClasses}>
           <Pagination
             page={values.page}
