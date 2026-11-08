@@ -187,7 +187,7 @@ describe('states', () => {
     expect(screen.queryByText(/^Showing/)).toBeNull();
   });
 
-  it('shows "Loading transfers…" with the skeleton, then the rows, and says the transfers loaded', async () => {
+  it('shows "Loading transfers…" with the skeleton, then the rows, and says transfers loaded', async () => {
     transfersBackend(async () => {
       await delay(300);
       return transferListFixture();
@@ -197,7 +197,7 @@ describe('states', () => {
     expect(screen.getByText('Loading transfers…')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Transfers' })).toBeVisible();
     await screen.findByRole('table', { name: 'Transfers' });
-    expect(screen.getByText('The transfers loaded.')).toBeInTheDocument();
+    expect(screen.getByText('Transfers loaded.')).toBeInTheDocument();
   });
 
   it('shows "Couldn\'t load transfers." with Try Again, which reads the list again', async () => {

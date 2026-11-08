@@ -85,7 +85,10 @@ describe('the rows (D-48)', () => {
   });
 
   it('shows the note, and the empty marker when there is none', () => {
-    renderTable([transferItemFixture({ note: 'Cash for the fabric run' }), transferItemFixture({ note: null })]);
+    renderTable([
+      transferItemFixture({ note: 'Cash for the fabric run' }),
+      transferItemFixture({ id: '0b0f6c1e-0000-4000-8000-0000000000d8', note: null }),
+    ]);
 
     expect(cellAt(0, NOTE)).toHaveTextContent('Cash for the fabric run');
     expect(cellAt(1, NOTE)).toHaveTextContent('Not set');

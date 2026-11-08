@@ -18,12 +18,51 @@ export const MONEY_COPY = {
     title: 'My Money',
     // SPEC-GAP: D-39 the subline of the My Money header.
     subline: 'What you hold from payments, transfers and expenses.',
-    /** The Manager tabs (D-42). The Transfers tab arrives with plan 10-20. */
+    /** The Manager tabs (D-42, D-48). */
     tabs: {
       // SPEC-GAP: D-42 the tab strip's words.
       mine: 'Mine',
       staff: 'All Staff',
+      transfers: 'Transfers',
     },
+  },
+  /** The Transfers panel, a Manager's list of every transfer (UI-SPEC M1 "Transfers panel", D-48, D-30; plan 10-20). */
+  transfers: {
+    // SPEC-GAP: D-48 the card's head and line.
+    title: 'Transfers',
+    sub: 'Every transfer between staff, newest first.',
+    /** The table's caption. */
+    caption: 'Transfers',
+    /** The noun of the loading region and of the failure line: "Loading transfers…", "Couldn't load transfers.". */
+    things: 'transfers',
+    columns: {
+      date: 'Date',
+      from: 'From',
+      to: 'To',
+      amount: 'Amount',
+      note: 'Note',
+      recordedBy: 'Recorded by',
+      actions: 'Actions',
+    },
+    /** The result bar: "Showing 6 transfers · newest first" ("1 transfer"). */
+    result: { thing: 'transfer', things: 'transfers', orderNote: 'newest first' },
+    // SPEC-GAP: D-48 the empty state.
+    empty: { title: 'No transfers yet', message: 'Transfers between staff show here.' },
+    /** A row's Delete action: "Delete transfer of ₱2,000.00 from Paolo Garcia to Liza Mercado, Oct 6, 2026". */
+    deleteName: (amount: string, from: string, to: string, date: string): string =>
+      `Delete transfer of ${amount} from ${from} to ${to}, ${date}`,
+  },
+  /** The Delete Transfer confirm (UI-SPEC T2, D-23, D-29; plan 10-20). */
+  deleteTransfer: {
+    title: 'Delete this transfer?',
+    /** "₱2,000.00 from Paolo Garcia to Liza Mercado, Oct 6, 2026. It stops counting toward both balances. ..." */
+    message: (amount: string, from: string, to: string, date: string): string =>
+      `${amount} from ${from} to ${to}, ${date}. It stops counting toward both balances. You can't undo this, but you can record it again.`,
+    cancel: 'Cancel',
+    confirm: 'Delete Transfer',
+    pending: 'Deleting',
+    // SPEC-GAP: T2 the toast's words.
+    toast: { title: 'Transfer deleted', message: 'It no longer counts toward any balance.' },
   },
   /** The All Staff panel (UI-SPEC M1 "All Staff panel", D-42 to D-45; plan 10-19). */
   staff: {

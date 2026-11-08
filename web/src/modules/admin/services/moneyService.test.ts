@@ -563,7 +563,7 @@ describe('moneyService.deleteTransfer (MONEY-06, D-23; plan 10-20)', () => {
 
     await service.deleteTransfer(TRANSFER_ID, 'AAAAAAAAB9E=');
 
-    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.body).toBeNull();
   });
 });
 

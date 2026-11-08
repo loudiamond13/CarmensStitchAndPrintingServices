@@ -296,6 +296,7 @@ export function parsePersonMoney(response: StaffMoneyResponse): PersonMoney {
 }
 
 export type MoneyTransferListResponse = Schemas['MoneyTransferListResponse'];
+type MoneyTransferResponse = Schemas['MoneyTransferResponse'];
 
 /** One transfer on the Transfers tab once the browser has checked its amount: the amount is the server's, as a finite number. */
 export interface TransferItem {
@@ -359,9 +360,40 @@ export function toTransferTarget(item: TransferItem): TransferTarget {
   return { id, version, amount, date, from, to, deletedBy, deletedAtUtc };
 }
 
-/** Stub: the checked page arrives with the GREEN commit. */
+function transferFigure(value: unknown, what: string): number {
+  const figure = toFiniteFigure(value);
+  if (figure === null) throw new TransferContractError(`The transfer ${what} is not a finite number.`);
+  return figure;
+}
+
+function toTransferItem(item: MoneyTransferResponse): TransferItem {
+  return {
+    id: item.id,
+    version: item.version,
+    amount: transferFigure(item.amount, 'amount'),
+    date: item.transferDate,
+    from: item.from,
+    to: item.to,
+    note: item.note,
+    recordedBy: item.recordedBy,
+    isHandover: item.isHandover,
+    isDeleted: item.isDeleted,
+    deletedBy: item.deletedBy,
+    deletedAtUtc: item.deletedAtUtc,
+  };
+}
+
+/**
+ * Narrows the generated transfer list (figures are `number | string` there). Every amount is the server's; none is worked out here. A
+ * figure that is not a plain decimal refuses the whole answer, so no row is drawn wrong.
+ */
 export function parseTransferPage(response: MoneyTransferListResponse): TransferPage {
-  return { rows: [], total: 0, page: Number(response.page), pageSize: Number(response.pageSize) };
+  return {
+    rows: response.items.map(toTransferItem),
+    total: transferFigure(response.total, 'total'),
+    page: transferFigure(response.page, 'page'),
+    pageSize: transferFigure(response.pageSize, 'page size'),
+  };
 }
 
 export interface MoneyService {
@@ -419,8 +451,13 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
-    transfers: () => Promise.reject(new Error('Not built yet.')),
-    deleteTransfer: () => Promise.reject(new Error('Not built yet.')),
+    transfers: (query, signal) =>
+      client.get<MoneyTransferListResponse>('/money-transfers', {
+        params: { page: query.page, pageSize: query.pageSize, deleted: query.deleted ? true : undefined },
+        signal,
+      }),
+    deleteTransfer: (id, version, signal) =>
+      client.delete(`/money-transfers/${encodeURIComponent(id)}`, { params: { version }, signal }),
     handover: (body, idempotencyKey, signal) =>
       client.post<TransferSavedResponse>('/money-transfers/handovers', body, { idempotencyKey, signal }),
     person: (userId, signal) =>
