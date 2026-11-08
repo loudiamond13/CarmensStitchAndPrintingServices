@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T23:10:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T23:55:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -110,11 +110,13 @@ Managers can switch the ledger to also show deleted transfers. The plan did not 
 
 Keep them, or give new wording.
 
-## P10-BL-12 · Ledger wording and layout choices (plan 10-17)
+## P10-BL-12 · Ledger and staff money wording and layout choices (plans 10-16, 10-17)
 
 **Status:** open · **Blocks:** nothing; the choices below are in use now and can be changed later.
 
 - **One-row count line.** The UI spec gives only the plural ("Showing 12 entries, deleted transfers included · newest first"). With one row the screen now says "Showing 1 entry, deleted transfers included · newest first". Keep it, or give other wording.
 - **A ledger answer the screen can't read** (a bad figure or an unknown row type) shows the shared line "Couldn't load the ledger." The usual second line, "Check your internet connection...", is left off because it is not a connection problem. A (recommended): keep it as is. B: show the usual second line anyway.
 - **Screen reader landmarks.** The Ledger card is a named region "Ledger", and the table inside it is also a region named "Ledger", so a screen reader user hears "Ledger" twice. axe passes either way. A (recommended): keep only the outer one. B: keep both as now.
+- **From plan 10-16 (server), new lines the plan spelled out:** "You can only see your own money." (an Admin asking for a coworker's money or ledger) and "This person wasn't found." (a Manager asking for someone who is not staff). These replace the two unshown lines parked under P10-BL-07 ("You can't do this." and "This person was not found."). Keep them, or give new wording.
+- **Order of checks on another person's ledger.** If an Admin asks for a coworker's ledger with a bad page number, the server answers "bad page" before "only your own money". Nothing leaks either way. Recommended: accept it. Otherwise the role check moves first (a one-line change).
 - **Admin links with Manager-only settings.** If an Admin opens a My Money link that has the Manager-only "Show deleted" setting, the setting is removed and the list goes back to page 1. Recommended: accept this.
