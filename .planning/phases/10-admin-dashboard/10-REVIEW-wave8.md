@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 8
 plans: [10-16, 10-17]
 created: 2026-11-07T23:25:00-06:00
-updated: 2026-11-07T23:30:00-06:00
+updated: 2026-11-07T23:59:00-06:00
 reviewed_range: c4eea685..3d094237 (excluding .planning/)
 depth: deep
 files_reviewed: 50
@@ -17,7 +17,7 @@ status: issues_found
 
 # Phase 10 Wave 8 Code Review (plans 10-16 and 10-17)
 
-*Created: 2026-11-07T23:25:00-06:00 · Updated: 2026-11-07T23:30:00-06:00*
+*Created: 2026-11-07T23:25:00-06:00 · Updated: 2026-11-07T23:59:00-06:00*
 
 ## Summary
 
@@ -159,13 +159,13 @@ _Depth: deep_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now, ledger only: a row-less page with a non-zero total counts as loading and is never kept as the placeholder. The same pattern in Orders, Expenses and the other clamped lists goes to the phase-end code review. |
-| WR-02 | Fix now, ledger only: Rows per page stays on screen while the ledger has more rows than the smallest size, through an opt-in size-only mode on Pagination (defaults unchanged). The other lists go to the phase-end code review. |
-| IN-01 | Fix now: the figure scan gets a deleted transfer and a transfer list where the Admin would see another person if the rule broke. |
-| IN-02 | Fix now: the result bar wording follows `page.includesDeleted`. |
-| IN-03 | Fix now: the Admin drop of Manager-only values keeps the page and no request goes out with them. |
+| WR-01 | Fixed (`d3765863`, `a419742a`, `a53648ea`): a row-less page with a non-zero total counts as loading, is never kept as the placeholder, and hides the result bar and pager. Test failed first (1 of 1). Orders, Expenses and the other clamped lists go to the phase-end code review. |
+| WR-02 | Fixed (`61fd0722`, `8a7a48f7`): Pagination gains the opt-in `sizeOnlyWhenSinglePage` (default unchanged); the ledger keeps Rows per page while it has more than 10 rows. 3 of 6 new tests failed first; the guard tests failed under four mutations, then the code was restored. The other lists go to the phase-end code review. |
+| IN-01 | Fixed (`16333d3a`): the figure scan seeds a deleted transfer to an Admin and a transfer between two other Admins; three mutations (no own-only filter, deleted on the list, deleted on the ledger) each failed it, then were restored. |
+| IN-02 | Fixed (`fb5d54d6`, `97fe892b`): the result bar wording follows `page.includesDeleted`. Test failed first (1 of 1). |
+| IN-03 | Fixed (`011ceb3c`, `5c55ee2c`): the Admin drop writes only `tab` and `deleted` in one replace, so page and size stay, and the one ledger request carries the page and no `deleted`. Tests failed first (2 of 2). |
 | IN-04 | Parked for the owner (P10-BL-12, screen reader landmarks). No change until ruled. |
-| IN-05 | Fix now: remove the unused `ledgerStateClasses`. |
-| IN-06 | Fix now: correct the two API doc lines. |
+| IN-05 | Fixed (`5d69d270`): `ledgerStateClasses` removed. |
+| IN-06 | Fixed (`2cfcba89`): the two API doc lines now match the code, plus the 401 when the caller account cannot be read. |
 | IN-07 | Deferred to the phase-end code review with the paging defaults (wave 7 IN-03): the other list endpoints count the same way. |
 | IN-08 | Deferred to plan 10-19, which shows other people's ledgers and sets that copy. |
