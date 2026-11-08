@@ -8,13 +8,23 @@ namespace Csps.Testing;
 /// <summary>One payment, refund or expense of a seeded order.</summary>
 /// <param name="Date">The day the money moved.</param>
 /// <param name="Amount">The amount in pesos.</param>
-public sealed record SeedMoney(DateOnly Date, decimal Amount);
+public sealed record SeedMoney(DateOnly Date, decimal Amount)
+{
+    /// <summary>Gets what an order expense was for; null for none. Payments and refunds ignore it.</summary>
+    public string? Description { get; init; }
+}
 
 /// <summary>An order to write straight to a test database, with any status, dates and money the legacy import allows.</summary>
 /// <param name="Number">The order number, such as <c>ORD-2026-0001</c>.</param>
 /// <param name="Status">The status.</param>
 public sealed record SeedOrder(string Number, OrderStatus Status)
 {
+    /// <summary>Gets the customer's name.</summary>
+    public string CustomerName { get; init; } = "Juan Dela Cruz";
+
+    /// <summary>Gets the team or club name; null for none.</summary>
+    public string? TeamName { get; init; }
+
     /// <summary>Gets the day the order was taken.</summary>
     public DateOnly OrderDate { get; init; } = new(2026, 10, 1);
 
@@ -93,13 +103,13 @@ public static class OrderSeeding
         var expenseCategoryId = OrderListSeed.OrderExpenseCategories[0].Id;
         var snapshot = new OrderImportSnapshot(
             spec.Number,
-            new OrderDetails("Juan Dela Cruz", null, null, null, null, spec.OrderDate, spec.DueDate, null),
+            new OrderDetails(spec.CustomerName, spec.TeamName, null, null, null, spec.OrderDate, spec.DueDate, null),
             spec.Status,
             [new NewOrderItem(productTypeId, "Jersey", null, 1, spec.Total)])
         {
             Payments = [.. spec.Payments.Select(payment => new NewOrderPayment(payment.Date, payment.Amount, cashId, null, null, staffId))],
             Refunds = [.. spec.Refunds.Select(refund => new NewOrderRefund(refund.Date, refund.Amount, "Seeded refund", staffId))],
-            Expenses = [.. spec.Expenses.Select(expense => new NewOrderExpense(expense.Date, expense.Amount, expenseCategoryId, null, staffId))],
+            Expenses = [.. spec.Expenses.Select(expense => new NewOrderExpense(expense.Date, expense.Amount, expenseCategoryId, expense.Description, staffId))],
             StatusHistory = spec.StatusChangedAtUtc is { } changedAt ? [new ImportedStatusChange(null, spec.Status, null, changedAt)] : [],
         };
         var order = Order.Import(snapshot, OrderImportRules.Default, now).Value;

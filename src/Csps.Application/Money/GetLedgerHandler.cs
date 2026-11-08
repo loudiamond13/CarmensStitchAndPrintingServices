@@ -13,8 +13,9 @@ namespace Csps.Application.Money;
 /// </summary>
 /// <param name="reader">The staff money read port.</param>
 /// <param name="requestContext">The signed-in user.</param>
+/// <param name="staff">Reads the caller's account and role.</param>
 /// <param name="validator">Checks the page query.</param>
-public sealed class GetLedgerHandler(IStaffMoneyReader reader, IRequestContext requestContext, IValidator<GetLedgerRequest> validator)
+public sealed class GetLedgerHandler(IStaffMoneyReader reader, IRequestContext requestContext, IStaffDirectory staff, IValidator<GetLedgerRequest> validator)
 {
     /// <summary>Reads one page of a ledger.</summary>
     /// <param name="userId">The person whose ledger is read; null means the caller. Another person's ledger is not served here.</param>
@@ -35,6 +36,8 @@ public sealed class GetLedgerHandler(IStaffMoneyReader reader, IRequestContext r
         {
             return Result.Failure<LedgerPageResponse>(ValidationResults.ToError(validation, MoneyErrors.LedgerInvalidCode, Domain.Money.MoneyRules.InvalidMessage));
         }
+
+        _ = await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false);
 
         if (userId is { } other && other != callerId)
         {
