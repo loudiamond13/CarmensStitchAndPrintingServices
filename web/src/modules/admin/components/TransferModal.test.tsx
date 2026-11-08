@@ -1139,6 +1139,30 @@ describe('the hand-over mode (D-17, D-18)', () => {
     expect(sent.keys[1]).not.toBe(sent.keys[0]);
   });
 
+  it("shows the server's line for a sender who is active again as a banner and reads the staff balances again (wave 9 WR-02)", async () => {
+    myMoneyBackend();
+    transferRecipientsBackend();
+    const staff = staffBalancesBackend();
+    const refusal = 'Only money held by former staff can be handed over.';
+    const sent = createHandoverBackend(() => transferFieldProblem('fromUserId', refusal));
+    const user = userEvent.setup();
+    renderHandover();
+    await recipientsReady();
+    await user.selectOptions(toBox(), 'Liza Mercado');
+    await user.type(amountBox(), '1000');
+    const readsBefore = staff.length;
+
+    await user.click(handoverButton());
+
+    expect(await screen.findByText(refusal)).toBeVisible();
+    expect(sent.bodies).toHaveLength(1);
+    await waitFor(() => {
+      expect(staff.length).toBeGreaterThan(readsBefore);
+    });
+    expect(amountBox()).toHaveValue('1000.00');
+    expect(toBox()).toHaveValue(LIZA_ID);
+  });
+
   it('asks "Discard changes?" before closing a window that was changed', async () => {
     myMoneyBackend();
     transferRecipientsBackend();
