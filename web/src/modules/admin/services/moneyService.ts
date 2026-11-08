@@ -34,6 +34,76 @@ export function parseMyMoney(response: StaffMoneyResponse): MyMoney {
   return { userId: response.userId, name: response.name, balance, today: response.today };
 }
 
+export type LedgerPageResponse = Schemas['LedgerPageResponse'];
+export type LedgerEntryResponse = Schemas['LedgerEntryResponse'];
+export type ActorRef = Schemas['ActorRef'];
+
+/** The kinds of row the server sends (GET staff-money/{id}/ledger); any other word is refused, not drawn. */
+export type LedgerKind =
+  'payment-received' | 'refund-handed-back' | 'transfer-in' | 'transfer-out' | 'company-expense' | 'order-expense';
+
+/** One ledger row once the browser has checked its figures: every amount is the server's, as a finite number or null. */
+export interface LedgerRow {
+  /** Stable for one page: the kind, the record behind it, when it was recorded and its place on the page. */
+  key: string;
+  kind: LedgerKind;
+  /** The day the money moved, `YYYY-MM-DD`. */
+  date: string;
+  moneyIn: number | null;
+  moneyOut: number | null;
+  /** The person's balance after this row; null for a deleted transfer, which counts toward no balance. */
+  balanceAfter: number | null;
+  orderId: string | null;
+  orderNumber: string | null;
+  team: string | null;
+  customer: string | null;
+  paymentMethod: string | null;
+  category: string | null;
+  description: string | null;
+  counterpart: ActorRef | null;
+  note: string | null;
+  transferId: string | null;
+  version: string | null;
+  isHandover: boolean;
+  recordedBy: ActorRef | null;
+  isDeleted: boolean;
+  deletedBy: ActorRef | null;
+  deletedAtUtc: string | null;
+}
+
+/** One server page of a ledger once the browser has checked it. */
+export interface LedgerPage {
+  rows: LedgerRow[];
+  /** How many rows the ledger has across all pages. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** The person's money on hand now, from the server. */
+  balance: number;
+  includesDeleted: boolean;
+}
+
+/** What a ledger read asks for. `deleted` is for a Manager only; the server answers 403 to an Admin who sends it. */
+export interface LedgerQuery {
+  page: number;
+  pageSize: number;
+  deleted: boolean;
+}
+
+/** The ledger answer holds a figure or a kind the browser cannot trust, so the card shows its failure instead of a wrong row. */
+export class LedgerContractError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LedgerContractError';
+  }
+}
+
+/** Narrows the generated ledger page (figures are `number | string` there). RED stub: it passes everything through unchecked. */
+export function parseLedgerPage(response: LedgerPageResponse): LedgerPage {
+  const rows = response.items.map((item, index) => ({ ...item, key: String(index) }));
+  return { ...response, rows } as unknown as LedgerPage;
+}
+
 /** The words the server uses for a person's standing; any other word is refused, not shown. */
 export type RecipientStatus = 'active' | 'deactivated' | 'deleted';
 
@@ -77,6 +147,12 @@ export interface MoneyService {
    * once. 400 lists the field errors, 409 means another change won, 201 answers the saved transfer and the sender's new balance.
    */
   create(body: CreateTransferRequest, idempotencyKey: string, signal?: AbortSignal): Promise<TransferSavedResponse>;
+  /**
+   * `GET /api/v1/staff-money/me/ledger` (or `/staff-money/{userId}/ledger` for another person): one page of a person's money rows,
+   * newest first, each with the running balance the server worked out after it (MONEY-02, D-41). Page and size are always sent;
+   * `deleted=true` only when asked, and only a Manager may (403 for an Admin).
+   */
+  ledger(userId: string, query: LedgerQuery, signal?: AbortSignal): Promise<LedgerPageResponse>;
 }
 
 export function createMoneyService(client: HttpClient): MoneyService {
@@ -85,6 +161,8 @@ export function createMoneyService(client: HttpClient): MoneyService {
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<TransferSavedResponse>('/money-transfers', body, { idempotencyKey, signal }),
+    // RED stub: the real call arrives with the GREEN commit.
+    ledger: () => Promise.resolve({ balance: 0, includesDeleted: false, items: [], page: 1, pageSize: 20, total: 0 }),
   };
 }
 

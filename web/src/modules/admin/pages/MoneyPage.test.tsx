@@ -9,19 +9,21 @@ import { MoneyRoute } from '@/modules/admin/pages/MoneyPage';
 import { expectNoAxeViolations } from '@/test/axe';
 import { problemResponse } from '@/test/expenseFixtures';
 import {
+  ledgerBackend,
   myMoneyBackend,
   myMoneyFixture,
   myMoneyNegativeFixture,
   transferRecipientsBackend,
 } from '@/test/moneyFixtures';
 
-// My Money, /admin/money (D-39, MONEY-02): the header and the caller's own balance card. The Manager tabs and the ledger arrive
-// in later plans, so for now this is the Mine content for both roles.
+// My Money, /admin/money (D-39, MONEY-02): the header, the caller's own balance card and the ledger under it. The Manager tabs
+// arrive in a later plan, so for now this is the Mine content for both roles.
 
 let queryClient: QueryClient;
 
 beforeEach(() => {
   queryClient = createQueryClient();
+  ledgerBackend();
 });
 
 afterEach(() => {
@@ -77,7 +79,8 @@ describe('the page (D-39)', () => {
     myMoneyBackend(myMoneyNegativeFixture());
     renderPage();
 
-    const figure = await screen.findByText('−₱500.00');
+    const card = await screen.findByRole('region', { name: 'Money on hand' });
+    const figure = await within(card).findByText('−₱500.00');
     expect(figure.className).toContain('text-danger');
   });
 
@@ -141,7 +144,7 @@ describe('the header Transfer button (D-39, D-14; plan 10-15)', () => {
       myMoneyBackend(fixture);
       renderPage();
 
-      await screen.findByText(figure);
+      await within(await screen.findByRole('region', { name: 'Money on hand' })).findByText(figure);
       const transfer = screen.getByRole('button', { name: 'Transfer' });
       expect(transfer).toHaveAttribute('aria-disabled', 'true');
       transfer.focus();
@@ -215,6 +218,55 @@ describe('loading and failure', () => {
     const { container } = renderPage();
 
     await screen.findByText("Couldn't load the money on hand.");
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Ledger card under the balance card (D-41, MONEY-02; plan 10-17)', () => {
+  it('shows the Ledger card after the balance card, with its heading, its line and the rows newest first', async () => {
+    myMoneyBackend();
+    renderPage();
+
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Ledger' });
+    expect(screen.getByText('Newest first. The balance after each entry is shown on the right.')).toBeVisible();
+    const balanceCard = screen.getByRole('region', { name: 'Money on hand' });
+    expect(balanceCard.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const table = await screen.findByRole('table', { name: 'Ledger' });
+    expect(within(table).getAllByRole('row')).toHaveLength(7);
+  });
+
+  it('reads "Showing 6 entries · newest first" over the table', async () => {
+    myMoneyBackend();
+    renderPage();
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
+  });
+
+  it('asks for the first page of the caller own ledger and never for deleted transfers', async () => {
+    myMoneyBackend();
+    const calls = ledgerBackend();
+    renderPage();
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.pathname).toBe('/api/v1/staff-money/me/ledger');
+    expect(calls[0]?.search).toBe('?page=1&pageSize=20');
+  });
+
+  it('is named by its heading, so a screen reader can find the ledger by landmark', async () => {
+    myMoneyBackend();
+    renderPage();
+
+    const region = await screen.findByRole('region', { name: 'Ledger' });
+    expect(region.tagName).toBe('SECTION');
+  });
+
+  it('has no axe violations with the ledger drawn', async () => {
+    myMoneyBackend();
+    const { container } = renderPage();
+
+    await screen.findByRole('table', { name: 'Ledger' });
     await expectNoAxeViolations(container);
   });
 });
