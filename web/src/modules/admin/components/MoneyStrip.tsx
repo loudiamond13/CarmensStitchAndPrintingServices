@@ -31,11 +31,13 @@ const LEDGER_PATH = '/admin/money';
 
 export interface MoneyStripProps {
   query: MyMoneyCardQuery;
+  /** Replaces the connected Transfer button; only the Component Showcase passes it, so a demo strip never opens the real window. */
+  transfer?: (reasonId: string) => ReactNode;
   /** Buttons after Transfer and before View Ledger. */
   actions?: ReactNode;
 }
 
-export function MoneyStrip({ query, actions }: MoneyStripProps) {
+export function MoneyStrip({ query, actions, transfer }: MoneyStripProps) {
   const labelId = useId();
   const reasonId = useId();
   const gate = transferGate(query);
@@ -91,7 +93,7 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
         {figure}
       </LoadingRegion>
       <div className={moneyStripActionsClasses}>
-        <TransferButton query={query} reasonId={reasonId} />
+        {transfer ? transfer(reasonId) : <TransferButton query={query} reasonId={reasonId} />}
         {actions}
         <ButtonLink variant="ghost" size="sm" to={LEDGER_PATH}>
           {COPY.viewLedger}

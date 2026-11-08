@@ -437,3 +437,27 @@ describe('very large figures and phones (UI-SPEC overflow rows, D-46)', () => {
     expect(body?.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'flex-col', 'min-w-0']));
   });
 });
+
+describe('the transfer slot (Component Showcase only)', () => {
+  it('draws the given button in place of the connected Transfer button and hands it the reason id', async () => {
+    const user = userEvent.setup();
+    const seen: string[] = [];
+    render(
+      <MemoryRouter>
+        <MoneyStrip
+          query={queryOf({ data: moneyOf(8450) })}
+          transfer={(reasonId) => {
+            seen.push(reasonId);
+            return <button type="button">Plain transfer</button>;
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Plain transfer' }));
+
+    expect(screen.queryByRole('button', { name: 'Transfer' })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(seen[0]).toEqual(expect.any(String));
+  });
+});
