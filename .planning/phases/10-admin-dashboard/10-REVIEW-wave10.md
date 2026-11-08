@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 10
 plans: [10-20]
 created: 2026-11-08T08:25:00-06:00
-updated: 2026-11-08T08:25:00-06:00
+updated: 2026-11-08T09:40:00-06:00
 reviewed_range: 6b8322f1..3b69c14f (excluding .planning/)
 depth: deep
 files_reviewed: 29
@@ -47,7 +47,7 @@ status: issues_found
 
 # Phase 10 Wave 10 Code Review (plan 10-20)
 
-*Created: 2026-11-08T08:25:00-06:00 · Updated: 2026-11-08T08:25:00-06:00*
+*Created: 2026-11-08T08:25:00-06:00 · Updated: 2026-11-08T09:40:00-06:00*
 
 ## Summary
 
@@ -201,3 +201,18 @@ In the tests, change `findByText(WARNING)` to `findByRole('alert')` with that te
 _Reviewed: 2026-11-08T08:25:00-06:00_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: deep_
+
+## Outcomes
+
+| Finding | Outcome |
+|---|---|
+| WR-01 | Fix now: after a 409 the dialog takes the fresh row version, and the test checks the version each try sends. |
+| WR-02 | Fix now: only the balance check the dialog starts counts as "checking", and focus stays on the button. |
+| WR-03 | Fix now: the late warning and the failed-check line are announced. |
+| IN-01 | Fix now: the busy 409 shows the existing busy line, not "Reload and try again". |
+| IN-02 | Fix now: a failed refetch disarms the focus rule. |
+| IN-03 | Fix now: a receiver missing from the staff balances gets no warning, and no placeholder name shows (P10-BL-07 A). |
+| IN-04 | Fix now: test name matches what it covers, or the 2,000.00 case is added. |
+| IN-05 | Fix now: the e2e checks the exact focus target. |
+| IN-06 | Deferred to the phase-end review (shared paging and loading logic of TransfersCard and LedgerCard). |
+| IN-07 | Fix now: the ledger target carries the owner's real former-staff state. |
