@@ -554,7 +554,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an
+         *     Admin sees only the transfers they sent or received. Each entry has the sender, the recipient, the amount, the date, the note,
+         *     who recorded it, whether it is a hand-over, its version, and never a balance. Deleted transfers are shown only to a Manager who
+         *     adds `deleted=true`, each marked `isDeleted` with who deleted it and when; an Admin who adds it gets a 403.
+         */
+        get: operations["ListMoneyTransfers"];
         put?: never;
         /**
          * Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any
@@ -3056,6 +3062,26 @@ export interface components {
             /**
              * Format: int32
              * @description How many rows the ledger has across all pages.
+             */
+            total: number | string;
+        };
+        /** @description One page of staff money transfers, newest first (MONEY-03, D-48). */
+        MoneyTransferListResponse: {
+            /** @description The transfers of this page. */
+            items: components["schemas"]["MoneyTransferResponse"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many transfers match across all pages.
              */
             total: number | string;
         };
@@ -6050,6 +6076,60 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListMoneyTransfers: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+                /** @description True to show deleted transfers too; Managers only. */
+                deleted?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyTransferListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

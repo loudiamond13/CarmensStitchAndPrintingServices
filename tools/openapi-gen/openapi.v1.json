@@ -2544,6 +2544,52 @@
         ],
         "type": "object"
       },
+      "MoneyTransferListResponse": {
+        "description": "One page of staff money transfers, newest first (MONEY-03, D-48).",
+        "properties": {
+          "items": {
+            "description": "The transfers of this page.",
+            "items": {
+              "$ref": "#/components/schemas/MoneyTransferResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many transfers match across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "MoneyTransferResponse": {
         "description": "One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance.",
         "properties": {
@@ -8109,6 +8155,94 @@
       }
     },
     "/api/v1/money-transfers": {
+      "get": {
+        "operationId": "ListMoneyTransfers",
+        "parameters": [
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "True to show deleted transfers too; Managers only.",
+            "in": "query",
+            "name": "deleted",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyTransferListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an\nAdmin sees only the transfers they sent or received. Each entry has the sender, the recipient, the amount, the date, the note,\nwho recorded it, whether it is a hand-over, its version, and never a balance. Deleted transfers are shown only to a Manager who\nadds `deleted=true`, each marked `isDeleted` with who deleted it and when; an Admin who adds it gets a 403.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      },
       "post": {
         "operationId": "CreateMoneyTransfer",
         "requestBody": {

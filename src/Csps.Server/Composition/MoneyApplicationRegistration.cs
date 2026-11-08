@@ -17,6 +17,7 @@ public static class MoneyApplicationRegistration
         services.AddSingleton<IValidator<CreateMoneyHandoverRequest>, CreateMoneyHandoverRequestValidator>();
 
         services.AddSingleton<IValidator<GetLedgerRequest>, GetLedgerRequestValidator>();
+        services.AddSingleton<IValidator<ListMoneyTransfersRequest>, ListMoneyTransfersRequestValidator>();
 
         services.AddScoped<GetMyMoneyHandler>();
         services.AddScoped<GetLedgerHandler>();
@@ -25,6 +26,7 @@ public static class MoneyApplicationRegistration
         services.AddScoped<HandOverMoneyHandler>();
         services.AddScoped<ListTransferRecipientsHandler>();
         services.AddScoped<ListStaffBalancesHandler>();
+        services.AddScoped<ListMoneyTransfersHandler>();
         return services;
     }
 }

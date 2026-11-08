@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Common;
 using FluentValidation;
@@ -19,9 +20,37 @@ public sealed class ListMoneyTransfersHandler(IStaffMoneyReader reader, IRequest
     /// <param name="request">The page query.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>The page, a 400 naming the bad fields, a 401 when the token names no usable account, or a 403 for an Admin who asks for deleted transfers.</returns>
-    public Task<Result<MoneyTransferListResponse>> HandleAsync(ListMoneyTransfersRequest request, CancellationToken cancellationToken)
+    public async Task<Result<MoneyTransferListResponse>> HandleAsync(ListMoneyTransfersRequest request, CancellationToken cancellationToken)
     {
-        _ = (reader, requestContext, staff, validator, request, cancellationToken);
-        return Task.FromResult(Result.Failure<MoneyTransferListResponse>(AuthErrors.SessionEnded));
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (requestContext.UserId is not { } callerId)
+        {
+            return Result.Failure<MoneyTransferListResponse>(AuthErrors.SessionEnded);
+        }
+
+        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!validation.IsValid)
+        {
+            return Result.Failure<MoneyTransferListResponse>(ValidationResults.ToError(validation, Domain.Money.MoneyRules.InvalidCode, Domain.Money.MoneyRules.InvalidMessage));
+        }
+
+        var caller = await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false);
+        if (caller is null)
+        {
+            return Result.Failure<MoneyTransferListResponse>(AuthErrors.SessionEnded);
+        }
+
+        // Only a Manager sees deleted transfers; an Admin who asks is refused before any read (D-30, D-31).
+        var callerIsManager = caller.IsManager;
+        if (request.Deleted && !callerIsManager)
+        {
+            return Result.Failure<MoneyTransferListResponse>(MoneyErrors.DeletedForbidden);
+        }
+
+        var page = await reader
+            .ListTransfersAsync(callerIsManager ? null : callerId, callerIsManager && request.Deleted, request.Page, request.PageSize, cancellationToken)
+            .ConfigureAwait(false);
+        return Result.Success(page);
     }
 }
