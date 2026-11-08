@@ -230,7 +230,7 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     expect(within(dialog).getByRole('button', { name: 'Delete Transfer' })).toBeEnabled();
   });
 
-  it('shows no warning when the balance stays at or above zero: 3,000.00 held, and exactly 2,000.00 held', async () => {
+  it('shows no warning when the balance stays above zero: 3,000.00 held', async () => {
     staffBalancesBackend(balancesWithLiza(3000));
     renderDialog();
 
