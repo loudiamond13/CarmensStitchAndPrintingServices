@@ -495,6 +495,50 @@ describe('what the server refuses (D-14, D-56, SEC-06)', () => {
     expect(sent.keys[1]).toBe(sent.keys[0]);
   });
 
+  it('reads the money again after a server failure that may have saved, so the strip shows the new figure (wave 7 WR-03)', async () => {
+    let balance = 8450;
+    const mine = myMoneyBackend(() => myMoneyFixture({ name: 'Carmen Reyes', balance }));
+    transferRecipientsBackend();
+    createTransferBackend(() => {
+      // The server saved the transfer but the answer was lost on the way.
+      balance = 6450;
+      return problemResponse(500);
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await fill(user, '2000');
+    const readsBefore = mine.length;
+
+    await user.click(recordButton());
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
+    await waitFor(() => {
+      expect(mine.length).toBeGreaterThan(readsBefore);
+    });
+    expect(await screen.findByText('₱6,450.00')).toBeVisible();
+  });
+
+  it('does not read the money again after a refusal that saved nothing', async () => {
+    const mine = myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    createTransferBackend(() =>
+      transferFieldProblem('toUserId', "Liza Mercado can't receive transfers now. Choose someone else."),
+    );
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await fill(user, '100');
+    const readsBefore = mine.length;
+
+    await user.click(recordButton());
+
+    expect(await screen.findByText("Liza Mercado can't receive transfers now. Choose someone else.")).toBeVisible();
+    expect(mine.length).toBe(readsBefore);
+  });
+
   it('shows "Saving" with aria-busy while the request runs and ignores Esc and the scrim until it ends', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
     transferRecipientsBackend();
