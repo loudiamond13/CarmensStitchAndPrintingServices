@@ -95,7 +95,9 @@ export function StaffMoneyRoute() {
         </div>
       </div>
       <MoneyOnHandCard query={query} />
-      {person !== undefined && <LedgerCard userId={id} ownerName={person.name} />}
+      {person !== undefined && (
+        <LedgerCard userId={id} ownerName={person.name} ownerFormerStaff={person.status === 'deleted'} />
+      )}
     </>
   );
 }

@@ -175,7 +175,7 @@ const COLUMNS: readonly ResponsiveTableColumn<LedgerRow>[] = [
 
 /** A transfer row's one action: Delete while it counts, Remove once it is deleted. Every other kind of row has none (D-22, D-28). */
 function actionsColumn(
-  owner: { id: string; name: string },
+  owner: { id: string; name: string; formerStaff: boolean },
   onDelete: ((target: TransferTarget) => void) | undefined,
   onRemove: ((target: TransferTarget) => void) | undefined,
   register: ((id: string, button: HTMLButtonElement | null) => void) | undefined,
@@ -220,7 +220,7 @@ export interface LedgerTableProps {
   /** The Manager's row actions (plan 10-20): Delete on a counted transfer, Remove on a deleted one. The ledger never offers an edit (D-22). */
   canSeeActions?: boolean | undefined;
   /** Whose ledger this is, so a transfer row's action can name both people. */
-  owner?: { id: string; name: string } | undefined;
+  owner?: { id: string; name: string; formerStaff: boolean } | undefined;
   onDelete?: ((target: TransferTarget) => void) | undefined;
   onRemove?: ((target: TransferTarget) => void) | undefined;
   register?: ((id: string, button: HTMLButtonElement | null) => void) | undefined;
