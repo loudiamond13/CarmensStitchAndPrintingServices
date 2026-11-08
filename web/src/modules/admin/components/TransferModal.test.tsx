@@ -350,7 +350,7 @@ describe('the rules, checked before any request (OR-3, D-14)', () => {
 });
 
 describe('the people (D-56, D-49)', () => {
-  it('disables To with "Loading staff…" while the list loads', async () => {
+  it('marks To unavailable with "Loading staff…" while the list loads, yet keeps it able to take the cursor (wave 9 IN-01)', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
     transferRecipientsBackend(async () => {
       await delay(300);
@@ -360,10 +360,30 @@ describe('the people (D-56, D-49)', () => {
     renderStrip();
     await openWindow(user);
 
-    expect(toBox()).toBeDisabled();
+    expect(toBox()).toHaveAttribute('aria-disabled', 'true');
+    expect(toBox()).toBeEnabled();
     expect(within(toBox()).getByRole('option', { name: 'Loading staff…' })).toBeInTheDocument();
     await recipientsReady();
+    expect(toBox()).not.toHaveAttribute('aria-disabled');
     expect(within(toBox()).getByRole('option', { name: 'Choose a coworker' })).toBeInTheDocument();
+  });
+
+  it('puts the cursor on To as the window opens, while the people still load, so Amount is never left (wave 9 IN-01)', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend(async () => {
+      await delay(300);
+      return transferRecipientsFixture();
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+
+    // Before the people arrive: the window's own first focus is on To, not on Amount.
+    expect(toBox()).toHaveFocus();
+    await recipientsReady();
+    await delay(50);
+    expect(toBox()).toHaveFocus();
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
   });
 
   it('shows no figure for anyone in the list', async () => {
@@ -945,6 +965,24 @@ describe('the hand-over mode (D-17, D-18)', () => {
     expect(handoverButton()).toHaveTextContent('Record Handover');
     await recipientsReady();
     expect(mine).toHaveLength(0);
+  });
+
+  it('puts the cursor on To as the window opens, while the people still load, so Amount is never left (wave 9 IN-01)', async () => {
+    myMoneyBackend();
+    transferRecipientsBackend(async () => {
+      await delay(300);
+      return transferRecipientsFixture();
+    });
+    staffBalancesBackend();
+    renderHandover();
+    await screen.findByRole('dialog', { name: 'Hand Over Money' });
+
+    // Before the people arrive: the window's own first focus is on To, not on Amount.
+    expect(toBox()).toHaveFocus();
+    await recipientsReady();
+    await delay(50);
+    expect(toBox()).toHaveFocus();
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
   });
 
   it('says "(deleted)" for a deleted person', async () => {
