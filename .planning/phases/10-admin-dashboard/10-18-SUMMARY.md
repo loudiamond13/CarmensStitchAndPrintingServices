@@ -4,7 +4,7 @@ plan: 18
 subsystem: api
 tags: [dotnet, csharp, ef-core, money, soft-delete, rowversion, audit, openapi, tdd, authorization-matrix]
 created: "2026-11-08T03:05:00-06:00"
-updated: "2026-11-08T03:05:00-06:00"
+updated: "2026-11-08T03:25:00-06:00"
 
 requires:
   - phase: 10-admin-dashboard
@@ -20,15 +20,15 @@ affects: [10-19 Transfers panel, 10-20 audit labels and delete dialogs, phase-en
 actuals:
   tokens: 23043
   tasks: 3
-  commits: 6
+  commits: 8
 plan_head_before: 3630e04eec364fb65089e07f56cb24da2d7a66fb
-plan_head_after: 1afd364ac352da1274343a60238af0b0b53c20d1
+plan_head_after: 2a21f89e40e20b62fe94a6cedf9e342a928f623f
 
 tech-stack:
   added: []
   patterns:
     - "Version in the query string for a DELETE: parse first (400 under version), look up second, compare the stored RowVersion third (409 edit.stale)"
-    - "Money writes that are not a transfer still take the staff-money lock first, so a delete never overlaps a transfer or a hand-over"
+    - "A delete and a remove take no staff-money lock (D-53): the rowversion guards the delete and ConflictRetry reads a lost race again"
     - "Audit first, then the tracked Remove, one save: the permanent remove's only surviving copy is the audit entry"
 
 key-files:
@@ -57,13 +57,13 @@ key-files:
     - docs/operations/audit-log.md
 
 key-decisions:
-  - "The delete and the remove take the staff-money lock first, as the wave 9 notes direct. The plan text said no lock (D-53); this is flagged below for the owner."
+  - "The delete and the remove take no staff-money lock (D-53). The wave 9 note that asked for the lock was withdrawn; the lock was added in b2af6495 and removed in 2a21f89e, and a test now proves a delete and a remove succeed while another transaction holds the lock."
   - "The deletedAt instant is written in the remove's audit detail (UTC, yyyy-MM-ddTHH:mm:ssZ) but AuditChangeLines does not turn it into a line. Plan 10-20 can decide whether the audit screen shows it."
-  - "A missing or malformed version is refused before the lock and before any lookup, so a bad request never waits and never reveals whether the id exists."
+  - "A missing or malformed version is refused before any lookup, so a bad request never reveals whether the id exists."
   - "IMoneyTransfers.FindAsync(id, includeDeleted, ct): the delete reads live rows only (a deleted one is a 404), the remove reads both."
 
 patterns-established:
-  - "Compile-only stubs in a RED commit: the remove handler returned a fixed 404 and the delete handler took the lock as an unused parameter, so the new unit tests built and failed on their planned assertions"
+  - "Compile-only stubs in a RED commit: the remove handler returned a fixed 404 and the delete handler took a lock parameter it did not use, so the new unit tests built and failed on their planned assertions"
   - "Admin figure scan for delete routes: an Admin gets the same 403 for a live, a deleted and an unknown transfer, with no amount, name or id in any body"
 
 requirements-completed: [MONEY-06, MONEY-07, MONEY-08]
@@ -102,7 +102,7 @@ coverage:
         ref: "tests/Csps.Server.IntegrationTests/Money/MoneyTransferDeletionTests.cs#ADeletedTransferIsRemovedForGoodBalancesStayAndOneAuditEntryKeepsTheFullRecord"
         status: pass
       - kind: unit
-        ref: "tests/Csps.Application.UnitTests/Money/RemoveMoneyTransferHandlerTests.cs#TheLockComesFirstThenTheReadThenTheAuditEntryThenTheRemoveAndOneSave"
+        ref: "tests/Csps.Application.UnitTests/Money/RemoveMoneyTransferHandlerTests.cs#TheReadComesFirstThenTheAuditEntryThenTheRemoveAndOneSave"
         status: pass
     human_judgment: false
   - id: D4
@@ -140,7 +140,7 @@ status: complete
 
 # Phase 10 Plan 18: A Manager deletes a wrong transfer, can remove it for good, and no one can edit one Summary
 
-**Version-checked soft delete and audited permanent remove of money transfers (Manager only, under the staff-money lock), with the full record kept in the audit log and an enumerated proof that no edit, restore or bulk route exists.**
+**Version-checked soft delete and audited permanent remove of money transfers (Manager only, outside the staff-money lock), with the full record kept in the audit log and an enumerated proof that no edit, restore or bulk route exists.**
 
 ## Performance
 
@@ -152,11 +152,11 @@ status: complete
 
 ## Accomplishments
 
-- `DELETE /api/v1/money-transfers/{id}?version=`: Manager only. The version is parsed first (400 `Reload the form and try again.` under `version`), then the lock is taken, then the row is found live only (404 `This transfer wasn't found.`), then the stored `RowVersion` is compared (409 `edit.stale`), then `SoftDelete`, the `money-transfer.deleted` audit entry and one save.
-- `DELETE /api/v1/money-transfers/{id}/permanent`: Manager only. Lock, find including deleted (404), `EnsureRemovable` (422 `Delete the transfer first.`), audit entry with the full record, tracked `Remove`, one save.
+- `DELETE /api/v1/money-transfers/{id}?version=`: Manager only. The version is parsed first (400 `Reload the form and try again.` under `version`), then the row is found live only (404 `This transfer wasn't found.`), then the stored `RowVersion` is compared (409 `edit.stale`), then `SoftDelete`, the `money-transfer.deleted` audit entry and one save.
+- `DELETE /api/v1/money-transfers/{id}/permanent`: Manager only. Find including deleted (404), `EnsureRemovable` (422 `Delete the transfer first.`), audit entry with the full record, tracked `Remove`, one save.
 - `MoneyAuditDetail.Deleted` and `Removed`: ids, a `0.00` amount, a date, `note=yes|no`, `recordedBy`, and for a remove `deletedBy` and `deletedAt`. The note text never appears. The longest possible detail is far under 400 characters (tested).
 - `AuditChangeLines`: `recordedBy` and `deletedBy` are person fields, so the audit screen gets names and the former-staff mark.
-- Tests: 23 integration cases in `MoneyTransferDeletionTests` (4 of them theory rows), 5 in `MoneyTransferRoutesTests`, 17 delete and 8 remove handler unit cases, audit detail and audit line cases, and two matrix rows.
+- Tests: 25 integration cases in `MoneyTransferDeletionTests` (4 of them theory rows), 5 in `MoneyTransferRoutesTests`, 16 delete and 7 remove handler unit cases, audit detail and audit line cases, and two matrix rows.
 - Contract refreshed (`openapi.v1.json`, `api.generated.ts`), docs written for both routes and the two audit events.
 
 ## Task Commits
@@ -164,8 +164,9 @@ status: complete
 1. **Task 1 (tracer): delete with its version** - RED `03e20866` (test), GREEN `25bd985c` (feat)
 2. **Task 2: stale, repeated, racing, malformed deletes and no email** - RED `ee2b4705` (test), GREEN `b2af6495` (feat)
 3. **Task 3: permanent remove, person keys, no edit routes** - RED `89881b70` (test), GREEN `1afd364a` (feat)
+4. **Correction: no staff-money lock on delete or remove (D-53)** - RED `d4208efc` (test), GREEN `2a21f89e` (feat)
 
-**Plan metadata:** the SUMMARY commit that follows these six.
+**Plan metadata:** the SUMMARY commits that follow these eight.
 
 ## Tracer gate
 
@@ -178,29 +179,30 @@ Each task has a `test(10-18)` commit before its `feat(10-18)` commit (`git log -
 - **Task 1 RED:** 8 failures in the first run. `MoneyTransferDeletionTests` delete cases got `404 Not Found` where the test expects `204`, `403` and `401` (the route did not exist); `AuthorizationMatrixTests` failed with `DELETE /api/v1/money-transfers/{id:guid}: matrix row matches no endpoint.` These are the planned assertions failing for the planned reason, not build or fixture errors.
 - **Task 2 RED:** 2 of 17 new handler unit tests failed on the planned assertions: `TheLockIsTakenBeforeTheTransferIsReadAndTheAuditEntryJoinsTheSave` (`CallSequenceNotFoundException`, `LockAsync` never received) and `ALockThatCannotBeHadAnswersBusyAndWritesNothing` (no error because the lock was never asked). The 17 integration tests and the new audit detail tests passed on arrival: the Task 1 handler already did what the plan's Task 1 action describes (version parse, 404, stale compare, audit), so those tests are characterization tests, not a RED. This is the plan's own task split, recorded here as an unexpected green.
 - **Task 3 RED:** 11 unit failures (`RemoveMoneyTransferHandlerTests` against the compile-only stub, three `AuditChangeLinesTests`, the Resolve case) and 11 integration failures (all remove cases got 404, the matrix row matched no endpoint, and the routes test found five endpoints instead of six). Planned assertions, planned reasons.
-- **Compile-only stubs:** the Task 2 RED commit gave `DeleteMoneyTransferHandler` an unused lock parameter; the Task 3 RED commit added `RemoveMoneyTransferHandler` returning a fixed 404. Both are replaced in the next GREEN commit.
+- **Correction RED (no lock, D-53):** two new integration tests, `ADeleteSucceedsWhileAnotherTransactionHoldsTheStaffMoneyLock` and `ARemoveSucceedsWhileAnotherTransactionHoldsTheStaffMoneyLock`, hold the `staff-money` lock row in another open transaction and then send the delete or the remove. Against the locked handlers both failed on the planned assertion (`should be NoContent but was Conflict`, after waiting the 10 seconds of the lock, 10s 601ms and 14s 453ms). They pass after the lock was removed. The two lock unit tests (lock taken first, busy lock answers 409) were removed with the lock.
+- **Compile-only stubs:** the Task 2 RED commit gave `DeleteMoneyTransferHandler` an unused lock parameter; the Task 3 RED commit added `RemoveMoneyTransferHandler` returning a fixed 404. Both were replaced in the next GREEN commit. The delete handler's lock parameter was later removed by the correction.
 
 ## Verification (quoted from the runs)
 
 - Handler and audit unit tests (`RemoveMoneyTransferHandlerTests`, `AuditChangeLinesTests`, `DeleteMoneyTransferHandlerTests`, `MoneyAuditDetailTests`): `total: 109, failed: 0, succeeded: 109`.
-- Plan verify set 3 (`MoneyTransferDeletionTests`, `MoneyTransferRoutesTests`, `AuthorizationMatrixTests`, `AuthorizationCoverageTests`, `IdempotencyCoverageTests`, `OpenApiSnapshotTests`): `total: 470, failed: 0` after the routes test fix (first run `failed: 1`, see Deviations).
-- Whole `Csps.Server.IntegrationTests.Money` namespace: `total: 157, failed: 0, succeeded: 157`.
-- `AuditLog*`, `Idempotency*`, `OpenApi*`, `Authorization*` classes: `total: 567, failed: 0, succeeded: 567`.
+- Plan verify set 3 (`MoneyTransferDeletionTests`, `MoneyTransferRoutesTests`, `AuthorizationMatrixTests`, `AuthorizationCoverageTests`, `IdempotencyCoverageTests`, `OpenApiSnapshotTests`): `total: 472, failed: 0` after the correction (an earlier run before the routes test fix had `failed: 1`, see Deviations).
+- Whole `Csps.Server.IntegrationTests.Money` namespace: `total: 159, failed: 0, succeeded: 159`.
+- `AuditLog*`, `Idempotency*`, `OpenApi*`, `Authorization*` classes: `total: 567, failed: 0, succeeded: 567` (run before the correction; the Authorization, Idempotency and OpenApi classes are in the 472 above, re-run after it).
 - `Csps.ArchitectureTests` `NoInlineSqlTests` and `LayerTests`: `total: 33, failed: 0`.
-- Whole `Csps.Application.UnitTests`: `total: 2533, failed: 0`. Coverage with coverlet over `Csps.Application`: 98.17% line, 95.72% branch overall; `DeleteMoneyTransferHandler`, `RemoveMoneyTransferHandler` and `MoneyAuditDetail` 100% line and branch; `AuditChangeLines` 99.64% line, 91% branch.
+- Whole `Csps.Application.UnitTests`: `total: 2531, failed: 0`. Coverage with coverlet over `Csps.Application` (after the correction): 98.16% line, 95.72% branch overall; `DeleteMoneyTransferHandler`, `RemoveMoneyTransferHandler` and `MoneyAuditDetail` 100% line and branch; `AuditChangeLines` 99.64% line, 91% branch.
 - `dotnet format Csps.slnx --verify-no-changes`: no output (clean). `npm --prefix web run typecheck`: clean. `npm --prefix tools/openapi-gen run check`: match.
 - Build: 0 warnings, 0 errors for the integration, unit and architecture projects.
-- `gitleaks protect --staged` before each of the six code commits: `no leaks found`.
+- `gitleaks protect --staged` before each of the eight code commits: `no leaks found`.
 
-**The delete race, five separate runs in a row** (`ARaceBetweenTwoDeletesWithTheSameVersionGivesOneWinnerAndOneAuditEntry`, 3 rounds per run, two deletes released together, one 204 plus a 404 or 409, one audit row per round):
+**The delete race, five separate runs in a row, re-run after the lock was removed** (`ARaceBetweenTwoDeletesWithTheSameVersionGivesOneWinnerAndOneAuditEntry`, 3 rounds per run, two deletes released together, one 204 plus a 404 or 409, one audit row per round):
 
 | Run | Result | Duration |
 |-----|--------|----------|
-| 1 | passed (1 of 1) | 7s 985ms |
-| 2 | passed (1 of 1) | 7s 836ms |
-| 3 | passed (1 of 1) | 7s 886ms |
-| 4 | passed (1 of 1) | 7s 916ms |
-| 5 | passed (1 of 1) | 8s 245ms |
+| 1 | passed (1 of 1) | 8s 318ms |
+| 2 | passed (1 of 1) | 7s 869ms |
+| 3 | passed (1 of 1) | 7s 794ms |
+| 4 | passed (1 of 1) | 7s 834ms |
+| 5 | passed (1 of 1) | 8s 166ms |
 
 **Endpoint enumeration** (`MoneyTransferRoutesTests` asserts this exact sorted list; a PUT or PATCH to a transfer answers 405 or 404):
 
@@ -221,9 +223,9 @@ See `key-files` above. The two new unit test files were not in the plan's file l
 
 ## Decisions Made
 
-- **Lock on delete and remove (needs the owner's eye).** The plan truth said "No staff-money lock (D-53)", and D-53 says only a transfer and a hand-over take it. The wave 9 notes from the orchestrator say deletes and permanent deletes take the lock like the other money writes, so both handlers take it as the first statement in the transaction. The cost is that a delete can answer the busy 409 if a transfer holds the lock for 10 seconds. D-53's reason (payments and expenses may already take a balance below zero) does not apply to a delete in the same way, so the owner may want to confirm or reverse this. Reversing it is two lines per handler plus the two lock unit tests.
+- **No lock on delete and remove, to follow D-53.** The plan and D-53 say only a transfer and a hand-over take the `staff-money` lock, and the rowversion guards the delete. An earlier wave note asked for the lock, so commit `b2af6495` added it; the orchestrator then withdrew that note and commit `2a21f89e` removed it. Both handlers are now exactly the plan's shape: `ConflictRetry` around `InTransactionAsync`, no lock.
 - **`deletedAt` is stored but not a line.** The remove's audit detail holds `deletedAt=<UTC instant>` as D-25 asks. `AuditChangeLines` does not read it into a line, so the audit screen does not show it until plan 10-20 decides to.
-- **Version checked before the lock.** A bad version never waits for the lock and never says whether the id exists.
+- **Version checked before any lookup.** A bad version is refused with 400 and never says whether the id exists.
 
 ## Deviations from Plan
 
@@ -246,11 +248,10 @@ See `key-files` above. The two new unit test files were not in the plan's file l
 
 ### Plan differences, not auto-fixes
 
-- **Lock on delete and remove** (above), from the orchestrator's wave notes, against the plan text.
 - **PlusSlash on a real row.** A stored `rowversion` cannot be written, so a real transfer with `+` and `/` in its version text cannot be produced on demand. `PlusSlash` is covered two ways: a unit test whose stored bytes (set by reflection on the private setter) give a version containing both characters and the delete succeeds; and an integration test that sends such a version URL-encoded for an unknown id and gets 404, which proves it parsed and reached the lookup (a wrong decode would give 400).
 - **Two extra unit test files** (`DeleteMoneyTransferHandlerTests`, `RemoveMoneyTransferHandlerTests`) beyond the plan list, for the coverage bar.
 
-**Total deviations:** 2 auto-fixed (1 bug in a test, 1 blocking in test setup), 3 plan differences recorded above.
+**Total deviations:** 2 auto-fixed (1 bug in a test, 1 blocking in test setup), 2 plan differences recorded above. A third, the lock, was added and then removed again so the final code matches the plan.
 **Impact on plan:** no scope creep. No package added, no schema change, no trigger, no inline SQL.
 
 ## Issues Encountered
@@ -261,7 +262,6 @@ See `key-files` above. The two new unit test files were not in the plan's file l
 ## Needs owner review
 
 - **New owner-facing sentences: none.** Every message is one the plan or D-58 spelled out or an existing approved line: `This transfer wasn't found.`, `Reload the form and try again.`, `This was changed by someone else. Reload and try again.`, `Delete the transfer first.` and the existing busy line `Something changed at the same time. Try again.`
-- **The lock on delete and remove** (see Decisions Made).
 - **Whether the audit screen should show when a transfer was deleted** for a remove entry (plan 10-20).
 
 ## Known Stubs
@@ -285,8 +285,8 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - Created files exist: the six files listed under `key-files.created` and this SUMMARY.
-- Commits exist on this branch: `03e20866`, `25bd985c`, `ee2b4705`, `b2af6495`, `89881b70`, `1afd364a` (checked with `git merge-base --is-ancestor`).
-- `commits: 6` was measured with `git rev-list --count` from the ledger base `3630e04eec364fb65089e07f56cb24da2d7a66fb` to `1afd364ac352da1274343a60238af0b0b53c20d1`.
+- Commits exist on this branch: `03e20866`, `25bd985c`, `ee2b4705`, `b2af6495`, `89881b70`, `1afd364a`, `d4208efc`, `2a21f89e` (checked with `git merge-base --is-ancestor`).
+- `commits: 8` counts the code and test commits only, measured with `git rev-list --count` from the ledger base `3630e04eec364fb65089e07f56cb24da2d7a66fb` to `2a21f89e40e20b62fe94a6cedf9e342a928f623f`; the SUMMARY commits come after.
 
 ---
 *Phase: 10-admin-dashboard*
