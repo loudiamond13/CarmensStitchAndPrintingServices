@@ -247,10 +247,13 @@ function TransferForm({
   };
 
   // The server decides what the browser could not know. A refusal lands under its field, the typed values stay, and the answer it
-  // was based on is read again: the balance after an Amount refusal, the people after a To refusal.
+  // was based on is read again: the balance after an Amount or sender refusal, the people after a To refusal.
   const showFailure = (copy: ErrorCopy, error: unknown): void => {
     if (isHttpError(error) && error.kind === 'http') {
       if (error.status === 400) {
+        // A sender who is active again is no longer a leaver: the staff balances are read again so Hand Over follows the roster.
+        const senderRefusal = serverFieldMessage(error.fieldErrors, 'fromUserId');
+        if (senderRefusal !== undefined) onRefreshBalance();
         const refused = FIELD_ORDER.flatMap((field) => {
           const message = serverFieldMessage(error.fieldErrors, field);
           return message === undefined ? [] : [{ field, message }];
@@ -262,11 +265,14 @@ function TransferForm({
           }
           if (refused.some(({ field }) => field === 'amount')) onRefreshBalance();
           if (refused.some(({ field }) => field === 'toUserId')) onRefreshPeople();
-          setBanner(null);
+          setBanner(senderRefusal === undefined ? null : { kind: 'message', text: senderRefusal });
           focusField(first.field);
           return;
         }
-        setBanner({ kind: 'message', text: Object.values(error.fieldErrors)[0]?.[0] ?? errorLine(copy) });
+        setBanner({
+          kind: 'message',
+          text: senderRefusal ?? Object.values(error.fieldErrors)[0]?.[0] ?? errorLine(copy),
+        });
         return;
       }
       if (error.status === 409) {
