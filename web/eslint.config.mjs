@@ -86,6 +86,22 @@ const classCallConcatBan = {
   selector: "CallExpression[callee.name=/^(clsx|tw)$/] BinaryExpression[operator='+']",
   message: 'D-33: no class-name concatenation in clsx or tw; use complete literal tokens.',
 };
+// Wave 11 IN-06: two seams exist only for the Component Showcase's demos (src/modules/admin/components/showcase/**): `send` replaces the
+// transfer save, and `transfer` replaces the strip's connected Transfer button. App code must not pass them, or a screen could show
+// "Transfer recorded" for a save that never reached the server. TransferModal.tsx forwards `send` and tests may use both.
+const sendFormBan = {
+  selector: "JSXOpeningElement[name.name='TransferForm'] > JSXAttribute[name.name='send']",
+  message: 'Only the Component Showcase passes `send`: app code must save through the money service.',
+};
+const sendHookBan = {
+  selector: "CallExpression[callee.name='useTransferAction'] > ObjectExpression > Property[key.name='send']",
+  message: 'Only the Component Showcase passes `send`: app code must save through the money service.',
+};
+const stripSlotBan = {
+  selector: "JSXOpeningElement[name.name='MoneyStrip'] > JSXAttribute[name.name='transfer']",
+  message: 'Only the Component Showcase passes `transfer`: the strip must draw the connected Transfer button.',
+};
+const showcaseSeamBans = new Set([sendFormBan, sendHookBan, stripSlotBan]);
 const markupBans = new Set([
   styleObjectBan,
   styleValueBan,
@@ -142,6 +158,7 @@ export const syntaxBans = [
     message: 'Do not pass the nuqs startTransition option (nuqs #1567).',
   },
   fetchMemberBan,
+  ...showcaseSeamBans,
   styleObjectBan,
   styleValueBan,
   classNameTemplateBan,
@@ -228,6 +245,18 @@ export const architectureRules = [
       'no-console': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
+    },
+  },
+  {
+    // The showcase demos pass the seams on purpose; TransferModal.tsx forwards `send` to the hook; tests exercise both.
+    name: 'csps/restrictions/showcase-seams',
+    files: [
+      'src/modules/admin/components/showcase/**',
+      'src/modules/admin/components/TransferModal.tsx',
+      'src/**/*.test.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-syntax': ['error', ...syntaxBans.filter((ban) => !showcaseSeamBans.has(ban))],
     },
   },
   {

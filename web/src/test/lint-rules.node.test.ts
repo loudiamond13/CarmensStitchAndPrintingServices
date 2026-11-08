@@ -399,6 +399,49 @@ describe('QUAL-02 language bans', () => {
   });
 });
 
+describe('wave 11 IN-06: only the Component Showcase may swap the transfer save or the Transfer button of the strip', () => {
+  const sendMessage = 'Only the Component Showcase passes `send`: app code must save through the money service.';
+  const slotMessage =
+    'Only the Component Showcase passes `transfer`: the strip must draw the connected Transfer button.';
+  const formWithSend = 'export const A = () => <TransferForm send={async () => saved} />;\n';
+  const stripWithSlot = 'export const A = () => <MoneyStrip query={q} transfer={() => <button />} />;\n';
+  const hookWithSend = 'export const a = () => useTransferAction({ send, onSaved });\n';
+  const hookWithShorthand = 'export const a = (send: S) => useTransferAction({ send });\n';
+  const modalFile = 'src/modules/admin/components/TransferModal.tsx';
+  const showcaseFile = 'src/modules/admin/components/showcase/Phase10Demos.tsx';
+
+  it.each([
+    ['a TransferForm send attribute', formWithSend, sendMessage],
+    ['a MoneyStrip transfer attribute', stripWithSlot, slotMessage],
+    ['a useTransferAction send option', hookWithSend, sendMessage],
+    ['a useTransferAction shorthand send option', hookWithShorthand, sendMessage],
+  ])('%s in a page is an error', (_name, code, message) => {
+    expect(lint(code, 'src/modules/admin/pages/DashboardPage.tsx')).toEqual([syntax(message)]);
+  });
+
+  it.each([
+    ['the showcase', showcaseFile],
+    ['a component test', 'src/modules/admin/components/TransferModal.test.tsx'],
+  ])('%s may pass them', (_name, file) => {
+    expect(lint(formWithSend, file)).toEqual([]);
+    expect(lint(stripWithSlot, file)).toEqual([]);
+    expect(lint(hookWithSend, file)).toEqual([]);
+  });
+
+  it('TransferModal.tsx may forward send to the hook', () => {
+    expect(lint(hookWithShorthand, modalFile)).toEqual([]);
+  });
+
+  it('the allowed files keep every other ban', () => {
+    expect(lint(rawHtmlJsx, showcaseFile)).toEqual([syntax(rawHtml)]);
+    expect(lint(rawHtmlJsx, modalFile)).toEqual([syntax(rawHtml)]);
+  });
+
+  it('other props named send or transfer on other components are not touched', () => {
+    expect(lint('export const A = () => <Mailer send={go} transfer={move} />;\n', featureTsx)).toEqual([]);
+  });
+});
+
 describe('Pitfall 33: every ban still fires inside each override block', () => {
   it('dangerouslySetInnerHTML is an error in src/core/api/http/x.tsx', () => {
     expect(lint(rawHtmlJsx, 'src/core/api/http/x.tsx')).toEqual([syntax(rawHtml)]);
