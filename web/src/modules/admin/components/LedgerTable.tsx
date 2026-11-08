@@ -18,7 +18,7 @@ import {
   ledgerTitleClasses,
 } from '@/modules/admin/components/money.recipe';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
-import type { LedgerPage, LedgerRow } from '@/modules/admin/services/moneyService';
+import type { LedgerPage, LedgerRow, TransferTarget } from '@/modules/admin/services/moneyService';
 import { isNegativeMoney } from '@/utils/csps';
 import { formatBusinessDateTime, formatCalendarDate } from '@/utils/format';
 
@@ -170,8 +170,13 @@ const COLUMNS: readonly ResponsiveTableColumn<LedgerRow>[] = [
 export interface LedgerTableProps {
   /** The server page on screen; undefined while no data has arrived yet. */
   page: LedgerPage | undefined;
-  /** Reserved for the Manager's row actions (plan 10-20). Nothing is drawn for it yet, and the ledger never offers an edit (D-22). */
+  /** The Manager's row actions (plan 10-20): Delete on a counted transfer, Remove on a deleted one. The ledger never offers an edit (D-22). */
   canSeeActions?: boolean | undefined;
+  /** Whose ledger this is, so a transfer row's action can name both people. */
+  owner?: { id: string; name: string } | undefined;
+  onDelete?: ((target: TransferTarget) => void) | undefined;
+  onRemove?: ((target: TransferTarget) => void) | undefined;
+  register?: ((id: string, button: HTMLButtonElement | null) => void) | undefined;
   /** The first read is running. */
   pending?: boolean | undefined;
   /** The rows are the previous page's while the next one loads. */

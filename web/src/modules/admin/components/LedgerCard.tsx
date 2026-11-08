@@ -30,6 +30,8 @@ const COPY = MONEY_COPY.ledger;
 export interface LedgerCardProps {
   /** `me` for the signed-in person, or another person's id. */
   userId: string;
+  /** The person's name on another person's page, so a transfer row's action can name both people. My Money uses the session. */
+  ownerName?: string | undefined;
 }
 
 export function LedgerCard({ userId }: LedgerCardProps) {
