@@ -16,6 +16,7 @@ namespace Csps.Application.Money;
 /// </summary>
 public sealed class DeleteMoneyTransferHandler(
     IMoneyTransfers transfers,
+    IStaffMoneyLock moneyLock,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
@@ -39,6 +40,7 @@ public sealed class DeleteMoneyTransferHandler(
     /// </returns>
     public async Task<Result> HandleAsync(Guid id, string? version, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(moneyLock);
         if (requestContext.UserId is not { } callerId)
         {
             return Result.Failure(AuthErrors.SessionEnded);
