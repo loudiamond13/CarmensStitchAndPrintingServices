@@ -318,8 +318,8 @@ type LedgerOverrides = Partial<LedgerEntryResponse>;
 function ledgerEntry(overrides: LedgerOverrides): LedgerEntryResponse {
   return {
     kind: 'payment-received',
-    date: '2026-10-28',
-    recordedAtUtc: '2026-10-28T02:00:00Z',
+    date: '2026-09-29',
+    recordedAtUtc: '2026-09-29T02:00:00Z',
     moneyIn: null,
     moneyOut: null,
     balanceAfter: null,
@@ -348,8 +348,8 @@ const ORDER_ID = '0b0f6c1e-0000-4000-8000-0000000000b1';
 const LEDGER_ENTRIES: LedgerEntryResponse[] = [
   ledgerEntry({
     kind: 'order-expense',
-    date: '2026-11-04',
-    recordedAtUtc: '2026-11-04T05:00:00Z',
+    date: '2026-10-07',
+    recordedAtUtc: '2026-10-07T05:00:00Z',
     moneyOut: 1450,
     balanceAfter: -500,
     orderId: ORDER_ID,
@@ -358,42 +358,55 @@ const LEDGER_ENTRIES: LedgerEntryResponse[] = [
     description: 'Extra dye lot',
   }),
   ledgerEntry({
+    kind: 'transfer-out',
+    date: '2026-10-06',
+    recordedAtUtc: '2026-10-06T05:00:00Z',
+    moneyOut: 2000,
+    counterpart: LIZA,
+    transferId: '0b0f6c1e-0000-4000-8000-0000000000c3',
+    version: 'AAAAAAAAB9G=',
+    isDeleted: true,
+    deletedBy: CARMEN,
+    deletedAtUtc: '2026-10-08T07:42:00Z',
+    recordedBy: CARMEN,
+  }),
+  ledgerEntry({
     kind: 'company-expense',
-    date: '2026-11-03',
-    recordedAtUtc: '2026-11-03T05:00:00Z',
+    date: '2026-10-05',
+    recordedAtUtc: '2026-10-05T05:00:00Z',
     moneyOut: 750,
     balanceAfter: 950,
     category: 'Utilities',
-    description: 'Electric bill for October',
+    description: 'Electric bill for September',
   }),
   ledgerEntry({
-    kind: 'transfer-out',
-    date: '2026-11-02',
-    recordedAtUtc: '2026-11-02T05:00:00Z',
-    moneyOut: 2000,
+    kind: 'transfer-in',
+    date: '2026-10-03',
+    recordedAtUtc: '2026-10-03T05:00:00Z',
+    moneyIn: 2000,
     balanceAfter: 1700,
-    counterpart: LIZA,
+    counterpart: JOMAR,
     transferId: '0b0f6c1e-0000-4000-8000-0000000000c1',
     version: 'AAAAAAAAB9E=',
     isHandover: true,
     recordedBy: CARMEN,
   }),
   ledgerEntry({
-    kind: 'transfer-in',
-    date: '2026-11-01',
-    recordedAtUtc: '2026-11-01T05:00:00Z',
-    moneyIn: 2000,
-    balanceAfter: 3700,
+    kind: 'transfer-out',
+    date: '2026-10-02',
+    recordedAtUtc: '2026-10-02T05:00:00Z',
+    moneyOut: 2000,
+    balanceAfter: -300,
     counterpart: PAOLO,
     note: 'Cash for the fabric run',
     transferId: '0b0f6c1e-0000-4000-8000-0000000000c2',
     version: 'AAAAAAAAB9F=',
-    recordedBy: PAOLO,
+    recordedBy: CARMEN,
   }),
   ledgerEntry({
     kind: 'refund-handed-back',
-    date: '2026-10-30',
-    recordedAtUtc: '2026-10-30T05:00:00Z',
+    date: '2026-10-01',
+    recordedAtUtc: '2026-10-01T05:00:00Z',
     moneyOut: 300,
     balanceAfter: 1700,
     orderId: ORDER_ID,
@@ -410,19 +423,6 @@ const LEDGER_ENTRIES: LedgerEntryResponse[] = [
     team: 'Blue Hawks',
     customer: 'Rico Dela Cruz',
     paymentMethod: 'GCash',
-  }),
-  ledgerEntry({
-    kind: 'transfer-out',
-    date: '2026-10-06',
-    recordedAtUtc: '2026-10-06T05:00:00Z',
-    moneyOut: 2000,
-    counterpart: LIZA,
-    transferId: '0b0f6c1e-0000-4000-8000-0000000000c3',
-    version: 'AAAAAAAAB9G=',
-    isDeleted: true,
-    deletedBy: CARMEN,
-    deletedAtUtc: '2026-10-08T07:42:00Z',
-    recordedBy: CARMEN,
   }),
 ];
 
@@ -664,7 +664,7 @@ function DeleteDemo({ warned, trigger }: DeleteDemoProps) {
       <DeleteTransferView
         transfer={COUNTED_TARGET}
         open={open}
-        warnAmount={warned ? -500 : null}
+        warnAmount={warned ? -2500 : null}
         checking={false}
         checkFailed={false}
         onConfirm={close}

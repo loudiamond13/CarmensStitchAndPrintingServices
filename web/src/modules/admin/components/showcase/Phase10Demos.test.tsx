@@ -223,13 +223,31 @@ describe('Phase10Demos: the ledger, All Staff and the Transfers table', () => {
     expect(table.getAllByRole('row')).toHaveLength(8);
     expect(table.getByText('Payment received')).toBeInTheDocument();
     expect(table.getByText('Refund handed back')).toBeInTheDocument();
-    expect(table.getByText('Transfer from Paolo Garcia')).toBeInTheDocument();
+    expect(table.getByText('Transfer to Paolo Garcia')).toBeInTheDocument();
     expect(table.getAllByText('Transfer to Liza Mercado').length).toBeGreaterThan(0);
     expect(table.getByText('Company expense')).toBeInTheDocument();
     expect(table.getByText('Order expense')).toBeInTheDocument();
     expect(table.getByText('Handed over by Carmen Reyes')).toBeInTheDocument();
     expect(table.getAllByText('−₱500.00').length).toBeGreaterThan(0);
     expect(table.getByText('Deleted')).toBeInTheDocument();
+  });
+
+  // IN-02: a hand-over moves a leaver's money to the person who records it, so on Carmen's ledger it is money in from Jomar Santos.
+  it('shows the hand-over on the ledger as money in from the leaver, and dates no row after Oct 8, 2026', () => {
+    renderDemos();
+    const table = within(within(caseFrame('money-ledger-kinds')).getByRole('table', { name: 'Ledger' }));
+
+    const handOver = table.getByText('Handed over by Carmen Reyes').closest('tr');
+    if (handOver === null) {
+      throw new Error('The hand-over has no row.');
+    }
+    expect(within(handOver).getByText('Transfer from Jomar Santos')).toBeInTheDocument();
+    expect(within(handOver).queryByText(/^Transfer to /)).toBeNull();
+    const dates = table.getAllByText(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/).map((cell) => cell.textContent);
+    expect(dates.length).toBeGreaterThanOrEqual(6);
+    for (const date of dates) {
+      expect(date, 'a ledger date after Oct 8, 2026').toMatch(/^(Sep \d{1,2}|Oct [1-8]), 2026$/);
+    }
   });
 
   it('shows the ledger loading, empty and failed', () => {
@@ -325,7 +343,7 @@ describe('Phase10Demos: the windows and the dialogs', () => {
 
     await user.click(frame.getByRole('button', { name: 'Open Delete (warning)' }));
     let dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(/balance will be −₱500\.00/);
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/Liza Mercado's balance will be −₱2,500\.00/);
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => {
