@@ -684,6 +684,27 @@ describe('U2 Add User from the page (USER-02, D-12)', () => {
     expect(calls.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('marks the staff money and money-transfers answers old after an invitation, so All Staff and the To lists follow (D-43)', async () => {
+    rosterThatGainsAna();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+    await user.click(addButton());
+    await user.type(screen.getByRole('textbox', { name: /^First name/ }), 'Ana');
+    await user.type(screen.getByRole('textbox', { name: /^Last name/ }), 'Reyes');
+    await user.type(screen.getByRole('textbox', { name: /^Email/ }), 'ana@example.ph');
+
+    await user.click(screen.getByRole('button', { name: 'Create User' }));
+
+    await screen.findByText('User created');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
+  });
+
   it('Cancel closes the panel without a request, returns focus to Add User and reopens on the defaults', async () => {
     const { posted } = rosterThatGainsAna();
     await openPage();
@@ -801,6 +822,27 @@ describe('U3 Edit User from the page (USER-03)', () => {
     await waitFor(() => {
       expect(editButton('Paulo Garcia')).toHaveFocus();
     });
+  });
+
+  it('marks the staff money and money-transfers answers old after a save, so a new name or role shows in All Staff and the To lists (D-43)', async () => {
+    rosterThatRenamesPaolo();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+    await user.click(editButton('Paolo Garcia'));
+    const first = await screen.findByRole('textbox', { name: /^First name/ });
+    await user.clear(first);
+    await user.type(first, 'Paulo');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('User updated');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
   });
 
   it("Cancel closes the panel without a request and returns focus to that row's Edit button", async () => {
