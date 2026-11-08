@@ -10,14 +10,36 @@ namespace Csps.Server.Controllers;
 /// Staff money on hand (MONEY-01): every figure is summed from the records on each read, never stored. Never cached.
 /// </summary>
 /// <param name="myMoney">The handler that reads the caller's own money.</param>
-/// <param name="ledger">The handler that reads the caller's own ledger.</param>
+/// <param name="ledger">The handler that reads a ledger.</param>
+/// <param name="balances">The handler that lists everyone's money on hand.</param>
 [ApiController]
 [Route("api/v1/staff-money")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class StaffMoneyController(GetMyMoneyHandler myMoney, GetLedgerHandler ledger) : ControllerBase
+public sealed class StaffMoneyController(GetMyMoneyHandler myMoney, GetLedgerHandler ledger, ListStaffBalancesHandler balances) : ControllerBase
 {
+    /// <summary>
+    /// Lists what every staff member holds, Managers only. Every active Admin and Manager comes first by name, a person a Manager has
+    /// locked or who has not finished set-up included, with the signed-in person marked <c>isYou</c>. Then come the deactivated or
+    /// deleted Admins and Managers whose balance is not 0.00, by name. Each entry has the person, name, role, status
+    /// (<c>active</c>, <c>deactivated</c> or <c>deleted</c>), balance and <c>isYou</c>. <c>total</c> is the sum of the listed balances
+    /// and may be below zero. The legacy placeholder and accounts with no staff role never appear. Nothing is cached.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the people and the total, 401 without a valid token, or 403 for an Admin.</returns>
+    [HttpGet]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("ListStaffBalances")]
+    [ProducesResponseType<StaffBalancesResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IResult> ListBalances(CancellationToken cancellationToken)
+    {
+        var result = await balances.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static people => TypedResults.Ok(people));
+    }
+
     /// <summary>
     /// Reads the signed-in person's own money on hand: payments they received plus transfers to them, minus transfers from them,
     /// expenses they paid and refunds they handed back. The figure can be below zero. The person is the token's user; the route takes

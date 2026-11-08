@@ -86,7 +86,7 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.IsActive, row.Deleted))];
+        return [.. rows.Select(row => new StaffPerson(row.Id, $"{row.FirstName} {row.LastName}", row.IsActive, row.Deleted) { Role = row.Role ?? string.Empty })];
     }
 
     public async Task<LedgerPage> GetLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken)

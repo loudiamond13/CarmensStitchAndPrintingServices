@@ -4734,6 +4734,76 @@
         ],
         "type": "object"
       },
+      "StaffBalanceRow": {
+        "description": "One person's row in the all-staff list.",
+        "properties": {
+          "balance": {
+            "description": "Their money on hand; below zero when they are owed money.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "isYou": {
+            "description": "True for the signed-in person.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Their display name, first then last.",
+            "type": "string"
+          },
+          "role": {
+            "description": "Their role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of `active`, `deactivated` or `deleted`.",
+            "type": "string"
+          },
+          "userId": {
+            "description": "The person.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "role",
+          "status",
+          "balance",
+          "isYou"
+        ],
+        "type": "object"
+      },
+      "StaffBalancesResponse": {
+        "description": "Everyone's money on hand and what staff hold together, for a Manager (MONEY-03, D-42 to D-44).",
+        "properties": {
+          "items": {
+            "description": "The people: active Admins and Managers by name, then former staff whose balance is not 0.00 by name.",
+            "items": {
+              "$ref": "#/components/schemas/StaffBalanceRow"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "The sum of the listed balances; below zero when staff are owed more than they hold.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "StaffMember": {
         "description": "One person who can be named as the payer (CEXP-05): an id and a name, nothing else.",
         "properties": {
@@ -13690,6 +13760,47 @@
         "summary": "Lists the people who can be named as the payer: an Admin or Manager who is active, not locked by a Manager, not deleted\nand has signed in at least once (entered a sign-in code or accepted an invite). Someone a Manager just added with a\ntemporary password appears after their first sign-in code. Sorted by first name, last name, then id.",
         "tags": [
           "Staff"
+        ]
+      }
+    },
+    "/api/v1/staff-money": {
+      "get": {
+        "operationId": "ListStaffBalances",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffBalancesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists what every staff member holds, Managers only. Every active Admin and Manager comes first by name, a person a Manager has\nlocked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or\ndeleted Admins and Managers whose balance is not 0.00, by name. Each entry has the person, name, role, status\n(`active`, `deactivated` or `deleted`), balance and `isYou`. `total` is the sum of the listed balances\nand may be below zero. The legacy placeholder and accounts with no staff role never appear. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
         ]
       }
     },

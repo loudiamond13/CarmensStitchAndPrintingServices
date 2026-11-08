@@ -1674,6 +1674,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff-money": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists what every staff member holds, Managers only. Every active Admin and Manager comes first by name, a person a Manager has
+         *     locked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or
+         *     deleted Admins and Managers whose balance is not 0.00, by name. Each entry has the person, name, role, status
+         *     (`active`, `deactivated` or `deleted`), balance and `isYou`. `total` is the sum of the listed balances
+         *     and may be below zero. The legacy placeholder and accounts with no staff role never appear. Nothing is cached.
+         */
+        get: operations["ListStaffBalances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staff-money/me": {
         parameters: {
             query?: never;
@@ -3917,6 +3940,37 @@ export interface components {
             rowVersion: string;
             /** @description The business time zone id. */
             timeZoneId: string;
+        };
+        /** @description One person's row in the all-staff list. */
+        StaffBalanceRow: {
+            /**
+             * Format: double
+             * @description Their money on hand; below zero when they are owed money.
+             */
+            balance: number | string;
+            /** @description True for the signed-in person. */
+            isYou: boolean;
+            /** @description Their display name, first then last. */
+            name: string;
+            /** @description Their role, `Admin` or `Manager`. */
+            role: string;
+            /** @description One of `active`, `deactivated` or `deleted`. */
+            status: string;
+            /**
+             * Format: uuid
+             * @description The person.
+             */
+            userId: string;
+        };
+        /** @description Everyone's money on hand and what staff hold together, for a Manager (MONEY-03, D-42 to D-44). */
+        StaffBalancesResponse: {
+            /** @description The people: active Admins and Managers by name, then former staff whose balance is not 0.00 by name. */
+            items: components["schemas"]["StaffBalanceRow"][];
+            /**
+             * Format: double
+             * @description The sum of the listed balances; below zero when staff are owed more than they hold.
+             */
+            total: number | string;
         };
         /** @description One person who can be named as the payer (CEXP-05): an id and a name, nothing else. */
         StaffMember: {
@@ -9839,6 +9893,44 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListStaffBalances: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBalancesResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
