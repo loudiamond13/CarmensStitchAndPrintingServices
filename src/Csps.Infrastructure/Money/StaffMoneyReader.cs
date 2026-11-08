@@ -92,10 +92,10 @@ internal sealed class StaffMoneyReader(CspsDbContext context) : IStaffMoneyReade
     public async Task<LedgerPage> GetLedgerPageAsync(Guid userId, int page, int pageSize, bool includeDeleted, CancellationToken cancellationToken)
     {
         // The page, the newer-rows sum, the count and the balance are four reads. One serializable read transaction keeps a row that
-        // lands between them from making them disagree (D-105). Inside a transaction the caller already opened, that one applies.
+        // lands between them from making them disagree (D-105). A transaction the caller already opened could be weaker, so it is refused.
         if (context.Database.CurrentTransaction is not null)
         {
-            return await ReadLedgerPageAsync(userId, page, pageSize, includeDeleted, cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("The ledger read opens its own serializable transaction and cannot run inside another transaction.");
         }
 
         // A serializable read can lose a deadlock to a writer. The read changes nothing, so it is read again, up to three times.
