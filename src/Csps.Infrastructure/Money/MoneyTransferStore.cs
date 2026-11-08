@@ -14,8 +14,11 @@ internal sealed class MoneyTransferStore(CspsDbContext context) : IMoneyTransfer
         context.Set<MoneyTransfer>().Add(transfer);
     }
 
-    public async Task<MoneyTransfer?> FindAsync(Guid id, CancellationToken cancellationToken) =>
-        await context.Set<MoneyTransfer>().SingleOrDefaultAsync(transfer => transfer.Id == id, cancellationToken).ConfigureAwait(false);
+    public async Task<MoneyTransfer?> FindAsync(Guid id, bool includeDeleted, CancellationToken cancellationToken) =>
+        await context.Set<MoneyTransfer>()
+            .Where(transfer => includeDeleted || transfer.DeletedAtUtc == null)
+            .SingleOrDefaultAsync(transfer => transfer.Id == id, cancellationToken)
+            .ConfigureAwait(false);
 
     public void Remove(MoneyTransfer transfer)
     {

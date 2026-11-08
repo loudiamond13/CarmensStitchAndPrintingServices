@@ -9,11 +9,12 @@ public interface IMoneyTransfers
     /// <param name="transfer">The new transfer.</param>
     void Add(MoneyTransfer transfer);
 
-    /// <summary>Finds one transfer for change, tracked, whether or not it is deleted.</summary>
+    /// <summary>Finds one transfer for change, tracked.</summary>
     /// <param name="id">The transfer id.</param>
+    /// <param name="includeDeleted">True to find a soft-deleted transfer too; false to find a live one only.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The transfer, or null when none matches.</returns>
-    Task<MoneyTransfer?> FindAsync(Guid id, CancellationToken cancellationToken);
+    Task<MoneyTransfer?> FindAsync(Guid id, bool includeDeleted, CancellationToken cancellationToken);
 
     /// <summary>Marks a transfer for removal from the database in the unit of work (D-24). Nothing is deleted until the unit of work saves.</summary>
     /// <param name="transfer">The tracked transfer to remove.</param>
