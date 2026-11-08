@@ -2,10 +2,13 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
+import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { MoneyRoute } from '@/modules/admin/pages/MoneyPage';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { problemResponse } from '@/test/expenseFixtures';
 import {
@@ -15,6 +18,7 @@ import {
   myMoneyNegativeFixture,
   transferRecipientsBackend,
 } from '@/test/moneyFixtures';
+import { sessionResponse } from '@/test/sessionFixtures';
 
 // My Money, /admin/money (D-39, MONEY-02): the header, the caller's own balance card and the ledger under it. The Manager tabs
 // arrive in a later plan, so for now this is the Mine content for both roles.
@@ -22,20 +26,25 @@ import {
 let queryClient: QueryClient;
 
 beforeEach(() => {
+  clearSession();
+  acceptSession(sessionResponse());
   queryClient = createQueryClient();
   ledgerBackend();
 });
 
 afterEach(() => {
   queryClient.clear();
+  clearSession();
 });
 
 function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <MoneyRoute />
-      </MemoryRouter>
+      <NuqsTestingAdapter defaultOptions={URL_STATE_DEFAULTS} processUrlSearchParams={orderSearchParams} hasMemory>
+        <MemoryRouter>
+          <MoneyRoute />
+        </MemoryRouter>
+      </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
 }

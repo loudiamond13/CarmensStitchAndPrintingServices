@@ -85,7 +85,6 @@ function pagedLedger(total: number) {
       moneyIn: null,
       moneyOut: 10 + index,
       balanceAfter: 5000 - index,
-      category: 'Utilities',
       description: `Bill ${String(index + 1)}`,
     }),
   );
