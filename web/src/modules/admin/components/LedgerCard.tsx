@@ -78,6 +78,7 @@ export function LedgerCard({ userId, ownerName }: LedgerCardProps) {
       row.transferId === null ? [] : [{ id: row.transferId, isDeleted: row.isDeleted, version: row.version }],
     ),
     captionId,
+    failed,
     fallbackId: headingId,
   });
 

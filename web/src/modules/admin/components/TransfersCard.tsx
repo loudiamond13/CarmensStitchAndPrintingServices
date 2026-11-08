@@ -60,6 +60,7 @@ export function TransfersCard() {
   const actions = useTransferRowActions({
     rows: page?.rows,
     captionId,
+    failed,
     fallbackId: headingId,
   });
 

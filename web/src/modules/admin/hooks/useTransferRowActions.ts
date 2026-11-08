@@ -34,6 +34,8 @@ export interface TransferRowActionsOptions {
   rows: readonly ActionableRow[] | undefined;
   /** The table caption's id. */
   captionId: string;
+  /** The list failed to read: a focus move still waiting for the change is dropped, so it cannot fire on an unrelated change later. */
+  failed?: boolean;
   /** Where focus goes when the caption is not drawn (the list became empty). */
   fallbackId: string;
 }
@@ -47,7 +49,12 @@ export interface TransferRowActions {
   dialogs: TransferActionDialogsProps;
 }
 
-export function useTransferRowActions({ rows, captionId, fallbackId }: TransferRowActionsOptions): TransferRowActions {
+export function useTransferRowActions({
+  rows,
+  captionId,
+  failed = false,
+  fallbackId,
+}: TransferRowActionsOptions): TransferRowActions {
   const rowFocus = useRowFocus();
   const [deleting, setDeleting] = useState<Pending | null>(null);
   const [removing, setRemoving] = useState<Pending | null>(null);
@@ -63,7 +70,12 @@ export function useTransferRowActions({ rows, captionId, fallbackId }: TransferR
   // Once the list no longer shows the transfer as it was, move focus (the dialog's own return to the trigger has run).
   useEffect(() => {
     const wanted = after.current;
-    if (wanted === null || rows === undefined) return;
+    if (wanted === null) return;
+    if (failed) {
+      after.current = null;
+      return;
+    }
+    if (rows === undefined) return;
     const row = rows.find((candidate) => candidate.id === wanted.id);
     const settled = wanted.kind === 'delete' ? row === undefined || row.isDeleted : row === undefined;
     if (!settled) return;

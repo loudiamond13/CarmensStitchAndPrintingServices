@@ -321,6 +321,33 @@ describe('deleting from the list (D-29, D-35; plan 10-20)', () => {
     });
   });
 
+  it('does not move focus later, on an unrelated change, when the list failed to read again after a delete (wave 10 IN-02)', async () => {
+    let reads = 0;
+    transfersBackend((url) => {
+      reads += 1;
+      if (reads === 2) return problemResponse(500);
+      return url.searchParams.get('deleted') === 'true'
+        ? transferListFixture([transferDeletedFixture({ id: ID_A, version: 'ver-a' }), item(ID_B, 300)])
+        : transferListFixture([item(ID_A, 100), item(ID_B, 300)]);
+    });
+    deleteTransferBackend();
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('button', { name: deleteName('₱100.00') }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+    await screen.findByText("Couldn't load transfers.");
+
+    const showDeleted = screen.getByRole('checkbox', { name: 'Show deleted' });
+    await user.click(showDeleted);
+    await waitFor(() => {
+      expect(within(rowAt(0)).getByText('Deleted')).toBeVisible();
+    });
+    expect(showDeleted).toHaveFocus();
+  });
+
   it("moves focus to the previous row's action when the last row is deleted", async () => {
     let deleted = false;
     transfersBackend(() => transferListFixture(deleted ? [item(ID_A, 100)] : [item(ID_A, 100), item(ID_B, 300)]));
