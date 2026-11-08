@@ -419,6 +419,40 @@ describe('what the server refuses (D-14, D-56, SEC-06)', () => {
     expect(amountBox()).toHaveValue('100.00');
   });
 
+  it('clears To when the people read again no longer hold the chosen person, so the hidden id is never sent (wave 7 WR-02)', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    let reads = 0;
+    const people = transferRecipientsBackend(() => {
+      reads += 1;
+      return reads === 1
+        ? transferRecipientsFixture()
+        : transferRecipientsFixture().filter((person) => person.id !== LIZA_ID);
+    });
+    const sent = createTransferBackend(() =>
+      transferFieldProblem('toUserId', "Liza Mercado can't receive transfers now. Choose someone else."),
+    );
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await fill(user, '100');
+
+    await user.click(recordButton());
+    expect(await screen.findByText("Liza Mercado can't receive transfers now. Choose someone else.")).toBeVisible();
+    await waitFor(() => {
+      expect(people).toHaveLength(2);
+    });
+    await waitFor(() => {
+      expect(toBox()).toHaveValue('');
+    });
+    expect(within(toBox()).queryByRole('option', { name: 'Liza Mercado' })).toBeNull();
+
+    await user.click(recordButton());
+
+    expect(await screen.findByText('Choose who got the cash.')).toBeVisible();
+    expect(sent.bodies).toHaveLength(1);
+  });
+
   it('shows the server line for a busy answer as a danger toast and keeps the window and the typed values', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
     transferRecipientsBackend();
