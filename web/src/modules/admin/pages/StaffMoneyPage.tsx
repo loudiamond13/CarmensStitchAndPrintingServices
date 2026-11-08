@@ -33,7 +33,7 @@ import {
 import { MoneyOnHandCard } from '@/modules/admin/components/MoneyOnHandCard';
 import { RoleBadge } from '@/modules/admin/components/UserBadges';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { useStaffMoneyParams } from '@/modules/admin/hooks/useStaffMoneyParams';
+import { useCleanStaffMoneyUrl } from '@/modules/admin/hooks/useCleanStaffMoneyUrl';
 import { useStaffMoneyQuery } from '@/modules/admin/hooks/useStaffMoneyQuery';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
 
@@ -45,7 +45,7 @@ export function StaffMoneyRoute() {
   const { userId = '' } = useParams();
   // The id as the server accepts it, or null: nothing is asked for anything else.
   const id = guidParser.parse(userId);
-  useStaffMoneyParams();
+  useCleanStaffMoneyUrl();
   const query = useStaffMoneyQuery(id);
   const person = query.data;
   const notFound = id === null || (isHttpError(query.error) && query.error.status === 404);
