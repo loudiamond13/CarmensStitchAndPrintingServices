@@ -17,7 +17,7 @@ status: issues_found
 
 # Phase 10 Wave 8 Code Review (plans 10-16 and 10-17)
 
-*Created: 2026-11-07T23:25:00-06:00 · Updated: 2026-11-07T23:25:00-06:00*
+*Created: 2026-11-07T23:25:00-06:00 · Updated: 2026-11-08T00:05:00-06:00*
 
 ## Summary
 
@@ -154,3 +154,18 @@ Extend the test: delay the page 3 answer and assert that `queryByText('No money 
 _Reviewed: 2026-11-07T23:25:00-06:00_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: deep_
+
+## Outcomes
+
+| Finding | Outcome |
+|---|---|
+| WR-01 | Fix now, ledger only: a row-less page with a non-zero total counts as loading and is never kept as the placeholder. The same pattern in Orders, Expenses and the other clamped lists goes to the phase-end code review. |
+| WR-02 | Fix now, ledger only: Rows per page stays on screen while the ledger has more rows than the smallest size, through an opt-in size-only mode on Pagination (defaults unchanged). The other lists go to the phase-end code review. |
+| IN-01 | Fix now: the figure scan gets a deleted transfer and a transfer list where the Admin would see another person if the rule broke. |
+| IN-02 | Fix now: the result bar wording follows `page.includesDeleted`. |
+| IN-03 | Fix now: the Admin drop of Manager-only values keeps the page and no request goes out with them. |
+| IN-04 | Parked for the owner (P10-BL-12, screen reader landmarks). No change until ruled. |
+| IN-05 | Fix now: remove the unused `ledgerStateClasses`. |
+| IN-06 | Fix now: correct the two API doc lines. |
+| IN-07 | Deferred to the phase-end code review with the paging defaults (wave 7 IN-03): the other list endpoints count the same way. |
+| IN-08 | Deferred to plan 10-19, which shows other people's ledgers and sets that copy. |
