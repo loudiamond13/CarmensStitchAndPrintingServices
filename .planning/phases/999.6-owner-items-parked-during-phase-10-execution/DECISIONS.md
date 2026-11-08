@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T14:55:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-07T19:30:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -89,3 +89,23 @@ A hand-over checks who is staff and who has left at the moment it runs. If, in t
 
 - **A (recommended):** accept this. It needs two Managers acting on the same people at the same second, nothing is lost or overdrawn, and a second hand-over fixes it.
 - **B:** make deactivate, activate and delete wait for the money lock too, so the two can never overlap. Staff admin then waits briefly whenever a money change is in progress.
+
+## P10-BL-10 · How a deleted transfer shows in a Manager's ledger (plan 10-14, coverage D9)
+
+**Status:** open · **Blocks:** nothing; plan 10-17 draws the ledger screen, and the server uses option A for now.
+
+Managers can switch the ledger to also show deleted transfers. The plan did not say what figures such a row shows. Deleted rows never count toward the balance either way.
+
+- **A (used now, recommended):** show the amount it had, in the Money in or Money out column, with no running balance on that row. Staff can see what was deleted.
+- **B:** show no amount at all on a deleted row, only its date, people and the word Deleted.
+
+## P10-BL-11 · New or reused wording from plans 10-14 and 10-15 (money screens)
+
+**Status:** open · **Blocks:** nothing; the lines below are in use now and can be reworded later.
+
+- "Only Managers can see deleted transfers." The plan spelled this out word for word. It shows if an Admin asks the ledger for deleted transfers.
+- "You have nothing on hand to transfer." This is the server's existing line and is in the UI spec table. The Transfer window now also shows it when an amount is typed while your money on hand is zero or less.
+- "Couldn't load the staff list. Close this form and try again." This is the existing Paid by line, reused when the Transfer window cannot load the list of people.
+- When the server is busy (another money change is in progress), the Transfer window shows the server's own line as the toast title, with nothing added.
+
+Keep them, or give new wording.
