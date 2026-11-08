@@ -98,10 +98,72 @@ export class LedgerContractError extends Error {
   }
 }
 
-/** Narrows the generated ledger page (figures are `number | string` there). RED stub: it passes everything through unchecked. */
+const LEDGER_KINDS: readonly string[] = [
+  'payment-received',
+  'refund-handed-back',
+  'transfer-in',
+  'transfer-out',
+  'company-expense',
+  'order-expense',
+] satisfies readonly LedgerKind[];
+
+function isLedgerKind(kind: string): kind is LedgerKind {
+  return LEDGER_KINDS.includes(kind);
+}
+
+/** A figure the page needs: a finite number, or the whole answer is refused. */
+function requiredFigure(value: unknown, what: string): number {
+  const figure = toFiniteFigure(value);
+  if (figure === null) throw new LedgerContractError(`The ledger ${what} is not a finite number.`);
+  return figure;
+}
+
+/** A figure a row may leave out (the empty side, a deleted row's balance): null stays null, anything else must be a finite number. */
+function optionalFigure(value: unknown, what: string): number | null {
+  return value === null || value === undefined ? null : requiredFigure(value, what);
+}
+
+function toLedgerRow(item: LedgerEntryResponse, index: number): LedgerRow {
+  if (!isLedgerKind(item.kind)) throw new LedgerContractError(`The ledger row kind "${item.kind}" is not known.`);
+  return {
+    key: `${String(index)}:${item.kind}:${item.transferId ?? item.orderId ?? ''}:${item.recordedAtUtc}`,
+    kind: item.kind,
+    date: item.date,
+    moneyIn: optionalFigure(item.moneyIn, 'money in'),
+    moneyOut: optionalFigure(item.moneyOut, 'money out'),
+    balanceAfter: optionalFigure(item.balanceAfter, 'balance'),
+    orderId: item.orderId,
+    orderNumber: item.orderNumber,
+    team: item.team,
+    customer: item.customer,
+    paymentMethod: item.paymentMethod,
+    category: item.category,
+    description: item.description,
+    counterpart: item.counterpart,
+    note: item.note,
+    transferId: item.transferId,
+    version: item.version,
+    isHandover: item.isHandover,
+    recordedBy: item.recordedBy,
+    isDeleted: item.isDeleted,
+    deletedBy: item.deletedBy,
+    deletedAtUtc: item.deletedAtUtc,
+  };
+}
+
+/**
+ * Narrows the generated ledger page (figures are `number | string` there). Every amount and balance is the server's; none is worked out
+ * here. A figure that is not a plain decimal, or a kind the browser does not know, refuses the whole answer, so no row is drawn wrong.
+ */
 export function parseLedgerPage(response: LedgerPageResponse): LedgerPage {
-  const rows = response.items.map((item, index) => ({ ...item, key: String(index) }));
-  return { ...response, rows } as unknown as LedgerPage;
+  return {
+    rows: response.items.map(toLedgerRow),
+    total: requiredFigure(response.total, 'total'),
+    page: requiredFigure(response.page, 'page'),
+    pageSize: requiredFigure(response.pageSize, 'page size'),
+    balance: requiredFigure(response.balance, 'balance on hand'),
+    includesDeleted: response.includesDeleted,
+  };
 }
 
 /** The words the server uses for a person's standing; any other word is refused, not shown. */
@@ -161,8 +223,11 @@ export function createMoneyService(client: HttpClient): MoneyService {
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<TransferSavedResponse>('/money-transfers', body, { idempotencyKey, signal }),
-    // RED stub: the real call arrives with the GREEN commit.
-    ledger: () => Promise.resolve({ balance: 0, includesDeleted: false, items: [], page: 1, pageSize: 20, total: 0 }),
+    ledger: (userId, query, signal) =>
+      client.get<LedgerPageResponse>(`/staff-money/${encodeURIComponent(userId)}/ledger`, {
+        params: { page: query.page, pageSize: query.pageSize, deleted: query.deleted ? true : undefined },
+        signal,
+      }),
   };
 }
 

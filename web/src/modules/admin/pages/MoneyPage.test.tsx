@@ -199,7 +199,7 @@ describe('loading and failure', () => {
     let answered = 0;
     const calls = myMoneyBackend(() => {
       answered += 1;
-      return answered === 1 ? problemResponse(500) : myMoneyFixture({ balance: 300 });
+      return answered === 1 ? problemResponse(500) : myMoneyFixture({ balance: 275 });
     });
     renderPage();
 
@@ -208,7 +208,7 @@ describe('loading and failure', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
 
-    expect(await screen.findByText('₱300.00')).toBeVisible();
+    expect(await screen.findByText('₱275.00')).toBeVisible();
     expect(calls).toHaveLength(2);
     expect(screen.queryByText("Couldn't load the money on hand.")).toBeNull();
   });

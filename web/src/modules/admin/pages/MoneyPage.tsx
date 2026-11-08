@@ -1,6 +1,6 @@
 // M1 My Money, /admin/money (D-39, MONEY-02; UI-SPEC M1). The header (the title, what the page shows and the primary Transfer button,
 // aria-disabled with its visible reason when nothing is on hand, D-14) and the caller's own balance card, the same for both roles. The
-// card reads the server's figure; nothing is worked out here. The Manager tabs and the ledger arrive in later plans (10-17, 10-19).
+// card reads the server's figure; nothing is worked out here. The Ledger card sits under it (10-17). The Manager tabs arrive in plan 10-19.
 import { useEffect, useId } from 'react';
 import {
   pageHeadClasses,
@@ -8,6 +8,7 @@ import {
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
+import { LedgerCard } from '@/modules/admin/components/LedgerCard';
 import { moneyHeadActionsClasses, moneyHeadReasonClasses } from '@/modules/admin/components/money.recipe';
 import { MoneyOnHandCard } from '@/modules/admin/components/MoneyOnHandCard';
 import { TransferButton, TransferReason, transferGate } from '@/modules/admin/components/TransferButton';
@@ -39,6 +40,7 @@ export function MoneyRoute() {
         </div>
       </div>
       <MoneyOnHandCard query={money} />
+      <LedgerCard userId="me" />
     </>
   );
 }

@@ -15,6 +15,12 @@ import {
 // The ledger table (D-41, MONEY-02; UI-SPEC M1 "Ledger card" and Copywriting "Ledger rows"): the server's rows, newest first, each with
 // its title and sub line, Money in or Money out, and the running balance after it. The table works out nothing.
 
+const DATE = 0;
+const DETAILS = 1;
+const MONEY_IN = 2;
+const MONEY_OUT = 3;
+const BALANCE = 4;
+
 function renderTable(items: LedgerEntryFixture[] = ledgerEntriesFixture()) {
   const page = parseLedgerPage(ledgerPageFixture(items));
   return render(
@@ -31,9 +37,11 @@ function bodyRows(): HTMLElement[] {
     .slice(1);
 }
 
-/** The five cells of one body row: Date, Details, Money in, Money out, Balance. */
-function cellsOf(row: HTMLElement): HTMLElement[] {
-  return within(row).getAllByRole('cell');
+/** One cell: the row's place in the table, then Date 0, Details 1, Money in 2, Money out 3, Balance 4. */
+function cellAt(row: number, column: number): HTMLElement {
+  const cell = bodyRows().at(row)?.querySelectorAll<HTMLElement>('td')[column];
+  if (cell === undefined) throw new Error(`No cell at row ${String(row)}, column ${String(column)}.`);
+  return cell;
 }
 
 describe('the rows (D-41)', () => {
@@ -45,21 +53,21 @@ describe('the rows (D-41)', () => {
       .map((header) => header.textContent);
     expect(headers).toEqual(['Date', 'Details', 'Money in', 'Money out', 'Balance']);
     expect(bodyRows()).toHaveLength(6);
-    expect(cellsOf(bodyRows()[0] as HTMLElement)[1]).toHaveTextContent('Order expense');
-    expect(cellsOf(bodyRows()[5] as HTMLElement)[1]).toHaveTextContent('Payment received');
+    expect(cellAt(0, DETAILS)).toHaveTextContent('Order expense');
+    expect(cellAt(5, DETAILS)).toHaveTextContent('Payment received');
   });
 
   it('writes the date as "Oct 28, 2026"', () => {
     renderTable();
 
-    expect(cellsOf(bodyRows()[5] as HTMLElement)[0]).toHaveTextContent('Oct 28, 2026');
-    expect(cellsOf(bodyRows()[0] as HTMLElement)[0]).toHaveTextContent('Nov 4, 2026');
+    expect(cellAt(5, DATE)).toHaveTextContent('Oct 28, 2026');
+    expect(cellAt(0, DATE)).toHaveTextContent('Nov 4, 2026');
   });
 
   it('titles a payment "Payment received" over its order number, team and method, with the number a link to the order', () => {
     renderTable();
 
-    const details = cellsOf(bodyRows()[5] as HTMLElement)[1] as HTMLElement;
+    const details = cellAt(5, DETAILS);
     expect(details).toHaveTextContent('Payment received');
     expect(details).toHaveTextContent('ORD-2026-0148 · Blue Hawks · GCash');
     expect(within(details).getByRole('link', { name: 'ORD-2026-0148' })).toHaveAttribute(
@@ -71,7 +79,7 @@ describe('the rows (D-41)', () => {
   it('titles a refund "Refund handed back" over its order number and the team', () => {
     renderTable();
 
-    const details = cellsOf(bodyRows()[4] as HTMLElement)[1] as HTMLElement;
+    const details = cellAt(4, DETAILS);
     expect(details).toHaveTextContent('Refund handed back');
     expect(details).toHaveTextContent('ORD-2026-0148 · Blue Hawks');
     expect(details).not.toHaveTextContent('Rico Dela Cruz');
@@ -88,13 +96,13 @@ describe('the rows (D-41)', () => {
       }),
     ]);
 
-    expect(cellsOf(bodyRows()[0] as HTMLElement)[1]).toHaveTextContent('ORD-2026-0150 · Rico Dela Cruz · Cash');
+    expect(cellAt(0, DETAILS)).toHaveTextContent('ORD-2026-0150 · Rico Dela Cruz · Cash');
   });
 
   it('titles a transfer in "Transfer from {name}" over its note', () => {
     renderTable();
 
-    const details = cellsOf(bodyRows()[3] as HTMLElement)[1] as HTMLElement;
+    const details = cellAt(3, DETAILS);
     expect(details).toHaveTextContent('Transfer from Paolo Garcia');
     expect(details).toHaveTextContent('Cash for the fabric run');
   });
@@ -102,7 +110,7 @@ describe('the rows (D-41)', () => {
   it('titles a hand-over "Transfer to {name}" and adds "Handed over by {Manager}"', () => {
     renderTable();
 
-    const details = cellsOf(bodyRows()[2] as HTMLElement)[1] as HTMLElement;
+    const details = cellAt(2, DETAILS);
     expect(details).toHaveTextContent('Transfer to Liza Mercado');
     expect(details).toHaveTextContent('Handed over by Carmen Reyes');
   });
@@ -120,13 +128,13 @@ describe('the rows (D-41)', () => {
       }),
     ]);
 
-    expect(cellsOf(bodyRows()[0] as HTMLElement)[1]).toHaveTextContent('Closing cash · Handed over by Carmen Reyes');
+    expect(cellAt(0, DETAILS)).toHaveTextContent('Closing cash · Handed over by Carmen Reyes');
   });
 
   it('titles a company expense "Company expense" over its category and description', () => {
     renderTable();
 
-    const details = cellsOf(bodyRows()[1] as HTMLElement)[1] as HTMLElement;
+    const details = cellAt(1, DETAILS);
     expect(details).toHaveTextContent('Company expense');
     expect(details).toHaveTextContent('Utilities · Electric bill for October');
   });
@@ -134,7 +142,7 @@ describe('the rows (D-41)', () => {
   it('titles an order expense "Order expense" over its order number, category and description', () => {
     renderTable();
 
-    const details = cellsOf(bodyRows()[0] as HTMLElement)[1] as HTMLElement;
+    const details = cellAt(0, DETAILS);
     expect(details).toHaveTextContent('Order expense');
     expect(details).toHaveTextContent('ORD-2026-0148 · Fabric · Extra dye lot');
     expect(within(details).getByRole('link', { name: 'ORD-2026-0148' })).toBeVisible();
@@ -164,10 +172,9 @@ describe('the rows (D-41)', () => {
       }),
     ]);
 
-    const [expense, transfer, payment] = bodyRows().map((row) => cellsOf(row)[1] as HTMLElement);
-    expect(expense?.textContent).toBe('Company expenseUtilities');
-    expect(transfer?.textContent).toBe('Transfer from Paolo Garcia');
-    expect(payment?.textContent).toBe('Payment receivedCash');
+    expect(cellAt(0, DETAILS).textContent).toBe('Company expenseUtilities');
+    expect(cellAt(1, DETAILS).textContent).toBe('Transfer from Paolo Garcia');
+    expect(cellAt(2, DETAILS).textContent).toBe('Payment receivedCash');
   });
 
   it('keeps the former-staff mark on a deleted person in the title and the hand-over line', () => {
@@ -180,7 +187,7 @@ describe('the rows (D-41)', () => {
       }),
     ]);
 
-    const details = cellsOf(bodyRows()[0] as HTMLElement)[1] as HTMLElement;
+    const details = cellAt(0, DETAILS);
     expect(details).toHaveTextContent('Transfer from Ana Villanueva (former staff)');
     expect(details).toHaveTextContent('Handed over by Carmen Reyes (former staff)');
   });
@@ -190,37 +197,32 @@ describe('Money in, Money out and Balance (D-21, OR-4, MONEY-02)', () => {
   it('shows a payment in Money in with the empty marker under Money out, and a refund the other way round', () => {
     renderTable();
 
-    const [, , moneyIn, moneyOut] = cellsOf(bodyRows()[5] as HTMLElement);
-    expect(moneyIn).toHaveTextContent('₱2,000.00');
-    expect(moneyOut).toHaveTextContent('Not set');
-    const [, , refundIn, refundOut] = cellsOf(bodyRows()[4] as HTMLElement);
-    expect(refundIn).toHaveTextContent('Not set');
-    expect(refundOut).toHaveTextContent('₱300.00');
+    expect(cellAt(5, MONEY_IN)).toHaveTextContent('₱2,000.00');
+    expect(cellAt(5, MONEY_OUT)).toHaveTextContent('Not set');
+    expect(cellAt(4, MONEY_IN)).toHaveTextContent('Not set');
+    expect(cellAt(4, MONEY_OUT)).toHaveTextContent('₱300.00');
   });
 
   it('shows every money out amount without a sign', () => {
     renderTable();
 
     for (const index of [0, 1, 2, 4]) {
-      const cells = cellsOf(bodyRows()[index] as HTMLElement);
-      expect(cells[3]?.textContent).toMatch(/^₱[\d,]+\.\d{2}$/);
+      expect(cellAt(index, MONEY_OUT).textContent).toMatch(/^₱[\d,]+\.\d{2}$/);
     }
   });
 
   it("shows each row's balance after it as the server sent it, with nothing added up here", () => {
     renderTable();
 
-    const balances = bodyRows().map((row) => cellsOf(row)[4]?.textContent);
+    const balances = bodyRows().map((_row, index) => cellAt(index, BALANCE).textContent);
     expect(balances).toEqual(['−₱500.00', '₱950.00', '₱1,700.00', '₱3,700.00', '₱1,700.00', '₱2,000.00']);
   });
 
   it('shows a negative balance in the danger tone with the true minus sign (D-21)', () => {
     renderTable();
 
-    const figure = within(cellsOf(bodyRows()[0] as HTMLElement)[4] as HTMLElement).getByText('−₱500.00');
-    expect(figure.className).toContain('text-danger');
-    const positive = within(cellsOf(bodyRows()[1] as HTMLElement)[4] as HTMLElement).getByText('₱950.00');
-    expect(positive.className).not.toContain('text-danger');
+    expect(within(cellAt(0, BALANCE)).getByText('−₱500.00').className).toContain('text-danger');
+    expect(within(cellAt(1, BALANCE)).getByText('₱950.00').className).not.toContain('text-danger');
   });
 
   it('offers no edit or delete action on any row (D-22, MONEY-07)', () => {
