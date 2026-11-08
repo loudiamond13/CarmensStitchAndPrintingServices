@@ -230,3 +230,62 @@ describe('pagination scenarios (lists-states group)', () => {
     }
   });
 });
+
+describe('Pagination size-only mode (opt-in, one page)', () => {
+  it('draws only the "Rows per page" select, with no nav and no buttons, and calls the size setter', async () => {
+    const user = userEvent.setup();
+    const onPageSizeChange = vi.fn();
+    render(
+      <Pagination
+        page={1}
+        pageCount={1}
+        onPageChange={() => undefined}
+        pageSize={50}
+        onPageSizeChange={onPageSizeChange}
+        sizeOnlyWhenSinglePage
+      />,
+    );
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    const size = screen.getByRole('combobox', { name: LISTS_COPY.pagination.rowsPerPage });
+    expect(size).toHaveValue('50');
+    await user.selectOptions(size, '10');
+    expect(onPageSizeChange).toHaveBeenCalledWith(10);
+  });
+
+  it('draws nothing for one page without the size setter, even when opted in', () => {
+    const { container } = render(
+      <Pagination page={1} pageCount={1} onPageChange={() => undefined} sizeOnlyWhenSinglePage />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('draws the full bar for several pages', () => {
+    render(
+      <Pagination
+        page={1}
+        pageCount={3}
+        onPageChange={() => undefined}
+        pageSize={20}
+        onPageSizeChange={() => undefined}
+        sizeOnlyWhenSinglePage
+      />,
+    );
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 3');
+    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(
+      <Pagination
+        page={1}
+        pageCount={1}
+        onPageChange={() => undefined}
+        pageSize={50}
+        onPageSizeChange={() => undefined}
+        sizeOnlyWhenSinglePage
+      />,
+    );
+    await expectNoAxeViolations(container);
+  });
+});

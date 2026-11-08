@@ -318,6 +318,37 @@ describe('paging (WEB-10)', () => {
     ]);
   });
 
+  it('keeps "Rows per page" after a size that fits every row, so a smaller size can be chosen again (WR-02)', async () => {
+    const calls = ledgerBackend(pagedLedger(30));
+    renderCard('?size=20');
+    const user = userEvent.setup();
+
+    await screen.findByText('Bill 1');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50');
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('50');
+    });
+    await screen.findByText('Bill 30');
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    await user.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+    await screen.findByText('Bill 10');
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 3');
+  });
+
+  it('offers no "Rows per page" when every row would fit the smallest size anyway', async () => {
+    ledgerBackend(pagedLedger(10));
+    renderCard();
+
+    await screen.findByText('Bill 1');
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
+  });
+
   it('keeps the rows on screen, dimmed after 200 ms, while the next page loads', async () => {
     const answer = pagedLedger(45);
     ledgerBackend(async (url) => {
