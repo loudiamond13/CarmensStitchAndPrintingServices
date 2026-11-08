@@ -295,7 +295,86 @@ export function parsePersonMoney(response: StaffMoneyResponse): PersonMoney {
   return { ...money, role: response.role, status: response.status };
 }
 
+export type MoneyTransferListResponse = Schemas['MoneyTransferListResponse'];
+
+/** One transfer on the Transfers tab once the browser has checked its amount: the amount is the server's, as a finite number. */
+export interface TransferItem {
+  id: string;
+  /** The base64 row version a delete sends back. */
+  version: string;
+  amount: number;
+  /** The day the money changed hands, `YYYY-MM-DD`. */
+  date: string;
+  from: ActorRef;
+  to: ActorRef;
+  note: string | null;
+  recordedBy: ActorRef | null;
+  isHandover: boolean;
+  isDeleted: boolean;
+  deletedBy: ActorRef | null;
+  deletedAtUtc: string | null;
+}
+
+/** One server page of transfers once the browser has checked it. */
+export interface TransferPage {
+  rows: TransferItem[];
+  /** How many transfers match across all pages. */
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** What a transfer list read asks for. `deleted` is for a Manager only; the server answers 403 to an Admin. */
+export interface TransferListQuery {
+  page: number;
+  pageSize: number;
+  deleted: boolean;
+}
+
+/** The transfer list holds a figure the browser cannot trust, so the tab shows its failure instead of a wrong row. */
+export class TransferContractError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TransferContractError';
+  }
+}
+
+/**
+ * What a delete or remove dialog needs to name one transfer: the facts of a Transfers row or of a ledger row, with the version a delete
+ * sends. `to` is the receiver, whose balance the delete dialog checks.
+ */
+export interface TransferTarget {
+  id: string;
+  version: string;
+  amount: number;
+  date: string;
+  from: ActorRef;
+  to: ActorRef;
+  deletedBy: ActorRef | null;
+  deletedAtUtc: string | null;
+}
+
+export function toTransferTarget(item: TransferItem): TransferTarget {
+  const { id, version, amount, date, from, to, deletedBy, deletedAtUtc } = item;
+  return { id, version, amount, date, from, to, deletedBy, deletedAtUtc };
+}
+
+/** Stub: the checked page arrives with the GREEN commit. */
+export function parseTransferPage(response: MoneyTransferListResponse): TransferPage {
+  return { rows: [], total: 0, page: Number(response.page), pageSize: Number(response.pageSize) };
+}
+
 export interface MoneyService {
+  /**
+   * `GET /api/v1/money-transfers`: one page of every transfer between staff, newest first, for a Manager only (an Admin gets 403).
+   * Page and size are always sent; `deleted=true` only when asked.
+   */
+  transfers(query: TransferListQuery, signal?: AbortSignal): Promise<MoneyTransferListResponse>;
+  /**
+   * `DELETE /api/v1/money-transfers/{id}?version=`: a Manager deletes a transfer; it stops counting toward both balances. The version
+   * is the one last seen, sent as a query parameter. 204 on success, 409 when the transfer changed, 404 when it is not there.
+   */
+  deleteTransfer(id: string, version: string, signal?: AbortSignal): Promise<void>;
   /**
    * `POST /api/v1/money-transfers/handovers`: a Manager hands money held by a former staff member to a current coworker (D-17). The body
    * names the former staff member as the sender (`fromUserId`); the signed-in Manager is only the one who records it. One
@@ -340,6 +419,8 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
+    transfers: () => Promise.reject(new Error('Not built yet.')),
+    deleteTransfer: () => Promise.reject(new Error('Not built yet.')),
     handover: (body, idempotencyKey, signal) =>
       client.post<TransferSavedResponse>('/money-transfers/handovers', body, { idempotencyKey, signal }),
     person: (userId, signal) =>

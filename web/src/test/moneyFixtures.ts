@@ -443,3 +443,133 @@ export function createHandoverBackend(
   );
   return calls;
 }
+
+// The Transfers tab's fixtures (plan 10-20): one page of transfers between made-up staff, and handlers for the list, the delete and
+// the permanent remove, typed from the generated contract.
+
+export type TransferItemFixture = Schemas['MoneyTransferResponse'];
+export type TransferListFixture = Schemas['MoneyTransferListResponse'];
+
+export const TRANSFER_ID = '0b0f6c1e-0000-4000-8000-0000000000d1';
+export const TRANSFER_VERSION = 'AAAAAAAAB9E=';
+
+export const CARMEN_ACTOR: Schemas['ActorRef'] = { id: MY_MONEY_USER_ID, name: 'Carmen Reyes', formerStaff: false };
+export const PAOLO_ACTOR: Schemas['ActorRef'] = { id: PAOLO_ID, name: 'Paolo Garcia', formerStaff: false };
+export const LIZA_ACTOR: Schemas['ActorRef'] = { id: LIZA_ID, name: 'Liza Mercado', formerStaff: false };
+
+/** A transfer of 2,000.00 from Paolo to Liza on Oct 6, recorded by Carmen, with no note. Override any field. */
+export function transferItemFixture(overrides: Partial<TransferItemFixture> = {}): TransferItemFixture {
+  return {
+    id: TRANSFER_ID,
+    amount: 2000,
+    from: PAOLO_ACTOR,
+    to: LIZA_ACTOR,
+    transferDate: '2026-10-06',
+    note: null,
+    isDeleted: false,
+    isHandover: false,
+    deletedAtUtc: null,
+    deletedBy: null,
+    recordedAtUtc: '2026-10-06T05:00:00Z',
+    recordedBy: CARMEN_ACTOR,
+    version: TRANSFER_VERSION,
+    ...overrides,
+  };
+}
+
+/** A deleted transfer: who deleted it (Carmen) and when (Oct 8, 3:42 PM in the business zone). */
+export function transferDeletedFixture(overrides: Partial<TransferItemFixture> = {}): TransferItemFixture {
+  return transferItemFixture({
+    id: '0b0f6c1e-0000-4000-8000-0000000000d2',
+    isDeleted: true,
+    deletedBy: CARMEN_ACTOR,
+    deletedAtUtc: '2026-10-08T07:42:00Z',
+    version: 'AAAAAAAAB9F=',
+    ...overrides,
+  });
+}
+
+/** A page of transfers. The total, page and size follow the items unless overridden. */
+export function transferListFixture(
+  items: TransferItemFixture[] = [transferItemFixture()],
+  overrides: Partial<TransferListFixture> = {},
+): TransferListFixture {
+  return { items, page: 1, pageSize: 20, total: items.length, ...overrides };
+}
+
+type TransferListResponder = (url: URL) => Response | TransferListFixture | Promise<Response | TransferListFixture>;
+
+/** Answers `GET /api/v1/money-transfers` (the Manager's Transfers tab) with a page, or a function that decides per call. Returns every request. */
+export function transfersBackend(answer: TransferListFixture | TransferListResponder = transferListFixture()): URL[] {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/money-transfers', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.push(url);
+      const body = typeof answer === 'function' ? await answer(url) : answer;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return calls;
+}
+
+/** What the fake API received for each delete or remove: every URL (id and version) in order. */
+export interface TransferDeletionCalls {
+  urls: URL[];
+}
+
+/** Answers `DELETE /api/v1/money-transfers/{id}` (204 unless told otherwise) and records each URL. */
+export function deleteTransferBackend(
+  reply: (url: URL) => Response | Promise<Response> = () => new HttpResponse(null, { status: 204 }),
+): TransferDeletionCalls {
+  const calls: TransferDeletionCalls = { urls: [] };
+  server.use(
+    http.delete('*/api/v1/money-transfers/:id', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.urls.push(url);
+      return reply(url);
+    }),
+  );
+  return calls;
+}
+
+/** Answers `DELETE /api/v1/money-transfers/{id}/permanent` (204 unless told otherwise) and records each URL. */
+export function removeTransferBackend(
+  reply: (url: URL) => Response | Promise<Response> = () => new HttpResponse(null, { status: 204 }),
+): TransferDeletionCalls {
+  const calls: TransferDeletionCalls = { urls: [] };
+  server.use(
+    http.delete('*/api/v1/money-transfers/:id/permanent', async ({ request }) => {
+      const url = new URL(request.url);
+      calls.urls.push(url);
+      return reply(url);
+    }),
+  );
+  return calls;
+}
+
+/** A 409 stale in the server's problem shape: its `detail` is the server's own line. */
+export function transferStaleProblem(): Response {
+  return new HttpResponse(
+    JSON.stringify({
+      title: 'Conflict',
+      status: 409,
+      code: 'edit.stale',
+      detail: 'This was changed by someone else. Reload and try again.',
+    }),
+    { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+  );
+}
+
+/** A 404 for a transfer that is not there (any more). */
+export function transferNotFoundProblem(): Response {
+  return new HttpResponse(
+    JSON.stringify({
+      title: 'Not Found',
+      status: 404,
+      code: 'money-transfers.not-found',
+      detail: "This transfer wasn't found.",
+    }),
+    { status: 404, headers: { 'Content-Type': 'application/problem+json' } },
+  );
+}

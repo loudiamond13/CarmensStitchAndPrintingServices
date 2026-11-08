@@ -23,6 +23,7 @@ import {
   staffBalancesBackend,
   staffBalancesFixture,
   transferRecipientsBackend,
+  transfersBackend,
 } from '@/test/moneyFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -410,9 +411,10 @@ const ADMIN_SESSION = sessionResponse({
 });
 
 describe('the Manager tabs Mine and All Staff (D-42, MONEY-03; plan 10-19)', () => {
-  it('shows a Manager the tabs Mine and All Staff, with Mine selected and its balance card and ledger drawn', async () => {
+  it('shows a Manager the tabs Mine, All Staff and Transfers, with Mine selected and its balance card and ledger drawn', async () => {
     myMoneyBackend();
     const staff = staffBalancesBackend();
+    const transfers = transfersBackend();
     renderPage();
 
     const tabs = screen.getByRole('tablist');
@@ -420,7 +422,8 @@ describe('the Manager tabs Mine and All Staff (D-42, MONEY-03; plan 10-19)', () 
       within(tabs)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Mine', 'All Staff']);
+    ).toEqual(['Mine', 'All Staff', 'Transfers']);
+    expect(transfers).toHaveLength(0);
     expect(screen.getByRole('tab', { name: 'Mine' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByRole('table', { name: 'Ledger' })).toBeVisible();
     expect(screen.getByRole('region', { name: 'Money on hand' })).toBeVisible();
@@ -510,6 +513,61 @@ describe('the Manager tabs Mine and All Staff (D-42, MONEY-03; plan 10-19)', () 
     for (const other of ['Jomar Santos', 'Ana Villanueva', 'Total held by staff', '9,650.00']) {
       expect(container).not.toHaveTextContent(other);
     }
+  });
+
+  it('writes tab=transfers with a replace when Transfers is chosen, and shows the Transfers card with its rows (D-48; plan 10-20)', async () => {
+    myMoneyBackend();
+    transfersBackend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    renderPage('', onUrlUpdate);
+
+    await user.click(screen.getByRole('tab', { name: 'Transfers' }));
+
+    expect(await screen.findByRole('table', { name: 'Transfers' })).toBeVisible();
+    expect(screen.getByText('Every transfer between staff, newest first.')).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Transfers' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel', { name: 'Transfers' })).toBeVisible();
+    expect(onUrlUpdate.mock.calls.map(([event]) => [event.options.history, event.queryString])).toContainEqual([
+      'replace',
+      '?tab=transfers',
+    ]);
+    expect(screen.queryByRole('table', { name: 'Ledger' })).toBeNull();
+  });
+
+  it('opens on Transfers from ?tab=transfers, not on Mine (P10-BL-12), and keeps the header', async () => {
+    myMoneyBackend();
+    const calls = transfersBackend();
+    renderPage('?tab=transfers');
+
+    expect(await screen.findByRole('table', { name: 'Transfers' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Transfers' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { level: 1, name: 'My Money' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Transfer' })).toBeVisible();
+    expect(calls).toHaveLength(1);
+  });
+
+  it('has no axe violations on Transfers', async () => {
+    myMoneyBackend();
+    transfersBackend();
+    const { container } = renderPage('?tab=transfers');
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows an Admin no Transfers tab, asks for no transfer list and holds no transfer in the DOM (D-31, D-32, T-10-45)', async () => {
+    clearSession();
+    acceptSession(ADMIN_SESSION);
+    myMoneyBackend();
+    const calls = transfersBackend();
+    const { container } = renderPage('?tab=transfers');
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    expect(screen.queryByRole('tab', { name: 'Transfers' })).toBeNull();
+    expect(screen.queryByRole('table', { name: 'Transfers' })).toBeNull();
+    expect(calls).toHaveLength(0);
+    expect(container).not.toHaveTextContent('Every transfer between staff');
   });
 
   it('drops tab=staff from an Admin URL with one replace, shows Mine and still makes no staff request (Admin)', async () => {
