@@ -8,8 +8,10 @@ import {
   ledgerDeletedEntryFixture,
   ledgerEntryFixture,
   ledgerPageFixture,
+  MY_MONEY_USER_ID,
   myMoneyFixture,
   PAOLO_ID,
+  staffBalancesFixture,
   transferRecipientsFixture,
   transferSavedFixture,
 } from '@/test/moneyFixtures';
@@ -19,6 +21,8 @@ import {
   MyMoneyContractError,
   parseLedgerPage,
   parseMyMoney,
+  parseStaffBalances,
+  StaffBalancesContractError,
   toTransferRecipients,
 } from './moneyService';
 
@@ -263,5 +267,91 @@ describe('parseMyMoney (wave 5 IN-01)', () => {
     ['Infinity', Number.POSITIVE_INFINITY],
   ])('refuses a balance that is %s, so the card shows its failure instead of a wrong figure', (_what, balance) => {
     expect(() => parseMyMoney(myMoneyFixture({ balance }))).toThrow(MyMoneyContractError);
+  });
+});
+
+/** The first row of the All Staff fixture (Carmen). */
+function firstItem() {
+  const [first] = staffBalancesFixture().items;
+  if (first === undefined) throw new Error('The All Staff fixture has no rows.');
+  return first;
+}
+
+describe('moneyService.staff (MONEY-03, D-42)', () => {
+  it('calls GET /api/v1/staff-money with no parameters and resolves the answer as sent', async () => {
+    const everyone = staffBalancesFixture();
+    const { fake, service } = serviceWith([{ body: everyone }]);
+
+    await expect(service.staff()).resolves.toEqual(everyone);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe('/api/v1/staff-money');
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.staff(controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('parseStaffBalances (MONEY-03, wave 5 IN-01)', () => {
+  it('keeps every row in the order sent with the server figures as numbers, and the total', () => {
+    const parsed = parseStaffBalances(staffBalancesFixture());
+
+    expect(parsed.rows.map((row) => [row.name, row.status, row.balance, row.isYou])).toEqual([
+      ['Carmen Reyes', 'active', 8450, true],
+      ['Liza Mercado', 'active', -500, false],
+      ['Paolo Garcia', 'active', 0, false],
+      ['Ana Villanueva', 'deleted', -300, false],
+      ['Jomar Santos', 'deactivated', 2000, false],
+    ]);
+    expect(parsed.rows[0]).toMatchObject({ userId: MY_MONEY_USER_ID, role: 'Manager' });
+    expect(parsed.total).toBe(9650);
+  });
+
+  it('narrows balances and a total that arrive as text, keeping the sign', () => {
+    const parsed = parseStaffBalances(
+      staffBalancesFixture({ total: '-1200.50', items: [{ ...firstItem(), balance: '-1200.50' }] }),
+    );
+
+    expect(parsed.rows[0]?.balance).toBe(-1200.5);
+    expect(parsed.total).toBe(-1200.5);
+  });
+
+  it('adds nothing: a total that is not the sum of the rows is shown as the server sent it', () => {
+    expect(parseStaffBalances(staffBalancesFixture({ total: 1 })).total).toBe(1);
+  });
+
+  it.each([
+    ['blank text', ''],
+    ['words', 'lots'],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+  ])('refuses a row balance that is %s, so the tab shows its failure instead of a wrong row', (_what, balance) => {
+    expect(() => parseStaffBalances(staffBalancesFixture({ items: [{ ...firstItem(), balance }] }))).toThrow(
+      StaffBalancesContractError,
+    );
+  });
+
+  it('refuses a total that is not a finite number', () => {
+    expect(() => parseStaffBalances(staffBalancesFixture({ total: 'many' }))).toThrow(StaffBalancesContractError);
+  });
+
+  it('refuses a status the browser does not know, so no row is drawn with a wrong badge', () => {
+    expect(() =>
+      parseStaffBalances(staffBalancesFixture({ items: [{ ...firstItem(), status: 'suspended' }] })),
+    ).toThrow(StaffBalancesContractError);
   });
 });

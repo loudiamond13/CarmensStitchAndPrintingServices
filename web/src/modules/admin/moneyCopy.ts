@@ -18,6 +18,50 @@ export const MONEY_COPY = {
     title: 'My Money',
     // SPEC-GAP: D-39 the subline of the My Money header.
     subline: 'What you hold from payments, transfers and expenses.',
+    /** The Manager tabs (D-42). The Transfers tab arrives with plan 10-20. */
+    tabs: {
+      // SPEC-GAP: D-42 the tab strip's words.
+      mine: 'Mine',
+      staff: 'All Staff',
+    },
+  },
+  /** The All Staff panel (UI-SPEC M1 "All Staff panel", D-42 to D-45; plan 10-19). */
+  staff: {
+    // SPEC-GAP: D-42 the card's head and line.
+    title: 'All staff',
+    sub: "Everyone's money on hand. Open a person to see their ledger.",
+    /** The table's caption. */
+    caption: 'Staff money on hand',
+    /** The noun of the loading region and of the failure line: "Loading staff balances…", "Couldn't load staff balances.". */
+    things: 'staff balances',
+    columns: { person: 'Person', role: 'Role', status: 'Status', balance: 'Money on hand', actions: 'Actions' },
+    /** The status words (D-43). */
+    status: { active: 'Active', deactivated: 'Deactivated', deleted: 'Deleted' },
+    /** After the signed-in Manager's own name. */
+    you: ' (you)',
+    /** The footer row (D-44). */
+    total: 'Total held by staff',
+    // SPEC-GAP: D-45 the row buttons. The visible word is "Hand Over"; the names say whose.
+    handOver: 'Hand Over',
+    handOverName: (name: string): string => `Hand over money from ${name}`,
+    viewLedgerName: (name: string): string => `View ledger of ${name}`,
+  },
+  /** One person's money page, /admin/money/staff/:userId (UI-SPEC M2, D-42; plan 10-19). */
+  person: {
+    // SPEC-GAP: D-42 the back link, the subline and the document title.
+    back: 'All staff',
+    subline: 'Money on hand and ledger.',
+    /** The document title is "{title} · CSPS Admin". */
+    documentTitle: (name: string): string => `${name} · Money`,
+    /** The title while the name is not known yet. */
+    documentTitleFallback: 'Money',
+    /** The loading region's noun: "Loading money on hand…". */
+    things: 'money on hand',
+    notFound: {
+      title: "This person wasn't found.",
+      message: 'Check the link, or go back to All Staff.',
+      back: 'Back to All Staff',
+    },
   },
   /** The balance card of My Money (UI-SPEC M1 MoneyOnHandCard). */
   card: {

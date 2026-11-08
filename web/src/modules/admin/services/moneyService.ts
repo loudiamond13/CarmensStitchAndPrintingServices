@@ -191,7 +191,46 @@ export function toTransferRecipients(list: readonly TransferRecipientResponse[])
   return people;
 }
 
+export type StaffBalancesResponse = Schemas['StaffBalancesResponse'];
+
+/** One person's row in All Staff once the browser has checked it: the balance is the server's, as a finite number. */
+export interface StaffBalance {
+  userId: string;
+  name: string;
+  /** `Admin` or `Manager`. */
+  role: string;
+  status: RecipientStatus;
+  balance: number;
+  /** True for the signed-in Manager. */
+  isYou: boolean;
+}
+
+/** Everyone's money on hand once the browser has checked it. */
+export interface StaffBalances {
+  rows: StaffBalance[];
+  /** What staff hold together, from the server. */
+  total: number;
+}
+
+/** The All Staff answer holds a figure or a status the browser cannot trust, so the tab shows its failure instead of a wrong row. */
+export class StaffBalancesContractError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StaffBalancesContractError';
+  }
+}
+
+export function parseStaffBalances(response: StaffBalancesResponse): StaffBalances {
+  void response;
+  return { rows: [], total: 0 };
+}
+
 export interface MoneyService {
+  /**
+   * `GET /api/v1/staff-money`: everyone's money on hand, for a Manager only (the server answers 403 to an Admin). Active people by
+   * name, then former staff whose balance is not 0.00, each with the server's figure, plus the total held by staff. No parameters.
+   */
+  staff(signal?: AbortSignal): Promise<StaffBalancesResponse>;
   /**
    * `GET /api/v1/staff-money/me`: the caller's own money on hand, worked out by the server on every read: payments received and
    * transfers in, minus transfers out, expenses paid and refunds handed back. It can be below zero. It takes no parameters.
@@ -219,6 +258,7 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
+    staff: () => Promise.resolve({ items: [], total: 0 }),
     me: (signal) => client.get<StaffMoneyResponse>('/staff-money/me', { signal }),
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),
     create: (body, idempotencyKey, signal) =>

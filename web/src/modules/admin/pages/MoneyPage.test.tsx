@@ -2,9 +2,9 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
-import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { MoneyRoute } from '@/modules/admin/pages/MoneyPage';
@@ -16,12 +16,14 @@ import {
   myMoneyBackend,
   myMoneyFixture,
   myMoneyNegativeFixture,
+  staffBalancesBackend,
+  staffBalancesFixture,
   transferRecipientsBackend,
 } from '@/test/moneyFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
-// My Money, /admin/money (D-39, MONEY-02): the header, the caller's own balance card and the ledger under it. The Manager tabs
-// arrive in a later plan, so for now this is the Mine content for both roles.
+// My Money, /admin/money (D-39, MONEY-02): the header, the caller's own balance card and the ledger under it. A Manager also gets the
+// tabs Mine and All Staff (D-42, plan 10-19); an Admin sees only the Mine content.
 
 let queryClient: QueryClient;
 
@@ -37,10 +39,16 @@ afterEach(() => {
   clearSession();
 });
 
-function renderPage() {
+function renderPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <NuqsTestingAdapter defaultOptions={URL_STATE_DEFAULTS} processUrlSearchParams={orderSearchParams} hasMemory>
+      <NuqsTestingAdapter
+        searchParams={search}
+        onUrlUpdate={onUrlUpdate}
+        defaultOptions={URL_STATE_DEFAULTS}
+        processUrlSearchParams={orderSearchParams}
+        hasMemory
+      >
         <MemoryRouter>
           <MoneyRoute />
         </MemoryRouter>
@@ -279,5 +287,138 @@ describe('the Ledger card under the balance card (D-41, MONEY-02; plan 10-17)', 
 
     await screen.findByRole('table', { name: 'Ledger' });
     await expectNoAxeViolations(container);
+  });
+});
+
+const ADMIN_SESSION = sessionResponse({
+  user: {
+    id: '6a0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f',
+    email: 'lito@example.ph',
+    firstName: 'Lito',
+    lastName: 'Santos',
+    role: 'Admin',
+  },
+});
+
+describe('the Manager tabs Mine and All Staff (D-42, MONEY-03; plan 10-19)', () => {
+  it('shows a Manager the tabs Mine and All Staff, with Mine selected and its balance card and ledger drawn', async () => {
+    myMoneyBackend();
+    const staff = staffBalancesBackend();
+    renderPage();
+
+    const tabs = screen.getByRole('tablist');
+    expect(
+      within(tabs)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Mine', 'All Staff']);
+    expect(screen.getByRole('tab', { name: 'Mine' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('table', { name: 'Ledger' })).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Money on hand' })).toBeVisible();
+    expect(screen.queryByRole('table', { name: 'Staff money on hand' })).toBeNull();
+    expect(staff).toHaveLength(0);
+  });
+
+  it('writes tab=staff with a replace when All Staff is chosen, and shows the table with the total', async () => {
+    myMoneyBackend();
+    staffBalancesBackend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    renderPage('', onUrlUpdate);
+
+    await user.click(screen.getByRole('tab', { name: 'All Staff' }));
+
+    expect(await screen.findByRole('table', { name: 'Staff money on hand' })).toBeVisible();
+    expect(screen.getByText('Total held by staff')).toBeVisible();
+    expect(screen.getByText('₱9,650.00')).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'All Staff' })).toHaveAttribute('aria-selected', 'true');
+    expect(onUrlUpdate.mock.calls.map(([event]) => [event.options.history, event.queryString])).toContainEqual([
+      'replace',
+      '?tab=staff',
+    ]);
+    expect(screen.queryByRole('table', { name: 'Ledger' })).toBeNull();
+  });
+
+  it('opens on All Staff from ?tab=staff and keeps the header, with Transfer, on both tabs', async () => {
+    myMoneyBackend();
+    staffBalancesBackend();
+    renderPage('?tab=staff');
+
+    expect(await screen.findByRole('table', { name: 'Staff money on hand' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'All Staff' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { level: 1, name: 'My Money' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Transfer' })).toBeVisible();
+  });
+
+  it('names each panel by its tab', async () => {
+    myMoneyBackend();
+    staffBalancesBackend();
+    renderPage('?tab=staff');
+
+    await screen.findByRole('table', { name: 'Staff money on hand' });
+    expect(screen.getByRole('tabpanel', { name: 'All Staff' })).toBeVisible();
+  });
+
+  it('shows "Loading staff balances…" while All Staff loads and the failure line with Try Again if it fails', async () => {
+    myMoneyBackend();
+    let answered = 0;
+    const calls = staffBalancesBackend(async () => {
+      answered += 1;
+      await delay(100);
+      return answered === 1 ? problemResponse(500) : staffBalancesFixture();
+    });
+    renderPage('?tab=staff');
+
+    expect(screen.getByText('Loading staff balances…')).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't load staff balances.")).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(await screen.findByText('Total held by staff')).toBeVisible();
+    expect(calls).toHaveLength(2);
+  });
+
+  it('has no axe violations on All Staff', async () => {
+    myMoneyBackend();
+    staffBalancesBackend();
+    const { container } = renderPage('?tab=staff');
+
+    await screen.findByRole('table', { name: 'Staff money on hand' });
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows an Admin no tab strip, makes no staff request, and holds no other person figure in the DOM (OD-19, D-31, D-49)', async () => {
+    clearSession();
+    acceptSession(ADMIN_SESSION);
+    myMoneyBackend(myMoneyFixture({ name: 'Lito Santos' }));
+    const staff = staffBalancesBackend();
+    const { container } = renderPage();
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByRole('table', { name: 'Staff money on hand' })).toBeNull();
+    expect(staff).toHaveLength(0);
+    // Liza and Paolo are counterparts in the Admin's own ledger fixture, so only the staff-only names and figures are checked.
+    for (const other of ['Jomar Santos', 'Ana Villanueva', 'Total held by staff', '9,650.00']) {
+      expect(container).not.toHaveTextContent(other);
+    }
+  });
+
+  it('drops tab=staff from an Admin URL with one replace, shows Mine and still makes no staff request (Admin)', async () => {
+    clearSession();
+    acceptSession(ADMIN_SESSION);
+    myMoneyBackend();
+    const staff = staffBalancesBackend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?tab=staff', onUrlUpdate);
+
+    expect(await screen.findByRole('table', { name: 'Ledger' })).toBeVisible();
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    expect(onUrlUpdate.mock.calls.map(([event]) => [event.options.history, event.queryString])).toEqual([
+      ['replace', ''],
+    ]);
+    expect(staff).toHaveLength(0);
+    expect(screen.queryByRole('table', { name: 'Staff money on hand' })).toBeNull();
   });
 });
