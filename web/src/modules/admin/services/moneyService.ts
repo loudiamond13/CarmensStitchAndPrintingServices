@@ -249,7 +249,23 @@ export function parseStaffBalances(response: StaffBalancesResponse): StaffBalanc
   return { rows: response.items.map(toStaffBalance), total: staffFigure(response.total, 'total') };
 }
 
+/** One person's money on hand as a Manager reads it (M2): the same figure as `MyMoney`, with the person's role and standing. */
+export interface PersonMoney extends MyMoney {
+  /** `Admin` or `Manager`. */
+  role: string;
+  status: RecipientStatus;
+}
+
+export function parsePersonMoney(response: StaffMoneyResponse): PersonMoney {
+  return { ...parseMyMoney(response), role: '', status: 'active' };
+}
+
 export interface MoneyService {
+  /**
+   * `GET /api/v1/staff-money/{userId}`: one person's money on hand with their role and standing, for a Manager (an Admin gets 403 for
+   * anyone but themselves). 404 means the person is not staff.
+   */
+  person(userId: string, signal?: AbortSignal): Promise<StaffMoneyResponse>;
   /**
    * `GET /api/v1/staff-money`: everyone's money on hand, for a Manager only (the server answers 403 to an Admin). Active people by
    * name, then former staff whose balance is not 0.00, each with the server's figure, plus the total held by staff. No parameters.
@@ -282,6 +298,7 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
+    person: () => Promise.reject(new Error('not built')),
     staff: (signal) => client.get<StaffBalancesResponse>('/staff-money', { signal }),
     me: (signal) => client.get<StaffMoneyResponse>('/staff-money/me', { signal }),
     recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),

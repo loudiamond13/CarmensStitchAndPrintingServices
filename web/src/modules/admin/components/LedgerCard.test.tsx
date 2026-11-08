@@ -45,7 +45,7 @@ afterEach(() => {
   clearSession();
 });
 
-function renderCard(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
+function renderCard(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined, userId = 'me') {
   return render(
     <QueryClientProvider client={queryClient}>
       <NuqsTestingAdapter
@@ -56,7 +56,7 @@ function renderCard(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefi
         hasMemory
       >
         <MemoryRouter>
-          <LedgerCard userId="me" />
+          <LedgerCard userId={userId} />
         </MemoryRouter>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
@@ -427,6 +427,15 @@ describe('states', () => {
     expect(screen.getByText('Payments you receive, transfers and expenses you pay show here.')).toBeVisible();
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByText(/^Showing/)).toBeNull();
+  });
+
+  it('shows another person\'s empty ledger with the title only, so the line does not speak to "you" (wave 8 IN-08)', async () => {
+    const calls = ledgerBackend(ledgerPageFixture([]), 'someone');
+    renderCard('', undefined, 'someone');
+
+    expect(await screen.findByText('No money in or out yet')).toBeVisible();
+    expect(screen.queryByText(/Payments you receive/)).toBeNull();
+    expect(calls[0]?.pathname).toBe('/api/v1/staff-money/someone/ledger');
   });
 
   it('shows "Loading the ledger…" with the skeleton, then the rows, and says the ledger loaded', async () => {

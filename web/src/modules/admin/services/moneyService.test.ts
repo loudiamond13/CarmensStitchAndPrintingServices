@@ -12,6 +12,7 @@ import {
   myMoneyFixture,
   PAOLO_ID,
   staffBalancesFixture,
+  staffPersonFixture,
   transferRecipientsFixture,
   transferSavedFixture,
 } from '@/test/moneyFixtures';
@@ -21,6 +22,7 @@ import {
   MyMoneyContractError,
   parseLedgerPage,
   parseMyMoney,
+  parsePersonMoney,
   parseStaffBalances,
   StaffBalancesContractError,
   toTransferRecipients,
@@ -267,6 +269,72 @@ describe('parseMyMoney (wave 5 IN-01)', () => {
     ['Infinity', Number.POSITIVE_INFINITY],
   ])('refuses a balance that is %s, so the card shows its failure instead of a wrong figure', (_what, balance) => {
     expect(() => parseMyMoney(myMoneyFixture({ balance }))).toThrow(MyMoneyContractError);
+  });
+});
+
+describe('moneyService.person (MONEY-03, D-42)', () => {
+  it('calls GET /api/v1/staff-money/{userId} with no parameters and resolves the answer as sent', async () => {
+    const jomar = staffPersonFixture();
+    const { fake, service } = serviceWith([{ body: jomar }]);
+
+    await expect(service.person(JOMAR_ID)).resolves.toEqual(jomar);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/staff-money/${JOMAR_ID}`);
+  });
+
+  it('encodes the id, so a path-like value can never leave the route', async () => {
+    const { fake, service } = serviceWith([{ body: staffPersonFixture() }]);
+
+    await service.person('../me');
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/staff-money/..%2Fme');
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.person(JOMAR_ID, controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('parsePersonMoney (MONEY-03, wave 5 IN-01)', () => {
+  it('keeps the person, the date, the role and the standing, and narrows the balance', () => {
+    expect(parsePersonMoney(staffPersonFixture())).toEqual({
+      userId: JOMAR_ID,
+      name: 'Jomar Santos',
+      role: 'Admin',
+      status: 'deactivated',
+      balance: 2000,
+      today: '2026-11-04',
+    });
+  });
+
+  it('narrows a balance that arrives as text, keeping the sign', () => {
+    expect(parsePersonMoney(staffPersonFixture({ balance: '-300.00' })).balance).toBe(-300);
+  });
+
+  it.each([
+    ['blank text', ''],
+    ['words', 'lots'],
+    ['NaN', Number.NaN],
+  ])('refuses a balance that is %s', (_what, balance) => {
+    expect(() => parsePersonMoney(staffPersonFixture({ balance }))).toThrow(MyMoneyContractError);
+  });
+
+  it('refuses a standing the browser does not know, so no wrong badge is drawn', () => {
+    expect(() => parsePersonMoney(staffPersonFixture({ status: 'suspended' }))).toThrow(MyMoneyContractError);
   });
 });
 
