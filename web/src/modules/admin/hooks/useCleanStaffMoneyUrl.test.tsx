@@ -3,13 +3,13 @@ import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } fro
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
-import { useStaffMoneyParams } from '@/modules/admin/hooks/useStaffMoneyParams';
+import { useCleanStaffMoneyUrl } from '@/modules/admin/hooks/useCleanStaffMoneyUrl';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { sessionResponse } from '@/test/sessionFixtures';
 
-// One person's money page keeps its view in the URL (WEB-10, D-31, D-42; plan 10-19): the page, the rows per page and, for a Manager only,
-// Show deleted. These follow the My Money rules: defaults stay out of the URL, an invalid value falls back and is removed with one replace.
-// The page has no tabs, so a stray `tab` is dropped with one replace that keeps the rest.
+// One person's money page cleans its URL (WEB-10, D-31, D-42; plan 10-19), and only that: it returns nothing, because the Ledger card reads
+// the page, the rows per page and Show deleted itself. Defaults stay out of the URL, an invalid value is removed with one replace, and the
+// page has no tabs, so a stray `tab` is dropped with one replace that keeps the rest.
 
 type UrlUpdateSpy = ReturnType<typeof vi.fn<OnUrlUpdateFunction>>;
 
@@ -47,7 +47,7 @@ function renderParams(searchParams = '') {
       {children}
     </NuqsTestingAdapter>
   );
-  return { ...renderHook(() => useStaffMoneyParams(), { wrapper }), onUrlUpdate };
+  return { ...renderHook(() => useCleanStaffMoneyUrl(), { wrapper }), onUrlUpdate };
 }
 
 function updates(onUrlUpdate: UrlUpdateSpy): { history: string; query: string }[] {
@@ -57,33 +57,30 @@ function updates(onUrlUpdate: UrlUpdateSpy): { history: string; query: string }[
   }));
 }
 
-describe('reading', () => {
-  it('reads page 1, 20 rows and no Show deleted, and writes nothing to the URL when there are no parameters', async () => {
-    const { result, onUrlUpdate } = renderParams('');
+describe('cleaning', () => {
+  it('writes nothing to the URL when there are no parameters', async () => {
+    const { onUrlUpdate } = renderParams('');
 
-    expect(result.current[0]).toEqual({ page: 1, size: 20, deleted: null });
     await settle();
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
 
-  it('holds only page, size and deleted: no tab, and never a name or an email key', () => {
+  it('returns nothing: the side effect is its only job', () => {
     const { result } = renderParams('?q=Liza&from=2026-10-01');
 
-    expect(Object.keys(result.current[0]).sort()).toEqual(['deleted', 'page', 'size']);
+    expect(result.current).toBeUndefined();
   });
 
-  it('reads page=3, size=50 and deleted=true for a Manager and writes nothing', async () => {
-    const { result, onUrlUpdate } = renderParams('?page=3&size=50&deleted=true');
+  it('writes nothing for page=3, size=50 and deleted=true', async () => {
+    const { onUrlUpdate } = renderParams('?page=3&size=50&deleted=true');
 
-    expect(result.current[0]).toEqual({ page: 3, size: 50, deleted: 'true' });
     await settle();
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
 
   it('falls back from size=7 to 20 and removes it with one replace', async () => {
-    const { result, onUrlUpdate } = renderParams('?size=7');
+    const { onUrlUpdate } = renderParams('?size=7');
 
-    expect(result.current[0].size).toBe(20);
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();
     });
@@ -94,9 +91,8 @@ describe('reading', () => {
   it.each([['?deleted=false'], ['?deleted=1'], ['?page=zero']])(
     'falls back from %s and removes it with one replace',
     async (search) => {
-      const { result, onUrlUpdate } = renderParams(search);
+      const { onUrlUpdate } = renderParams(search);
 
-      expect(result.current[0]).toEqual({ page: 1, size: 20, deleted: null });
       await waitFor(() => {
         expect(onUrlUpdate).toHaveBeenCalled();
       });
@@ -108,9 +104,8 @@ describe('reading', () => {
 
 describe('the Manager-only value and the stray tab (D-31, D-42)', () => {
   it('drops a stray tab=staff with one replace and keeps the page and the rows per page', async () => {
-    const { result, onUrlUpdate } = renderParams('?tab=staff&page=2&size=10');
+    const { onUrlUpdate } = renderParams('?tab=staff&page=2&size=10');
 
-    expect(result.current[0]).toEqual({ page: 2, size: 10, deleted: null });
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();
     });
@@ -127,9 +122,8 @@ describe('the Manager-only value and the stray tab (D-31, D-42)', () => {
   it('shows an Admin no Show deleted at once and removes deleted=true from the URL with one replace', async () => {
     clearSession();
     acceptSession(sessionResponse({ user: ADMIN_USER }));
-    const { result, onUrlUpdate } = renderParams('?deleted=true&page=2');
+    const { onUrlUpdate } = renderParams('?deleted=true&page=2');
 
-    expect(result.current[0]).toEqual({ page: 2, size: 20, deleted: null });
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();
     });
