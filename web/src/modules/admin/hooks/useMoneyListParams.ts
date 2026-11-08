@@ -3,8 +3,9 @@
 // a size or filter change replaces the entry and resets the page; a page change pushes. `tab` is read by the Manager tabs (plan 10-19);
 // it is defined here so one hook owns the whole URL of My Money.
 //   - Manager-only values (a tab other than Mine, Show deleted) in an Admin's URL are never read: the Admin sees Mine with no Show
-//     deleted at once, and one replace removes them from the URL. The server still answers 403 to an Admin who asks (T-10-35).
-import { parseAsStringLiteral } from 'nuqs';
+//     deleted at once, and one replace removes them from the URL and keeps the page. The server still answers 403 to an Admin who
+//     asks (T-10-35).
+import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useEffect, useRef } from 'react';
 import { createListParams } from '@/lib/url-state/createListParams';
 import { literalParser, pageParser, pageSizeParser } from '@/lib/url-state/parsers';
@@ -19,8 +20,12 @@ const useMoneyUrlParams = createListParams({
   deleted: parseAsStringLiteral(['true'] as const),
 });
 
+// Writes only these two keys, so the drop leaves the page and the size alone (the shared setFilters would reset the page).
+const MANAGER_ONLY_KEYS = { tab: parseAsString, deleted: parseAsString };
+
 export function useMoneyListParams() {
   const [values, set] = useMoneyUrlParams();
+  const [, setManagerOnly] = useQueryStates(MANAGER_ONLY_KEYS);
   const { user } = useSession();
   const dropManagerOnly = user?.role === 'admin' && (values.tab !== 'mine' || values.deleted !== null);
   // One replace per visit to such a URL, even if the page renders again before the address has changed.
@@ -33,7 +38,7 @@ export function useMoneyListParams() {
     }
     if (!dropped.current) {
       dropped.current = true;
-      set.setFilters({ tab: null, deleted: null });
+      void setManagerOnly({ tab: null, deleted: null }, { history: 'replace' });
     }
   });
 

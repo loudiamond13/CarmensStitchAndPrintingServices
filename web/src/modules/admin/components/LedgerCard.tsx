@@ -7,6 +7,7 @@
 import { useEffect, useId } from 'react';
 import { Checkbox } from '@/components/entry';
 import { Pagination, ResultBar } from '@/components/lists';
+import { PAGE_SIZES } from '@/lib/url-state/parsers';
 import {
   dashboardCardHeadClasses,
   dashboardCardSubClasses,
@@ -43,7 +44,9 @@ export function LedgerCard({ userId }: LedgerCardProps) {
   const page = query.data;
   // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
   const failed = query.isError && !query.isFetching;
-  const loading = query.isFetching && (page === undefined || query.isError);
+  // A page past the last comes back with no rows but the real total: it is not an empty ledger, it is about to be replaced.
+  const pastTheEnd = page?.rows.length === 0 && page.total > 0;
+  const loading = (query.isFetching && (page === undefined || query.isError)) || pastTheEnd;
 
   const total = page?.total ?? 0;
   const pageCount = Math.ceil(total / values.size);
@@ -56,7 +59,8 @@ export function LedgerCard({ userId }: LedgerCardProps) {
     }
   }, [fresh, pageCount, clampPage]);
 
-  const result = showDeleted ? COPY.resultWithDeleted : COPY.result;
+  // The wording follows the answer on screen, not the checkbox, which can be ahead of the rows while the next answer loads.
+  const result = page?.includesDeleted === true ? COPY.resultWithDeleted : COPY.result;
 
   return (
     <section className={ledgerCardClasses} aria-labelledby={headingId}>
@@ -79,7 +83,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
           />
         </div>
       )}
-      {page !== undefined && (
+      {page !== undefined && !pastTheEnd && (
         <div className={ledgerBarClasses}>
           <ResultBar count={total} thing={result.thing} things={result.things} orderNote={result.orderNote} />
         </div>
@@ -95,7 +99,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
           void query.refetch();
         }}
       />
-      {pageCount > 1 && (
+      {total > PAGE_SIZES[0] && !pastTheEnd && (
         <div className={ledgerPagerClasses}>
           <Pagination
             page={values.page}
@@ -104,6 +108,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
             focusTargetId={captionId}
             pageSize={values.size}
             onPageSizeChange={set.setPageSize}
+            sizeOnlyWhenSinglePage
           />
         </div>
       )}

@@ -162,6 +162,33 @@ describe('Show deleted (D-30, D-31, D-23)', () => {
     ]);
   });
 
+  it('words the result bar from the rows on screen, not from the checkbox, while the other answer loads (IN-02)', async () => {
+    ledgerBackend(async (url) => {
+      if (url.searchParams.get('deleted') === 'true') {
+        await delay(500);
+        return ledgerPageFixture([ledgerDeletedEntryFixture(), ...ledgerEntriesFixture()], { includesDeleted: true });
+      }
+      return ledgerPageFixture();
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
+    await user.click(screen.getByRole('checkbox', { name: 'Show deleted' }));
+    expect(screen.getByRole('checkbox', { name: 'Show deleted' })).toBeChecked();
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
+    await waitFor(() => {
+      expect(screen.getByText(/^Showing/)).toHaveTextContent(
+        'Showing 7 entries, deleted transfers included · newest first',
+      );
+    });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Show deleted' }));
+    await waitFor(() => {
+      expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
+    });
+  });
+
   it('reads Show deleted from the URL and asks for deleted transfers on the first read', async () => {
     const calls = ledgerBackend(ledgerPageFixture([ledgerDeletedEntryFixture()], { includesDeleted: true }));
     renderCard('?deleted=true');
@@ -215,6 +242,25 @@ describe('Show deleted (D-30, D-31, D-23)', () => {
     }
     expect(onUrlUpdate.mock.calls.map(([event]) => [event.options.history, event.queryString])).toEqual([
       ['replace', ''],
+    ]);
+  });
+
+  it('keeps an Admin on the same page when it drops deleted=true, and sends one kind of request only (IN-03)', async () => {
+    clearSession();
+    acceptSession(sessionResponse({ user: ADMIN_USER }));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const calls = ledgerBackend(pagedLedger(45));
+    renderCard('?page=3&size=10&deleted=true', onUrlUpdate);
+
+    await screen.findByText('Bill 21');
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    expect(onUrlUpdate.mock.calls.map(([event]) => [event.options.history, event.queryString])).toEqual([
+      ['replace', '?page=3&size=10'],
+    ]);
+    expect(calls.map((call) => [call.searchParams.get('page'), call.searchParams.has('deleted')])).toEqual([
+      ['3', false],
     ]);
   });
 
@@ -273,6 +319,26 @@ describe('paging (WEB-10)', () => {
     expect(await screen.findByText('Bill 41')).toBeVisible();
   });
 
+  it('never says "No money in or out yet" while a page past the last is replaced by the last page (WR-01)', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const answer = pagedLedger(15);
+    ledgerBackend(async (url) => {
+      if (url.searchParams.get('page') === '2') await delay(600);
+      return answer(url);
+    });
+    renderCard('?page=3&size=10', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(onUrlUpdate.mock.calls.map(([event]) => event.queryString)).toContain('?page=2&size=10');
+    });
+    expect(screen.queryByText('No money in or out yet')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(screen.getByText('Loading the ledger…')).toBeInTheDocument();
+    expect(await screen.findByText('Bill 11')).toBeVisible();
+    expect(screen.queryByText('No money in or out yet')).toBeNull();
+  });
+
   it('offers 10, 20, 50 and 100 rows per page, and a size change replaces the URL, resets the page and asks for that size', async () => {
     const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
     const calls = ledgerBackend(pagedLedger(250));
@@ -296,6 +362,37 @@ describe('paging (WEB-10)', () => {
       'replace',
       '?size=50',
     ]);
+  });
+
+  it('keeps "Rows per page" after a size that fits every row, so a smaller size can be chosen again (WR-02)', async () => {
+    const calls = ledgerBackend(pagedLedger(30));
+    renderCard('?size=20');
+    const user = userEvent.setup();
+
+    await screen.findByText('Bill 1');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50');
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('50');
+    });
+    await screen.findByText('Bill 30');
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    await user.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+    await screen.findByText('Bill 10');
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 3');
+  });
+
+  it('offers no "Rows per page" when every row would fit the smallest size anyway', async () => {
+    ledgerBackend(pagedLedger(10));
+    renderCard();
+
+    await screen.findByText('Bill 1');
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
   });
 
   it('keeps the rows on screen, dimmed after 200 ms, while the next page loads', async () => {

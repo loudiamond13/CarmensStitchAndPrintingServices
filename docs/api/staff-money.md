@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-07T23:10:00-06:00
+updated: 2026-11-07T23:38:00-06:00
 ---
 
 # The staff money API
@@ -291,8 +291,8 @@ One named person's money on hand (MONEY-03, OD-19). The answer has the same shap
 |---|---|---|---|
 | `GET /staff-money/{userId}` | Staff | none; no query parameters | `200` the figure, `401` without a valid token, `403` for an Admin asking about someone else, `404` for a Manager asking about no staff member. |
 
-- **The role is decided first, from the token alone** (CWE-639, CWE-204). An Admin who names any id but their own gets `403` `You can only see
-  your own money.` before anything about that id is looked up, so a real coworker and a made-up id look exactly the same.
+- **The role is decided first, from the caller's own account, before anything about the id is read** (CWE-639, CWE-204). An Admin who names any id but their own gets `403` `You can only see
+  your own money.` before anything about that id is looked up, so a real coworker and a made-up id look exactly the same. A token whose account cannot be read gets `401`, not `403`.
 - An Admin who names their own id gets the same answer as `GET /staff-money/me`.
 - A Manager can name any Admin or Manager, current or former. The answer has `role` and `status` (`active`, `deactivated` or
   `deleted`).
@@ -305,7 +305,7 @@ One named person's ledger, with the same query parameters, answer and running ba
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
-| `GET /staff-money/{userId}/ledger?page=&pageSize=&deleted=` | Staff | none | `200` the page, `400` for a bad page or page size, `401` without a valid token, `403` for an Admin, `404` for a Manager asking about no staff member. |
+| `GET /staff-money/{userId}/ledger?page=&pageSize=&deleted=` | Staff | none | `200` the page, `400` for a bad page or page size, `401` without a valid token, `403` for an Admin naming anyone else or sending `deleted=true`, `404` for a Manager asking about no staff member. |
 
 - The access rule is the one above: an Admin may name only their own id and gets `403` for any other, real or made up, before any
   lookup; a Manager may name any Admin or Manager and gets `404` for anyone else.

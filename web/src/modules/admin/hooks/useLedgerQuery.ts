@@ -21,8 +21,9 @@ export function useLedgerQuery(userId: string, params: LedgerQuery) {
     // An answer with a figure or a kind the browser cannot trust fails the query, so the card shows its alert, not a wrong row.
     queryFn: async ({ signal }): Promise<LedgerPage> =>
       parseLedgerPage(await moneyService.ledger(userId, params, signal)),
+    // A row-less answer (a page past the last) is never kept as the placeholder: it would read as an empty ledger.
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[PERSON_AT] === userId ? previous : undefined,
+      previousQuery?.queryKey[PERSON_AT] === userId && (previous?.rows.length ?? 0) > 0 ? previous : undefined,
     staleTime: 0,
     refetchOnMount: 'always',
   });

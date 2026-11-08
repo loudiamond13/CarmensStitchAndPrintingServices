@@ -99,9 +99,6 @@ export const ledgerBarClasses = tw('px-5 pt-4 pb-3');
 /** The pagination row under the table, set off by a line. */
 export const ledgerPagerClasses = tw('border-t border-line px-5 py-4');
 
-/** The failure banner and the room around it inside the card. */
-export const ledgerStateClasses = tw('px-5 pt-4');
-
 /** A row's Details cell: the title over its sub line, 2px apart; the cell shrinks and wraps instead of widening the table. */
 export const ledgerDetailsClasses = tw('flex min-w-0 flex-col gap-0.5');
 

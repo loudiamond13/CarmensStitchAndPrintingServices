@@ -190,7 +190,11 @@ public sealed class StaffMoneyAccessEndpointTests(CspsDatabase database) : IClas
         {
             body.ShouldNotContain("7777.77");
             body.ShouldNotContain("333.33");
+            body.ShouldNotContain("4242.42");
+            body.ShouldNotContain("1234.56");
             body.ShouldNotContain(world.DeletedTransferId.ToString("D"));
+            body.ShouldNotContain(world.AdminsDeletedTransferId.ToString("D"));
+            body.ShouldNotContain(world.OthersTransferId.ToString("D"));
             body.ShouldNotContain("\"isDeleted\":true");
         }
     }
@@ -237,7 +241,9 @@ public sealed class StaffMoneyAccessEndpointTests(CspsDatabase database) : IClas
         JsonDocument.Parse(await ReadTextAsync(response)).RootElement.Clone();
 
     // Carmen (Manager), Liza (Admin), Paolo (Admin) holds 7,777.77, Jomar (Admin, deactivated) is owed 333.33 and has one deleted transfer
-    // from Paolo, a role-less account, and the legacy holder (Admin role, 111.11 received).
+    // from Paolo, a role-less account, and the legacy holder (Admin role, 111.11 received). Liza also has a deleted transfer from Carmen
+    // (4,242.42), and two other Admins, Ramon and Tess, share a counted transfer (1,234.56) that Liza is not part of, so the Admin
+    // rules (never deleted, only her own transfers) are what keep both out of her reads.
     private async Task<World> StartWorldAsync()
     {
         await database.ResetAsync();
@@ -248,6 +254,8 @@ public sealed class StaffMoneyAccessEndpointTests(CspsDatabase database) : IClas
         var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
         var paolo = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Paolo", "Garcia");
         var jomar = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Jomar", "Santos");
+        var ramon = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Ramon", "Cruz");
+        var tess = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Tess", "Lim");
         var roleless = await OrderSeeding.AddStaffAsync(database, "Noel", Now, "Abad");
         await MoneyFixtures.AddRoleAsync(database, LegacyHolder.Id, Roles.Admin);
         await MoneyFixtures.SeedPaymentAsync(database, paolo.UserId, "ORD-2026-0001", 7777.77m, today, Now);
@@ -256,11 +264,13 @@ public sealed class StaffMoneyAccessEndpointTests(CspsDatabase database) : IClas
         await MoneyFixtures.SeedPaymentAsync(database, liza.UserId, "ORD-2026-0003", 1000.00m, today, Now);
         await MoneySeeding.AddTransferAsync(database, new SeedTransfer(carmen.UserId, liza.UserId, 25.00m, today), Now);
         var deletedId = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(paolo.UserId, jomar.UserId, 50.00m, today) { Deleted = true }, Now);
+        var adminsDeletedId = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(carmen.UserId, liza.UserId, 4242.42m, today) { Deleted = true }, Now);
+        var othersId = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ramon.UserId, tess.UserId, 1234.56m, today), Now);
         await MoneyFixtures.DeactivateAccountAsync(database, jomar.UserId);
-        return new World(factory, client, carmen, liza, paolo, jomar.UserId, roleless, deletedId);
+        return new World(factory, client, carmen, liza, paolo, jomar.UserId, roleless, deletedId, adminsDeletedId, othersId);
     }
 
-    private sealed record World(CspsApiFactory Factory, HttpClient Client, StartedSession Carmen, StartedSession Liza, StartedSession Paolo, Guid Jomar, Guid Roleless, Guid DeletedTransferId)
+    private sealed record World(CspsApiFactory Factory, HttpClient Client, StartedSession Carmen, StartedSession Liza, StartedSession Paolo, Guid Jomar, Guid Roleless, Guid DeletedTransferId, Guid AdminsDeletedTransferId, Guid OthersTransferId)
         : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
