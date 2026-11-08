@@ -52,6 +52,9 @@ const CASE_IDS = [
   'money-remove-dialog',
 ];
 
+// The section is about 20 frames with five tables and a chart, and axe runs over it: a busy machine needs more than the 5 s default.
+vi.setConfig({ testTimeout: 30_000 });
+
 /** Every request the page makes, seen two ways: MSW's request events and a spy on fetch. */
 const requests: string[] = [];
 let fetchSpy: MockInstance<typeof fetch>;
