@@ -1092,7 +1092,7 @@ Plans:
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
 
-**Plans**: 17/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
+**Plans**: 19/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
 
 **Wave 1**
 - [x] 10-01-PLAN.md — Ledger union query proven on SQL Server, the Wave 0 spike (MONEY-02; RESEARCH A1, A2)
@@ -1128,8 +1128,8 @@ Plans:
 - [x] 10-17-PLAN.md — Ledger table on My Money (MONEY-02; D-30, D-31, D-41)
 
 **Wave 9**
-- [ ] 10-18-PLAN.md — Transfer delete, permanent remove and no edit route (MONEY-06, MONEY-07, MONEY-08; D-22 to D-28, D-33 to D-35, D-52)
-- [ ] 10-19-PLAN.md — All Staff tab, one person's money page and the hand-over window (MONEY-03, MONEY-04; D-17, D-42 to D-45, D-49)
+- [x] 10-18-PLAN.md — Transfer delete, permanent remove and no edit route (MONEY-06, MONEY-07, MONEY-08; D-22 to D-28, D-33 to D-35, D-52)
+- [x] 10-19-PLAN.md — All Staff tab, one person's money page and the hand-over window (MONEY-03, MONEY-04; D-17, D-42 to D-45, D-49)
 
 **Wave 10**
 - [ ] 10-20-PLAN.md — Transfers tab, delete and remove dialogs, audit labels (MONEY-03, MONEY-06, MONEY-07; D-24 to D-33, D-48)
@@ -1456,7 +1456,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
-| 10. Admin Dashboard | 17/21 | In Progress | - |
+| 10. Admin Dashboard | 19/21 | In Progress | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
