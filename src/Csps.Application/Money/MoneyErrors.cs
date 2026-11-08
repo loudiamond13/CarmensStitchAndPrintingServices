@@ -18,6 +18,12 @@ public static class MoneyErrors
     /// <summary>The plain-English text for a hand-over with no former staff member chosen (D-58, server only).</summary>
     public const string FromRequiredMessage = "Choose whose money to hand over.";
 
+    /// <summary>The code of a Manager asking about a person who does not exist or is not staff (MONEY-03).</summary>
+    public const string PersonNotFoundCode = "staff-money.person-not-found";
+
+    /// <summary>The plain-English text for a Manager asking about a person who does not exist or is not staff (MONEY-03).</summary>
+    public const string PersonNotFoundMessage = "This person wasn't found.";
+
     /// <summary>The code of a call the signed-in role may not make.</summary>
     public const string ForbiddenCode = "staff-money.forbidden";
 
@@ -41,6 +47,9 @@ public static class MoneyErrors
 
     /// <summary>Gets the 404 for a person who does not exist or is not staff.</summary>
     public static Error NotFound { get; } = Error.NotFound(NotFoundCode, NotFoundMessage);
+
+    /// <summary>Gets the 404 for a Manager asking about a person who does not exist, is the legacy holder or is not staff (MONEY-03).</summary>
+    public static Error PersonNotFound { get; } = Error.NotFound(PersonNotFoundCode, PersonNotFoundMessage);
 
     /// <summary>Gets the 403 for a call the signed-in role may not make.</summary>
     public static Error Forbidden { get; } = Error.Forbidden(ForbiddenCode, ForbiddenMessage);

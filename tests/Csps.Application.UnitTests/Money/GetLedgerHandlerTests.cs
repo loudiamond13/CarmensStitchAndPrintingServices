@@ -12,6 +12,7 @@ namespace Csps.Application.UnitTests.Money;
 public sealed class GetLedgerHandlerTests
 {
     private static readonly Guid CallerId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+    private static readonly Guid OtherId = Guid.Parse("22222222-2222-4222-8222-222222222222");
     private static readonly DateOnly Day = new(2026, 10, 5);
     private static readonly DateTimeOffset At = new(2026, 10, 5, 4, 0, 0, TimeSpan.Zero);
 
@@ -189,16 +190,60 @@ public sealed class GetLedgerHandlerTests
         await reader.DidNotReceive().GetLedgerPageAsync(Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task AnotherPersonsLedgerIsNotServedByThisHandler()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnAdminAskingForAnotherPersonsLedgerIsRefusedBeforeAnyLookupOrRead(bool askForDeleted)
     {
         var reader = Substitute.For<IStaffMoneyReader>();
-        var handler = Handler(reader);
+        var directory = Directory(Roles.Admin);
+        var handler = Handler(reader, directory: directory);
 
-        var result = await handler.HandleAsync(Guid.NewGuid(), new GetLedgerRequest(), TestContext.Current.CancellationToken);
+        var result = await handler.HandleAsync(OtherId, new GetLedgerRequest(Deleted: askForDeleted), TestContext.Current.CancellationToken);
 
         result.Error.ShouldBe(MoneyErrors.Forbidden);
+        await directory.DidNotReceive().GetStaffStateAsync(OtherId, Arg.Any<CancellationToken>());
         await reader.DidNotReceive().GetLedgerPageAsync(Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AManagerReadsAnotherStaffMembersLedgerThroughTheReaderWithThatPersonsId()
+    {
+        var reader = ReaderReturning(new LedgerPage([Row(LedgerEntryKind.PaymentReceived, 100.00m)], 1, 0.00m, 100.00m));
+        var handler = Handler(reader, Roles.Manager, other: OtherState(Roles.Admin, active: false));
+
+        var result = await handler.HandleAsync(OtherId, new GetLedgerRequest(Deleted: true), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Items.Select(item => item.BalanceAfter).ShouldBe([100.00m]);
+        result.Value.IncludesDeleted.ShouldBeTrue();
+        await reader.Received(1).GetLedgerPageAsync(OtherId, 1, 20, true, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AManagerAskingForNobodyOrANonStaffAccountGetsPersonNotFoundAndNothingIsRead(bool accountExists)
+    {
+        var reader = Substitute.For<IStaffMoneyReader>();
+        var handler = Handler(reader, Roles.Manager, other: accountExists ? OtherState(null) : null);
+
+        var result = await handler.HandleAsync(OtherId, new GetLedgerRequest(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(MoneyErrors.PersonNotFound);
+        await reader.DidNotReceive().GetLedgerPageAsync(Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AManagerAskingForTheLegacyHoldersLedgerGetsPersonNotFound()
+    {
+        var reader = Substitute.For<IStaffMoneyReader>();
+        var holder = new StaffState(Csps.Domain.Identity.LegacyHolder.Id, "Legacy / unassigned", Roles.Admin, true, false, false, true);
+        var handler = Handler(reader, Roles.Manager, other: holder);
+
+        var result = await handler.HandleAsync(holder.Id, new GetLedgerRequest(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(MoneyErrors.PersonNotFound);
     }
 
     [Fact]
@@ -231,13 +276,32 @@ public sealed class GetLedgerHandlerTests
         return reader;
     }
 
-    private static GetLedgerHandler Handler(IStaffMoneyReader reader, string? role = Roles.Admin, bool signedIn = true, bool knownAccount = true)
+    private static IStaffDirectory Directory(string? role, bool knownAccount = true)
     {
-        var caller = Substitute.For<IRequestContext>();
-        caller.UserId.Returns(signedIn ? CallerId : (Guid?)null);
         var directory = Substitute.For<IStaffDirectory>();
         directory.GetStaffStateAsync(CallerId, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<StaffState?>(knownAccount ? new StaffState(CallerId, "Liza Mercado", role, true, false, false, true) : null));
+        return directory;
+    }
+
+    private static StaffState OtherState(string? role, bool active = true) => new(OtherId, "Jomar Santos", role, active, false, false, true);
+
+    private static GetLedgerHandler Handler(
+        IStaffMoneyReader reader,
+        string? role = Roles.Admin,
+        bool signedIn = true,
+        bool knownAccount = true,
+        IStaffDirectory? directory = null,
+        StaffState? other = null)
+    {
+        var caller = Substitute.For<IRequestContext>();
+        caller.UserId.Returns(signedIn ? CallerId : (Guid?)null);
+        directory ??= Directory(role, knownAccount);
+        if (other is not null)
+        {
+            directory.GetStaffStateAsync(other.Id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<StaffState?>(other));
+        }
+
         return new GetLedgerHandler(reader, caller, directory, new GetLedgerRequestValidator());
     }
 }

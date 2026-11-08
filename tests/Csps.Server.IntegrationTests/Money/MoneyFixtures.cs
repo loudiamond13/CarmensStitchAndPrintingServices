@@ -375,6 +375,32 @@ internal static class MoneyFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Reads one named person's money on hand.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="userId">The person asked about.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetStaffMoneyAsync(HttpClient client, string? accessToken, Guid userId)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get($"{StaffBalancesRoute}/{userId:D}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads one page of one named person's ledger.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="userId">The person asked about.</param>
+    /// <param name="query">The raw query string without the question mark; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetStaffLedgerAsync(HttpClient client, string? accessToken, Guid userId, string? query = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        var path = $"{StaffBalancesRoute}/{userId:D}/ledger";
+        using var request = ApiRequests.Get(query is null ? path : $"{path}?{query}", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads the caller's balance from a 200 answer.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token.</param>

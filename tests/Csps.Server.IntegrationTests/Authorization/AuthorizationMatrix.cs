@@ -225,6 +225,11 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/staff-money/me/ledger", "/api/v1/staff-money/me/ledger", Anonymous: 401, Admin: 200, Manager: 200),
         // Everyone's money on hand with the team total (MONEY-03, D-42 to D-44): Managers only, so an Admin meets 403.
         new("GET", "/api/v1/staff-money", "/api/v1/staff-money", Anonymous: 401, Admin: 403, Manager: 200),
+        // One person's money (MONEY-03, OD-19, CWE-639): the Staff policy lets both roles in and the handler decides. An Admin meets 403 for any id but their own,
+        // decided before any lookup; a Manager meets 404 staff-money.person-not-found because the sample is a fresh random id that is no staff member.
+        new("GET", "/api/v1/staff-money/{userId:guid}", "/api/v1/staff-money/c0a6bb55-ff52-4ab4-a663-fa4ad1a01dfb", Anonymous: 401, Admin: 403, Manager: 404),
+        // One person's ledger (MONEY-03, OD-19, CWE-639): the same rule as the figure above.
+        new("GET", "/api/v1/staff-money/{userId:guid}/ledger", "/api/v1/staff-money/dfbf7414-2836-4a80-93a9-f77c8e9d55b2/ledger", Anonymous: 401, Admin: 403, Manager: 404),
         // Transferring money to a coworker (MONEY-04, MONEY-08): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 money-transfers.invalid-request.
         new("POST", "/api/v1/money-transfers", "/api/v1/money-transfers", Anonymous: 401, Admin: 400, Manager: 400),
         // Handing over a former staff member's money (D-17, OD-19): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets 400 and an Admin 403.
