@@ -37,9 +37,16 @@ public sealed class GetLedgerHandler(IStaffMoneyReader reader, IRequestContext r
             return Result.Failure<LedgerPageResponse>(ValidationResults.ToError(validation, MoneyErrors.LedgerInvalidCode, Domain.Money.MoneyRules.InvalidMessage));
         }
 
-        if (await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false) is null)
+        var caller = await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false);
+        if (caller is null)
         {
             return Result.Failure<LedgerPageResponse>(AuthErrors.SessionEnded);
+        }
+
+        // Only a Manager sees deleted transfers; an Admin who asks is refused before any read (D-30, D-31).
+        if (request.Deleted && !caller.IsManager)
+        {
+            return Result.Failure<LedgerPageResponse>(MoneyErrors.DeletedForbidden);
         }
 
         if (userId is { } other && other != callerId)
@@ -47,9 +54,9 @@ public sealed class GetLedgerHandler(IStaffMoneyReader reader, IRequestContext r
             return Result.Failure<LedgerPageResponse>(MoneyErrors.Forbidden);
         }
 
-        var page = await reader.GetLedgerPageAsync(callerId, request.Page, request.PageSize, includeDeleted: false, cancellationToken).ConfigureAwait(false);
+        var page = await reader.GetLedgerPageAsync(callerId, request.Page, request.PageSize, includeDeleted: request.Deleted, cancellationToken).ConfigureAwait(false);
         var balances = LedgerRunningBalance.Apply(page.Rows, page.Balance - page.NewerSum);
         IReadOnlyList<LedgerEntryResponse> items = [.. page.Rows.Select((row, index) => LedgerEntryResponse.Of(row, balances[index]))];
-        return Result.Success(new LedgerPageResponse(items, page.Total, request.Page, request.PageSize, page.Balance, IncludesDeleted: false));
+        return Result.Success(new LedgerPageResponse(items, page.Total, request.Page, request.PageSize, page.Balance, IncludesDeleted: request.Deleted));
     }
 }
