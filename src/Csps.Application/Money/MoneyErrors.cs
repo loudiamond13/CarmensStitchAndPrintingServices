@@ -27,6 +27,12 @@ public static class MoneyErrors
     /// <summary>The code of a ledger query with a page or page size out of range.</summary>
     public const string LedgerInvalidCode = "staff-money.invalid-request";
 
+    /// <summary>The code of an Admin asking for deleted transfers (D-31).</summary>
+    public const string DeletedForbiddenCode = "staff-money.deleted-forbidden";
+
+    /// <summary>The plain-English text for an Admin asking for deleted transfers (D-31).</summary>
+    public const string DeletedForbiddenMessage = "Only Managers can see deleted transfers.";
+
     /// <summary>The code of a change that lost a race with another change.</summary>
     public const string BusyCode = "money-transfers.busy";
 
@@ -38,6 +44,9 @@ public static class MoneyErrors
 
     /// <summary>Gets the 403 for a call the signed-in role may not make.</summary>
     public static Error Forbidden { get; } = Error.Forbidden(ForbiddenCode, ForbiddenMessage);
+
+    /// <summary>Gets the 403 for an Admin who asks to see deleted transfers (D-31).</summary>
+    public static Error DeletedForbidden { get; } = Error.Forbidden(DeletedForbiddenCode, DeletedForbiddenMessage);
 
     /// <summary>Gets the 409 for a change that lost a race with another change.</summary>
     public static Error Busy { get; } = Error.Conflict(BusyCode, BusyMessage);

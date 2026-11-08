@@ -44,6 +44,50 @@ public sealed class GetLedgerHandlerTests
     }
 
     [Fact]
+    public async Task AManagerWhoAsksForDeletedTransfersGetsThemFromTheReaderAndTheResponseSaysSo()
+    {
+        var deleted = new LedgerRowView(LedgerEntryKind.TransferOut, Guid.NewGuid(), Day, At, 0m, IsDeleted: true) { DeletedAmount = 300.00m };
+        var reader = ReaderReturning(new LedgerPage([Row(LedgerEntryKind.PaymentReceived, 100.00m), deleted, Row(LedgerEntryKind.PaymentReceived, 50.00m)], 3, 0.00m, 150.00m));
+        var handler = Handler(reader, Roles.Manager);
+
+        var result = await handler.HandleAsync(null, new GetLedgerRequest(Deleted: true), TestContext.Current.CancellationToken);
+
+        await reader.Received(1).GetLedgerPageAsync(CallerId, 1, 20, true, Arg.Any<CancellationToken>());
+        result.Value.IncludesDeleted.ShouldBeTrue();
+        result.Value.Items.Select(item => item.BalanceAfter).ShouldBe([150.00m, null, 50.00m]);
+        result.Value.Items[1].IsDeleted.ShouldBeTrue();
+        result.Value.Items[1].MoneyOut.ShouldBe(300.00m);
+        result.Value.Items[1].MoneyIn.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task AManagerWhoDoesNotAskGetsNoDeletedTransfers()
+    {
+        var reader = ReaderReturning(new LedgerPage([], 0, 0.00m, 0.00m));
+        var handler = Handler(reader, Roles.Manager);
+
+        var result = await handler.HandleAsync(null, new GetLedgerRequest(), TestContext.Current.CancellationToken);
+
+        await reader.Received(1).GetLedgerPageAsync(CallerId, 1, 20, false, Arg.Any<CancellationToken>());
+        result.Value.IncludesDeleted.ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData(Roles.Admin)]
+    [InlineData(null)]
+    public async Task AnAdminOrAnAccountWithNoRoleWhoAsksForDeletedTransfersIsRefusedBeforeAnyRead(string? role)
+    {
+        var reader = Substitute.For<IStaffMoneyReader>();
+        var handler = Handler(reader, role);
+
+        var result = await handler.HandleAsync(null, new GetLedgerRequest(Deleted: true), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(MoneyErrors.DeletedForbidden);
+        result.Error.Message.ShouldBe("Only Managers can see deleted transfers.");
+        await reader.DidNotReceive().GetLedgerPageAsync(Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task EachKindGetsItsWireWordAndMoneyInOrMoneyOutNeverBoth()
     {
         var kinds = new[]

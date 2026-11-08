@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using Csps.Application.Security;
 using Csps.Domain.Orders;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Money;
@@ -233,6 +234,126 @@ public sealed class StaffLedgerEndpointTests(CspsDatabase database) : IClassFixt
         using var response = await MoneyFixtures.GetLedgerAsync(client, liza.AccessToken, query);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AManagersLedgerOmitsADeletedTransferAndItsBalancesIgnoreIt()
+    {
+        await using var world = await StartDeletedWorldAsync();
+
+        var body = await MoneyFixtures.ReadLedgerAsync(world.Client, world.Carmen.AccessToken);
+
+        var items = body.GetProperty("items").EnumerateArray().ToList();
+        items.Select(item => item.GetProperty("kind").GetString()).ShouldBe(["payment-received", "transfer-out", "payment-received"]);
+        items.Select(item => item.GetProperty("balanceAfter").GetDecimal()).ShouldBe([1600.00m, 1500.00m, 2000.00m]);
+        body.GetProperty("total").GetInt32().ShouldBe(3);
+        body.GetProperty("balance").GetDecimal().ShouldBe(1600.00m);
+        body.GetProperty("includesDeleted").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AManagerWhoAsksForDeletedTransfersSeesThemWithNoBalanceAndEveryOtherBalanceIsUnchanged()
+    {
+        await using var world = await StartDeletedWorldAsync();
+
+        var body = await MoneyFixtures.ReadLedgerAsync(world.Client, world.Carmen.AccessToken, "deleted=true");
+
+        var items = body.GetProperty("items").EnumerateArray().ToList();
+        items.Select(item => item.GetProperty("kind").GetString()).ShouldBe(["payment-received", "transfer-in", "transfer-out", "transfer-out", "payment-received"]);
+        items.Select(item => item.GetProperty("isDeleted").GetBoolean()).ShouldBe([false, true, true, false, false]);
+        items.Select(item => item.GetProperty("balanceAfter").ValueKind == JsonValueKind.Null ? (decimal?)null : item.GetProperty("balanceAfter").GetDecimal())
+            .ShouldBe([1600.00m, null, null, 1500.00m, 2000.00m]);
+        body.GetProperty("total").GetInt32().ShouldBe(5);
+        body.GetProperty("balance").GetDecimal().ShouldBe(1600.00m);
+        body.GetProperty("includesDeleted").GetBoolean().ShouldBeTrue();
+
+        var deletedIn = items[1];
+        deletedIn.GetProperty("moneyIn").GetDecimal().ShouldBe(80.00m);
+        deletedIn.GetProperty("deletedBy").GetProperty("id").GetGuid().ShouldBe(world.Liza.UserId);
+        deletedIn.GetProperty("deletedAtUtc").GetDateTimeOffset().ShouldBeGreaterThan(DateTimeOffset.MinValue);
+        var deletedOut = items[2];
+        deletedOut.GetProperty("moneyOut").GetDecimal().ShouldBe(300.00m);
+        deletedOut.GetProperty("deletedBy").GetProperty("id").GetGuid().ShouldBe(world.Carmen.UserId);
+        deletedOut.GetProperty("counterpart").GetProperty("id").GetGuid().ShouldBe(world.Liza.UserId);
+        deletedOut.GetProperty("transferId").GetGuid().ShouldNotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public async Task AnAdminWhoAsksForDeletedTransfersGets403AndTheSentence()
+    {
+        await using var world = await StartDeletedWorldAsync();
+
+        using var response = await MoneyFixtures.GetLedgerAsync(world.Client, world.Liza.AccessToken, "deleted=true");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("detail").GetString().ShouldBe("Only Managers can see deleted transfers.");
+    }
+
+    [Fact]
+    public async Task AnAdminsLedgerNeverHoldsADeletedTransferAndItsBodyNamesNeitherItsIdNorTheFlag()
+    {
+        await using var world = await StartDeletedWorldAsync();
+
+        using var response = await MoneyFixtures.GetLedgerAsync(world.Client, world.Liza.AccessToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        var items = JsonDocument.Parse(text).RootElement.GetProperty("items").EnumerateArray().ToList();
+        items.Select(item => item.GetProperty("kind").GetString()).ShouldBe(["transfer-in"]);
+        items.Single().GetProperty("moneyIn").GetDecimal().ShouldBe(500.00m);
+        text.ShouldNotContain(world.DeletedOutId.ToString("D"));
+        text.ShouldNotContain(world.DeletedInId.ToString("D"));
+        text.ShouldNotContain("\"isDeleted\":true");
+        text.ShouldContain("\"includesDeleted\":false");
+    }
+
+    [Fact]
+    public async Task AManagerWhoSendsDeletedFalseGetsTheSameAnswerAsOneWhoSendsNothing()
+    {
+        await using var world = await StartDeletedWorldAsync();
+
+        var plain = await MoneyFixtures.ReadLedgerAsync(world.Client, world.Carmen.AccessToken);
+        var explicitFalse = await MoneyFixtures.ReadLedgerAsync(world.Client, world.Carmen.AccessToken, "deleted=false");
+
+        explicitFalse.GetProperty("items").GetRawText().ShouldBe(plain.GetProperty("items").GetRawText());
+        explicitFalse.GetProperty("includesDeleted").GetBoolean().ShouldBeFalse();
+    }
+
+    // Carmen (Manager) is paid 2,000.00 on Oct 3 and 100.00 on Oct 6, and sends Liza (Admin) 500.00 on Oct 4. Two more transfers are deleted:
+    // 300.00 from Carmen to Liza and 80.00 from Liza to Carmen, both dated Oct 5.
+    private async Task<DeletedWorld> StartDeletedWorldAsync()
+    {
+        await database.ResetAsync();
+        var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 2000.00m, October3, Now);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0002", 100.00m, new DateOnly(2026, 10, 6), Now);
+        await MoneySeeding.AddTransferAsync(database, new SeedTransfer(carmen.UserId, liza.UserId, 500.00m, October4), Now);
+        var deletedOut = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(carmen.UserId, liza.UserId, 300.00m, October5) { Deleted = true }, Now.AddMinutes(1));
+        var deletedIn = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(liza.UserId, carmen.UserId, 80.00m, October5) { Deleted = true }, Now.AddMinutes(2));
+        return new DeletedWorld(factory, client, carmen, liza, deletedOut, deletedIn);
+    }
+
+    private sealed class DeletedWorld(CspsApiFactory factory, HttpClient client, StartedSession carmen, StartedSession liza, Guid deletedOutId, Guid deletedInId) : IAsyncDisposable
+    {
+        public HttpClient Client { get; } = client;
+
+        public StartedSession Carmen { get; } = carmen;
+
+        public StartedSession Liza { get; } = liza;
+
+        public Guid DeletedOutId { get; } = deletedOutId;
+
+        public Guid DeletedInId { get; } = deletedInId;
+
+        public async ValueTask DisposeAsync()
+        {
+            Client.Dispose();
+            await factory.DisposeAsync();
+        }
     }
 
     private static async Task<List<JsonElement>> ReadItemsAsync(HttpClient client, string accessToken, string query) =>

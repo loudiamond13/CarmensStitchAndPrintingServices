@@ -273,6 +273,51 @@ public sealed class StaffLedgerQueryTests(CspsDatabase database) : IClassFixture
         rows.Select(row => row.SourceId).ShouldBe([later, payment.Id, earlier]);
     }
 
+    [Fact]
+    public async Task ADeletedTransferJoinsTheUnionOnlyWhenAskedWithASignedAmountOfZeroAndTheDeletedMark()
+    {
+        await database.ResetAsync();
+        var ana = await NewPersonAsync("Ana");
+        var ben = await NewPersonAsync("Ben");
+        var counted = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 500.00m, new DateOnly(2026, 10, 5)), Now);
+        var removed = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 300.00m, new DateOnly(2026, 10, 6)) { Deleted = true }, Now.AddMinutes(1));
+        await using var context = database.CreateContext();
+
+        var without = await StaffLedgerQuery.PageAsync(StaffLedgerQuery.Ordered(StaffLedgerQuery.For(context, ana.Id)), 1, 10, TestContext.Current.CancellationToken);
+        var with = await StaffLedgerQuery.PageAsync(StaffLedgerQuery.Ordered(StaffLedgerQuery.For(context, ana.Id, includeDeletedTransfers: true)), 1, 10, TestContext.Current.CancellationToken);
+
+        without.Select(row => row.SourceId).ShouldBe([counted]);
+        with.Select(row => (row.SourceId, row.Signed, row.Deleted)).ShouldBe([(removed, 0.00m, true), (counted, 500.00m, false)]);
+    }
+
+    [Fact]
+    public async Task AReaderPageWithDeletedTransfersCountsThemAsRowsButNotAsMoney()
+    {
+        await database.ResetAsync();
+        var ana = await NewPersonAsync("Ana");
+        var ben = await NewPersonAsync("Ben");
+        await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 500.00m, new DateOnly(2026, 10, 5)), Now);
+        var removed = await MoneySeeding.AddTransferAsync(database, new SeedTransfer(ben.Id, ana.Id, 300.00m, new DateOnly(2026, 10, 6)) { Deleted = true, CreatedById = ben.Id }, Now.AddMinutes(1));
+        await using var context = database.CreateContext();
+        var reader = new StaffMoneyReader(context);
+
+        var plain = await reader.GetLedgerPageAsync(ana.Id, 1, 10, false, TestContext.Current.CancellationToken);
+        var shown = await reader.GetLedgerPageAsync(ana.Id, 1, 10, true, TestContext.Current.CancellationToken);
+
+        plain.Total.ShouldBe(1);
+        shown.Total.ShouldBe(2);
+        plain.Balance.ShouldBe(500.00m);
+        shown.Balance.ShouldBe(500.00m);
+        shown.NewerSum.ShouldBe(0.00m);
+        var row = shown.Rows.Single(entry => entry.SourceId == removed);
+        row.IsDeleted.ShouldBeTrue();
+        row.SignedAmount.ShouldBe(0.00m);
+        row.DeletedAmount.ShouldBe(300.00m);
+        row.DeletedBy.ShouldNotBeNull().Id.ShouldBe(ben.Id);
+        row.DeletedAtUtc.ShouldNotBeNull();
+        row.Counterpart.ShouldNotBeNull().Id.ShouldBe(ben.Id);
+    }
+
     [Theory]
     [InlineData(10)]
     [InlineData(100)]
