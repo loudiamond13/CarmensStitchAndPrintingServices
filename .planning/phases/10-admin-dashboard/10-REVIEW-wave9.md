@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 9
 plans: [10-18, 10-19]
 created: 2026-11-08T03:57:00-06:00
-updated: 2026-11-08T04:15:00-06:00
+updated: 2026-11-08T04:50:00-06:00
 reviewed_range: 3630e04e..698bb0aa (excluding .planning/)
 depth: deep
 files_reviewed: 52
@@ -17,7 +17,7 @@ status: issues_found
 
 # Phase 10 Wave 9 Code Review (plans 10-18 and 10-19)
 
-*Created: 2026-11-08T03:57:00-06:00 · Updated: 2026-11-08T04:15:00-06:00*
+*Created: 2026-11-08T03:57:00-06:00 · Updated: 2026-11-08T04:50:00-06:00*
 
 ## Summary
 
@@ -166,13 +166,13 @@ _Depth: deep_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now: the e2e focuses Show deleted, checks it sits clear of the phone tab bar, then runs axe. If WebKit or iPhone shows it hidden, fix the layout (a real 2.4.11 gap). |
-| WR-02 | Fix now: a hand-over refused under `fromUserId` reads the staff balances again. |
-| IN-01 | Fix now: remove the 0 ms timer; keep To focusable while the people load (or focus To first) so the Amount blur never fires. |
-| IN-02 | Fix now: remove `toTransferRecipients` if only tests use it, or use it. |
-| IN-03 | Fix now: make the side effect explicit (no unused return value). |
+| WR-01 | Fixed (`f4ccbfc1`): the e2e focuses Show deleted at the top of the page, asserts it ends above the phone tab bar and is the element at its centre, then runs axe. WebKit and iPhone pass, so no 2.4.11 gap and no layout change. Removing the phone bottom scroll padding failed it on iPhone, then was restored. |
+| WR-02 | Fixed (`f3573a54`, `66c7c87a`): a hand-over refused under `fromUserId` reads the staff balances again. Test failed first (1 of 1). |
+| IN-01 | Fixed (`213acf04`, `647a3c4c`): To is `aria-disabled` while the people load, so first focus lands on To; the late focus move and the 0 ms timer are gone. Tests failed first (3 of 3); a mutation failed 5. To no longer looks greyed while loading (parked in P10-BL-12). |
+| IN-02 | Fixed (`b3340f00`): `toTransferRecipients` removed; its tests use the live helpers. |
+| IN-03 | Fixed (`fcdc6b6d`, `8ea4a1b3`, `1b770472`): renamed `useCleanStaffMoneyUrl`, returns nothing; a mutation proves the new assertion bites. |
 | IN-04 | Parked for the owner (P10-BL-12: the person page has no main heading while loading, failed or not found). No change until ruled. |
-| IN-05 | Fix now: adding or editing a user also marks the staff money answers old. |
+| IN-05 | Fixed (`127ae4f3`, `ed76b7c0`): Add and Edit save refresh the staff money answers. Tests failed first (2 of 2). |
 | IN-06 | Parked for the owner (P10-BL-13: whether a removed transfer's audit record says it was a hand-over). |
-| IN-07 | Fix now: list the second 409 on the DELETE row. |
+| IN-07 | Fixed (`d0329607`): the DELETE row lists the second 409. |
 | IN-08 | Deferred to plan 10-21 (320 px sweep of the tab strip, All Staff cards and person header). |

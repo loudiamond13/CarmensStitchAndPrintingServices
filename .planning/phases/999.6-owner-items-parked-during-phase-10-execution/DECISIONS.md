@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T04:15:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T04:50:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -124,6 +124,7 @@ Keep them, or give new wording.
   - While a person's money page loads, fails or finds no one, the browser tab reads "Money · CSPS Admin" and the page has no main heading, as the Deleted Order page does.
   - A link with `?tab=transfers` opens the Mine tab until plan 10-20 adds the Transfers tab.
   Keep these, or give new wording.
+- **The To box while the staff list loads (wave 9 review IN-01).** To fix the Amount message that showed as soon as the Transfer or Hand Over window opened, the To box is no longer greyed out while the staff list loads. It looks ready and shows "Loading staff…" as its only choice, and can't be used until the list arrives. A (recommended): keep it. B: grey it again, which means changing how every order window chooses its first focus.
 - **Admin links with Manager-only settings.** If an Admin opens a My Money link that has the Manager-only "Show deleted" setting, the setting is removed and the list goes back to page 1. Recommended: accept this.
 
 ## P10-BL-13 · Should a permanently removed transfer's audit record say it was a hand-over? (wave 9 review IN-06)
