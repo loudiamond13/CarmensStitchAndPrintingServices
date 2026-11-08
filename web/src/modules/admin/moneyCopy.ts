@@ -71,6 +71,10 @@ export const MONEY_COPY = {
       dateRequired: 'Enter the transfer date.',
       dateInvalid: 'Enter a real date.',
       dateInFuture: "The transfer date can't be in the future.",
+      nothingOnHand: 'You have nothing on hand to transfer.',
+      /** "You only have ₱3,200.00 on hand." */
+      aboveBalance: (balance: string): string => `You only have ${balance} on hand.`,
+      noteTooLong: 'Keep the note to 200 characters or fewer.',
     },
   },
 } as const;

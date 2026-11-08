@@ -9,7 +9,7 @@ import { Button, ButtonLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Skeleton } from '@/components/feedback';
 import { LoadingRegion } from '@/components/states';
-import { TransferButton } from '@/modules/admin/components/TransferButton';
+import { TransferButton, TransferReason, transferGate } from '@/modules/admin/components/TransferButton';
 import {
   moneyStripActionsClasses,
   moneyStripBodyClasses,
@@ -37,6 +37,8 @@ export interface MoneyStripProps {
 
 export function MoneyStrip({ query, actions }: MoneyStripProps) {
   const labelId = useId();
+  const reasonId = useId();
+  const gate = transferGate(query);
   const money = query.data;
   const tone =
     money === undefined
@@ -89,12 +91,13 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
         {figure}
       </LoadingRegion>
       <div className={moneyStripActionsClasses}>
-        <TransferButton />
+        <TransferButton query={query} reasonId={reasonId} />
         {actions}
         <ButtonLink variant="ghost" size="sm" to={LEDGER_PATH}>
           {COPY.viewLedger}
         </ButtonLink>
       </div>
+      {gate.nothingOnHand && <TransferReason id={reasonId} />}
     </section>
   );
 }

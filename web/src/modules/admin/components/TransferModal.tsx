@@ -8,8 +8,11 @@ import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'rea
 import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { MoneyInput } from '@/components/entry';
 import { DateInput, Field, Select } from '@/components/forms';
+import { useToast } from '@/components/feedback';
 import { Modal } from '@/components/overlays';
 import { SkeletonText } from '@/components/states';
+import { isHttpError } from '@/core/api/errors';
+import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { OrderWindow } from '@/modules/admin/components/OrderWindow';
 import { orderWindowFullRowClasses, orderWindowGridClasses } from '@/modules/admin/components/orderWindow.recipe';
 import { useBusinessToday } from '@/modules/admin/hooks/useBusinessToday';
@@ -26,7 +29,7 @@ import {
 } from '@/modules/admin/moneySchemas';
 import type { TransferRecipient } from '@/modules/admin/services/moneyService';
 import { formatPeso } from '@/utils/csps';
-import { errorLine } from '@/utils/describeHttpError';
+import { errorLine, type ErrorCopy } from '@/utils/describeHttpError';
 
 const COPY = MONEY_COPY.transfer;
 
@@ -92,6 +95,12 @@ function TransferWindow({ open, onClose }: TransferWindowProps) {
       name={money.data?.name ?? null}
       balance={money.data?.balance ?? null}
       recipients={recipients}
+      onRefreshBalance={() => {
+        void money.refetch();
+      }}
+      onRefreshPeople={() => {
+        void recipients.refetch();
+      }}
       onClose={onClose}
     />
   );
@@ -111,6 +120,10 @@ interface TransferFormProps {
   name: string | null;
   balance: number | null;
   recipients: RecipientsState;
+  /** Reads the sender's balance again, so the Amount hint and the cap follow it. */
+  onRefreshBalance: () => void;
+  /** Reads the people again, so To follows who can receive now. */
+  onRefreshPeople: () => void;
   onClose: () => void;
 }
 
@@ -121,24 +134,28 @@ function recipientLabel(person: TransferRecipient): string {
   return person.name;
 }
 
-function TransferForm({ open, today, name, balance, recipients, onClose }: TransferFormProps) {
+function TransferForm({
+  open,
+  today,
+  name,
+  balance,
+  recipients,
+  onRefreshBalance,
+  onRefreshPeople,
+  onClose,
+}: TransferFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [banner, setBanner] = useState<OrderWindowBanner | null>(null);
+  const toast = useToast();
   const {
     control,
     handleSubmit,
+    setError,
     formState: { isDirty },
   } = useForm<TransferFormInput, unknown, TransferFormOutput>({
     resolver: zodResolver(transferFormSchema({ balance, today })),
     mode: 'onBlur',
     defaultValues: { toUserId: '', amount: '', transferDate: today, note: '' },
-  });
-
-  const action = useTransferAction({
-    onSaved: onClose,
-    onFailure: (copy) => {
-      setBanner({ kind: 'message', text: errorLine(copy) });
-    },
   });
 
   const focusField = (field: FieldName): void => {
@@ -147,6 +164,40 @@ function TransferForm({ open, today, name, balance, recipients, onClose }: Trans
       element.focus();
     }
   };
+
+  // The server decides what the browser could not know. A refusal lands under its field, the typed values stay, and the answer it
+  // was based on is read again: the balance after an Amount refusal, the people after a To refusal.
+  const showFailure = (copy: ErrorCopy, error: unknown): void => {
+    if (isHttpError(error) && error.kind === 'http') {
+      if (error.status === 400) {
+        const refused = FIELD_ORDER.flatMap((field) => {
+          const message = serverFieldMessage(error.fieldErrors, field);
+          return message === undefined ? [] : [{ field, message }];
+        });
+        const first = refused[0];
+        if (first !== undefined) {
+          for (const { field, message } of refused) {
+            setError(field, { type: 'server', message });
+          }
+          if (refused.some(({ field }) => field === 'amount')) onRefreshBalance();
+          if (refused.some(({ field }) => field === 'toUserId')) onRefreshPeople();
+          setBanner(null);
+          focusField(first.field);
+          return;
+        }
+        setBanner({ kind: 'message', text: Object.values(error.fieldErrors)[0]?.[0] ?? errorLine(copy) });
+        return;
+      }
+      if (error.status === 409) {
+        // Another change won the race (SEC-06): the server's own line, and the window stays so the same transfer can be sent again.
+        toast.show({ tone: 'danger', title: error.problem?.detail ?? errorLine(copy) });
+        return;
+      }
+    }
+    setBanner({ kind: 'message', text: errorLine(copy) });
+  };
+
+  const action = useTransferAction({ onSaved: onClose, onFailure: showFailure });
 
   // D-47: the cursor starts on To. It is disabled while the people load, so it takes the cursor once they have arrived, unless the
   // person has already started typing.

@@ -184,22 +184,19 @@ describe('Transfer with nothing to send (D-14, P8 D-14 pattern)', () => {
   it.each([
     ['₱0.00', 0],
     ['−₱500.00', -500],
-  ])(
-    'with %s the button is aria-disabled, still focusable, and tied to its visible reason',
-    async (_figure, balance) => {
-      renderWith(queryOf({ data: moneyOf(balance) }));
+  ])('with %s the button is aria-disabled, still focusable, and tied to its visible reason', (_figure, balance) => {
+    renderWith(queryOf({ data: moneyOf(balance) }));
 
-      const transfer = screen.getByRole('button', { name: 'Transfer' });
-      expect(transfer).toHaveAttribute('aria-disabled', 'true');
-      expect(transfer).not.toBeDisabled();
-      transfer.focus();
-      expect(transfer).toHaveFocus();
-      const reason = screen.getByText('Nothing on hand to transfer.');
-      expect(reason).toBeVisible();
-      expect(transfer).toHaveAttribute('aria-describedby', reason.id);
-      expect(reason.id).not.toBe('');
-    },
-  );
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer).toHaveAttribute('aria-disabled', 'true');
+    expect(transfer).not.toBeDisabled();
+    transfer.focus();
+    expect(transfer).toHaveFocus();
+    const reason = screen.getByText('Nothing on hand to transfer.');
+    expect(reason).toBeVisible();
+    expect(transfer).toHaveAttribute('aria-describedby', reason.id);
+    expect(reason.id).not.toBe('');
+  });
 
   it('does not open the window when it is pressed', async () => {
     renderWith(queryOf({ data: moneyOf(0) }));

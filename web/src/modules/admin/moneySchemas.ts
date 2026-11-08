@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { moneyInputError } from '@/components/entry';
 import { isCalendarDate } from '@/lib/url-state/parsers';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
+import { formatPeso, round2 } from '@/utils/csps';
 import { centavosToMoneyText, isMoneyText, moneyTextToCentavos } from '@/utils/format';
 
 // The strict CSP has no 'unsafe-eval': every schema runs in its plain (non-generated) mode (see profileSchemas.ts).
@@ -12,13 +13,19 @@ z.config({ jitless: true });
 
 const COPY = MONEY_COPY.transfer.errors;
 
+/** The longest note, after trimming (MoneyRules.NoteMaxLength). */
+const NOTE_MAX = 200;
+
 /** What the schema needs from the window: the sender's balance read when it opened (null until known) and the business today. */
 export interface TransferSchemaOptions {
   balance: number | null;
   today: string;
 }
 
-/** The message under Date for `date`, or null when it is a real day that is not after the business `today`. */
+/**
+ * The message under Date for `date`, or null when it is a real day that is not after the business `today`. The words are the
+ * server's (MoneyRules.cs), kept in moneyCopy.ts: "The transfer date can't be in the future." for a day after `today`.
+ */
 function dateError(date: string, today: string): string | null {
   const text = date.trim();
   if (text === '') return COPY.dateRequired;
@@ -26,19 +33,26 @@ function dateError(date: string, today: string): string | null {
   return text > today ? COPY.dateInFuture : null;
 }
 
-/** The message under Amount for the typed text, or null when it is acceptable (at least 0.01, at most 2 decimals). */
-function amountError(text: string): string | null {
+/**
+ * The message under Amount for the typed text, or null when it is acceptable: at least 0.01, at most 2 decimals, and no more than the
+ * `balance` the window read when it opened. With no balance known the cap is left to the server.
+ */
+function amountError(text: string, balance: number | null): string | null {
   if (text === '' || text === '.') return COPY.amountRequired;
   if (/^\d*\.\d{3,}$/.test(text)) return COPY.amountDecimals;
   if (!isMoneyText(text)) return moneyInputError(text);
-  return moneyTextToCentavos(text) < 1 ? COPY.amountTooSmall : null;
+  const centavos = moneyTextToCentavos(text);
+  if (centavos < 1) return COPY.amountTooSmall;
+  if (balance === null) return null;
+  if (round2(balance) <= 0) return COPY.nothingOnHand;
+  return centavos > Math.round(balance * 100) ? COPY.aboveBalance(formatPeso(balance)) : null;
 }
 
-export function transferFormSchema({ today }: TransferSchemaOptions) {
+export function transferFormSchema({ balance, today }: TransferSchemaOptions) {
   return z.object({
     toUserId: z.string().min(1, COPY.toRequired),
     amount: z.string().superRefine((text, context) => {
-      const message = amountError(text);
+      const message = amountError(text, balance);
       if (message !== null) {
         context.addIssue({ code: 'custom', message });
       }
@@ -52,6 +66,7 @@ export function transferFormSchema({ today }: TransferSchemaOptions) {
     note: z
       .string()
       .trim()
+      .refine((note) => note.length <= NOTE_MAX, COPY.noteTooLong)
       .transform((note) => (note === '' ? null : note)),
   });
 }

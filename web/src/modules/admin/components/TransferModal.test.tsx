@@ -360,7 +360,8 @@ describe('what the server refuses (D-14, D-56, SEC-06)', () => {
     expect(await screen.findByText('You only have ₱3,200.00 on hand.')).toBeVisible();
     expect(amountBox()).toHaveValue('5000.00');
     expect(toBox()).toHaveValue(LIZA_ID);
-    expect(await screen.findByText('You have ₱3,200.00 on hand.')).toBeVisible();
+    // The balance is read again: the description follows it at once, and the Amount hint (hidden under the error) follows too.
+    expect(await screen.findByText('From Carmen Reyes (you). You have ₱3,200.00 on hand.')).toBeVisible();
 
     await user.clear(amountBox());
     await user.type(amountBox(), '3000');
