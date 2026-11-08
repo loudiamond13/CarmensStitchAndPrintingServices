@@ -162,6 +162,36 @@ describe('Show deleted (D-30, D-31, D-23)', () => {
     ]);
   });
 
+  it('words the result bar from the rows on screen, not from the checkbox, while the other answer loads (IN-02)', async () => {
+    ledgerBackend(async (url) => {
+      if (url.searchParams.get('deleted') === 'true') {
+        await delay(500);
+        return ledgerPageFixture([ledgerDeletedEntryFixture(), ...ledgerEntriesFixture()], { includesDeleted: true });
+      }
+      return ledgerPageFixture();
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
+    await user.click(screen.getByRole('checkbox', { name: 'Show deleted' }));
+    expect(screen.getByRole('checkbox', { name: 'Show deleted' })).toBeChecked();
+    expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
+    await waitFor(() => {
+      expect(screen.getByText(/^Showing/)).toHaveTextContent(
+        'Showing 7 entries, deleted transfers included · newest first',
+      );
+    });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Show deleted' }));
+    expect(screen.getByText(/^Showing/)).toHaveTextContent(
+      'Showing 7 entries, deleted transfers included · newest first',
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
+    });
+  });
+
   it('reads Show deleted from the URL and asks for deleted transfers on the first read', async () => {
     const calls = ledgerBackend(ledgerPageFixture([ledgerDeletedEntryFixture()], { includesDeleted: true }));
     renderCard('?deleted=true');
