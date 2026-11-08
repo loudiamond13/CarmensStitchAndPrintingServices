@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T04:50:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T09:10:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -122,7 +122,7 @@ Keep them, or give new wording.
 - **From plan 10-19 (Manager money screens):**
   - Another person's empty ledger shows only "No money in or out yet", without the line that speaks to "you".
   - While a person's money page loads, fails or finds no one, the browser tab reads "Money · CSPS Admin" and the page has no main heading, as the Deleted Order page does.
-  - A link with `?tab=transfers` opens the Mine tab until plan 10-20 adds the Transfers tab.
+  - A link with `?tab=transfers` opened the Mine tab until plan 10-20. It now opens the Transfers tab (closed).
   Keep these, or give new wording.
 - **The To box while the staff list loads (wave 9 review IN-01).** To fix the Amount message that showed as soon as the Transfer or Hand Over window opened, the To box is no longer greyed out while the staff list loads. It looks ready and shows "Loading staff…" as its only choice, and can't be used until the list arrives. A (recommended): keep it. B: grey it again, which means changing how every order window chooses its first focus.
 - **Admin links with Manager-only settings.** If an Admin opens a My Money link that has the Manager-only "Show deleted" setting, the setting is removed and the list goes back to page 1. Recommended: accept this.
@@ -135,3 +135,15 @@ When a Manager removes a deleted transfer for good, the audit log keeps who sent
 
 - **A (recommended):** add "hand-over: yes or no" to the record. Small change, no new screen.
 - **B:** keep it as is (D-25 as written).
+
+## P10-BL-14 · Transfers tab, delete and remove choices (plan 10-20)
+
+**Status:** open · **Blocks:** nothing; the choices below are in use now and can be changed later.
+
+- While the Delete Transfer window checks the new balances, the loading area is read out as "Loading staff balances…" (an existing line).
+- "Show deleted" on the Transfers tab and on the Mine ledger is one setting, so switching tabs keeps it on. Recommended: accept. Otherwise each tab gets its own.
+- The Transfers count line reads the same with Show deleted on or off.
+- When the last transfer on the page is deleted, focus moves to the card heading, because an empty list has no caption.
+- A Remove Permanently refused because the server is busy, or because the transfer is no longer deleted, shows the standard error line.
+- A hand-over row on the Transfers tab looks like a normal transfer (it is not marked "Hand-over"). A (recommended): add a small "Hand-over" label. B: keep as is.
+- Still open, unchanged: the hand-over "Done to" column in the Audit Log is empty (P10-BL-07), and P10-BL-13. Also: the Audit Log does not show when a removed transfer had been deleted.
