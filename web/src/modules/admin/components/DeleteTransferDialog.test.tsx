@@ -311,12 +311,42 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     });
   });
 
-  it('has no axe violations with the warning shown, and with the check failed', async () => {
+  it('announces the late warning as an alert (wave 10 WR-03)', async () => {
+    staffBalancesBackend(async () => {
+      await delay(100);
+      return balancesWithLiza(1500);
+    });
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(WARNING);
+  });
+
+  it('announces "Couldn\'t check the new balances" as an alert (wave 10 WR-03)', async () => {
+    staffBalancesBackend(() => problemResponse(500));
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't check the new balances. The delete still works.");
+  });
+
+  it('has no axe violations with the warning shown', async () => {
     staffBalancesBackend(balancesWithLiza(1500));
     renderDialog();
 
     const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
     await within(dialog).findByText(WARNING);
+    await expectNoAxeViolations(document.body);
+  });
+
+  it('has no axe violations with the check failed', async () => {
+    staffBalancesBackend(() => problemResponse(500));
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await within(dialog).findByText("Couldn't check the new balances. The delete still works.");
     await expectNoAxeViolations(document.body);
   });
 });
@@ -386,6 +416,11 @@ describe('a later read of the balances (wave 10 WR-02)', () => {
 });
 
 describe('a stale or missing transfer (SEC-07)', () => {
+  beforeEach(() => {
+    // No resulting-balance warning, so the failure line is the only alert.
+    staffBalancesBackend(balancesWithLiza(3000));
+  });
+
   it('on a 409 keeps the dialog open with the alert line, and reads the lists again (stale)', async () => {
     deleteTransferBackend(() => transferStaleProblem());
     const key = transfersKey({ page: 1, pageSize: 20, deleted: false });

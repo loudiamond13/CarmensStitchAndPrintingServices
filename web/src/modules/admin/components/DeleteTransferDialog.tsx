@@ -79,12 +79,16 @@ export function DeleteTransferDialog({ transfer, open, onClose, onDone }: Delete
             formatCalendarDate(transfer.date) ?? transfer.date,
           )}
           {warn && (
-            <span className={transferWarningClasses}>
+            <span role="alert" className={transferWarningClasses}>
               <Icon name="triangle-alert" size={16} className={transferWarningIconClasses} />
               <span>{COPY.warning(transfer.to.name, formatPeso(after))}</span>
             </span>
           )}
-          {checkFailed && <span className={transferCheckFailedClasses}>{COPY.checkFailed}</span>}
+          {checkFailed && (
+            <span role="alert" className={transferCheckFailedClasses}>
+              {COPY.checkFailed}
+            </span>
+          )}
         </>
       }
       countsLoading={checking}
