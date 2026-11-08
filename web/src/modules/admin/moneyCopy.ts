@@ -132,6 +132,8 @@ export const MONEY_COPY = {
       inactive: EXPENSES_COPY.form.paidBy.inactive,
       formerStaff: EXPENSES_COPY.form.paidBy.formerStaff,
       loadFailed: EXPENSES_COPY.form.paidBy.loadFailed,
+      /** The signed-in Manager in the hand-over list: "Carmen Reyes (you)". */
+      you: EXPENSES_COPY.form.paidBy.you,
     },
     amount: {
       label: 'Amount',
@@ -159,6 +161,33 @@ export const MONEY_COPY = {
       /** "You only have ₱3,200.00 on hand." */
       aboveBalance: (balance: string): string => `You only have ${balance} on hand.`,
       noteTooLong: 'Keep the note to 200 characters or fewer.',
+      /** A Manager sending to a leaver who is owed money (D-49): "Ana Villanueva is owed only ₱300.00. Enter that or less." */
+      owedOnly: (name: string, owed: string): string => `${name} is owed only ${owed}. Enter that or less.`,
+    },
+  },
+  /** The Hand Over Money window (UI-SPEC T1 mode handover, D-17, D-18; plan 10-19). The other fields use the Transfer Money words. */
+  handover: {
+    title: 'Hand Over Money',
+    /** "From Jomar Santos (deactivated). They hold ₱2,000.00." */
+    description: (name: string, status: 'deactivated' | 'deleted', held: string): string =>
+      `From ${name} (${status}). They hold ${held}.`,
+    amount: {
+      /** "Jomar Santos holds ₱2,000.00." */
+      hint: (name: string, held: string): string => `${name} holds ${held}.`,
+    },
+    // SPEC-GAP: T1 the note under the fields.
+    note: (name: string): string => `This is recorded as a transfer from ${name}, with you as the one who recorded it.`,
+    save: 'Record Handover',
+    toast: {
+      title: 'Handover recorded',
+      /** "Jomar Santos now holds ₱0.00." from the server's balance. */
+      message: (name: string, held: string): string => `${name} now holds ${held}.`,
+    },
+    /** The server's own words (MoneyRules.cs), so the browser and the server say the same thing (OR-3). */
+    errors: {
+      nothingOnHand: (name: string): string => `${name} has nothing on hand to hand over.`,
+      /** "Jomar Santos only has ₱2,000.00 on hand." */
+      aboveBalance: (name: string, held: string): string => `${name} only has ${held} on hand.`,
     },
   },
 } as const;

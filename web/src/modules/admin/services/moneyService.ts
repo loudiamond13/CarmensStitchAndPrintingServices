@@ -182,13 +182,7 @@ function isRecipientStatus(status: string): status is RecipientStatus {
 
 /** Narrows the generated list (the status is a plain string there): the signed-in person and any unknown status are left out. */
 export function toTransferRecipients(list: readonly TransferRecipientResponse[]): TransferRecipient[] {
-  const people: TransferRecipient[] = [];
-  for (const person of list) {
-    if (!person.isYou && isRecipientStatus(person.status)) {
-      people.push({ id: person.id, name: person.name, status: person.status });
-    }
-  }
-  return people;
+  return pickTransferRecipients(toTransferPeople(list));
 }
 
 export type CreateHandoverRequest = Schemas['CreateMoneyHandoverRequest'];
@@ -198,14 +192,20 @@ export interface TransferPerson extends TransferRecipient {
   isYou: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- compile-only stub until the GREEN commit
-export function toTransferPeople(_list: readonly TransferRecipientResponse[]): TransferPerson[] {
-  return [];
+/** Narrows the generated list (the status is a plain string there): a person with a status the browser does not know is left out. */
+export function toTransferPeople(list: readonly TransferRecipientResponse[]): TransferPerson[] {
+  const people: TransferPerson[] = [];
+  for (const person of list) {
+    if (isRecipientStatus(person.status)) {
+      people.push({ id: person.id, name: person.name, status: person.status, isYou: person.isYou });
+    }
+  }
+  return people;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- compile-only stub until the GREEN commit
-export function pickTransferRecipients(_people: readonly TransferPerson[]): TransferRecipient[] {
-  return [];
+/** The Transfer Money window's To list: everyone but the signed-in person, in the order the server sent, with no `isYou`. */
+export function pickTransferRecipients(people: readonly TransferPerson[]): TransferRecipient[] {
+  return people.filter((person) => !person.isYou).map(({ id, name, status }) => ({ id, name, status }));
 }
 
 /** One person the Hand Over window's To list offers. */
@@ -215,9 +215,15 @@ export interface HandoverRecipient {
   isYou: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- compile-only stub until the GREEN commit
-export function pickHandoverRecipients(_people: readonly TransferPerson[]): HandoverRecipient[] {
-  return [];
+/**
+ * The Hand Over window's To list (wave 6 IN-03): active staff only, the signed-in Manager first, then the others in the order sent. A
+ * leaver is never offered as a receiver.
+ */
+export function pickHandoverRecipients(people: readonly TransferPerson[]): HandoverRecipient[] {
+  const active = people.filter((person) => person.status === 'active');
+  return [...active.filter((person) => person.isYou), ...active.filter((person) => !person.isYou)].map(
+    ({ id, name, isYou }) => ({ id, name, isYou }),
+  );
 }
 
 export type StaffBalancesResponse = Schemas['StaffBalancesResponse'];
@@ -339,7 +345,8 @@ export interface MoneyService {
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
-    handover: () => Promise.reject(new Error('not built')),
+    handover: (body, idempotencyKey, signal) =>
+      client.post<TransferSavedResponse>('/money-transfers/handovers', body, { idempotencyKey, signal }),
     person: (userId, signal) =>
       client.get<StaffMoneyResponse>(`/staff-money/${encodeURIComponent(userId)}`, { signal }),
     staff: (signal) => client.get<StaffBalancesResponse>('/staff-money', { signal }),

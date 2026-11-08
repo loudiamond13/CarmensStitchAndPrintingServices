@@ -134,6 +134,8 @@ describe('the header Transfer button (D-39, D-14; plan 10-15)', () => {
   it('is a primary md "Transfer" with the arrow-right icon and opens the Transfer Money window', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
     transferRecipientsBackend();
+    // A Manager's window also reads the staff balances for the owed-leaver cap (D-49).
+    staffBalancesBackend();
     const user = userEvent.setup();
     renderPage();
 

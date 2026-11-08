@@ -48,11 +48,30 @@ function dateError(date: string, today: string): string | null {
   return text > today ? COPY.dateInFuture : null;
 }
 
+/** The two sender-balance messages of an Amount: what to say with nothing on hand, and with more than is on hand. */
+interface BalanceWords {
+  nothing: string;
+  above: (balance: number) => string;
+}
+
+const TRANSFER_WORDS: BalanceWords = {
+  nothing: COPY.nothingOnHand,
+  above: (balance) => COPY.aboveBalance(formatPeso(balance)),
+};
+
+function handoverWords(leaverName: string): BalanceWords {
+  const words = MONEY_COPY.handover.errors;
+  return {
+    nothing: words.nothingOnHand(leaverName),
+    above: (balance) => words.aboveBalance(leaverName, formatPeso(balance)),
+  };
+}
+
 /**
  * The message under Amount for the typed text, or null when it is acceptable: at least 0.01, at most 2 decimals, and no more than the
  * `balance` the window read when it opened. With no balance known the cap is left to the server.
  */
-function amountError(text: string, balance: number | null): string | null {
+function amountError(text: string, balance: number | null, words: BalanceWords): string | null {
   if (text === '' || text === '.') return COPY.amountRequired;
   // The server checks the minimum before the decimal places, so zero with extra decimals ("0.000") says "at least".
   if (/^\d*\.\d{3,}$/.test(text)) return /[1-9]/.test(text) ? COPY.amountDecimals : COPY.amountTooSmall;
@@ -60,31 +79,63 @@ function amountError(text: string, balance: number | null): string | null {
   const centavos = moneyTextToCentavos(text);
   if (centavos < 1) return COPY.amountTooSmall;
   if (balance === null) return null;
-  if (round2(balance) <= 0) return COPY.nothingOnHand;
-  return centavos > Math.round(balance * 100) ? COPY.aboveBalance(formatPeso(balance)) : null;
+  if (round2(balance) <= 0) return words.nothing;
+  return centavos > Math.round(balance * 100) ? words.above(balance) : null;
 }
 
-export function transferFormSchema({ balance, today }: TransferSchemaOptions) {
-  return z.object({
-    toUserId: z.string().min(1, COPY.toRequired),
-    amount: z.string().superRefine((text, context) => {
-      const message = amountError(text, balance);
-      if (message !== null) {
-        context.addIssue({ code: 'custom', message });
+interface FormRules {
+  /** What the sender holds (null until known), and the words for it. */
+  balance: number | null;
+  words: BalanceWords;
+  today: string;
+  owedByRecipient: ReadonlyMap<string, OwedLeaver> | undefined;
+}
+
+/** The four fields of a transfer or a hand-over; they differ only in the sender-balance words and the owed cap. */
+function formSchema({ balance, words, today, owedByRecipient }: FormRules) {
+  return z
+    .object({
+      toUserId: z.string().min(1, COPY.toRequired),
+      amount: z.string().superRefine((text, context) => {
+        const message = amountError(text, balance, words);
+        if (message !== null) {
+          context.addIssue({ code: 'custom', message });
+        }
+      }),
+      transferDate: z.string().superRefine((text, context) => {
+        const message = dateError(text, today);
+        if (message !== null) {
+          context.addIssue({ code: 'custom', message });
+        }
+      }),
+      note: z
+        .string()
+        .trim()
+        .refine((note) => note.length <= NOTE_MAX, COPY.noteTooLong)
+        .transform((note) => (note === '' ? null : note)),
+    })
+    .superRefine((values, context) => {
+      // D-49 (a Manager only): into a leaver who is owed money, no more than they are owed. The amount's own rules, and the sender's
+      // balance, come first; the server decides everything the browser was not given.
+      const leaver = owedByRecipient?.get(values.toUserId);
+      if (leaver === undefined || amountError(values.amount, balance, words) !== null) return;
+      if (moneyTextToCentavos(values.amount) > Math.round(leaver.owed * 100)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['amount'],
+          message: COPY.owedOnly(leaver.name, formatPeso(leaver.owed)),
+        });
       }
-    }),
-    transferDate: z.string().superRefine((text, context) => {
-      const message = dateError(text, today);
-      if (message !== null) {
-        context.addIssue({ code: 'custom', message });
-      }
-    }),
-    note: z
-      .string()
-      .trim()
-      .refine((note) => note.length <= NOTE_MAX, COPY.noteTooLong)
-      .transform((note) => (note === '' ? null : note)),
-  });
+    });
+}
+
+export function transferFormSchema({ balance, today, owedByRecipient }: TransferSchemaOptions) {
+  return formSchema({ balance, words: TRANSFER_WORDS, today, owedByRecipient });
+}
+
+/** The hand-over form: the same four fields, capped at what the leaver holds, in the server's words for a hand-over (D-18). */
+export function handoverFormSchema({ leaverName, leaverBalance, today }: HandoverSchemaOptions) {
+  return formSchema({ balance: leaverBalance, words: handoverWords(leaverName), today, owedByRecipient: undefined });
 }
 
 /** What the form holds while it is edited: every control is text. */
@@ -99,10 +150,6 @@ export interface TransferBody {
   amount: string;
   transferDate: string;
   note: string | null;
-}
-
-export function handoverFormSchema({ today }: HandoverSchemaOptions) {
-  return transferFormSchema({ balance: null, today });
 }
 
 /** The hand-over request body: the leaver as the sender, then the same four fields. */

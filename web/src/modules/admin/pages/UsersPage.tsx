@@ -52,7 +52,9 @@ import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
 import { usersCaptionClasses, usersTitleRowClasses, usersWrapClasses } from '@/modules/admin/components/users.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
+import { staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { useSession } from '@/modules/admin/hooks/useSession';
+import { moneyTransfersKey } from '@/modules/admin/hooks/useTransferRecipientsQuery';
 import { useUsersListParams } from '@/modules/admin/hooks/useUsersListParams';
 import { useUserAction } from '@/modules/admin/hooks/useUserAction';
 import { useUsersQuery, usersKey } from '@/modules/admin/hooks/useUsersQuery';
@@ -254,9 +256,17 @@ export function UsersRoute() {
     });
   };
 
+  // A person who is deactivated, activated or deleted moves between active staff and leavers, so the staff money and the transfer lists
+  // (All Staff badges, who can receive money) are read again too (D-43). The roster read decides when the caller carries on.
+  const refreshRoster = (): Promise<unknown> => {
+    void queryClient.invalidateQueries({ queryKey: staffMoneyKey });
+    void queryClient.invalidateQueries({ queryKey: moneyTransfersKey });
+    return queryClient.invalidateQueries({ queryKey: usersKey });
+  };
+
   // The roster reads again; once it has, the flipped toggle takes focus (a dialog's own focus return may have run first).
   const refreshThenFocusToggle = (user: UserListItem): Promise<unknown> =>
-    queryClient.invalidateQueries({ queryKey: usersKey }).then(() => toggleFocus.focusRow(user.id));
+    refreshRoster().then(() => toggleFocus.focusRow(user.id));
 
   const closeDeactivate = (): void => {
     setDeactivating((current) => (current === null ? null : { ...current, open: false }));
@@ -296,7 +306,7 @@ export function UsersRoute() {
       afterRemoval.current = { removedId: user.id, focusId: chooseFocusAfter(user) };
       closeDelete();
       toast.show({ title: COPY.remove.toast.title, message: COPY.remove.toast.message(fullName(user)) });
-      return queryClient.invalidateQueries({ queryKey: usersKey });
+      return refreshRoster();
     },
   );
 

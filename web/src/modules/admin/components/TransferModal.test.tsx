@@ -121,6 +121,23 @@ describe('the window from the strip (D-47, D-56)', () => {
     ]);
   });
 
+  it('shows no error under Amount just because the window opened: the cursor moving to To is not leaving Amount', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes' }));
+    transferRecipientsBackend();
+    const user = userEvent.setup();
+    renderStrip();
+    await openWindow(user);
+    await recipientsReady();
+    await waitFor(() => {
+      expect(toBox()).toHaveFocus();
+    });
+
+    // Let any check started by the move finish before looking.
+    await delay(50);
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
+    expect(screen.getByText('You have ₱8,450.00 on hand.')).toBeVisible();
+  });
+
   it('starts with the business today in Date, from the server and not the device clock', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes', today: '2026-11-04' }));
     transferRecipientsBackend();
@@ -965,6 +982,8 @@ describe('the hand-over mode (D-17, D-18)', () => {
     await waitFor(() => {
       expect(toBox()).toHaveFocus();
     });
+    await delay(50);
+    expect(screen.queryByText('Enter the amount.')).toBeNull();
     expect(screen.getByText('Jomar Santos holds ₱2,000.00.')).toBeVisible();
     expect(
       screen.getByText('This is recorded as a transfer from Jomar Santos, with you as the one who recorded it.'),
