@@ -361,6 +361,20 @@ internal static class MoneyFixtures
         return JsonSerializer.Deserialize<JsonElement>(text, Web);
     }
 
+    /// <summary>The route that lists every staff member's money on hand.</summary>
+    public const string StaffBalancesRoute = "/api/v1/staff-money";
+
+    /// <summary>Reads everyone's money on hand.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> GetStaffBalancesAsync(HttpClient client, string? accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Get(StaffBalancesRoute, accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads the caller's balance from a 200 answer.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token.</param>
