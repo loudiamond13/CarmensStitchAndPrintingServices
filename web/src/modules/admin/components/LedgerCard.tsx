@@ -59,7 +59,8 @@ export function LedgerCard({ userId }: LedgerCardProps) {
     }
   }, [fresh, pageCount, clampPage]);
 
-  const result = showDeleted ? COPY.resultWithDeleted : COPY.result;
+  // The wording follows the answer on screen, not the checkbox, which can be ahead of the rows while the next answer loads.
+  const result = page?.includesDeleted === true ? COPY.resultWithDeleted : COPY.result;
 
   return (
     <section className={ledgerCardClasses} aria-labelledby={headingId}>

@@ -184,9 +184,6 @@ describe('Show deleted (D-30, D-31, D-23)', () => {
     });
 
     await user.click(screen.getByRole('checkbox', { name: 'Show deleted' }));
-    expect(screen.getByText(/^Showing/)).toHaveTextContent(
-      'Showing 7 entries, deleted transfers included · newest first',
-    );
     await waitFor(() => {
       expect(screen.getByText(/^Showing/)).toHaveTextContent('Showing 6 entries · newest first');
     });
