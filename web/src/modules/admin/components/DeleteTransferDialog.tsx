@@ -35,9 +35,16 @@ export interface DeleteTransferDialogProps {
   onDone: (transfer: TransferTarget) => void;
 }
 
-/** The dialog's own failure line: a stale version has its approved words; anything else gets the mapper's line. */
+/** The server's code for two saves that lost a race twice: nothing changed, so the same press can go again. */
+const MONEY_BUSY = 'money-transfers.busy';
+
+/**
+ * The dialog's own failure line. A busy 409 shows the server's own busy line, as the Transfer window does (P10-BL-11); any other 409
+ * is a stale version and has its approved words; anything else gets the mapper's line.
+ */
 function describeFailure(error: unknown): string | undefined {
-  return isHttpError(error) && error.kind === 'http' && error.status === 409 ? COPY.stale : undefined;
+  if (!isHttpError(error) || error.kind !== 'http' || error.status !== 409) return undefined;
+  return error.code === MONEY_BUSY ? error.problem?.detail : COPY.stale;
 }
 
 export function DeleteTransferDialog({ transfer, open, onClose, onDone }: DeleteTransferDialogProps) {

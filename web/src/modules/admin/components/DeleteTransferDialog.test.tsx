@@ -27,6 +27,7 @@ import {
   staffBalancesFixture,
   TRANSFER_ID,
   TRANSFER_VERSION,
+  transferBusyProblem,
   transferItemFixture,
   transferListFixture,
   transferNotFoundProblem,
@@ -459,6 +460,28 @@ describe('a stale or missing transfer (SEC-07)', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       'This was changed by someone else. Reload and try again.',
     );
+  });
+
+  it('on the busy 409 shows the busy line the Transfer window shows, not "Reload and try again", and lets the same press go again (wave 10 IN-01)', async () => {
+    let answered = 0;
+    const deletions = deleteTransferBackend(() => {
+      answered += 1;
+      return answered === 1 ? transferBusyProblem() : new Response(null, { status: 204 });
+    });
+    const { onDone } = renderDialog();
+    const user = userEvent.setup();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent('Something changed at the same time. Try again.');
+    expect(alert).not.toHaveTextContent('Reload');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+    await waitFor(() => {
+      expect(onDone).toHaveBeenCalledTimes(1);
+    });
+    expect(deletions.urls).toHaveLength(2);
   });
 
   it('on a 404 closes with the info toast "Already deleted", tells the host, and reads the lists again', async () => {
