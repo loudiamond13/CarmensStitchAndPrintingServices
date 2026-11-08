@@ -45,7 +45,7 @@ export function LedgerCard({ userId }: LedgerCardProps) {
   // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
   const failed = query.isError && !query.isFetching;
   // A page past the last comes back with no rows but the real total: it is not an empty ledger, it is about to be replaced.
-  const pastTheEnd = page !== undefined && page.rows.length === 0 && page.total > 0;
+  const pastTheEnd = page?.rows.length === 0 && page.total > 0;
   const loading = (query.isFetching && (page === undefined || query.isError)) || pastTheEnd;
 
   const total = page?.total ?? 0;
