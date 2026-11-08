@@ -43,17 +43,10 @@ public sealed class ListStaffBalancesHandler(IStaffMoneyReader reader, IRequestC
                 entry.Person.Id,
                 entry.Person.Name,
                 entry.Person.Role,
-                StatusWord(entry.Party.Status),
+                MoneyParties.StatusWord(entry.Party.Status),
                 entry.Party.Balance,
                 entry.Person.Id == callerId)),
         ];
         return Result.Success(new StaffBalancesResponse(rows, rows.Sum(row => row.Balance)));
     }
-
-    private static string StatusWord(MoneyPartyStatus status) => status switch
-    {
-        MoneyPartyStatus.Deleted => TransferRecipientResponse.DeletedStatus,
-        MoneyPartyStatus.Deactivated => TransferRecipientResponse.DeactivatedStatus,
-        _ => TransferRecipientResponse.ActiveStatus,
-    };
 }

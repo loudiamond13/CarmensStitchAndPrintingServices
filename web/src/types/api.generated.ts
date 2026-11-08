@@ -1740,6 +1740,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff-money/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one named person's money on hand: name, role, status (`active`, `deactivated` or `deleted`), balance and the
+         *     business today. An Admin may ask only for their own id, which answers like `me`; any other id is a 403 decided from the
+         *     token alone, before any lookup, so a real coworker and a made-up id look the same. A Manager may ask for any Admin or Manager,
+         *     former staff included; an unknown id, the legacy placeholder or an account with no staff role is a 404. Nothing is cached.
+         */
+        get: operations["GetStaffMoney"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-money/{userId}/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one page of one named person's money rows, shaped like `me/ledger` and under the same access rule as the person's
+         *     figure: an Admin may name only themselves and gets a 403 for any other id before any lookup; a Manager may name any Admin or
+         *     Manager, former staff included, and gets a 404 for anyone else. Only a Manager may add `deleted=true` to see deleted
+         *     transfers. Nothing is cached.
+         */
+        get: operations["GetStaffLedger"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -3982,7 +4026,7 @@ export interface components {
             /** @description The first and last name as saved, joined by one space. */
             name: string;
         };
-        /** @description One person's money on hand, worked out on the server on every read (MONEY-01). */
+        /** @description One person's money on hand, worked out on the server on every read (MONEY-01, MONEY-03). */
         StaffMoneyResponse: {
             /**
              * Format: double
@@ -3991,6 +4035,10 @@ export interface components {
             balance: number | string;
             /** @description Their display name, first then last. */
             name: string;
+            /** @description Their role, `Admin` or `Manager`. */
+            role: string;
+            /** @description One of `active`, `deactivated` or `deleted`. */
+            status: string;
             /**
              * Format: date
              * @description The business today.
@@ -10014,6 +10062,122 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetStaffMoney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The person asked about. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMoneyResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetStaffLedger: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+                /** @description True to show deleted transfers too; Managers only. */
+                deleted?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description The person asked about. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerPageResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

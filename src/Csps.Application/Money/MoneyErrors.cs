@@ -24,11 +24,11 @@ public static class MoneyErrors
     /// <summary>The plain-English text for a Manager asking about a person who does not exist or is not staff (MONEY-03).</summary>
     public const string PersonNotFoundMessage = "This person wasn't found.";
 
-    /// <summary>The code of a call the signed-in role may not make.</summary>
+    /// <summary>The code of an Admin asking for someone else's money.</summary>
     public const string ForbiddenCode = "staff-money.forbidden";
 
-    /// <summary>The plain-English text for a call the signed-in role may not make.</summary>
-    public const string ForbiddenMessage = "You can't do this.";
+    /// <summary>The plain-English text for an Admin asking for someone else's money.</summary>
+    public const string ForbiddenMessage = "You can only see your own money.";
 
     /// <summary>The code of a ledger query with a page or page size out of range.</summary>
     public const string LedgerInvalidCode = "staff-money.invalid-request";
@@ -51,7 +51,7 @@ public static class MoneyErrors
     /// <summary>Gets the 404 for a Manager asking about a person who does not exist, is the legacy holder or is not staff (MONEY-03).</summary>
     public static Error PersonNotFound { get; } = Error.NotFound(PersonNotFoundCode, PersonNotFoundMessage);
 
-    /// <summary>Gets the 403 for a call the signed-in role may not make.</summary>
+    /// <summary>Gets the 403 for an Admin asking for someone else's money, decided before any lookup (CWE-639, CWE-204).</summary>
     public static Error Forbidden { get; } = Error.Forbidden(ForbiddenCode, ForbiddenMessage);
 
     /// <summary>Gets the 403 for an Admin who asks to see deleted transfers (D-31).</summary>

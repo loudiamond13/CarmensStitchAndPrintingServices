@@ -12,12 +12,14 @@ namespace Csps.Server.Controllers;
 /// <param name="myMoney">The handler that reads the caller's own money.</param>
 /// <param name="ledger">The handler that reads a ledger.</param>
 /// <param name="balances">The handler that lists everyone's money on hand.</param>
+/// <param name="staffMoney">The handler that reads one named person's money.</param>
 [ApiController]
 [Route("api/v1/staff-money")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class StaffMoneyController(GetMyMoneyHandler myMoney, GetLedgerHandler ledger, ListStaffBalancesHandler balances) : ControllerBase
+public sealed class StaffMoneyController(GetMyMoneyHandler myMoney, GetLedgerHandler ledger, ListStaffBalancesHandler balances, GetStaffMoneyHandler staffMoney)
+    : ControllerBase
 {
     /// <summary>
     /// Lists what every staff member holds, Managers only. Every active Admin and Manager comes first by name, a person a Manager has
@@ -81,6 +83,59 @@ public sealed class StaffMoneyController(GetMyMoneyHandler myMoney, GetLedgerHan
         [FromQuery] bool deleted = false)
     {
         var result = await ledger.HandleAsync(null, new GetLedgerRequest(page, pageSize, deleted), cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static ledgerPage => TypedResults.Ok(ledgerPage));
+    }
+
+    /// <summary>
+    /// Reads one named person's money on hand: name, role, status (<c>active</c>, <c>deactivated</c> or <c>deleted</c>), balance and the
+    /// business today. An Admin may ask only for their own id, which answers like <c>me</c>; any other id is a 403 decided from the
+    /// token alone, before any lookup, so a real coworker and a made-up id look the same. A Manager may ask for any Admin or Manager,
+    /// former staff included; an unknown id, the legacy placeholder or an account with no staff role is a 404. Nothing is cached.
+    /// </summary>
+    /// <param name="userId">The person asked about.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the figure, 401 without a valid token, 403 for an Admin asking about someone else, or 404 for a Manager asking about no staff member.</returns>
+    [HttpGet("{userId:guid}")]
+    [Authorize(Policy = Policies.Staff)]
+    [EndpointName("GetStaffMoney")]
+    [ProducesResponseType<StaffMoneyResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetStaff(Guid userId, CancellationToken cancellationToken)
+    {
+        var result = await staffMoney.HandleAsync(userId, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static figure => TypedResults.Ok(figure));
+    }
+
+    /// <summary>
+    /// Reads one page of one named person's money rows, shaped like <c>me/ledger</c> and under the same access rule as the person's
+    /// figure: an Admin may name only themselves and gets a 403 for any other id before any lookup; a Manager may name any Admin or
+    /// Manager, former staff included, and gets a 404 for anyone else. Only a Manager may add <c>deleted=true</c> to see deleted
+    /// transfers. Nothing is cached.
+    /// </summary>
+    /// <param name="userId">The person asked about.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="page">The page number, from 1 to 100000.</param>
+    /// <param name="pageSize">Rows per page, from 1 to 100; 20 when not sent.</param>
+    /// <param name="deleted">True to show deleted transfers too; Managers only.</param>
+    /// <returns>200 with the page, 400 for a bad page or page size, 401 without a valid token, 403 for an Admin asking about someone else or for deleted transfers, or 404 for a Manager asking about no staff member.</returns>
+    [HttpGet("{userId:guid}/ledger")]
+    [Authorize(Policy = Policies.Staff)]
+    [EndpointName("GetStaffLedger")]
+    [ProducesResponseType<LedgerPageResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetStaffLedger(
+        Guid userId,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = GetLedgerRequest.DefaultPageSize,
+        [FromQuery] bool deleted = false)
+    {
+        var result = await ledger.HandleAsync(userId, new GetLedgerRequest(page, pageSize, deleted), cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static ledgerPage => TypedResults.Ok(ledgerPage));
     }
 }

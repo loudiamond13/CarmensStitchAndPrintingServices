@@ -25,12 +25,17 @@ public sealed class GetMyMoneyHandler(IStaffMoneyReader reader, IRequestContext 
             return Result.Failure<StaffMoneyResponse>(AuthErrors.SessionEnded);
         }
 
-        _ = staff;
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var sums = await reader.GetSumsAsync([callerId], cancellationToken).ConfigureAwait(false);
         var mine = sums.FirstOrDefault(row => row.UserId == callerId);
-        return mine is null
-            ? Result.Failure<StaffMoneyResponse>(AuthErrors.SessionEnded)
-            : Result.Success(new StaffMoneyResponse(mine.UserId, mine.Name, string.Empty, string.Empty, mine.Balance(), clock.Today));
+        var caller = await staff.GetStaffStateAsync(callerId, cancellationToken).ConfigureAwait(false);
+        if (mine is null || caller is null)
+        {
+            return Result.Failure<StaffMoneyResponse>(AuthErrors.SessionEnded);
+        }
+
+        var balance = mine.Balance();
+        var status = MoneyParties.StatusWord(MoneyParties.From(caller, balance).Status);
+        return Result.Success(new StaffMoneyResponse(mine.UserId, mine.Name, caller.Role ?? string.Empty, status, balance, clock.Today));
     }
 }

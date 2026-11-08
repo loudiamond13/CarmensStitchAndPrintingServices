@@ -45,6 +45,16 @@ public static class MoneyParties
         return new MoneyParty(person.Id, person.Name, status, balance);
     }
 
+    /// <summary>Names a party's status the way the money answers do.</summary>
+    /// <param name="status">The party status.</param>
+    /// <returns><c>deleted</c>, <c>deactivated</c> or <c>active</c>; a party that is not staff reads as <c>active</c>, so callers filter those out first.</returns>
+    public static string StatusWord(MoneyPartyStatus status) => status switch
+    {
+        MoneyPartyStatus.Deleted => TransferRecipientResponse.DeletedStatus,
+        MoneyPartyStatus.Deactivated => TransferRecipientResponse.DeactivatedStatus,
+        _ => TransferRecipientResponse.ActiveStatus,
+    };
+
     // Deleted is checked before deactivated.
     private static MoneyPartyStatus StatusOf(bool isActive, bool isDeleted) =>
         isDeleted ? MoneyPartyStatus.Deleted : isActive ? MoneyPartyStatus.Active : MoneyPartyStatus.Deactivated;
