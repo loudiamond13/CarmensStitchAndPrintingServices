@@ -138,6 +138,20 @@ describe('the Manager-only values (D-31, D-42)', () => {
     expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?size=50' }]);
   });
 
+  it('drops deleted=true for an Admin with one replace that keeps the page, and reads that page at once (IN-03)', async () => {
+    clearSession();
+    acceptSession(sessionResponse({ user: ADMIN_USER }));
+    const { result, onUrlUpdate } = renderParams('?page=3&deleted=true');
+
+    expect(result.current[0]).toEqual({ tab: 'mine', page: 3, size: 20, deleted: null });
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?page=3' }]);
+    expect(result.current[0]).toEqual({ tab: 'mine', page: 3, size: 20, deleted: null });
+  });
+
   it('leaves an Admin URL with only allowed values alone', async () => {
     clearSession();
     acceptSession(sessionResponse({ user: ADMIN_USER }));

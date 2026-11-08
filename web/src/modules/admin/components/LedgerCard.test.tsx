@@ -245,6 +245,25 @@ describe('Show deleted (D-30, D-31, D-23)', () => {
     ]);
   });
 
+  it('keeps an Admin on the same page when it drops deleted=true, and sends one kind of request only (IN-03)', async () => {
+    clearSession();
+    acceptSession(sessionResponse({ user: ADMIN_USER }));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const calls = ledgerBackend(pagedLedger(45));
+    renderCard('?page=3&size=10&deleted=true', onUrlUpdate);
+
+    await screen.findByText('Bill 21');
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    expect(onUrlUpdate.mock.calls.map(([event]) => [event.options.history, event.queryString])).toEqual([
+      ['replace', '?page=3&size=10'],
+    ]);
+    expect(calls.map((call) => [call.searchParams.get('page'), call.searchParams.has('deleted')])).toEqual([
+      ['3', false],
+    ]);
+  });
+
   it('offers a Manager no edit action on any row (D-22, MONEY-07)', async () => {
     ledgerBackend(
       ledgerPageFixture([ledgerDeletedEntryFixture(), ...ledgerEntriesFixture()], { includesDeleted: true }),
