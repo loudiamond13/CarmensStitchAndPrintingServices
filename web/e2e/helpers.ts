@@ -20,6 +20,12 @@ export function manilaDate(offsetDays: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+/** Days back for money a sweep only needs on a person's hand: always before the current business month (a month is at most 31 days). */
+export const PAST_MONTH_DAYS = -45;
+
+/** What the dashboard sweep records today, in pesos: small, so this month's shop totals barely move on every run (wave 11 WR-02). */
+export const DASHBOARD_SWEEP_FIGURES = { payment: 10, expense: 5 } as const;
+
 /** A word no other run has used, letters only, so a search for it finds only this run's rows. */
 export function uniqueWord(): string {
   const letters = Array.from(randomUUID().replaceAll('-', '').slice(0, 8), (digit) =>

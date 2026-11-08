@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Page } from '@playwright/test';
 import { dashboardHeading, signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test, type Guard } from './fixtures.ts';
-import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
+import { DASHBOARD_SWEEP_FIGURES, manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { settle } from './sweep.ts';
 import {
   BASKETBALL_JERSEY_ID,
@@ -45,7 +45,7 @@ const READ_MONTH_LABELS = `(() => Array.from(document.querySelectorAll('svg text
   .map((text) => (text.textContent ?? '').trim())
   .filter((text) => /^[A-Z][a-z]{2}$/.test(text)).length)()`;
 
-/** A fresh person of a role who received a payment today and paid an expense today, so the cards and the chart have figures. */
+/** A fresh person of a role who received a small payment today and paid a small expense today, so the cards and the chart have figures. */
 async function seedStaff(request: APIRequestContext, role: StaffRole): Promise<TestStaff> {
   const staff = await createStaff(request, role);
   const today = manilaDate(0);
@@ -53,8 +53,22 @@ async function seedStaff(request: APIRequestContext, role: StaffRole): Promise<T
     number: `ORD-2096-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`,
     customerName: 'E2E Sweep Customer',
     orderDate: today,
-    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E sweep jersey', quantity: 1, unitPrice: 3000 }],
-    payments: [{ paymentDate: today, amount: 3000, paymentMethodId: CASH_ID, receivedByUserId: staff.userId }],
+    items: [
+      {
+        productTypeId: BASKETBALL_JERSEY_ID,
+        description: 'E2E sweep jersey',
+        quantity: 1,
+        unitPrice: DASHBOARD_SWEEP_FIGURES.payment,
+      },
+    ],
+    payments: [
+      {
+        paymentDate: today,
+        amount: DASHBOARD_SWEEP_FIGURES.payment,
+        paymentMethodId: CASH_ID,
+        receivedByUserId: staff.userId,
+      },
+    ],
   });
   await createExpense(request, {
     paidByUserId: staff.userId,
@@ -62,7 +76,7 @@ async function seedStaff(request: APIRequestContext, role: StaffRole): Promise<T
     date: today,
     categoryId: RENT,
     description: 'E2E sweep expense',
-    amount: 500,
+    amount: DASHBOARD_SWEEP_FIGURES.expense,
   });
   return staff;
 }

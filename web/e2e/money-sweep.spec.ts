@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL, PAST_MONTH_DAYS } from './helpers.ts';
 import { settle } from './sweep.ts';
 import { BASKETBALL_JERSEY_ID, CASH_ID, createOrder, createStaff, type TestStaff } from './testing-api.ts';
 
@@ -27,17 +27,25 @@ const PANEL_FITS = `(() => { const panel = document.querySelector('[role="dialog
 /** True when every tab strip on the page holds its tabs without scrolling sideways. */
 const TAB_STRIPS_FIT = `(() => Array.from(document.querySelectorAll('[role="tablist"]')).every((strip) => strip.scrollWidth <= strip.clientWidth))()`;
 
-/** Seeds an order of 5,000.00 paid in full, with the payment received by `receiver`: that person now holds 5,000.00. */
+/**
+ * Seeds an order of 5,000.00 paid in full, with the payment received by `receiver`: that person now holds 5,000.00. The payment is dated
+ * before the current business month, so it adds nothing to this month's shop totals (the money on hand counts every date).
+ */
 async function seedPaymentTo(request: APIRequestContext, receiver: TestStaff): Promise<void> {
   await createOrder(request, {
     number: `ORD-2097-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`,
     customerName: 'E2E Money Sweep Customer',
-    orderDate: manilaDate(-1),
+    orderDate: manilaDate(PAST_MONTH_DAYS),
     items: [
       { productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E money sweep jersey', quantity: 1, unitPrice: 5000 },
     ],
     payments: [
-      { paymentDate: manilaDate(-1), amount: 5000, paymentMethodId: CASH_ID, receivedByUserId: receiver.userId },
+      {
+        paymentDate: manilaDate(PAST_MONTH_DAYS),
+        amount: 5000,
+        paymentMethodId: CASH_ID,
+        receivedByUserId: receiver.userId,
+      },
     ],
   });
 }
