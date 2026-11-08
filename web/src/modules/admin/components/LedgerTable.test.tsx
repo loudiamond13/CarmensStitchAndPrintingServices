@@ -1,11 +1,15 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LedgerTable } from '@/modules/admin/components/LedgerTable';
 import { parseLedgerPage } from '@/modules/admin/services/moneyService';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   LEDGER_ORDER_ID,
+  LEDGER_TRANSFER_ID,
+  LIZA_ID,
+  ledgerDeletedEntryFixture,
   ledgerEntriesFixture,
   ledgerEntryFixture,
   ledgerPageFixture,
@@ -307,6 +311,139 @@ describe('phones and long text (UI-SPEC M1 phone and long-text rules)', () => {
 describe('accessibility', () => {
   it('has no axe violations', async () => {
     const { container } = renderTable();
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+// The Manager's row actions on transfer rows (D-22, D-29, D-30, MONEY-06, MONEY-07; plan 10-20): Delete on a counted transfer, Remove on a
+// deleted one, each named by the row. Nothing else gets an action, and the ledger never offers an edit.
+
+const OWNER = { id: '5f0c4a1e-8c1d-4a52-9d0e-1a2b3c4d5e6f', name: 'Carmen Reyes' };
+const ACTIONS_COLUMN = 5;
+const DELETE_OUT = 'Delete transfer of ₱2,000.00 from Carmen Reyes to Liza Mercado, Nov 2, 2026';
+const DELETE_IN = 'Delete transfer of ₱2,000.00 from Paolo Garcia to Carmen Reyes, Nov 1, 2026';
+const REMOVE_DELETED = 'Remove transfer of ₱2,000.00 from Carmen Reyes to Liza Mercado, Oct 6, 2026 permanently';
+
+interface ActionOptions {
+  canSeeActions?: boolean;
+  owner?: { id: string; name: string } | undefined;
+  onDelete?: (target: unknown) => void;
+  onRemove?: (target: unknown) => void;
+}
+
+function renderWithActions(items: LedgerEntryFixture[] = ledgerEntriesFixture(), options: ActionOptions = {}) {
+  const page = parseLedgerPage(ledgerPageFixture(items));
+  return render(
+    <MemoryRouter>
+      <LedgerTable
+        page={page}
+        canSeeActions={options.canSeeActions ?? true}
+        owner={'owner' in options ? options.owner : OWNER}
+        onDelete={options.onDelete ?? vi.fn()}
+        onRemove={options.onRemove ?? vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+}
+
+describe('the Manager row actions (plan 10-20)', () => {
+  it('adds a sixth Actions column, with Delete on each counted transfer row named by the row and a matching title', () => {
+    renderWithActions();
+
+    const headers = within(screen.getByRole('table', { name: 'Ledger' }))
+      .getAllByRole('columnheader')
+      .map((header) => header.textContent);
+    expect(headers).toEqual(['Date', 'Details', 'Money in', 'Money out', 'Balance', 'Actions']);
+    const out = within(cellAt(2, ACTIONS_COLUMN)).getByRole('button', { name: DELETE_OUT });
+    expect(out).toHaveAttribute('title', DELETE_OUT);
+    const received = within(cellAt(3, ACTIONS_COLUMN)).getByRole('button', { name: DELETE_IN });
+    expect(received).toHaveAttribute('title', DELETE_IN);
+  });
+
+  it('gives payment, refund, company expense and order expense rows no action', () => {
+    renderWithActions();
+
+    for (const row of [0, 1, 4, 5]) {
+      expect(within(cellAt(row, ACTIONS_COLUMN)).queryByRole('button')).toBeNull();
+    }
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+  });
+
+  it('gives a deleted transfer the Remove action instead, named with "permanently"', () => {
+    renderWithActions([ledgerDeletedEntryFixture(), ...ledgerEntriesFixture()]);
+
+    const remove = within(cellAt(0, ACTIONS_COLUMN)).getByRole('button', { name: REMOVE_DELETED });
+    expect(remove).toHaveAttribute('title', REMOVE_DELETED);
+    expect(within(cellAt(0, ACTIONS_COLUMN)).queryByRole('button', { name: /^Delete/ })).toBeNull();
+  });
+
+  it('calls onDelete with the transfer id, its version, the amount, the date, both people and the receiver', async () => {
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    renderWithActions(ledgerEntriesFixture(), { onDelete });
+
+    await user.click(screen.getByRole('button', { name: DELETE_OUT }));
+
+    expect(onDelete.mock.calls[0]?.[0]).toMatchObject({
+      id: LEDGER_TRANSFER_ID,
+      version: 'AAAAAAAAB9E=',
+      amount: 2000,
+      date: '2026-11-02',
+      from: { id: OWNER.id, name: 'Carmen Reyes' },
+      to: { id: LIZA_ID, name: 'Liza Mercado' },
+    });
+  });
+
+  it('takes the ledger owner as the receiver of a transfer in', async () => {
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    renderWithActions(ledgerEntriesFixture(), { onDelete });
+
+    await user.click(screen.getByRole('button', { name: DELETE_IN }));
+
+    expect(onDelete.mock.calls[0]?.[0]).toMatchObject({
+      from: { name: 'Paolo Garcia' },
+      to: { id: OWNER.id, name: 'Carmen Reyes' },
+    });
+  });
+
+  it('calls onRemove with who deleted the transfer and when', async () => {
+    const onRemove = vi.fn();
+    const user = userEvent.setup();
+    renderWithActions([ledgerDeletedEntryFixture()], { onRemove });
+
+    await user.click(screen.getByRole('button', { name: REMOVE_DELETED }));
+
+    expect(onRemove.mock.calls[0]?.[0]).toMatchObject({
+      deletedBy: { name: 'Carmen Reyes' },
+      deletedAtUtc: '2026-10-08T07:42:00Z',
+      version: 'AAAAAAAAB9G=',
+    });
+  });
+
+  it('offers an Admin no Actions column and no button on any row (D-31, D-32)', () => {
+    renderWithActions(ledgerEntriesFixture(), { canSeeActions: false });
+
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('draws no Actions column when the ledger owner is not known, because the actions could not be named', () => {
+    renderWithActions(ledgerEntriesFixture(), { owner: undefined });
+
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('never offers an edit or a restore on any row (D-22, D-28, MONEY-07)', () => {
+    renderWithActions([ledgerDeletedEntryFixture(), ...ledgerEntriesFixture()]);
+
+    expect(screen.queryByRole('button', { name: /edit|restore/i })).toBeNull();
+  });
+
+  it('has no axe violations with the actions drawn', async () => {
+    const { container } = renderWithActions([ledgerDeletedEntryFixture(), ...ledgerEntriesFixture()]);
 
     await expectNoAxeViolations(container);
   });

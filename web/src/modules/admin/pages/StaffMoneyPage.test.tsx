@@ -133,13 +133,25 @@ describe('the page for a leaver (D-42, D-43)', () => {
     expect(ledgerCalls[0]?.search).toBe('?page=1&pageSize=20');
   });
 
+  it("names the person on the Manager's Delete action of a transfer row (plan 10-20)", async () => {
+    staffPersonBackend(JOMAR_ID);
+    ledgerBackend(ledgerPageFixture(ledgerEntriesFixture()), JOMAR_ID);
+    renderPage();
+
+    expect(
+      await screen.findByRole('button', {
+        name: 'Delete transfer of ₱2,000.00 from Jomar Santos to Liza Mercado, Nov 2, 2026',
+      }),
+    ).toBeVisible();
+  });
+
   it('has no header action: no Transfer and no Hand Over button on the page', async () => {
     staffPersonBackend(JOMAR_ID);
     ledgerBackend(undefined, JOMAR_ID);
     renderPage();
 
     await screen.findByRole('table', { name: 'Ledger' });
-    expect(screen.queryByRole('button', { name: /Transfer|Hand Over/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^(Transfer|Hand Over)/i })).toBeNull();
     const heading = screen.getByRole('heading', { level: 1, name: 'Jomar Santos' });
     expect(within(parentOf(parentOf(heading))).queryByRole('button')).toBeNull();
   });

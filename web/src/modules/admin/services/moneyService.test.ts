@@ -14,6 +14,10 @@ import {
   PAOLO_ID,
   staffBalancesFixture,
   staffPersonFixture,
+  TRANSFER_ID,
+  transferDeletedFixture,
+  transferItemFixture,
+  transferListFixture,
   transferRecipientsFixture,
   transferSavedFixture,
 } from '@/test/moneyFixtures';
@@ -25,10 +29,13 @@ import {
   parseMyMoney,
   parsePersonMoney,
   parseStaffBalances,
+  parseTransferPage,
   pickHandoverRecipients,
   pickTransferRecipients,
   StaffBalancesContractError,
   toTransferPeople,
+  toTransferTarget,
+  TransferContractError,
 } from './moneyService';
 
 // The money call (MONEY-02, OR-5): typed, over the one HTTP client. The browser asks only for the caller's own figure.
@@ -488,5 +495,164 @@ describe('parseStaffBalances (MONEY-03, wave 5 IN-01)', () => {
     expect(() =>
       parseStaffBalances(staffBalancesFixture({ items: [{ ...firstItem(), status: 'suspended' }] })),
     ).toThrow(StaffBalancesContractError);
+  });
+});
+
+describe('moneyService.transfers (MONEY-03, D-48; plan 10-20)', () => {
+  it('calls GET /api/v1/money-transfers?page=2&pageSize=20 and does not send deleted=false', async () => {
+    const list = transferListFixture();
+    const { fake, service } = serviceWith([{ body: list }]);
+
+    await expect(service.transfers({ page: 2, pageSize: 20, deleted: false })).resolves.toEqual(list);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers?page=2&pageSize=20');
+  });
+
+  it('sends deleted=true only when a Manager asks for deleted transfers', async () => {
+    const { fake, service } = serviceWith([{ body: transferListFixture() }]);
+
+    await service.transfers({ page: 1, pageSize: 50, deleted: true });
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers?page=1&pageSize=50&deleted=true');
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.transfers({ page: 1, pageSize: 20, deleted: false }, controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('moneyService.deleteTransfer (MONEY-06, D-23; plan 10-20)', () => {
+  it('calls DELETE /api/v1/money-transfers/{id} with the version as a query parameter', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.deleteTransfer(TRANSFER_ID, 'AAAAAAAAB9E=');
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    const url = new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid');
+    expect(url.pathname).toBe(`/api/v1/money-transfers/${TRANSFER_ID}`);
+    expect(url.searchParams.get('version')).toBe('AAAAAAAAB9E=');
+  });
+
+  it('encodes a version with "+", "/" and "=" so the server reads the same text back', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.deleteTransfer(TRANSFER_ID, 'a+b/c==');
+
+    const raw = fake.calls[0]?.url ?? '';
+    expect(raw).toContain('version=a%2Bb%2Fc%3D%3D');
+    expect(new URL(raw, 'https://csps.invalid').searchParams.get('version')).toBe('a+b/c==');
+  });
+
+  it('puts no version or id in the body', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.deleteTransfer(TRANSFER_ID, 'AAAAAAAAB9E=');
+
+    expect(fake.calls[0]?.body).toBeNull();
+  });
+});
+
+describe('moneyService.removeTransfer (MONEY-06, D-24; plan 10-20)', () => {
+  it('calls DELETE /api/v1/money-transfers/{id}/permanent with no version and no body', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.removeTransfer(TRANSFER_ID);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/money-transfers/${TRANSFER_ID}/permanent`);
+    expect(fake.calls[0]?.body).toBeNull();
+  });
+
+  it('encodes the id, so a path-like value can never leave the route', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.removeTransfer('../x');
+
+    expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers/..%2Fx/permanent');
+  });
+});
+
+describe('parseTransferPage (MONEY-03, wave 5 IN-01; plan 10-20)', () => {
+  it('keeps every transfer in the order sent with the server amount as a finite number', () => {
+    const parsed = parseTransferPage(
+      transferListFixture([transferItemFixture({ amount: 2000 }), transferItemFixture({ amount: 15.5 })], { total: 7 }),
+    );
+
+    expect(parsed.rows.map((row) => row.amount)).toEqual([2000, 15.5]);
+    expect(parsed.total).toBe(7);
+    expect(parsed.page).toBe(1);
+    expect(parsed.pageSize).toBe(20);
+  });
+
+  it('carries the people, the date, the note, the version and the deleted facts as sent', () => {
+    const [row] = parseTransferPage(transferListFixture([transferDeletedFixture({ note: 'Cash' })])).rows;
+
+    expect(row).toMatchObject({
+      id: '0b0f6c1e-0000-4000-8000-0000000000d2',
+      version: 'AAAAAAAAB9F=',
+      date: '2026-10-06',
+      note: 'Cash',
+      isDeleted: true,
+      deletedAtUtc: '2026-10-08T07:42:00Z',
+    });
+    expect(row?.from.name).toBe('Paolo Garcia');
+    expect(row?.to.name).toBe('Liza Mercado');
+    expect(row?.recordedBy?.name).toBe('Carmen Reyes');
+    expect(row?.deletedBy?.name).toBe('Carmen Reyes');
+  });
+
+  it('reads an amount that arrives as plain decimal text', () => {
+    expect(parseTransferPage(transferListFixture([transferItemFixture({ amount: '1250.50' })])).rows[0]?.amount).toBe(
+      1250.5,
+    );
+  });
+
+  it.each([
+    ['blank text', ''],
+    ['words', 'lots'],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+  ])('refuses an amount that is %s, so the tab shows its failure instead of a wrong row', (_what, amount) => {
+    expect(() => parseTransferPage(transferListFixture([transferItemFixture({ amount })]))).toThrow(
+      TransferContractError,
+    );
+  });
+
+  it('refuses a total that is not a finite number', () => {
+    expect(() => parseTransferPage(transferListFixture([transferItemFixture()], { total: 'many' }))).toThrow(
+      TransferContractError,
+    );
+  });
+
+  it('turns a row into the target a dialog names: id, version, amount, date, both people and the deleted facts', () => {
+    const [row] = parseTransferPage(transferListFixture([transferDeletedFixture()])).rows;
+    if (row === undefined) throw new Error('No row.');
+
+    expect(toTransferTarget(row)).toEqual({
+      id: row.id,
+      version: row.version,
+      amount: 2000,
+      date: '2026-10-06',
+      from: row.from,
+      to: row.to,
+      deletedBy: row.deletedBy,
+      deletedAtUtc: '2026-10-08T07:42:00Z',
+    });
   });
 });

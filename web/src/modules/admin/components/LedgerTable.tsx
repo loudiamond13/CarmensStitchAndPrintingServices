@@ -6,7 +6,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { UiLink } from '@/components/actions';
 import { ActorName } from '@/components/data';
-import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/lists';
+import { ResponsiveTable, RowAction, RowActions, type ResponsiveTableColumn } from '@/components/lists';
 import { Money } from '@/components/money';
 import { Badge } from '@/components/status';
 import {
@@ -18,11 +18,17 @@ import {
   ledgerTitleClasses,
 } from '@/modules/admin/components/money.recipe';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
-import type { LedgerPage, LedgerRow } from '@/modules/admin/services/moneyService';
-import { isNegativeMoney } from '@/utils/csps';
+import {
+  toLedgerTransferTarget,
+  type LedgerPage,
+  type LedgerRow,
+  type TransferTarget,
+} from '@/modules/admin/services/moneyService';
+import { formatPeso, isNegativeMoney } from '@/utils/csps';
 import { formatBusinessDateTime, formatCalendarDate } from '@/utils/format';
 
 const COPY = MONEY_COPY.ledger;
+const TRANSFERS = MONEY_COPY.transfers;
 
 /** The text of a note, description or name once trimmed, or null when there is none (the part is left out of the sub line). */
 function present(text: string | null): string | null {
@@ -167,11 +173,57 @@ const COLUMNS: readonly ResponsiveTableColumn<LedgerRow>[] = [
   { key: 'balance', header: COPY.columns.balance, money: true, cell: balanceCell },
 ];
 
+/** A transfer row's one action: Delete while it counts, Remove once it is deleted. Every other kind of row has none (D-22, D-28). */
+function actionsColumn(
+  owner: { id: string; name: string },
+  onDelete: ((target: TransferTarget) => void) | undefined,
+  onRemove: ((target: TransferTarget) => void) | undefined,
+  register: ((id: string, button: HTMLButtonElement | null) => void) | undefined,
+): ResponsiveTableColumn<LedgerRow> {
+  return {
+    key: 'actions',
+    header: TRANSFERS.columns.actions,
+    actions: true,
+    cell: (row) => {
+      const target = toLedgerTransferTarget(row, owner);
+      if (target === null) return null;
+      const args = [
+        formatPeso(target.amount),
+        target.from.name,
+        target.to.name,
+        formatCalendarDate(target.date) ?? target.date,
+      ] as const;
+      const name = row.isDeleted ? TRANSFERS.removeName(...args) : TRANSFERS.deleteName(...args);
+      return (
+        <RowActions>
+          <RowAction
+            icon={row.isDeleted ? 'eraser' : 'trash-2'}
+            label={name}
+            title={name}
+            danger
+            ref={(button) => {
+              register?.(target.id, button);
+            }}
+            onClick={() => {
+              (row.isDeleted ? onRemove : onDelete)?.(target);
+            }}
+          />
+        </RowActions>
+      );
+    },
+  };
+}
+
 export interface LedgerTableProps {
   /** The server page on screen; undefined while no data has arrived yet. */
   page: LedgerPage | undefined;
-  /** Reserved for the Manager's row actions (plan 10-20). Nothing is drawn for it yet, and the ledger never offers an edit (D-22). */
+  /** The Manager's row actions (plan 10-20): Delete on a counted transfer, Remove on a deleted one. The ledger never offers an edit (D-22). */
   canSeeActions?: boolean | undefined;
+  /** Whose ledger this is, so a transfer row's action can name both people. */
+  owner?: { id: string; name: string } | undefined;
+  onDelete?: ((target: TransferTarget) => void) | undefined;
+  onRemove?: ((target: TransferTarget) => void) | undefined;
+  register?: ((id: string, button: HTMLButtonElement | null) => void) | undefined;
   /** The first read is running. */
   pending?: boolean | undefined;
   /** The rows are the previous page's while the next one loads. */
@@ -191,6 +243,11 @@ export interface LedgerTableProps {
 
 export function LedgerTable({
   page,
+  canSeeActions = false,
+  owner,
+  onDelete,
+  onRemove,
+  register,
   pending,
   refetching,
   failed,
@@ -199,11 +256,14 @@ export function LedgerTable({
   captionId,
   ownLedger = true,
 }: LedgerTableProps) {
+  // The Actions column is for a Manager, and only when the owner is known: the names say both people on the transfer.
+  const columns: readonly ResponsiveTableColumn<LedgerRow>[] =
+    canSeeActions && owner !== undefined ? [...COLUMNS, actionsColumn(owner, onDelete, onRemove, register)] : COLUMNS;
   return (
     <ResponsiveTable<LedgerRow>
       caption={COPY.title}
       captionId={captionId}
-      columns={COLUMNS}
+      columns={columns}
       rows={page?.rows}
       rowKey={(row) => row.key}
       things={COPY.things}

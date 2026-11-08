@@ -171,6 +171,108 @@ test('@money the ledger keeps its page, rows per page and Show deleted through a
   await expectNoAxeViolations(page);
 });
 
+/** Records a transfer of `amount` from the signed-in person to `receiverName` through the dashboard strip, and waits for the window to close. */
+async function recordTransfer(page: Page, receiverName: string, amount: string): Promise<void> {
+  const strip = page.getByRole('region', { name: 'Your money on hand' });
+  await strip.getByRole('button', { name: 'Transfer' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Transfer Money' });
+  await expect(dialog).toBeVisible();
+  const to = dialog.getByLabel(/^To/);
+  await expect(to).toBeEnabled();
+  await to.selectOption({ label: receiverName });
+  await dialog.getByLabel(/^Amount/).fill(amount);
+  await dialog.getByRole('button', { name: 'Record Transfer' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Transfer recorded')).toBeVisible();
+}
+
+test('@money a Manager deletes a wrong transfer from the Transfers tab and both balances correct themselves (D-29, D-35, D-48)', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().replaceAll('-', '').slice(0, 8);
+  const sender = await createStaff(request, 'Manager', undefined, { firstName: 'Sela', lastName: `Wrong${token}` });
+  const receiver = await createStaff(request, 'Admin', undefined, { firstName: 'Rina', lastName: `Recv${token}` });
+  const senderName = `Sela Wrong${token}`;
+  const receiverName = `Rina Recv${token}`;
+  await seedPaymentTo(request, sender);
+  await signInAs(page, request, sender);
+  const strip = page.getByRole('region', { name: 'Your money on hand' });
+  await expect(strip).toContainText('₱5,000.00');
+  await recordTransfer(page, receiverName, '1250.50');
+  await expect(strip).toContainText('₱3,749.50');
+
+  // The Transfers tab lists it; Delete opens the simple confirm with Cancel focused.
+  await page.goto('/admin/money?tab=transfers&size=100');
+  await expect(page.getByRole('tab', { name: 'Transfers' })).toHaveAttribute('aria-selected', 'true');
+  const table = page.getByRole('table', { name: 'Transfers' });
+  const row = table.getByRole('row').filter({ hasText: receiverName });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText(senderName);
+  await expect(row).toContainText('₱1,250.50');
+  await row.getByRole('button', { name: /^Delete transfer of ₱1,250\.50 from / }).click();
+  const confirm = page.getByRole('dialog', { name: 'Delete this transfer?' });
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await expect(confirm).toContainText(`₱1,250.50 from ${senderName} to ${receiverName}`);
+  await expectNoAxeViolations(page);
+
+  await confirm.getByRole('button', { name: 'Delete Transfer' }).click();
+
+  await expect(confirm).toBeHidden();
+  await expect(page.getByText('Transfer deleted')).toBeVisible();
+  await expect(page.getByText('It no longer counts toward any balance.')).toBeVisible();
+  await expect(row).toHaveCount(0);
+  await expect(page.getByRole('tabpanel', { name: 'Transfers' }).locator(':focus')).toHaveCount(1);
+
+  // Show deleted brings it back as a deleted row with Remove Permanently (never a restore or an edit); the stronger confirm removes it.
+  await page.getByRole('checkbox', { name: 'Show deleted' }).check();
+  await expect.poll(() => new URL(page.url()).searchParams.get('deleted')).toBe('true');
+  await expect(row).toHaveCount(1);
+  await expect(row.getByText('Deleted', { exact: true })).toBeVisible();
+  await expect(row).toContainText(`Deleted by ${senderName}`);
+  await expect(page.getByRole('button', { name: /restore|edit/i })).toHaveCount(0);
+  await row.getByRole('button', { name: /^Remove transfer of ₱1,250\.50 from .* permanently$/ }).click();
+  const strong = page.getByRole('dialog', { name: 'Permanently remove this transfer?' });
+  await expect(strong).toBeVisible();
+  await expect(strong.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await expect(strong).toContainText("This can't be undone.");
+  await expect(strong).toContainText(`₱1,250.50 from ${senderName} to ${receiverName}`);
+  await expect(strong).toContainText(
+    "Balances don't change. Only the record is removed. A copy stays in the audit log.",
+  );
+  await expectNoAxeViolations(page);
+
+  await strong.getByRole('button', { name: 'Remove Permanently' }).click();
+
+  await expect(strong).toBeHidden();
+  await expect(page.getByText('Transfer removed for good')).toBeVisible();
+  await expect(page.getByText("Balances didn't change.")).toBeVisible();
+  await expect(row).toHaveCount(0);
+
+  // The sender is back to 5,000.00 on My Money, and the receiver holds nothing again.
+  await page.goto('/admin/money');
+  await expect(page.getByRole('region', { name: 'Money on hand' })).toContainText('₱5,000.00');
+  const other = await signInSecondPerson(browser, baseURL, request, receiver);
+  try {
+    const [answer] = await Promise.all([
+      other.page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/staff-money/me'),
+      other.page.reload(),
+    ]);
+    expect(answer.status(), 'GET /api/v1/staff-money/me').toBe(200);
+    const body = (await answer.json()) as { balance: number | string };
+    expect(Number(body.balance)).toBe(0);
+    await other.finish();
+  } finally {
+    await other.context.close();
+  }
+});
+
 test("@money a Manager hands over a leaver's money from All Staff, and an Admin who opens that person's page lands on My Money", async ({
   page,
   browser,

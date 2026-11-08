@@ -17,6 +17,7 @@ export const AUDIT_GROUPS = [
   'Expense categories',
   'Orders',
   'Order lists',
+  'Staff money',
 ] as const;
 export type AuditGroup = (typeof AUDIT_GROUPS)[number];
 
@@ -34,6 +35,7 @@ const EXPENSES = AUDIT_GROUPS[3];
 const CATEGORIES = AUDIT_GROUPS[4];
 const ORDERS = AUDIT_GROUPS[5];
 const ORDER_LISTS = AUDIT_GROUPS[6];
+const STAFF_MONEY = AUDIT_GROUPS[7];
 
 /** Every action code with its plain-English label and group, in the order the select lists them. */
 export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
@@ -134,6 +136,9 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'order-expense-category.retired', label: 'Order expense category retired', group: ORDER_LISTS },
   { code: 'order-expense-category.reactivated', label: 'Order expense category back in use', group: ORDER_LISTS },
   { code: 'order-expense-category.deleted', label: 'Order expense category deleted', group: ORDER_LISTS },
+  { code: 'money-transfer.deleted', label: 'Money transfer deleted', group: STAFF_MONEY },
+  { code: 'money-transfer.permanently-deleted', label: 'Money transfer removed permanently', group: STAFF_MONEY },
+  { code: 'money-transfer.handed-over', label: 'Money handed over', group: STAFF_MONEY },
 ];
 
 /** The codes the Action filter accepts in the URL. */

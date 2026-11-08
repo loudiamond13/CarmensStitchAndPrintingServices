@@ -2,8 +2,8 @@
 // aria-disabled with its visible reason when nothing is on hand, D-14) shows on every tab. Below it:
 //   - an Admin sees only their own money: the balance card and the Ledger card, with no tab strip (D-42). The browser never asks an Admin
 //     for staff figures; the API refuses them too (OD-19).
-//   - a Manager also gets the tabs Mine and All Staff (D-42), kept in the URL `tab` parameter through useMoneyListParams. Only the chosen
-//     tab's content is mounted, so All Staff is read when its tab opens. The Transfers tab arrives with plan 10-20.
+//   - a Manager also gets the tabs Mine, All Staff and Transfers (D-42, D-48), kept in the URL `tab` parameter through
+//     useMoneyListParams. Only the chosen tab's content is mounted, so All Staff and Transfers are read when their tab opens.
 // Every figure is the server's; nothing is worked out here.
 import { useEffect, useId, useRef, useState } from 'react';
 import { getTabPanelProps, Tabs, type TabItem } from '@/components/choice';
@@ -22,6 +22,7 @@ import {
 import { MoneyOnHandCard } from '@/modules/admin/components/MoneyOnHandCard';
 import { StaffBalancesTable } from '@/modules/admin/components/StaffBalancesTable';
 import { TransferButton, TransferReason, transferGate } from '@/modules/admin/components/TransferButton';
+import { TransfersCard } from '@/modules/admin/components/TransfersCard';
 import { TransferModal, type HandoverLeaver } from '@/modules/admin/components/TransferModal';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useMoneyListParams } from '@/modules/admin/hooks/useMoneyListParams';
@@ -34,9 +35,9 @@ import type { StaffBalance } from '@/modules/admin/services/moneyService';
 const COPY = MONEY_COPY.page;
 const ID_BASE = 'money';
 
-/** The tabs this plan draws; the URL may name `transfers` (plan 10-20), which reads as Mine until that tab exists. */
-type MoneyTab = 'mine' | 'staff';
-const TAB_IDS: readonly MoneyTab[] = ['mine', 'staff'];
+/** The Manager's tabs (D-42, D-48). */
+type MoneyTab = 'mine' | 'staff' | 'transfers';
+const TAB_IDS: readonly MoneyTab[] = ['mine', 'staff', 'transfers'];
 const TAB_ITEMS: readonly TabItem<MoneyTab>[] = TAB_IDS.map((id) => ({ id, label: COPY.tabs[id] }));
 
 function MineContent({ money }: { money: MyMoneyCardQuery }) {
@@ -101,6 +102,18 @@ function AllStaffContent() {
   );
 }
 
+/** The chosen tab's content; only this one is mounted, so a tab is read when it opens. */
+function TabContent({ id, money }: { id: MoneyTab; money: MyMoneyCardQuery }) {
+  switch (id) {
+    case 'staff':
+      return <AllStaffContent />;
+    case 'transfers':
+      return <TransfersCard />;
+    case 'mine':
+      return <MineContent money={money} />;
+  }
+}
+
 export function MoneyRoute() {
   const money = useMyMoneyQuery();
   const reasonId = useId();
@@ -108,7 +121,7 @@ export function MoneyRoute() {
   const { user } = useSession();
   const isManager = user?.role === 'manager';
   const [values, set] = useMoneyListParams();
-  const tab: MoneyTab = isManager && values.tab === 'staff' ? 'staff' : 'mine';
+  const tab: MoneyTab = isManager ? values.tab : 'mine';
 
   useEffect(() => {
     document.title = `${COPY.title}${ADMIN_COPY.titleSuffix}`;
@@ -138,7 +151,7 @@ export function MoneyRoute() {
           />
           {TAB_IDS.map((id) => (
             <div key={id} {...getTabPanelProps(ID_BASE, id)} hidden={tab !== id} className={moneyPanelClasses}>
-              {tab === id && (id === 'staff' ? <AllStaffContent /> : <MineContent money={money} />)}
+              {tab === id && <TabContent id={id} money={money} />}
             </div>
           ))}
         </>

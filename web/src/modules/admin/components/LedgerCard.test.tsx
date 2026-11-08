@@ -5,6 +5,7 @@ import { delay } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
 import { LedgerCard } from '@/modules/admin/components/LedgerCard';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
@@ -12,6 +13,10 @@ import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { problemResponse } from '@/test/expenseFixtures';
 import {
+  deleteTransferBackend,
+  JOMAR_ID,
+  LEDGER_TRANSFER_ID,
+  staffBalancesBackend,
   ledgerBackend,
   ledgerDeletedEntryFixture,
   ledgerEntriesFixture,
@@ -45,7 +50,12 @@ afterEach(() => {
   clearSession();
 });
 
-function renderCard(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined, userId = 'me') {
+function renderCard(
+  search = '',
+  onUrlUpdate: OnUrlUpdateFunction = () => undefined,
+  userId = 'me',
+  ownerName?: string,
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <NuqsTestingAdapter
@@ -55,9 +65,11 @@ function renderCard(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefi
         processUrlSearchParams={orderSearchParams}
         hasMemory
       >
-        <MemoryRouter>
-          <LedgerCard userId={userId} />
-        </MemoryRouter>
+        <ToastProvider>
+          <MemoryRouter>
+            <LedgerCard userId={userId} ownerName={ownerName} />
+          </MemoryRouter>
+        </ToastProvider>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
@@ -264,15 +276,21 @@ describe('Show deleted (D-30, D-31, D-23)', () => {
     ]);
   });
 
-  it('offers a Manager no edit action on any row (D-22, MONEY-07)', async () => {
+  it('offers a Manager no edit or restore action on any row (D-22, D-28, MONEY-07); only Delete and Remove on transfers', async () => {
     ledgerBackend(
       ledgerPageFixture([ledgerDeletedEntryFixture(), ...ledgerEntriesFixture()], { includesDeleted: true }),
     );
     renderCard('?deleted=true');
 
     await screen.findByRole('table', { name: 'Ledger' });
-    expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /edit|restore/i })).toBeNull();
+    const names = within(screen.getByRole('table', { name: 'Ledger' }))
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label'));
+    expect(names).toHaveLength(3);
+    for (const name of names) {
+      expect(name).toMatch(/^(Delete|Remove) transfer of /);
+    }
   });
 });
 
@@ -483,5 +501,107 @@ describe('states', () => {
 
     await screen.findByText("Couldn't load the ledger.");
     await expectNoAxeViolations(container);
+  });
+});
+
+// The Manager's Delete and Remove on transfer rows (D-22, D-29, D-30, MONEY-06; plan 10-20): the same confirms as the Transfers tab,
+// with the ledger owner named from the session (My Money) or from the page (one person's ledger).
+
+const DELETE_OUT = 'Delete transfer of ₱2,000.00 from Carmen Reyes to Liza Mercado, Nov 2, 2026';
+const DELETE_IN = 'Delete transfer of ₱2,000.00 from Paolo Garcia to Carmen Reyes, Nov 1, 2026';
+
+describe('the Manager row actions on transfers (plan 10-20)', () => {
+  beforeEach(() => {
+    staffBalancesBackend();
+  });
+
+  it('opens the Delete confirm for the row, sends its version, reads the ledger again and toasts', async () => {
+    let deleted = false;
+    const calls = ledgerBackend(() => {
+      const rows = ledgerEntriesFixture();
+      return ledgerPageFixture(deleted ? rows.filter((row) => row.transferId !== LEDGER_TRANSFER_ID) : rows);
+    });
+    const deletions = deleteTransferBackend(() => {
+      deleted = true;
+      return new Response(null, { status: 204 });
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    await user.click(screen.getByRole('button', { name: DELETE_OUT }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    expect(dialog).toHaveTextContent('₱2,000.00 from Carmen Reyes to Liza Mercado, Nov 2, 2026.');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    expect(await screen.findByText('Transfer deleted')).toBeVisible();
+    expect(deletions.urls[0]?.pathname).toBe(`/api/v1/money-transfers/${LEDGER_TRANSFER_ID}`);
+    expect(deletions.urls[0]?.searchParams.get('version')).toBe('AAAAAAAAB9E=');
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: DELETE_OUT })).toBeNull();
+    });
+  });
+
+  it("moves focus to the next transfer row's action once the deleted row has left the ledger", async () => {
+    let deleted = false;
+    ledgerBackend(() => {
+      const rows = ledgerEntriesFixture();
+      return ledgerPageFixture(deleted ? rows.filter((row) => row.transferId !== LEDGER_TRANSFER_ID) : rows);
+    });
+    deleteTransferBackend(() => {
+      deleted = true;
+      return new Response(null, { status: 204 });
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    await user.click(screen.getByRole('button', { name: DELETE_OUT }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: DELETE_IN })).toHaveFocus();
+    });
+  });
+
+  it('names another person as the owner of their ledger, from the page', async () => {
+    ledgerBackend(ledgerPageFixture(), JOMAR_ID);
+    renderCard('', undefined, JOMAR_ID, 'Jomar Santos');
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    expect(
+      screen.getByRole('button', {
+        name: 'Delete transfer of ₱2,000.00 from Jomar Santos to Liza Mercado, Nov 2, 2026',
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', {
+        name: 'Delete transfer of ₱2,000.00 from Paolo Garcia to Jomar Santos, Nov 1, 2026',
+      }),
+    ).toBeVisible();
+  });
+
+  it('draws no Actions column on another ledger whose owner the page has not named', async () => {
+    ledgerBackend(ledgerPageFixture(), JOMAR_ID);
+    renderCard('', undefined, JOMAR_ID);
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('gives an Admin no Actions column and no button, even on transfer rows (D-31, D-32, T-10-45)', async () => {
+    clearSession();
+    acceptSession(sessionResponse({ user: ADMIN_USER }));
+    ledgerBackend();
+    renderCard();
+
+    await screen.findByRole('table', { name: 'Ledger' });
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

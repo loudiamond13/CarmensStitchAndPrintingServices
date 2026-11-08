@@ -156,3 +156,33 @@ export const personNotFoundClasses = tw('flex flex-col items-start gap-4');
 
 /** The Actions cell's pinned buttons. */
 export const staffActionsClasses = tw('inline-flex items-center justify-end gap-2');
+
+/* ───────────── Delete and remove confirms (D-24, D-33; plan 10-20) ───────────── */
+
+/** The resulting-balance warning block under the Delete Transfer message: the warning-soft ground, an alert icon and the line. */
+export const transferWarningClasses = tw(
+  'mt-3 flex items-start gap-2 rounded-sm bg-warning-soft p-3 text-[14px] leading-5 font-semibold text-ink',
+);
+
+/** The alert icon in front of the warning line, in the warning colour. */
+export const transferWarningIconClasses = tw('mt-0.5 shrink-0 text-warning');
+
+/** "Couldn't check the new balances": Small, muted, under the message. */
+export const transferCheckFailedClasses = tw('mt-3 block text-[14px] leading-5 text-ink-muted');
+
+/** The details box of the permanent-remove confirm (D-24): the danger-soft ground, a 1px danger border, radius 8, 16px padding. */
+export const removeDetailsClasses = tw('mt-3 flex flex-col gap-1 rounded-sm border border-danger bg-danger-soft p-4');
+
+/** The record line of the details box: Label 14/600 in the ink colour. Long names wrap anywhere. */
+export const removeRecordClasses = tw('text-[14px] leading-5 font-semibold wrap-anywhere text-ink');
+
+/** The Small lines of the details box: 14/400, muted. Long names wrap anywhere. */
+export const removeNoteClasses = tw('text-[14px] leading-5 font-normal wrap-anywhere text-ink-muted');
+
+/* ───────────── Deleted transfers on the Transfers tab (D-30, D-31; plan 10-20) ───────────── */
+
+/** The date and the Deleted badge side by side; they wrap on a narrow cell. */
+export const transferDateCellClasses = tw('flex flex-wrap items-center gap-x-2 gap-y-1');
+
+/** The note over the "Deleted by" line, 2px apart; both wrap anywhere. */
+export const transferNoteCellClasses = tw('flex min-w-0 flex-col gap-0.5');

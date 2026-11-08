@@ -115,6 +115,9 @@ const API_ACTIONS = [
   'order-image.cover-changed',
   'order-image.description-changed',
   'order-image.deleted',
+  'money-transfer.deleted',
+  'money-transfer.permanently-deleted',
+  'money-transfer.handed-over',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -137,9 +140,21 @@ describe('the action labels (D-28)', () => {
     expect(auditActionLabel('profile.email-change-canceled')).toBe('Email change canceled');
   });
 
-  it('mirrors the 97 codes of the API', () => {
-    expect(API_ACTIONS).toHaveLength(97);
-    expect(AUDIT_ACTION_CODES).toHaveLength(97);
+  it('mirrors the 100 codes of the API', () => {
+    expect(API_ACTIONS).toHaveLength(100);
+    expect(AUDIT_ACTION_CODES).toHaveLength(100);
+  });
+
+  it('reads the three money events in plain words under Staff money (AUDIT-01, MONEY-06; plan 10-20)', () => {
+    const expected: [string, string][] = [
+      ['money-transfer.deleted', 'Money transfer deleted'],
+      ['money-transfer.permanently-deleted', 'Money transfer removed permanently'],
+      ['money-transfer.handed-over', 'Money handed over'],
+    ];
+    for (const [code, label] of expected) {
+      expect(auditActionLabel(code), code).toBe(label);
+      expect(auditActionGroup(code), code).toBe('Staff money');
+    }
   });
 
   it('reads the five order photo events in plain words under Orders (D-19)', () => {
@@ -156,7 +171,7 @@ describe('the action labels (D-28)', () => {
     }
   });
 
-  it('names the seven groups: the five from the UI-SPEC and the two order groups', () => {
+  it('names the eight groups: the five from the UI-SPEC, the two order groups and Staff money', () => {
     expect(AUDIT_GROUPS).toEqual([
       'Sign-in and security',
       'Staff accounts',
@@ -165,6 +180,7 @@ describe('the action labels (D-28)', () => {
       'Expense categories',
       'Orders',
       'Order lists',
+      'Staff money',
     ]);
   });
 
