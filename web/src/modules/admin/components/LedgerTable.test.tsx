@@ -233,6 +233,77 @@ describe('Money in, Money out and Balance (D-21, OR-4, MONEY-02)', () => {
   });
 });
 
+describe('phones and long text (UI-SPEC M1 phone and long-text rules)', () => {
+  const LONG_NOTE = `Note ${'n'.repeat(195)}`;
+  const LONG_DESCRIPTION = `Part ${'d'.repeat(195)}`;
+
+  it('gives every cell its column header as data-label, so a phone card labels each value', () => {
+    renderTable();
+
+    for (const row of bodyRows()) {
+      const labels = [...row.querySelectorAll('td')].map((cell) => cell.getAttribute('data-label'));
+      expect(labels).toEqual(['Date', 'Details', 'Money in', 'Money out', 'Balance']);
+    }
+  });
+
+  it('makes the date the lead of each phone card: its label is hidden and the other cells keep theirs', () => {
+    renderTable();
+
+    for (const index of [0, 1, 5]) {
+      expect(cellAt(index, DATE).className).toContain('pg-phone:before:hidden');
+      for (const column of [DETAILS, MONEY_IN, MONEY_OUT, BALANCE]) {
+        expect(cellAt(index, column).className).not.toContain('pg-phone:before:hidden');
+      }
+    }
+  });
+
+  it('wraps a long 200-character note anywhere and keeps all of it', () => {
+    renderTable([
+      ledgerEntryFixture({
+        kind: 'transfer-in',
+        counterpart: { id: 'x', name: 'Paolo Garcia', formerStaff: false },
+        note: LONG_NOTE,
+      }),
+    ]);
+
+    const note = within(cellAt(0, DETAILS)).getByText(LONG_NOTE);
+    expect(note.className).toContain('wrap-anywhere');
+    expect(note.className).not.toMatch(/truncate|text-ellipsis|line-clamp/);
+    expect(LONG_NOTE).toHaveLength(200);
+  });
+
+  it('wraps a long 200-character description anywhere and keeps all of it', () => {
+    renderTable([
+      ledgerEntryFixture({
+        kind: 'company-expense',
+        moneyIn: null,
+        moneyOut: 80,
+        category: null,
+        description: LONG_DESCRIPTION,
+      }),
+    ]);
+
+    const description = within(cellAt(0, DETAILS)).getByText(LONG_DESCRIPTION);
+    expect(description.className).toContain('wrap-anywhere');
+    expect(description.className).not.toMatch(/truncate|text-ellipsis|line-clamp/);
+  });
+
+  it('wraps a long person name in a title anywhere', () => {
+    const name = `Maria ${'a'.repeat(120)}`;
+    renderTable([
+      ledgerEntryFixture({
+        kind: 'transfer-out',
+        counterpart: { id: 'x', name, formerStaff: false },
+        moneyIn: null,
+        moneyOut: 5,
+      }),
+    ]);
+
+    const title = within(cellAt(0, DETAILS)).getByText(`Transfer to ${name}`);
+    expect(title.parentElement?.className).toContain('wrap-anywhere');
+  });
+});
+
 describe('accessibility', () => {
   it('has no axe violations', async () => {
     const { container } = renderTable();
