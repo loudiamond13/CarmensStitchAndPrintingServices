@@ -413,6 +413,50 @@ internal static class MoneyFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Records a transfer and expects a 201 answer.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The sender's bearer token.</param>
+    /// <param name="toUserId">The recipient.</param>
+    /// <param name="amount">The amount.</param>
+    /// <param name="date">The transfer date.</param>
+    /// <param name="note">The note; none when null.</param>
+    /// <returns>The new transfer's id and its version text.</returns>
+    public static async Task<(Guid Id, string Version)> RecordTransferAsync(
+        HttpClient client, string accessToken, Guid toUserId, decimal amount, DateOnly date, string? note = null)
+    {
+        using var response = await PostTransferAsync(client, accessToken, toUserId, amount, date, note);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Created, text);
+        var transfer = JsonSerializer.Deserialize<JsonElement>(text, Web).GetProperty("transfer");
+        return (transfer.GetProperty("id").GetGuid(), transfer.GetProperty("version").GetString()!);
+    }
+
+    /// <summary>Deletes one transfer with the version text the caller last saw; the version is URL-encoded, and none is sent when null.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The transfer id.</param>
+    /// <param name="version">The version text; no <c>version</c> parameter when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> DeleteTransferAsync(HttpClient client, string? accessToken, Guid id, string? version)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        var path = version is null ? $"{TransfersRoute}/{id:D}" : $"{TransfersRoute}/{id:D}?version={Uri.EscapeDataString(version)}";
+        using var request = ApiRequests.Create(HttpMethod.Delete, path, accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Removes one soft-deleted transfer for good.</summary>
+    /// <param name="client">The client.</param>
+    /// <param name="accessToken">The bearer token; none when null.</param>
+    /// <param name="id">The transfer id.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public static async Task<HttpResponseMessage> RemoveTransferAsync(HttpClient client, string? accessToken, Guid id)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"{TransfersRoute}/{id:D}/permanent", accessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads the caller's balance from a 200 answer.</summary>
     /// <param name="client">The client.</param>
     /// <param name="accessToken">The bearer token.</param>

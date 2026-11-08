@@ -27,6 +27,8 @@ public static class MoneyApplicationRegistration
         services.AddScoped<ListTransferRecipientsHandler>();
         services.AddScoped<ListStaffBalancesHandler>();
         services.AddScoped<ListMoneyTransfersHandler>();
+        services.AddScoped<DeleteMoneyTransferHandler>();
+        services.AddScoped<RemoveMoneyTransferHandler>();
         return services;
     }
 }

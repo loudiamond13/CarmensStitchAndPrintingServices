@@ -8,13 +8,15 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace Csps.Server.Controllers;
 
 /// <summary>
-/// Staff money transfers (MONEY-04, MONEY-05, MONEY-06): staff of either role send part of their money on hand to a coworker, and a
-/// Manager hands over money held by former staff. Never cached.
+/// Staff money transfers (MONEY-04 to MONEY-07): staff of either role send part of their money on hand to a coworker, a Manager hands
+/// over money held by former staff, and a Manager deletes a wrong transfer. A transfer is never edited. Never cached.
 /// </summary>
 /// <param name="create">The record-a-transfer handler.</param>
 /// <param name="handOver">The record-a-hand-over handler.</param>
 /// <param name="recipients">The who-can-receive handler.</param>
 /// <param name="list">The transfer list handler.</param>
+/// <param name="delete">The delete-a-transfer handler.</param>
+/// <param name="remove">The remove-a-deleted-transfer handler.</param>
 [ApiController]
 [Route("api/v1/money-transfers")]
 [Authorize(Policy = Policies.Staff)]
@@ -24,7 +26,9 @@ public sealed class MoneyTransfersController(
     CreateMoneyTransferHandler create,
     HandOverMoneyHandler handOver,
     ListTransferRecipientsHandler recipients,
-    ListMoneyTransfersHandler list) : ControllerBase
+    ListMoneyTransfersHandler list,
+    DeleteMoneyTransferHandler delete,
+    RemoveMoneyTransferHandler remove) : ControllerBase
 {
     /// <summary>
     /// Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an
@@ -123,5 +127,58 @@ public sealed class MoneyTransfersController(
     {
         var result = await recipients.HandleAsync(cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static people => TypedResults.Ok(people));
+    }
+
+    /// <summary>
+    /// Deletes a wrong transfer, Managers only (D-23, D-35). The transfer stays stored with who deleted it and when, and stops counting
+    /// toward both balances at once. The <c>version</c> query parameter is the transfer's version as the Manager last saw it. A Manager
+    /// may delete any transfer, one they sent or received included, and the delete is allowed even when it leaves the recipient below
+    /// zero (D-33). There is no way to edit or restore a transfer. The Manager and the time are written to the audit log; the note text
+    /// is not.
+    /// </summary>
+    /// <param name="id">The transfer.</param>
+    /// <param name="version">The version text the Manager last saw; required.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>
+    /// 204 when deleted, 400 under <c>version</c> when it is missing or malformed, 401 without a valid token, 403 for an Admin, 404 when
+    /// the transfer does not exist or is already deleted, or 409 when the version is stale or two saves lost a race twice.
+    /// </returns>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("DeleteMoneyTransfer")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Delete(Guid id, [FromQuery] string? version, CancellationToken cancellationToken)
+    {
+        var result = await delete.HandleAsync(id, version, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
+    }
+
+    /// <summary>
+    /// Removes a deleted transfer for good, Managers only (D-24, D-25). Only a transfer that was deleted first can go; a live one is
+    /// refused with 422 "Delete the transfer first." Removing changes no balance, because a deleted transfer already counts for
+    /// nothing. The full record (the people, the amount, the date, whether there was a note, who recorded it, who deleted it and when) is
+    /// written to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.
+    /// </summary>
+    /// <param name="id">The deleted transfer.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204 when removed, 401 without a valid token, 403 for an Admin, 404 when no such transfer exists, 409 when two saves lost a race twice, or 422 when the transfer is not deleted.</returns>
+    [HttpDelete("{id:guid}/permanent")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("RemoveMoneyTransfer")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IResult> Remove(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await remove.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

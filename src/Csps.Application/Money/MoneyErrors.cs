@@ -39,6 +39,12 @@ public static class MoneyErrors
     /// <summary>The plain-English text for an Admin asking for deleted transfers (D-31).</summary>
     public const string DeletedForbiddenMessage = "Only Managers can see deleted transfers.";
 
+    /// <summary>The code of a transfer that does not exist, or is not there to delete or remove (D-58).</summary>
+    public const string TransferNotFoundCode = "money-transfers.not-found";
+
+    /// <summary>The plain-English text for a transfer that does not exist or is not there to delete or remove (D-58).</summary>
+    public const string TransferNotFoundMessage = "This transfer wasn't found.";
+
     /// <summary>The code of a change that lost a race with another change.</summary>
     public const string BusyCode = "money-transfers.busy";
 
@@ -56,6 +62,9 @@ public static class MoneyErrors
 
     /// <summary>Gets the 403 for an Admin who asks to see deleted transfers (D-31).</summary>
     public static Error DeletedForbidden { get; } = Error.Forbidden(DeletedForbiddenCode, DeletedForbiddenMessage);
+
+    /// <summary>Gets the 404 for a transfer that does not exist, or is not there to delete or remove.</summary>
+    public static Error TransferNotFound { get; } = Error.NotFound(TransferNotFoundCode, TransferNotFoundMessage);
 
     /// <summary>Gets the 409 for a change that lost a race with another change.</summary>
     public static Error Busy { get; } = Error.Conflict(BusyCode, BusyMessage);

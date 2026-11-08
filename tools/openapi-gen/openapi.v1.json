@@ -8470,6 +8470,172 @@
         ]
       }
     },
+    "/api/v1/money-transfers/{id}": {
+      "delete": {
+        "operationId": "DeleteMoneyTransfer",
+        "parameters": [
+          {
+            "description": "The transfer.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The version text the Manager last saw; required.",
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a wrong transfer, Managers only (D-23, D-35). The transfer stays stored with who deleted it and when, and stops counting\ntoward both balances at once. The `version` query parameter is the transfer's version as the Manager last saw it. A Manager\nmay delete any transfer, one they sent or received included, and the delete is allowed even when it leaves the recipient below\nzero (D-33). There is no way to edit or restore a transfer. The Manager and the time are written to the audit log; the note text\nis not.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/money-transfers/{id}/permanent": {
+      "delete": {
+        "operationId": "RemoveMoneyTransfer",
+        "parameters": [
+          {
+            "description": "The deleted transfer.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Removes a deleted transfer for good, Managers only (D-24, D-25). Only a transfer that was deleted first can go; a live one is\nrefused with 422 \"Delete the transfer first.\" Removing changes no balance, because a deleted transfer already counts for\nnothing. The full record (the people, the amount, the date, whether there was a note, who recorded it, who deleted it and when) is\nwritten to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
     "/api/v1/order-expense-categories": {
       "get": {
         "operationId": "ListOrderExpenseCategories",
