@@ -1,6 +1,6 @@
 // The server's business today (D-59), for the order date presets and the order form's date defaults. The device clock is never
 // read: the date comes from any order answer already held (a list page or an order page carries `today`), and only when none is
-// held does one small list call ask for it. Held answers are read from the query cache, so the value follows the newest one. A held
+// held does one small list call ask for it. The dashboard summary and the staff-money answer carry `today` too. Held answers are read from the query cache, so the value follows the newest one. A held
 // answer older than `maxAgeMs` (or invalidated) is not trusted, so a day that has rolled over is asked for, not handed out.
 import { notifyManager, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
@@ -10,8 +10,8 @@ import { ordersService } from '@/modules/admin/services/ordersService';
 /** The one small call that asks for today when no order answer is held. */
 const businessTodayKey = ['business-today'] as const;
 
-/** The query roots whose answers carry the business `today`: order list pages and order pages. */
-const ANSWER_ROOTS = [['orders'], ['order']] as const;
+/** The query roots whose answers carry the business `today`: order list pages and order pages, the dashboard and the staff-money answers. */
+const ANSWER_ROOTS = [['orders'], ['order'], ['dashboard'], ['staff-money']] as const;
 
 /** How old a held answer may be before a form that starts from the day asks the server instead (5 minutes). */
 export const HELD_TODAY_MAX_AGE_MS = 5 * 60_000;

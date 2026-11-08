@@ -1,7 +1,6 @@
 // SPEC-GAP: D-46 App. E.6 has no money card, so the strip is composed from `.s-card`, the KpiCard tile look and the button recipes.
 // The personal money strip under the dashboard greeting (D-46, D-21, MONEY-02; UI-SPEC D1 "MoneyStrip"): the wallet tile, the label
-// "Your money on hand" over the caller's own figure from the server, and View Ledger. Plan 10-15 puts Transfer before it through
-// `actions`. The strip works out nothing: the figure is the server's, in the danger tone below zero and dimmed at ₱0.00. It reads
+// "Your money on hand" over the caller's own figure from the server, Transfer and View Ledger. The strip works out nothing: the figure is the server's, in the danger tone below zero and dimmed at ₱0.00. It reads
 // its own query, so a failed read leaves the rest of the dashboard alone, and View Ledger works whatever the state.
 // Phones (money.recipe.ts): the tile is hidden, the figure stays on one line (whitespace-nowrap) and the buttons wrap to their own row.
 import clsx from 'clsx';
@@ -10,6 +9,7 @@ import { Button, ButtonLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Skeleton } from '@/components/feedback';
 import { LoadingRegion } from '@/components/states';
+import { TransferButton } from '@/modules/admin/components/TransferButton';
 import {
   moneyStripActionsClasses,
   moneyStripBodyClasses,
@@ -26,12 +26,12 @@ import { MONEY_COPY } from '@/modules/admin/moneyCopy';
 import { formatPeso, isNegativeMoney, round2 } from '@/utils/csps';
 
 const COPY = MONEY_COPY.strip;
-/** The page the strip links to (plan 10-17 fills it with the ledger). */
+/** The page the strip links to. */
 const LEDGER_PATH = '/admin/money';
 
 export interface MoneyStripProps {
   query: MyMoneyCardQuery;
-  /** Buttons before View Ledger (Transfer, plan 10-15). */
+  /** Buttons after Transfer and before View Ledger. */
   actions?: ReactNode;
 }
 
@@ -89,6 +89,7 @@ export function MoneyStrip({ query, actions }: MoneyStripProps) {
         {figure}
       </LoadingRegion>
       <div className={moneyStripActionsClasses}>
+        <TransferButton />
         {actions}
         <ButtonLink variant="ghost" size="sm" to={LEDGER_PATH}>
           {COPY.viewLedger}

@@ -1,8 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { createFakeFetch } from '@/test/fakeFetch';
-import { LIZA_ID, myMoneyFixture, transferRecipientsFixture, transferSavedFixture } from '@/test/moneyFixtures';
-import { createMoneyService, MyMoneyContractError, parseMyMoney } from './moneyService';
+import {
+  ANA_ID,
+  JOMAR_ID,
+  LIZA_ID,
+  myMoneyFixture,
+  PAOLO_ID,
+  transferRecipientsFixture,
+  transferSavedFixture,
+} from '@/test/moneyFixtures';
+import { createMoneyService, MyMoneyContractError, parseMyMoney, toTransferRecipients } from './moneyService';
 
 // The money call (MONEY-02, OR-5): typed, over the one HTTP client. The browser asks only for the caller's own figure.
 
@@ -89,6 +97,30 @@ describe('moneyService.create (MONEY-04, SEC-06)', () => {
     expect(fake.calls[0]?.url).toBe('/api/v1/money-transfers');
     expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
     expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
+  });
+});
+
+describe('toTransferRecipients (wave 6 IN-03)', () => {
+  it('leaves the signed-in person out and keeps the rest in the order sent, without isYou', () => {
+    expect(toTransferRecipients(transferRecipientsFixture())).toEqual([
+      { id: LIZA_ID, name: 'Liza Mercado', status: 'active' },
+      { id: PAOLO_ID, name: 'Paolo Garcia', status: 'active' },
+      { id: JOMAR_ID, name: 'Jomar Santos', status: 'deactivated' },
+      { id: ANA_ID, name: 'Ana Villanueva', status: 'deleted' },
+    ]);
+  });
+
+  it('refuses a person with a status the browser does not know, so they are never shown', () => {
+    const odd = { id: LIZA_ID, name: 'Liza Mercado', status: 'suspended', isYou: false };
+
+    expect(toTransferRecipients([odd, ...transferRecipientsFixture()])).toHaveLength(4);
+    expect(toTransferRecipients([odd])).toEqual([]);
+  });
+
+  it('carries no figure: a person has an id, a name and a status only', () => {
+    const [first] = toTransferRecipients(transferRecipientsFixture());
+
+    expect(Object.keys(first ?? {}).sort()).toEqual(['id', 'name', 'status']);
   });
 });
 

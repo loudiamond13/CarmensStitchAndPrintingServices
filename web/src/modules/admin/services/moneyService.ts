@@ -34,23 +34,57 @@ export function parseMyMoney(response: StaffMoneyResponse): MyMoney {
   return { userId: response.userId, name: response.name, balance, today: response.today };
 }
 
+/** The words the server uses for a person's standing; any other word is refused, not shown. */
+export type RecipientStatus = 'active' | 'deactivated' | 'deleted';
+
+/** One person the To list offers. There is no figure and no `isYou`: the sender is never offered. */
+export interface TransferRecipient {
+  id: string;
+  name: string;
+  status: RecipientStatus;
+}
+
+function isRecipientStatus(status: string): status is RecipientStatus {
+  return status === 'active' || status === 'deactivated' || status === 'deleted';
+}
+
+/** Narrows the generated list (the status is a plain string there): the signed-in person and any unknown status are left out. */
+export function toTransferRecipients(list: readonly TransferRecipientResponse[]): TransferRecipient[] {
+  const people: TransferRecipient[] = [];
+  for (const person of list) {
+    if (!person.isYou && isRecipientStatus(person.status)) {
+      people.push({ id: person.id, name: person.name, status: person.status });
+    }
+  }
+  return people;
+}
+
 export interface MoneyService {
   /**
    * `GET /api/v1/staff-money/me`: the caller's own money on hand, worked out by the server on every read: payments received and
    * transfers in, minus transfers out, expenses paid and refunds handed back. It can be below zero. It takes no parameters.
    */
   me(signal?: AbortSignal): Promise<StaffMoneyResponse>;
-  /** RED stub. */
+  /**
+   * `GET /api/v1/money-transfers/recipients`: the people the Transfer Money window may offer in To: active Admins and Managers, then
+   * former staff who are owed money, each with a name and a status word and never a figure. The signed-in person is in the list,
+   * marked `isYou`. It takes no parameters.
+   */
   recipients(signal?: AbortSignal): Promise<TransferRecipientResponse[]>;
-  /** RED stub. */
+  /**
+   * `POST /api/v1/money-transfers`: records a transfer from the signed-in person to a coworker (MONEY-04). The body has no sender: the
+   * server takes it from the token. The caller supplies one Idempotency-Key per submission, so a double press or a retry records it
+   * once. 400 lists the field errors, 409 means another change won, 201 answers the saved transfer and the sender's new balance.
+   */
   create(body: CreateTransferRequest, idempotencyKey: string, signal?: AbortSignal): Promise<TransferSavedResponse>;
 }
 
 export function createMoneyService(client: HttpClient): MoneyService {
   return {
     me: (signal) => client.get<StaffMoneyResponse>('/staff-money/me', { signal }),
-    recipients: () => Promise.resolve([]),
-    create: () => Promise.reject(new Error('RED stub')),
+    recipients: (signal) => client.get<TransferRecipientResponse[]>('/money-transfers/recipients', { signal }),
+    create: (body, idempotencyKey, signal) =>
+      client.post<TransferSavedResponse>('/money-transfers', body, { idempotencyKey, signal }),
   };
 }
 
