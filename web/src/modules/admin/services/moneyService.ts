@@ -180,11 +180,6 @@ function isRecipientStatus(status: string): status is RecipientStatus {
   return status === 'active' || status === 'deactivated' || status === 'deleted';
 }
 
-/** Narrows the generated list (the status is a plain string there): the signed-in person and any unknown status are left out. */
-export function toTransferRecipients(list: readonly TransferRecipientResponse[]): TransferRecipient[] {
-  return pickTransferRecipients(toTransferPeople(list));
-}
-
 export type CreateHandoverRequest = Schemas['CreateMoneyHandoverRequest'];
 
 /** One person the recipients answer names once the browser has checked the status; the signed-in person is kept and marked. */
