@@ -21,14 +21,14 @@ import { OrderBalanceCell } from '@/modules/admin/components/OrderBalanceCell';
 import { ordersNumberLinkClasses } from '@/modules/admin/components/orders.recipe';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
-import type { OrderListEntry } from '@/modules/admin/services/ordersService';
+import type { DashboardRecentOrder } from '@/modules/admin/services/dashboardService';
 
 const COPY = DASHBOARD_COPY.recent;
 
 /** The rows the first load stands in for: the summary always lists six (D-38). */
 const SKELETON_ROWS = 6;
 
-function columnsFor(today: string): readonly ResponsiveTableColumn<OrderListEntry>[] {
+function columnsFor(today: string): readonly ResponsiveTableColumn<DashboardRecentOrder>[] {
   return [
     {
       key: 'order',
@@ -62,7 +62,7 @@ function columnsFor(today: string): readonly ResponsiveTableColumn<OrderListEntr
       key: 'total',
       header: COPY.columns.total,
       money: true,
-      cell: (entry) => <Money amount={Number(entry.total)} />,
+      cell: (entry) => <Money amount={entry.total} />,
     },
     {
       key: 'balance',
@@ -117,7 +117,7 @@ export function RecentOrdersCard({ query }: RecentOrdersCardProps) {
           />
         </div>
       ) : (
-        <ResponsiveTable<OrderListEntry>
+        <ResponsiveTable<DashboardRecentOrder>
           caption={COPY.title}
           columns={columnsFor(summary?.today ?? '')}
           rows={summary?.recentOrders}

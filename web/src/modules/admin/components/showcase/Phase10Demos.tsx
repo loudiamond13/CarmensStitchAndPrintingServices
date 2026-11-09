@@ -35,7 +35,11 @@ import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSumma
 import type { MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import type { StaffBalancesTableQuery } from '@/modules/admin/hooks/useStaffBalancesQuery';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
-import type { DashboardChartMonthFigures, DashboardSummaryResponse } from '@/modules/admin/services/dashboardService';
+import {
+  parseDashboardSummary,
+  type DashboardChartMonthFigures,
+  type DashboardSummaryResponse,
+} from '@/modules/admin/services/dashboardService';
 import {
   parseLedgerPage,
   parseStaffBalances,
@@ -247,7 +251,12 @@ const LARGE_COUNT_SUMMARY: DashboardSummaryResponse = {
 const FAILURE = new HttpError({ kind: 'http', status: 500 });
 
 function summaryQuery(data: DashboardSummaryResponse | undefined, failed = false): DashboardCardQuery {
-  return { data, isError: failed, error: failed ? FAILURE : null, refetch: noop };
+  return {
+    data: data === undefined ? undefined : parseDashboardSummary(data),
+    isError: failed,
+    error: failed ? FAILURE : null,
+    refetch: noop,
+  };
 }
 
 const SUMMARY_OK = summaryQuery(D1_SUMMARY);
