@@ -4,7 +4,7 @@
 // trigger, and nothing is saved or deleted (the Delete Order demo only raises the spec §9.3 success toast). The extra
 // cases show what no scenario does: the 56 icons with their names, the toast triggers for every tone, formatted
 // dates and a loaded LazyImage.
-import { useId, useState, type ComponentType } from 'react';
+import { lazy, Suspense, useId, useState, type ComponentType } from 'react';
 import { formatCalendarDate } from '@/utils/format';
 import {
   Button,
@@ -17,6 +17,7 @@ import {
   overlineClasses,
   Overlay,
   Sidebar,
+  SkeletonText,
   SkipLink,
   useToast,
   type Role,
@@ -45,9 +46,11 @@ import { Phase5Demos } from './Phase5Demos';
 import { Phase6Demos } from './Phase6Demos';
 import { Phase8Demos } from './Phase8Demos';
 import { Phase9Demos } from './Phase9Demos';
-import { Phase10Demos } from './Phase10Demos';
 import { SHOWCASE_COPY } from './showcaseCopy';
 import type { ShowcaseSectionId } from './showcaseSections';
+
+/** The Phase 10 cases are a chunk of their own: their module graph (the dashboard cards, the money parts) loads only when they are asked for. */
+const Phase10Demos = lazy(async () => ({ default: (await import('./Phase10Demos')).Phase10Demos }));
 
 const MANAGER: Role = 'manager';
 const CARMEN = { name: 'Carmen Reyes' };
@@ -434,13 +437,17 @@ function Phase9OnRequest() {
 }
 
 /**
- * The Dashboard and staff money cases mount when asked for, as the Order photos cases do: about 20 frames with five tables, a chart and
- * several dialogs would slow the page's first load on WebKit. Phase10Demos.test.tsx and the `@dashboard-showcase` showcase test cover them.
+ * The Dashboard and staff money cases load and mount when asked for: about 20 frames with five tables, a chart and several dialogs, and the
+ * module graph behind them, would slow the page's first load on WebKit. Phase10Demos.test.tsx and the `@dashboard-showcase` showcase test cover them.
  */
 function Phase10OnRequest() {
   const [shown, setShown] = useState(false);
   if (shown) {
-    return <Phase10Demos />;
+    return (
+      <Suspense fallback={<SkeletonText />}>
+        <Phase10Demos />
+      </Suspense>
+    );
   }
   return (
     <Button

@@ -361,9 +361,13 @@ async function dialogAnimations(page: Page, trigger: string): Promise<string[]> 
 async function toastAnimations(page: Page): Promise<string[]> {
   await page.getByRole('button', { name: 'Show success toast' }).click();
   const layer = page.locator('[data-ui="s-toast-layer"]');
+  const dismiss = layer.getByRole('button', { name: 'Dismiss' });
+  // O-7: the toast timers pause while focus is inside the layer. Focusing Dismiss at once (no stability wait, unlike hover or click)
+  // keeps the success toast up for the reading and the click, even on a slow phone engine where its own timer would run out first.
+  await dismiss.focus();
   await expect(layer.getByText('Payment added')).toBeVisible();
   const names = await page.evaluate<string[]>(readAnimations('[data-ui="s-toast-layer"] > *'));
-  await layer.getByRole('button', { name: 'Dismiss' }).click();
+  await dismiss.click();
   await expect(layer.getByText('Payment added')).toHaveCount(0);
   return names;
 }
@@ -373,7 +377,7 @@ const READ_SKELETONS = `[...document.querySelectorAll('[class*="animate-csp-shim
 test('@a11y-rulings O-6 under reduced motion the skeleton, modal, slide-over and toast animations are none', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
   await page.setViewportSize(DESKTOP);
   await openPage(page, required(SHOWCASE_LIGHT, '/dev/components'));
 

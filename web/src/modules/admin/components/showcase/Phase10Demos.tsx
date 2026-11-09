@@ -1,7 +1,7 @@
 // The Phase 10 demos of the Component Showcase (UI-SPEC Component Inventory "Component Showcase additions" and "Visual Review"; plan 10-21),
 // in the "Dashboard and staff money" section: the dashboard cards, the money strip, the ledger, All Staff, the Transfers table, the
 // Transfer and Hand Over windows and the two transfer dialogs, on made-up people and figures (spec 12.1, 12.4). The pieces are the real parts
-// fed plain values: nothing here reads or writes a record. The static cases press nothing (a link is not followed and the strip's Transfer
+// fed plain values: nothing here reads or writes a record. The static cases press nothing (a link is not followed and the strip's plain Transfer button
 // opens nothing); the windows and dialogs are local-state demos whose confirm only closes them, or a refusal made up here.
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useState, type MouseEvent, type ReactNode } from 'react';
@@ -28,6 +28,7 @@ import {
   stillClasses,
 } from '@/modules/admin/components/showcase/showcase.recipe';
 import { SHOWCASE_COPY } from '@/modules/admin/components/showcase/showcaseCopy';
+import { transferGate } from '@/modules/admin/components/TransferButton';
 import { TransferForm } from '@/modules/admin/components/TransferModal';
 import { TransfersTable } from '@/modules/admin/components/TransfersTable';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
@@ -67,6 +68,28 @@ const ANA = { id: '0b0f6c1e-0000-4000-8000-000000000005', name: 'Ana Villanueva'
 function swallow(event: MouseEvent): void {
   event.preventDefault();
   event.stopPropagation();
+}
+
+/** The strip's Transfer button as a plain button: same look and gate, but it opens nothing and reads nothing. */
+function DemoStrip({ query }: { query: MyMoneyCardQuery }) {
+  const gate = transferGate(query);
+  return (
+    <MoneyStrip
+      query={query}
+      transfer={(reasonId) => (
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="arrow-right"
+          aria-disabled={gate.blocked}
+          {...(gate.nothingOnHand ? { 'aria-describedby': reasonId } : {})}
+          onClick={noop}
+        >
+          {TRANSFER.button}
+        </Button>
+      )}
+    />
+  );
 }
 
 /** Wraps a static case so that nothing in it can be pressed through to the app (it adds no box of its own). */
@@ -295,8 +318,8 @@ type LedgerOverrides = Partial<LedgerEntryResponse>;
 function ledgerEntry(overrides: LedgerOverrides): LedgerEntryResponse {
   return {
     kind: 'payment-received',
-    date: '2026-10-28',
-    recordedAtUtc: '2026-10-28T02:00:00Z',
+    date: '2026-09-29',
+    recordedAtUtc: '2026-09-29T02:00:00Z',
     moneyIn: null,
     moneyOut: null,
     balanceAfter: null,
@@ -325,8 +348,8 @@ const ORDER_ID = '0b0f6c1e-0000-4000-8000-0000000000b1';
 const LEDGER_ENTRIES: LedgerEntryResponse[] = [
   ledgerEntry({
     kind: 'order-expense',
-    date: '2026-11-04',
-    recordedAtUtc: '2026-11-04T05:00:00Z',
+    date: '2026-10-07',
+    recordedAtUtc: '2026-10-07T05:00:00Z',
     moneyOut: 1450,
     balanceAfter: -500,
     orderId: ORDER_ID,
@@ -335,42 +358,55 @@ const LEDGER_ENTRIES: LedgerEntryResponse[] = [
     description: 'Extra dye lot',
   }),
   ledgerEntry({
+    kind: 'transfer-out',
+    date: '2026-10-06',
+    recordedAtUtc: '2026-10-06T05:00:00Z',
+    moneyOut: 2000,
+    counterpart: LIZA,
+    transferId: '0b0f6c1e-0000-4000-8000-0000000000c3',
+    version: 'AAAAAAAAB9G=',
+    isDeleted: true,
+    deletedBy: CARMEN,
+    deletedAtUtc: '2026-10-08T07:42:00Z',
+    recordedBy: CARMEN,
+  }),
+  ledgerEntry({
     kind: 'company-expense',
-    date: '2026-11-03',
-    recordedAtUtc: '2026-11-03T05:00:00Z',
+    date: '2026-10-05',
+    recordedAtUtc: '2026-10-05T05:00:00Z',
     moneyOut: 750,
     balanceAfter: 950,
     category: 'Utilities',
-    description: 'Electric bill for October',
+    description: 'Electric bill for September',
   }),
   ledgerEntry({
-    kind: 'transfer-out',
-    date: '2026-11-02',
-    recordedAtUtc: '2026-11-02T05:00:00Z',
-    moneyOut: 2000,
+    kind: 'transfer-in',
+    date: '2026-10-03',
+    recordedAtUtc: '2026-10-03T05:00:00Z',
+    moneyIn: 2000,
     balanceAfter: 1700,
-    counterpart: LIZA,
+    counterpart: JOMAR,
     transferId: '0b0f6c1e-0000-4000-8000-0000000000c1',
     version: 'AAAAAAAAB9E=',
     isHandover: true,
     recordedBy: CARMEN,
   }),
   ledgerEntry({
-    kind: 'transfer-in',
-    date: '2026-11-01',
-    recordedAtUtc: '2026-11-01T05:00:00Z',
-    moneyIn: 2000,
-    balanceAfter: 3700,
+    kind: 'transfer-out',
+    date: '2026-10-02',
+    recordedAtUtc: '2026-10-02T05:00:00Z',
+    moneyOut: 2000,
+    balanceAfter: -300,
     counterpart: PAOLO,
     note: 'Cash for the fabric run',
     transferId: '0b0f6c1e-0000-4000-8000-0000000000c2',
     version: 'AAAAAAAAB9F=',
-    recordedBy: PAOLO,
+    recordedBy: CARMEN,
   }),
   ledgerEntry({
     kind: 'refund-handed-back',
-    date: '2026-10-30',
-    recordedAtUtc: '2026-10-30T05:00:00Z',
+    date: '2026-10-01',
+    recordedAtUtc: '2026-10-01T05:00:00Z',
     moneyOut: 300,
     balanceAfter: 1700,
     orderId: ORDER_ID,
@@ -387,19 +423,6 @@ const LEDGER_ENTRIES: LedgerEntryResponse[] = [
     team: 'Blue Hawks',
     customer: 'Rico Dela Cruz',
     paymentMethod: 'GCash',
-  }),
-  ledgerEntry({
-    kind: 'transfer-out',
-    date: '2026-10-06',
-    recordedAtUtc: '2026-10-06T05:00:00Z',
-    moneyOut: 2000,
-    counterpart: LIZA,
-    transferId: '0b0f6c1e-0000-4000-8000-0000000000c3',
-    version: 'AAAAAAAAB9G=',
-    isDeleted: true,
-    deletedBy: CARMEN,
-    deletedAtUtc: '2026-10-08T07:42:00Z',
-    recordedBy: CARMEN,
   }),
 ];
 
@@ -641,7 +664,7 @@ function DeleteDemo({ warned, trigger }: DeleteDemoProps) {
       <DeleteTransferView
         transfer={COUNTED_TARGET}
         open={open}
-        warnAmount={warned ? -500 : null}
+        warnAmount={warned ? -2500 : null}
         checking={false}
         checkFailed={false}
         onConfirm={close}
@@ -685,7 +708,7 @@ function DashboardDemo({
 }) {
   return (
     <Still>
-      <MoneyStrip query={money} />
+      <DemoStrip query={money} />
       <DashboardKpiRow query={summary} />
       <div className={dashboardRowClasses}>
         {chart}
@@ -753,15 +776,15 @@ export function Phase10Demos() {
         </DemoCase>
         <DemoCase id="money-strip-negative">
           <Still>
-            <MoneyStrip query={moneyQuery(-500)} />
+            <DemoStrip query={moneyQuery(-500)} />
           </Still>
         </DemoCase>
         <DemoCase id="money-strip-states">
           <Still>
             <div className={moneyCaseColumnClasses}>
-              <MoneyStrip query={moneyQuery(0)} />
-              <MoneyStrip query={moneyQuery(null, 'loading')} />
-              <MoneyStrip query={moneyQuery(null, 'failed')} />
+              <DemoStrip query={moneyQuery(0)} />
+              <DemoStrip query={moneyQuery(null, 'loading')} />
+              <DemoStrip query={moneyQuery(null, 'failed')} />
             </div>
           </Still>
         </DemoCase>

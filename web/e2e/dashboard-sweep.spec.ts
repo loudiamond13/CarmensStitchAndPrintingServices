@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Page } from '@playwright/test';
 import { dashboardHeading, signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test, type Guard } from './fixtures.ts';
-import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
+import { DASHBOARD_SWEEP_FIGURES, manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { settle } from './sweep.ts';
 import {
   BASKETBALL_JERSEY_ID,
@@ -45,7 +45,7 @@ const READ_MONTH_LABELS = `(() => Array.from(document.querySelectorAll('svg text
   .map((text) => (text.textContent ?? '').trim())
   .filter((text) => /^[A-Z][a-z]{2}$/.test(text)).length)()`;
 
-/** A fresh person of a role who received a payment today and paid an expense today, so the cards and the chart have figures. */
+/** A fresh person of a role who received a small payment today and paid a small expense today, so the cards and the chart have figures. */
 async function seedStaff(request: APIRequestContext, role: StaffRole): Promise<TestStaff> {
   const staff = await createStaff(request, role);
   const today = manilaDate(0);
@@ -53,8 +53,22 @@ async function seedStaff(request: APIRequestContext, role: StaffRole): Promise<T
     number: `ORD-2096-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`,
     customerName: 'E2E Sweep Customer',
     orderDate: today,
-    items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E sweep jersey', quantity: 1, unitPrice: 3000 }],
-    payments: [{ paymentDate: today, amount: 3000, paymentMethodId: CASH_ID, receivedByUserId: staff.userId }],
+    items: [
+      {
+        productTypeId: BASKETBALL_JERSEY_ID,
+        description: 'E2E sweep jersey',
+        quantity: 1,
+        unitPrice: DASHBOARD_SWEEP_FIGURES.payment,
+      },
+    ],
+    payments: [
+      {
+        paymentDate: today,
+        amount: DASHBOARD_SWEEP_FIGURES.payment,
+        paymentMethodId: CASH_ID,
+        receivedByUserId: staff.userId,
+      },
+    ],
   });
   await createExpense(request, {
     paidByUserId: staff.userId,
@@ -62,7 +76,7 @@ async function seedStaff(request: APIRequestContext, role: StaffRole): Promise<T
     date: today,
     categoryId: RENT,
     description: 'E2E sweep expense',
-    amount: 500,
+    amount: DASHBOARD_SWEEP_FIGURES.expense,
   });
   return staff;
 }
@@ -153,8 +167,8 @@ for (const sweepCase of CASES) {
     expect(failures).toEqual([]);
   });
 
-  // OWNER DECISION P10-BL-06: at 320 px a large KPI figure is wider than its card, so the page can scroll sideways. The case stays in the
-  // sweep; the sideways-scroll finding is the one known failure and is fixme'd when it is the only finding (see the SUMMARY of plan 10-21).
+  // OWNER DECISION P10-BL-06 (open): at 320 px a six-digit KPI figure can be wider than its card, so this case can fail with "the page
+  // scrolls sideways". It stays in the sweep and is left failing on purpose until the owner rules. No fixme.
   test(`@dashboard-sweep ${sweepCase.name} has no axe finding and does not scroll sideways at 320 px in Blush and Espresso`, async ({
     page,
     request,

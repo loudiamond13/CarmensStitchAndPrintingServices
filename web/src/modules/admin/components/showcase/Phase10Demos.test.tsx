@@ -11,6 +11,27 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { Phase10Demos } from './Phase10Demos';
 
+// The connected Transfer parts (they read the signed-in person's money and save for real): the demos must never draw them.
+const connected = vi.hoisted(() => ({ buttons: 0, windows: 0 }));
+
+vi.mock('@/modules/admin/components/TransferButton', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/admin/components/TransferButton')>();
+  const Counted = (props: Parameters<typeof actual.TransferButton>[0]) => {
+    connected.buttons += 1;
+    return actual.TransferButton(props);
+  };
+  return { ...actual, TransferButton: Counted };
+});
+
+vi.mock('@/modules/admin/components/TransferModal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/modules/admin/components/TransferModal')>();
+  const Counted = (props: Parameters<typeof actual.TransferModal>[0]) => {
+    connected.windows += 1;
+    return actual.TransferModal(props);
+  };
+  return { ...actual, TransferModal: Counted };
+});
+
 function renderDemos() {
   return render(
     <MemoryRouter>
@@ -61,6 +82,8 @@ let fetchSpy: MockInstance<typeof fetch>;
 
 beforeEach(() => {
   requests.length = 0;
+  connected.buttons = 0;
+  connected.windows = 0;
   server.events.on('request:start', ({ request }) => {
     requests.push(request.url);
   });
@@ -200,13 +223,31 @@ describe('Phase10Demos: the ledger, All Staff and the Transfers table', () => {
     expect(table.getAllByRole('row')).toHaveLength(8);
     expect(table.getByText('Payment received')).toBeInTheDocument();
     expect(table.getByText('Refund handed back')).toBeInTheDocument();
-    expect(table.getByText('Transfer from Paolo Garcia')).toBeInTheDocument();
+    expect(table.getByText('Transfer to Paolo Garcia')).toBeInTheDocument();
     expect(table.getAllByText('Transfer to Liza Mercado').length).toBeGreaterThan(0);
     expect(table.getByText('Company expense')).toBeInTheDocument();
     expect(table.getByText('Order expense')).toBeInTheDocument();
     expect(table.getByText('Handed over by Carmen Reyes')).toBeInTheDocument();
     expect(table.getAllByText('−₱500.00').length).toBeGreaterThan(0);
     expect(table.getByText('Deleted')).toBeInTheDocument();
+  });
+
+  // IN-02: a hand-over moves a leaver's money to the person who records it, so on Carmen's ledger it is money in from Jomar Santos.
+  it('shows the hand-over on the ledger as money in from the leaver, and dates no row after Oct 8, 2026', () => {
+    renderDemos();
+    const table = within(within(caseFrame('money-ledger-kinds')).getByRole('table', { name: 'Ledger' }));
+
+    const handOver = table.getByText('Handed over by Carmen Reyes').closest('tr');
+    if (handOver === null) {
+      throw new Error('The hand-over has no row.');
+    }
+    expect(within(handOver).getByText('Transfer from Jomar Santos')).toBeInTheDocument();
+    expect(within(handOver).queryByText(/^Transfer to /)).toBeNull();
+    const dates = table.getAllByText(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/).map((cell) => cell.textContent);
+    expect(dates.length).toBeGreaterThanOrEqual(6);
+    for (const date of dates) {
+      expect(date, 'a ledger date after Oct 8, 2026').toMatch(/^(Sep \d{1,2}|Oct [1-8]), 2026$/);
+    }
   });
 
   it('shows the ledger loading, empty and failed', () => {
@@ -302,7 +343,7 @@ describe('Phase10Demos: the windows and the dialogs', () => {
 
     await user.click(frame.getByRole('button', { name: 'Open Delete (warning)' }));
     let dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(/balance will be −₱500\.00/);
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/Liza Mercado's balance will be −₱2,500\.00/);
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => {
@@ -358,6 +399,30 @@ describe('Phase10Demos: the windows and the dialogs', () => {
     }
 
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(requests).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('Phase10Demos: the strip cannot reach the real Transfer window', () => {
+  it('draws no connected Transfer button anywhere in the section', () => {
+    renderDemos();
+
+    expect(connected.buttons).toBe(0);
+  });
+
+  it('presses Transfer on an unblocked demo strip: no window, no connected window built, no request', async () => {
+    const user = userEvent.setup();
+    renderDemos();
+    const transfer = within(caseFrame('dashboard-d1-demo')).getByRole('button', { name: 'Transfer' });
+    expect(transfer).not.toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(transfer);
+    transfer.focus();
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(connected.windows).toBe(0);
     expect(requests).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
