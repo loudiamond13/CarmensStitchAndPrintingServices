@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T19:06:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T00:52:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -159,6 +159,7 @@ When a Manager removes a deleted transfer for good, the audit log keeps who sent
 - **Headings (wave 6 review IN-02).** The money strip and the My Money card are named regions, not headings, so a screen reader user's "next heading" key skips them. A (recommended): keep as is. B: give them headings.
 - **Showcase button wording (developer page only).** New trigger labels such as "Show the Dashboard cases" and "Open Transfer (refused)". No new app wording.
 - **Transfer window messages** show as the user types or leaves a box; server refusals are shown by the two "(refused)" demo buttons.
+- **Added from the phase-end review (wave 11 IN-03).** To make room for the eye link and Hand Over, the name keeps a fixed 72 px space on its right at 320 px. A larger text size or a longer button label could overlap it. This goes with the Hand Over choice above: option B (buttons on their own row) removes the fixed space.
 
 
 ## P10-BL-16 · Window buttons stick out past the screen edge at 320 px (found while fixing the wave 11 review)
@@ -170,3 +171,28 @@ On a 320 px phone, the Cancel button in the Remove Permanently window starts 30 
 - **A (recommended):** let the footer buttons wrap onto a second row when they do not fit. Small change in one shared place.
 - **B:** on small phones, stack the footer buttons full width, one per row.
 - **C:** keep as is.
+
+## P10-BL-17 · Chart axis labels round half-thousands the wrong way (phase-end review WR-04)
+
+**Status:** open · **Blocks:** nothing; the chart works, only one axis label can read wrong.
+
+The Income and Expenses chart labels its lines in whole thousands. When the top line is 3,000, 5,000, 7,000 or 9,000, the middle line sits at a half (1,500, 2,500 and so on) but reads "₱2k", "₱3k" and so on. A new shop's first months sit exactly in this range. Example: October income is ₱2,600, the axis reads ₱0, ₱2k, ₱3k, and the "₱2k" line is really at ₱1,500.
+
+- **A (recommended):** show one decimal place for half lines, so 1,500 reads "₱1.5k". Whole thousands stay as they are.
+- **B:** keep the labels as approved in the UI spec (App. D.3).
+
+## P10-BL-18 · The Delete Transfer warning works out a balance in the browser (phase-end review IN-06)
+
+**Status:** open · **Blocks:** nothing; the figure is correct to the centavo and the server's figures replace it after the delete.
+
+The project rule says money is computed on the server only. The Delete Transfer window shows "the balance will be −₱2,500.00" by taking the receiver's balance from the server and subtracting the transfer amount in the browser. It is labelled as a preview. Today this rests on a note in the plan, not on your ruling, so each review flags it again.
+
+- **A (recommended):** allow it by ruling: "a labelled preview built only from server figures may be shown". No code change, and the file cites the ruling.
+- **B:** have the server send the figure (a small new read before the delete). Strictest, a little more work and one more request.
+
+## P10-BL-19 · Two dashboard and Transfer wording choices (phase-end review, wave 5 IN-08 and wave 7 IN-07)
+
+**Status:** open · **Blocks:** nothing; today's behavior stays until you choose.
+
+- **Range switch on the chart.** After you pick 12M, the line under the title says "Last 12 months" at once, while the old six bars stay on screen until the new months arrive. If those six months were all zero, the empty message for 12 months shows early and is not dimmed. A (recommended): keep the line on the shown range until the new data arrives, and dim the empty message while loading. B: keep as is.
+- **Transfer button while the figure loads or failed.** The button is dimmed, but a screen reader user hears only "Transfer, dimmed" with no reason, and pressing Enter does nothing. A (recommended): link the button to the strip's own loading or failure line, so the reason is read out. No new wording is needed. B: keep as is (the region already says it is busy). This sits next to P10-BL-04.
