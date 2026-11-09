@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T10:30:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T10:45:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -213,7 +213,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-21 · Things found while fixing the UI review (quick 261109-c4l)
 
-**Status:** open · **Blocks:** nothing; today's behavior stays until you choose.
+**Status:** ruled D-109 (owner, 2026-11-09): option A for all three; fixed in quick 261109-fmv. Was open · **Blocks:** nothing; today's behavior stays until you choose.
 
 - **Transfer on the My Money header while the figure loads or failed.** D-107 made the dashboard strip's Transfer button read its reason from the strip's own loading or failure line. The My Money header Transfer has the same gap (a screen reader hears only "Transfer, dimmed"), but the balance card it could point at is shown on the Mine tab only, so the All Staff and Transfers tabs have no such line. **A (recommended):** on the Mine tab, describe the button by the balance card's loading or failure line, no new wording; the other tabs stay as they are. **B:** keep as is.
 - **All Staff and Transfers tables at 768 px.** Measured in Chromium at 768 x 1024 (frame 646 px wide): the All Staff and Transfers tables are 680 px wide, so the frame scrolls 34 px sideways and the last column (Actions, right edge 777 px against a frame edge of 743 px) is cut at the card edge with no cue. The ledger now fits (646 px, Actions ends at 743 px). **A (recommended):** give both tables the same `fitTablet` option the ledger now uses, if a measurement shows they fit; the longest notes already wrap. **B:** keep the tablet frame scroll as the spec declares.
