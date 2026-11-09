@@ -25,9 +25,13 @@ const LONG_FIGURE = 15;
 
 export interface MoneyOnHandCardProps {
   query: MyMoneyCardQuery;
+  /** The id of the loading status line, so the header Transfer can be described by it (D-109). */
+  statusId?: string | undefined;
+  /** The id of the failure line, so the header Transfer can be described by it (D-109). */
+  failureId?: string | undefined;
 }
 
-export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
+export function MoneyOnHandCard({ query, statusId, failureId }: MoneyOnHandCardProps) {
   const overlineId = useId();
   const money = query.data;
 
@@ -42,6 +46,7 @@ export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
         <ErrorState
           things={COPY.failedThings}
           align="start"
+          titleId={failureId}
           error={query.error}
           onRetry={() => {
             void query.refetch();
@@ -67,7 +72,7 @@ export function MoneyOnHandCard({ query }: MoneyOnHandCardProps) {
   // One region stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
   const body = (
     <>
-      <LoadingRegion loading={loading} failed={failed} things={COPY.loadingThings}>
+      <LoadingRegion loading={loading} failed={failed} things={COPY.loadingThings} statusId={statusId}>
         {content}
       </LoadingRegion>
       {failed ? null : <p className={moneyCardExplanationClasses}>{COPY.explanation}</p>}

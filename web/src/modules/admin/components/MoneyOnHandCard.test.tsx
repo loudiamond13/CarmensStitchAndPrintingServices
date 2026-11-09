@@ -163,6 +163,30 @@ describe('loading (UI-SPEC M1 MoneyOnHandCard)', () => {
   });
 });
 
+describe('ids for the header Transfer (D-109)', () => {
+  it('gives its status node the statusId while it loads', () => {
+    render(<MoneyOnHandCard query={queryOf()} statusId="s1" />);
+
+    expect(screen.getByRole('status')).toHaveAttribute('id', 's1');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading money on hand…');
+  });
+
+  it('gives the bold failure line the failureId, and not the muted line or Try Again', () => {
+    render(<MoneyOnHandCard query={queryOf({ isError: true, error: new Error('x') })} failureId="f1" />);
+
+    const line = screen.getByText("Couldn't load the money on hand.");
+    expect(line).toHaveAttribute('id', 'f1');
+    expect(line).toHaveTextContent("Couldn't load the money on hand.");
+  });
+
+  it('sets neither id when none is given', () => {
+    const { rerender } = render(<MoneyOnHandCard query={queryOf()} />);
+    expect(screen.getByRole('status')).not.toHaveAttribute('id');
+    rerender(<MoneyOnHandCard query={queryOf({ isError: true, error: new Error('x') })} />);
+    expect(screen.getByText("Couldn't load the money on hand.")).not.toHaveAttribute('id');
+  });
+});
+
 describe('failure (UI-SPEC M1 MoneyOnHandCard)', () => {
   it('says "Couldn\'t load the money on hand." in an alert with Try Again, and shows no figure', () => {
     render(<MoneyOnHandCard query={queryOf({ isError: true, error: new Error('x') })} />);

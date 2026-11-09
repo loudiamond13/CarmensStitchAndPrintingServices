@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { myMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { MoneyRoute } from '@/modules/admin/pages/MoneyPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -587,5 +588,137 @@ describe('the Manager tabs Mine and All Staff (D-42, MONEY-03; plan 10-19)', () 
     ]);
     expect(staff).toHaveLength(0);
     expect(screen.queryByRole('table', { name: 'Staff money on hand' })).toBeNull();
+  });
+});
+
+describe('the header Transfer is described while the figure loads or failed (D-109, P10-BL-21)', () => {
+  const LOADING = 'Loading money on hand…';
+  const FAILED = "Couldn't load the money on hand.";
+
+  function slowMoney(): URL[] {
+    return myMoneyBackend(async () => {
+      await delay(300);
+      return myMoneyFixture();
+    });
+  }
+
+  function failingMoney(): URL[] {
+    return myMoneyBackend(() => problemResponse(500));
+  }
+
+  async function figureFailed(): Promise<void> {
+    await waitFor(() => {
+      expect(queryClient.getQueryState(myMoneyKey)?.status).toBe('error');
+    });
+  }
+
+  it('names the balance card loading line for a Manager on Mine, and drops it once the figure shows', async () => {
+    slowMoney();
+    renderPage();
+
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer).toHaveAttribute('aria-disabled', 'true');
+    expect(transfer).toHaveAccessibleDescription(LOADING);
+    await screen.findByText('₱8,450.00');
+    expect(screen.getByRole('button', { name: 'Transfer' })).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('names the bold failure line only, not Try Again or the muted line, and goes back to the loading line during Try Again', async () => {
+    let answered = 0;
+    myMoneyBackend(async () => {
+      answered += 1;
+      if (answered === 1) return problemResponse(500);
+      await delay(300);
+      return myMoneyFixture({ balance: 275 });
+    });
+    renderPage();
+
+    await screen.findByText(FAILED);
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer).toHaveAttribute('aria-disabled', 'true');
+    expect(transfer).toHaveAccessibleDescription(FAILED);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAccessibleDescription(LOADING);
+    });
+    await screen.findByText('₱275.00');
+    expect(screen.getByRole('button', { name: 'Transfer' })).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('gives an Admin, who sees only the Mine content, the same loading description', async () => {
+    clearSession();
+    acceptSession(ADMIN_SESSION);
+    slowMoney();
+    renderPage();
+
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAccessibleDescription(LOADING);
+    await screen.findByText('₱8,450.00');
+    expect(screen.getByRole('button', { name: 'Transfer' })).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('gives an Admin the failure description', async () => {
+    clearSession();
+    acceptSession(ADMIN_SESSION);
+    failingMoney();
+    renderPage();
+
+    await screen.findByText(FAILED);
+    expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAccessibleDescription(FAILED);
+  });
+
+  it.each(['?tab=staff', '?tab=transfers'])(
+    'adds no loading or failure description on %s, where the balance card is not on the page',
+    async (search) => {
+      slowMoney();
+      staffBalancesBackend();
+      transfersBackend();
+      renderPage(search);
+
+      const transfer = screen.getByRole('button', { name: 'Transfer' });
+      expect(transfer).toHaveAttribute('aria-disabled', 'true');
+      expect(transfer).not.toHaveAttribute('aria-describedby');
+      await screen.findByRole('table', { name: search === '?tab=staff' ? 'Staff money on hand' : 'Transfers' });
+      await waitFor(() => {
+        expect(queryClient.getQueryState(myMoneyKey)?.status).toBe('success');
+      });
+      expect(screen.getByRole('button', { name: 'Transfer' })).not.toHaveAttribute('aria-describedby');
+    },
+  );
+
+  it.each(['?tab=staff', '?tab=transfers'])('adds no failure description on %s', async (search) => {
+    failingMoney();
+    staffBalancesBackend();
+    transfersBackend();
+    renderPage(search);
+
+    await figureFailed();
+    const transfer = screen.getByRole('button', { name: 'Transfer' });
+    expect(transfer).toHaveAttribute('aria-disabled', 'true');
+    expect(transfer).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('keeps "Nothing on hand to transfer." as the description at ₱0.00', async () => {
+    myMoneyBackend(myMoneyFixture({ balance: 0 }));
+    renderPage();
+
+    await within(await screen.findByRole('region', { name: 'Money on hand' })).findByText('₱0.00');
+    expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAccessibleDescription(
+      'Nothing on hand to transfer.',
+    );
+  });
+
+  it('has no axe violations on Mine while loading and after a failed read', async () => {
+    slowMoney();
+    const loading = renderPage();
+    await expectNoAxeViolations(loading.container);
+    await screen.findByText('₱8,450.00');
+    loading.unmount();
+
+    failingMoney();
+    const failed = renderPage();
+    await screen.findByText(FAILED);
+    await expectNoAxeViolations(failed.container);
   });
 });

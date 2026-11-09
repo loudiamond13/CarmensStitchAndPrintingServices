@@ -1,8 +1,8 @@
 // The Transfer button (D-46 strip, D-39 My Money header; UI-SPEC D1, M1) and the window it opens. D-14: with nothing on hand, or while
 // the figure is not known, the button is aria-disabled but never hidden and keeps the keyboard cursor; with nothing on hand the screen
 // also shows `TransferReason`, which the button names with aria-describedby, and while the figure loads or failed the strip's own
-// line is named the same way (D-107). The window is built only after the first press, so a
-// screen that only shows the button reads no recipients. Focus goes back to the button once the window is closed.
+// line (D-107), or the My Money balance card's line on the Mine content (D-109), is named the same way. The window is built only
+// after the first press, so a screen that only shows the button reads no recipients. Focus goes back to the button once the window is closed.
 import { useRef, useState } from 'react';
 import { Button, hitAreaClasses, type ButtonSize, type ButtonVariant } from '@/components/actions';
 import { TransferModal } from '@/modules/admin/components/TransferModal';

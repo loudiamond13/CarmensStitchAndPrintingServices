@@ -5,7 +5,7 @@ status: approved
 shadcn_initialized: false
 preset: none
 created: "2026-11-05T11:09:00-06:00"
-updated: "2026-11-09T09:50:00-06:00"
+updated: "2026-11-09T11:40:00-06:00"
 ---
 
 # Phase 10: UI Design Contract (Admin Dashboard and Staff Money)
@@ -330,7 +330,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 
 ### M1 My Money: `/admin/money` (D-39 to D-45; MONEY-02, MONEY-03)
 
-**Header (`.s-ph`):** `h1` "My Money"; subline "What you hold from payments, transfers and expenses." *(SPEC-GAP)*; action: primary md `arrow-right` "Transfer" (TransferModal, mode `transfer`), with the strip's at-or-below-zero rule (`aria-disabled` plus the visible "Nothing on hand to transfer." line under the header actions). Shown on every tab.
+**Header (`.s-ph`):** `h1` "My Money"; subline "What you hold from payments, transfers and expenses." *(SPEC-GAP)*; action: primary md `arrow-right` "Transfer" (TransferModal, mode `transfer`), with the strip's at-or-below-zero rule (`aria-disabled` plus the visible "Nothing on hand to transfer." line under the header actions). D-109 (owner, 2026-11-09), P10-BL-21 A: on the Mine content (a Manager's Mine tab and an Admin's page, which shows only the Mine content), while the figure loads or has failed, the button is described by the balance card's own loading line ("Loading money on hand…") or failure line ("Couldn't load the money on hand."), with no new wording; on All Staff and Transfers it has no such description. Shown on every tab.
 
 **Tabs (Manager only, D-42):** `Tabs idBase="money"`: **Mine**, **All Staff**, **Transfers** (OQ-1, D-48); the active tab in `?tab=`. The strip scrolls sideways at 320px (P8 keep-in-view rule). An Admin sees no tab strip, only the Mine content (D-42, MONEY-03).
 
@@ -445,7 +445,7 @@ Offered only on deleted rows (Show deleted on), one row at a time (D-27). `Confi
 | Submit | Enter submits the window (in Note, Enter adds a line). WEB-09 pending (spinner, `aria-busy`, `aria-disabled`, focus kept). Esc and scrim are ignored while pending. | WEB-09 |
 | Validation | D-108 (owner, 2026-11-09), UI-19: the Transfer window checks a box when you leave it (`mode: 'onBlur'`), every rule also runs when you submit, and after a submit a box that shows a line re-checks as you type (`reValidateMode` stays `onChange`). Every rule in § Validation runs in the browser first (OR-3), the balance cap against the balance fetched when the window opened. Server errors win. Focus to the first invalid field. | OR-3, D-108 |
 | Amount entry | `MoneyInput` (digits, one point, at most 2 decimals, pads on blur, normalizes pasted "₱1,250.50"); the value sent is a decimal string. | P2, P8 |
-| Disabled Transfer | At or below ₱0.00 the Transfer button is `aria-disabled`, focusable, with its reason as visible text tied by `aria-describedby`. Never hidden. D-107 (owner, 2026-11-09), P10-BL-19 A: on the strip, while the figure loads or has failed, the button is described by the strip's own loading line ("Loading your money on hand…") or failure line ("Couldn't load your money on hand."), with no new wording. | D-14, P8 D-14 pattern, D-107 |
+| Disabled Transfer | At or below ₱0.00 the Transfer button is `aria-disabled`, focusable, with its reason as visible text tied by `aria-describedby`. Never hidden. D-107 (owner, 2026-11-09), P10-BL-19 A: on the strip, while the figure loads or has failed, the button is described by the strip's own loading line ("Loading your money on hand…") or failure line ("Couldn't load your money on hand."), with no new wording. D-109 (owner, 2026-11-09), P10-BL-21 A: the My Money header button does the same on the Mine content, pointing at the balance card's loading line ("Loading money on hand…") or failure line ("Couldn't load the money on hand."); on All Staff and Transfers it has no such description. | D-14, P8 D-14 pattern, D-107, D-109 |
 | Range switch | `SegmentedControl` radio group with roving focus (P2 A11Y-02); `range` written with `replace`. | WEB-10 |
 | Chart keyboard | Each month group is a tab stop with its full name; focus shows the tooltip; Escape hides it (P2 A11Y-01, unchanged). | WCAG 2.1.1, 1.4.13 |
 | Tabs | Roving tabindex, arrows with wrap, Home and End, automatic activation (existing); the selected tab kept in view; `tab` written with `replace`, page reset. | D-42, WEB-10 |

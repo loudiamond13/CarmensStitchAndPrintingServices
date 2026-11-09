@@ -17,6 +17,8 @@ interface ErrorStateCommon {
   onRetry?: (() => void) | undefined;
   /** Where the icon and text sit: centred (App. E.8, the default) or at the top (App. E.5's sign-in banner). */
   align?: 'center' | 'start' | undefined;
+  /** The id of the bold first line, so a control can name the failure as its description. */
+  titleId?: string | undefined;
 }
 
 /** A failed list load: "Couldn't load {things}." over the approved reassurance line. */
@@ -38,7 +40,7 @@ interface CustomError extends ErrorStateCommon {
 export type ErrorStateProps = ListLoadError | CustomError;
 
 export function ErrorState(props: ErrorStateProps) {
-  const { error, onRetry, align = 'center' } = props;
+  const { error, onRetry, align = 'center', titleId } = props;
   const title = props.things === undefined ? props.title : STATES_COPY.error.loadFailedTitle(props.things);
   const message = props.things === undefined ? (props.message ?? '') : STATES_COPY.error.loadFailedBody;
   const traceId = isHttpError(error) ? error.traceId : undefined;
@@ -49,7 +51,7 @@ export function ErrorState(props: ErrorStateProps) {
     <div className={align === 'start' ? bannerStartClasses : bannerClasses} role="alert">
       <Icon name="triangle-alert" size={20} />
       <div className={bannerTextClasses}>
-        <strong>{title}</strong>
+        <strong id={titleId}>{title}</strong>
         {body !== '' && <span>{body}</span>}
       </div>
       {onRetry !== undefined && (

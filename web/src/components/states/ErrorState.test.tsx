@@ -125,6 +125,22 @@ describe('ErrorState align (plan 04-26; App. E.5 banner)', () => {
   });
 });
 
+describe('ErrorState titleId (D-109)', () => {
+  it('gives the bold first line the id it is handed, so a control can be described by it', () => {
+    render(<ErrorState things="orders" error={httpError(500, 'abc123')} onRetry={vi.fn()} titleId="t1" />);
+
+    const title = screen.getByText("Couldn't load orders.");
+    expect(title).toHaveAttribute('id', 't1');
+    expect(title.tagName).toBe('STRONG');
+  });
+
+  it('sets no id without it', () => {
+    render(<ErrorState things="orders" />);
+
+    expect(screen.getByRole('alert').querySelector('[id]')).toBeNull();
+  });
+});
+
 describe('ErrorState reference and copy (T-02-62, CWE-209)', () => {
   it('has no "Reference:" without a traceId', () => {
     render(<ErrorState things="orders" error={httpError(503)} />);

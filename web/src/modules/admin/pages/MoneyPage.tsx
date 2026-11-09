@@ -1,5 +1,6 @@
 // M1 My Money, /admin/money (D-39, MONEY-02, MONEY-03; UI-SPEC M1). The header (the title, what the page shows and the primary Transfer button,
-// aria-disabled with its visible reason when nothing is on hand, D-14) shows on every tab. Below it:
+// aria-disabled with its visible reason when nothing is on hand, D-14) shows on every tab. On the Mine content it is also described by
+// the balance card's loading or failure line while the figure loads or has failed (D-109). Below it:
 //   - an Admin sees only their own money: the balance card and the Ledger card, with no tab strip (D-42). The browser never asks an Admin
 //     for staff figures; the API refuses them too (OD-19).
 //   - a Manager also gets the tabs Mine, All Staff and Transfers (D-42, D-48), kept in the URL `tab` parameter through
@@ -40,10 +41,16 @@ type MoneyTab = 'mine' | 'staff' | 'transfers';
 const TAB_IDS: readonly MoneyTab[] = ['mine', 'staff', 'transfers'];
 const TAB_ITEMS: readonly TabItem<MoneyTab>[] = TAB_IDS.map((id) => ({ id, label: COPY.tabs[id] }));
 
-function MineContent({ money }: { money: MyMoneyCardQuery }) {
+/** The ids of the balance card's loading and failure lines, which the header Transfer names. */
+interface MoneyLineIds {
+  statusId: string;
+  failureId: string;
+}
+
+function MineContent({ money, statusId, failureId }: { money: MyMoneyCardQuery } & MoneyLineIds) {
   return (
     <>
-      <MoneyOnHandCard query={money} />
+      <MoneyOnHandCard query={money} statusId={statusId} failureId={failureId} />
       <LedgerCard userId="me" />
     </>
   );
@@ -103,25 +110,32 @@ function AllStaffContent() {
 }
 
 /** The chosen tab's content; only this one is mounted, so a tab is read when it opens. */
-function TabContent({ id, money }: { id: MoneyTab; money: MyMoneyCardQuery }) {
+function TabContent({ id, money, statusId, failureId }: { id: MoneyTab; money: MyMoneyCardQuery } & MoneyLineIds) {
   switch (id) {
     case 'staff':
       return <AllStaffContent />;
     case 'transfers':
       return <TransfersCard />;
     case 'mine':
-      return <MineContent money={money} />;
+      return <MineContent money={money} statusId={statusId} failureId={failureId} />;
   }
 }
 
 export function MoneyRoute() {
   const money = useMyMoneyQuery();
   const reasonId = useId();
+  const statusId = useId();
+  const failureId = useId();
   const gate = transferGate(money);
   const { user } = useSession();
   const isManager = user?.role === 'manager';
   const [values, set] = useMoneyListParams();
   const tab: MoneyTab = isManager ? values.tab : 'mine';
+  // The same two expressions as the balance card; its lines exist only while the Mine content is mounted.
+  const failed = money.isError && !money.isFetching;
+  const loading = money.isFetching && (money.data === undefined || money.isError);
+  const showsCard = tab === 'mine';
+  const pendingReasonId = !showsCard ? undefined : failed ? failureId : loading ? statusId : undefined;
 
   useEffect(() => {
     document.title = `${COPY.title}${ADMIN_COPY.titleSuffix}`;
@@ -135,7 +149,13 @@ export function MoneyRoute() {
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
         <div className={moneyHeadActionsClasses}>
-          <TransferButton query={money} reasonId={reasonId} variant="primary" size="md" />
+          <TransferButton
+            query={money}
+            reasonId={reasonId}
+            pendingReasonId={pendingReasonId}
+            variant="primary"
+            size="md"
+          />
           {gate.nothingOnHand && <TransferReason id={reasonId} className={moneyHeadReasonClasses} />}
         </div>
       </div>
@@ -151,12 +171,12 @@ export function MoneyRoute() {
           />
           {TAB_IDS.map((id) => (
             <div key={id} {...getTabPanelProps(ID_BASE, id)} hidden={tab !== id} className={moneyPanelClasses}>
-              {tab === id && <TabContent id={id} money={money} />}
+              {tab === id && <TabContent id={id} money={money} statusId={statusId} failureId={failureId} />}
             </div>
           ))}
         </>
       ) : (
-        <MineContent money={money} />
+        <MineContent money={money} statusId={statusId} failureId={failureId} />
       )}
     </>
   );
