@@ -45,8 +45,7 @@ public static class OrderStatusRules
     /// <summary>Tells whether an order in this status can be overdue.</summary>
     /// <param name="status">The status.</param>
     /// <returns>True for Pending, Mockup, InProduction and Ready only.</returns>
-    public static bool CanBeOverdue(OrderStatus status) =>
-        status is OrderStatus.Pending or OrderStatus.Mockup or OrderStatus.InProduction or OrderStatus.Ready;
+    public static bool CanBeOverdue(OrderStatus status) => OverdueStatuses.Contains(status);
 
     /// <summary>Builds the message for a Completed request while money is owed.</summary>
     /// <param name="balance">The balance still owed.</param>

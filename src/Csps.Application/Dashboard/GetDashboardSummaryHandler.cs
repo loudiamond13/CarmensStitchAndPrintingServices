@@ -62,7 +62,7 @@ public sealed class GetDashboardSummaryHandler(
             new DashboardExpenseFigures(
                 totals.ThisMonthTotal,
                 totals.ThisMonthCount,
-                totals.ThisMonthCount > 0 ? totals.TopCategory?.Name : null),
+                totals.ThisMonthTotal > 0m ? totals.TopCategory?.Name : null),
             StatusesOf(figures.Statuses),
             [.. newest.Select(row => OrderListEntries.From(row, imageDelivery))]));
     }

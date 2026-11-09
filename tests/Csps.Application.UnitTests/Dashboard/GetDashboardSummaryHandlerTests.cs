@@ -195,6 +195,19 @@ public sealed class GetDashboardSummaryHandlerTests
     }
 
     [Fact]
+    public async Task TheTopCategoryFollowsTheThisMonthTotalAsTheExpensesPageDoes()
+    {
+        var zeroTotal = new Harness { Totals = new ExpenseKpiTotals(0m, 1, 0m, 0, Supplies, 0m) };
+        var someTotal = new Harness { Totals = new ExpenseKpiTotals(10.00m, 0, 0m, 0, Supplies, 10.00m) };
+
+        var none = await zeroTotal.Handler.HandleAsync(TestContext.Current.CancellationToken);
+        var named = await someTotal.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        none.Value.Expenses.TopCategory.ShouldBeNull();
+        named.Value.Expenses.TopCategory.ShouldBe("Supplies");
+    }
+
+    [Fact]
     public async Task ExpensesWithNoNamedTopCategoryKeepTheirTotalAndCountAndShowNoName()
     {
         var harness = new Harness { Totals = new ExpenseKpiTotals(700.00m, 2, 0m, 0, null, 0m) };
