@@ -6,6 +6,10 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
+import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
 import { photoUploadQueue } from '@/modules/admin/hooks/usePhotoUploadQueue';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
@@ -55,6 +59,11 @@ afterEach(() => {
   queryClient.clear();
   clearSession();
 });
+
+/** The query keys a spy on `invalidateQueries` was asked to read again. */
+function invalidatedRoots(spy: { mock: { calls: readonly (readonly unknown[])[] } }): unknown[] {
+  return spy.mock.calls.map(([filters]) => (filters as { queryKey?: unknown } | undefined)?.queryKey);
+}
 
 interface RenderOptions {
   backend?: OrderBackend;
@@ -582,6 +591,32 @@ describe('busy orders and the save bar (UIC-21)', () => {
     expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Test Customer');
   });
 
+  it('reads the order lists, the staff money and the dashboard again after a create that may have saved', async () => {
+    useOrderHandlers({ reply: () => orderProblem(500) });
+    const spy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('Something went wrong');
+    expect(invalidatedRoots(spy)).toEqual(expect.arrayContaining([ordersKey, staffMoneyKey, dashboardKey]));
+  });
+
+  it('reads nothing again after a create the server refused (400 with no field shown)', async () => {
+    useOrderHandlers({ reply: () => orderProblem(400) });
+    const spy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { user } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save Order' })).toBeEnabled();
+    });
+    expect(invalidatedRoots(spy)).toEqual([]);
+  });
+
   it('reads Unsaved changes once something is typed, and nothing on a clean form', async () => {
     useOrderHandlers();
     const { user } = await openForm();
@@ -750,6 +785,30 @@ describe('saving the details (ORD-15, SEC-07)', () => {
     });
     expect(await screen.findByText('Order details saved')).toBeVisible();
     expect(screen.getByText('ORD-2026-0148')).toBeVisible();
+  });
+
+  it('reads the order, the lists, the staff money and the dashboard again after a save that may have run', async () => {
+    useOrderHandlers({ reply: () => orderProblem(500) });
+    const { user } = await openEdit();
+    const spy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('Something went wrong');
+    expect(invalidatedRoots(spy)).toEqual(
+      expect.arrayContaining([orderKey(order0148.id), ordersKey, staffMoneyKey, dashboardKey]),
+    );
+  });
+
+  it('reads nothing again after a stale save (409)', async () => {
+    useOrderHandlers({ reply: () => orderProblem(409, 'edit.stale') });
+    const { user } = await openEdit();
+    const spy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByRole('button', { name: 'Load Latest' });
+    expect(invalidatedRoots(spy)).toEqual([]);
   });
 
   it("shows the server's words and sends nothing for a contact number with letters", async () => {

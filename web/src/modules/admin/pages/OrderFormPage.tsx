@@ -26,6 +26,7 @@ import { ConflictBanner, ErrorState, LoadingRegion, SkeletonCard, SkeletonText }
 import { isHttpError } from '@/core/api/errors';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
+import { mayHaveSaved } from '@/lib/forms/mayHaveSaved';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import {
   OrderFormCustomerCard,
@@ -58,6 +59,7 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { photoUploadQueue, type UploadDeps } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import { ORDER_FORM_COPY } from '@/modules/admin/orderFormCopy';
@@ -177,6 +179,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   const toast = useToast();
   const applyOrder = useApplyOrder();
   const refetchOrder = useRefetchOrder();
+  const refreshOrders = useRefreshOrders();
   const queryClient = useQueryClient();
   const backTo = backTarget(location.state);
   const [banner, setBanner] = useState<Banner | null>(null);
@@ -227,6 +230,10 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   }, [focusTick]);
 
   const showFailure = (error: unknown, copy: { title: string; body: string }): void => {
+    // A failure that may have saved (a server error, a timeout, no answer) leaves the lists and the money old, so they are read again.
+    if (mayHaveSaved(error)) {
+      void refreshOrders();
+    }
     if (isHttpError(error) && error.status === 409 && error.code === ORDERS_BUSY) {
       setBanner({ title: COPY.busy.title, message: COPY.busy.message });
       return;
@@ -448,6 +455,8 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
   const navigate = useNavigate();
   const toast = useToast();
   const applyOrder = useApplyOrder();
+  const refetchOrder = useRefetchOrder();
+  const refreshOrders = useRefreshOrders();
   // The order the form was filled from. A refetch behind the form never changes it; only Load Latest does.
   const [opened, setOpened] = useState(initial);
   const orderPath = `${ORDERS_PATH}/${opened.id}`;
@@ -500,6 +509,11 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
   }, [focusTick]);
 
   const showFailure = (error: unknown, copy: { title: string; body: string }): void => {
+    // A failure that may have saved (a server error, a timeout, no answer) leaves the order, the lists and the money old, so they are read again.
+    if (mayHaveSaved(error)) {
+      void refetchOrder(opened.id);
+      void refreshOrders();
+    }
     // 05 D-20: a stale save keeps every typed value; the banner offers Load Latest, which takes focus.
     if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
       setConflicts((count) => count + 1);
