@@ -108,6 +108,23 @@ public sealed class GetDashboardSummaryHandlerTests
     }
 
     [Theory]
+    [InlineData(DayPart.Morning, "morning")]
+    [InlineData(DayPart.Afternoon, "afternoon")]
+    [InlineData(DayPart.Evening, "evening")]
+    public void EachKnownDayPartHasItsOwnGreeting(DayPart part, string expected)
+    {
+        GetDashboardSummaryHandler.GreetingOf(part).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void AnUnknownDayPartIsRefusedAndIsNotGreetedAsEvening()
+    {
+        var error = Should.Throw<ArgumentOutOfRangeException>(() => GetDashboardSummaryHandler.GreetingOf((DayPart)99));
+
+        error.ParamName.ShouldBe("part");
+    }
+
+    [Theory]
     [InlineData("1000.00", "1125.00", 13)]
     [InlineData("1000.00", "875.00", -13)]
     [InlineData("-200.00", "100.00", 150)]
@@ -175,6 +192,19 @@ public sealed class GetDashboardSummaryHandlerTests
         var result = await harness.Handler.HandleAsync(TestContext.Current.CancellationToken);
 
         result.Value.Expenses.ShouldBe(new DashboardExpenseFigures(0m, 0, null));
+    }
+
+    [Fact]
+    public async Task TheTopCategoryFollowsTheThisMonthTotalAsTheExpensesPageDoes()
+    {
+        var zeroTotal = new Harness { Totals = new ExpenseKpiTotals(0m, 1, 0m, 0, Supplies, 0m) };
+        var someTotal = new Harness { Totals = new ExpenseKpiTotals(10.00m, 0, 0m, 0, Supplies, 10.00m) };
+
+        var none = await zeroTotal.Handler.HandleAsync(TestContext.Current.CancellationToken);
+        var named = await someTotal.Handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        none.Value.Expenses.TopCategory.ShouldBeNull();
+        named.Value.Expenses.TopCategory.ShouldBe("Supplies");
     }
 
     [Fact]

@@ -25,4 +25,14 @@ public sealed record StaffMoneySums(
     /// <returns>The balance.</returns>
     public decimal Balance() =>
         MoneyOnHand.Of(Received, TransfersIn, TransfersOut, OrderExpensesPaid + CompanyExpensesPaid, RefundsHandedBack);
+
+    /// <summary>Finds one person's balance in a list of sums.</summary>
+    /// <param name="sums">The sums the read port returned.</param>
+    /// <param name="userId">The person.</param>
+    /// <returns>Their balance, or 0.00 when the list has no row for them.</returns>
+    public static decimal BalanceOf(IReadOnlyList<StaffMoneySums> sums, Guid userId)
+    {
+        ArgumentNullException.ThrowIfNull(sums);
+        return sums.FirstOrDefault(row => row.UserId == userId)?.Balance() ?? 0m;
+    }
 }

@@ -49,6 +49,19 @@ public sealed class OrderReaderQueryCountTests(CspsDatabase database) : IClassFi
         page.Total.ShouldBeGreaterThan(0);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task ANewestCountBelowOneIsRefusedBeforeAnyRead(int count)
+    {
+        await using var context = database.CreateContext();
+        var reader = new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery());
+
+        var error = await Should.ThrowAsync<ArgumentOutOfRangeException>(() => reader.ListNewestAsync(count, TestContext.Current.CancellationToken));
+
+        error.ParamName.ShouldBe("count");
+    }
+
     [Fact]
     public async Task TheSixNewestOrdersRunExactlyOneCommandWhateverTheStatusMix()
     {

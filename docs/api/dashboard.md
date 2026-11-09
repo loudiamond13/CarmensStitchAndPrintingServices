@@ -1,6 +1,6 @@
 ---
 created: 2026-11-06T23:30:00-06:00
-updated: 2026-11-07T00:33:09-06:00
+updated: 2026-11-09T01:12:00-06:00
 ---
 
 # The dashboard API
@@ -14,8 +14,9 @@ The money-over-time chart has its own route, `GET /api/v1/dashboard/chart`, desc
 
 1. One call, `GET /api/v1/dashboard/summary`, gives everything the dashboard shows except the chart: the greeting, the four cards,
    the orders-by-status bar and the six newest orders.
-2. **Every figure is worked out on the server** from live data, in one request, so one answer is one consistent picture even at a
-   week or month boundary. The web app only shows it.
+2. **Every figure is worked out on the server** from live data, in one request. Every figure uses the same business date and
+   instant, so the week and month edges agree across the cards. The figures are separate reads with no shared transaction, so a
+   change made while the request runs can show in one card and not yet in another. The web app only shows it.
 3. **Nothing is cached.** The answer carries `Cache-Control: no-store` and no server cache holds a figure (D-13).
 4. **Both roles see the same figures** (D-12). Only `firstName` and `greeting` can differ between two callers.
 
@@ -105,9 +106,10 @@ This is not the order list: it does not hide old Completed or Cancelled orders a
 
 ## How the server reads it
 
-The server makes a fixed number of SQL commands whatever the data: one for the caller's first name, one grouped read of the
-orders (counts, receivables and statuses), one for the payments, one for the refunds, two for the expense figures and one for
-the six newest orders. Every figure is a LINQ aggregate; there is no inline SQL.
+The server makes seven SQL commands whatever the data, plus the business settings read, which is cached: one for the caller's
+first name, one grouped read of the orders (counts, receivables and statuses), one for the payments, one for the refunds, two
+for the expense figures and one for the six newest orders. Integration tests pin the four dashboard reads and the newest-orders
+read; there is no test of the total across the handler. Every figure is a LINQ aggregate; there is no inline SQL.
 
 ## The chart: `GET /api/v1/dashboard/chart`
 

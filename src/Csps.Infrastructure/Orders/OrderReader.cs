@@ -54,6 +54,8 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
 
     public async Task<IReadOnlyList<OrderListRow>> ListNewestAsync(int count, CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
         // One command. The newest ids are cut in an inner query, as the list does, so the row subqueries run for those orders only. The
         // sort is by when the order was created and ends on the id; it is not the list's sort by order date, and no status is filtered.
         var newestIds = context.Orders.AsNoTracking()

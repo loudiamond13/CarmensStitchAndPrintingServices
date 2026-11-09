@@ -86,6 +86,18 @@ public sealed class GetDashboardChartHandlerTests
         result.Value.Items[^1].Month.ShouldBe("2026-11");
     }
 
+    [Fact]
+    public async Task AtMidnightManilaOnDecemberFirstTheWindowEndsInDecemberThoughTheUtcDateIsStillNovember()
+    {
+        // 16:00Z on Nov 30 is 00:00 on Dec 1 in Manila: the month comes from the business date, not the UTC date.
+        var harness = new Harness(new DateTimeOffset(2026, 11, 30, 16, 0, 0, TimeSpan.Zero));
+
+        var result = await harness.Handler.HandleAsync(new GetDashboardChartRequest("6"), TestContext.Current.CancellationToken);
+
+        harness.Asked.ShouldBe((new DateOnly(2026, 7, 1), new DateOnly(2026, 12, 31)));
+        result.Value.Items.Select(item => item.Month).ShouldBe(["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
+    }
+
     [Theory]
     [InlineData("7")]
     [InlineData("0")]

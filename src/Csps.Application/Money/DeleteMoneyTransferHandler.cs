@@ -22,7 +22,6 @@ public sealed class DeleteMoneyTransferHandler(
     IRequestContext requestContext,
     TimeProvider time)
 {
-    private const string TransferTarget = "MoneyTransfer";
     private const string VersionField = "version";
 
     private static readonly Error InvalidVersion = Error.Validation(
@@ -77,7 +76,7 @@ public sealed class DeleteMoneyTransferHandler(
             return Result.Failure<bool>(MoneyErrors.TransferNotFound);
         }
 
-        audit.Record(AuditActions.MoneyTransferDeleted, TransferTarget, AuditKey.Of(transfer.Id), MoneyAuditDetail.Deleted(transfer));
+        audit.Record(AuditActions.MoneyTransferDeleted, MoneyAuditTargets.Transfer, AuditKey.Of(transfer.Id), MoneyAuditDetail.Deleted(transfer));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }

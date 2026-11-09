@@ -437,9 +437,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Reads the dashboard summary: the business today, the part of the day for the greeting (`morning`, `afternoon` or
-         *     `evening`), the signed-in person's first name and the order figures. Both roles get the same figures; only the first name
-         *     and the greeting can differ. Nothing is cached, so every visit shows live numbers.
+         * Reads the dashboard summary: the business today (`today`), the part of the day for the greeting (`greeting`:
+         *     `morning`, `afternoon` or `evening`), the signed-in person's first name (`firstName`), the order figures
+         *     (`orders`: active, due this week, overdue and receivables), the money collected this month with last month's comparison
+         *     and the change in percent (`collected`), this month's company expenses with their count and top category
+         *     (`expenses`), the six statuses of the orders-by-status bar (`statuses`) and the six newest orders
+         *     (`recentOrders`). Every figure uses the same business date and instant. Both roles get the same figures; only the first
+         *     name and the greeting can differ. Nothing is cached, so every visit shows live numbers.
          */
         get: operations["GetDashboardSummary"];
         put?: never;
@@ -5661,7 +5665,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description How many months to show: 6 or 12; 6 when not sent. Anything else is a 400 on `months`. */
-                months?: string;
+                months?: "6" | "12";
             };
             header?: never;
             path?: never;

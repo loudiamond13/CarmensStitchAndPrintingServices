@@ -120,6 +120,34 @@ public static class MoneyRules
     /// <returns>True when rounding to two places changes nothing.</returns>
     public static bool HasValidScale(decimal amount) => decimal.Round(amount, AmountScale) == amount;
 
+    /// <summary>
+    /// Trims a note the way the browser does: removes every leading and trailing white-space character and also U+FEFF and U+0085, so
+    /// .NET and JavaScript agree on which edge characters go (.NET <c>Trim</c> keeps U+FEFF, JavaScript <c>trim</c> keeps U+0085).
+    /// </summary>
+    /// <param name="note">The note, or null.</param>
+    /// <returns>The trimmed note, or null when the note is null.</returns>
+    public static string? TrimNote(string? note)
+    {
+        if (note is null)
+        {
+            return null;
+        }
+
+        var start = 0;
+        var end = note.Length;
+        while (start < end && IsNoteEdge(note[start]))
+        {
+            start++;
+        }
+
+        while (end > start && IsNoteEdge(note[end - 1]))
+        {
+            end--;
+        }
+
+        return note[start..end];
+    }
+
     /// <summary>Builds a validation failure that names one field.</summary>
     /// <typeparam name="T">The value type of the failed result.</typeparam>
     /// <param name="field">The field name.</param>
@@ -127,4 +155,6 @@ public static class MoneyRules
     /// <returns>The failed result.</returns>
     public static Result<T> Reject<T>(string field, string message) =>
         Result.Failure<T>(Error.Validation(InvalidCode, InvalidMessage, new Dictionary<string, string[]> { [field] = [message] }));
+
+    private static bool IsNoteEdge(char character) => char.IsWhiteSpace(character) || character is '\uFEFF' or '\u0085';
 }

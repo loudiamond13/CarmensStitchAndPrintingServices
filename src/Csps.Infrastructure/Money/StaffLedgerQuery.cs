@@ -106,7 +106,7 @@ internal static class StaffLedgerQuery
     /// <summary>Puts the rows newest first: date, then recorded time, both descending, then kind and source id ascending so every read gives the same order.</summary>
     /// <param name="rows">The rows to order.</param>
     /// <returns>The ordered query.</returns>
-    public static IQueryable<StaffLedgerRow> Ordered(IQueryable<StaffLedgerRow> rows)
+    public static IOrderedQueryable<StaffLedgerRow> Ordered(IQueryable<StaffLedgerRow> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
         return rows
@@ -122,9 +122,11 @@ internal static class StaffLedgerQuery
     /// <param name="pageSize">The rows per page.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rows of the page, newest first.</returns>
-    public static async Task<IReadOnlyList<StaffLedgerRow>> PageAsync(IQueryable<StaffLedgerRow> ordered, int page, int pageSize, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<StaffLedgerRow>> PageAsync(IOrderedQueryable<StaffLedgerRow> ordered, int page, int pageSize, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(ordered);
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
         return await ordered.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -133,10 +135,11 @@ internal static class StaffLedgerQuery
     /// <param name="skip">How many of the newest rows to add up; <c>(page - 1) * pageSize</c> for a page.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The sum, 0.00 when there are no such rows.</returns>
-    public static async Task<decimal> SumNewerAsync(IQueryable<StaffLedgerRow> ordered, int skip, CancellationToken cancellationToken)
+    public static async Task<decimal> SumNewerAsync(IOrderedQueryable<StaffLedgerRow> ordered, int skip, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(ordered);
-        if (skip <= 0)
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
+        if (skip == 0)
         {
             return 0.00m;
         }

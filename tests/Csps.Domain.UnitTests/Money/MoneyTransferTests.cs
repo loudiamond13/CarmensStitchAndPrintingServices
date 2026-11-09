@@ -123,6 +123,26 @@ public sealed class MoneyTransferTests
         ShouldFail(Record(Carmen, Liza, 10m, Today, new string('n', 201)), "note", "Keep the note to 200 characters or fewer.");
     }
 
+    [Theory]
+    [InlineData("\uFEFF")]
+    [InlineData("\u0085")]
+    [InlineData(" \uFEFF \u0085 ")]
+    public void TheNoteIsTrimmedOfByteOrderMarksAndNextLinesAtBothEndsBeforeItIsMeasured(string edge)
+    {
+        var result = Record(Carmen, Liza, 10m, Today, edge + new string('n', 200) + edge);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Note.ShouldBe(new string('n', 200));
+    }
+
+    [Fact]
+    public void ANoteOfOnlyByteOrderMarksAndNextLinesBecomesNull() =>
+        Record(Carmen, Liza, 10m, Today, "\uFEFF\u0085 \uFEFF").Value.Note.ShouldBeNull();
+
+    [Fact]
+    public void ACharacterInsideTheNoteIsKept() =>
+        Record(Carmen, Liza, 10m, Today, "a\uFEFFb\u0085c").Value.Note.ShouldBe("a\uFEFFb\u0085c");
+
     [Fact]
     public void TheNoteLimitCountsAfterTheTrim()
     {

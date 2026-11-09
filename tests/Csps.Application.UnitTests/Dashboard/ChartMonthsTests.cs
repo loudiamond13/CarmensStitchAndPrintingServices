@@ -93,6 +93,25 @@ public sealed class ChartMonthsTests
     }
 
     [Fact]
+    public void EveryFigureOfAGapMonthKeepsTwoDecimalPlacesSoItSerialisesAs0Point00()
+    {
+        var items = ChartMonths.Build(new DateOnly(2026, 6, 1), 2, None, None, None, None);
+
+        items.ShouldAllBe(item => item.Income.Scale == 2 && item.Expenses.Scale == 2 && item.Profit.Scale == 2);
+        System.Text.Json.JsonSerializer.Serialize(items[0]).ShouldBe("{\"Month\":\"2026-06\",\"Income\":0.00,\"Expenses\":0.00,\"Profit\":0.00}");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void AMonthCountBelowOneIsRefused(int months)
+    {
+        var error = Should.Throw<ArgumentOutOfRangeException>(() => ChartMonths.Build(new DateOnly(2026, 11, 1), months, None, None, None, None));
+
+        error.ParamName.ShouldBe("months");
+    }
+
+    [Fact]
     public void ANullListIsRefused()
     {
         Should.Throw<ArgumentNullException>(() => ChartMonths.Build(new DateOnly(2026, 11, 1), 1, null!, None, None, None));

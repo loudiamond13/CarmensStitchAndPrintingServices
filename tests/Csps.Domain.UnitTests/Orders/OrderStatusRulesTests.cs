@@ -205,6 +205,15 @@ public sealed class OrderStatusRulesTests
         OrderStatusRules.CanBeOverdue(status).ShouldBe(expected);
 
     [Fact]
+    public void CanBeOverdueAgreesWithTheOverdueStatusesListForEveryStatus()
+    {
+        foreach (var status in Enum.GetValues<OrderStatus>())
+        {
+            OrderStatusRules.CanBeOverdue(status).ShouldBe(OrderStatusRules.OverdueStatuses.Contains(status), status.ToString());
+        }
+    }
+
+    [Fact]
     public void OverdueStatusesListsTheFourInStoredOrder() =>
         OrderStatusRules.OverdueStatuses.ShouldBe(
             [OrderStatus.Pending, OrderStatus.Mockup, OrderStatus.InProduction, OrderStatus.Ready]);

@@ -30,8 +30,6 @@ public sealed class HandOverMoneyHandler(
     IRequestContext requestContext,
     IValidator<CreateMoneyHandoverRequest> validator)
 {
-    private const string TransferTarget = "MoneyTransfer";
-
     /// <summary>Records the hand-over.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -43,33 +41,17 @@ public sealed class HandOverMoneyHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (requestContext.UserId is not { } callerId)
-        {
-            return Result.Failure<MoneyTransferSavedResponse>(AuthErrors.SessionEnded);
-        }
-
-        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ValidationContext<CreateMoneyHandoverRequest>(request);
-        context.RootContextData[CreateMoneyTransferRequestValidator.TodayKey] = clock.Today;
-        var validation = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
-        if (!validation.IsValid)
-        {
-            return Result.Failure<MoneyTransferSavedResponse>(ValidationResults.ToError(validation, MoneyRules.InvalidCode, MoneyRules.InvalidMessage));
-        }
-
-        _ = CreateMoneyTransferRequestValidator.TryParseDate(request.TransferDate, out var date);
-        try
-        {
-            return await ConflictRetry
-                .RunAsync(
-                    () => unitOfWork.InTransactionAsync(token => AttemptAsync(callerId, request, date, clock, token), cancellationToken),
-                    Result.Failure<MoneyTransferSavedResponse>(MoneyErrors.Busy))
-                .ConfigureAwait(false);
-        }
-        catch (StaffMoneyBusyException)
-        {
-            return Result.Failure<MoneyTransferSavedResponse>(MoneyErrors.Busy);
-        }
+        return await MoneyWrite
+            .RunLockedAsync(
+                request,
+                request.TransferDate,
+                validator,
+                calendar,
+                requestContext,
+                unitOfWork,
+                (callerId, date, clock, token) => AttemptAsync(callerId, request, date, clock, token),
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     // The lock comes first: every read below happens after it, so the balances cannot change until this transaction ends.
@@ -90,8 +72,8 @@ public sealed class HandOverMoneyHandler(
         var leaverState = await staff.GetStaffStateAsync(leaverId, cancellationToken).ConfigureAwait(false);
         var recipientState = await staff.GetStaffStateAsync(recipientId, cancellationToken).ConfigureAwait(false);
         var sums = await reader.GetSumsAsync([.. new[] { leaverId, recipientId }.Distinct()], cancellationToken).ConfigureAwait(false);
-        var leaver = MoneyParties.From(leaverState, BalanceOf(sums, leaverId));
-        var recipient = MoneyParties.From(recipientState, BalanceOf(sums, recipientId));
+        var leaver = MoneyParties.From(leaverState, StaffMoneySums.BalanceOf(sums, leaverId));
+        var recipient = MoneyParties.From(recipientState, StaffMoneySums.BalanceOf(sums, recipientId));
         if (recipientState is null || recipient.Status is MoneyPartyStatus.NotStaff)
         {
             return MoneyRules.Reject<MoneyTransferSavedResponse>(MoneyRules.ToUserIdField, MoneyErrors.UnknownRecipientMessage);
@@ -107,18 +89,15 @@ public sealed class HandOverMoneyHandler(
         transfers.Add(transfer);
         audit.Record(
             AuditActions.MoneyHandedOver,
-            TransferTarget,
+            MoneyAuditTargets.Transfer,
             AuditKey.Of(transfer.Id),
             MoneyAuditDetail.Handover(transfer.FromUserId, transfer.ToUserId, transfer.Amount, transfer.TransferDate, hasNote: transfer.Note is not null));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var after = await reader.GetSumsAsync([leaverId], cancellationToken).ConfigureAwait(false);
         var view = MoneyTransferResponse.Of(transfer, ToActor(leaverState!), ToActor(recipientState), ToActor(callerState), deletedBy: null);
-        return Result.Success(new MoneyTransferSavedResponse(view, BalanceOf(after, leaverId)));
+        return Result.Success(new MoneyTransferSavedResponse(view, StaffMoneySums.BalanceOf(after, leaverId)));
     }
-
-    private static decimal BalanceOf(IReadOnlyList<StaffMoneySums> sums, Guid userId) =>
-        sums.FirstOrDefault(row => row.UserId == userId)?.Balance() ?? 0m;
 
     private static ActorRef ToActor(StaffState state) => new(state.Id, state.Name, state.IsDeleted);
 }

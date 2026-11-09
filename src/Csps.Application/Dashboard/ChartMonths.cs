@@ -22,6 +22,7 @@ public static class ChartMonths
         IReadOnlyList<MonthSum> companyExpenses,
         IReadOnlyList<MonthSum> orderExpenses)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(months);
         ArgumentNullException.ThrowIfNull(payments);
         ArgumentNullException.ThrowIfNull(refunds);
         ArgumentNullException.ThrowIfNull(companyExpenses);
@@ -59,5 +60,5 @@ public static class ChartMonths
     }
 
     private static decimal Of(Dictionary<(int Year, int Month), decimal> totals, (int Year, int Month) key) =>
-        totals.TryGetValue(key, out var total) ? total : 0m;
+        totals.TryGetValue(key, out var total) ? total : 0.00m;
 }

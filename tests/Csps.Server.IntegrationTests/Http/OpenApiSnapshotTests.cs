@@ -67,6 +67,23 @@ public sealed partial class OpenApiSnapshotTests
     }
 
     [Fact]
+    public async Task TheChartMonthsQueryIsDocumentedAsAnEnumOfSixAndTwelve()
+    {
+        await using var baseFactory = new CspsApiFactory();
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Development));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative), TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var document = JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))!;
+
+        var parameters = document["paths"]!["/api/v1/dashboard/chart"]!["get"]!["parameters"]!.AsArray();
+        var months = parameters.Single(parameter => parameter!["name"]!.GetValue<string>() == "months")!;
+        months["schema"]!["type"]!.GetValue<string>().ShouldBe("string");
+        months["schema"]!["enum"]!.AsArray().Select(value => value!.GetValue<string>()).ShouldBe(["6", "12"]);
+    }
+
+    [Fact]
     public void CanonicalFormSortsObjectKeysOrdinallyAndKeepsArrayOrder()
     {
         var canonical = Canonicalize("""{"b":1,"a":{"z":[3,1,{"y":true,"B":null}],"a":"x+y"},"A":2}""");

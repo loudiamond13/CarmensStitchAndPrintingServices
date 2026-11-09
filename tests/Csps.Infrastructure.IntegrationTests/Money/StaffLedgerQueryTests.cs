@@ -149,6 +149,30 @@ public sealed class StaffLedgerQueryTests(CspsDatabase database) : IClassFixture
         rows.Count.ShouldBe(Math.Min(pageSize, 25));
     }
 
+    [Theory]
+    [InlineData(0, 10, "page")]
+    [InlineData(-1, 10, "page")]
+    [InlineData(1, 0, "pageSize")]
+    [InlineData(1, -5, "pageSize")]
+    public async Task APageOrPageSizeBelowOneIsRefusedBeforeAnyRead(int page, int pageSize, string parameter)
+    {
+        var empty = Array.Empty<StaffLedgerRow>().AsQueryable().OrderBy(row => row.Date);
+
+        var error = await Should.ThrowAsync<ArgumentOutOfRangeException>(() => StaffLedgerQuery.PageAsync(empty, page, pageSize, TestContext.Current.CancellationToken));
+
+        error.ParamName.ShouldBe(parameter);
+    }
+
+    [Fact]
+    public async Task ANegativeSkipIsRefusedBeforeAnyRead()
+    {
+        var empty = Array.Empty<StaffLedgerRow>().AsQueryable().OrderBy(row => row.Date);
+
+        var error = await Should.ThrowAsync<ArgumentOutOfRangeException>(() => StaffLedgerQuery.SumNewerAsync(empty, -1, TestContext.Current.CancellationToken));
+
+        error.ParamName.ShouldBe("skip");
+    }
+
     [Fact]
     public async Task SumNewerIsTheSumOfTheSignedRowsBeforeThePageAndZeroForNone()
     {
