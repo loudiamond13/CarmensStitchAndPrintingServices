@@ -163,6 +163,8 @@ test('@fixture a scoped axe check ignores a finding outside its scope and still 
 }) => {
   await page.goto('/');
   await page.evaluate(INSERT_EMPTY_REGION);
+  // The image must land inside main, so wait for the app to draw it first.
+  await page.locator('main').waitFor();
   await page.evaluate(INSERT_UNLABELLED_IMAGE);
 
   await expectNoAxeViolations(page, '#e2e-axe-scope');
