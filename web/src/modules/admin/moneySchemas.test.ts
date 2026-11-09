@@ -119,6 +119,30 @@ describe('Note', () => {
     expect(messages(form({ note: 'a'.repeat(201) }))).toEqual({ note: 'Keep the note to 200 characters or fewer.' });
   });
 
+  it('measures the note without a byte-order mark (U+FEFF) or a next-line mark (U+0085) at either end, as the server does (IN-04)', () => {
+    const body = 'a'.repeat(200);
+
+    expect(messages(form({ note: `\uFEFF${body}` }))).toEqual({});
+    expect(messages(form({ note: `\u0085${body}` }))).toEqual({});
+    expect(messages(form({ note: `${body}\u0085\uFEFF` }))).toEqual({});
+    expect(messages(form({ note: ` \uFEFF \u0085${body} \u0085 ` }))).toEqual({});
+    expect(messages(form({ note: `\uFEFF${'a'.repeat(201)}` }))).toEqual({
+      note: 'Keep the note to 200 characters or fewer.',
+    });
+  });
+
+  it('sends the note without those marks at its ends, and keeps them inside the text', () => {
+    const schema = transferFormSchema({ balance: 8450, today: TODAY });
+
+    expect(schema.parse(form({ note: '\u0085\uFEFF Cash\u0085for fabric \u0085' })).note).toBe('Cash\u0085for fabric');
+  });
+
+  it('turns a note of only those marks and spaces into null', () => {
+    const schema = transferFormSchema({ balance: 8450, today: TODAY });
+
+    expect(schema.parse(form({ note: ' \uFEFF\u0085 ' })).note).toBeNull();
+  });
+
   it('turns a note of spaces into null', () => {
     const result = transferFormSchema({ balance: 8450, today: TODAY }).parse(form({ note: '    ' }));
 
