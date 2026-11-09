@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T08:45:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T10:30:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -210,3 +210,11 @@ The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success
 5. **One clean full test run on CI.** Locally every browser test passed once the machine was quiet. The expense list speed test missed its 300 ms limit by 3.7 ms, the known machine issue (D-76, D-88, D-103).
 
 When you are back: approve or reject the sign-off, and I run the phase close (phase complete, roadmap update, transition) and then `/gsd-ship 10`.
+
+## P10-BL-21 · Things found while fixing the UI review (quick 261109-c4l)
+
+**Status:** open · **Blocks:** nothing; today's behavior stays until you choose.
+
+- **Transfer on the My Money header while the figure loads or failed.** D-107 made the dashboard strip's Transfer button read its reason from the strip's own loading or failure line. The My Money header Transfer has the same gap (a screen reader hears only "Transfer, dimmed"), but the balance card it could point at is shown on the Mine tab only, so the All Staff and Transfers tabs have no such line. **A (recommended):** on the Mine tab, describe the button by the balance card's loading or failure line, no new wording; the other tabs stay as they are. **B:** keep as is.
+- **All Staff and Transfers tables at 768 px.** Measured in Chromium at 768 x 1024 (frame 646 px wide): the All Staff and Transfers tables are 680 px wide, so the frame scrolls 34 px sideways and the last column (Actions, right edge 777 px against a frame edge of 743 px) is cut at the card edge with no cue. The ledger now fits (646 px, Actions ends at 743 px). **A (recommended):** give both tables the same `fitTablet` option the ledger now uses, if a measurement shows they fit; the longest notes already wrap. **B:** keep the tablet frame scroll as the spec declares.
+- **A browser test that fails on its own, before this work.** `@money a Manager deletes a wrong transfer ... (D-29, D-35, D-48)` fails its focus check ("focus is on the next row action, else the previous one") on 2 or 3 of the 5 browser projects, whichever run. It failed the same way with the code at the commit before this work, so these fixes did not cause it. **A (recommended):** I look into it as its own small fix. **B:** leave it to the CI run on the phase PR.

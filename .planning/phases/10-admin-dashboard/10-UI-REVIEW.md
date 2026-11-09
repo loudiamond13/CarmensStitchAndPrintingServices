@@ -1,12 +1,12 @@
 ---
 phase: "10"
 created: 2026-11-09T10:00:00-06:00
-updated: 2026-11-09T08:45:00-06:00
+updated: 2026-11-09T10:30:00-06:00
 ---
 
 # Phase 10: UI Review
 
-*Created: 2026-11-09T10:00:00-06:00 · Updated: 2026-11-09T08:45:00-06:00*
+*Created: 2026-11-09T10:00:00-06:00 · Updated: 2026-11-09T10:30:00-06:00*
 
 **Audited:** 2026-11-09 (full pass; replaces the earlier shallow pass)
 **Baseline:** `10-UI-SPEC.md` (approved 2026-11-05), with `docs/CSPS-UI-SPEC.md` App. C for the inherited recipes and the parked owner items in `999.6-.../DECISIONS.md`
@@ -67,6 +67,7 @@ Severity: **priority** (fix before ship) or **minor**. "Parked" means an open ow
 | UI-21 | minor | 6 | `TransferModal.tsx:129-134` | States: every loading slot has a named `LoadingRegion` | Until the business today arrives, the window shows only a bare `SkeletonText` with no live label and no description. | Wrap it in `LoadingRegion` (for example with `things="staff"`, which reads "Loading staff…"). |
 | UI-22 | minor | 6 | `web/src/modules/admin/pages/StaffMoneyPage.tsx:80-82` | M2 header | While the person loads, the title is an `aria-hidden` skeleton with no `h1` and no status text. Parked under P10-BL-12. | Owner ruling; or render `h1` "Money" while loading. |
 | UI-23 | minor | 6 | `IncomeExpenseCard.tsx` (sub line) | D3 range switch | "Last 12 months" changes before the 12 months arrive, and an all-zero empty state is not dimmed. Parked as P10-BL-19. | Owner ruling (option A). |
+| UI-24 | minor | 2 | `web/src/modules/admin/components/LedgerTable.tsx` | UI Considerations → overflow "Tables on tablet and phone" | Found in screenshots: at 768 px the My Money ledger frame is about 646 px wide but the table keeps its 680 px tablet floor, so the Balance column (and Actions for a Manager) is clipped at the card edge with no cue that it scrolls. No edge fade or scroll hint exists anywhere in the project. | Pass the existing `fitTablet` option of `ResponsiveTable` (no 680 px floor); the Details column already wraps. |
 
 ### Allowed by a ruling or the spec (not flagged)
 
@@ -79,6 +80,37 @@ Severity: **priority** (fix before ship) or **minor**. "Parked" means an open ow
 - An empty ledger on another person's page has no body line: parked as P10-BL-12.
 
 ---
+
+## Outcomes
+
+Every finding has one recorded outcome: **fixed** (quick 261109-c4l), **closed as allowed** by a named section, or **accepted by owner** (D-107 or D-108, both 2026-11-09). Commits: code c0438e17 (dashboard and the shared footer) and d69ac35b (money screens); the docs commit holds this file. Pillar scores above are the review's own and are not rescored.
+
+| ID | Outcome | Evidence |
+|---|---|---|
+| UI-01 | Fixed | d69ac35b: `MoneyStrip.test.tsx` (every `hitAreaClasses` token on Transfer, View Ledger and Try Again; the `md` header Transfer has none) and the `@dashboard` browser test "the money strip's Transfer and View Ledger have a 44px tap area" (`::before` at least 44 px, drawn 36 px) |
+| UI-02 | Fixed | c0438e17, D-107 P10-BL-06 A: one KPI column at 420 px and below (`dashboard.recipe.node.test.ts`); `test.fixme` is a normal test again and passes with the 320 px no-sideways-scroll check in all five browser projects |
+| UI-03 | Fixed | c0438e17, D-107 P10-BL-16 A: `modalFootClasses` has `flex-wrap` (`overlays.recipe.node.test.ts`), D-107 rule group in `rulings.css` (`rulings.test.ts`), and the Manager money sweep at 320 px checks every footer button lies inside the window |
+| UI-04 | Accepted by owner (D-108) | Code kept: failures show inline. 10-UI-SPEC.md Copywriting → Toasts now says so |
+| UI-05 | Accepted by owner (D-108) | Code kept: the shared `describeHttpError` lines. 10-UI-SPEC.md Copywriting → Validation now quotes them |
+| UI-06 | Accepted by owner (D-107) | P10-BL-14: today's "Loading staff balances…" wording stays; no code change |
+| UI-07 | Fixed | d69ac35b: `StaffBalancesTable.test.tsx` (the eye link `title` equals its accessible name) |
+| UI-08 | Accepted by owner (D-107) | P10-BL-15: the reason line keeps its own row; no code change |
+| UI-09 | Fixed | d69ac35b: `MoneyStrip.test.tsx` and `money.recipe.node.test.ts` (the strip label is `text-ink`) |
+| UI-10 | Accepted by owner (D-107) | P10-BL-15: the failure line keeps its size and tone; no code change |
+| UI-11 | Closed as allowed | 10-UI-SPEC Typography → Declared set ("anything else comes from a reused recipe"): `clamp(22px, 13.5cqi, 40px)` is the plan 06-18 KpiCard long-figure clamp, same value; no code change |
+| UI-12 | Fixed | d69ac35b: `money.recipe.node.test.ts` (`ledgerDetailsClasses` is `gap-1`) |
+| UI-13 | Fixed | d69ac35b: `money.recipe.node.test.ts` (`transferNoteCellClasses` is `gap-1`) |
+| UI-14 | Fixed | d69ac35b: `money.recipe.node.test.ts` (`ledgerBarClasses` is `px-5 pt-4 pb-4`) |
+| UI-15 | Fixed | d69ac35b: `DeleteTransferDialog.test.tsx` and `money.recipe.node.test.ts`. The warning now uses the P9 partial-failure banner recipe that 10-UI-SPEC § Color names (`orderPhotosBannerClasses`), so its 12/16 px padding and 12 px gap are inherited; the check-failed line and the remove details box sit 16 px under the message (`mt-4`) |
+| UI-16 | Fixed | c0438e17: `dashboard.recipe.node.test.ts` (`statusListClasses` has `pt-2`, App. C `.s-status-list`) |
+| UI-17 | Accepted by owner (D-107) | P10-BL-15: the 72 px name reserve on the All Staff phone card stays; no code change |
+| UI-18 | Fixed | d69ac35b: `DeleteTransferDialog.test.tsx` (the warning icon is 20 px in the 20 px line with no `mt-0.5`) and the 16 px margins above (see UI-15) |
+| UI-19 | Accepted by owner (D-108) | Code kept: the Transfer form checks a box when you leave it. 10-UI-SPEC.md Interaction Contract → Validation now says so |
+| UI-20 | Fixed | d69ac35b, D-107 P10-BL-19 A part 2: `MoneyStrip.test.tsx` (Transfer is described by the strip's loading line, then its failure line; no new wording) |
+| UI-21 | Fixed | d69ac35b: `TransferModal.test.tsx` (while the business today is unknown the body is a busy `LoadingRegion` that says "Loading staff…") |
+| UI-22 | Accepted by owner (D-107) | P10-BL-12 lists "while a person's money page loads, fails or finds no one, the tab reads 'Money · CSPS Admin' and the page has no main heading" among the choices kept, and D-107 keeps today's wording and layout. The review's own fix (an h1 "Money" while loading) would add a heading word, a copy change the owner did not make |
+| UI-23 | Fixed | c0438e17, D-107 P10-BL-19 A part 1: `IncomeExpenseCard.test.tsx` (the sub line and the empty message keep the shown range until the new months arrive; the empty message dims by colour only while the other range loads) |
+| UI-24 | Fixed | d69ac35b: `LedgerTable.test.tsx` (no 680 px floor) and the `@money` browser test "the ledger fits its card at 768px for a Manager and an Admin" (frame holds its content, Balance inside the card, page does not scroll sideways) |
 
 ## Detailed Findings
 
