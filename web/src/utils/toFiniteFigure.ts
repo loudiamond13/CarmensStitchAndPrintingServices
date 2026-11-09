@@ -14,3 +14,10 @@ export function toFiniteFigure(value: unknown): number | null {
         : Number.NaN;
   return Number.isFinite(figure) ? figure : null;
 }
+
+/** `toFiniteFigure` for an answer that must hold the figure: anything it refuses throws the caller's error, "The {what} is not a finite number." */
+export function requireFigure(value: unknown, what: string, makeError: (message: string) => Error): number {
+  const figure = toFiniteFigure(value);
+  if (figure === null) throw makeError(`The ${what} is not a finite number.`);
+  return figure;
+}
