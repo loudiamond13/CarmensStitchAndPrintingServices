@@ -368,6 +368,70 @@ describe('deleting from the list (D-29, D-35; plan 10-20)', () => {
     });
   });
 
+  it("moves focus to the next row still shown when the next row left the list too (another person's delete, D-109)", async () => {
+    let deleted = false;
+    transfersBackend(() =>
+      transferListFixture(deleted ? [item(ID_C, 500)] : [item(ID_A, 100), item(ID_B, 300), item(ID_C, 500)]),
+    );
+    deleteTransferBackend(() => {
+      deleted = true;
+      return new Response(null, { status: 204 });
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('button', { name: deleteName('₱100.00') }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    await waitFor(() => {
+      expect(within(rowAt(0)).getByRole('button', { name: deleteName('₱500.00') })).toHaveFocus();
+    });
+  });
+
+  it('moves focus to the nearest previous row still shown when the last row is deleted and the one before it left too (D-109)', async () => {
+    let deleted = false;
+    transfersBackend(() =>
+      transferListFixture(deleted ? [item(ID_A, 100)] : [item(ID_A, 100), item(ID_B, 300), item(ID_C, 500)]),
+    );
+    deleteTransferBackend(() => {
+      deleted = true;
+      return new Response(null, { status: 204 });
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('button', { name: deleteName('₱500.00') }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    await waitFor(() => {
+      expect(within(rowAt(0)).getByRole('button', { name: deleteName('₱100.00') })).toHaveFocus();
+    });
+  });
+
+  it('moves focus to the table caption when every row it knew left the list but others are shown (D-109)', async () => {
+    let deleted = false;
+    transfersBackend(() => transferListFixture(deleted ? [item(ID_C, 500)] : [item(ID_A, 100), item(ID_B, 300)]));
+    deleteTransferBackend(() => {
+      deleted = true;
+      return new Response(null, { status: 204 });
+    });
+    renderCard();
+    const user = userEvent.setup();
+
+    await screen.findByRole('table', { name: 'Transfers' });
+    await user.click(screen.getByRole('button', { name: deleteName('₱300.00') }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Transfer' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('table', { name: 'Transfers' }).querySelector('caption')).toHaveFocus();
+    });
+  });
+
   it('moves focus to the card heading when the only row is deleted, because the empty list has no caption', async () => {
     let deleted = false;
     transfersBackend(() => transferListFixture(deleted ? [] : [item(ID_A, 100)]));

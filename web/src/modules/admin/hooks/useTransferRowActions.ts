@@ -1,7 +1,7 @@
 // The Manager's row actions on transfers, shared by the Transfers card and the ledger (UI-SPEC T2, "Focus after list changes"; plan
 // 10-20). It holds which confirm is open and for which transfer, and the focus rule after a change: once the list no longer shows the
 // transfer as it was (a delete leaves it out, or turns it into a deleted row), focus goes to the next row's action, else the previous
-// row's, else the table caption, else the fallback element (an empty list has no caption). Dialogs cannot sit inside a table (the
+// row's, taken from the rows still shown, else the table caption, else the fallback element (an empty list has no caption). Dialogs cannot sit inside a table (the
 // table's paint containment would trap them), so the card draws them from `dialogs`.
 import { useEffect, useRef, useState } from 'react';
 import type { TransferActionDialogsProps } from '@/modules/admin/components/TransferActionDialogs';
@@ -26,7 +26,8 @@ interface AfterChange {
   id: string;
   /** A delete is settled when the row is gone or shown as deleted; a remove, when the row is gone. */
   kind: 'delete' | 'remove';
-  focusId: string | null;
+  /** The rows that may take focus, best first: the ones after the transfer in order, then the ones before it nearest first. */
+  focusIds: readonly string[];
 }
 
 export interface TransferRowActionsOptions {
@@ -60,11 +61,12 @@ export function useTransferRowActions({
   const [removing, setRemoving] = useState<Pending | null>(null);
   const after = useRef<AfterChange | null>(null);
 
-  // Focus lands on the next row's action, else the previous row's.
-  const chooseFocusAfter = (id: string): string | null => {
-    const list = rows ?? [];
-    const index = list.findIndex((row) => row.id === id);
-    return list[index + 1]?.id ?? list[index - 1]?.id ?? null;
+  // Focus lands on the next row's action, else the previous row's; a row that has left the list by then is skipped.
+  const chooseFocusAfter = (id: string): readonly string[] => {
+    const ids = (rows ?? []).map((row) => row.id);
+    const index = ids.indexOf(id);
+    if (index < 0) return [];
+    return [...ids.slice(index + 1), ...ids.slice(0, index).reverse()];
   };
 
   // Once the list no longer shows the transfer as it was, move focus (the dialog's own return to the trigger has run).
@@ -80,7 +82,7 @@ export function useTransferRowActions({
     const settled = wanted.kind === 'delete' ? row === undefined || row.isDeleted : row === undefined;
     if (!settled) return;
     after.current = null;
-    if (wanted.focusId === null || !rowFocus.focusRow(wanted.focusId)) {
+    if (!wanted.focusIds.some((id) => rowFocus.focusRow(id))) {
       (document.getElementById(captionId) ?? document.getElementById(fallbackId))?.focus();
     }
   });
@@ -106,14 +108,14 @@ export function useTransferRowActions({
         setDeleting((current) => (current === null ? null : { ...current, open: false }));
       },
       onDeleteDone: (target) => {
-        after.current = { id: target.id, kind: 'delete', focusId: chooseFocusAfter(target.id) };
+        after.current = { id: target.id, kind: 'delete', focusIds: chooseFocusAfter(target.id) };
       },
       removing,
       onCloseRemove: () => {
         setRemoving((current) => (current === null ? null : { ...current, open: false }));
       },
       onRemoveDone: (target) => {
-        after.current = { id: target.id, kind: 'remove', focusId: chooseFocusAfter(target.id) };
+        after.current = { id: target.id, kind: 'remove', focusIds: chooseFocusAfter(target.id) };
       },
     },
   };

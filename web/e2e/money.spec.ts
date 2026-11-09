@@ -186,6 +186,31 @@ async function recordTransfer(page: Page, receiverName: string, amount: string):
   await expect(page.getByText('Transfer recorded')).toBeVisible();
 }
 
+/**
+ * The page function that checks where focus is after a delete, from the row actions listed before it. It answers "as expected", or says
+ * what was wanted and where focus is. Wanted: the first action after the deleted one that is still listed, else the nearest one before it
+ * that is still listed, else the table caption (the list still has rows) or the heading (the list is empty and has no caption).
+ */
+function focusCheckScript(labelsBefore: readonly (string | null)[], ownLabel: string | null): string {
+  return `(() => {
+  const before = ${JSON.stringify(labelsBefore)};
+  const own = ${JSON.stringify(ownLabel)};
+  const shown = Array.from(document.querySelectorAll('[role="tabpanel"] table button'))
+    .map((button) => button.getAttribute('aria-label') ?? '')
+    .filter((label) => /^(Delete|Remove) transfer of /.test(label));
+  const place = before.indexOf(own);
+  const next = before.slice(place + 1).find((label) => shown.includes(label));
+  const previous = before.slice(0, place).reverse().find((label) => shown.includes(label));
+  const wanted = next ?? previous ?? (shown.length > 0 ? 'the table caption' : 'the heading');
+  const active = document.activeElement;
+  const actual =
+    active?.tagName === 'CAPTION' ? 'the table caption'
+    : active?.tagName === 'H2' && active.textContent === 'Transfers' ? 'the heading'
+    : active?.getAttribute('aria-label') ?? active?.tagName ?? 'nothing';
+  return actual === wanted ? 'as expected' : 'wanted ' + wanted + ' but focus is on ' + actual;
+})()`;
+}
+
 test('@money a Manager deletes a wrong transfer from the Transfers tab and both balances correct themselves (D-29, D-35, D-48)', async ({
   page,
   browser,
@@ -215,14 +240,17 @@ test('@money a Manager deletes a wrong transfer from the Transfers tab and both 
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(senderName);
   await expect(row).toContainText('₱1,250.50');
-  // The focus rule after a delete: the next row's action, else the previous row's, else the heading (an empty list has no caption).
-  // Rows keep their order, so the target is the action at the deleted row's own place, or the one before it when it was the last.
+  // The focus rule after a delete: the next row's action, else the previous row's, else the table caption, else the heading (an empty
+  // list has no caption). The Transfers list is shop-wide and the other browser projects change it at the same time, so rows may leave
+  // or arrive meanwhile. The target is found by name: the first row after the deleted one that is still listed, else the nearest one
+  // before it that is still listed.
   const ownAction = row.getByRole('button', { name: /^Delete transfer of ₱1,250\.50 from / });
   const actionButtons = table.getByRole('button', { name: /^(Delete|Remove) transfer of / });
-  const labels = await Promise.all((await actionButtons.all()).map((button) => button.getAttribute('aria-label')));
-  const ownPlace = labels.indexOf(await ownAction.getAttribute('aria-label'));
-  expect(ownPlace, 'the row has an action in the table').toBeGreaterThanOrEqual(0);
-  const focusPlace = ownPlace + 1 < labels.length ? ownPlace : ownPlace - 1;
+  const labelsBefore = await Promise.all(
+    (await actionButtons.all()).map((button) => button.getAttribute('aria-label')),
+  );
+  const ownLabel = await ownAction.getAttribute('aria-label');
+  expect(labelsBefore, 'the row has an action in the table').toContain(ownLabel);
   await ownAction.click();
   const confirm = page.getByRole('dialog', { name: 'Delete this transfer?' });
   await expect(confirm).toBeVisible();
@@ -236,21 +264,11 @@ test('@money a Manager deletes a wrong transfer from the Transfers tab and both 
   await expect(page.getByText('Transfer deleted')).toBeVisible();
   await expect(page.getByText('It no longer counts toward any balance.')).toBeVisible();
   await expect(row).toHaveCount(0);
-  if (focusPlace >= 0) {
-    await expect
-      .poll(
-        () =>
-          page.evaluate<number>(
-            `Array.from(document.querySelectorAll('[role="tabpanel"] table button'))
-              .filter((button) => /^(Delete|Remove) transfer of /.test(button.getAttribute('aria-label') ?? ''))
-              .indexOf(document.activeElement)`,
-          ),
-        { message: 'focus is on the next row action, else the previous one' },
-      )
-      .toBe(focusPlace);
-  } else {
-    await expect(page.getByRole('heading', { level: 2, name: 'Transfers' })).toBeFocused();
-  }
+  await expect
+    .poll(() => page.evaluate<string>(focusCheckScript(labelsBefore, ownLabel)), {
+      message: 'focus is on the next row action, else the previous one',
+    })
+    .toBe('as expected');
 
   // Show deleted brings it back as a deleted row with Remove Permanently (never a restore or an edit); the stronger confirm removes it.
   await page.getByRole('checkbox', { name: 'Show deleted' }).check();
