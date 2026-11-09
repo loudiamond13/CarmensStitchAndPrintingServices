@@ -206,6 +206,81 @@ describe('the window from the strip (D-47, D-56)', () => {
   });
 });
 
+describe('the Date follows a newer business day (wave 7 IN-08, WR-05)', () => {
+  beforeEach(() => {
+    clearSession();
+    acceptSession(sessionResponse());
+    // A money answer held from before midnight: the window opens on its day, and its own read then brings the new one.
+    queryClient.setQueryData(myMoneyKey, {
+      userId: MY_MONEY_USER_ID,
+      name: 'Carmen Reyes',
+      balance: 8450,
+      today: '2026-11-07',
+    });
+  });
+
+  afterEach(() => {
+    clearSession();
+  });
+
+  function renderWindow() {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <MemoryRouter>
+            <TransferModal mode="transfer" onClose={() => undefined} />
+          </MemoryRouter>
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('moves an untouched Date to the newer day the window own read brings', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes', balance: 8450, today: '2026-11-08' }));
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderWindow();
+
+    expect(await screen.findByRole('dialog', { name: 'Transfer Money' })).toBeVisible();
+    expect(dateBox()).toHaveValue('2026-11-07');
+
+    await waitFor(() => {
+      expect(dateBox()).toHaveValue('2026-11-08');
+    });
+  });
+
+  it('keeps a date the person set when a newer day arrives', async () => {
+    myMoneyBackend(async () => {
+      await delay(150);
+      return myMoneyFixture({ name: 'Carmen Reyes', balance: 8450, today: '2026-11-08' });
+    });
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    renderWindow();
+    await screen.findByRole('dialog', { name: 'Transfer Money' });
+
+    fireEvent.change(dateBox(), { target: { value: '2026-11-05' } });
+    await delay(300);
+
+    expect(dateBox()).toHaveValue('2026-11-05');
+  });
+
+  it('is not left dirty by the move: closing a window the person has not typed in asks nothing', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes', balance: 8450, today: '2026-11-08' }));
+    transferRecipientsBackend();
+    staffBalancesBackend();
+    const user = userEvent.setup();
+    renderWindow();
+    await waitFor(() => {
+      expect(dateBox()).toHaveValue('2026-11-08');
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText(/discard/i)).toBeNull();
+  });
+});
+
 describe('recording a transfer (D-47, SEC-06)', () => {
   it('sends the four fields with one Idempotency-Key, closes, returns the cursor to Transfer and says the new balance', async () => {
     let balance = 8450;

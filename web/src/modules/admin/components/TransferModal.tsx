@@ -235,12 +235,23 @@ export function TransferForm({
     setError,
     setValue,
     getValues,
+    getFieldState,
+    resetField,
     formState: { isDirty },
   } = useForm<TransferFormInput, unknown, TransferFormOutput>({
     resolver: zodResolver(schema),
     mode: 'onBlur',
     defaultValues: { toUserId: '', amount: '', transferDate: today, note: '' },
   });
+
+  // A newer business day (the window's own fresh read, or Manila midnight while it is open) moves a Date the person has not touched.
+  // A date they typed or left is never changed. The new day becomes the field's default, so an untouched window stays clean.
+  useEffect(() => {
+    const field = getFieldState('transferDate');
+    if (!field.isDirty && !field.isTouched && getValues('transferDate') !== today) {
+      resetField('transferDate', { defaultValue: today });
+    }
+  }, [today, getFieldState, getValues, resetField]);
 
   const focusField = (field: FieldName): void => {
     const element = formRef.current?.elements.namedItem(field);
