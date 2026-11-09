@@ -16,6 +16,7 @@ import { ConflictBanner, EmptyValue, ErrorState, LoadingRegion, Note, SkeletonTe
 import { ActorName, RecordMeta } from '@/components/data';
 import { Avatar } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
+import { mayHaveSaved } from '@/lib/forms/mayHaveSaved';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
@@ -42,6 +43,7 @@ import {
   type StoredExpenseFields,
 } from '@/modules/admin/expensesSchemas';
 import { useExpenseQuery } from '@/modules/admin/hooks/useExpenseQuery';
+import { useRefreshExpenses } from '@/modules/admin/hooks/useRefreshExpenses';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import {
   expensesService,
@@ -174,6 +176,7 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
   const saveRef = useRef<HTMLButtonElement>(null);
   const { user } = useSession();
   const query = useExpenseQuery(expenseId, open && isEdit);
+  const refreshExpenses = useRefreshExpenses();
   // The expense the form was filled from; the version a save sends is this one's, whatever a later refetch brings.
   const [opened, setOpened] = useState<ExpenseDetailResponse | null>(null);
   const fresh = isEdit && query.isSuccess && query.isFetchedAfterMount ? query.data : null;
@@ -237,6 +240,10 @@ function ExpenseForm({ mode, expenseId, open, today, onClose, onSaved }: Expense
   };
 
   const showFailure = (copy: ErrorCopy, error: unknown): void => {
+    // A failure that may have saved (a server error, a timeout, no answer) leaves the lists, the money and the dashboard old, so they are read again.
+    if (mayHaveSaved(error)) {
+      void refreshExpenses();
+    }
     // 05 D-20: a stale save keeps every typed value; the banner offers Load Latest, which takes focus.
     if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
       setConflicts((count) => count + 1);
