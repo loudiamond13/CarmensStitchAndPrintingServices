@@ -5,10 +5,10 @@
 //     and Back restore them. A page past the last counts as loading, then becomes the last page once fresh data says so.
 //   - It asks only as a Manager: the Transfers tab is not drawn for an Admin, and `enabled` is the role check as well. The API answers
 //     403 to an Admin anyway (T-10-45).
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import { Checkbox } from '@/components/entry';
 import { Pagination, ResultBar } from '@/components/lists';
-import { PAGE_SIZES } from '@/lib/url-state/parsers';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import {
   dashboardCardHeadClasses,
   dashboardCardSubClasses,
@@ -40,22 +40,10 @@ export function TransfersCard() {
   const showDeleted = isManager && values.deleted === 'true';
   const query = useTransfersQuery({ page: values.page, pageSize: values.size, deleted: showDeleted }, isManager);
   const page = query.data;
-  // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
-  const failed = query.isError && !query.isFetching;
-  // A page past the last comes back with no rows but the real total: it is not an empty list, it is about to be replaced.
-  const pastTheEnd = page?.rows.length === 0 && page.total > 0;
-  const loading = (query.isFetching && (page === undefined || query.isError)) || pastTheEnd;
-
   const total = page?.total ?? 0;
-  const pageCount = Math.ceil(total / values.size);
-  // A page past the last one (a stale link, or rows removed meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step. A page past the
+  // last comes back with no rows but the real total: it is not an empty list, it is about to be replaced.
+  const { pastTheEnd, loading, failed, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   const actions = useTransferRowActions({
     rows: page?.rows,
@@ -110,7 +98,7 @@ export function TransfersCard() {
         onRemove={actions.openRemove}
         register={actions.register}
       />
-      {total > PAGE_SIZES[0] && !pastTheEnd && (
+      {showPager && (
         <div className={ledgerPagerClasses}>
           <Pagination
             page={values.page}
