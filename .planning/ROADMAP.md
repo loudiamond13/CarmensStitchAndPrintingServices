@@ -1092,7 +1092,7 @@ Plans:
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
 
-**Plans**: 20/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
+**Plans**: 21/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
 
 **Wave 1**
 - [x] 10-01-PLAN.md — Ledger union query proven on SQL Server, the Wave 0 spike (MONEY-02; RESEARCH A1, A2)
@@ -1135,7 +1135,7 @@ Plans:
 - [x] 10-20-PLAN.md — Transfers tab, delete and remove dialogs, audit labels (MONEY-03, MONEY-06, MONEY-07; D-24 to D-33, D-48)
 
 **Wave 11**
-- [ ] 10-21-PLAN.md — Showcase demos and the accessibility, layout and CSP sweep (DASH-06, MONEY-02)
+- [x] 10-21-PLAN.md — Showcase demos and the accessibility, layout and CSP sweep (DASH-06, MONEY-02)
 
 **UI hint**: yes
 
@@ -1456,7 +1456,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
-| 10. Admin Dashboard | 20/21 | In Progress | - |
+| 10. Admin Dashboard | 21/21 | In Progress | - |
 | 11. Public Site & Content Management | 0/TBD | Not started | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |

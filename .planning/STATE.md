@@ -4,15 +4,15 @@ current_phase: 10
 current_phase_name: Admin Dashboard
 status: executing
 stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-11-08T18:11:52.229Z"
+last_updated: "2026-11-09T06:31:38.833Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 10 execution started
-state_head: 84e27f8b8e454f73b138eda42603554f78f92f4a
+state_head: 7b328251c1359188390c84da666d0a655605e024
 progress:
   total_phases: 18
   completed_phases: 8
   total_plans: 302
-  completed_plans: 301
+  completed_plans: 302
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-06T10:53:00-06:00"
@@ -918,6 +918,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 10]: Wave 8 (10-16, 10-17) closed 2026-11-08: review 0 critical, 2 warnings, 8 info; 7 fixed, 1 parked (P10-BL-12), 2 deferred. Final gate clean (7672 .NET, 8589 web); browser 1606 passed, 41 load failures all passed on one worker.
 - [Phase 10]: Wave 9 (10-18, 10-19) closed 2026-11-08: final gate green (build, format, types, lint, OpenAPI, all .NET suites incl. timing test, Vitest 8716/0). Full e2e 1610 passed, 43 load failures all passed on one worker (16.7m, 42 passed, 1 skipped). Review fixes merged 661bf32d.
 - [Phase 10]: Wave 10 (10-20) closed 2026-11-08: final gate build, format, types, lint, OpenAPI clean; Vitest 8849/0; .NET all green except ExpenseListTimingTests (five years last page p95 378 ms alone; known machine issue D-88/D-103, no expense code changed). Full e2e 1596 passed, 63 failed under load; on one worker 60 passed, 2 skipped, 1 failed: a11y-rulings O-6 iPhone toast test, which also fails 1 of 3 on the pre-wave-10 commit 6b8322f1 (pre-existing flaky test, fix queued for phase end). Review fixes merged af9b2683; money e2e 20/20.
+- [Phase 10]: Wave 11 closed (2026-11-09): the 10-21 review fixes merged (a1761fd2) plus a scoped-axe self-test fix (7b328251). Full gate green apart from load: 20 Vitest and 81 e2e failures under TheBETSLLC load all passed when re-run (531/531 Vitest, 80/81 e2e, the last one was the self-test bug); both list timing tests passed alone. P10-BL-16 parked (footer buttons at 320 px).
 
 ### Pending Todos
 
