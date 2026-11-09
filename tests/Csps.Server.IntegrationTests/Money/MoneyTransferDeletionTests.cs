@@ -333,6 +333,35 @@ public sealed class MoneyTransferDeletionTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
+    public async Task ARaceBetweenTwoPermanentRemovesGivesOneWinnerOneRefusalAndOneAuditEntry()
+    {
+        await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
+
+        for (var round = 1; round <= Rounds; round++)
+        {
+            var (id, version) = await MoneyFixtures.RecordTransferAsync(world.Client, world.Paolo.AccessToken, world.Liza.UserId, 100.00m, world.Today);
+            using (var deleted = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Carmen.AccessToken, id, version))
+            {
+                deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+            }
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id),
+                () => MoneyFixtures.RemoveTransferAsync(world.Client, world.Carmen.AccessToken, id));
+            using var firstResponse = first;
+            using var secondResponse = second;
+
+            var statuses = new[] { firstResponse.StatusCode, secondResponse.StatusCode };
+            statuses.Count(status => status == HttpStatusCode.NoContent).ShouldBe(1, $"round {round}: {string.Join(", ", statuses)}");
+            statuses.Single(status => status != HttpStatusCode.NoContent).ShouldBeOneOf([HttpStatusCode.NotFound, HttpStatusCode.Conflict], $"round {round}");
+            (await MoneyFixtures.ReadTransfersAsync(world.Database)).ShouldNotContain(transfer => transfer.Id == id, $"round {round}");
+            var key = id.ToString("D");
+            var entries = await MoneyFixtures.ReadAuditAsync(world.Database, AuditActions.MoneyTransferPermanentlyDeleted, world.Carmen.UserId);
+            entries.Count(entry => entry.TargetId == key).ShouldBe(1, $"round {round}");
+        }
+    }
+
+    [Fact]
     public async Task RemoveBeforeDeleteIs422AndRemoveAfterDeleteIs204()
     {
         await using var world = await StartWorldAsync(paoloMoney: 2000.00m);
