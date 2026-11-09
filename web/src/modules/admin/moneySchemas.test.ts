@@ -245,6 +245,15 @@ describe('handoverFormSchema (D-17, D-18, OR-3; plan 10-19)', () => {
     expect(handoverMessages(form({ amount: '99999.00' }), { leaverBalance: null })).toEqual({});
   });
 
+  it('measures the hand-over note with the same combined strip, including a mixed edge (IN-04)', () => {
+    const body = 'a'.repeat(200);
+
+    expect(handoverMessages(form({ note: ` \uFEFF \u0085${body}\u0085 \uFEFF ` }))).toEqual({});
+    expect(handoverMessages(form({ note: ` \uFEFF \u0085${body}a` }))).toEqual({
+      note: 'Keep the note to 200 characters or fewer.',
+    });
+  });
+
   it('uses the Amount, Date and Note words of the transfer form', () => {
     expect(handoverMessages(form({ amount: '' }))).toEqual({ amount: 'Enter the amount.' });
     expect(handoverMessages(form({ amount: '0.00' }))).toEqual({ amount: 'Enter an amount of at least ₱0.01.' });
