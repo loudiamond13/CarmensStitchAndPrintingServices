@@ -2,7 +2,7 @@
 phase: 10-admin-dashboard
 scope: phase-end
 created: 2026-11-09T00:33:00-06:00
-updated: 2026-11-09T00:52:00-06:00
+updated: 2026-11-09T01:46:00-06:00
 reviewed_range: 7f127c2a..HEAD (excluding .planning/)
 depth: deep
 files_reviewed: 62
@@ -80,7 +80,7 @@ status: issues_found
 
 # Phase 10 Phase-End Code Review
 
-*Created: 2026-11-09T00:33:00-06:00 · Updated: 2026-11-09T00:52:00-06:00*
+*Created: 2026-11-09T00:33:00-06:00 · Updated: 2026-11-09T01:46:00-06:00*
 
 **Reviewed:** 2026-11-09T00:33:00-06:00
 **Depth:** deep (cross-wave)
@@ -334,28 +334,28 @@ Each item gets one call: fix now, defer to a named later phase or the backlog wi
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now (web fixer): a save that may have run refreshes the same queries as a success, staff money and the order page included. |
-| WR-02 | Fix now (web fixer): the dashboard summary and recent orders parse money with the shared refusing parser. |
-| WR-03 | Fix now (lists fixer): one shared list-paging hook for all eight lists, carrying the wave 8 past-the-end and Rows per page fixes. |
+| WR-01 | Partly fixed in 34ee24db: the order item, payment, discount and expense windows and the expense window refresh after a may-have-saved failure (shared `mayHaveSaved`). Order create and edit, `useOrderAction` and `useExpenseAction` follow in a second pass. |
+| WR-02 | Fixed in 271d2c45: `parseDashboardSummary` refuses an unreadable figure, count or percent; 12 tests failed first. |
+| WR-03 | Fixed in 79083e8d (tests) and fee3f7ae: one `usePagedList` hook in the six lists; 12 of 18 new tests failed first, 408 of 408 pass; chromium e2e for the lists 51 passed. |
 | WR-04 | Needs the owner: parked as P10-BL-17. |
-| WR-05 | Fix now (web fixer): the Transfer Date default follows a newer business day while untouched (covers wave 7 IN-08). |
-| IN-01 | Fix now (server fixer). |
-| IN-02 | Fix now (server fixer). |
-| IN-03 | Fix now (server fixer): doc, XML summary, gap months as 0.00, an enum for months, contract regenerated. |
-| IN-04 | Fix now (server fixer for the domain and validator, web fixer for zod). |
-| IN-05 | Fix now (web fixer): a separate fitWidth prop that defaults to today's behavior. |
+| WR-05 | Fixed in 2eb0af11: an untouched Date follows a newer business day; a date the person set is kept (covers wave 7 IN-08). |
+| IN-01 | Fixed in 1f18c385: the four guards refuse bad arguments; 3 tests failed first. |
+| IN-02 | Fixed in 9695f7c3: one source for the overdue statuses and the top-category rule, with a drift test. |
+| IN-03 | Fixed in 3ae8892e: doc and XML summary match the code, gap months are 0.00, months is an enum, contract regenerated. No handler command-count test; the doc says so. |
+| IN-04 | Fixed in 7a9133a3 (server `MoneyRules.TrimNote`, transfer and hand-over), 6d6f7453 and 66c28542 (zod, one combined strip, mixed edge tested). |
+| IN-05 | Fixed in ac07e0a8: `fitWidth` prop defaulting to `showProfit`, so current callers are unchanged. |
 | IN-06 | Needs the owner: parked as P10-BL-18. |
-| IN-07 | Fix now (server fixer for the handlers, web fixer for requireFigure). |
-| IN-08 | Fix now (server fixer). |
+| IN-07 | Fixed in 4c20a077 (`MoneyWrite.RunLockedAsync`, `StaffMoneySums.BalanceOf`, `MoneyAuditTargets.Transfer`) and a3239ecb (`requireFigure`). |
+| IN-08 | Fixed in 21984fa8: a real-database race of two removes gives one 204, one 404 or 409, and one audit entry. |
 | D-1 (wave 1 WR-05) | Deferred to the phase PR: the CI parity job must be green before merge (ship gate). |
-| D-2 (wave 4 IN-07, IN-09) | IN-07 fix now (web fixer: KpiCard count uses formatCount, with a parity check). IN-09 deferred to the Phase 14 accessibility pass: not a WCAG failure. |
+| D-2 (wave 4 IN-07, IN-09) | IN-07 fixed in e2898716 (KpiCard count uses formatCount). IN-09 deferred to the Phase 14 accessibility pass: not a WCAG failure. |
 | D-3 (wave 5 IN-04) | Deferred to Phase 14: every create action shares it and the web client never sends such a field. |
 | D-4 (wave 5 IN-08) | Needs the owner: parked in P10-BL-19. |
 | D-5 (wave 7 IN-03, wave 8 IN-07) | Deferred to Phase 14: shared by every list controller, nothing leaks. |
 | D-6 (wave 7 IN-07, IN-08) | IN-07 needs the owner (parked in P10-BL-19). IN-08 fixed with WR-05. |
-| D-7 (wave 10 IN-06) | Fix now with WR-03 (lists fixer). |
+| D-7 (wave 10 IN-06) | Fixed in 3b12ef6c: LedgerCard and TransfersCard use `usePagedList`; 123 of 123 money list tests pass. |
 | D-8 (wave 11 IN-03, IN-07) | IN-03 needs the owner (added to P10-BL-15). IN-07 deferred to the backlog: the showcase is not in production builds. |
-| D-9 (Saturday 16:00Z test gap) | Fix now (server fixer) with the reviewer's better case: 2026-11-30T16:00Z (Dec 1 Manila) in the chart handler. |
+| D-9 (Saturday 16:00Z test gap) | Fixed in 7a660a31: a chart handler test at 2026-11-30T16:00Z; taking the UTC month fails it. |
 | D-10 (wave 3 narrowing) | Done for the chart and months; the summary part is WR-02. |
 | D-11 (wave 6 staff-money invalidation) | Done for success; the may-have-saved path is WR-01. |
 | D-12 (third-party-notices test) | No change needed: 11 of 11 passed alone on the main checkout; the earlier timeout was load. |
