@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { RecentOrdersCard } from '@/modules/admin/components/RecentOrdersCard';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { parseDashboardSummary } from '@/modules/admin/services/dashboardService';
 import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
@@ -31,7 +32,7 @@ function summaryOf(overrides: Partial<DashboardSummaryFixture> = {}): DashboardS
 }
 
 function loaded(data: DashboardSummaryFixture = summaryOf()): DashboardCardQuery {
-  return queryOf({ data });
+  return queryOf({ data: parseDashboardSummary(data) });
 }
 
 function renderCard(query: DashboardCardQuery) {
@@ -249,7 +250,7 @@ describe('while the orders load', () => {
 describe('when the orders fail (DASH-06)', () => {
   it('shows its own alert and a Try Again that reads the summary again, and keeps no old rows', async () => {
     const refetch = vi.fn();
-    renderCard(queryOf({ data: summaryOf(), isError: true, error: new Error('x'), refetch }));
+    renderCard(queryOf({ data: parseDashboardSummary(summaryOf()), isError: true, error: new Error('x'), refetch }));
 
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load recent orders.");
     expect(screen.queryByRole('table')).toBeNull();

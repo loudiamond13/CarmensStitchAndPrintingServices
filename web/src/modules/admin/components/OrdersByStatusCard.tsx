@@ -22,7 +22,7 @@ import {
 } from '@/modules/admin/components/dashboard.recipe';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
-import type { DashboardSummaryResponse } from '@/modules/admin/services/dashboardService';
+import type { DashboardSummary } from '@/modules/admin/services/dashboardService';
 import { formatCount } from '@/utils/format';
 
 const COPY = DASHBOARD_COPY.statuses;
@@ -31,14 +31,9 @@ const COPY = DASHBOARD_COPY.statuses;
 const ROWS = ['pending', 'mockup', 'production', 'ready', 'delivered', 'completed'] as const;
 type Row = (typeof ROWS)[number];
 
-/** The generated types allow a number or text for a number; the server sends a number. */
-function toNumber(value: number | string): number {
-  return Number(value);
-}
-
-function countOf(statuses: DashboardSummaryResponse['statuses'], row: Row): number {
+function countOf(statuses: DashboardSummary['statuses'], row: Row): number {
   const entry = statuses.find((candidate) => candidate.status === row);
-  return entry === undefined ? 0 : toNumber(entry.count);
+  return entry === undefined ? 0 : entry.count;
 }
 
 /** The bar width in percent, to two decimals: 7 of 11 is "63.64%", the largest is "100%", a 0 is "0%" (the track only). */
@@ -102,7 +97,7 @@ export function OrdersByStatusCard({ query }: OrdersByStatusCardProps) {
             </ul>
             <div className={statusTotalClasses}>
               <span>{COPY.activeLabel}</span>
-              <strong className={statusTotalFigureClasses}>{COPY.orders(toNumber(summary.orders.active))}</strong>
+              <strong className={statusTotalFigureClasses}>{COPY.orders(summary.orders.active)}</strong>
             </div>
           </>
         )}

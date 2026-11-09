@@ -4,7 +4,7 @@
 // leaver now holds ("Jomar Santos now holds ₱0.00."). Either reads the money, transfer and dashboard answers again (D-13), after a failure
 // that may have saved as well. A body with `fromUserId` is a hand-over (D-17).
 import { useToast } from '@/components/feedback';
-import { isHttpError } from '@/core/api/errors';
+import { mayHaveSaved } from '@/lib/forms/mayHaveSaved';
 import { useSubmission, type SubmissionState } from '@/lib/forms/useSubmission';
 import { useRefreshMoney } from '@/modules/admin/hooks/useRefreshMoney';
 import { MONEY_COPY } from '@/modules/admin/moneyCopy';
@@ -69,7 +69,7 @@ export function useTransferAction({
       },
       onFailure: (copy, error) => {
         // A failure that may have saved (a server error, a timeout, no answer) leaves the money answers old, so they are read again.
-        if (!isHttpError(error) || error.kind !== 'http' || error.status >= 500 || error.status === 408) {
+        if (mayHaveSaved(error)) {
           void refreshMoney();
         }
         onFailure?.(copy, error);

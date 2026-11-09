@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '@/core/api/errors';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
 import { orderSavedMessage, useOrderChildSave } from '@/modules/admin/hooks/useOrderChildSave';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
@@ -257,6 +259,50 @@ describe('any other failure', () => {
       });
     });
     expect(view.result.current.saveBlocked).toBe(false);
+  });
+});
+
+describe('a failure that may have saved', () => {
+  function holdAnswers(): readonly (readonly unknown[])[] {
+    const keys = [orderKey(order0148.id), staffMoneyKey, dashboardKey];
+    keys.forEach((key) => {
+      queryClient.setQueryData(key, { held: true });
+    });
+    return keys;
+  }
+
+  const invalidated = (key: readonly unknown[]): boolean => queryClient.getQueryState(key)?.isInvalidated ?? false;
+
+  it.each([
+    ['a server error', problem(500)],
+    ['a timeout', problem(408)],
+    ['no answer', new Error('Failed to fetch')],
+  ])('reads the order, the staff money and the dashboard again after %s', async (_name, rejection) => {
+    const keys = holdAnswers();
+    const view = renderSave({ rejection });
+
+    await save(view);
+
+    await waitFor(() => {
+      expect(view.result.current.banner).not.toBeNull();
+    });
+    keys.forEach((key) => {
+      expect(invalidated(key), JSON.stringify(key)).toBe(true);
+    });
+  });
+
+  it('reads nothing again after a refusal that saved nothing (400)', async () => {
+    const keys = holdAnswers();
+    const view = renderSave({ rejection: problem(400, undefined, undefined, { quantity: ['Enter a quantity.'] }) });
+
+    await save(view);
+
+    await waitFor(() => {
+      expect(view.result.current.banner).not.toBeNull();
+    });
+    keys.forEach((key) => {
+      expect(invalidated(key), JSON.stringify(key)).toBe(false);
+    });
   });
 });
 

@@ -16,6 +16,12 @@ const COPY = MONEY_COPY.transfer.errors;
 /** The longest note, after trimming (MoneyRules.NoteMaxLength). */
 const NOTE_MAX = 200;
 
+/**
+ * Whitespace plus U+FEFF and U+0085 at either end. JavaScript's trim keeps U+0085 and .NET's keeps U+FEFF, so both are named here and
+ * the browser measures the note as the server does (CreateMoneyTransferRequestValidator, MoneyTransfer).
+ */
+const NOTE_ENDS = /^[\s\uFEFF\u0085]+|[\s\uFEFF\u0085]+$/g;
+
 /** A leaver who is owed money: their name and what they are owed (positive), for the Manager's cap (D-49). */
 export interface OwedLeaver {
   name: string;
@@ -110,7 +116,7 @@ function formSchema({ balance, words, today, owedByRecipient }: FormRules) {
       }),
       note: z
         .string()
-        .trim()
+        .transform((note) => note.replace(NOTE_ENDS, ''))
         .refine((note) => note.length <= NOTE_MAX, COPY.noteTooLong)
         .transform((note) => (note === '' ? null : note)),
     })

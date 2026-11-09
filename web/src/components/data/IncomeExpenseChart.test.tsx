@@ -811,6 +811,26 @@ describe('IncomeExpenseChart true-pixel width (D-51)', () => {
     expect(monthLabels(container)).toHaveLength(7);
   });
 
+  it('measures the frame and thins the labels with fitWidth even without showProfit (IN-05)', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} fitWidth />);
+
+    observer.resize(320);
+
+    expect(viewBox(container)).toBe('0 0 320 220');
+    expect(monthLabels(container)).toEqual(['Dec', 'Feb', 'Apr', 'Jun', 'Aug', 'Oct']);
+  });
+
+  it('keeps the scaled 640 drawing with showProfit when fitWidth is false (IN-05)', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} showProfit fitWidth={false} />);
+
+    observer.resize(320);
+
+    expect(viewBox(container)).toBe('0 0 640 220');
+    expect(monthLabels(container)).toHaveLength(12);
+  });
+
   it('disconnects the observer when the chart unmounts', () => {
     const observer = stubResizeObserver();
     const { unmount } = render(<IncomeExpenseChart data={SIX} showProfit />);

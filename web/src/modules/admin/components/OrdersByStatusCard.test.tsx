@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersByStatusCard } from '@/modules/admin/components/OrdersByStatusCard';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { parseDashboardSummary } from '@/modules/admin/services/dashboardService';
 import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
@@ -19,7 +20,7 @@ function queryOf(overrides: Partial<DashboardCardQuery> = {}): DashboardCardQuer
 }
 
 function loaded(data: DashboardSummaryFixture = dashboardNovemberSummary()): DashboardCardQuery {
-  return queryOf({ data });
+  return queryOf({ data: parseDashboardSummary(data) });
 }
 
 const KEYS = ['pending', 'mockup', 'production', 'ready', 'delivered', 'completed'] as const;
@@ -287,7 +288,11 @@ describe('when the counts fail (DASH-06)', () => {
   });
 
   it('does not keep the old counts next to the alert when a later read fails', () => {
-    render(<OrdersByStatusCard query={queryOf({ data: dashboardNovemberSummary(), isError: true })} />);
+    render(
+      <OrdersByStatusCard
+        query={queryOf({ data: parseDashboardSummary(dashboardNovemberSummary()), isError: true })}
+      />,
+    );
 
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load order counts.");
     expect(screen.queryByRole('list')).toBeNull();

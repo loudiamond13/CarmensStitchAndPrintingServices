@@ -21,6 +21,7 @@ import { useRef, useState } from 'react';
 import { isHttpError } from '@/core/api/errors';
 import { describeHttpError, type ErrorCopy } from '@/utils/describeHttpError';
 import { newIdempotencyKey } from './idempotencyKey';
+import { mayHaveSaved } from './mayHaveSaved';
 
 /** The server's validation messages per field, keyed in the server's casing (for example `Amount`). */
 export type FieldErrors = Readonly<Record<string, readonly string[]>>;
@@ -122,10 +123,7 @@ function serialize<TData>(data: TData, identity: ((data: TData) => string) | und
 
 /** True when the server may have run the failed request, so a retry must reuse its key to land on the stored result. */
 function mayHaveRun(error: unknown): boolean {
-  if (!isHttpError(error) || error.kind !== 'http') {
-    return true;
-  }
-  return error.status >= 500 || error.status === 408 || error.status === 409;
+  return mayHaveSaved(error) || (isHttpError(error) && error.status === 409);
 }
 
 function fieldErrorsOf(error: unknown): FieldErrors {

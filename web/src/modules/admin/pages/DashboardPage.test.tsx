@@ -171,6 +171,20 @@ describe('the KPI row under the header (DASH-02, plan 10-09)', () => {
   });
 });
 
+describe('a summary the browser cannot read (WR-02)', () => {
+  it('shows the failure line instead of a broken figure when a money figure is not a number', async () => {
+    dashboardBackend(
+      dashboardNovemberSummary({ orders: { active: 18, dueThisWeek: 5, overdue: 2, receivables: 'abc' } }),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load the shop figures.")).toBeVisible();
+    expect(screen.getByText("Couldn't load order counts.")).toBeVisible();
+    expect(screen.queryByText(/NaN/)).toBeNull();
+    expect(screen.queryByText('Active orders')).toBeNull();
+  });
+});
+
 describe('the Orders by status card on the page (DASH-04, plan 10-09)', () => {
   it('shows the six rows and the active total from the same summary', async () => {
     dashboardBackend(dashboardNovemberSummary());

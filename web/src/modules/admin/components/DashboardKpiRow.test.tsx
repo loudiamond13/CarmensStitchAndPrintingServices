@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DashboardKpiRow } from '@/modules/admin/components/DashboardKpiRow';
 import type { DashboardCardQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { parseDashboardSummary } from '@/modules/admin/services/dashboardService';
 import { STATES_COPY } from '@/components/states/copy';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
@@ -23,7 +24,7 @@ function queryOf(overrides: Partial<DashboardCardQuery> = {}): DashboardCardQuer
 }
 
 function loaded(data: DashboardSummaryFixture = dashboardNovemberSummary()): DashboardCardQuery {
-  return queryOf({ data });
+  return queryOf({ data: parseDashboardSummary(data) });
 }
 
 /** The card of a KPI, found by its label. */
@@ -287,7 +288,9 @@ describe('when the figures fail (DASH-06)', () => {
   });
 
   it('does not keep yesterday figures next to the alert when a later read fails', () => {
-    render(<DashboardKpiRow query={queryOf({ data: dashboardNovemberSummary(), isError: true })} />);
+    render(
+      <DashboardKpiRow query={queryOf({ data: parseDashboardSummary(dashboardNovemberSummary()), isError: true })} />,
+    );
 
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load the shop figures.");
     expect(screen.queryByText('₱126,450.00')).toBeNull();

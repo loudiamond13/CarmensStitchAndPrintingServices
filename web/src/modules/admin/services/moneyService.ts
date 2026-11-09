@@ -2,7 +2,7 @@
 // The browser asks only for the caller's own figure; the server answers it from the token, so no id is sent.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
 import type { components } from '@/types/api.generated';
-import { toFiniteFigure } from '@/utils/toFiniteFigure';
+import { requireFigure, toFiniteFigure } from '@/utils/toFiniteFigure';
 
 type Schemas = components['schemas'];
 
@@ -113,9 +113,7 @@ function isLedgerKind(kind: string): kind is LedgerKind {
 
 /** A figure the page needs: a finite number, or the whole answer is refused. */
 function requiredFigure(value: unknown, what: string): number {
-  const figure = toFiniteFigure(value);
-  if (figure === null) throw new LedgerContractError(`The ledger ${what} is not a finite number.`);
-  return figure;
+  return requireFigure(value, `ledger ${what}`, (message) => new LedgerContractError(message));
 }
 
 /** A figure a row may leave out (the empty side, a deleted row's balance): null stays null, anything else must be a finite number. */
@@ -252,9 +250,7 @@ export class StaffBalancesContractError extends Error {
 }
 
 function staffFigure(value: unknown, what: string): number {
-  const figure = toFiniteFigure(value);
-  if (figure === null) throw new StaffBalancesContractError(`The staff ${what} is not a finite number.`);
-  return figure;
+  return requireFigure(value, `staff ${what}`, (message) => new StaffBalancesContractError(message));
 }
 
 function toStaffBalance(row: StaffBalanceRowResponse): StaffBalance {
@@ -361,9 +357,7 @@ export function toTransferTarget(item: TransferItem): TransferTarget {
 }
 
 function transferFigure(value: unknown, what: string): number {
-  const figure = toFiniteFigure(value);
-  if (figure === null) throw new TransferContractError(`The transfer ${what} is not a finite number.`);
-  return figure;
+  return requireFigure(value, `transfer ${what}`, (message) => new TransferContractError(message));
 }
 
 function toTransferItem(item: MoneyTransferResponse): TransferItem {

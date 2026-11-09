@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toFiniteFigure } from './toFiniteFigure';
+import { requireFigure, toFiniteFigure } from './toFiniteFigure';
 
 // The one place a generated `number | string` figure becomes a number (wave 5 IN-01): a figure the browser cannot trust is null,
 // so its caller can refuse the whole answer instead of drawing NaN.
@@ -39,5 +39,27 @@ describe('toFiniteFigure', () => {
     ['a comma', '1,000.00'],
   ])('refuses %s', (_what, value) => {
     expect(toFiniteFigure(value)).toBeNull();
+  });
+});
+
+describe('requireFigure', () => {
+  class PartError extends Error {}
+  const makeError = (message: string): Error => new PartError(message);
+
+  it('returns a figure the browser can read', () => {
+    expect(requireFigure('8450.00', 'ledger balance', makeError)).toBe(8450);
+    expect(requireFigure(-12.5, 'ledger balance', makeError)).toBe(-12.5);
+  });
+
+  it.each([
+    ['blank text', ''],
+    ['words', 'abc'],
+    ['null', null],
+    ['NaN', Number.NaN],
+  ])('throws the error the caller made, naming what was wrong, for %s', (_name, value) => {
+    expect(() => requireFigure(value, 'ledger balance', makeError)).toThrow(PartError);
+    expect(() => requireFigure(value, 'ledger balance', makeError)).toThrow(
+      'The ledger balance is not a finite number.',
+    );
   });
 });

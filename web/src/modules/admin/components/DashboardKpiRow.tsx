@@ -11,11 +11,6 @@ import { formatMonthShort } from '@/utils/format';
 
 const COPY = DASHBOARD_COPY.kpis;
 
-/** The generated types allow a number or text for a number; the server sends a number. */
-function toNumber(value: number | string): number {
-  return Number(value);
-}
-
 export interface DashboardKpiRowProps {
   query: DashboardCardQuery;
 }
@@ -38,10 +33,9 @@ export function DashboardKpiRow({ query }: DashboardKpiRowProps) {
   const loading = summary === undefined;
   const thisMonth = loading ? null : formatMonthShort(summary.today);
   const comparisonMonth = loading ? null : formatMonthShort(summary.collected.comparisonThrough);
-  const changePercent =
-    loading || summary.collected.changePercent === null ? null : toNumber(summary.collected.changePercent);
+  const changePercent = loading ? null : summary.collected.changePercent;
   const topCategory = loading ? null : summary.expenses.topCategory;
-  const expenseCount = loading ? 0 : toNumber(summary.expenses.count);
+  const expenseCount = loading ? 0 : summary.expenses.count;
 
   // The Collected foot: the percent against the same day last month, or (D-06) plain words when there is no percent.
   const collectedFoot =
@@ -55,24 +49,22 @@ export function DashboardKpiRow({ query }: DashboardKpiRowProps) {
     <LoadingRegion loading={loading} things={COPY.things} className={dashboardKpiRowClasses}>
       <KpiCard
         label={COPY.active}
-        value={loading ? 0 : toNumber(summary.orders.active)}
+        value={loading ? 0 : summary.orders.active}
         money={false}
         icon="clipboard-list"
-        hint={
-          loading ? undefined : COPY.activeFoot(toNumber(summary.orders.dueThisWeek), toNumber(summary.orders.overdue))
-        }
+        hint={loading ? undefined : COPY.activeFoot(summary.orders.dueThisWeek, summary.orders.overdue)}
         loading={loading}
       />
       <KpiCard
         label={COPY.receivables}
-        value={loading ? 0 : toNumber(summary.orders.receivables)}
+        value={loading ? 0 : summary.orders.receivables}
         icon="wallet"
         hint={loading ? undefined : COPY.receivablesFoot}
         loading={loading}
       />
       <KpiCard
         label={COPY.collected(thisMonth)}
-        value={loading ? 0 : toNumber(summary.collected.thisMonth)}
+        value={loading ? 0 : summary.collected.thisMonth}
         icon="trending-up"
         delta={changePercent ?? undefined}
         {...(loading ? {} : collectedFoot)}
@@ -80,7 +72,7 @@ export function DashboardKpiRow({ query }: DashboardKpiRowProps) {
       />
       <KpiCard
         label={COPY.expenses(thisMonth)}
-        value={loading ? 0 : toNumber(summary.expenses.thisMonth)}
+        value={loading ? 0 : summary.expenses.thisMonth}
         icon="receipt"
         hint={loading ? undefined : expenseCount === 0 ? COPY.noExpenses : COPY.expensesFoot(expenseCount, topCategory)}
         loading={loading}
