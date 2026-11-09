@@ -92,6 +92,15 @@ public sealed class ChartMonthsTests
             [("2025-09", 0m), ("2025-10", 0m), ("2025-11", 0m), ("2025-12", 10.00m), ("2026-01", 20.00m), ("2026-02", 0m)]);
     }
 
+    [Fact]
+    public void EveryFigureOfAGapMonthKeepsTwoDecimalPlacesSoItSerialisesAs0Point00()
+    {
+        var items = ChartMonths.Build(new DateOnly(2026, 6, 1), 2, None, None, None, None);
+
+        items.ShouldAllBe(item => item.Income.Scale == 2 && item.Expenses.Scale == 2 && item.Profit.Scale == 2);
+        System.Text.Json.JsonSerializer.Serialize(items[0]).ShouldBe("{\"Month\":\"2026-06\",\"Income\":0.00,\"Expenses\":0.00,\"Profit\":0.00}");
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

@@ -19,9 +19,13 @@ namespace Csps.Server.Controllers;
 public sealed class DashboardController(GetDashboardSummaryHandler summary, GetDashboardChartHandler chart) : ControllerBase
 {
     /// <summary>
-    /// Reads the dashboard summary: the business today, the part of the day for the greeting (<c>morning</c>, <c>afternoon</c> or
-    /// <c>evening</c>), the signed-in person's first name and the order figures. Both roles get the same figures; only the first name
-    /// and the greeting can differ. Nothing is cached, so every visit shows live numbers.
+    /// Reads the dashboard summary: the business today (<c>today</c>), the part of the day for the greeting (<c>greeting</c>:
+    /// <c>morning</c>, <c>afternoon</c> or <c>evening</c>), the signed-in person's first name (<c>firstName</c>), the order figures
+    /// (<c>orders</c>: active, due this week, overdue and receivables), the money collected this month with last month's comparison
+    /// and the change in percent (<c>collected</c>), this month's company expenses with their count and top category
+    /// (<c>expenses</c>), the six statuses of the orders-by-status bar (<c>statuses</c>) and the six newest orders
+    /// (<c>recentOrders</c>). Every figure uses the same business date and instant. Both roles get the same figures; only the first
+    /// name and the greeting can differ. Nothing is cached, so every visit shows live numbers.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the summary, or 401 without a valid token.</returns>

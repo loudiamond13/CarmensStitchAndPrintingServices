@@ -7547,6 +7547,10 @@
             "in": "query",
             "name": "months",
             "schema": {
+              "enum": [
+                "6",
+                "12"
+              ],
               "type": "string"
             }
           }
@@ -7614,7 +7618,7 @@
             "description": "Unauthorized"
           }
         },
-        "summary": "Reads the dashboard summary: the business today, the part of the day for the greeting (`morning`, `afternoon` or\n`evening`), the signed-in person's first name and the order figures. Both roles get the same figures; only the first name\nand the greeting can differ. Nothing is cached, so every visit shows live numbers.",
+        "summary": "Reads the dashboard summary: the business today (`today`), the part of the day for the greeting (`greeting`:\n`morning`, `afternoon` or `evening`), the signed-in person's first name (`firstName`), the order figures\n(`orders`: active, due this week, overdue and receivables), the money collected this month with last month's comparison\nand the change in percent (`collected`), this month's company expenses with their count and top category\n(`expenses`), the six statuses of the orders-by-status bar (`statuses`) and the six newest orders\n(`recentOrders`). Every figure uses the same business date and instant. Both roles get the same figures; only the first\nname and the greeting can differ. Nothing is cached, so every visit shows live numbers.",
         "tags": [
           "Dashboard"
         ]
