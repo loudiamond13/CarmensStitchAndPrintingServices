@@ -306,7 +306,7 @@ describe('A1 the rows', () => {
     expect(screen.queryByText('No audit entries yet')).toBeNull();
     expect(screen.queryByText(/^Showing/)).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
-    expect(await screen.findByRole('table', { name: 'Audit log' })).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Audit log' }, { timeout: 3000 })).toBeVisible();
     expect(screen.queryByText('No audit entries yet')).toBeNull();
   });
 

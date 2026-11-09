@@ -22,6 +22,7 @@ import {
 import { FilterChip, LISTS_COPY, Pagination, ResultBar } from '@/components/lists';
 import { ErrorState, LoadingRegion, SkeletonCard, SkeletonText, useDelayedFlag } from '@/components/states';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import { DueFlag } from '@/modules/admin/components/DueFlag';
 import { OrdersTable } from '@/modules/admin/components/OrdersTable';
 import { OrdersToolbar } from '@/modules/admin/components/OrdersToolbar';
@@ -127,16 +128,7 @@ export default function OrdersPage() {
   const data = query.data;
   const hasRows = data !== undefined && data.items.length > 0;
   const total = toNumber(data?.total ?? 0);
-  const pageCount = Math.ceil(total / values.size);
-
-  // A page past the last one (a stale link, or rows deleted meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   // A product type id the list does not hold (a stale or shared link) becomes All products, once the list has loaded.
   const { setFilter } = set;
@@ -153,9 +145,10 @@ export default function OrdersPage() {
 
   const todayFailed = waitingForToday && businessToday.isError;
   const failed = query.isError || todayFailed;
-  const firstLoad = query.isPending && !hasRows && !todayFailed;
+  // A page past the last has no rows but the list has some: it counts as loading until the last page replaces it.
+  const firstLoad = (query.isPending || pastTheEnd) && !hasRows && !todayFailed;
   const refetching = useDelayedFlag(query.isPlaceholderData && query.isFetching && hasRows, REFETCH_MARK_DELAY_MS);
-  const empty = query.isSuccess && !hasRows;
+  const empty = query.isSuccess && !hasRows && !pastTheEnd;
 
   // The chips: a preset by its name, a custom range by its two dates; a product by its name (a retired one says so).
   let datesChip: string | null = null;
@@ -242,7 +235,12 @@ export default function OrdersPage() {
         </div>
       </div>
       <OrdersToolbar values={values} set={set} view={view} onViewChange={setView} />
-      <ResultBar count={total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortedBy[values.sort]}>
+      <ResultBar
+        count={pastTheEnd ? 0 : total}
+        thing={COPY.thing}
+        things={COPY.things}
+        sortLabel={COPY.sortedBy[values.sort]}
+      >
         {values.q !== null && (
           <FilterChip
             label={COPY.chips.search}
@@ -378,14 +376,17 @@ export default function OrdersPage() {
           </LoadingRegion>
         </>
       )}
-      <Pagination
-        page={values.page}
-        pageCount={pageCount}
-        onPageChange={set.setPage}
-        focusTargetId={HEADING_ID}
-        pageSize={values.size}
-        onPageSizeChange={set.setPageSize}
-      />
+      {showPager && (
+        <Pagination
+          page={values.page}
+          pageCount={pageCount}
+          onPageChange={set.setPage}
+          focusTargetId={HEADING_ID}
+          pageSize={values.size}
+          onPageSizeChange={set.setPageSize}
+          sizeOnlyWhenSinglePage
+        />
+      )}
     </>
   );
 }

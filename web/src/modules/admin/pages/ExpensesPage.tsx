@@ -29,6 +29,7 @@ import { EmptyValue } from '@/components/states';
 import { Badge } from '@/components/status';
 import { formatPeso } from '@/utils/csps';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import {
   expensesCaptionClasses,
   expensesDateCellClasses,
@@ -258,16 +259,7 @@ export function ExpensesRoute() {
   const data = query.data;
   const hasRows = data !== undefined && data.items.length > 0;
   const total = toNumber(data?.total ?? 0);
-  const pageCount = Math.ceil(total / values.size);
-
-  // A page past the last one (a stale link, or rows deleted meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   // A category id the list does not hold (a stale or shared link) becomes All categories, once the list has loaded (D-11).
   const { setFilter } = set;
@@ -521,7 +513,7 @@ export function ExpensesRoute() {
           }}
         />
       </FilterBar>
-      <ResultBar count={total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
+      <ResultBar count={pastTheEnd ? 0 : total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
         {values.q !== null && (
           <FilterChip
             label={COPY.search.label}
@@ -557,7 +549,7 @@ export function ExpensesRoute() {
         rows={data?.items}
         rowKey={(item) => item.id}
         things={COPY.things}
-        pending={query.isPending}
+        pending={query.isPending || pastTheEnd}
         refetching={query.isPlaceholderData && query.isFetching}
         failed={query.isError}
         error={query.error}
@@ -584,14 +576,17 @@ export function ExpensesRoute() {
         footerLayout={{ date: { span: 3 }, amount: { label: COPY.footer.totalLabel } }}
       />
       {hasRows && <p className={expensesCaptionClasses}>{COPY.caption}</p>}
-      <Pagination
-        page={values.page}
-        pageCount={pageCount}
-        onPageChange={set.setPage}
-        focusTargetId={HEADING_ID}
-        pageSize={values.size}
-        onPageSizeChange={set.setPageSize}
-      />
+      {showPager && (
+        <Pagination
+          page={values.page}
+          pageCount={pageCount}
+          onPageChange={set.setPage}
+          focusTargetId={HEADING_ID}
+          pageSize={values.size}
+          onPageSizeChange={set.setPageSize}
+          sizeOnlyWhenSinglePage
+        />
+      )}
     </>
   );
 }

@@ -45,6 +45,7 @@ import {
 import { ErrorState } from '@/components/states';
 import { Badge } from '@/components/status';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import { AddUserPanel, type CreatedUser } from '@/modules/admin/components/AddUserPanel';
 import { DeactivateUserDialog } from '@/modules/admin/components/DeactivateUserDialog';
 import { EditUserPanel, type SavedEmail } from '@/modules/admin/components/EditUserPanel';
@@ -215,16 +216,7 @@ export function UsersRoute() {
 
   // The generated type allows a number or text for an int32; the server sends a number.
   const total = Number(query.data?.total ?? 0);
-  const pageCount = Math.ceil(total / values.size);
-
-  // A page past the last one (a stale link, or rows deleted meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   // A person who is added, edited, deactivated, activated or deleted changes who is on the roster or how they are named, or moves between
   // active staff and leavers, so the staff money and the transfer lists (All Staff names, roles and badges, who can receive money) are read
@@ -405,7 +397,7 @@ export function UsersRoute() {
               }}
             />
           </FilterBar>
-          <ResultBar count={total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortLabel}>
+          <ResultBar count={pastTheEnd ? 0 : total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortLabel}>
             {values.q !== null && (
               <FilterChip
                 label={COPY.search.label}
@@ -459,7 +451,7 @@ export function UsersRoute() {
             // SPEC-DEVIATION: C-35 an inactive row sits on surface-2 by colour, with full-opacity text (App. E.12 faded it).
             isInactive={(user) => user.status === 'inactive'}
             things={COPY.things}
-            pending={query.isPending}
+            pending={query.isPending || pastTheEnd}
             refetching={query.isPlaceholderData && query.isFetching}
             failed={query.isError}
             error={query.error}
@@ -475,14 +467,17 @@ export function UsersRoute() {
             }}
           />
           <p className={usersCaptionClasses}>{COPY.caption}</p>
-          <Pagination
-            page={values.page}
-            pageCount={pageCount}
-            onPageChange={set.setPage}
-            focusTargetId={HEADING_ID}
-            pageSize={values.size}
-            onPageSizeChange={set.setPageSize}
-          />
+          {showPager && (
+            <Pagination
+              page={values.page}
+              pageCount={pageCount}
+              onPageChange={set.setPage}
+              focusTargetId={HEADING_ID}
+              pageSize={values.size}
+              onPageSizeChange={set.setPageSize}
+              sizeOnlyWhenSinglePage
+            />
+          )}
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />
