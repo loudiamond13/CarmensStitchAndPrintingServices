@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T00:52:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T08:19:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -196,3 +196,17 @@ The project rule says money is computed on the server only. The Delete Transfer 
 
 - **Range switch on the chart.** After you pick 12M, the line under the title says "Last 12 months" at once, while the old six bars stay on screen until the new months arrive. If those six months were all zero, the empty message for 12 months shows early and is not dimmed. A (recommended): keep the line on the shown range until the new data arrives, and dim the empty message while loading. B: keep as is.
 - **Transfer button while the figure loads or failed.** The button is dimmed, but a screen reader user hears only "Transfer, dimmed" with no reason, and pressing Enter does nothing. A (recommended): link the button to the strip's own loading or failure line, so the reason is read out. No new wording is needed. B: keep as is (the region already says it is busy). This sits next to P10-BL-04.
+
+## P10-BL-20 · Phase 10 sign-off: what needs you before the phase is marked done
+
+**Status:** open · **Blocks:** marking Phase 10 complete, the phase PR and the merge to main. All 21 plans are built, reviewed and tested.
+
+The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success criteria and 14 of 14 requirements are met, checked in the code. Status is "human needed" because these steps are yours:
+
+1. **Pixel snapshots on CI.** They differ locally by glyph edges and are confirmed only by the CI run on the phase PR. The PR must not merge until that job is green.
+2. **P10-BL-06 (dashboard at 320 px).** With a six-digit Collected figure the four KPI cards are too narrow and the page can scroll sideways. One check is held as test.fixme until you choose the layout. Recommended to rule before shipping.
+3. **Screenshot review (P10-BL-15).** The showcase section "Dashboard and staff money" and the real pages in Blush and Espresso at 320, 390, 820 and 1440 px.
+4. **P10-BL-16 and P10-BL-18**, then the other parked items (P10-BL-01 to 05, 07 to 14, 17, 19). P10-BL-01 matters for the legacy import in Phases 15 to 17.
+5. **One clean full test run on CI.** Locally every browser test passed once the machine was quiet. The expense list speed test missed its 300 ms limit by 3.7 ms, the known machine issue (D-76, D-88, D-103).
+
+When you are back: approve or reject the sign-off, and I run the phase close (phase complete, roadmap update, transition) and then `/gsd-ship 10`.
