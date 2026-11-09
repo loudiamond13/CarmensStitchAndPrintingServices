@@ -675,6 +675,18 @@ describe('KpiCard (App. D.3)', () => {
     expect(container.firstElementChild?.children[1]?.textContent).toBe('Rent');
   });
 
+  it('writes a count with a thousands separator when money is false, and leaves a short count and a string as they are (D-2)', () => {
+    const { container, rerender } = render(<KpiCard label="Active orders" value={1250} money={false} />);
+
+    expect(container.firstElementChild?.children[1]?.textContent).toBe('1,250');
+
+    rerender(<KpiCard label="Active orders" value={999} money={false} />);
+    expect(container.firstElementChild?.children[1]?.textContent).toBe('999');
+
+    rerender(<KpiCard label="Top category" value="1250 Rent" money={false} />);
+    expect(container.firstElementChild?.children[1]?.textContent).toBe('1250 Rent');
+  });
+
   it('uses the hint when there is no delta label, and leaves the foot out when there is neither delta nor hint', () => {
     const { container, rerender } = render(<KpiCard label="Collected · Oct" value={1} delta={5} hint="This month" />);
 
