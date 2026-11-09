@@ -4,10 +4,10 @@
 //   - The page, the rows per page and Show deleted live in the URL through useMoneyListParams and nowhere else (WEB-10), so a reload, a
 //     shared link and Back restore them. A page past the last becomes the last page once fresh data says so.
 //   - Deleted transfers are a Manager-only view (D-30, D-31): an Admin gets no checkbox, and `deleted` is never sent for an Admin.
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import { Checkbox } from '@/components/entry';
 import { Pagination, ResultBar } from '@/components/lists';
-import { PAGE_SIZES } from '@/lib/url-state/parsers';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import {
   dashboardCardHeadClasses,
   dashboardCardSubClasses,
@@ -48,22 +48,10 @@ export function LedgerCard({ userId, ownerName, ownerFormerStaff = false }: Ledg
   const showDeleted = isManager && values.deleted === 'true';
   const query = useLedgerQuery(userId, { page: values.page, pageSize: values.size, deleted: showDeleted });
   const page = query.data;
-  // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step.
-  const failed = query.isError && !query.isFetching;
-  // A page past the last comes back with no rows but the real total: it is not an empty ledger, it is about to be replaced.
-  const pastTheEnd = page?.rows.length === 0 && page.total > 0;
-  const loading = (query.isFetching && (page === undefined || query.isError)) || pastTheEnd;
-
   const total = page?.total ?? 0;
-  const pageCount = Math.ceil(total / values.size);
-  // A page past the last one (a stale link, or rows removed meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  // One table stays mounted through loading, failure, Try Again and loaded, so its status node can say each step. A page past the
+  // last comes back with no rows but the real total: it is not an empty ledger, it is about to be replaced.
+  const { pastTheEnd, loading, failed, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   // Whose ledger this is, so a transfer row's action can name both people: the session for My Money, the page's name for a person.
   const owner =
@@ -130,7 +118,7 @@ export function LedgerCard({ userId, ownerName, ownerFormerStaff = false }: Ledg
           void query.refetch();
         }}
       />
-      {total > PAGE_SIZES[0] && !pastTheEnd && (
+      {showPager && (
         <div className={ledgerPagerClasses}>
           <Pagination
             page={values.page}

@@ -37,6 +37,7 @@ import { ErrorState } from '@/components/states';
 import { Badge } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import { CategoryBadge } from '@/modules/admin/components/CategoryBadge';
 import { ExpenseActorCell } from '@/modules/admin/components/ExpenseActorCell';
 import { PurgeExpenseDialog } from '@/modules/admin/components/PurgeExpenseDialog';
@@ -164,16 +165,7 @@ export function DeletedExpensesRoute() {
 
   const data = query.data;
   const total = toNumber(data?.total ?? 0);
-  const pageCount = Math.ceil(total / values.size);
-
-  // A page past the last one (a stale link, or rows restored meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   // A category id the list does not hold (a stale or shared link) becomes All categories, once the list has loaded (D-11).
   const { setFilter } = set;
@@ -292,7 +284,7 @@ export function DeletedExpensesRoute() {
               }}
             />
           </FilterBar>
-          <ResultBar count={total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
+          <ResultBar count={pastTheEnd ? 0 : total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
             {values.q !== null && (
               <FilterChip
                 label={EXPENSES_COPY.search.label}
@@ -318,7 +310,7 @@ export function DeletedExpensesRoute() {
             rows={data?.items}
             rowKey={(item) => item.id}
             things={COPY.things}
-            pending={query.isPending}
+            pending={query.isPending || pastTheEnd}
             refetching={query.isPlaceholderData && query.isFetching}
             failed={query.isError}
             error={query.error}
@@ -336,14 +328,17 @@ export function DeletedExpensesRoute() {
             emptyTitle={COPY.empty.title}
             emptyMessage={COPY.empty.message}
           />
-          <Pagination
-            page={values.page}
-            pageCount={pageCount}
-            onPageChange={set.setPage}
-            focusTargetId={HEADING_ID}
-            pageSize={values.size}
-            onPageSizeChange={set.setPageSize}
-          />
+          {showPager && (
+            <Pagination
+              page={values.page}
+              pageCount={pageCount}
+              onPageChange={set.setPage}
+              focusTargetId={HEADING_ID}
+              pageSize={values.size}
+              onPageSizeChange={set.setPageSize}
+              sizeOnlyWhenSinglePage
+            />
+          )}
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />

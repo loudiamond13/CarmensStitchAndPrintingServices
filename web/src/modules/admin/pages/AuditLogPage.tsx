@@ -36,6 +36,7 @@ import { Badge } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { businessToday } from '@/lib/url-state/parsers';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import {
   AUDIT_ACTIONS,
   AUDIT_COPY,
@@ -176,16 +177,7 @@ export function AuditLogRoute() {
 
   // The generated type allows a number or text for an int32; the server sends a number.
   const total = Number(query.data?.total ?? 0);
-  const pageCount = Math.ceil(total / values.size);
-
-  // A page past the last one (a stale link) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  const { pastTheEnd, pageCount, fresh, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   const toggle = (key: string): void => {
     setExpanded((current) => {
@@ -319,7 +311,7 @@ export function AuditLogRoute() {
               }}
             />
           </FilterBar>
-          <ResultBar count={total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
+          <ResultBar count={pastTheEnd ? 0 : total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote}>
             {rangeChanged && (
               <FilterChip
                 label={COPY.chips.range}
@@ -382,7 +374,7 @@ export function AuditLogRoute() {
               detail={(item) => <AuditDetail item={item} id={detailId(item)} />}
               expandedKeys={expanded}
               things={COPY.tableThings}
-              pending={query.isPending}
+              pending={query.isPending || pastTheEnd}
               refetching={query.isPlaceholderData && query.isFetching}
               failed={query.isError}
               error={query.error}
@@ -394,14 +386,17 @@ export function AuditLogRoute() {
               onClearFilters={clearFilters}
             />
           )}
-          <Pagination
-            page={values.page}
-            pageCount={pageCount}
-            onPageChange={set.setPage}
-            focusTargetId={HEADING_ID}
-            pageSize={values.size}
-            onPageSizeChange={set.setPageSize}
-          />
+          {showPager && (
+            <Pagination
+              page={values.page}
+              pageCount={pageCount}
+              onPageChange={set.setPage}
+              focusTargetId={HEADING_ID}
+              pageSize={values.size}
+              onPageSizeChange={set.setPageSize}
+              sizeOnlyWhenSinglePage
+            />
+          )}
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />

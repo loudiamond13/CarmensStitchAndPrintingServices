@@ -591,6 +591,53 @@ describe('U1 paging', () => {
     expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 2');
     expect(calls.map((url) => url.searchParams.get('page'))).toEqual(['3', '2']);
   });
+
+  it('shows no empty state, count or pager while a page past the last is replaced by the last page (WR-03)', async () => {
+    backend(ROWS, async (url) => {
+      const page = Number(url.searchParams.get('page'));
+      if (page === 2) await delay(600);
+      return { items: page === 2 ? ROWS : [], page, pageSize: 10, total: 15 };
+    });
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?page=3&size=10', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).some((write) => write.history === 'replace' && write.query.includes('page=2'))).toBe(
+        true,
+      );
+    });
+    expect(screen.queryByText('No users yet')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+    expect(screen.queryByText('No users yet')).toBeNull();
+  });
+
+  it('keeps Rows per page when the chosen size fits every row, and the smaller sizes can be chosen again (WR-03)', async () => {
+    const { calls } = backend(ROWS, (url) => ({
+      items: ROWS,
+      page: 1,
+      pageSize: Number(url.searchParams.get('pageSize')),
+      total: 38,
+    }));
+    await openPage('?size=50');
+
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    await userEvent.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+  });
+
+  it('draws no Rows per page for a list no longer than the smallest size (WR-03)', async () => {
+    backend(ROWS.slice(0, 5));
+    await openPage('?size=50');
+
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
+  });
 });
 
 describe('U1 refetch', () => {
