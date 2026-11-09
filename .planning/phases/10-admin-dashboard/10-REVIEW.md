@@ -2,7 +2,7 @@
 phase: 10-admin-dashboard
 scope: phase-end
 created: 2026-11-09T00:33:00-06:00
-updated: 2026-11-09T00:33:00-06:00
+updated: 2026-11-09T00:52:00-06:00
 reviewed_range: 7f127c2a..HEAD (excluding .planning/)
 depth: deep
 files_reviewed: 62
@@ -80,7 +80,7 @@ status: issues_found
 
 # Phase 10 Phase-End Code Review
 
-*Created: 2026-11-09T00:33:00-06:00 · Updated: 2026-11-09T00:33:00-06:00*
+*Created: 2026-11-09T00:33:00-06:00 · Updated: 2026-11-09T00:52:00-06:00*
 
 **Reviewed:** 2026-11-09T00:33:00-06:00
 **Depth:** deep (cross-wave)
@@ -334,31 +334,31 @@ Each item gets one call: fix now, defer to a named later phase or the backlog wi
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | TBD |
-| WR-02 | TBD |
-| WR-03 | TBD |
-| WR-04 | TBD |
-| WR-05 | TBD |
-| IN-01 | TBD |
-| IN-02 | TBD |
-| IN-03 | TBD |
-| IN-04 | TBD |
-| IN-05 | TBD |
-| IN-06 | TBD |
-| IN-07 | TBD |
-| IN-08 | TBD |
-| D-1 (wave 1 WR-05) | TBD |
-| D-2 (wave 4 IN-07, IN-09) | TBD |
-| D-3 (wave 5 IN-04) | TBD |
-| D-4 (wave 5 IN-08) | TBD |
-| D-5 (wave 7 IN-03, wave 8 IN-07) | TBD |
-| D-6 (wave 7 IN-07, IN-08) | TBD |
-| D-7 (wave 10 IN-06) | TBD |
-| D-8 (wave 11 IN-03, IN-07) | TBD |
-| D-9 (Saturday 16:00Z test gap) | TBD |
-| D-10 (wave 3 narrowing) | TBD |
-| D-11 (wave 6 staff-money invalidation) | TBD |
-| D-12 (third-party-notices test) | TBD |
+| WR-01 | Fix now (web fixer): a save that may have run refreshes the same queries as a success, staff money and the order page included. |
+| WR-02 | Fix now (web fixer): the dashboard summary and recent orders parse money with the shared refusing parser. |
+| WR-03 | Fix now (lists fixer): one shared list-paging hook for all eight lists, carrying the wave 8 past-the-end and Rows per page fixes. |
+| WR-04 | Needs the owner: parked as P10-BL-17. |
+| WR-05 | Fix now (web fixer): the Transfer Date default follows a newer business day while untouched (covers wave 7 IN-08). |
+| IN-01 | Fix now (server fixer). |
+| IN-02 | Fix now (server fixer). |
+| IN-03 | Fix now (server fixer): doc, XML summary, gap months as 0.00, an enum for months, contract regenerated. |
+| IN-04 | Fix now (server fixer for the domain and validator, web fixer for zod). |
+| IN-05 | Fix now (web fixer): a separate fitWidth prop that defaults to today's behavior. |
+| IN-06 | Needs the owner: parked as P10-BL-18. |
+| IN-07 | Fix now (server fixer for the handlers, web fixer for requireFigure). |
+| IN-08 | Fix now (server fixer). |
+| D-1 (wave 1 WR-05) | Deferred to the phase PR: the CI parity job must be green before merge (ship gate). |
+| D-2 (wave 4 IN-07, IN-09) | IN-07 fix now (web fixer: KpiCard count uses formatCount, with a parity check). IN-09 deferred to the Phase 14 accessibility pass: not a WCAG failure. |
+| D-3 (wave 5 IN-04) | Deferred to Phase 14: every create action shares it and the web client never sends such a field. |
+| D-4 (wave 5 IN-08) | Needs the owner: parked in P10-BL-19. |
+| D-5 (wave 7 IN-03, wave 8 IN-07) | Deferred to Phase 14: shared by every list controller, nothing leaks. |
+| D-6 (wave 7 IN-07, IN-08) | IN-07 needs the owner (parked in P10-BL-19). IN-08 fixed with WR-05. |
+| D-7 (wave 10 IN-06) | Fix now with WR-03 (lists fixer). |
+| D-8 (wave 11 IN-03, IN-07) | IN-03 needs the owner (added to P10-BL-15). IN-07 deferred to the backlog: the showcase is not in production builds. |
+| D-9 (Saturday 16:00Z test gap) | Fix now (server fixer) with the reviewer's better case: 2026-11-30T16:00Z (Dec 1 Manila) in the chart handler. |
+| D-10 (wave 3 narrowing) | Done for the chart and months; the summary part is WR-02. |
+| D-11 (wave 6 staff-money invalidation) | Done for success; the may-have-saved path is WR-01. |
+| D-12 (third-party-notices test) | No change needed: 11 of 11 passed alone on the main checkout; the earlier timeout was load. |
 
 ---
 
