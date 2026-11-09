@@ -2,7 +2,7 @@
 phase: 10-admin-dashboard
 scope: phase-end
 created: 2026-11-09T00:33:00-06:00
-updated: 2026-11-09T01:46:00-06:00
+updated: 2026-11-09T02:02:00-06:00
 reviewed_range: 7f127c2a..HEAD (excluding .planning/)
 depth: deep
 files_reviewed: 62
@@ -80,7 +80,7 @@ status: issues_found
 
 # Phase 10 Phase-End Code Review
 
-*Created: 2026-11-09T00:33:00-06:00 · Updated: 2026-11-09T01:46:00-06:00*
+*Created: 2026-11-09T00:33:00-06:00 · Updated: 2026-11-09T02:02:00-06:00*
 
 **Reviewed:** 2026-11-09T00:33:00-06:00
 **Depth:** deep (cross-wave)
@@ -334,7 +334,7 @@ Each item gets one call: fix now, defer to a named later phase or the backlog wi
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Partly fixed in 34ee24db: the order item, payment, discount and expense windows and the expense window refresh after a may-have-saved failure (shared `mayHaveSaved`). Order create and edit, `useOrderAction` and `useExpenseAction` follow in a second pass. |
+| WR-01 | Fixed in 34ee24db and 99840885: every order and expense save (child windows, the expense window, order create and edit, the order and expense actions) refreshes what a success refreshes after a may-have-saved failure, via the shared `mayHaveSaved`; 400, 404 and 409 refresh nothing. A probe of all 65,536 code units showed U+001C to U+001F are not .NET white space, so the IN-04 client and server sets already match. |
 | WR-02 | Fixed in 271d2c45: `parseDashboardSummary` refuses an unreadable figure, count or percent; 12 tests failed first. |
 | WR-03 | Fixed in 79083e8d (tests) and fee3f7ae: one `usePagedList` hook in the six lists; 12 of 18 new tests failed first, 408 of 408 pass; chromium e2e for the lists 51 passed. |
 | WR-04 | Needs the owner: parked as P10-BL-17. |
