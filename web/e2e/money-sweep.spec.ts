@@ -8,7 +8,14 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { manilaDate, NO_SIDEWAYS_SCROLL, PAST_MONTH_DAYS } from './helpers.ts';
+import {
+  holdsItsContent,
+  manilaDate,
+  NO_SIDEWAYS_SCROLL,
+  PAST_MONTH_DAYS,
+  reachableWithoutScrolling,
+  selectedTabInView,
+} from './helpers.ts';
 import { settle } from './sweep.ts';
 import { BASKETBALL_JERSEY_ID, CASH_ID, createOrder, createStaff, type TestStaff } from './testing-api.ts';
 
@@ -20,12 +27,6 @@ const WIDTHS = [
 ] as const;
 
 const THEMES = ['light', 'dark'] as const;
-
-/** True when the open dialog's panel holds its content without scrolling sideways. */
-const PANEL_FITS = `(() => { const panel = document.querySelector('[role="dialog"]'); return panel !== null && panel.scrollWidth <= panel.clientWidth; })()`;
-
-/** True when every tab strip on the page holds its tabs without scrolling sideways. */
-const TAB_STRIPS_FIT = `(() => Array.from(document.querySelectorAll('[role="tablist"]')).every((strip) => strip.scrollWidth <= strip.clientWidth))()`;
 
 /**
  * Seeds an order of 5,000.00 paid in full, with the payment received by `receiver`: that person now holds 5,000.00. The payment is dated
@@ -83,8 +84,11 @@ async function measure(page: Page, label: string): Promise<string[]> {
   if (!(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL))) {
     failures.push(`${label}: the page scrolls sideways`);
   }
-  if (!(await page.evaluate<boolean>(TAB_STRIPS_FIT))) {
-    failures.push(`${label}: a tab strip scrolls sideways`);
+  // The strip may scroll sideways (UI-SPEC: "Tab strip scrolls sideways; page never does"); the selected tab must stay in view.
+  for (const strip of await page.getByRole('tablist').all()) {
+    if (!(await strip.evaluate(selectedTabInView))) {
+      failures.push(`${label}: the selected tab is out of sight in its strip`);
+    }
   }
   const axe = await axeProblem(page);
   if (axe !== null) {
@@ -93,15 +97,12 @@ async function measure(page: Page, label: string): Promise<string[]> {
   return failures;
 }
 
-/** Scrolls each footer button into view inside the window and checks it is in the viewport. */
+/** Checks each footer button is inside the window and the dialog as it opens, with no scrolling. */
 async function footerReachable(dialog: Locator, names: readonly string[]): Promise<string[]> {
   const failures: string[] = [];
   for (const name of names) {
     const button = dialog.getByRole('button', { name, exact: true });
-    await button.scrollIntoViewIfNeeded();
-    try {
-      await expect(button).toBeInViewport();
-    } catch {
+    if (!(await button.evaluate(reachableWithoutScrolling))) {
       failures.push(`the ${name} button is out of reach`);
     }
   }
@@ -124,7 +125,7 @@ async function checkWindow(
   if (!(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL))) {
     failures.push(`${label}: the page scrolls sideways`);
   }
-  if (!(await page.evaluate<boolean>(PANEL_FITS))) {
+  if (!(await dialog.evaluate(holdsItsContent))) {
     failures.push(`${label}: the window scrolls sideways`);
   }
   failures.push(...(await footerReachable(dialog, buttons)).map((line) => `${label}: ${line}`));

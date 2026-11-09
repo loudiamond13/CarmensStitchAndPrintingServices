@@ -15,6 +15,61 @@ export const SUPPLIES = '447ad32e-1433-4b70-8786-72e3dc3f9937';
  */
 export const NO_SIDEWAYS_SCROLL = 'document.documentElement.scrollWidth <= document.documentElement.clientWidth';
 
+/** An element's box in the window, as the browser reports it. */
+interface PageBox {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+/**
+ * Page functions for `locator.evaluate`: each is self-contained (it is sent to the browser as source) and takes only the parts of the
+ * element it reads, since the node program has no DOM types.
+ */
+
+/** True when the element holds its content without scrolling sideways. */
+export const holdsItsContent = (element: { scrollWidth: number; clientWidth: number }): boolean =>
+  element.scrollWidth <= element.clientWidth;
+
+/**
+ * True when a touch target is left to press: the part of the button that lies inside its dialog's box and inside the window as it
+ * stands, with no scrolling, is at least 44 px wide and 44 px high (or the whole button, if it is smaller). A button below the fold or
+ * outside the sheet fails; so does one cut down to a sliver.
+ */
+export const reachableWithoutScrolling = (button: {
+  getBoundingClientRect(): PageBox;
+  closest(selector: string): { getBoundingClientRect(): PageBox } | null;
+  ownerDocument: { documentElement: { clientWidth: number; clientHeight: number } };
+}): boolean => {
+  const panel = button.closest('[role="dialog"]');
+  if (panel === null) {
+    return false;
+  }
+  const own = button.getBoundingClientRect();
+  const sheet = panel.getBoundingClientRect();
+  const viewport = button.ownerDocument.documentElement;
+  const visibleWidth = Math.min(own.right, sheet.right, viewport.clientWidth) - Math.max(own.left, sheet.left, 0);
+  const visibleHeight = Math.min(own.bottom, sheet.bottom, viewport.clientHeight) - Math.max(own.top, sheet.top, 0);
+  return (
+    visibleWidth >= Math.min(own.right - own.left, 44) - 1 && visibleHeight >= Math.min(own.bottom - own.top, 44) - 1
+  );
+};
+
+/** True when the selected tab of a strip is inside the strip's visible box (the keep-in-view rule; the strip itself may scroll). */
+export const selectedTabInView = (strip: {
+  getBoundingClientRect(): PageBox;
+  querySelector(selector: string): { getBoundingClientRect(): PageBox } | null;
+}): boolean => {
+  const tab = strip.querySelector('[role="tab"][aria-selected="true"]');
+  if (tab === null) {
+    return false;
+  }
+  const own = tab.getBoundingClientRect();
+  const visible = strip.getBoundingClientRect();
+  return own.left >= visible.left - 1 && own.right <= visible.right + 1;
+};
+
 /** The business date (Asia/Manila) `offsetDays` from today, as yyyy-MM-dd. */
 export function manilaDate(offsetDays: number): string {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
