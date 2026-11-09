@@ -49,7 +49,8 @@ export async function openPage(page: Page, pageCase: PageCase): Promise<void> {
   }
   const response = await page.goto(pageCase.path);
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText(pageCase.h1);
+  // The showcase draws about 250 cases in one commit, which a loaded phone engine takes longer than the 5 s default to show.
+  await expect(page.locator('h1')).toHaveText(pageCase.h1, isShowcase(pageCase) ? { timeout: 30_000 } : {});
   await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', pageCase.theme);
   await page.evaluate('document.fonts.ready.then(() => true)');
   await settle(page);
