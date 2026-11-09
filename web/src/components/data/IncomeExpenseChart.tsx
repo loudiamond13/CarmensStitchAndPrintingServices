@@ -12,10 +12,10 @@
 // "Oct 2026"; without it the short month is used. Attributes and handlers only; the look at rest is unchanged.
 // SPEC-DEVIATION: D-36, D-50 (Phase 10) `showProfit` draws the server's monthly profit as a line and swaps the tooltip's
 // Net row for a Profit row; `labels` sets the legend and tooltip words. Without them the chart draws as before.
-// SPEC-DEVIATION: D-51 (Phase 10) with `showProfit` (the dashboard card) the view box is as wide as the frame
-// (ResizeObserver), so text stays 11px and points stay round on a phone; the 640 width is kept until the frame is
-// measured. A group under 28px gets every other month label. Without `showProfit` the scaled 640 drawing stays, which is
-// the approved look the parity suite compares.
+// SPEC-DEVIATION: D-51 (Phase 10) with `fitWidth` (by default as `showProfit`, the dashboard card) the view box is as wide
+// as the frame (ResizeObserver), so text stays 11px and points stay round on a phone; the 640 width is kept until the
+// frame is measured. A group under 28px gets every other month label. Without `fitWidth` the scaled 640 drawing stays,
+// which is the approved look the parity suite compares.
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { formatPeso } from '@/utils/csps';
 import {
@@ -71,6 +71,8 @@ export interface IncomeExpenseChartProps {
   height?: number | undefined;
   /** Draw the server's `profit` per month as a line, with its legend key and tooltip row (default false). */
   showProfit?: boolean | undefined;
+  /** Draw at the frame's real width and thin the month labels on a narrow frame (D-51). Default: the same as `showProfit`. */
+  fitWidth?: boolean | undefined;
   /** The legend and tooltip words (defaults: today's). */
   labels?: ChartLabels | undefined;
 }
@@ -143,6 +145,7 @@ export function IncomeExpenseChart({
   data,
   height = 220,
   showProfit = false,
+  fitWidth = showProfit,
   labels = DEFAULT_LABELS,
 }: IncomeExpenseChartProps) {
   const [hover, setHover] = useState<number | null>(null);
@@ -150,7 +153,7 @@ export function IncomeExpenseChart({
   const frame = useRef<HTMLElement>(null);
   useEffect(() => {
     const node = frame.current;
-    if (!showProfit || node === null || typeof ResizeObserver === 'undefined') return;
+    if (!fitWidth || node === null || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver((entries) => {
       const width = Math.round(entries[0]?.contentRect.width ?? 0);
       if (width > 0) setMeasured(width);
@@ -159,15 +162,15 @@ export function IncomeExpenseChart({
     return () => {
       observer.disconnect();
     };
-  }, [showProfit]);
-  const W = showProfit ? (measured ?? FALLBACK_WIDTH) : FALLBACK_WIDTH;
+  }, [fitWidth]);
+  const W = fitWidth ? (measured ?? FALLBACK_WIDTH) : FALLBACK_WIDTH;
   const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.expenses)));
   const step = Math.pow(10, Math.floor(Math.log10(max)));
   const top = Math.ceil(max / step) * step;
   const H = height;
   const gw = (W - L) / Math.max(1, data.length);
   const bw = Math.min(18, gw / 3.2);
-  const thinLabels = showProfit && gw < MIN_LABEL_GROUP;
+  const thinLabels = fitWidth && gw < MIN_LABEL_GROUP;
   // SPEC-DEVIATION: D-36 when income (or profit, with showProfit) is below zero, the axis bottom is the lowest figure
   // rounded down to the top's step; otherwise `bottom` is 0 and every position is as in App. D.3.
   const lowest = Math.min(
