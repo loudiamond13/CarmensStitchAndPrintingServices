@@ -108,6 +108,23 @@ public sealed class GetDashboardSummaryHandlerTests
     }
 
     [Theory]
+    [InlineData(DayPart.Morning, "morning")]
+    [InlineData(DayPart.Afternoon, "afternoon")]
+    [InlineData(DayPart.Evening, "evening")]
+    public void EachKnownDayPartHasItsOwnGreeting(DayPart part, string expected)
+    {
+        GetDashboardSummaryHandler.GreetingOf(part).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void AnUnknownDayPartIsRefusedAndIsNotGreetedAsEvening()
+    {
+        var error = Should.Throw<ArgumentOutOfRangeException>(() => GetDashboardSummaryHandler.GreetingOf((DayPart)99));
+
+        error.ParamName.ShouldBe("part");
+    }
+
+    [Theory]
     [InlineData("1000.00", "1125.00", 13)]
     [InlineData("1000.00", "875.00", -13)]
     [InlineData("-200.00", "100.00", 150)]

@@ -92,6 +92,16 @@ public sealed class ChartMonthsTests
             [("2025-09", 0m), ("2025-10", 0m), ("2025-11", 0m), ("2025-12", 10.00m), ("2026-01", 20.00m), ("2026-02", 0m)]);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void AMonthCountBelowOneIsRefused(int months)
+    {
+        var error = Should.Throw<ArgumentOutOfRangeException>(() => ChartMonths.Build(new DateOnly(2026, 11, 1), months, None, None, None, None));
+
+        error.ParamName.ShouldBe("months");
+    }
+
     [Fact]
     public void ANullListIsRefused()
     {

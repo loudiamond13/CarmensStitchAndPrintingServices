@@ -22,6 +22,7 @@ public static class ChartMonths
         IReadOnlyList<MonthSum> companyExpenses,
         IReadOnlyList<MonthSum> orderExpenses)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(months);
         ArgumentNullException.ThrowIfNull(payments);
         ArgumentNullException.ThrowIfNull(refunds);
         ArgumentNullException.ThrowIfNull(companyExpenses);

@@ -90,10 +90,15 @@ public sealed class GetDashboardSummaryHandler(
         return (int)Math.Clamp(percent, int.MinValue, int.MaxValue);
     }
 
-    private static string GreetingOf(DayPart part) => part switch
+    /// <summary>Names the greeting for a part of the day.</summary>
+    /// <param name="part">The part of the business day.</param>
+    /// <returns>"morning", "afternoon" or "evening".</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The part is not one of the three.</exception>
+    public static string GreetingOf(DayPart part) => part switch
     {
         DayPart.Morning => "morning",
         DayPart.Afternoon => "afternoon",
-        _ => "evening",
+        DayPart.Evening => "evening",
+        _ => throw new ArgumentOutOfRangeException(nameof(part), part, "Unknown part of the day."),
     };
 }
