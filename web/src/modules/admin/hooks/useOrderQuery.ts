@@ -5,6 +5,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { ordersService } from '@/modules/admin/services/ordersService';
 
+/** The root of every order read, for a refresh that does not know which order it was. */
+export const orderRootKey = ['order'] as const;
 export const orderKey = (id: string) => ['order', id] as const;
 
 export interface OrderQueryOptions {

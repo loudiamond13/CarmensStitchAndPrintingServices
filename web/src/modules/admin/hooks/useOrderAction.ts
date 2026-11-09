@@ -2,8 +2,12 @@
 // double click sends one request. A finished action is the same submission as the next one on that row (the data is equal), so it
 // would send nothing; the identity carries a generation that moves on once the success work has finished, which is when the row
 // shows the new state and the next click is a new intent. Most actions answer the whole order; a restore or a delete for good answers nothing.
+import { useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
+import { mayHaveSaved } from '@/lib/forms/mayHaveSaved';
 import { useSubmission, type SubmissionState } from '@/lib/forms/useSubmission';
+import { orderRootKey } from '@/modules/admin/hooks/useOrderQuery';
+import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 
 export function useOrderAction<TTarget extends { readonly id: string }, TResult = OrderDetailResponse>(
@@ -14,6 +18,8 @@ export function useOrderAction<TTarget extends { readonly id: string }, TResult 
   onFailure?: (error: unknown) => void,
 ): SubmissionState<TTarget, TResult> {
   const generation = useRef(0);
+  const queryClient = useQueryClient();
+  const refreshOrders = useRefreshOrders();
   return useSubmission(send, {
     identity: (target) => `${target.id}:${String(generation.current)}`,
     onSuccess: (result, target) => {
@@ -30,6 +36,11 @@ export function useOrderAction<TTarget extends { readonly id: string }, TResult 
       void Promise.resolve(done).finally(advance);
     },
     onFailure: (_copy, error) => {
+      // A failure that may have saved (a server error, a timeout, no answer) leaves the order and the money old, so they are read again.
+      if (mayHaveSaved(error)) {
+        void queryClient.invalidateQueries({ queryKey: orderRootKey });
+        void refreshOrders();
+      }
       onFailure?.(error);
     },
   });
