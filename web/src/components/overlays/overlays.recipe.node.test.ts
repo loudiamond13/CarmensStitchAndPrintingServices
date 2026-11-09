@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildCss, checkClassTokens, collectClassTokens } from '../../../scripts/class-gate.mjs';
-import { modalClasses, overlayClasses, overlayRegionClasses } from './overlays.recipe.ts';
+import { modalClasses, modalFootClasses, overlayClasses, overlayRegionClasses } from './overlays.recipe.ts';
 
 /**
  * The D-42 transcription of App. C `.s-overlay`: the fixed scrim region as a column with 16px padding (0 on phone
@@ -162,5 +162,18 @@ describe('Dialog exit motion (D-38, D-39)', () => {
       expect(Number(duration) * 1000, name).toBeGreaterThanOrEqual(150);
       expect(Number(duration) * 1000, name).toBeLessThanOrEqual(250);
     }
+  });
+});
+
+describe('Window footer (App. B .csp-modal-foot, owner ruling D-107)', () => {
+  it('wraps its buttons onto a second row when they do not fit, so none leaves the window at 320px', async () => {
+    const footTokens = tokensOf(modalFootClasses);
+    const out = await buildCss(footTokens);
+
+    expect(footTokens).toContain('flex-wrap');
+    expect(out).toContain('flex-wrap: wrap;');
+    expect(footTokens).toEqual(
+      expect.arrayContaining(['justify-end', 'gap-3', 'pg-phone:in-data-[ui=s-overlay]:*:flex-1', 'vp-lt-sm:*:flex-1']),
+    );
   });
 });

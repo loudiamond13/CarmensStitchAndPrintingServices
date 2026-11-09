@@ -99,7 +99,9 @@ export async function signInAs(
   const verified = page.waitForResponse((response) => response.url().endsWith('/api/v1/auth/two-factor/verify'));
   // Started before the code is sent so the dashboard answer cannot be missed; the catch keeps it from rejecting unseen.
   const summary = page
-    .waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/dashboard/summary', { timeout: 20_000 })
+    .waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/dashboard/summary', {
+      timeout: 20_000,
+    })
     .catch(() => null);
   await typeCode(page, codeFromEmail(mail));
   await page.getByRole('button', { name: 'Verify Code' }).click();

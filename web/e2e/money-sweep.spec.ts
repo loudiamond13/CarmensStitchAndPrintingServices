@@ -97,13 +97,26 @@ async function measure(page: Page, label: string): Promise<string[]> {
   return failures;
 }
 
-/** Checks each footer button is inside the window and the dialog as it opens, with no scrolling. */
+/** True when the whole button lies between the left and right edges of its window (0.5px of rounding allowed). */
+const insideWindowSideways = (button: {
+  getBoundingClientRect(): { left: number; right: number };
+  closest(selector: string): { getBoundingClientRect(): { left: number; right: number } } | null;
+}): boolean => {
+  const sheet = button.closest('[role="dialog"]')?.getBoundingClientRect();
+  const own = button.getBoundingClientRect();
+  return sheet !== undefined && own.left >= sheet.left - 0.5 && own.right <= sheet.right + 0.5;
+};
+
+/** Checks each footer button is inside the window and the dialog as it opens, with no scrolling, and fully inside it sideways. */
 async function footerReachable(dialog: Locator, names: readonly string[]): Promise<string[]> {
   const failures: string[] = [];
   for (const name of names) {
     const button = dialog.getByRole('button', { name, exact: true });
     if (!(await button.evaluate(reachableWithoutScrolling))) {
       failures.push(`the ${name} button is out of reach`);
+    }
+    if (!(await button.evaluate(insideWindowSideways))) {
+      failures.push(`the ${name} button sticks out past the window edge`);
     }
   }
   return failures;

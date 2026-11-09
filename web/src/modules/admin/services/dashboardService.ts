@@ -23,7 +23,7 @@ export interface DashboardChartMonthFigures {
 
 /** The chart answer once the browser has checked it can draw it. */
 export interface DashboardChart {
-  months: number;
+  months: DashboardChartMonths;
   items: DashboardChartMonthFigures[];
 }
 
@@ -49,7 +49,7 @@ export function parseDashboardChart(response: DashboardChartResponse, requested:
   if (months !== requested)
     throw new DashboardContractError('The chart answers another window than the one asked for.');
   return {
-    months,
+    months: requested,
     items: response.items.map((item) => ({
       month: item.month,
       income: finiteFigure(item.income, 'income'),

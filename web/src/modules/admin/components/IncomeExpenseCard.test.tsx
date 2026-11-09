@@ -265,6 +265,53 @@ describe('the range switch (DASH-03, WEB-10)', () => {
     ).toBeNull();
   });
 
+  it('keeps "Last 6 months" until the twelve arrive, then reads "Last 12 months" (D-107)', async () => {
+    dashboardChartBackend(async (url) => {
+      if (url.searchParams.get('months') === '12') await delay(700);
+      return dashboardChartFixture(url.searchParams.get('months') === '12' ? 12 : 6);
+    });
+    const { container } = renderCard();
+    await screen.findByRole('img', { name: OCT_NAME });
+
+    await userEvent.click(screen.getByRole('radio', { name: '12M' }));
+
+    expect(screen.getByRole('radio', { name: '12M' })).toBeChecked();
+    expect(screen.getByText('Last 6 months')).toBeVisible();
+    expect(screen.queryByText('Last 12 months')).toBeNull();
+    await expectNoAxeViolations(container);
+    expect(await screen.findByText('Last 12 months')).toBeVisible();
+    expect(screen.queryByText('Last 6 months')).toBeNull();
+  });
+
+  it('keeps the empty message for 6 months, dims it by colour after 200 ms, and names 12 once they arrive (D-107)', async () => {
+    dashboardChartBackend(async (url) => {
+      if (url.searchParams.get('months') === '12') await delay(700);
+      return dashboardChartEmptyFixture(url.searchParams.get('months') === '12' ? 12 : 6);
+    });
+    const { container } = renderCard();
+    const title = await screen.findByRole('heading', { level: 3, name: 'No money in or out yet' });
+    const wrapper = title.parentElement?.parentElement;
+    expect(wrapper).toBeInstanceOf(HTMLElement);
+
+    await userEvent.click(screen.getByRole('radio', { name: '12M' }));
+
+    expect(screen.getByText('Payments and expenses from the last 6 months show here.')).toBeVisible();
+    expect(wrapper?.getAttribute('data-refetching')).toBeNull();
+    await waitFor(() => {
+      expect(wrapper?.getAttribute('data-refetching')).toBe('true');
+    });
+    expect(wrapper?.className).toContain('data-[refetching=true]:bg-surface-2');
+    expect(wrapper?.className).not.toContain('opacity');
+    expect(screen.getByText('Payments and expenses from the last 6 months show here.')).toBeVisible();
+    await expectNoAxeViolations(container);
+    expect(await screen.findByText('Payments and expenses from the last 12 months show here.')).toBeVisible();
+    expect(
+      screen
+        .getByRole('heading', { level: 3, name: 'No money in or out yet' })
+        .parentElement?.parentElement?.getAttribute('data-refetching'),
+    ).toBeNull();
+  });
+
   it('does not dim when the new months arrive within 200 ms', async () => {
     dashboardChartBackend();
     renderCard();

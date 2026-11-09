@@ -91,8 +91,7 @@ async function openPhoneDashboard(page: Page, request: APIRequestContext, guard:
   return page.evaluate<KpiFit>(READ_KPI_FIT);
 }
 
-// WR-01 (wave 4 review): at 320px the 2 x 2 cards are about 138px wide. With a six-digit Collected figure the page must not scroll
-// sideways (no horizontal scroll from 320 to 1920px).
+// D-107: at 420px and below the four cards sit in one column, so a six-digit Collected figure never makes the page scroll sideways.
 test('@dashboard the dashboard does not scroll sideways at 320px with a six-digit Collected figure', async ({
   page,
   request,
@@ -105,10 +104,8 @@ test('@dashboard the dashboard does not scroll sideways at 320px with a six-digi
   expect(fit.scrollWidth, 'horizontal scroll').toBeLessThanOrEqual(fit.innerWidth);
 });
 
-// OWNER DECISION P10-BL-06: at 320px even the UI-SPEC 24px figure is wider than its card. The value box is 104px and "₱126,450.00"
-// needs 122px, so it spills into the card padding. Whether the row goes to one column on small phones or the figure gets a smaller
-// size is the owner's call. Until it is made this check stays fixme.
-test.fixme('@dashboard every KPI figure fits inside its card at 320px with a six-digit Collected figure', async ({
+// D-107: the one-column row gives each figure the full card width, so none spills into the card padding.
+test('@dashboard every KPI figure fits inside its card at 320px with a six-digit Collected figure', async ({
   page,
   request,
   guard,

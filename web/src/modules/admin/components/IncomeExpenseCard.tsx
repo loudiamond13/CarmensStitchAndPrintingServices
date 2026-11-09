@@ -1,14 +1,15 @@
 // The Income vs. expenses card (DASH-03, DASH-06, D-36, D-50; UI-SPEC D3). The chart of plan 10-04 fed by the chart endpoint: the
 // server's months oldest first, with the profit line. The browser only formats: income, expenses and profit are the server's figures,
 // and the month names are built from the server's own `yyyy-MM` keys, never the device clock. No month is made up for a missing one.
-// The range (6 or 12 months) lives in the URL. While the other range loads the last months stay, dimmed after 200 ms. The card reads
-// its own query, so a failed chart shows only this card's alert.
+// The range (6 or 12 months) lives in the URL. While the other range loads the last months stay, dimmed after 200 ms, and the sub line
+// and the empty message keep naming the range on screen (D-107). The card reads its own query, so a failed chart shows only this card's alert.
 import { IncomeExpenseChart, type ChartDatum } from '@/components/data';
 import { EmptyState, Skeleton } from '@/components/feedback';
 import { SegmentedControl } from '@/components/choice';
 import { ErrorState, LoadingRegion, useDelayedFlag } from '@/components/states';
 import {
   chartBodyClasses,
+  chartEmptyClasses,
   dashboardCardClasses,
   dashboardCardHeadClasses,
   dashboardCardStateClasses,
@@ -53,6 +54,7 @@ export function toChartData(items: readonly DashboardChartMonthFigures[]): Chart
 
 export interface IncomeExpenseCardViewProps {
   range: DashboardRange;
+  /** The months of the answer on screen: the sub line and the empty message name them, not the range just picked. */
   months: DashboardChartMonths;
   onRangeChange: (range: DashboardRange) => void;
   /** The bar groups, or null while no answer is held. */
@@ -93,7 +95,11 @@ export function IncomeExpenseCardView({
       </div>
     );
   } else if (data.every((datum) => datum.income === 0 && datum.expenses === 0)) {
-    content = <EmptyState icon="trending-up" level={3} title={COPY.emptyTitle} message={COPY.emptyMessage(months)} />;
+    content = (
+      <div className={chartEmptyClasses} data-refetching={dimmed ? 'true' : undefined}>
+        <EmptyState icon="trending-up" level={3} title={COPY.emptyTitle} message={COPY.emptyMessage(months)} />
+      </div>
+    );
   } else {
     content = (
       <div className={chartBodyClasses} data-refetching={dimmed ? 'true' : undefined}>
@@ -133,7 +139,7 @@ export function IncomeExpenseCard() {
   return (
     <IncomeExpenseCardView
       range={range}
-      months={months}
+      months={query.data?.months ?? months}
       onRangeChange={setRange}
       data={data}
       loading={data === null ? query.isPending : marked}
