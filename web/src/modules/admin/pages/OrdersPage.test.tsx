@@ -496,6 +496,59 @@ describe('paging and rows per page (ORD-01, EDGE ORD-01 boundary)', () => {
     });
   });
 
+  it('shows no empty state, count or pager while a page past the last is replaced by the last page (WR-03)', async () => {
+    const updates: string[] = [];
+    useOrderHandlers({
+      list: async (url) => {
+        const page = Number(url.searchParams.get('page'));
+        if (page === 2) await delay(600);
+        return buildOrderList(page === 2 ? [order0148, order0151].map(listEntryOf) : [], {
+          all: 148,
+          active: 37,
+          total: 15,
+          page,
+          pageSize: 10,
+        });
+      },
+    });
+    renderPage('?page=3&size=10', (event) => {
+      updates.push(`${event.options.history}:${event.queryString}`);
+    });
+
+    await waitFor(() => {
+      expect(updates.some((entry) => entry.startsWith('replace:') && entry.includes('page=2'))).toBe(true);
+    });
+    expect(screen.queryByText('No active orders')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(await screen.findByText('ORD-2026-0148')).toBeVisible();
+    expect(screen.queryByText('No active orders')).toBeNull();
+  });
+
+  it('keeps Rows per page when the chosen size fits every row, and the smaller sizes can be chosen again (WR-03)', async () => {
+    const user = userEvent.setup();
+    const backend = useOrderHandlers({ list: MANY });
+    renderPage('?size=50');
+
+    await screen.findByText('148 orders · 37 active');
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    await user.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+  });
+
+  it('draws no Rows per page for a list no longer than the smallest size (WR-03)', async () => {
+    useOrderHandlers({ list: standardOrderList() });
+    renderPage('?size=50');
+
+    await screen.findByText('148 orders · 37 active');
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
+  });
+
   it('falls back from a size outside 10, 20, 50 and 100 with one replace and asks for the default', async () => {
     const updates: string[] = [];
     const backend = useOrderHandlers({ list: MANY });

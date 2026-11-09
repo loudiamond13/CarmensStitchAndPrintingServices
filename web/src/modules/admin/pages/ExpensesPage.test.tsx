@@ -295,6 +295,53 @@ describe('paging in the URL', () => {
     });
     expect(Object.fromEntries(calls.at(-1)?.searchParams ?? [])).toEqual({ page: '1', pageSize: '50' });
   });
+
+  it('shows no empty state, count or pager while a page past the last is replaced by the last page (WR-03)', async () => {
+    const updates: string[] = [];
+    expensesBackend(async (url) => {
+      const page = Number(url.searchParams.get('page'));
+      if (page === 2) await delay(600);
+      return expenseList(page === 2 ? ROWS : [], { page, pageSize: 10, total: 15, periodTotal: 0 });
+    });
+    renderPage('?page=3&size=10', (event) => {
+      updates.push(`${event.options.history}:${event.queryString}`);
+    });
+
+    await waitFor(() => {
+      expect(updates.some((entry) => entry.startsWith('replace:') && entry.includes('page=2'))).toBe(true);
+    });
+    expect(screen.queryByText('No expenses recorded')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(await screen.findByText('Shop rent for October')).toBeVisible();
+    expect(screen.queryByText('No expenses recorded')).toBeNull();
+  });
+
+  it('keeps Rows per page when the chosen size fits every row, and the smaller sizes can be chosen again (WR-03)', async () => {
+    const user = userEvent.setup();
+    const { calls } = expensesBackend((url) =>
+      expenseList(ROWS, { pageSize: Number(url.searchParams.get('pageSize')), total: 38 }),
+    );
+    renderPage('?size=50');
+
+    await screen.findByText('Shop rent for October');
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    await user.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+  });
+
+  it('draws no Rows per page for a list no longer than the smallest size (WR-03)', async () => {
+    expensesBackend(expenseList(ROWS));
+    renderPage('?size=50');
+
+    await screen.findByText('Shop rent for October');
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
+  });
 });
 
 function tokens(classes: string): string[] {
