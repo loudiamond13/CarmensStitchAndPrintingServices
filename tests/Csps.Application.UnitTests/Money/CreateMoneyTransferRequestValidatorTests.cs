@@ -109,6 +109,28 @@ public sealed class CreateMoneyTransferRequestValidatorTests
         Validate(Valid() with { Note = "  " + new string('a', 200) + "  " }).IsValid.ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData("\uFEFF")]
+    [InlineData("\u0085")]
+    [InlineData(" \uFEFF \u0085 ")]
+    public void ByteOrderMarksAndNextLinesAroundTheNoteDoNotCountTowardTheLimit(string edge)
+    {
+        Validate(Valid() with { Note = edge + new string('a', 200) + edge }).IsValid.ShouldBeTrue();
+        Messages(Validate(Valid() with { Note = edge + new string('a', 201) + edge }), "Note").ShouldBe(["Keep the note to 200 characters or fewer."]);
+    }
+
+    [Theory]
+    [InlineData("\uFEFF")]
+    [InlineData("\u0085")]
+    public void TheHandOverFormTrimsTheNoteTheSameWay(string edge)
+    {
+        var request = new CreateMoneyHandoverRequest(RecipientId, Guid.NewGuid(), 10.00m, "2026-11-07", edge + new string('a', 200) + edge);
+        var context = new ValidationContext<CreateMoneyHandoverRequest>(request);
+        context.RootContextData[CreateMoneyTransferRequestValidator.TodayKey] = Today;
+
+        new CreateMoneyHandoverRequestValidator().Validate(context).IsValid.ShouldBeTrue();
+    }
+
     [Fact]
     public void ABlankOrMissingNoteIsAccepted()
     {

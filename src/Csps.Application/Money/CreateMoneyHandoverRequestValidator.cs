@@ -28,6 +28,6 @@ public sealed class CreateMoneyHandoverRequestValidator : AbstractValidator<Crea
         RuleFor(request => request.TransferDate).Custom(CreateMoneyTransferRequestValidator.CheckDate);
 
         RuleFor(request => request.Note)
-            .Must(static note => note is null || note.Trim().Length <= MoneyRules.NoteMaxLength).WithMessage(MoneyRules.NoteTooLong);
+            .Must(static note => note is null || MoneyRules.TrimNote(note)!.Length <= MoneyRules.NoteMaxLength).WithMessage(MoneyRules.NoteTooLong);
     }
 }

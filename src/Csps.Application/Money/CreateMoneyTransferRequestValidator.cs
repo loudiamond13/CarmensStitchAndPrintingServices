@@ -30,7 +30,7 @@ public sealed class CreateMoneyTransferRequestValidator : AbstractValidator<Crea
         RuleFor(request => request.TransferDate).Custom(CheckDate);
 
         RuleFor(request => request.Note)
-            .Must(static note => note is null || note.Trim().Length <= MoneyRules.NoteMaxLength).WithMessage(MoneyRules.NoteTooLong);
+            .Must(static note => note is null || MoneyRules.TrimNote(note)!.Length <= MoneyRules.NoteMaxLength).WithMessage(MoneyRules.NoteTooLong);
     }
 
     /// <summary>Reads a date in <c>yyyy-MM-dd</c> form, ignoring spaces around it.</summary>

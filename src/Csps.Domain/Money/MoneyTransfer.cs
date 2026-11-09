@@ -227,7 +227,7 @@ public sealed class MoneyTransfer : IAttributedRecord
             return MoneyRules.Reject<string?>(MoneyRules.TransferDateField, MoneyRules.DateInFuture);
         }
 
-        var trimmedNote = note?.Trim();
+        var trimmedNote = MoneyRules.TrimNote(note);
         if (trimmedNote is { Length: > MoneyRules.NoteMaxLength })
         {
             return MoneyRules.Reject<string?>(MoneyRules.NoteField, MoneyRules.NoteTooLong);
