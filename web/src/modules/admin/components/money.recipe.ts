@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { hitAreaClasses } from '@/components/actions';
 import { cardClasses } from '@/components/money';
 import { pageSublineClasses } from '@/components/layout/layout.recipe';
+import { orderPhotosBannerClasses } from '@/modules/admin/components/orderPhotos.recipe';
 import { tw } from '@/ui/tw';
 
 /**
@@ -21,7 +22,7 @@ export const moneyStripTileClasses = tw(
 export const moneyStripBodyClasses = tw('flex min-w-0 flex-1 flex-col gap-1');
 
 /** The strip's label: 14px, 600. */
-export const moneyStripLabelClasses = tw('text-[14px] leading-5 font-semibold text-ink-muted');
+export const moneyStripLabelClasses = tw('text-[14px] leading-5 font-semibold text-ink');
 
 /**
  * The strip's figure: display 24px, 700, one line. The Money component has no 24px size, so the strip sets the figure itself from
@@ -94,13 +95,13 @@ export const ledgerCardClasses = clsx(cardClasses, tw('min-w-0'));
 export const ledgerToolsClasses = tw('px-5 pt-4');
 
 /** The result bar inside the card, aligned with the card padding. */
-export const ledgerBarClasses = tw('px-5 pt-4 pb-3');
+export const ledgerBarClasses = tw('px-5 pt-4 pb-4');
 
 /** The pagination row under the table, set off by a line. */
 export const ledgerPagerClasses = tw('border-t border-line px-5 py-4');
 
-/** A row's Details cell: the title over its sub line, 2px apart; the cell shrinks and wraps instead of widening the table. */
-export const ledgerDetailsClasses = tw('flex min-w-0 flex-col gap-0.5');
+/** A row's Details cell: the title over its sub line, 4px apart; the cell shrinks and wraps instead of widening the table. */
+export const ledgerDetailsClasses = tw('flex min-w-0 flex-col gap-1');
 
 /** A row title: Label 14/600, with the Deleted badge after it. Long names wrap anywhere. */
 export const ledgerTitleClasses = tw(
@@ -162,19 +163,23 @@ export const staffActionsClasses = tw('inline-flex items-center justify-end gap-
 
 /* ───────────── Delete and remove confirms (D-24, D-33; plan 10-20) ───────────── */
 
-/** The resulting-balance warning block under the Delete Transfer message: the warning-soft ground, an alert icon and the line. */
-export const transferWarningClasses = tw(
-  'mt-3 flex items-start gap-2 rounded-sm bg-warning-soft p-3 text-[14px] leading-5 font-semibold text-ink',
+/**
+ * The resulting-balance warning block under the Delete Transfer message: the P9 partial-failure banner look (10-UI-SPEC Color,
+ * State grounds), 16px under the message like the confirm column's other blocks, with the line in Label 14/600.
+ */
+export const transferWarningClasses = clsx(
+  orderPhotosBannerClasses,
+  tw('mt-4 text-[14px] leading-5 font-semibold text-ink'),
 );
 
-/** The alert icon in front of the warning line, in the warning colour. */
-export const transferWarningIconClasses = tw('mt-0.5 shrink-0 text-warning');
+/** The alert icon (20px) in front of the warning line, in the warning colour; it fills the 20px line, so it needs no nudge. */
+export const transferWarningIconClasses = tw('shrink-0 text-warning');
 
-/** "Couldn't check the new balances": Small, muted, under the message. */
-export const transferCheckFailedClasses = tw('mt-3 block text-[14px] leading-5 text-ink-muted');
+/** "Couldn't check the new balances": Small, muted, 16px under the message. */
+export const transferCheckFailedClasses = tw('mt-4 block text-[14px] leading-5 text-ink-muted');
 
-/** The details box of the permanent-remove confirm (D-24): the danger-soft ground, a 1px danger border, radius 8, 16px padding. */
-export const removeDetailsClasses = tw('mt-3 flex flex-col gap-1 rounded-sm border border-danger bg-danger-soft p-4');
+/** The details box of the permanent-remove confirm (D-24): the danger-soft ground, a 1px danger border, radius 8, 16px padding, 16px under the message. */
+export const removeDetailsClasses = tw('mt-4 flex flex-col gap-1 rounded-sm border border-danger bg-danger-soft p-4');
 
 /** The record line of the details box: Label 14/600 in the ink colour. Long names wrap anywhere. */
 export const removeRecordClasses = tw('text-[14px] leading-5 font-semibold wrap-anywhere text-ink');
@@ -187,5 +192,5 @@ export const removeNoteClasses = tw('text-[14px] leading-5 font-normal wrap-anyw
 /** The date and the Deleted badge side by side; they wrap on a narrow cell. */
 export const transferDateCellClasses = tw('flex flex-wrap items-center gap-x-2 gap-y-1');
 
-/** The note over the "Deleted by" line, 2px apart; both wrap anywhere. */
-export const transferNoteCellClasses = tw('flex min-w-0 flex-col gap-0.5');
+/** The note over the "Deleted by" line, 4px apart; both wrap anywhere. */
+export const transferNoteCellClasses = tw('flex min-w-0 flex-col gap-1');

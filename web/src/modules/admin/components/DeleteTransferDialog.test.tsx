@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { DeleteTransferDialog } from '@/modules/admin/components/DeleteTransferDialog';
+import { orderPhotosBannerClasses } from '@/modules/admin/components/orderPhotos.recipe';
 import { dashboardSummaryKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { ledgerKey } from '@/modules/admin/hooks/useLedgerQuery';
 import { myMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
@@ -271,6 +272,22 @@ describe('the resulting-balance warning (D-33, T-10-44)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
     const line = await within(dialog).findByText(WARNING);
     expect(line.parentElement?.querySelector('svg')).not.toBeNull();
+  });
+
+  it('draws the warning as the P9 partial-failure banner, 16px under the message, with a 20px icon and no nudge (UI-15, UI-18)', async () => {
+    staffBalancesBackend(balancesWithLiza(1500));
+    renderDialog();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this transfer?' });
+    const warning = (await within(dialog).findByText(WARNING)).parentElement;
+    const tokens = (warning?.className ?? '').split(/\s+/);
+    expect(tokens).toEqual(expect.arrayContaining(orderPhotosBannerClasses.split(/\s+/)));
+    expect(tokens).toContain('mt-4');
+    for (const gone of ['p-3', 'gap-2', 'mt-3']) expect(tokens).not.toContain(gone);
+    const icon = warning?.querySelector('svg');
+    expect(icon).toHaveAttribute('width', '20');
+    expect(icon).toHaveAttribute('height', '20');
+    expect(icon?.getAttribute('class')?.split(/\s+/)).not.toContain('mt-0.5');
   });
 
   it('shows a skeleton and keeps Delete Transfer disabled while the balances are read', async () => {

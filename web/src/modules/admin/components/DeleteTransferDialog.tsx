@@ -124,7 +124,7 @@ export function DeleteTransferView({
           )}
           {warnAmount !== null && (
             <span role="alert" className={transferWarningClasses}>
-              <Icon name="triangle-alert" size={16} className={transferWarningIconClasses} />
+              <Icon name="triangle-alert" size={20} className={transferWarningIconClasses} />
               <span>{COPY.warning(transfer.to.name, formatPeso(warnAmount))}</span>
             </span>
           )}

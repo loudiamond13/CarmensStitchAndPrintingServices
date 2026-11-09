@@ -115,7 +115,12 @@ export function StaffBalancesTable({ query, onHandOver, captionId }: StaffBalanc
       actions: true,
       cell: (row) => (
         <RowActions>
-          <RowAction to={pageOf(row)} icon="eye" label={COPY.viewLedgerName(row.name)} />
+          <RowAction
+            to={pageOf(row)}
+            icon="eye"
+            label={COPY.viewLedgerName(row.name)}
+            title={COPY.viewLedgerName(row.name)}
+          />
           {canHandOver(row) && (
             <Button
               variant="secondary"

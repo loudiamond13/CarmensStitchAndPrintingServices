@@ -3,9 +3,10 @@
 // "Your money on hand" over the caller's own figure from the server, Transfer and View Ledger. The strip works out nothing: the figure is the server's, in the danger tone below zero and dimmed at ₱0.00. It reads
 // its own query, so a failed read leaves the rest of the dashboard alone, and View Ledger works whatever the state.
 // Phones (money.recipe.ts): the tile is hidden, the figure stays on one line (whitespace-nowrap) and the buttons wrap to their own row.
+// While the figure loads or has failed, Transfer is described by the strip's own loading or failure line (D-107).
 import clsx from 'clsx';
 import { useId, type ReactNode } from 'react';
-import { Button, ButtonLink } from '@/components/actions';
+import { Button, ButtonLink, hitAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Skeleton } from '@/components/feedback';
 import { LoadingRegion } from '@/components/states';
@@ -40,6 +41,8 @@ export interface MoneyStripProps {
 export function MoneyStrip({ query, actions, transfer }: MoneyStripProps) {
   const labelId = useId();
   const reasonId = useId();
+  const statusId = useId();
+  const failureId = useId();
   const gate = transferGate(query);
   const money = query.data;
   const tone =
@@ -54,17 +57,20 @@ export function MoneyStrip({ query, actions, transfer }: MoneyStripProps) {
   // A read that failed shows its alert until Try Again runs; while the retry runs the skeleton stands in, even over an older figure.
   const failed = query.isError && !query.isFetching;
   const loading = query.isFetching && (money === undefined || query.isError);
+  // While the figure loads or has failed, Transfer is described by the strip's own loading line or failure line (D-107).
+  const pendingReasonId = failed ? failureId : loading ? statusId : undefined;
 
   let figure;
   if (failed) {
     figure = (
       <div className={moneyStripFailedClasses}>
-        <p role="alert" className={moneyStripFailedTextClasses}>
+        <p id={failureId} role="alert" className={moneyStripFailedTextClasses}>
           {COPY.failed}
         </p>
         <Button
           variant="ghost"
           size="sm"
+          className={hitAreaClasses}
           onClick={() => {
             void query.refetch();
           }}
@@ -86,16 +92,26 @@ export function MoneyStrip({ query, actions, transfer }: MoneyStripProps) {
       <span className={moneyStripTileClasses}>
         <Icon name="wallet" size={18} />
       </span>
-      <LoadingRegion loading={loading} failed={failed} things={COPY.things} className={moneyStripBodyClasses}>
+      <LoadingRegion
+        loading={loading}
+        failed={failed}
+        things={COPY.things}
+        className={moneyStripBodyClasses}
+        statusId={statusId}
+      >
         <span id={labelId} className={moneyStripLabelClasses}>
           {COPY.label}
         </span>
         {figure}
       </LoadingRegion>
       <div className={moneyStripActionsClasses}>
-        {transfer ? transfer(reasonId) : <TransferButton query={query} reasonId={reasonId} />}
+        {transfer ? (
+          transfer(reasonId)
+        ) : (
+          <TransferButton query={query} reasonId={reasonId} pendingReasonId={pendingReasonId} />
+        )}
         {actions}
-        <ButtonLink variant="ghost" size="sm" to={LEDGER_PATH}>
+        <ButtonLink variant="ghost" size="sm" to={LEDGER_PATH} className={hitAreaClasses}>
           {COPY.viewLedger}
         </ButtonLink>
       </div>

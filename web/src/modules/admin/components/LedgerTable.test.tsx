@@ -237,6 +237,15 @@ describe('Money in, Money out and Balance (D-21, OR-4, MONEY-02)', () => {
   });
 });
 
+describe('tablets (UI-24)', () => {
+  it('has no 680px floor on tablets, so the ledger fits its card at 768px', () => {
+    renderTable();
+
+    const table = screen.getByRole('table', { name: 'Ledger' });
+    expect(table.className.split(/\s+/)).not.toContain('pg-tablet:min-w-[680px]');
+  });
+});
+
 describe('phones and long text (UI-SPEC M1 phone and long-text rules)', () => {
   const LONG_NOTE = `Note ${'n'.repeat(195)}`;
   const LONG_DESCRIPTION = `Part ${'d'.repeat(195)}`;

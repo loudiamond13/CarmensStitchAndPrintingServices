@@ -117,3 +117,37 @@ test('@dashboard every KPI figure fits inside its card at 320px with a six-digit
   const tooWide = fit.figures.filter((figure) => figure.needs > figure.has);
   expect(tooWide, 'figures wider than their card').toEqual([]);
 });
+
+/** A control's drawn height and the height of its invisible ::before tap area. */
+interface TapSizes {
+  readonly drawn: number;
+  readonly area: number;
+}
+
+/** Page function for `locator.evaluate`: self-contained, taking only the parts of the element it reads. */
+const readTapSizes = (element: {
+  getBoundingClientRect(): { height: number };
+  ownerDocument: { defaultView: { getComputedStyle(target: unknown, pseudo: string): { height: string } } | null };
+}): TapSizes => ({
+  drawn: element.getBoundingClientRect().height,
+  area: Number.parseFloat(element.ownerDocument.defaultView?.getComputedStyle(element, '::before').height ?? ''),
+});
+
+// UI-01: the strip's Transfer and View Ledger stay 36px drawn, inside an invisible 44px tap area (the ::before box).
+test("@dashboard the money strip's Transfer and View Ledger have a 44px tap area", async ({ page, request, guard }) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const strip = page.getByRole('region', { name: 'Your money on hand' });
+  await expect(strip.getByRole('button', { name: 'Transfer' })).toBeVisible();
+
+  for (const control of [
+    strip.getByRole('button', { name: 'Transfer' }),
+    strip.getByRole('link', { name: 'View Ledger' }),
+  ]) {
+    const sizes = await control.evaluate(readTapSizes);
+    expect(sizes.drawn, 'the drawn height').toBeCloseTo(36, 0);
+    expect(sizes.area, 'the tap area height').toBeGreaterThanOrEqual(44);
+  }
+});

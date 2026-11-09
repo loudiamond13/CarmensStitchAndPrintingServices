@@ -378,3 +378,92 @@ test("@money a Manager hands over a leaver's money from All Staff, and an Admin 
     await other.context.close();
   }
 });
+
+/** What the ledger shows at tablet width: the card, its table frame and the Balance header, as the browser lays them out. */
+interface LedgerFit {
+  readonly frameScroll: number;
+  readonly frameWidth: number;
+  readonly balanceRight: number;
+  readonly cardRight: number;
+  readonly pageScrollsSideways: boolean;
+}
+
+const READ_LEDGER_FIT = `(() => {
+  const table = document.querySelector('table');
+  const frame = table?.parentElement;
+  const card = table?.closest('section');
+  const balance = Array.from(table?.querySelectorAll('th') ?? []).find((cell) => cell.textContent === 'Balance');
+  if (!table || !frame || !card || !balance) return null;
+  return {
+    frameScroll: frame.scrollWidth,
+    frameWidth: frame.clientWidth,
+    balanceRight: balance.getBoundingClientRect().right,
+    cardRight: card.getBoundingClientRect().right,
+    pageScrollsSideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  };
+})()`;
+
+/** Opens My Money at 768 x 1024 and reads how the ledger sits in its card. */
+async function readLedgerFitAt768(page: Page): Promise<LedgerFit> {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto('/admin/money');
+  await expect(page.getByRole('table', { name: 'Ledger' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Ledger' }).getByRole('row')).not.toHaveCount(1);
+  const fit = await page.evaluate<LedgerFit | null>(READ_LEDGER_FIT);
+  if (fit === null) throw new Error('The ledger table, its card or the Balance header is missing.');
+  return fit;
+}
+
+/** The ledger holds its content: the frame does not scroll, the Balance header is inside the card, and the page does not scroll sideways. */
+function expectLedgerFits(fit: LedgerFit): void {
+  expect(fit.frameScroll, 'the ledger frame scrolls sideways').toBeLessThanOrEqual(fit.frameWidth);
+  expect(fit.balanceRight, 'the Balance header sticks out of the card').toBeLessThanOrEqual(fit.cardRight + 0.5);
+  expect(fit.pageScrollsSideways, 'the page scrolls sideways').toBe(false);
+}
+
+test('@money the ledger fits its card at 768px for a Manager and an Admin', async ({
+  page,
+  browser,
+  baseURL,
+  request,
+  guard,
+}) => {
+  test.setTimeout(300_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const token = randomUUID().replaceAll('-', '').slice(0, 8);
+  const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mina', lastName: `Wide${token}` });
+  const admin = await createStaff(request, 'Admin', undefined, { firstName: 'Ador', lastName: `Wide${token}` });
+  await createStaff(request, 'Admin', undefined, { firstName: 'Rina', lastName: `Recv${token}` });
+  // A six-digit payment row, then a transfer row: the Manager's ledger also gets the Actions column on the transfer.
+  const today = manilaDate(-1);
+  for (const person of [manager, admin]) {
+    await createOrder(request, {
+      number: `ORD-2096-${randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()}`,
+      customerName: 'E2E Wide Ledger Customer',
+      orderDate: today,
+      items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E wide jersey', quantity: 1, unitPrice: 126_450 }],
+      payments: [{ paymentDate: today, amount: 126_450, paymentMethodId: CASH_ID, receivedByUserId: person.userId }],
+    });
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await signInAs(page, request, manager);
+  await recordTransfer(page, `Rina Recv${token}`, '1250.50');
+
+  const managerFit = await readLedgerFitAt768(page);
+  await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+  expectLedgerFits(managerFit);
+  await expectNoAxeViolations(page);
+
+  const other = await signInSecondPerson(browser, baseURL, request, admin);
+  try {
+    await other.page.setViewportSize({ width: 1280, height: 800 });
+    await recordTransfer(other.page, `Rina Recv${token}`, '2500');
+    const adminFit = await readLedgerFitAt768(other.page);
+    await expect(other.page.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0);
+    expectLedgerFits(adminFit);
+    await expectNoAxeViolations(other.page);
+    await other.finish();
+  } finally {
+    await other.context.close();
+  }
+});

@@ -277,6 +277,7 @@ export function LedgerTable({
       emptyMessage={ownLedger ? COPY.empty.message : undefined}
       emptyLevel={3}
       embedded
+      fitTablet
     />
   );
 }

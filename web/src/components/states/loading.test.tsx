@@ -164,6 +164,21 @@ describe('LoadingRegion', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Link checked.');
   });
 
+  it('gives the status node the id it is handed, so another element can be described by it (statusId)', () => {
+    const { rerender } = render(
+      <LoadingRegion loading things="orders" statusId="s1">
+        <p>Body</p>
+      </LoadingRegion>,
+    );
+    expect(screen.getByRole('status')).toHaveAttribute('id', 's1');
+    rerender(
+      <LoadingRegion loading things="orders">
+        <p>Body</p>
+      </LoadingRegion>,
+    );
+    expect(screen.getByRole('status')).not.toHaveAttribute('id');
+  });
+
   it('keeps the status node outside the busy region, so its announcement is not held back', () => {
     const { container } = render(region(true));
     expect(container.querySelector('[aria-busy="true"] [role="status"]')).toBeNull();

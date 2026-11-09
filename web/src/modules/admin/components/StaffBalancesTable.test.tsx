@@ -157,6 +157,15 @@ describe('the card and its rows (D-42, D-43)', () => {
     expect(screen.getByRole('link', { name: 'View ledger of Carmen Reyes' })).toHaveAttribute('href', '/admin/money');
   });
 
+  it('gives the eye link a title equal to its accessible name (UI-07)', () => {
+    renderTable();
+
+    for (const person of [CARMEN, LIZA]) {
+      const link = screen.getByRole('link', { name: `View ledger of ${person.name}` });
+      expect(link).toHaveAttribute('title', `View ledger of ${person.name}`);
+    }
+  });
+
   it('puts a data-label on every cell, so phones draw row cards', () => {
     renderTable();
 

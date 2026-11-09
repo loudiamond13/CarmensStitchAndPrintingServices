@@ -15,7 +15,7 @@ import { MoneyInput } from '@/components/entry';
 import { DateInput, Field, Select } from '@/components/forms';
 import { useToast } from '@/components/feedback';
 import { Modal } from '@/components/overlays';
-import { Note, SkeletonText } from '@/components/states';
+import { LoadingRegion, Note, SkeletonText } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { OrderWindow } from '@/modules/admin/components/OrderWindow';
@@ -129,7 +129,9 @@ function TransferWindow({ leaver, open, onClose }: TransferWindowProps) {
   if (today === null) {
     return (
       <Modal open={open} title={handover ? HANDOVER.title : COPY.title} onClose={onClose}>
-        <SkeletonText />
+        <LoadingRegion loading things={COPY.loadingThings}>
+          <SkeletonText />
+        </LoadingRegion>
       </Modal>
     );
   }

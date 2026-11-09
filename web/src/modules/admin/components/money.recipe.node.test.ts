@@ -8,11 +8,16 @@ import { describe, expect, it } from 'vitest';
 import { buildCss, checkClassTokens, collectClassTokens } from '../../../../scripts/class-gate.mjs';
 
 const recipeFile = 'src/modules/admin/components/money.recipe.ts';
-const recipeTokens = collectClassTokens(
-  recipeFile,
-  readFileSync(new URL('./money.recipe.ts', import.meta.url), 'utf8'),
-);
+const recipeSource = readFileSync(new URL('./money.recipe.ts', import.meta.url), 'utf8');
+const recipeTokens = collectClassTokens(recipeFile, recipeSource);
 const css = await buildCss([...new Set(recipeTokens.map((entry) => entry.token))]);
+
+/** The tokens of one `tw('...')` export, read from the recipe source (the recipe pulls in components, which a node test does not load). */
+function classesOf(name: string): string[] {
+  const match = new RegExp(String.raw`export const ${name} = tw\(\s*'([^']*)'`).exec(recipeSource);
+  expect(match, name).not.toBeNull();
+  return (match?.[1] ?? '').split(/\s+/).filter(Boolean);
+}
 
 /** The CSS-escaped class selector of a token. */
 function classSelector(token: string): string {
@@ -72,6 +77,35 @@ describe('money recipe', () => {
   it('reserves 72px more beside the name of a row with Hand Over on phones only (plan 10-21 sweep, target-size at 320 px)', () => {
     expect(blockOf('pg-phone:pr-18')).toBe('@container pg (max-width: 767px)');
     expect(ruleOf('pg-phone:pr-18')).toContain('padding-right');
+  });
+
+  it('sets the strip label in the full ink, not muted (UI-09, Label role)', () => {
+    expect(classesOf('moneyStripLabelClasses')).toContain('text-ink');
+    expect(classesOf('moneyStripLabelClasses')).not.toContain('text-ink-muted');
+  });
+
+  it('keeps a ledger title 4px over its sub line, in the Details and the note cells (UI-12, UI-13: Spacing xs)', () => {
+    for (const name of ['ledgerDetailsClasses', 'transferNoteCellClasses']) {
+      expect(classesOf(name), name).toContain('gap-1');
+      expect(classesOf(name), name).not.toContain('gap-0.5');
+    }
+  });
+
+  it('gives the result bar 16px above and below (UI-14)', () => {
+    expect(classesOf('ledgerBarClasses')).toEqual(['px-5', 'pt-4', 'pb-4']);
+  });
+
+  it('puts 16px above the check-failed line and the remove details box, the confirm column gap (UI-18)', () => {
+    for (const name of ['transferCheckFailedClasses', 'removeDetailsClasses']) {
+      expect(classesOf(name), name).toContain('mt-4');
+      expect(classesOf(name), name).not.toContain('mt-3');
+    }
+    expect(classesOf('removeDetailsClasses')).toContain('p-4');
+  });
+
+  it('builds the Delete Transfer warning on the P9 banner recipe with a 16px top margin, and its icon has no nudge (UI-15, UI-18)', () => {
+    expect(recipeSource).toMatch(/export const transferWarningClasses = clsx\(\s*orderPhotosBannerClasses,/);
+    expect(classesOf('transferWarningIconClasses')).toEqual(['shrink-0', 'text-warning']);
   });
 
   it('dims by colour only: no opacity token', () => {

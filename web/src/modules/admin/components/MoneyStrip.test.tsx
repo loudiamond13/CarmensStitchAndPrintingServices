@@ -5,8 +5,10 @@ import { delay } from 'msw';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hitAreaClasses } from '@/components/actions';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { MoneyStrip } from '@/modules/admin/components/MoneyStrip';
+import { TransferButton } from '@/modules/admin/components/TransferButton';
 import { myMoneyKey, useMyMoneyQuery, type MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import type { MyMoney } from '@/modules/admin/services/moneyService';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -221,28 +223,97 @@ describe('Transfer with nothing to send (D-14, P8 D-14 pattern)', () => {
     expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
   });
 
-  it('is aria-disabled while the figure loads, with no reason line', () => {
-    renderWith(queryOf());
+  it('is aria-disabled while the figure loads, described by the strip loading line (D-107)', async () => {
+    const { container } = renderWith(queryOf());
 
     const transfer = screen.getByRole('button', { name: 'Transfer' });
     expect(transfer).toHaveAttribute('aria-disabled', 'true');
-    expect(transfer).not.toHaveAttribute('aria-describedby');
+    expect(transfer).toHaveAccessibleDescription('Loading your money on hand…');
     expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
+    await expectNoAxeViolations(container);
   });
 
-  it('is aria-disabled when the figure could not load, with no reason line', () => {
-    renderWith(queryOf({ isError: true, error: new Error('x') }));
+  it('is aria-disabled when the figure could not load, described by the strip failure line (D-107)', async () => {
+    const { container } = renderWith(queryOf({ isError: true, error: new Error('x') }));
 
     const transfer = screen.getByRole('button', { name: 'Transfer' });
     expect(transfer).toHaveAttribute('aria-disabled', 'true');
-    expect(transfer).not.toHaveAttribute('aria-describedby');
+    expect(transfer).toHaveAccessibleDescription("Couldn't load your money on hand.");
     expect(screen.queryByText('Nothing on hand to transfer.')).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
+  it('is described by the loading line during Try Again, and by nothing once the figure is shown (D-107)', () => {
+    const { rerender } = renderWith(queryOf({ isError: true, error: new Error('x'), isFetching: true }));
+
+    expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAccessibleDescription('Loading your money on hand…');
+    rerender(
+      <MemoryRouter>
+        <MoneyStrip query={queryOf({ data: moneyOf(8450) })} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('button', { name: 'Transfer' })).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('keeps "Nothing on hand to transfer." as the description when nothing is on hand', () => {
+    renderWith(queryOf({ data: moneyOf(0) }));
+
+    expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAccessibleDescription(
+      'Nothing on hand to transfer.',
+    );
+  });
+
+  it('has no description with money on hand', () => {
+    renderWith(queryOf({ data: moneyOf(8450) }));
+
+    expect(screen.getByRole('button', { name: 'Transfer' })).toHaveAccessibleDescription('');
   });
 
   it('has no axe violations with the reason shown', async () => {
     const { container } = renderWith(queryOf({ data: moneyOf(0) }));
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('the 44px tap area of the small strip buttons (UI-01)', () => {
+  const hit = hitAreaClasses.split(/\s+/).filter(Boolean);
+  const tokensOf = (element: HTMLElement) => element.className.split(/\s+/);
+
+  it('gives Transfer and View Ledger every hit-area token, and keeps their 36px drawn height', () => {
+    renderWith(queryOf({ data: moneyOf(8450) }));
+
+    for (const element of [
+      screen.getByRole('button', { name: 'Transfer' }),
+      screen.getByRole('link', { name: 'View Ledger' }),
+    ]) {
+      expect(tokensOf(element)).toEqual(expect.arrayContaining(hit));
+      expect(tokensOf(element)).toContain('h-9');
+    }
+  });
+
+  it('gives Try Again every hit-area token in the failed state', () => {
+    renderWith(queryOf({ isError: true, error: new Error('x') }));
+
+    const retry = screen.getByRole('button', { name: 'Try Again' });
+    expect(tokensOf(retry)).toEqual(expect.arrayContaining(hit));
+    expect(tokensOf(retry)).toContain('h-9');
+  });
+
+  it('leaves the 44px My Money header Transfer without a tap area', () => {
+    render(<TransferButton query={queryOf({ data: moneyOf(8450) })} reasonId="r" size="md" />);
+
+    expect(tokensOf(screen.getByRole('button', { name: 'Transfer' }))).not.toContain('before:h-11');
+  });
+});
+
+describe('the label (UI-09)', () => {
+  it('is in the full ink, not muted', () => {
+    renderWith(queryOf({ data: moneyOf(8450) }));
+
+    const label = screen.getByText('Your money on hand');
+    expect(label.className.split(/\s+/)).toContain('text-ink');
+    expect(label.className.split(/\s+/)).not.toContain('text-ink-muted');
   });
 });
 

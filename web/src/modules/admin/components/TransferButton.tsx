@@ -1,9 +1,10 @@
 // The Transfer button (D-46 strip, D-39 My Money header; UI-SPEC D1, M1) and the window it opens. D-14: with nothing on hand, or while
 // the figure is not known, the button is aria-disabled but never hidden and keeps the keyboard cursor; with nothing on hand the screen
-// also shows `TransferReason`, which the button names with aria-describedby. The window is built only after the first press, so a
+// also shows `TransferReason`, which the button names with aria-describedby, and while the figure loads or failed the strip's own
+// line is named the same way (D-107). The window is built only after the first press, so a
 // screen that only shows the button reads no recipients. Focus goes back to the button once the window is closed.
 import { useRef, useState } from 'react';
-import { Button, type ButtonSize, type ButtonVariant } from '@/components/actions';
+import { Button, hitAreaClasses, type ButtonSize, type ButtonVariant } from '@/components/actions';
 import { TransferModal } from '@/modules/admin/components/TransferModal';
 import { transferReasonClasses } from '@/modules/admin/components/money.recipe';
 import type { MyMoneyCardQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
@@ -41,15 +42,24 @@ export interface TransferButtonProps {
   query: Pick<MyMoneyCardQuery, 'data' | 'isError'>;
   /** The id of the `TransferReason` on the screen; named by the button while nothing is on hand. */
   reasonId: string;
+  /** The id of the line that says the figure is loading or failed; named by the button while it is blocked for that reason (D-107). */
+  pendingReasonId?: string | undefined;
   variant?: ButtonVariant;
   size?: ButtonSize;
 }
 
-export function TransferButton({ query, reasonId, variant = 'secondary', size = 'sm' }: TransferButtonProps) {
+export function TransferButton({
+  query,
+  reasonId,
+  pendingReasonId,
+  variant = 'secondary',
+  size = 'sm',
+}: TransferButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [built, setBuilt] = useState(false);
   const [open, setOpen] = useState(false);
   const gate = transferGate(query);
+  const describedBy = gate.nothingOnHand ? reasonId : gate.blocked ? pendingReasonId : undefined;
 
   return (
     <>
@@ -58,8 +68,10 @@ export function TransferButton({ query, reasonId, variant = 'secondary', size = 
         variant={variant}
         size={size}
         icon="arrow-right"
+        // The small strip button (36px) gets the 44px tap area; the 44px header button needs none.
+        {...(size === 'sm' ? { className: hitAreaClasses } : {})}
         aria-disabled={gate.blocked}
-        {...(gate.nothingOnHand ? { 'aria-describedby': reasonId } : {})}
+        {...(describedBy === undefined ? {} : { 'aria-describedby': describedBy })}
         onClick={() => {
           if (!gate.blocked) {
             setBuilt(true);

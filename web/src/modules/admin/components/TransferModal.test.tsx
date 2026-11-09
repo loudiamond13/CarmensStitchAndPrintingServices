@@ -172,6 +172,28 @@ describe('the window from the strip (D-47, D-56)', () => {
     expect(asked.lists).toHaveLength(1);
   });
 
+  it('draws the skeleton in a busy region that says "Loading staff…" while the business today is unknown (UI-21)', async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes', today: 'soon' }));
+    transferRecipientsBackend();
+    useOrderHandlers({
+      list: async () => {
+        await delay(300);
+        return buildOrderList([], { today: '2026-11-04' });
+      },
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    const dialog = await openWindow(user);
+
+    const status = within(dialog).getByRole('status');
+    expect(status).toHaveTextContent('Loading staff…');
+    expect(status.previousElementSibling).toHaveAttribute('aria-busy', 'true');
+    await expectNoAxeViolations(dialog);
+    await waitFor(() => {
+      expect(dateBox()).toHaveValue('2026-11-04');
+    });
+  });
+
   it("reads the balance afresh when the window opens: the description and the cap use it, not the strip's older figure (wave 7 WR-04)", async () => {
     let reads = 0;
     myMoneyBackend(() => {

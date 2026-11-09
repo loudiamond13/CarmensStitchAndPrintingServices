@@ -193,6 +193,8 @@ export const MONEY_COPY = {
     nothingOnHand: 'Nothing on hand to transfer.',
     // SPEC-GAP: T1 the window's words.
     title: 'Transfer Money',
+    /** The noun of the window's loading region while the business today is read: it speaks the existing "Loading staff…". */
+    loadingThings: 'staff',
     /** "From Carmen Reyes (you). You have ₱8,450.00 on hand." */
     description: (name: string, balance: string): string => `From ${name} (you). You have ${balance} on hand.`,
     to: {
