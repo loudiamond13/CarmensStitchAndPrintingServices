@@ -3,7 +3,7 @@ phase: 10-admin-dashboard
 wave: 11
 plans: [10-21]
 created: 2026-11-08T16:48:00-06:00
-updated: 2026-11-08T16:49:00-06:00
+updated: 2026-11-08T19:06:00-06:00
 reviewed_range: fbc59c0a..c0669aff (excluding .planning/)
 depth: deep
 files_reviewed: 20
@@ -38,7 +38,7 @@ status: issues_found
 
 # Phase 10 Wave 11 Code Review (plan 10-21)
 
-*Created: 2026-11-08T16:48:00-06:00 · Updated: 2026-11-08T16:49:00-06:00*
+*Created: 2026-11-08T16:48:00-06:00 · Updated: 2026-11-08T19:06:00-06:00*
 
 ## Summary
 
@@ -217,14 +217,15 @@ _Depth: deep_
 
 | Finding | Outcome |
 |---|---|
-| WR-01 | Fix now: the P10-BL-06 comment says what the code does (no skip). |
-| WR-02 | Fix now: the sweeps stop adding this month's money to the shared shop totals on every run (seed once, or seed outside the current month, or clean up), so the 320 px dashboard checks do not depend on run order. |
-| WR-03 | Fix now: the demo strip cannot reach the real Transfer window or a real save, and a test proves the guard on an unblocked strip. |
-| WR-04 | Fix now: `@dashboard-showcase` runs axe on the Phase 10 section only, within the usual time budget. |
-| IN-01 | Fix now: load `Phase10Demos` lazily, so the showcase heading does not wait for it. |
-| IN-02 | Fix now: demo figures agree across cases, a hand-over shows the right way round, and dates sit on or before the demo's today. |
+| WR-01 | Fixed in 217b7347: the comment says the 320 px case stays failing on purpose. |
+| WR-02 | Fixed in f1c0e622: the money sweep dates its money 45 days back and the dashboard sweep adds ₱10.00 and ₱5.00; a node test covers the date math. |
+| WR-03 | Fixed in d5d76df6: `MoneyStrip` takes a `transfer` slot and the demos pass a plain button; tests prove no window, request or fetch. |
+| WR-04 | Fixed in 98ec585f: axe scans the section or the open dialog only, one test per theme and width (iPhone 6 of 6 passed, 47 to 96 s). |
+| IN-01 | Fixed in 038dec62: `Phase10Demos` loads lazily; a test proves it loads only on request. |
+| IN-02 | Fixed in d2b4db72: the delete warning, hand-over direction and dates agree. |
 | IN-03 | Deferred to the phase-end review (fixed 72 px reserve for Hand Over at 320 px). |
-| IN-04 | Fix now: `footerReachable`, `PANEL_FITS` and `TAB_STRIPS_FIT` check what the spec says, and can fail. |
-| IN-05 | Fix now: one shared no-sideways-scroll helper that measures against the page width without the scrollbar. |
-| IN-06 | Fix now: a test for the `send` seam, and app code cannot use it (a lint rule or an architecture test). |
+| IN-04 | Fixed in e5a2aab8: the dialog, selected tab and footer checks measure what the spec says and are unit tested. New owner item P10-BL-16 (footer buttons at 320 px). |
+| IN-05 | Fixed in 258fe739: one shared check comparing scrollWidth with clientWidth. |
+| IN-06 | Fixed in 49040e15: hook tests for `send` plus a lint rule that bars it outside the showcase and the modal. |
 | IN-07 | Deferred to the phase-end review (demo windows close without the animation and focus return). |
+| X-01 | Fixed in e95e98cb: the O-6 test focuses Dismiss to pause the toast before reading it, and the showcase heading wait is 30 s (iPhone 5 of 5 passed). |

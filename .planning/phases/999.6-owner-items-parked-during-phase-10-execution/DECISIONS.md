@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T16:34:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-08T19:06:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -160,3 +160,13 @@ When a Manager removes a deleted transfer for good, the audit log keeps who sent
 - **Showcase button wording (developer page only).** New trigger labels such as "Show the Dashboard cases" and "Open Transfer (refused)". No new app wording.
 - **Transfer window messages** show as the user types or leaves a box; server refusals are shown by the two "(refused)" demo buttons.
 
+
+## P10-BL-16 · Window buttons stick out past the screen edge at 320 px (found while fixing the wave 11 review)
+
+**Status:** open · **Blocks:** nothing; the buttons can still be pressed (at least 44 px stays on screen).
+
+On a 320 px phone, the Cancel button in the Remove Permanently window starts 30 px past the left edge of the screen, and in the Hand Over window 2 px. The cause is the shared window footer: its buttons sit side by side at the right and never wrap, so long labels push Cancel off the left side. Every window that uses this footer can do the same with long button labels.
+
+- **A (recommended):** let the footer buttons wrap onto a second row when they do not fit. Small change in one shared place.
+- **B:** on small phones, stack the footer buttons full width, one per row.
+- **C:** keep as is.
