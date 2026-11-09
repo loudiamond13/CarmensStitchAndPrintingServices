@@ -172,7 +172,7 @@ test('@money the ledger keeps its page, rows per page and Show deleted through a
 });
 
 /** Records a transfer of `amount` from the signed-in person to `receiverName` through the dashboard strip, and waits for the window to close. */
-async function recordTransfer(page: Page, receiverName: string, amount: string): Promise<void> {
+async function recordTransfer(page: Page, receiverName: string, amount: string, note?: string): Promise<void> {
   const strip = page.getByRole('region', { name: 'Your money on hand' });
   await strip.getByRole('button', { name: 'Transfer' }).click();
   const dialog = page.getByRole('dialog', { name: 'Transfer Money' });
@@ -181,9 +181,11 @@ async function recordTransfer(page: Page, receiverName: string, amount: string):
   await expect(to).toBeEnabled();
   await to.selectOption({ label: receiverName });
   await dialog.getByLabel(/^Amount/).fill(amount);
+  if (note !== undefined) await dialog.getByLabel(/^Note/).fill(note);
   await dialog.getByRole('button', { name: 'Record Transfer' }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByText('Transfer recorded')).toBeVisible();
+  // An earlier transfer's toast may still be showing, so any one of them will do.
+  await expect(page.getByText('Transfer recorded').first()).toBeVisible();
 }
 
 /**
@@ -397,49 +399,82 @@ test("@money a Manager hands over a leaver's money from All Staff, and an Admin 
   }
 });
 
-/** What the ledger shows at tablet width: the card, its table frame and the Balance header, as the browser lays them out. */
-interface LedgerFit {
+/** What a money table shows at tablet width: the card, its table frame and the last header cell, as the browser lays them out. */
+interface TableFit {
   readonly frameScroll: number;
   readonly frameWidth: number;
-  readonly balanceRight: number;
+  readonly lastHeaderRight: number;
   readonly cardRight: number;
   readonly pageScrollsSideways: boolean;
 }
 
-const READ_LEDGER_FIT = `(() => {
-  const table = document.querySelector('table');
+/** The page function that reads the fit of the table with this caption; null when the table, its card or its last header is missing. */
+function readTableFitScript(caption: string): string {
+  return `(() => {
+  const table = Array.from(document.querySelectorAll('table')).find(
+    (candidate) => candidate.querySelector('caption')?.textContent === ${JSON.stringify(caption)},
+  );
   const frame = table?.parentElement;
   const card = table?.closest('section');
-  const balance = Array.from(table?.querySelectorAll('th') ?? []).find((cell) => cell.textContent === 'Balance');
-  if (!table || !frame || !card || !balance) return null;
+  const last = table?.querySelector('thead th:last-child');
+  if (!table || !frame || !card || !last) return null;
   return {
     frameScroll: frame.scrollWidth,
     frameWidth: frame.clientWidth,
-    balanceRight: balance.getBoundingClientRect().right,
+    lastHeaderRight: last.getBoundingClientRect().right,
     cardRight: card.getBoundingClientRect().right,
     pageScrollsSideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
   };
 })()`;
+}
 
-/** Opens My Money at 768 x 1024 and reads how the ledger sits in its card. */
-async function readLedgerFitAt768(page: Page): Promise<LedgerFit> {
+/** Opens `path` at 768 x 1024 and reads how the table with this caption sits in its card. */
+async function readTableFitAt768(page: Page, path: string, caption: string): Promise<TableFit> {
   await page.setViewportSize({ width: 768, height: 1024 });
-  await page.goto('/admin/money');
-  await expect(page.getByRole('table', { name: 'Ledger' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Ledger' }).getByRole('row')).not.toHaveCount(1);
-  const fit = await page.evaluate<LedgerFit | null>(READ_LEDGER_FIT);
-  if (fit === null) throw new Error('The ledger table, its card or the Balance header is missing.');
+  await page.goto(path);
+  const table = page.getByRole('table', { name: caption });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole('row')).not.toHaveCount(1);
+  const fit = await page.evaluate<TableFit | null>(readTableFitScript(caption));
+  if (fit === null) throw new Error(`The ${caption} table, its card or its last header is missing.`);
   return fit;
 }
 
-/** The ledger holds its content: the frame does not scroll, the Balance header is inside the card, and the page does not scroll sideways. */
-function expectLedgerFits(fit: LedgerFit): void {
-  expect(fit.frameScroll, 'the ledger frame scrolls sideways').toBeLessThanOrEqual(fit.frameWidth);
-  expect(fit.balanceRight, 'the Balance header sticks out of the card').toBeLessThanOrEqual(fit.cardRight + 0.5);
-  expect(fit.pageScrollsSideways, 'the page scrolls sideways').toBe(false);
+/** The table holds its content: the frame does not scroll, the last header is inside the card, and the page does not scroll sideways. */
+function expectTableFits(fit: TableFit, caption: string): void {
+  expect(fit.frameScroll, `the ${caption} frame scrolls sideways`).toBeLessThanOrEqual(fit.frameWidth);
+  expect(fit.lastHeaderRight, `the ${caption} last header sticks out of the card`).toBeLessThanOrEqual(
+    fit.cardRight + 0.5,
+  );
+  expect(fit.pageScrollsSideways, `the page scrolls sideways on ${caption}`).toBe(false);
 }
 
-test('@money the ledger fits its card at 768px for a Manager and an Admin', async ({
+/** Deactivates the person in Users, so they show on All Staff as a leaver that holds money. */
+async function deactivateInUsers(page: Page, leaver: TestStaff, firstName: string, fullName: string): Promise<void> {
+  await page.goto('/admin/users');
+  await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
+  await page.getByPlaceholder('Name or email').fill(leaver.email);
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await press(
+    page,
+    page
+      .locator('tbody tr')
+      .first()
+      .getByRole('button', { name: `Deactivate ${firstName}`, exact: true }),
+  );
+  await page
+    .getByRole('dialog', { name: `Deactivate ${fullName}?` })
+    .getByRole('button', { name: 'Deactivate User' })
+    .click();
+  await expect(page.getByText('User deactivated')).toBeVisible();
+}
+
+/** A 200 character note of ordinary words, the longest the Note field takes. */
+const LONG_NOTE = 'Cash for the fabric run and the thread, handed over after the weekend sale at the shop. '
+  .repeat(3)
+  .slice(0, 200);
+
+test('@money the ledger fits its card at 768px for a Manager and an Admin, and All Staff and Transfers fit theirs for the Manager', async ({
   page,
   browser,
   baseURL,
@@ -451,6 +486,7 @@ test('@money the ledger fits its card at 768px for a Manager and an Admin', asyn
   const token = randomUUID().replaceAll('-', '').slice(0, 8);
   const manager = await createStaff(request, 'Manager', undefined, { firstName: 'Mina', lastName: `Wide${token}` });
   const admin = await createStaff(request, 'Admin', undefined, { firstName: 'Ador', lastName: `Wide${token}` });
+  const leaver = await createStaff(request, 'Admin', undefined, { firstName: 'Joel', lastName: `Gone${token}` });
   await createStaff(request, 'Admin', undefined, { firstName: 'Rina', lastName: `Recv${token}` });
   // A six-digit payment row, then a transfer row: the Manager's ledger also gets the Actions column on the transfer.
   const today = manilaDate(-1);
@@ -463,22 +499,36 @@ test('@money the ledger fits its card at 768px for a Manager and an Admin', asyn
       payments: [{ paymentDate: today, amount: 126_450, paymentMethodId: CASH_ID, receivedByUserId: person.userId }],
     });
   }
+  // A leaver who holds money, so All Staff draws its widest Actions cell (the ledger link and Hand Over).
+  await seedPaymentTo(request, leaver);
   await page.setViewportSize({ width: 1280, height: 800 });
   await signInAs(page, request, manager);
   await recordTransfer(page, `Rina Recv${token}`, '1250.50');
+  await recordTransfer(page, `Rina Recv${token}`, '300', LONG_NOTE);
+  await deactivateInUsers(page, leaver, 'Joel', `Joel Gone${token}`);
 
-  const managerFit = await readLedgerFitAt768(page);
+  const managerFit = await readTableFitAt768(page, '/admin/money', 'Ledger');
   await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
-  expectLedgerFits(managerFit);
+  expectTableFits(managerFit, 'Ledger');
+  await expectNoAxeViolations(page);
+
+  const staffFit = await readTableFitAt768(page, '/admin/money?tab=staff', 'Staff money on hand');
+  await expect(page.getByRole('button', { name: `Hand over money from Joel Gone${token}` })).toBeVisible();
+  expectTableFits(staffFit, 'Staff money on hand');
+  await expectNoAxeViolations(page);
+
+  const transfersFit = await readTableFitAt768(page, '/admin/money?tab=transfers', 'Transfers');
+  await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+  expectTableFits(transfersFit, 'Transfers');
   await expectNoAxeViolations(page);
 
   const other = await signInSecondPerson(browser, baseURL, request, admin);
   try {
     await other.page.setViewportSize({ width: 1280, height: 800 });
     await recordTransfer(other.page, `Rina Recv${token}`, '2500');
-    const adminFit = await readLedgerFitAt768(other.page);
+    const adminFit = await readTableFitAt768(other.page, '/admin/money', 'Ledger');
     await expect(other.page.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0);
-    expectLedgerFits(adminFit);
+    expectTableFits(adminFit, 'Ledger');
     await expectNoAxeViolations(other.page);
     await other.finish();
   } finally {

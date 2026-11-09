@@ -402,6 +402,13 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(screen.getByText(WALK_IN_CUSTOMER)).toBeInTheDocument();
   });
 
+  it('RowActions: keeps its own classes by default and adds the ones it is handed (D-110)', () => {
+    const { rerender } = render(<RowActions>x</RowActions>);
+    expect(screen.getByText('x').className).toBe('inline-flex justify-end gap-2');
+    rerender(<RowActions className="pg-tablet:flex-wrap">x</RowActions>);
+    expect(screen.getByText('x').className).toBe('inline-flex justify-end gap-2 pg-tablet:flex-wrap');
+  });
+
   it('RowAction: a named 36px icon button; the danger one hovers in the danger look', () => {
     const onClick = vi.fn();
     render(

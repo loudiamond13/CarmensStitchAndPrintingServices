@@ -134,6 +134,9 @@ export const staffPersonClasses = tw('flex min-w-0 items-center gap-2');
 /** A phone card pins the eye link and Hand Over to its top right and the title reserves 88px; Hand Over needs 72px more, so the name never sits under it. */
 export const staffPersonHandOverClasses = tw('pg-phone:pr-18');
 
+/** On tablets Hand Over may drop under the eye link, so a leaver row fits its card at 768px (D-110). */
+export const staffActionsTabletClasses = tw('pg-tablet:flex-wrap');
+
 /** The person's name and the muted " (you)": one wrapping text run. */
 export const staffNameClasses = tw('min-w-0 wrap-anywhere');
 

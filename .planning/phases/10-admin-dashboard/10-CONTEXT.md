@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-09T10:45:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-09T12:30:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -122,6 +122,7 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-107 (owner, 2026-11-09):** take the recommended option on the parked items the UI review hits: P10-BL-06 A (one KPI column at 420 px and below), P10-BL-16 A (the shared window footer buttons wrap), P10-BL-19 A for both (the chart sub line follows the shown range until the new data arrives, the empty message dims while loading; the Transfer button is described by the strip's loading or failure line), and P10-BL-12, P10-BL-14 and P10-BL-15 keep their recommended options (today's wording and layout). Fixed in quick 261109-c4l.
 - **D-108 (owner, 2026-11-09):** where the code differs from the UI-SPEC on UI-04 (inline Transfer failure line, not toast titles), UI-05 (the shared network and server error lines) and UI-19 (the Transfer form checks a box when you leave it), keep the code and update 10-UI-SPEC.md to match.
 - **D-109 (owner, 2026-11-09):** P10-BL-21 option A for all three: the My Money header Transfer on the Mine tab is described by the balance card's loading or failure line (no new wording); the All Staff and Transfers tables use `fitTablet` so they fit at 768 px; the failing focus-after-delete browser test is investigated and fixed at its root cause.
+- **D-110 (owner, 2026-11-09):** P10-BL-21 part 2, option A: on tablets (768 to 1023 px) the All Staff Actions cell lets Hand Over wrap under the eye link, and both All Staff and Transfers use `fitTablet` so neither table scrolls sideways at 768 px. No column is hidden.
 
 </decisions>
 

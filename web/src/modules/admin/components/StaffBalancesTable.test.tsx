@@ -295,3 +295,22 @@ describe('accessibility', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+describe('tablets (D-109)', () => {
+  it('has no 680px floor on tablets, so All Staff fits its card at 768px', () => {
+    renderTable();
+
+    expect(table().className.split(/\s+/)).not.toContain('pg-tablet:min-w-[680px]');
+  });
+
+  it('lets Hand Over wrap under the eye link on tablets only, so a leaver row still fits (D-110)', () => {
+    renderTable();
+
+    const handOver = screen.getByRole('button', { name: 'Hand over money from Jomar Santos' });
+    const actions = handOver.parentElement;
+    expect(actions?.className.split(/\s+/)).toContain('pg-tablet:flex-wrap');
+    expect(actions?.className.split(/\s+/)).not.toContain('flex-wrap');
+    expect(handOver.className.split(/\s+/)).toEqual(expect.arrayContaining(['relative', 'before:h-11']));
+    expect(actions?.firstElementChild).toBe(screen.getByRole('link', { name: 'View ledger of Jomar Santos' }));
+  });
+});

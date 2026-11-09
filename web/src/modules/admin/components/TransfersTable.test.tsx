@@ -222,3 +222,12 @@ describe('states', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+describe('tablets (D-109)', () => {
+  it('has no 680px floor on tablets, so Transfers fits its card at 768px', () => {
+    renderTable();
+
+    const table = screen.getByRole('table', { name: 'Transfers' });
+    expect(table.className.split(/\s+/)).not.toContain('pg-tablet:min-w-[680px]');
+  });
+});

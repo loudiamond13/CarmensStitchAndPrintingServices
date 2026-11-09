@@ -19,6 +19,7 @@ import {
   dashboardCardTitleClasses,
 } from '@/modules/admin/components/dashboard.recipe';
 import {
+  staffActionsTabletClasses,
   staffCardClasses,
   staffNameClasses,
   staffPersonClasses,
@@ -114,7 +115,7 @@ export function StaffBalancesTable({ query, onHandOver, captionId }: StaffBalanc
       header: COPY.columns.actions,
       actions: true,
       cell: (row) => (
-        <RowActions>
+        <RowActions className={staffActionsTabletClasses}>
           <RowAction
             to={pageOf(row)}
             icon="eye"
@@ -170,6 +171,7 @@ export function StaffBalancesTable({ query, onHandOver, captionId }: StaffBalanc
         }
         footerLayout={{ person: { span: 3 } }}
         embedded
+        fitTablet
       />
     </section>
   );

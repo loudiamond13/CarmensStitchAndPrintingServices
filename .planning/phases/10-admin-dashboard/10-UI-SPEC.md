@@ -5,7 +5,7 @@ status: approved
 shadcn_initialized: false
 preset: none
 created: "2026-11-05T11:09:00-06:00"
-updated: "2026-11-09T11:40:00-06:00"
+updated: "2026-11-09T12:50:00-06:00"
 ---
 
 # Phase 10: UI Design Contract (Admin Dashboard and Staff Money)
@@ -370,6 +370,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 | 4 (right, `.m`) | Money on hand | `Money`; `tone="danger"` below zero; ₱0.00 in the zero dim |
 | 5 (actions) | "Actions" (visually hidden) | `eye` icon link "View ledger of {name}"; on a deactivated or deleted row whose balance is above ₱0.00, then secondary sm `arrow-right` "Hand Over", named "Hand over money from {name}" (D-45; opens the TransferModal, mode `handover`) |
 
+- **Tablets (D-110 (owner, 2026-11-09), P10-BL-21 A):** the table has no 680px floor and fits its card at 768px; in the 768 to 1023px range the Actions cell may wrap, so Hand Over drops under the eye link when there is no room (both keep the 44px tap area, wording unchanged, no column hidden). Phones and desktop are unchanged.
 - Rows: active Admins and Managers by name A to Z, then deactivated and deleted people whose balance is not ₱0.00, by name (D-43).
 - `tfoot`: "Total held by staff" spanning columns 1 to 3, the server total in column 4 (`tone="danger"` if below zero), empty actions cell (D-44). On phones the total is the `--surface-2` card (§8.4).
 - **Loading:** `SkeletonTable` 4 rows, "Loading staff balances…". **Error:** `ErrorState` "Couldn't load staff balances." with "Try Again". Never empty (the Manager is always listed).
@@ -378,6 +379,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 - Card head: `h2` "Transfers"; sub "Every transfer between staff, newest first." *(SPEC-GAP)*.
 - `Checkbox` "Show deleted" (D-30), `ResultBar` "Showing **{n}** transfers · newest first", `Pagination` as the ledger.
 - `ResponsiveTable` caption "Transfers", things "transfers": Date (lead) · From (Avatar + `ActorName`) · To (Avatar + `ActorName`) · Amount (right, `.m`) · Note (Small, `EmptyValue` when none) · Recorded by (`ActorName`) · Actions (the ledger's Delete or Remove, same names). Deleted rows: the ledger's deleted look ("Deleted" badge after the date, the Amount struck and muted, "Deleted by …" under the note).
+- **Tablets (D-109 (owner, 2026-11-09), P10-BL-21 A):** the table has no 680px floor and fits its card at 768px.
 - **Loading:** `SkeletonTable` 4 rows, "Loading transfers…". **Error:** "Couldn't load transfers." with "Try Again". **Empty:** `EmptyState` `arrow-right` (§ Copywriting), no button.
 
 ### M2 One person's money: `/admin/money/staff/:userId` (Manager; D-42, D-43)
@@ -664,7 +666,7 @@ Applicable state considerations resolved: 51 covered (verification: explicit), 8
 | overflow | Chart 12M at 320 to 479px | ✅ covered | True-pixel drawing, every other month label (OQ-4, D-51). |
 | overflow | Very large figures in KPIs and the strip | ✅ covered | KpiCard long-figure clamp (plan 06-18); one KPI column at 420px and below, so a six-digit figure fits at 320px (D-107 (owner, 2026-11-09)); strip figure `whitespace-nowrap`, the button row wraps under it on phones. |
 | overflow | Tabs at 320px | ✅ covered | Tab strip scrolls sideways; page never does. |
-| overflow | Tables on tablet and phone | ✅ covered | Scroll inside the frame on tablet; row cards on phones (§8.4). The ledger has no 680px floor on tablets, so it fits its card at 768px for both roles (UI-24, quick 261109-c4l). |
+| overflow | Tables on tablet and phone | ✅ covered | Scroll inside the frame on tablet; row cards on phones (§8.4). The ledger, All Staff and Transfers have no 680px floor on tablets, so they fit their cards at 768px; on All Staff the Actions cell may wrap so Hand Over sits under the eye link (UI-24, quick 261109-c4l; D-109 and D-110, quick 261109-fmv). |
 | zero-one-many | Counts in copy | ✅ covered | "1 order", "1 entry", "1 due this week", "1 overdue", "Showing 1 entry". |
 | zero-one-many | Status bars | ✅ covered | 0 shows the track only; the largest count fills 100%. |
 | zero-one-many | All Staff with only the Manager | ✅ covered | One row plus the total. |

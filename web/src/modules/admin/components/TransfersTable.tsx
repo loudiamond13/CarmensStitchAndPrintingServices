@@ -182,6 +182,7 @@ export function TransfersTable({
       emptyMessage={COPY.empty.message}
       emptyLevel={3}
       embedded
+      fitTablet
     />
   );
 }
