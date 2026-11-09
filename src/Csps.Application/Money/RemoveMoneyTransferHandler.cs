@@ -20,7 +20,6 @@ public sealed class RemoveMoneyTransferHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
 {
-    private const string TransferTarget = "MoneyTransfer";
 
     /// <summary>Removes the transfer.</summary>
     /// <param name="id">The transfer to remove.</param>
@@ -58,7 +57,7 @@ public sealed class RemoveMoneyTransferHandler(
             return Result.Failure<bool>(removable.Error);
         }
 
-        audit.Record(AuditActions.MoneyTransferPermanentlyDeleted, TransferTarget, AuditKey.Of(transfer.Id), MoneyAuditDetail.Removed(transfer));
+        audit.Record(AuditActions.MoneyTransferPermanentlyDeleted, MoneyAuditTargets.Transfer, AuditKey.Of(transfer.Id), MoneyAuditDetail.Removed(transfer));
         transfers.Remove(transfer);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);

@@ -38,33 +38,17 @@ public sealed class CreateMoneyTransferHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (requestContext.UserId is not { } callerId)
-        {
-            return Result.Failure<MoneyTransferSavedResponse>(AuthErrors.SessionEnded);
-        }
-
-        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ValidationContext<CreateMoneyTransferRequest>(request);
-        context.RootContextData[CreateMoneyTransferRequestValidator.TodayKey] = clock.Today;
-        var validation = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
-        if (!validation.IsValid)
-        {
-            return Result.Failure<MoneyTransferSavedResponse>(ValidationResults.ToError(validation, MoneyRules.InvalidCode, MoneyRules.InvalidMessage));
-        }
-
-        _ = CreateMoneyTransferRequestValidator.TryParseDate(request.TransferDate, out var date);
-        try
-        {
-            return await ConflictRetry
-                .RunAsync(
-                    () => unitOfWork.InTransactionAsync(token => AttemptAsync(callerId, request, date, clock, token), cancellationToken),
-                    Result.Failure<MoneyTransferSavedResponse>(MoneyErrors.Busy))
-                .ConfigureAwait(false);
-        }
-        catch (StaffMoneyBusyException)
-        {
-            return Result.Failure<MoneyTransferSavedResponse>(MoneyErrors.Busy);
-        }
+        return await MoneyWrite
+            .RunLockedAsync(
+                request,
+                request.TransferDate,
+                validator,
+                calendar,
+                requestContext,
+                unitOfWork,
+                (callerId, date, clock, token) => AttemptAsync(callerId, request, date, clock, token),
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     // The lock comes first: every read below happens after it, so the balances cannot change until this transaction ends.
@@ -83,8 +67,8 @@ public sealed class CreateMoneyTransferHandler(
 
         var recipientState = await staff.GetStaffStateAsync(recipientId, cancellationToken).ConfigureAwait(false);
         var sums = await reader.GetSumsAsync([.. new[] { callerId, recipientId }.Distinct()], cancellationToken).ConfigureAwait(false);
-        var sender = MoneyParties.From(senderState, BalanceOf(sums, callerId));
-        var recipient = MoneyParties.From(recipientState, BalanceOf(sums, recipientId));
+        var sender = MoneyParties.From(senderState, StaffMoneySums.BalanceOf(sums, callerId));
+        var recipient = MoneyParties.From(recipientState, StaffMoneySums.BalanceOf(sums, recipientId));
         if (recipientState is null || recipient.Status is MoneyPartyStatus.NotStaff)
         {
             return MoneyRules.Reject<MoneyTransferSavedResponse>(MoneyRules.ToUserIdField, MoneyErrors.UnknownRecipientMessage);
@@ -103,11 +87,8 @@ public sealed class CreateMoneyTransferHandler(
         var after = await reader.GetSumsAsync([callerId], cancellationToken).ConfigureAwait(false);
         var from = ToActor(senderState);
         var view = MoneyTransferResponse.Of(transfer, from, ToActor(recipientState), from, deletedBy: null);
-        return Result.Success(new MoneyTransferSavedResponse(view, BalanceOf(after, callerId)));
+        return Result.Success(new MoneyTransferSavedResponse(view, StaffMoneySums.BalanceOf(after, callerId)));
     }
-
-    private static decimal BalanceOf(IReadOnlyList<StaffMoneySums> sums, Guid userId) =>
-        sums.FirstOrDefault(row => row.UserId == userId)?.Balance() ?? 0m;
 
     private static ActorRef ToActor(StaffState state) => new(state.Id, state.Name, state.IsDeleted);
 }

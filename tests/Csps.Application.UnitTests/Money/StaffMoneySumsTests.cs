@@ -39,6 +39,19 @@ public sealed class StaffMoneySumsTests
     }
 
     [Fact]
+    public void BalanceOfFindsOnePersonsBalanceInTheListAndIsZeroForAPersonWithNoRow()
+    {
+        var other = Guid.Parse("33333333-3333-4333-8333-333333333333");
+        IReadOnlyList<StaffMoneySums> sums = [new StaffMoneySums(PersonId, "Paolo Garcia", 80.00m, 0m, 0m, 0m, 0m, 0m)];
+
+        StaffMoneySums.BalanceOf(sums, PersonId).ShouldBe(80.00m);
+        StaffMoneySums.BalanceOf(sums, other).ShouldBe(0m);
+    }
+
+    [Fact]
+    public void TheTransferAuditTargetIsTheEntityName() => MoneyAuditTargets.Transfer.ShouldBe("MoneyTransfer");
+
+    [Fact]
     public void TheMoneyErrorsCarryTheirCodesAndKinds()
     {
         MoneyErrors.NotFound.Kind.ShouldBe(ErrorKind.NotFound);
