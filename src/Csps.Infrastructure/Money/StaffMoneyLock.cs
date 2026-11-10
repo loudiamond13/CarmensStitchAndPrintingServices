@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Money;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Persistence;
@@ -43,6 +44,12 @@ internal sealed partial class StaffMoneyLock : IStaffMoneyLock
                     MoneyErrors.BusyMessage,
                     cancellationToken)
                 .ConfigureAwait(false);
+        }
+        catch (DatabaseLockTimeoutException error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+        {
+            // A lost deadlock is a lost race, as in a save: the unit of work marks an outer transaction ended, or the caller retries.
+            _context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
         }
         catch (DatabaseLockTimeoutException error)
         {
