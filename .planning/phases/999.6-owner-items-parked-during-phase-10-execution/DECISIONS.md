@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T07:00:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T09:50:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -212,7 +212,7 @@ The project rule says money is computed on the server only. The Delete Transfer 
 
 ## P10-BL-20 · Phase 10 sign-off: what needs you before the phase is marked done
 
-**Status:** open · **Blocks:** marking Phase 10 complete, the phase PR and the merge to main. All 21 plans are built, reviewed and tested.
+**Status:** ruled D-114 (owner, 2026-11-10): screens passed, go-ahead to ship; the PR opens as a draft. Still open: items 3 (review the 261109-vj6 choices, can change later) and 5 (CI parity and full run, then `/gsd-verify-work 10`). Was open · **Blocks:** marking Phase 10 complete and the merge to main. All 21 plans are built, reviewed and tested.
 
 The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success criteria and 14 of 14 requirements are met, checked in the code. Status is "human needed" because these steps are yours. P10-BL-01 to 19 are all ruled now (D-107 and D-111), and P10-BL-01 is carried into the Phase 16 plan. What is left:
 
