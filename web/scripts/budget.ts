@@ -15,6 +15,8 @@ export interface BudgetChunk {
   readonly facadeModuleId: string | null;
   /** File names of the chunks this chunk imports statically. */
   readonly imports: readonly string[];
+  /** File names of the chunks this chunk loads on demand. Only the showcase rule follows them (D-117). */
+  readonly dynamicImports?: readonly string[] | undefined;
   readonly moduleIds: readonly string[];
 }
 
@@ -256,8 +258,33 @@ function renderTable(measurements: readonly BudgetMeasurement[]): string {
 }
 
 /**
+ * The chunks the showcase page loads: its static closure, plus what a chunk holding showcase modules loads on demand
+ * (D-117). On-demand loads from other chunks, such as the router's lazy pages, are not followed.
+ */
+function showcaseReach(chunks: readonly BudgetChunk[], page: string): ReadonlySet<string> {
+  const byName = new Map(chunks.map((c) => [c.fileName, c]));
+  const seen = new Set<string>();
+  const pending = [page];
+  for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
+    if (seen.has(next)) {
+      continue;
+    }
+    const current = byName.get(next);
+    if (current === undefined) {
+      throw new Error(`budget: the chunk graph has no chunk named ${next}.`);
+    }
+    seen.add(next);
+    pending.push(...current.imports);
+    if (current.moduleIds.some(isShowcaseHeld)) {
+      pending.push(...(current.dynamicImports ?? []));
+    }
+  }
+  return seen;
+}
+
+/**
  * The showcase rule of the production build (D-33, D-41 Q3): every chunk that holds a showcase-only module is outside the
- * public and admin initial JS, is loaded by the showcase page's chunk, and is imported by no chunk outside the showcase.
+ * public and admin initial JS, is loaded by the showcase page's chunks, and is imported by no chunk outside the showcase.
  */
 function showcaseErrors(graph: BudgetGraph, initialFiles: ReadonlySet<string>): string[] {
   const holders = graph.chunks.filter((c) => c.moduleIds.some(isShowcaseHeld));
@@ -275,7 +302,7 @@ function showcaseErrors(graph: BudgetGraph, initialFiles: ReadonlySet<string>): 
     );
   } else {
     try {
-      reach = new Set(routeInitialSize(graph.chunks, [page.fileName]).files);
+      reach = showcaseReach(graph.chunks, page.fileName);
     } catch (error: unknown) {
       errors.push(`showcase: ${error instanceof Error ? error.message : String(error)}`);
     }
