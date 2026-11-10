@@ -194,6 +194,32 @@ describe('the window from the strip (D-47, D-56)', () => {
     });
   });
 
+  it("says \"Couldn't load the transfer form.\" with Try Again when the business today cannot be read, and recovers (D-112)", async () => {
+    myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes', today: 'soon' }));
+    transferRecipientsBackend();
+    let answering = false;
+    useOrderHandlers({
+      list: () => (answering ? buildOrderList([], { today: '2026-11-04' }) : problemResponse(500)),
+    });
+    const user = userEvent.setup();
+    renderStrip();
+    const dialog = await openWindow(user);
+
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't load the transfer form.");
+    expect(alert).toHaveTextContent('Check your internet connection. Your data is safe. Nothing was changed.');
+    expect(within(dialog).getByRole('status')).not.toHaveTextContent(/Loading/);
+    expect(within(dialog).getByRole('status').previousElementSibling).not.toHaveAttribute('aria-busy');
+    await expectNoAxeViolations(dialog);
+
+    answering = true;
+    await user.click(within(alert).getByRole('button', { name: 'Try Again' }));
+    await waitFor(() => {
+      expect(dateBox()).toHaveValue('2026-11-04');
+    });
+    expect(screen.queryByText("Couldn't load the transfer form.")).toBeNull();
+  });
+
   it("reads the balance afresh when the window opens: the description and the cap use it, not the strip's older figure (wave 7 WR-04)", async () => {
     let reads = 0;
     myMoneyBackend(() => {

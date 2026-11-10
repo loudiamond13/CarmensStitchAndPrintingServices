@@ -195,6 +195,8 @@ export const MONEY_COPY = {
     title: 'Transfer Money',
     /** The noun of the window's loading region while the business today is read: it speaks the existing "Loading staff…". */
     loadingThings: 'staff',
+    /** The noun of the failure line when the business today cannot be read (D-112): "Couldn't load the transfer form.". */
+    failedThings: 'the transfer form',
     /** "From Carmen Reyes (you). You have ₱8,450.00 on hand." */
     description: (name: string, balance: string): string => `From ${name} (you). You have ${balance} on hand.`,
     to: {

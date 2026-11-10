@@ -15,12 +15,12 @@ import { MoneyInput } from '@/components/entry';
 import { DateInput, Field, Select } from '@/components/forms';
 import { useToast } from '@/components/feedback';
 import { Modal } from '@/components/overlays';
-import { LoadingRegion, Note, SkeletonText } from '@/components/states';
+import { ErrorState, LoadingRegion, Note, SkeletonText } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { serverFieldMessage } from '@/lib/forms/serverFieldMessage';
 import { OrderWindow } from '@/modules/admin/components/OrderWindow';
 import { orderWindowFullRowClasses, orderWindowGridClasses } from '@/modules/admin/components/orderWindow.recipe';
-import { useBusinessToday } from '@/modules/admin/hooks/useBusinessToday';
+import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
 import { useMyMoneyQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
 import type { OrderWindowBanner } from '@/modules/admin/hooks/useOrderChildSave';
 import { useSession } from '@/modules/admin/hooks/useSession';
@@ -121,16 +121,22 @@ function TransferWindow({ leaver, open, onClose }: TransferWindowProps) {
   const staff = useStaffBalancesQuery(open && (handover || user?.role === 'manager'));
   // The server's business today, never the device clock (D-20). Once known it stays: a read that is marked old (the save marks the
   // money answers old) must not swap the form for a skeleton while the window closes.
-  const heldToday = useBusinessToday(open);
+  const todayState = useBusinessTodayState(open);
+  const heldToday = todayState.today;
   const [today, setToday] = useState(heldToday);
   if (heldToday !== null && heldToday !== today) {
     setToday(heldToday);
   }
   if (today === null) {
+    // When the date cannot be read, the window says so and offers Try Again instead of a skeleton that never ends (D-112).
     return (
       <Modal open={open} title={handover ? HANDOVER.title : COPY.title} onClose={onClose}>
-        <LoadingRegion loading things={COPY.loadingThings}>
-          <SkeletonText />
+        <LoadingRegion loading={!todayState.isError} failed={todayState.isError} things={COPY.loadingThings}>
+          {todayState.isError ? (
+            <ErrorState things={COPY.failedThings} error={todayState.error} onRetry={todayState.refetch} />
+          ) : (
+            <SkeletonText />
+          )}
         </LoadingRegion>
       </Modal>
     );
