@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-10T06:30:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-10T07:00:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -125,6 +125,7 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-110 (owner, 2026-11-09):** P10-BL-21 part 2, option A: on tablets (768 to 1023 px) the All Staff Actions cell lets Hand Over wrap under the eye link, and both All Staff and Transfers use `fitTablet` so neither table scrolls sideways at 768 px. No column is hidden.
 - **D-111 (owner, 2026-11-09):** take the recommended option (A) on every parked item still open: P10-BL-01 (the legacy import carries the legacy created and status-changed dates; added to the Phase 16 plan), P10-BL-02 (the Orders list "Newest first" sorts by created time, matching the dashboard), P10-BL-04 (a failed background refresh keeps the last good figures and marks them "Showing figures from {time}. Couldn't refresh." with Try Again), P10-BL-05 (the e2e guard ignores only WebKit's cancelled-request page error for the app's own `/api/` requests, documented in docs/web/e2e.md), P10-BL-08 (a normal transfer writes a "money transfer added" audit entry: sender, receiver, amount, date, note yes or no), P10-BL-13 (the removed-transfer audit record says hand-over yes or no), P10-BL-17 (half-thousand axis lines read with one decimal, for example "₱1.5k"). P10-BL-03, 07, 09, 10, 11 and 18 keep today's behavior and wording; P10-BL-18 means a labelled preview built only from server figures may be shown (the Delete Transfer warning cites this ruling).
 - **D-112 (owner, 2026-11-10):** when the Transfer window cannot read the business date (code review WR-01), it shows the failure line "Couldn't load the transfer form." over the usual reassurance line, with Try Again, instead of a skeleton that never ends.
+- **D-113 (owner, 2026-11-10):** the Audit Log screen does not show whether a removed transfer was a hand-over. `handover=yes|no` stays in the stored record only (P10-BL-13 follow-up, option A). No new wording.
 
 </decisions>
 

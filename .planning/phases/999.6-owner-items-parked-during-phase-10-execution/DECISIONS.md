@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T01:30:49-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T07:00:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -145,7 +145,7 @@ When a Manager removes a deleted transfer for good, the audit log keeps who sent
 - **A (recommended):** add "hand-over: yes or no" to the record. Small change, no new screen.
 - **B:** keep it as is (D-25 as written).
 
-**Follow-up for you (new, from quick 261109-vj6):** the stored record now holds `handover=yes` or `handover=no`, like `note=yes` or `note=no`. The Audit Log screen does not show either flag today, and no new wording was added.
+**Follow-up (from quick 261109-vj6): ruled D-113 (owner, 2026-11-10): option A. Nothing to build; the code already does A.** the stored record now holds `handover=yes` or `handover=no`, like `note=yes` or `note=no`. The Audit Log screen does not show either flag today, and no new wording was added.
 - **A (recommended):** leave it in the stored record only. Reason: it answers "was this a hand-over?" for anyone who reads the record, and costs no new wording.
 - **B:** also show a "Hand-over: Yes" or "Hand-over: No" line in the Audit Log's "What changed". Reason: staff can see it on screen. It is new wording for you to approve.
 
@@ -230,7 +230,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
    - P10-BL-04: the line "Showing figures from {time}. Couldn't refresh." sits under the date in the dashboard header, styled like the money strip's failure line, with Try Again. It covers the header, the KPI row, Orders by status and Recent orders. The chart card and the money strip keep their own failure lines. {time} is when this browser last got good figures, shown in Manila time.
    - P10-BL-08: the new Audit Log label reads "Money transfer added".
    - P10-BL-05: WebKit reports the cancelled request with different wording than the item quoted, so the guard matches the wording WebKit really sends (see docs/web/e2e.md).
-4. **The P10-BL-13 follow-up** (A: keep hand-over yes/no in the stored record only, recommended. B: also show it on the Audit Log screen, which needs new wording).
+4. **The P10-BL-13 follow-up:** ruled D-113 (owner, 2026-11-10): option A, hand-over yes or no stays in the stored record only.
 5. **After the PR's CI runs:** check the parity snapshots and one clean full run, including `web/scripts/third-party-notices.test.ts`, which timed out locally under load (it scans node_modules; no package changed). Then `/gsd-verify-work 10` clears UAT tests 18 and 19.
 
 ## P10-BL-21 · Things found while fixing the UI review (quick 261109-c4l)

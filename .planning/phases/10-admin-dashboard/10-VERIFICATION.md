@@ -1,7 +1,7 @@
 ---
 phase: 10-admin-dashboard
 created: 2026-11-09T08:15:00-06:00
-updated: 2026-11-10T06:50:00-06:00
+updated: 2026-11-10T07:00:00-06:00
 verified: 2026-11-10T12:50:00Z
 status: human_needed
 score: 6/6 must-haves verified
@@ -267,11 +267,11 @@ human_verification:
     why_human: "The fix is covered by a unit test that passed in my run, but the owner's ruling fixed the wording and 10-REVIEW-FIX.md says a quick look is still worthwhile. Also the new e2e toast waits (IN-02) were type-checked and linted only, not run, because the machine is shared"
   - test: "P10-BL-13 follow-up: should the Audit Log screen also show hand-over yes or no?"
     expected: "A: keep it in the stored record only (recommended, built today). B: also show a Hand-over line (needs new wording the owner approves)"
-    why_human: "A small open owner choice inside a ruled item. Not blocking: the code uses option A"
+    why_human: "Ruled D-113 (owner, 2026-11-10): option A. Closed; the code already does A"
 ---
 
 # Phase 10: Admin Dashboard Verification Report
-*Created: 2026-11-09T08:15:00-06:00 · Updated: 2026-11-10T06:50:00-06:00*
+*Created: 2026-11-09T08:15:00-06:00 · Updated: 2026-11-10T07:00:00-06:00*
 
 **Phase Goal:** Staff land on a dashboard that shows how the business stands today: active work, money owed, money collected and money spent. Each staff member also sees the money they hold and can hand it to a coworker (owner addition, 2026-10-07).
 **Verified:** 2026-11-10T12:50:00Z (HEAD 255245d9, branch `gsd/phase-10-admin-dashboard`, clean working tree)
@@ -440,7 +440,7 @@ I did not re-run these here. They are carried from `10-UAT.md` and the earlier r
 #### 5. P10-BL-13 follow-up (small, not blocking)
 **Test:** Choose A (keep hand-over yes or no in the stored record only; built) or B (also show it on the Audit Log screen, with new wording).
 **Expected:** A dated ruling in DECISIONS.md.
-**Why human:** Owner decision. The code uses option A today.
+**Why human:** Owner decision. **Ruled D-113 (owner, 2026-11-10): option A.** Closed; the code already does A.
 
 ### Gaps Summary
 
