@@ -57,7 +57,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
         // One command. The newest ids are cut in an inner query, as the list does, so the row subqueries run for those orders only. The
-        // sort is by when the order was created and ends on the id; it is not the list's sort by order date, and no status is filtered.
+        // sort is by when the order was created and ends on the id, the same keys as the list's newest sort (D-111); no status is filtered.
         var newestIds = context.Orders.AsNoTracking()
             .OrderByDescending(order => order.CreatedAtUtc)
             .ThenByDescending(order => order.Id)
@@ -143,10 +143,10 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
         return query.HasBalance ? orders.Where(order => order.Balance > 0m) : orders;
     }
 
-    // Every sort ends on the id. The due sort puts orders with no due date last.
+    // Every sort ends on the id (the newest sort on the id descending). The due sort puts orders with no due date last.
     private static IOrderedQueryable<Order> Sort(IQueryable<Order> orders, OrderListSort sort) => sort switch
     {
-        OrderListSort.Newest => orders.OrderByDescending(order => order.OrderDate).ThenByDescending(order => order.CreatedAtUtc).ThenBy(order => order.Id),
+        OrderListSort.Newest => orders.OrderByDescending(order => order.CreatedAtUtc).ThenByDescending(order => order.Id),
         OrderListSort.Balance => orders.OrderByDescending(order => order.Balance).ThenBy(order => order.Id),
         OrderListSort.Total => orders.OrderByDescending(order => order.Total).ThenBy(order => order.Id),
         _ => orders.OrderBy(order => order.DueDate == null).ThenBy(order => order.DueDate).ThenBy(order => order.Id),

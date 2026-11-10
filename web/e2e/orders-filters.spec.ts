@@ -107,7 +107,10 @@ test('@orders-filters search by team, narrow by status, balance, sort and dates,
         : {}),
     });
   };
-  const ids = await Promise.all(Array.from({ length: 12 }, (_, index) => seed(index)));
+  // Order 2 is recorded first so that order 0 is always recorded after it, whatever the engine.
+  const idOfTwo = await seed(2);
+  const others = await Promise.all([0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((index) => seed(index)));
+  const ids = [others[0], others[1], idOfTwo, ...others.slice(2)];
   await signInAs(page, request, manager);
 
   const cards = page.getByRole('article');
@@ -156,7 +159,7 @@ test('@orders-filters search by team, narrow by status, balance, sort and dates,
   await expect(cards).toHaveCount(2);
   await expect(cards.first()).toContainText(numberOf(2));
 
-  // Newest first: the list keeps the server's order (order 0 was placed 59 days after order 2).
+  // Newest first: the list keeps the server's order, latest recorded first (order 0 was recorded after order 2).
   const newest = listAnswer(page, (url) => url.searchParams.get('sort') === 'newest');
   await page.getByRole('combobox', { name: 'Sort by' }).selectOption({ label: 'Newest first' });
   expect((await newest).items.map((item) => item.number)).toEqual([numberOf(0), numberOf(2)]);

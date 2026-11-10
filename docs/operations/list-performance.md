@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T09:33:00-05:00
-updated: 2026-11-03T18:30:00-06:00
+updated: 2026-11-09T23:30:00-06:00
 ---
 
 # Runbook: how fast the lists are, and how to check it
@@ -64,15 +64,17 @@ The indexes (migration `AddOrderListIndexes`; `DropUnusedOrderIndexes` later rem
 | --- | --- |
 | `IX_Orders_List_Due` (due date, id) with every list column included | the default sort, read from one index |
 | `IX_Orders_Status_StatusChangedAtUtc` | the status filter and the 30 day window of the active scope |
-| `IX_Orders_OrderDate` (order date descending, recorded descending, id) | the newest sort and the order date range |
+| `IX_Orders_OrderDate` (order date descending, recorded descending, id) | the order date range |
 | `IX_Orders_Balance` and `IX_Orders_Total` (descending, id) | the balance and total sorts |
 | `IX_OrderItems_ProductTypeId_OrderId` | the product type filter |
+
+The newest sort reads the created time, then the id (D-111), the same keys as the dashboard's Recent orders. It has no index of its own: the database keeps the newest page of the live orders by created time, and the row subqueries run only for that page. The timing test below shows it well under the limit.
 
 To run it alone, run the preflight first (step 1 above), then:
 `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*OrderListTimingTests" --output Detailed`
 and read the lines `default list: p50 ... ms, p95 ... ms` and the seven after it.
 
-Last run with the cover and the photo count on every row (2026-11-03, alone, while other projects were building; `total: 1, failed: 0`), p50 / p95 in ms: default list 31.5 / 49.4, customer-name search 125.2 / 186.2, product type filter 44.2 / 69.8, has balance 17.3 / 22.6, far page at size 100 69.6 / 96.1, newest sort 47.1 / 71.5, balance sort 37.0 / 51.2, total sort 28.7 / 43.0. All are under the 300 ms limit. The customer-name search is the case that moves most with machine load: two earlier runs on a busy machine read 168.4 and 315.7 ms, and a side-by-side test showed the old and new page query take the same time for it, so the load was the cause. If it fails, re-run it alone on a quiet machine before anything else.
+Last run with the cover and the photo count on every row (2026-11-03, alone, while other projects were building; `total: 1, failed: 0`), p50 / p95 in ms: default list 31.5 / 49.4, customer-name search 125.2 / 186.2, product type filter 44.2 / 69.8, has balance 17.3 / 22.6, far page at size 100 69.6 / 96.1, newest sort 47.1 / 71.5, balance sort 37.0 / 51.2, total sort 28.7 / 43.0. All are under the 300 ms limit. After the newest sort moved to the created time (D-111, 2026-11-09, alone, quiet machine, no other project running; `total: 1, failed: 0`): default list 16.8 / 20.3, customer-name search 86.6 / 156.5, product type filter 31.4 / 46.2, has balance 12.9 / 16.7, far page at size 100 32.2 / 47.7, newest sort 26.3 / 35.2, balance sort 17.1 / 21.1, total sort 19.1 / 27.9. The customer-name search is the case that moves most with machine load: two earlier runs on a busy machine read 168.4 and 315.7 ms, and a side-by-side test showed the old and new page query take the same time for it, so the load was the cause. If it fails, re-run it alone on a quiet machine before anything else.
 
 After release, read the real speed the same way as below, with the path `/api/v1/orders`. When it fails, follow "When it fails" above, with `OrderReader` as the file to look at. A new index is a new migration, so ask the owner first. A customer-name search is a scan by nature (it looks inside the text), so it is the case that grows first as the data grows; if it is the slow one, tell the owner before changing how search works.
 

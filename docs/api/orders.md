@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-03T21:12:00-06:00
+updated: 2026-11-09T23:25:00-06:00
 ---
 
 # The orders API
@@ -76,7 +76,7 @@ where `total` counts every page of the filter. Deleted orders never appear and n
 | `from`, `to` | Keeps orders whose order date is on or after `from` and on or before `to`, as `yyyy-MM-dd`. Either may be sent alone. | no dates | not a real day ("Enter a real date."); `to` before `from` ("The end date can't be before the start date.") |
 | `productType` | A product type id. Keeps orders with at least one item of that type; an order shows once however many such items it has. | all | not a dashed id ("Choose a product type.") |
 | `hasBalance` | `true` keeps only orders that still owe money (balance above 0.00). `false` or none keeps all. | all | |
-| `sort` | `due` (soonest due first, orders with no due date last), `newest` (latest order date first, then latest recorded), `balance` (largest first) or `total` (largest first). The order id breaks every tie, so pages never overlap. | `due` | not one of those ("Choose a sort order.") |
+| `sort` | `due` (soonest due first, orders with no due date last), `newest` (latest recorded first, then the highest id: the dashboard's order, D-111), `balance` (largest first) or `total` (largest first). The order id breaks every tie, so pages never overlap. | `due` | not one of those ("Choose a sort order.") |
 | `page` | The page number. | `1` | outside 1 to 100000 ("Use a page from 1 to 100000.") |
 | `pageSize` | Rows per page. | `20` | outside 1 to 100 ("Use a page size from 1 to 100.") |
 
