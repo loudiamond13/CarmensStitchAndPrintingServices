@@ -2,7 +2,7 @@
 gsd_state_version: "1.0"
 current_phase: 10
 current_phase_name: Admin Dashboard
-status: "Phase 10 shipped as draft PR #24 (D-114); merge waits on CI parity and full run, then the owner's word"
+status: "Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word"
 stopped_at: Phase 10 UI-SPEC approved
 last_updated: "2026-11-10T15:43:39.722Z"
 last_activity: 2026-11-10
@@ -14,7 +14,7 @@ progress:
   completed_plans: 302
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-10T01:29:20-06:00"
+updated: "2026-11-10T15:10:00-06:00"
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 
 Phase: 10 (Admin Dashboard) — EXECUTING
 Plan: 1 of 21
-Status: Phase 10 shipped as draft PR #24 (D-114); merge waits on CI parity and full run, then the owner's word
+Status: Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word
 Last activity: 2026-11-10
 
 Progress: [████░░░░░░] 44%

@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-10T10:40:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-10T15:10:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -129,6 +129,8 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-114 (owner, 2026-11-10):** P10-BL-20 sign-off: the owner looked at the Phase 10 screenshots (dashboard 6 and 12 months, dark, phone; My Money, All Staff, Transfer window, Transfers, one person's ledger; local test host) and passed them, and gave the go-ahead to ship. The phase PR opens as a draft so CI runs the parity snapshots and one full run (UAT 18, 19). It merges only after both are green and on the owner's word, through `Merge-PullRequest.ps1` (D-08).
 - **D-115 (owner, 2026-11-10):** supply-chain hardening after the sapho11 campaign report. npm never runs package install scripts: `ignore-scripts=true` in `web/.npmrc` and `tools/openapi-gen/.npmrc`, and `--ignore-scripts` on both `npm ci` lines in CI. The only lock-file package with an install script is `fsevents` (macOS only, never installed here). A new package that needs its install script is a new owner decision.
 - **D-116 (owner, 2026-11-10):** GitHub Actions asks the owner to approve CI runs on a pull request from every outside contributor, not only first-timers (repository setting "fork PR contributor approval" = `all_external_contributors`).
+- **D-117 (owner, 2026-11-10):** the D-33 showcase build rule also follows what a chunk holding showcase modules loads on demand, so the lazy Phase 10 cases chunk (review fix IN-01) counts as loaded by the showcase page. On-demand loads from other chunks are still not followed, and showcase code in the public or admin initial JS still fails. The rule broke every PR 24 CI run since IN-01; locally the build-output test had read an old build.
+- **Correction to D-114 (2026-11-10):** a draft PR runs only the fast CI mode, which skips the integration tests, the browser tests with the parity snapshots, Lighthouse and the coverage gate. The owner had PR 24 marked ready for review on 2026-11-10 so the full mode runs.
 
 </decisions>
 
