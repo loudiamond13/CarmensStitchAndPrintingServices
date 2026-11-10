@@ -288,6 +288,36 @@ describe('Pagination size-only mode (opt-in, one page)', () => {
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
   });
 
+  it('keeps the focused size select when the page count crosses one page (WCAG 2.4.3)', async () => {
+    const user = userEvent.setup();
+    // 38 rows: 20 per page gives two pages, 50 per page gives one.
+    function SizedList() {
+      const [size, setSize] = useState<PaginationProps['pageSize']>(20);
+      return (
+        <Pagination
+          page={1}
+          pageCount={Math.ceil(38 / (size ?? 20))}
+          onPageChange={() => undefined}
+          pageSize={size}
+          onPageSizeChange={setSize}
+          sizeOnlyWhenSinglePage
+        />
+      );
+    }
+    render(<SizedList />);
+    const select = screen.getByRole('combobox', { name: LISTS_COPY.pagination.rowsPerPage });
+
+    await user.selectOptions(select, '50');
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.getByRole('combobox')).toBe(select);
+    expect(select).toHaveFocus();
+
+    await user.selectOptions(select, '20');
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 2');
+    expect(screen.getByRole('combobox')).toBe(select);
+    expect(select).toHaveFocus();
+  });
+
   it('has no axe violations', async () => {
     const { container } = render(
       <Pagination

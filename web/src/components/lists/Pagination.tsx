@@ -20,6 +20,7 @@ import { LISTS_COPY } from './copy';
 import {
   paginationButtonClasses,
   paginationClasses,
+  paginationSizeOnlyClasses,
   paginationNumberClasses,
   paginationStatusClasses,
   toolbarEndClasses,
@@ -67,7 +68,7 @@ export function Pagination({
   onPageSizeChange,
   sizeOnlyWhenSinglePage = false,
 }: PaginationProps) {
-  const navRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
   // Set by a page change from this bar; read once the new page has rendered.
   const checkFocus = useRef(false);
   useEffect(() => {
@@ -99,8 +100,9 @@ export function Pagination({
       />
     </div>
   );
-  if (pageCount <= 1) {
-    return sizeOnlyWhenSinglePage && sizeSelect !== false ? sizeSelect : null;
+  const paged = pageCount > 1;
+  if (!paged && (!sizeOnlyWhenSinglePage || sizeSelect === false)) {
+    return null;
   }
   const goTo = (target: number): void => {
     checkFocus.current = true;
@@ -109,39 +111,52 @@ export function Pagination({
       document.getElementById(focusTargetId)?.focus();
     }
   };
+  // One element in both modes, and the select keeps its place, so a size change that crosses one page keeps the focused
+  // select (WCAG 2.4.3). With several pages it is the "Pagination" nav row; with one page it adds no box and no landmark.
   return (
-    <nav ref={navRef} aria-label="Pagination" className={paginationClasses}>
-      <Button
-        variant="secondary"
-        size="md"
-        icon="chevron-left"
-        aria-label={copy.previousPage}
-        disabled={page <= 1}
-        className={paginationButtonClasses}
-        onClick={() => {
-          goTo(page - 1);
-        }}
-      >
-        {copy.previous}
-      </Button>
-      <p className={paginationStatusClasses}>
-        {copy.page} <strong className={paginationNumberClasses}>{formatCount(page)}</strong> {copy.of}{' '}
-        <strong className={paginationNumberClasses}>{formatCount(pageCount)}</strong>
-      </p>
-      <Button
-        variant="secondary"
-        size="md"
-        iconRight="chevron-right"
-        aria-label={copy.nextPage}
-        disabled={page >= pageCount}
-        className={paginationButtonClasses}
-        onClick={() => {
-          goTo(page + 1);
-        }}
-      >
-        {copy.next}
-      </Button>
+    <div
+      ref={navRef}
+      role={paged ? 'navigation' : undefined}
+      aria-label={paged ? copy.label : undefined}
+      className={paged ? paginationClasses : paginationSizeOnlyClasses}
+    >
+      {paged && (
+        <Button
+          variant="secondary"
+          size="md"
+          icon="chevron-left"
+          aria-label={copy.previousPage}
+          disabled={page <= 1}
+          className={paginationButtonClasses}
+          onClick={() => {
+            goTo(page - 1);
+          }}
+        >
+          {copy.previous}
+        </Button>
+      )}
+      {paged && (
+        <p className={paginationStatusClasses}>
+          {copy.page} <strong className={paginationNumberClasses}>{formatCount(page)}</strong> {copy.of}{' '}
+          <strong className={paginationNumberClasses}>{formatCount(pageCount)}</strong>
+        </p>
+      )}
+      {paged && (
+        <Button
+          variant="secondary"
+          size="md"
+          iconRight="chevron-right"
+          aria-label={copy.nextPage}
+          disabled={page >= pageCount}
+          className={paginationButtonClasses}
+          onClick={() => {
+            goTo(page + 1);
+          }}
+        >
+          {copy.next}
+        </Button>
+      )}
       {sizeSelect}
-    </nav>
+    </div>
   );
 }

@@ -289,6 +289,9 @@ export const filterChipClearClasses = tw(
 /** The pagination row: Previous, the status and Next spread apart, 12px gaps, wrapping when the size select joins. */
 export const paginationClasses = tw('flex flex-wrap items-center justify-between gap-3');
 
+/** Size-only mode: the row adds no box, so the select lays out in the caller as it would on its own. */
+export const paginationSizeOnlyClasses = tw('contents');
+
 /** Phones: the Previous/Next buttons become 44×44 icons (the label span is hidden; the accessible names stay). */
 export const paginationButtonClasses = tw('pg-phone:w-11 pg-phone:px-0 pg-phone:[&>span]:hidden');
 
