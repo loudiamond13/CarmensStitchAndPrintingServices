@@ -1,6 +1,6 @@
 ---
 created: 2026-10-25T09:33:00-05:00
-updated: 2026-11-09T23:30:00-06:00
+updated: 2026-11-09T23:28:00-06:00
 ---
 
 # Runbook: how fast the lists are, and how to check it

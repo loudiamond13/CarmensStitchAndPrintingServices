@@ -417,8 +417,8 @@ export function parseTransferPage(response: MoneyTransferListResponse): Transfer
 
 export interface MoneyService {
   /**
-   * `GET /api/v1/money-transfers`: one page of every transfer between staff, newest first, for a Manager only (an Admin gets 403).
-   * Page and size are always sent; `deleted=true` only when asked.
+   * `GET /api/v1/money-transfers`: one page of transfers between staff, newest first. A Manager gets every transfer; an Admin gets only
+   * the ones they sent or received, and a 403 when asking for deleted ones. Page and size are always sent; `deleted=true` only when asked.
    */
   transfers(query: TransferListQuery, signal?: AbortSignal): Promise<MoneyTransferListResponse>;
   /**

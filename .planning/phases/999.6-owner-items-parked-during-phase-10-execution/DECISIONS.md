@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T22:41:33-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T00:45:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -15,7 +15,7 @@ The legacy import sets an order's "status changed" time to the moment of import 
 
 ## P10-BL-02 · "View all" from the dashboard's recent orders (wave 2 review info)
 
-**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing. The dashboard's "Recent orders" is newest created first. The Orders list's "Newest first" sort may order differently, so a "View all" link could show a different first page. Recommended: make the Orders list "Newest first" sort by created time, matching the dashboard. Plan 10-07 was told not to change it.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fixed in quick 261109-vj6. Was open · **Blocks:** nothing. The dashboard's "Recent orders" is newest created first. The Orders list's "Newest first" sort may order differently, so a "View all" link could show a different first page. Recommended: make the Orders list "Newest first" sort by created time, matching the dashboard. Plan 10-07 was told not to change it.
 
 ## P10-BL-03 · Future-dated expenses in the dashboard chart (plan 10-06, coverage D7)
 
@@ -28,21 +28,30 @@ The chart counts an expense in the month of its date. So an expense dated later 
 
 ## P10-BL-04 · What the dashboard shows when a background refresh fails (wave 3 review WR-01)
 
-**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing; plans 10-09 and later follow the current pattern until ruled.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fixed in quick 261109-vj6. Was open · **Blocks:** nothing; plans 10-09 and later follow the current pattern until ruled.
 
 The plan says that on an error the heading stays "Dashboard" and the date line is dropped. That only holds on the first load. If the page loaded once and a later background refresh fails, it shows the earlier greeting and date next to the error line, so staff may read old figures as current.
 
 - **A (recommended):** on any failed load, keep the last good figures but mark them clearly ("Showing figures from 9:41 AM. Couldn't refresh.") with Try Again.
 - **B:** on any failed load, hide the figures and show only the error line, as on a first load.
 
+**Built as (for your review):** these small choices were made inside the ruling, with no new wording beyond "Showing figures from {time}. Couldn't refresh." and the existing "Try Again".
+- **Where it sits:** in the header title column, under the date line. The greeting, the date line and every summary figure stay.
+- **What it covers:** what the summary feeds: the header, the four KPI cards, Orders by status and Recent orders. The Income vs. expenses card and the money strip read their own queries and keep their own failure lines, which never show old figures beside an error.
+- **Look:** like the money strip's failure line: Small (14px) in the danger colour, with a ghost small "Try Again".
+- **Timing:** like the strip too. It shows when the latest read failed and no retry is running, leaves while a retry runs, and comes back (announced again) if the retry fails. A first-load failure is unchanged.
+- **The time:** the moment this browser got the last good answer, shown in Asia/Manila in en-PH style ("9:41 AM"). It is the device clock read as an instant and shown in the shop's zone, the same source the Sessions page uses.
+
 ## P10-BL-05 · WebKit cancelled-request errors in the browser tests (wave 3 review WR-03)
 
-**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing now; may cause WebKit/iPhone test failures once plans 10-09, 10-11 and 10-13 add more dashboard requests.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fixed in quick 261109-vj6. Was open · **Blocks:** nothing now; may cause WebKit/iPhone test failures once plans 10-09, 10-11 and 10-13 add more dashboard requests.
 
 WebKit reports a request that a page navigation cancels as a page error ("due to access control checks"), and the test guard fails on any page error. Plan 10-07 worked around it only for the summary request, in the sign-in helper.
 
 - **A (recommended):** teach the test guard to ignore exactly this message for the app's own `/api/` requests on WebKit, documented in docs/web/e2e.md next to the existing WebKit preload rule. All other page errors still fail.
 - **B:** keep failing on it, and add a wait to each spec that navigates away from the dashboard.
+
+**Built as (quick 261109-vj6):** fixed with option A, and the sign-in wait was removed. The message the guard really sees in WebKit is `/localhost:5199/api/v1/dashboard/chart?months=6 due to access control checks.` (Playwright drops the "Fetch API cannot load https:" start), so the rule matches that exact text, for WebKit only, the app's own host and a path under `/api/`. A real run without the sign-in wait showed it: the hand-over journey on the iPhone profile failed on three cancelled `/api/` requests (chart, summary, money on hand) until the rule matched. Fixture self-tests prove other engines, other wording, other paths and other hosts still fail. A plain `fetch` cancelled by a navigation in a probe gave `TypeError: Load failed` (no URL) instead; that wording is not ignored.
 
 ## P10-BL-06 · Dashboard figures on a 320 px phone (wave 4 review WR-01)
 
@@ -74,7 +83,7 @@ Added from plan 10-12 (hand-overs), no new wording written:
 
 ## P10-BL-08 · Should a normal staff transfer write an audit entry? (wave 5 review IN-05)
 
-**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing now.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fixed in quick 261109-vj6. Was open · **Blocks:** nothing now.
 
 Today a transfer records who made it and when on the transfer itself, and the audit log only gets an entry when a transfer is deleted, permanently deleted or handed over. Adding a company expense, by contrast, writes an audit entry. A transfer moves money between people, so you may want the same trail.
 
@@ -129,12 +138,16 @@ Keep them, or give new wording.
 
 ## P10-BL-13 · Should a permanently removed transfer's audit record say it was a hand-over? (wave 9 review IN-06)
 
-**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing; the record follows D-25 as written.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fixed in quick 261109-vj6. Was open · **Blocks:** nothing; the record follows D-25 as written.
 
 When a Manager removes a deleted transfer for good, the audit log keeps who sent it, who received it, the amount, the date, whether it had a note, and who recorded and deleted it. It does not say whether the transfer was a hand-over of a former staff member's money, so once it is removed nobody can tell.
 
 - **A (recommended):** add "hand-over: yes or no" to the record. Small change, no new screen.
 - **B:** keep it as is (D-25 as written).
+
+**Follow-up for you (new, from quick 261109-vj6):** the stored record now holds `handover=yes` or `handover=no`, like `note=yes` or `note=no`. The Audit Log screen does not show either flag today, and no new wording was added.
+- **A (recommended):** leave it in the stored record only. Reason: it answers "was this a hand-over?" for anyone who reads the record, and costs no new wording.
+- **B:** also show a "Hand-over: Yes" or "Hand-over: No" line in the Audit Log's "What changed". Reason: staff can see it on screen. It is new wording for you to approve.
 
 ## P10-BL-14 · Transfers tab, delete and remove choices (plan 10-20)
 
@@ -174,7 +187,7 @@ On a 320 px phone, the Cancel button in the Remove Permanently window starts 30 
 
 ## P10-BL-17 · Chart axis labels round half-thousands the wrong way (phase-end review WR-04)
 
-**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing; the chart works, only one axis label can read wrong.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fixed in quick 261109-vj6. Was open · **Blocks:** nothing; the chart works, only one axis label can read wrong.
 
 The Income and Expenses chart labels its lines in whole thousands. When the top line is 3,000, 5,000, 7,000 or 9,000, the middle line sits at a half (1,500, 2,500 and so on) but reads "₱2k", "₱3k" and so on. A new shop's first months sit exactly in this range. Example: October income is ₱2,600, the axis reads ₱0, ₱2k, ₱3k, and the "₱2k" line is really at ₱1,500.
 
@@ -201,13 +214,11 @@ The project rule says money is computed on the server only. The Delete Transfer 
 
 **Status:** open · **Blocks:** marking Phase 10 complete, the phase PR and the merge to main. All 21 plans are built, reviewed and tested.
 
-The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success criteria and 14 of 14 requirements are met, checked in the code. Status is "human needed" because these steps are yours:
+The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success criteria and 14 of 14 requirements are met, checked in the code. Status is "human needed" because these steps are yours. P10-BL-01 to 19 are all ruled now (D-107 and D-111), and P10-BL-01 is carried into the Phase 16 plan. What is left:
 
-1. **Pixel snapshots on CI.** They differ locally by glyph edges and are confirmed only by the CI run on the phase PR. The PR must not merge until that job is green.
-2. **P10-BL-06 (dashboard at 320 px).** With a six-digit Collected figure the four KPI cards are too narrow and the page can scroll sideways. One check is held as test.fixme until you choose the layout. Recommended to rule before shipping.
-3. **Screenshot review (P10-BL-15).** The showcase section "Dashboard and staff money" and the real pages in Blush and Espresso at 320, 390, 820 and 1440 px.
-4. **P10-BL-16 and P10-BL-18**, then the other parked items (P10-BL-01 to 05, 07 to 14, 17, 19). P10-BL-01 matters for the legacy import in Phases 15 to 17.
-5. **One clean full test run on CI.** Locally every browser test passed once the machine was quiet. The expense list speed test missed its 300 ms limit by 3.7 ms, the known machine issue (D-76, D-88, D-103).
+1. **The pixel (parity) snapshots on CI.** They differ locally by glyph edges and are confirmed only by the CI run on the phase PR. The PR must not merge until that job is green.
+2. **One clean full CI run on the phase PR.** Locally every browser test passed once the machine was quiet. The expense list speed test missed its 300 ms limit by 3.7 ms, the known machine issue (D-76, D-88, D-103).
+3. **Your sign-off.**
 
 When you are back: approve or reject the sign-off, and I run the phase close (phase complete, roadmap update, transition) and then `/gsd-ship 10`.
 

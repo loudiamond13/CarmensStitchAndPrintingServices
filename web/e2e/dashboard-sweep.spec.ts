@@ -167,8 +167,7 @@ for (const sweepCase of CASES) {
     expect(failures).toEqual([]);
   });
 
-  // OWNER DECISION P10-BL-06 (open): at 320 px a six-digit KPI figure can be wider than its card, so this case can fail with "the page
-  // scrolls sideways". It stays in the sweep and is left failing on purpose until the owner rules. No fixme.
+  // The 320 px case must pass: the KPI cards are one column at 420 px and below, so a six-digit figure fits (D-107, P10-BL-06 A).
   test(`@dashboard-sweep ${sweepCase.name} has no axe finding and does not scroll sideways at 320 px in Blush and Espresso`, async ({
     page,
     request,

@@ -4,8 +4,8 @@
 // again; the host hears about it first (`onDone`) so it can choose where focus goes. A transfer can be recorded again, so this is not
 // final.
 //   - Resulting-balance warning (D-33): the staff balances are read fresh when the dialog opens. If the receiver's balance minus the
-//     amount is below ₱0.00, a labelled block says so. That subtraction is the one piece of arithmetic the browser does on these
-//     screens: it is built only from server balances, says what will happen, and the server's figures win after the delete (T-10-44).
+//     amount is below ₱0.00, a labelled block says so. That subtraction is a labelled preview built only from server balances, allowed
+//     by D-111 (owner, 2026-11-09; P10-BL-18 A); the server's figures win after the delete (T-10-44).
 //     While the read runs the block is a skeleton and the confirm is off; if it fails the block says the delete still works.
 //   - 409 (changed by someone else) keeps the dialog open with the alert line. 404 (already deleted) closes it with an info toast.
 import { useState } from 'react';

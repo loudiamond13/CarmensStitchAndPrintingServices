@@ -262,6 +262,79 @@ test('@fixture a same-origin request that fails at network level is caught, and 
   }).toThrow('response: failed GET');
 });
 
+// WebKit's page error for a fetch that was cancelled (the page navigated on): the guard ignores exactly this wording, for the app's
+// own host under /api/, in WebKit only (D-111). Playwright reports it without the "Fetch API cannot load https:" start, as seen in a
+// real WebKit run: "/localhost:5199/api/v1/dashboard/chart?months=6 due to access control checks." Each throw runs in its own timer,
+// so the sentinel arriving means the ones before it have been handled.
+const SENTINEL = 'e2e fixture: sentinel page error';
+
+function throwsInOrder(messages: readonly string[]): string {
+  return `(() => {
+  ${JSON.stringify([...messages, SENTINEL])}.forEach((message, index) => {
+    setTimeout(() => { throw new Error(message); }, index * 20);
+  });
+})()`;
+}
+
+const cancelledFetch = (hostAndPath: string): string => `/${hostAndPath} due to access control checks.`;
+
+test("@fixture WebKit's cancelled /api/ request page error is ignored in WebKit only, and is a finding in the other engines", async ({
+  page,
+  guard,
+  baseURL,
+  browserName,
+}) => {
+  await page.goto('/');
+  const host = new URL(String(baseURL)).host;
+  const messages = [
+    cancelledFetch(`${host}/api/v1/dashboard/summary`),
+    cancelledFetch(`${host}/api/v1/dashboard/chart?months=6`),
+  ];
+
+  await page.evaluate(throwsInOrder(messages));
+  await expect.poll(async () => (await guard.peek()).pageErrors.includes(SENTINEL)).toBe(true);
+  const record = await guard.take();
+
+  if (browserName === 'webkit') {
+    expect(record.pageErrors).toEqual([SENTINEL]);
+  } else {
+    expect(record.pageErrors).toEqual([...messages, SENTINEL]);
+    expect(() => {
+      assertNoFindings(record);
+    }).toThrow(`pageerror: ${String(messages[0])}`);
+  }
+});
+
+test('@fixture the WebKit cancelled-request wording is still a finding for another path, another host or extra text, in every engine', async ({
+  page,
+  guard,
+  baseURL,
+}) => {
+  await page.goto('/');
+  const host = new URL(String(baseURL)).host;
+  const good = cancelledFetch(`${host}/api/v1/dashboard/summary`);
+  const messages = [
+    cancelledFetch(`${host}/assets/index.js`),
+    cancelledFetch(`${host}/apiary/v1/dashboard/summary`),
+    cancelledFetch(`${host}/api/../assets/index.js`),
+    cancelledFetch('example.invalid/api/v1/dashboard/summary'),
+    cancelledFetch(`${host}.example.invalid/api/v1/dashboard/summary`),
+    `${good} Extra.`,
+    `Fetch API cannot load https:${good}`,
+    `TypeError: ${good}`,
+    `/${host}/api/v1/dashboard/summary due to a network error.`,
+  ];
+
+  await page.evaluate(throwsInOrder(messages));
+  await expect.poll(async () => (await guard.peek()).pageErrors.includes(SENTINEL)).toBe(true);
+  const record = await guard.take();
+
+  expect(record.pageErrors).toEqual([...messages, SENTINEL]);
+  expect(() => {
+    assertNoFindings(record);
+  }).toThrow(`pageerror: ${String(messages[0])}`);
+});
+
 test('@fixture a second page of the same context is guarded too', async ({ page, guard }) => {
   await page.goto('/');
   const second = await page.context().newPage();

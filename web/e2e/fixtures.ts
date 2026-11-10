@@ -74,6 +74,12 @@ const UNUSED_PRELOAD =
 // It is matched exactly: our own /assets/archivo-latin-wght-normal-*.woff2 and Firefox's wording, nothing else.
 const UNUSED_FONT_PRELOAD =
   /^\[JavaScript Warning: "The resource at “https?:\/\/[^\s/]+\/assets\/archivo-latin-wght-normal-[\w-]+\.woff2” preloaded with link preload was not used within a few seconds\. Make sure all attributes of the preload tag are set correctly\."/;
+// WebKit's page error for a fetch that was still in flight when the page navigated on (a spec that leaves the dashboard before its
+// answer arrives): the cancelled request rejects. Playwright hands the guard the message without its "Fetch API cannot load https:"
+// start, so it reads "/localhost:5199/api/v1/dashboard/summary due to access control checks." It is not a failure of the app. It is
+// matched exactly (the whole message, nothing before or after), and only counts for WebKit and for the app's own host with a path
+// under /api/ (checked in the listener); any other page error stays a finding (D-111).
+const CANCELLED_FETCH = /^\/([^\s/]+)(\/api\/\S*) due to access control checks\.$/;
 // How each engine names a cancelled request: Chromium net::ERR_ABORTED, Firefox NS_BINDING_ABORTED, WebKit cancelled.
 const CANCELLED = /ERR_ABORTED|NS_BINDING_ABORTED|cancel/i;
 
@@ -131,6 +137,16 @@ export async function guardContext(context: BrowserContext, baseURL: string | un
     expected.some((entry) => entry.status === status && url.includes(entry.urlPart));
 
   const isSameOrigin = (url: string): boolean => URL.canParse(url) && new URL(url).origin === origin;
+  const isWebKit = context.browser()?.browserType().name() === 'webkit';
+  // WebKit's cancelled-request page error for one of the app's own /api/ requests (D-111); nothing else matches.
+  const isCancelledApiFetch = (message: string): boolean => {
+    const match = CANCELLED_FETCH.exec(message);
+    if (!isWebKit || match === null) {
+      return false;
+    }
+    const url = `${new URL(origin).protocol}//${match[1] ?? ''}${match[2] ?? ''}`;
+    return isSameOrigin(url) && new URL(url).pathname.startsWith('/api/');
+  };
   const isDeclaredFailure = (url: string): boolean =>
     isSameOrigin(url) && expectedFailures.some((urlPart) => url.includes(urlPart));
 
@@ -158,6 +174,9 @@ export async function guardContext(context: BrowserContext, baseURL: string | un
       consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
     });
     target.on('pageerror', (error) => {
+      if (isCancelledApiFetch(error.message)) {
+        return;
+      }
       pageErrors.push(error.message);
     });
     target.on('response', (response) => {
