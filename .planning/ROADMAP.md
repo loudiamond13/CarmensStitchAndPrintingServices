@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-06T01:10:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-09T22:41:45-06:00*
 
 ## Overview
 
@@ -1348,6 +1348,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 **Owner decisions to close at discuss step:**
 - Anything the approved `LEGACY-MAPPING.md` doesn't cover. New columns or tables, drops, renames and lossy type changes are one-way doors: stop and ask.
 - How each class of rejected row is treated.
+- Carry legacy dates into the import (D-111, P10-BL-01): each order's created time comes from the legacy order date and its status-changed time from the best legacy date (completion or last update), so the dashboard's "Completed this month" and "Recent orders" stay true after cut-over.
 - How imported legacy orders and numbers fit with the orders staff have already recorded in CSPS (order numbers, per-year counters, duplicates), and the name of the local rehearsal database (`CSPS_` prefix).
 
 **Owner prerequisites:**

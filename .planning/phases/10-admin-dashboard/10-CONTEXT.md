@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-09T12:30:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-09T22:41:33-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -123,6 +123,7 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-108 (owner, 2026-11-09):** where the code differs from the UI-SPEC on UI-04 (inline Transfer failure line, not toast titles), UI-05 (the shared network and server error lines) and UI-19 (the Transfer form checks a box when you leave it), keep the code and update 10-UI-SPEC.md to match.
 - **D-109 (owner, 2026-11-09):** P10-BL-21 option A for all three: the My Money header Transfer on the Mine tab is described by the balance card's loading or failure line (no new wording); the All Staff and Transfers tables use `fitTablet` so they fit at 768 px; the failing focus-after-delete browser test is investigated and fixed at its root cause.
 - **D-110 (owner, 2026-11-09):** P10-BL-21 part 2, option A: on tablets (768 to 1023 px) the All Staff Actions cell lets Hand Over wrap under the eye link, and both All Staff and Transfers use `fitTablet` so neither table scrolls sideways at 768 px. No column is hidden.
+- **D-111 (owner, 2026-11-09):** take the recommended option (A) on every parked item still open: P10-BL-01 (the legacy import carries the legacy created and status-changed dates; added to the Phase 16 plan), P10-BL-02 (the Orders list "Newest first" sorts by created time, matching the dashboard), P10-BL-04 (a failed background refresh keeps the last good figures and marks them "Showing figures from {time}. Couldn't refresh." with Try Again), P10-BL-05 (the e2e guard ignores only WebKit's cancelled-request page error for the app's own `/api/` requests, documented in docs/web/e2e.md), P10-BL-08 (a normal transfer writes a "money transfer added" audit entry: sender, receiver, amount, date, note yes or no), P10-BL-13 (the removed-transfer audit record says hand-over yes or no), P10-BL-17 (half-thousand axis lines read with one decimal, for example "₱1.5k"). P10-BL-03, 07, 09, 10, 11 and 18 keep today's behavior and wording; P10-BL-18 means a labelled preview built only from server figures may be shown (the Delete Transfer warning cites this ruling).
 
 </decisions>
 

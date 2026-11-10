@@ -1,12 +1,12 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T12:50:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-09T22:41:33-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
 ## P10-BL-01 · Imported orders and this month's dashboard figures (wave 2 review WR-02)
 
-**Status:** open · **Blocks:** nothing in Phase 10. Matters for Phases 15 to 17 (legacy import and cut-over).
+**Status:** ruled D-111 (owner, 2026-11-09): option A; carried into the Phase 16 import plan (ROADMAP Phase 16, owner decisions). No Phase 10 code change. Was open · **Blocks:** nothing in Phase 10. Matters for Phases 15 to 17 (legacy import and cut-over).
 
 The legacy import sets an order's "status changed" time to the moment of import when the old data has no status history, and the created time is stamped when the row is saved. After the Phase 17 import, every old Completed order would count as "Completed this month", and "Recent orders" would show the last six imported rows instead of real new orders.
 
@@ -15,11 +15,11 @@ The legacy import sets an order's "status changed" time to the moment of import 
 
 ## P10-BL-02 · "View all" from the dashboard's recent orders (wave 2 review info)
 
-**Status:** open · **Blocks:** nothing. The dashboard's "Recent orders" is newest created first. The Orders list's "Newest first" sort may order differently, so a "View all" link could show a different first page. Recommended: make the Orders list "Newest first" sort by created time, matching the dashboard. Plan 10-07 was told not to change it.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing. The dashboard's "Recent orders" is newest created first. The Orders list's "Newest first" sort may order differently, so a "View all" link could show a different first page. Recommended: make the Orders list "Newest first" sort by created time, matching the dashboard. Plan 10-07 was told not to change it.
 
 ## P10-BL-03 · Future-dated expenses in the dashboard chart (plan 10-06, coverage D7)
 
-**Status:** open · **Blocks:** nothing; built and tested as below.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended), today's behavior and wording stay. No code change. Was open · **Blocks:** nothing; built and tested as below.
 
 The chart counts an expense in the month of its date. So an expense dated later this month counts in this month's bar now, and one dated next month shows in no bar until next month arrives. The planner assumed this; no ruling covers it.
 
@@ -28,7 +28,7 @@ The chart counts an expense in the month of its date. So an expense dated later 
 
 ## P10-BL-04 · What the dashboard shows when a background refresh fails (wave 3 review WR-01)
 
-**Status:** open · **Blocks:** nothing; plans 10-09 and later follow the current pattern until ruled.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing; plans 10-09 and later follow the current pattern until ruled.
 
 The plan says that on an error the heading stays "Dashboard" and the date line is dropped. That only holds on the first load. If the page loaded once and a later background refresh fails, it shows the earlier greeting and date next to the error line, so staff may read old figures as current.
 
@@ -37,7 +37,7 @@ The plan says that on an error the heading stays "Dashboard" and the date line i
 
 ## P10-BL-05 · WebKit cancelled-request errors in the browser tests (wave 3 review WR-03)
 
-**Status:** open · **Blocks:** nothing now; may cause WebKit/iPhone test failures once plans 10-09, 10-11 and 10-13 add more dashboard requests.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing now; may cause WebKit/iPhone test failures once plans 10-09, 10-11 and 10-13 add more dashboard requests.
 
 WebKit reports a request that a page navigation cancels as a page error ("due to access control checks"), and the test guard fails on any page error. Plan 10-07 worked around it only for the summary request, in the sign-in helper.
 
@@ -56,7 +56,7 @@ On phones the four dashboard figures sit in a 2 x 2 grid, as the UI spec says. T
 
 ## P10-BL-07 · What a staff member sees when the chosen person can't receive a transfer (plan 10-10)
 
-**Status:** open · **Blocks:** nothing; the server uses option A for now and the transfer screen comes in a later plan.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended), today's behavior and wording stay. No code change. Was open · **Blocks:** nothing; the server uses option A for now and the transfer screen comes in a later plan.
 
 When a staff member picks the old system's placeholder account ("Legacy / unassigned") or an account with no role, the server refuses the transfer. Plan 10-10 used the general D-58 line, which does not name the person: "This person can't receive transfers now. Choose someone else." The named version would show "Legacy / unassigned" to the user.
 
@@ -74,7 +74,7 @@ Added from plan 10-12 (hand-overs), no new wording written:
 
 ## P10-BL-08 · Should a normal staff transfer write an audit entry? (wave 5 review IN-05)
 
-**Status:** open · **Blocks:** nothing now.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing now.
 
 Today a transfer records who made it and when on the transfer itself, and the audit log only gets an entry when a transfer is deleted, permanently deleted or handed over. Adding a company expense, by contrast, writes an audit entry. A transfer moves money between people, so you may want the same trail.
 
@@ -83,7 +83,7 @@ Today a transfer records who made it and when on the transfer itself, and the au
 
 ## P10-BL-09 · Staff status changes during a money hand-over (wave 6 review IN-05)
 
-**Status:** open · **Blocks:** nothing; no money can be overdrawn either way.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended), today's behavior and wording stay. No code change. Was open · **Blocks:** nothing; no money can be overdrawn either way.
 
 A hand-over checks who is staff and who has left at the moment it runs. If, in the very same instant, another Manager deactivates the person receiving the money (or reactivates the person giving it), the hand-over can still go through using the status from a split second before. Example: Manager A hands Jomar's ₱2,000.00 to Liza while Manager B deactivates Liza. Liza is now a former staff member holding ₱2,000.00, and someone has to hand it over again.
 
@@ -92,7 +92,7 @@ A hand-over checks who is staff and who has left at the moment it runs. If, in t
 
 ## P10-BL-10 · How a deleted transfer shows in a Manager's ledger (plan 10-14, coverage D9)
 
-**Status:** open · **Blocks:** nothing; plan 10-17 draws the ledger screen, and the server uses option A for now.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended), today's behavior and wording stay. No code change. Was open · **Blocks:** nothing; plan 10-17 draws the ledger screen, and the server uses option A for now.
 
 Managers can switch the ledger to also show deleted transfers. The plan did not say what figures such a row shows. Deleted rows never count toward the balance either way.
 
@@ -101,7 +101,7 @@ Managers can switch the ledger to also show deleted transfers. The plan did not 
 
 ## P10-BL-11 · New or reused wording from plans 10-14 and 10-15 (money screens)
 
-**Status:** open · **Blocks:** nothing; the lines below are in use now and can be reworded later.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended), today's behavior and wording stay. No code change. Was open · **Blocks:** nothing; the lines below are in use now and can be reworded later.
 
 - "Only Managers can see deleted transfers." The plan spelled this out word for word. It shows if an Admin asks the ledger for deleted transfers.
 - "You have nothing on hand to transfer." This is the server's existing line and is in the UI spec table. The Transfer window now also shows it when an amount is typed while your money on hand is zero or less.
@@ -129,7 +129,7 @@ Keep them, or give new wording.
 
 ## P10-BL-13 · Should a permanently removed transfer's audit record say it was a hand-over? (wave 9 review IN-06)
 
-**Status:** open · **Blocks:** nothing; the record follows D-25 as written.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing; the record follows D-25 as written.
 
 When a Manager removes a deleted transfer for good, the audit log keeps who sent it, who received it, the amount, the date, whether it had a note, and who recorded and deleted it. It does not say whether the transfer was a hand-over of a former staff member's money, so once it is removed nobody can tell.
 
@@ -174,7 +174,7 @@ On a 320 px phone, the Cancel button in the Remove Permanently window starts 30 
 
 ## P10-BL-17 · Chart axis labels round half-thousands the wrong way (phase-end review WR-04)
 
-**Status:** open · **Blocks:** nothing; the chart works, only one axis label can read wrong.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended); fix planned as a quick task before the phase PR. Was open · **Blocks:** nothing; the chart works, only one axis label can read wrong.
 
 The Income and Expenses chart labels its lines in whole thousands. When the top line is 3,000, 5,000, 7,000 or 9,000, the middle line sits at a half (1,500, 2,500 and so on) but reads "₱2k", "₱3k" and so on. A new shop's first months sit exactly in this range. Example: October income is ₱2,600, the axis reads ₱0, ₱2k, ₱3k, and the "₱2k" line is really at ₱1,500.
 
@@ -183,7 +183,7 @@ The Income and Expenses chart labels its lines in whole thousands. When the top 
 
 ## P10-BL-18 · The Delete Transfer warning works out a balance in the browser (phase-end review IN-06)
 
-**Status:** open · **Blocks:** nothing; the figure is correct to the centavo and the server's figures replace it after the delete.
+**Status:** ruled D-111 (owner, 2026-11-09): option A (recommended), today's behavior and wording stay. No code change. Was open · **Blocks:** nothing; the figure is correct to the centavo and the server's figures replace it after the delete.
 
 The project rule says money is computed on the server only. The Delete Transfer window shows "the balance will be −₱2,500.00" by taking the receiver's balance from the server and subtracting the transfer amount in the browser. It is labelled as a preview. Today this rests on a note in the plan, not on your ruling, so each review flags it again.
 
