@@ -107,10 +107,11 @@ jobs:
           dotnet tool restore
 
       # OPS-02: exact installs from the lock files; a lock file that disagrees with package.json fails here.
+      # D-115: no package install script runs, even if an .npmrc loses the setting.
       - name: 1 npm ci
         run: |
-          npm ci --prefix web
-          npm ci --prefix tools/openapi-gen
+          npm ci --prefix web --ignore-scripts
+          npm ci --prefix tools/openapi-gen --ignore-scripts
 
       # OPS-03: npm audit at every severity for web/ and tools/openapi-gen/, before any build or test. Only advisories the
       # owner accepted in docs/audit-exceptions.json, within their review date, pass (07.1 D-46). NuGetAudit already ran

@@ -1,6 +1,6 @@
 # Runbook: branch rules and how to merge
 
-*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-10-16T17:21:19-05:00*
+*Created: 2026-10-15T22:41:00-05:00 · Updated: 2026-11-10T10:45:00-06:00*
 
 This repository is public on GitHub, and GitHub enforces branch rules on a public repository for free. Until 2026-10-16 the repository was private, and GitHub Free could not enforce rules there (the rulesets API answered 403 on 2026-10-15), so the rules were kept by process (D-08): CI checked every PR and the merge command refused to merge until the checks were green. Both layers stay: GitHub now refuses a bad merge on its own, and the merge command still runs its gate first, because the gate also checks the Definition of Done list in the PR body, which GitHub cannot see.
 
@@ -40,6 +40,7 @@ Applied by Claude with `gh api` on 2026-10-16, with the owner's approval, and re
 | Secret scanning and push protection | enabled |
 | Private vulnerability reporting | enabled |
 | Actions: require full-SHA pins (`sha_pinning_required`) | true |
+| Actions: approval before CI runs on a fork pull request (`fork-pr-contributor-approval`) | `all_external_contributors`, every outside contributor (D-116, owner, 2026-11-10) |
 | Actions: default workflow permissions | read |
 | Spending limit | not touched |
 
