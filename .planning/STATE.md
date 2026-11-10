@@ -4,10 +4,10 @@ current_phase: 10
 current_phase_name: Admin Dashboard
 status: executing
 stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-11-09T18:56:58.201Z"
+last_updated: "2026-11-10T07:28:55.967Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 10 execution started
-state_head: 77b4f56268e56c71492821108cbd9d4b1c53e25b
+state_head: 647e2aa5276e13dccc9c3c5aad1228d4b301c1aa
 progress:
   total_phases: 18
   completed_phases: 8
@@ -15,7 +15,7 @@ progress:
   completed_plans: 302
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-06T10:53:00-06:00"
+updated: "2026-11-10T01:29:20-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 10 (Admin Dashboard) — EXECUTING
 Plan: 1 of 21
 Status: Executing Phase 10
-Last activity: 2026-11-09 - Completed quick task 261109-fmv: P10-BL-21 fixed (D-109, D-110)
+Last activity: 2026-11-10 - Completed quick task 261109-vj6: D-111 rulings fixed (P10-BL-02, 04, 05, 08, 13, 17)
 
 Progress: [████░░░░░░] 44%
 
@@ -1067,6 +1067,7 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 | 261031-3oo | Filter chip Clear button drawn 24 px (D-98, supersedes D-93) | 2026-10-31 | fd4ab2c2 | [261031-3oo-make-the-filter-chip-clear-button-24-px-](./quick/261031-3oo-make-the-filter-chip-clear-button-24-px-/) |
 | 261109-c4l | Fix the Phase 10 UI review findings UI-01 to UI-24 (D-107, D-108) | 2026-11-09 | 96a5981f | [261109-c4l-fix-the-phase-10-ui-review-findings-ui-0](./quick/261109-c4l-fix-the-phase-10-ui-review-findings-ui-0/) |
 | 261109-fmv | Fix P10-BL-21: header Transfer reason, tablet tables, focus-after-delete test (D-109, D-110) | 2026-11-09 | 77b4f562 | [261109-fmv-fix-p10-bl-21-header-transfer-reason-tab](./quick/261109-fmv-fix-p10-bl-21-header-transfer-reason-tab/) |
+| 261109-vj6 | Fix the D-111 rulings: P10-BL-02, 04, 05, 08, 13, 17 | 2026-11-10 | 647e2aa5 | [261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08](./quick/261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08/) |
 
 ## Deferred Items
 
