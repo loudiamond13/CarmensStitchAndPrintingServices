@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T00:45:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T01:30:49-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -221,6 +221,17 @@ The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success
 3. **Your sign-off.**
 
 When you are back: approve or reject the sign-off, and I run the phase close (phase complete, roadmap update, transition) and then `/gsd-ship 10`.
+
+**Waiting for you (parked 2026-11-10 while you were away).** Done since you left: UAT (147 passed, 0 issues, tests 18 and 19 blocked on CI), re-verification, the security review (68 threats closed, 0 open, 10-SECURITY.md), owner ruling D-111 recorded, and its six fixes built in quick 261109-vj6. Nothing below was decided for you.
+
+1. **The sign-off above** (approve or reject).
+2. **Go-ahead to ship.** `/gsd-ship 10` pushes the branch and opens the phase PR, so CI can run. Nothing has been pushed.
+3. **Review the choices quick 261109-vj6 made inside D-111** (all can change later):
+   - P10-BL-04: the line "Showing figures from {time}. Couldn't refresh." sits under the date in the dashboard header, styled like the money strip's failure line, with Try Again. It covers the header, the KPI row, Orders by status and Recent orders. The chart card and the money strip keep their own failure lines. {time} is when this browser last got good figures, shown in Manila time.
+   - P10-BL-08: the new Audit Log label reads "Money transfer added".
+   - P10-BL-05: WebKit reports the cancelled request with different wording than the item quoted, so the guard matches the wording WebKit really sends (see docs/web/e2e.md).
+4. **The P10-BL-13 follow-up** (A: keep hand-over yes/no in the stored record only, recommended. B: also show it on the Audit Log screen, which needs new wording).
+5. **After the PR's CI runs:** check the parity snapshots and one clean full run, including `web/scripts/third-party-notices.test.ts`, which timed out locally under load (it scans node_modules; no package changed). Then `/gsd-verify-work 10` clears UAT tests 18 and 19.
 
 ## P10-BL-21 · Things found while fixing the UI review (quick 261109-c4l)
 
