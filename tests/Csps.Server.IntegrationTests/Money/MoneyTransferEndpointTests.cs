@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Application.Security;
+using Csps.Domain.Auditing;
 using Csps.Server.IntegrationTests.CompanyExpenses;
 using Csps.Testing;
 
@@ -45,6 +46,48 @@ public sealed class MoneyTransferEndpointTests(CspsDatabase database) : IClassFi
         transfer.GetProperty("version").GetString().ShouldNotBeNullOrWhiteSpace();
         (await MoneyFixtures.ReadBalanceAsync(client, carmen.AccessToken)).ShouldBe(6450.00m);
         (await MoneyFixtures.ReadBalanceAsync(client, liza.AccessToken)).ShouldBe(2000.00m);
+    }
+
+    [Fact]
+    public async Task ATransferWritesOneAuditEntryWithTheSenderAsActorAndNoNoteText()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 8450.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 2000.00m, today, "Cash for the fabric run");
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, text);
+        var id = JsonDocument.Parse(text).RootElement.GetProperty("transfer").GetProperty("id").GetGuid();
+        var entry = (await MoneyFixtures.ReadAuditAsync(database, AuditActions.MoneyTransferAdded, carmen.UserId)).ShouldHaveSingleItem();
+        entry.ActorUserId.ShouldBe(carmen.UserId);
+        entry.TargetType.ShouldBe("MoneyTransfer");
+        entry.TargetId.ShouldBe(id.ToString("D"));
+        entry.Detail.ShouldBe(
+            $"from={carmen.UserId:D};to={liza.UserId:D};amount=2000.00;date={today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)};note=yes");
+        entry.Detail.ShouldNotBeNull().ShouldNotContain("fabric", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task ARefusedTransferWritesNoAuditEntry()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 3200.00m, today, Now);
+
+        using var response = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 3200.01m, today);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await MoneyFixtures.ReadAuditAsync(database, AuditActions.MoneyTransferAdded, carmen.UserId)).ShouldBeEmpty();
     }
 
     [Fact]
@@ -437,6 +480,26 @@ public sealed class MoneyTransferEndpointTests(CspsDatabase database) : IClassFi
             .ShouldBe(await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         (await MoneyFixtures.ReadTransfersAsync(database)).ShouldHaveSingleItem();
         (await MoneyFixtures.ReadBalanceAsync(client, carmen.AccessToken)).ShouldBe(500.00m);
+    }
+
+    [Fact]
+    public async Task TheSameKeyAndBodyTwiceWritesOneAuditEntry()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var carmen = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Manager, "Carmen", "Reyes");
+        var liza = await MoneyFixtures.StartStaffAsync(factory, database, Roles.Admin, "Liza", "Mercado");
+        var today = await ExpenseFixtures.TodayAsync(factory);
+        await MoneyFixtures.SeedPaymentAsync(database, carmen.UserId, "ORD-2026-0001", 900.00m, today, Now);
+        var key = Guid.NewGuid();
+
+        using var first = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 400.00m, today, "Fabric", key);
+        using var second = await MoneyFixtures.PostTransferAsync(client, carmen.AccessToken, liza.UserId, 400.00m, today, "Fabric", key);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+        second.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await MoneyFixtures.ReadAuditAsync(database, AuditActions.MoneyTransferAdded, carmen.UserId)).ShouldHaveSingleItem();
     }
 
     [Fact]

@@ -451,6 +451,32 @@ public sealed class AuditChangeLinesTests
     }
 
     [Fact]
+    public void ANormalTransferGivesTheFromAndToPeopleTheAmountAndTheDateAndLeavesTheNoteFlagOut()
+    {
+        var parsed = AuditChangeLines.For(AuditActions.MoneyTransferAdded, $"from={Ana:D};to={Bea:D};amount=200.00;date=2026-11-04;note=yes");
+
+        parsed.Lines.ShouldBe(
+        [
+            new ParsedAuditChange("from", null, Ana.ToString("D")),
+            new ParsedAuditChange("to", null, Bea.ToString("D")),
+            new ParsedAuditChange("amount", null, "200.00"),
+            new ParsedAuditChange("date", null, "2026-11-04"),
+        ]);
+        parsed.PersonIds().ShouldBe([Ana, Bea]);
+        parsed.Snapshot.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ARemovedTransferNeverShowsTheHandOverFlagAsALine()
+    {
+        var parsed = AuditChangeLines.For(
+            AuditActions.MoneyTransferPermanentlyDeleted,
+            $"from={Ana:D};to={Bea:D};amount=2000.00;date=2026-11-04;note=yes;recordedBy={Ana:D};handover=yes;deletedBy={Bea:D};deletedAt=2026-11-04T19:04:05Z");
+
+        parsed.Lines.Select(line => line.Field).ShouldNotContain("handover");
+    }
+
+    [Fact]
     public void AHandOverWithValuesOfTheWrongShapeKeepsOnlyTheValuesThatFit()
     {
         var parsed = AuditChangeLines.For(AuditActions.MoneyHandedOver, $"from=Jomar Santos;to={Bea:D};amount=lots;date=soon;secret=hunter2;note=no");

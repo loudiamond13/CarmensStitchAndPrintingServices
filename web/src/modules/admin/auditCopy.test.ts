@@ -115,6 +115,7 @@ const API_ACTIONS = [
   'order-image.cover-changed',
   'order-image.description-changed',
   'order-image.deleted',
+  'money-transfer.added',
   'money-transfer.deleted',
   'money-transfer.permanently-deleted',
   'money-transfer.handed-over',
@@ -141,12 +142,13 @@ describe('the action labels (D-28)', () => {
   });
 
   it('mirrors the 100 codes of the API', () => {
-    expect(API_ACTIONS).toHaveLength(100);
-    expect(AUDIT_ACTION_CODES).toHaveLength(100);
+    expect(API_ACTIONS).toHaveLength(101);
+    expect(AUDIT_ACTION_CODES).toHaveLength(101);
   });
 
-  it('reads the three money events in plain words under Staff money (AUDIT-01, MONEY-06; plan 10-20)', () => {
+  it('reads the four money events in plain words under Staff money (AUDIT-01, MONEY-06; plan 10-20)', () => {
     const expected: [string, string][] = [
+      ['money-transfer.added', 'Money transfer added'],
       ['money-transfer.deleted', 'Money transfer deleted'],
       ['money-transfer.permanently-deleted', 'Money transfer removed permanently'],
       ['money-transfer.handed-over', 'Money handed over'],

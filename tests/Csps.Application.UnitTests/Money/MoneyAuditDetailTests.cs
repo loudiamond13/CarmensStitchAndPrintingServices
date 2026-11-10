@@ -98,7 +98,7 @@ public sealed class MoneyAuditDetailTests
         var detail = MoneyAuditDetail.Removed(transfer);
 
         detail.ShouldBe(
-            $"from={Jomar:D};to={Liza:D};amount=2000.00;date=2026-11-04;note=yes;recordedBy={Jomar:D};deletedBy={Carmen:D};deletedAt=2026-11-04T19:04:05Z");
+            $"from={Jomar:D};to={Liza:D};amount=2000.00;date=2026-11-04;note=yes;recordedBy={Jomar:D};handover=no;deletedBy={Carmen:D};deletedAt=2026-11-04T19:04:05Z");
         detail.ShouldNotContain("Nena", Case.Insensitive);
     }
 
@@ -121,6 +121,21 @@ public sealed class MoneyAuditDetailTests
     }
 
     [Fact]
+    public void ARemoveDetailSaysHandoverNoForANormalTransferAndYesForAHandOver()
+    {
+        var normal = Transfer("x", Jomar);
+        normal.SoftDelete(Carmen, Now);
+        var leaver = new MoneyParty(Jomar, "Jomar Santos", MoneyPartyStatus.Deactivated, 2000m);
+        var coworker = new MoneyParty(Liza, "Liza Mercado", MoneyPartyStatus.Active, 0m);
+        var handover = MoneyTransfer.RecordHandover(leaver, coworker, 2000m, Day, "x", Day, Now).Value;
+        handover.SoftDelete(Carmen, Now);
+
+        MoneyAuditDetail.Removed(normal).ShouldContain(";handover=no;deletedBy=");
+        MoneyAuditDetail.Removed(handover).ShouldContain(";handover=yes;deletedBy=");
+        MoneyAuditDetail.Deleted(normal).ShouldNotContain("handover");
+    }
+
+    [Fact]
     public void TheDeleteAndRemoveDetailsForTheLongestValuesStayUnderTheFourHundredCharacterLimit()
     {
         var transfer = Transfer(new string('x', 200), Guid.NewGuid(), amount: 9999999999999999.99m, from: Guid.NewGuid(), to: Guid.NewGuid());
@@ -137,7 +152,7 @@ public sealed class MoneyAuditDetailTests
         transfer.SoftDelete(Carmen, Now);
 
         AuditDetailFormat.Parse(MoneyAuditDetail.Removed(transfer)).Select(part => part.Key).ShouldBe(
-            [MoneyAuditDetail.FromKey, MoneyAuditDetail.ToKey, "amount", "date", MoneyAuditDetail.NoteKey, MoneyAuditDetail.RecordedByKey, MoneyAuditDetail.DeletedByKey, MoneyAuditDetail.DeletedAtKey]);
+            [MoneyAuditDetail.FromKey, MoneyAuditDetail.ToKey, "amount", "date", MoneyAuditDetail.NoteKey, MoneyAuditDetail.RecordedByKey, MoneyAuditDetail.HandoverKey, MoneyAuditDetail.DeletedByKey, MoneyAuditDetail.DeletedAtKey]);
     }
 
     private static MoneyTransfer Transfer(string? note, Guid? recordedBy, decimal amount = 2000m, Guid? from = null, Guid? to = null)

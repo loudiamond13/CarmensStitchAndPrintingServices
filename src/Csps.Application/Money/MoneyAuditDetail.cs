@@ -22,6 +22,9 @@ public static class MoneyAuditDetail
     /// <summary>The key of who recorded the transfer, a user id.</summary>
     public const string RecordedByKey = "recordedBy";
 
+    /// <summary>The key that says whether the transfer was a hand-over: <c>yes</c> or <c>no</c> (D-111).</summary>
+    public const string HandoverKey = "handover";
+
     /// <summary>The key of who deleted the transfer, a user id.</summary>
     public const string DeletedByKey = "deletedBy";
 
@@ -72,15 +75,15 @@ public static class MoneyAuditDetail
     }
 
     /// <summary>
-    /// Writes the detail of a permanent remove: the full record as ids and values, so the audit entry outlives the row. The note text is
-    /// never written.
+    /// Writes the detail of a permanent remove: the full record as ids and values, so the audit entry outlives the row, including
+    /// whether it was a hand-over (D-111). The note text is never written.
     /// </summary>
     /// <param name="transfer">The soft-deleted transfer about to be removed.</param>
     /// <returns>The detail text.</returns>
     public static string Removed(MoneyTransfer transfer)
     {
         ArgumentNullException.ThrowIfNull(transfer);
-        List<string> parts = [.. Facts(transfer)];
+        List<string> parts = [.. Facts(transfer), AuditDetailFormat.Pair(HandoverKey, transfer.IsHandover ? Yes : No)];
         if (transfer.DeletedById is { } deletedBy)
         {
             parts.Add(AuditDetailFormat.Pair(DeletedByKey, deletedBy));

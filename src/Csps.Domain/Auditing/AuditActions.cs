@@ -135,6 +135,9 @@ public static class AuditActions
     /// <summary>A deleted company expense was removed for good (D-27).</summary>
     public const string CompanyExpensePermanentlyDeleted = "company-expense.permanently-deleted";
 
+    /// <summary>A staff member transferred money to a coworker (D-111).</summary>
+    public const string MoneyTransferAdded = "money-transfer.added";
+
     /// <summary>A staff money transfer was deleted into the bin (D-23).</summary>
     public const string MoneyTransferDeleted = "money-transfer.deleted";
 
@@ -519,6 +522,7 @@ public static class AuditActions
         OrderImageCoverChanged,
         OrderImageDescriptionChanged,
         OrderImageDeleted,
+        MoneyTransferAdded,
         MoneyTransferDeleted,
         MoneyTransferPermanentlyDeleted,
         MoneyHandedOver,

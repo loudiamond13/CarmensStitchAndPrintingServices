@@ -1,6 +1,6 @@
 ---
 created: 2026-11-07T05:20:00-06:00
-updated: 2026-11-08T04:00:00-06:00
+updated: 2026-11-09T23:12:00-06:00
 ---
 
 # The staff money API
@@ -90,6 +90,9 @@ A staff member sends part of their money on hand to a coworker (MONEY-04, MONEY-
 - Send an `Idempotency-Key` header. The same key and body twice records one transfer, and the second answer replays the stored `201`
   with an `Idempotent-Replayed` header. The same key with a different body answers `422` (SEC-06).
 - The answer is `{ transfer, senderBalance }`. It never carries the recipient's balance (OD-19).
+- One audit entry, `money-transfer.added`, is written in the same save, with the sender as actor. Its detail holds ids, the amount, the
+  date and `note=yes` or `note=no`, never the note text or a name (D-52, D-111). A refused transfer and a replayed key write none. See
+  [the audit log](../operations/audit-log.md).
 
 ### Who can receive
 
@@ -377,7 +380,8 @@ A Manager removes a deleted transfer for good (MONEY-06, D-24, D-25).
 - Only a transfer that was deleted first can go. A live one answers `422` `Delete the transfer first.` (`money-transfers.not-deleted`).
 - Removing changes no balance: a deleted transfer already counts for nothing.
 - The full record is written to the audit log first, in the same save, as `money-transfer.permanently-deleted`: the people, the
-  amount, the date, whether there was a note, who recorded it, who deleted it and when. The note text is not written. The copy
+  amount, the date, whether there was a note, who recorded it, whether it was a hand-over (`handover=yes` or `no`, D-111), who deleted
+  it and when. The note text is not written. The copy
   follows the 8-month audit retention.
 - An unknown or already removed transfer answers `404`.
 

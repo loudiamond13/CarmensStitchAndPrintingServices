@@ -1,10 +1,12 @@
 using Csps.Application.Auth;
+using Csps.Application.Common;
 using Csps.Application.Money;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Application.Staff;
 using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Money;
 using Csps.Domain.Time;
@@ -36,6 +38,7 @@ public sealed class CreateMoneyTransferHandlerTests
         result.Error.ShouldBe(AuthErrors.SessionEnded);
         await harness.MoneyLock.DidNotReceive().LockAsync(Arg.Any<CancellationToken>());
         harness.Transfers.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.NoAuditEntry();
     }
 
     [Fact]
@@ -50,6 +53,7 @@ public sealed class CreateMoneyTransferHandlerTests
         result.Error.FieldErrors.ShouldNotBeNull().Keys.Order(StringComparer.Ordinal).ShouldBe(["amount", "toUserId", "transferDate"]);
         await harness.MoneyLock.DidNotReceive().LockAsync(Arg.Any<CancellationToken>());
         harness.Unit.Saves.ShouldBe(0);
+        harness.NoAuditEntry();
     }
 
     [Fact]
@@ -97,6 +101,39 @@ public sealed class CreateMoneyTransferHandlerTests
     }
 
     [Fact]
+    public async Task ASavedTransferRecordsOneAuditEntryWithTheFactsBeforeTheOneSave()
+    {
+        var harness = new Harness();
+        var savesWhenRecorded = new List<int>();
+        harness.Audit
+            .When(audit => audit.Record(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>()))
+            .Do(_ => savesWhenRecorded.Add(harness.Unit.Saves));
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var id = result.Value.Transfer.Id;
+        harness.Audit.Received(1).Record(
+            AuditActions.MoneyTransferAdded,
+            MoneyAuditTargets.Transfer,
+            AuditKey.Of(id),
+            $"from={CallerId:D};to={RecipientId:D};amount=200.00;date=2026-11-04;note=yes");
+        savesWhenRecorded.ShouldBe([0]);
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ATransferWithNoNoteWritesNoteNoInTheAuditDetail()
+    {
+        var harness = new Harness();
+
+        await harness.Handler.HandleAsync(Valid() with { Note = null }, TestContext.Current.CancellationToken);
+
+        harness.Audit.Received(1).Record(
+            AuditActions.MoneyTransferAdded, MoneyAuditTargets.Transfer, Arg.Any<string?>(), Arg.Is<string?>(detail => detail!.EndsWith("note=no", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public async Task AFormerStaffRecipientIsMarkedFormerStaffInTheAnswerWhenDeleted()
     {
         var harness = new Harness(recipient: new StaffState(RecipientId, "Jomar Santos", Roles.Admin, false, false, true, true), recipientBalance: -500.00m);
@@ -141,6 +178,7 @@ public sealed class CreateMoneyTransferHandlerTests
         result.Error.ShouldBe(AuthErrors.SessionEnded);
         harness.Transfers.DidNotReceiveWithAnyArgs().Add(default!);
         harness.Unit.Saves.ShouldBe(0);
+        harness.NoAuditEntry();
     }
 
     [Fact]
@@ -153,6 +191,7 @@ public sealed class CreateMoneyTransferHandlerTests
         OnlyField(result, "toUserId", MoneyErrors.UnknownRecipientMessage);
         harness.Transfers.DidNotReceiveWithAnyArgs().Add(default!);
         harness.Unit.Saves.ShouldBe(0);
+        harness.NoAuditEntry();
     }
 
     [Fact]
@@ -175,6 +214,7 @@ public sealed class CreateMoneyTransferHandlerTests
         OnlyField(result, "amount", "You only have ₱1,000.00 on hand.");
         harness.Transfers.DidNotReceiveWithAnyArgs().Add(default!);
         harness.Unit.Saves.ShouldBe(0);
+        harness.NoAuditEntry();
     }
 
     [Fact]
@@ -324,8 +364,10 @@ public sealed class CreateMoneyTransferHandlerTests
                 .Returns(Task.FromResult(before), Task.FromResult(after));
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new CreateMoneyTransferHandler(Transfers, Reader, MoneyLock, Staff, new FixedCalendar(), Unit, request, new CreateMoneyTransferRequestValidator());
+            Handler = new CreateMoneyTransferHandler(Transfers, Reader, MoneyLock, Staff, new FixedCalendar(), Audit, Unit, request, new CreateMoneyTransferRequestValidator());
         }
+
+        public IAuditTrail Audit { get; } = Substitute.For<IAuditTrail>();
 
         public IMoneyTransfers Transfers { get; }
 
@@ -338,6 +380,9 @@ public sealed class CreateMoneyTransferHandlerTests
         public FakeUnitOfWork Unit { get; } = new();
 
         public CreateMoneyTransferHandler Handler { get; }
+
+        public void NoAuditEntry() =>
+            Audit.DidNotReceive().Record(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>());
     }
 
     private sealed class FixedCalendar : IBusinessCalendar

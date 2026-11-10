@@ -136,6 +136,7 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'order-expense-category.retired', label: 'Order expense category retired', group: ORDER_LISTS },
   { code: 'order-expense-category.reactivated', label: 'Order expense category back in use', group: ORDER_LISTS },
   { code: 'order-expense-category.deleted', label: 'Order expense category deleted', group: ORDER_LISTS },
+  { code: 'money-transfer.added', label: 'Money transfer added', group: STAFF_MONEY },
   { code: 'money-transfer.deleted', label: 'Money transfer deleted', group: STAFF_MONEY },
   { code: 'money-transfer.permanently-deleted', label: 'Money transfer removed permanently', group: STAFF_MONEY },
   { code: 'money-transfer.handed-over', label: 'Money handed over', group: STAFF_MONEY },

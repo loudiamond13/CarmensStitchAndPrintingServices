@@ -5,7 +5,7 @@ status: approved
 shadcn_initialized: false
 preset: none
 created: "2026-11-05T11:09:00-06:00"
-updated: "2026-11-09T12:50:00-06:00"
+updated: "2026-11-09T23:20:00-06:00"
 ---
 
 # Phase 10: UI Design Contract (Admin Dashboard and Staff Money)
@@ -117,7 +117,7 @@ The command is the one P6, P8 and P9 recorded (71 at commit `ba37f7e5`; the coun
 | **Copy modules** | `modules/admin/dashboardCopy.ts`, `moneyCopy.ts` | Every string in § Copywriting, none in JSX (P2 rule). |
 | **Schemas** | `modules/admin/moneySchemas.ts` | OR-3 zod schema mirroring the transfer and hand-over validators with the server's own messages (§ Validation). |
 | **Services** | `modules/admin/services/dashboardService.ts`, `moneyService.ts` | OR-5. |
-| **auditCopy additions** | `modules/admin/auditCopy.ts` | Three money events (§ Copywriting → Audit log). |
+| **auditCopy additions** | `modules/admin/auditCopy.ts` | Four money events (§ Copywriting → Audit log). |
 | **Server work (needed by these screens; the planner fixes names and shapes)** | `src/` (API), `web/src/types/api.generated.ts` | (1) **Dashboard summary**: business `today` (YYYY-MM-DD), the greeting part (`morning`, `afternoon`, `evening`, from `IBusinessCalendar`), the signed-in user's **first name** (the session holds only the full name), the four KPI figures and their foot data (active count, due this week, overdue count, receivables, collected this month, the comparison amount, the whole-number change in percent or null when the comparison is ₱0.00, expenses this month, entry count, top category name or null), the six status counts and the active total, and the 6 newest orders in the Orders list entry shape. (2) **Dashboard chart** for 6 or 12 months, oldest first, current month last: month key, income, expenses, profit. (3) **Money**: own balance; a paged ledger (newest first) where each row carries its kind, date, the people, order and category data it names, money in or out, the **running balance after the row** (null for a deleted transfer), and for transfer rows the transfer id, `version`, recorded by and the deleted by and at; the all-staff balances with the total; one person's balance and ledger; the transfer list (OQ-1, D-48); the recipient list for transfers (active staff plus D-19 leavers, with no figures for an Admin, OQ-2, D-49). (4) Create transfer and create hand-over (`Idempotency-Key`, SEC-06), each answering with the new balances; delete (soft, with `version`); permanent remove. (5) Every message in § Validation is the server's own wording. (6) Authorization-matrix rows for every new action (MONEY-08). |
 | **Component Showcase additions** | the P5 showcase (`/admin/components`) | The Phase 10 cases in § UI Considerations, demo data only (05 D-30 to D-33), with §12.1 people and §12.4 figures. |
 
@@ -564,7 +564,7 @@ Names keep the muted " (former staff)" suffix for deleted people (`ActorName`, 0
 
 ### Audit log (AUDIT-01, MONEY-06, D-17, D-25) *(SPEC-GAP; the planner fixes the codes)*
 
-"Money transfer deleted" · "Money transfer removed permanently" · "Money handed over". Each detail names the amount, both people, the transfer date and who did it; "removed permanently" carries the full record (D-25). Group "Staff money".
+"Money transfer added" · "Money transfer deleted" · "Money transfer removed permanently" · "Money handed over". Each detail names the amount, both people, the transfer date and who did it; "removed permanently" carries the full record (D-25), including whether it was a hand-over (yes or no, stored only, no new line on the screen; D-111, P10-BL-08 and P10-BL-13 A). "Money transfer added" is new (D-111, P10-BL-08 A): a normal transfer writes it with the sender as actor. Group "Staff money".
 
 ### Destructive actions in this phase
 

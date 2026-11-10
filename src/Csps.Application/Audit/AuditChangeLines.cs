@@ -211,7 +211,8 @@ public static class AuditChangeLines
                 or AuditActions.CompanyExpensePermanentlyDeleted => ReadSnapshot(detail),
             AuditActions.CompanyExpenseChanged => ReadEdit(detail),
             AuditActions.CompanyExpensePayerChanged => ReadPayerChange(detail),
-            AuditActions.MoneyHandedOver
+            AuditActions.MoneyTransferAdded
+                or AuditActions.MoneyHandedOver
                 or AuditActions.MoneyTransferDeleted
                 or AuditActions.MoneyTransferPermanentlyDeleted => ReadTransfer(detail),
             AuditActions.ExpenseCategoryAdded

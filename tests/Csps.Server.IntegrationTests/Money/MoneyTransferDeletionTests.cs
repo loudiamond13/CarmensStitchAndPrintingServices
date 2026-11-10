@@ -303,7 +303,7 @@ public sealed class MoneyTransferDeletionTests(CspsDatabase database) : IClassFi
         var day = world.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var at = deletedAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
         entry.Detail.ShouldBe(
-            $"from={world.Paolo.UserId:D};to={world.Liza.UserId:D};amount=2000.00;date={day};note=yes;recordedBy={world.Paolo.UserId:D};deletedBy={world.Carmen.UserId:D};deletedAt={at}");
+            $"from={world.Paolo.UserId:D};to={world.Liza.UserId:D};amount=2000.00;date={day};note=yes;recordedBy={world.Paolo.UserId:D};handover=no;deletedBy={world.Carmen.UserId:D};deletedAt={at}");
         entry.Detail.ShouldNotBeNull().ShouldNotContain("thread", Case.Insensitive);
         entry.Detail.Length.ShouldBeLessThan(AuditEntry.DetailMaxLength);
     }

@@ -62,7 +62,7 @@ public sealed class RemoveMoneyTransferHandlerTests
             AuditActions.MoneyTransferPermanentlyDeleted,
             "MoneyTransfer",
             harness.Transfer.Id.ToString("D"),
-            $"from={PaoloId:D};to={LizaId:D};amount=2000.00;date=2026-11-04;note=yes;recordedBy={PaoloId:D};deletedBy={CallerId:D};deletedAt=2026-11-04T02:00:00Z",
+            $"from={PaoloId:D};to={LizaId:D};amount=2000.00;date=2026-11-04;note=yes;recordedBy={PaoloId:D};handover=no;deletedBy={CallerId:D};deletedAt=2026-11-04T02:00:00Z",
         ]);
     }
 

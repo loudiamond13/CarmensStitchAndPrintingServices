@@ -4,6 +4,7 @@ using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Application.Staff;
 using Csps.Application.Users;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Money;
 using Csps.Domain.Time;
@@ -15,7 +16,7 @@ namespace Csps.Application.Money;
 /// Use case: a staff member transfers money on hand to a coworker (MONEY-04, MONEY-05). The sender is the token's user, never a value
 /// from the request (CWE-639). Inside one transaction the <c>staff-money</c> lock is taken first, then both people and both balances
 /// are read, then the domain decides every rule (D-14, D-19, D-20, D-49, D-56), so two transfers can never spend the same money twice
-/// (D-53). Who recorded the transfer and when come from the token and the clock (SEC-08).
+/// (D-53). Who recorded the transfer and when come from the token and the clock (SEC-08). One audit entry joins the save with the sender as actor and ids only (D-111, AUDIT-01).
 /// </summary>
 public sealed class CreateMoneyTransferHandler(
     IMoneyTransfers transfers,
@@ -23,6 +24,7 @@ public sealed class CreateMoneyTransferHandler(
     IStaffMoneyLock moneyLock,
     IStaffDirectory staff,
     IBusinessCalendar calendar,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<CreateMoneyTransferRequest> validator)
@@ -82,6 +84,11 @@ public sealed class CreateMoneyTransferHandler(
 
         var transfer = recorded.Value;
         transfers.Add(transfer);
+        audit.Record(
+            AuditActions.MoneyTransferAdded,
+            MoneyAuditTargets.Transfer,
+            AuditKey.Of(transfer.Id),
+            MoneyAuditDetail.Snapshot(transfer.FromUserId, transfer.ToUserId, transfer.Amount, transfer.TransferDate, hasNote: transfer.Note is not null));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var after = await reader.GetSumsAsync([callerId], cancellationToken).ConfigureAwait(false);
