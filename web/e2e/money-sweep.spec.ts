@@ -53,6 +53,8 @@ async function seedPaymentTo(request: APIRequestContext, receiver: TestStaff): P
 
 /** Records a transfer of `amount` from the signed-in person to `receiverName` through the dashboard strip, and waits for the window to close. */
 async function recordTransfer(page: Page, receiverName: string, amount: string): Promise<void> {
+  // An earlier transfer's toast leaves first, so the toast checked below is this transfer's own.
+  await expect(page.getByText('Transfer recorded')).toHaveCount(0, { timeout: 10_000 });
   const strip = page.getByRole('region', { name: 'Your money on hand' });
   await strip.getByRole('button', { name: 'Transfer' }).click();
   const dialog = page.getByRole('dialog', { name: 'Transfer Money' });
@@ -63,8 +65,7 @@ async function recordTransfer(page: Page, receiverName: string, amount: string):
   await dialog.getByLabel(/^Amount/).fill(amount);
   await dialog.getByRole('button', { name: 'Record Transfer' }).click();
   await expect(dialog).toBeHidden();
-  // A second transfer raises its toast while the first one is still up.
-  await expect(page.getByText('Transfer recorded').last()).toBeVisible();
+  await expect(page.getByText('Transfer recorded')).toBeVisible();
 }
 
 /** Axe's findings for the page as one message, or null when it finds nothing (the same run every e2e check uses). */
