@@ -1,8 +1,8 @@
 ---
 phase: 10-admin-dashboard
 created: 2026-11-09T08:15:00-06:00
-updated: 2026-11-10T01:36:00-06:00
-verified: 2026-11-10T07:36:00Z
+updated: 2026-11-10T06:50:00-06:00
+verified: 2026-11-10T12:50:00Z
 status: human_needed
 score: 6/6 must-haves verified
 requirements_score: 14/14 requirements satisfied in code
@@ -145,6 +145,7 @@ covered_files:
   - "web/e2e/dashboard.spec.ts"
   - "web/e2e/fixture-selftest.spec.ts"
   - "web/e2e/fixtures.ts"
+  - "web/e2e/money-sweep.spec.ts"
   - "web/e2e/money.spec.ts"
   - "web/e2e/orders-filters.spec.ts"
   - "web/src/components/data/IncomeExpenseChart.tsx"
@@ -182,6 +183,7 @@ covered_files:
   - "web/src/modules/admin/components/StaffBalancesTable.tsx"
   - "web/src/modules/admin/components/TransferActionDialogs.tsx"
   - "web/src/modules/admin/components/TransferButton.tsx"
+  - "web/src/modules/admin/components/TransferModal.test.tsx"
   - "web/src/modules/admin/components/TransferModal.tsx"
   - "web/src/modules/admin/components/TransfersCard.tsx"
   - "web/src/modules/admin/components/TransfersTable.tsx"
@@ -237,70 +239,70 @@ covered_files:
   - "web/src/types/api.generated.ts"
   - "web/src/utils/format.ts"
   - "web/src/utils/toFiniteFigure.ts"
-covered_digest: "v3:sha256:47e554181e3199532b6e342ba8fbcf2c5e1c98d0d57bc750662b4e29fb6af410"
+covered_digest: "v3:sha256:8981098b1a489f3d5e3d362f6d633354a57d4d953da6456116cf550b3b9160e1"
 re_verification:
   previous_status: human_needed
   previous_score: 6/6
   gaps_closed: []
   gaps_remaining: []
   regressions: []
-  note: "The report at HEAD 4b7f6251 had no gaps. This run re-checks the D-111 commits (git diff c9081a3e..HEAD: 3bea5c9e, 4f773e95, 7586b8e6, 647e2aa5) and trims the human list to what is still open."
+  note: "The report at HEAD 2feec678 had no gaps. This run re-checks the code review fix commits (git diff 2feec678..HEAD: 5f12c822, 20722663, aaf930cd, 925a66d8, 255245d9) and the UAT record. No file under src/ changed in that range."
 decision_coverage:
-  honored: 61
-  total: 61
+  honored: 62
+  total: 62
   not_honored: []
-  note: "Carried from the first report. The gate flagged D-106 as a false negative (10-REVIEW-wave1-FIX.md lines 19 and 20 record both D-106 fixes). D-107 to D-110 are owner rulings made after the gate ran and each is honored in code. D-111 (owner, 2026-11-09) is also honored: the seven items it changes are built (see below) and the six items it leaves as they are were not touched."
+  note: "Carried from the earlier reports (61 of 61), plus D-112 (owner, 2026-11-10: the Transfer window shows a failure line and Try Again when the business date cannot be read). D-112 is honored in code: see Truth 6."
 human_verification:
-  - test: "Phase PR CI: the parity pixel snapshot job"
+  - test: "UAT test 18: the parity pixel snapshot job on the phase PR"
     expected: "The parity job is green on the phase PR before merge"
-    why_human: "Ship gate D-1 (10-REVIEW.md). UAT test 18 is blocked: no phase PR exists yet, so CI has not run. Locally the parity overlay run also shows 18 known failures, all in the Delete Order dialog cascade list (confirm-delete-order and confirm-delete-order-typed), named in 10-04-SUMMARY.md as not touched by Phase 10"
-  - test: "One clean CI run: full e2e, the Server tests, and web/scripts/third-party-notices.test.ts"
-    expected: "No e2e failures; ExpenseListTimingTests within 300 ms; third-party-notices.test.ts passes"
-    why_human: "UAT test 19 is blocked on the phase PR's CI. Locally the full run failed under TheBETSLLC load, one timing test missed by 3.7 ms (known machine issue D-76, D-88, D-103), and third-party-notices.test.ts timed out at 120 s and again alone at 173 s (it scans node_modules; no package, web/scripts or lock file changed in Phase 10)"
+    why_human: "Ship gate D-1. Blocked by owner ruling 2026-11-09: no phase PR exists yet, so CI has not run. Run /gsd-ship 10 and let CI judge. Locally the overlay run showed 18 known failures, all in the Delete Order dialog (confirm-delete-order, confirm-delete-order-typed), which 10-04-SUMMARY.md names as untouched by Phase 10"
+  - test: "UAT test 19: one clean full test run on the phase PR's CI"
+    expected: "No e2e failures; ExpenseListTimingTests within 300 ms; web/scripts/third-party-notices.test.ts passes; the Server tests pass in one pass"
+    why_human: "Blocked by owner ruling 2026-11-09 until the phase PR's CI runs. Locally the full run missed one timing test by 3.7 ms under TheBETSLLC load (D-76, D-88, D-103) and the notices test timed out while scanning node_modules. No package or lock file changed in Phase 10"
   - test: "P10-BL-20: the owner's Phase 10 sign-off"
     expected: "The owner approves or rejects the sign-off, then gives the go-ahead to ship"
-    why_human: "Owner decision. Nothing has been pushed; the sign-off blocks the phase close, the phase PR and the merge"
+    why_human: "Owner decision. Nothing has been pushed. The sign-off blocks the phase close, the phase PR and the merge"
+  - test: "Quick look at the Transfer window with a failing date read (D-112)"
+    expected: "With the network cut after the page has been open longer than 5 minutes, opening Transfer shows \"Couldn't load the transfer form.\" with Try Again, never an endless skeleton; Try Again fills the Date once the network is back"
+    why_human: "The fix is covered by a unit test that passed in my run, but the owner's ruling fixed the wording and 10-REVIEW-FIX.md says a quick look is still worthwhile. Also the new e2e toast waits (IN-02) were type-checked and linted only, not run, because the machine is shared"
   - test: "P10-BL-13 follow-up: should the Audit Log screen also show hand-over yes or no?"
     expected: "A: keep it in the stored record only (recommended, built today). B: also show a Hand-over line (needs new wording the owner approves)"
     why_human: "A small open owner choice inside a ruled item. Not blocking: the code uses option A"
 ---
 
 # Phase 10: Admin Dashboard Verification Report
-
-*Created: 2026-11-09T08:15:00-06:00 · Updated: 2026-11-10T01:36:00-06:00*
+*Created: 2026-11-09T08:15:00-06:00 · Updated: 2026-11-10T06:50:00-06:00*
 
 **Phase Goal:** Staff land on a dashboard that shows how the business stands today: active work, money owed, money collected and money spent. Each staff member also sees the money they hold and can hand it to a coworker (owner addition, 2026-10-07).
-**Verified:** 2026-11-10T07:36:00Z (HEAD 2feec678)
+**Verified:** 2026-11-10T12:50:00Z (HEAD 255245d9, branch `gsd/phase-10-admin-dashboard`, clean working tree)
 **Status:** human_needed
-**Re-verification:** Yes. The earlier report was written at HEAD 4b7f6251 (no gaps). This run covers the owner ruling D-111 and the four code commits that built it.
+**Re-verification:** Yes. The earlier report was written at HEAD 2feec678. Source files changed after it, through the code review fix commits. This run replaces it.
 
 ## Result in plain words
 
-The goal is still met in the code. Nothing regressed.
+The goal is met in the code. I found no gaps and no regressions. The status is `human_needed` only because two CI checks and the owner sign-off cannot happen until the phase PR exists.
 
-What changed since the last report (`git diff c9081a3e..HEAD`: 49 files). Seven rulings were built, test first, by quick 261109-vj6. Here is what I read in the code and ran:
+What changed since the last report (`git diff 2feec678..HEAD`: 12 files, no file under `src/`):
 
-| D-111 item | What the code does now | Money still server-side? |
+| Commit | What it did | What I checked |
 |---|---|---|
-| P10-BL-08, new audit entry | `CreateMoneyTransferHandler.cs` calls `audit.Record(AuditActions.MoneyTransferAdded, ...)` right after `transfers.Add(transfer)` and before the one `unitOfWork.SaveChangesAsync`. `IAuditTrail.Record` only adds to the unit of work ("Nothing is saved here"), so the entry and the transfer commit together or not at all. The sender is the actor. The detail is ids, amount, date and `note=yes\|no`, never the note text (`MoneyAuditDetail.Snapshot(..., hasNote:)`). It sits after every refusal `return`, so a refused transfer writes none. | Yes. The handler still reads sums under the staff-money lock and the domain decides. The balance in the response is still read after the save. |
-| P10-BL-13, removed record | `MoneyAuditDetail.Removed` adds `handover=yes\|no`. The delete detail is unchanged. | Yes. |
-| P10-BL-02, Orders newest first | `OrderReader.Sort`: `Newest` is `CreatedAtUtc` descending then `Id` descending, the same keys as the dashboard's Recent orders. | Yes. Sort only; no figure changes. |
-| P10-BL-04, kept figures | `DashboardPage.tsx` shows one alert line "Showing figures from {time}. Couldn't refresh." with Try Again only when `summary.isError && data !== undefined && !isFetching`. `DashboardKpiRow`, `OrdersByStatusCard` and `RecentOrdersCard` fall back to their own error only when there is no data. The figures kept are the last server answer. | Yes. The page does no arithmetic. |
-| P10-BL-17, chart ticks | `IncomeExpenseChart.tick()` writes `₱1.5k` for a half thousand, whole thousands as before, below ₱1,000 in full, below zero with U+2212. | Yes. Label formatting only. |
-| P10-BL-05, WebKit guard | `web/e2e/fixtures.ts`: an anchored regex on the whole message (`^/host/api/... due to access control checks.$`), counted only when the browser is WebKit, the host is the app's own origin and the path starts with `/api/`. Any other page error is still a finding. `auth.ts` lost its sign-in wait. | Not applicable (test code). |
-| P10-BL-18 and the five others | Ruled "today's behavior stays". The Delete Transfer comment now cites D-111. The warning is a labelled preview built only from server balances; no code change. | The one browser subtraction is now owner-approved. |
+| 5f12c822 (WR-01, owner ruling D-112) | `TransferModal.tsx` now reads `useBusinessTodayState` (which has `isError`, `error`, `refetch`) instead of `useBusinessToday`. When the business date cannot be read, the window shows `ErrorState` ("Couldn't load the transfer form.") with Try Again, and the loading region is marked failed. The noun sits in `moneyCopy.ts` as `failedThings: 'the transfer form'`. | I read the diff and `useBusinessToday.ts`. `isError` is true only when no held or probed date exists and the probe failed. `refetch` calls `probe.refetch()`. The new test in `TransferModal.test.tsx` passes in my run (see below). |
+| 20722663 (IN-01) | A test title said 100 codes while it asserted 101. Renamed to "mirrors every code of the API". | One line, test only. `auditCopy.test.ts` passes (48 tests). |
+| aaf930cd (IN-02) | The `recordTransfer` e2e helper in `money.spec.ts` and `money-sweep.spec.ts` waits for any earlier "Transfer recorded" toast to leave, then expects exactly one. | Read the diff. Test code only. Not run (e2e not allowed here). |
+| 925a66d8 (IN-04) | One bullet in the ROADMAP Phase 16 notes about tie order under "Newest first". | Docs only. |
+| 255245d9 | Adds `10-REVIEW-FIX.md`. | Read it. It records 4 findings fixed and IN-03 (WebKit guard wording match) deferred, optional, within D-111 scope. |
 
-Nothing under `Directory.Packages.props`, `web/package.json`, the lock file or `src/Csps.Infrastructure/Persistence` changed (`git diff c9081a3e..HEAD --stat` on those paths is empty), so there is no migration, package, trigger or index change.
+Nothing under `src/`, `Directory.Packages.props`, `web/package.json` or `web/package-lock.json` changed in `2feec678..HEAD` (`git diff --stat` on those paths printed nothing). So there is no migration, package, trigger, schema or money-arithmetic change in this range.
 
 ## User Flow Coverage
 
-The roadmap marks this phase `mode: mvp`, but the goal is not written as a user story, so I used the six success criteria as the flow, as before. UAT tests 2 to 13 are the owner's own run of this flow and all passed.
+The roadmap marks this phase `mode: mvp`, but the goal is not written as a user story, so I used the six success criteria as the flow. UAT tests 1 to 17 are the owner's own hands-on run of this flow and all record `result: pass`.
 
 | Step | Expected | Evidence | Status |
 |---|---|---|---|
-| Sign in | Staff land on the dashboard | `guard.ts:6` default `/admin`; `routes.tsx` index is the dashboard page. UAT test 2 pass | VERIFIED |
-| Read the shop's state | Greeting, Manila date, KPIs, chart, statuses, recent orders | `DashboardPage.tsx`. UAT tests 3 to 5 pass. D-111 adds a kept-figures line on a failed refresh | VERIFIED |
-| See own money | Money on hand on the dashboard and on My Money | `MoneyStrip`, `/admin/money`. UAT tests 6, 9 pass | VERIFIED |
+| Sign in | Staff land on the dashboard | `routes.tsx:182` `{ index: true, lazy: dashboardPage }`. UAT test 2 pass | VERIFIED |
+| Read the shop's state | Greeting, business date, KPIs, chart, statuses, recent orders | `DashboardPage.tsx` uses `useDashboardSummaryQuery`, `IncomeExpenseCard`, `OrdersByStatusCard`, `RecentOrdersCard`. UAT tests 3 to 5 pass | VERIFIED |
+| See own money | Money on hand on the dashboard and on My Money | `MoneyStrip` in `DashboardPage.tsx:92`, `MoneyPage` route at `routes.tsx:116`. UAT tests 6, 9 pass | VERIFIED |
 | Hand money to a coworker | Transfer window, locked server check, one audit entry | `TransferModal.tsx`, `CreateMoneyTransferHandler.cs`. UAT tests 7, 8, 12, 13 pass | VERIFIED |
 
 ## Goal Achievement
@@ -309,78 +311,74 @@ The roadmap marks this phase `mode: mvp`, but the goal is not written as a user 
 
 | # | Truth | Status | Evidence |
 |---|---|---|---|
-| 1 | Landing: greeting, Manila date, View Orders and New Order | VERIFIED | `routes.tsx`, `guard.ts`, `BusinessClock.cs` DayPart, `DashboardPage.tsx`. The header still builds from the server's summary. `DashboardPage.test.tsx` passes in my run (see below). UAT test 2 pass. |
-| 2 | KPI cards per C-40 | VERIFIED | `DashboardReader.cs` and `GetDashboardSummaryHandler.cs` unchanged. `DashboardKpiRow.tsx` only changes when the error shows (first read only). `DashboardKpiRow.test.tsx` 33 tests pass in my run. |
-| 3 | Chart and lists: 6 or 12 months, orders by status, 6 recent orders | VERIFIED | Server side unchanged. The chart tick label changed (D-111) and `IncomeExpenseChart.test.tsx` passes. Recent orders keep the created-time sort; the Orders list now matches it. |
-| 4 | Card states: skeleton, empty, error with retry on every card | VERIFIED | First-load failure still shows each card's own alert with retry (tests pass). D-111 adds the kept-figures state for a later failed refresh, with Try Again. `DashboardPage.test.tsx` has 118 changed lines for it and passes. |
-| 5 | Money on hand: server-computed, ledger, dashboard card, Admin own only, Manager all | VERIFIED | `MoneyOnHand.cs`, `StaffMoneyReader.cs`, `StaffMoneyAccess.cs` unchanged by D-111. |
-| 6 | Coworker transfers: rules, locked check, double-click, no edit, Manager-only audited delete, matrix rows | VERIFIED | `CreateMoneyTransferHandler.cs` still takes the lock first, reads both people and balances, lets `MoneyTransfer.Record` decide every rule, then saves once. The new audit entry joins that one save. `CreateMoneyTransferHandlerTests` pass in my run. Delete and permanent remove are unchanged apart from the `handover` flag in the removed record. The 13 matrix rows are untouched (no controller, policy or route changed). |
+| 1 | Landing: greeting, business date, View Orders and New Order | VERIFIED | Index route is the dashboard (`routes.tsx:182`). `DashboardPage.tsx:47` builds the title from the server's `data.greeting` and `data.firstName` (`COPY.greeting(...)`). `DashboardPage.test.tsx` passes in my run. UAT test 2 pass. |
+| 2 | KPI cards per C-40 | VERIFIED | `DashboardKpiRow.tsx`, `GetDashboardSummaryHandler.cs`, `DashboardReader.cs`, none changed since the last report. `DashboardKpiRow.test.tsx` passes in my run. UAT test 3 pass. |
+| 3 | Chart and lists: 6 or 12 months, orders by status, 6 recent orders | VERIFIED | `IncomeExpenseCard` reads `GET dashboard/chart`; `OrdersByStatusCard` and `RecentOrdersCard` read the summary. `IncomeExpenseChart.test.tsx` passes in my run. `OrderReader.cs:149` keeps `Newest` as `CreatedAtUtc` descending then `Id` descending. UAT tests 4, 5 pass. |
+| 4 | Card states: skeleton, empty, error with retry on every card | VERIFIED | Each card has its own loading region and alert with Try Again. `dashboardCopy.ts:26` has the kept-figures line "Showing figures from {time}. Couldn't refresh." (D-111). `DashboardPage.test.tsx` passes. |
+| 5 | Money on hand: server-computed, ledger, dashboard card, Admin own only, Manager all | VERIFIED | `MoneyOnHand.cs`, `StaffMoneyReader.cs`, `StaffMoneyAccess.cs` unchanged. Matrix rows: Admin 403 on `GET /staff-money`, `/staff-money/{userId}` and `/{userId}/ledger`; Manager 200 or 404 for a random id. UAT tests 6, 9, 10, 11 pass. |
+| 6 | Coworker transfers: rules, locked check, double-click, no edit, Manager-only audited delete, matrix rows | VERIFIED | `CreateMoneyTransferHandler.cs` takes `moneyLock.LockAsync` first (line 61 area), reads both people and balances, calls `MoneyTransfer.Record(...)` at line 79 so the domain decides every rule, then `audit.Record(` at line 87 before the single save. Sender is `callerId` from the token. Delete and permanent remove need `Policies.Manager` (`MoneyTransfersController.cs:147`, `:171`). There is no update endpoint (controller has GET, POST, POST handovers, GET recipients, DELETE, DELETE permanent only). D-112 is built: the window no longer hangs on a skeleton when the date cannot be read. |
 
 **Score:** 6/6 truths verified (0 present but behavior-unverified).
 
 ### Requirements Coverage
 
-Every ID in the plan frontmatter is in REQUIREMENTS.md, and REQUIREMENTS.md maps exactly these 14 IDs to Phase 10. No orphans. The checkboxes and traceability rows still read Pending; they are updated at ship.
+Every ID in the plan frontmatter is in REQUIREMENTS.md (lines 164 to 169 and 175 to 181), and the traceability table maps exactly these 14 IDs to Phase 10 (lines 437 to 450). No orphans. The checkboxes and traceability rows still read Pending; they are updated at ship.
 
 | Requirement | Source Plans | Status | Evidence |
 |---|---|---|---|
 | DASH-01 | 10-02, 10-05, 10-07 | SATISFIED | Truth 1 |
 | DASH-02 | 10-02, 10-05, 10-09 | SATISFIED | Truth 2 |
-| DASH-03 | 10-04, 10-06, 10-11 | SATISFIED | Truth 3 (chart tick wording only) |
+| DASH-03 | 10-04, 10-06, 10-11 | SATISFIED | Truth 3 |
 | DASH-04 | 10-02, 10-05, 10-09 | SATISFIED | Truth 3 |
-| DASH-05 | 10-05, 10-09 | SATISFIED | Truth 3 (the sort now matches the Orders list) |
+| DASH-05 | 10-05, 10-09 | SATISFIED | Truth 3 |
 | DASH-06 | 10-07, 10-09, 10-11, 10-21 | SATISFIED | Truth 4 |
 | MONEY-01 | 10-03, 10-08 | SATISFIED | Truth 5 |
 | MONEY-02 | 10-01, 10-08, 10-13, 10-14, 10-17, 10-21 | SATISFIED | Truth 5 |
 | MONEY-03 | 10-16, 10-19, 10-20 | SATISFIED | Truth 5 |
 | MONEY-04 | 10-03, 10-10, 10-12, 10-15, 10-19 | SATISFIED | Truth 6 |
 | MONEY-05 | 10-03, 10-10, 10-12, 10-15 | SATISFIED | Truth 6 |
-| MONEY-06 | 10-12, 10-18, 10-20 | SATISFIED | Truth 6 (audited delete; D-111 adds the audited add) |
+| MONEY-06 | 10-12, 10-18, 10-20 | SATISFIED | Truth 6 |
 | MONEY-07 | 10-03, 10-18, 10-20 | SATISFIED | Truth 6 |
 | MONEY-08 | 10-08, 10-10, 10-12, 10-14, 10-16, 10-18 | SATISFIED | Truth 6 and the matrix below |
 
 ### Authorization Matrix
 
-13 of 13 new controller actions still have rows in `tests/Csps.Server.IntegrationTests/Authorization/AuthorizationMatrix.cs`. No file under `src/Csps.Server` changed in the D-111 range, so no route, policy or role changed.
+I counted the rows in `tests/Csps.Server.IntegrationTests/Authorization/AuthorizationMatrix.cs`: 2 dashboard, 5 staff-money, 6 money-transfers, 13 in all, one per new action. Examples: `GET /api/v1/staff-money` Anonymous 401, Admin 403, Manager 200. `DELETE /api/v1/money-transfers/{id}` Anonymous 401, Admin 403, Manager 404 (random id). No controller changed in the range since the last report.
 
 ### Key Link Verification
 
 | From | To | Via | Status |
 |---|---|---|---|
-| Sign-in | Dashboard | `safeReturnUrl` default `/admin`, index route | WIRED |
-| `DashboardPage` | `GET dashboard/summary` | `useDashboardSummaryQuery` to `dashboardService` | WIRED |
-| `DashboardPage` stale line | `summary.refetch()` | Try Again `onClick` | WIRED |
+| Sign-in | Dashboard | index route `routes.tsx:182` | WIRED |
+| `DashboardPage` | `GET dashboard/summary` | `useDashboardSummaryQuery` | WIRED |
 | `IncomeExpenseCard` | `GET dashboard/chart` | `useDashboardChartQuery` | WIRED |
-| `MoneyStrip`, `MoneyOnHandCard` | `GET staff-money/me` | `useMyMoneyQuery` | WIRED |
-| `TransferModal` | `POST money-transfers` and `/handovers` | `useTransferAction`, one Idempotency-Key per submission | WIRED |
-| `CreateMoneyTransferHandler` | audit log row | `IAuditTrail.Record` before `SaveChangesAsync`, same unit of work | WIRED |
-| Audit Log screen | `money-transfer.added` | `AUDIT_ACTIONS` has the label; `AuditChangeLines.ReadTransfer` reads the detail; `AuditActions.All` lists it | WIRED |
-| Delete and remove dialogs | `DELETE money-transfers/{id}` and `/permanent` | `useTransferDeletion` with the row version | WIRED |
-| Orders list "Newest first" | `OrderReader.Sort` | `OrderListSort.Newest` to created time then id descending | WIRED |
+| `MoneyStrip` | `GET staff-money/me` | `useMyMoneyQuery` | WIRED |
+| `TransferModal` | business date, then `POST money-transfers` | `useBusinessTodayState` to `ErrorState onRetry={todayState.refetch}`, then `useTransferAction` | WIRED (the retry now reaches the probe) |
+| `CreateMoneyTransferHandler` | audit row | `audit.Record(` before `SaveChangesAsync`, same unit of work | WIRED |
+| Delete and remove dialogs | `DELETE money-transfers/{id}` and `/permanent` | `useTransferDeletion` | WIRED |
+| Orders list "Newest first" | `OrderReader.Sort` | LINQ `OrderByDescending(CreatedAtUtc).ThenByDescending(Id)` | WIRED |
 
-### Server-side money
+### Data-Flow Trace (Level 4)
 
-Still server-side. D-111 added no money arithmetic in the browser. The one browser figure remains the labelled Delete Transfer warning preview (a subtraction of server balances), which the owner approved in D-111 (P10-BL-18 A).
+| Artifact | Data variable | Source | Real data | Status |
+|---|---|---|---|---|
+| `DashboardPage` and cards | `summary.data` | `GET dashboard/summary` to `GetDashboardSummaryHandler` to `DashboardReader` (EF queries) | Yes | FLOWING |
+| `MoneyStrip` | `money.data` | `GET staff-money/me` to `StaffMoneyReader` sums | Yes | FLOWING |
+| `TransferModal` date | `todayState.today` | held server answers or a small `ordersService.list` probe, never the device clock | Yes | FLOWING |
 
-### Schema, SQL, packages, dashes
-
-| Check | Result |
-|---|---|
-| Schema, SQL, triggers, packages | `git diff c9081a3e..HEAD --stat` on `Directory.Packages.props`, `web/package.json`, `web/package-lock.json` and `src/Csps.Infrastructure/Persistence` is empty. The only `src/` changes are two Application files, one Domain constants file, one Infrastructure reader and one Application port. No trigger, no inline SQL (the sort is LINQ), no JSON column, no drop or rename. |
-| Long dash in `web/src` (OR-4) | `no-long-dash.node.test.ts` and `source-layout.node.test.ts` pass in my run (2 files, 8 tests). |
+The browser does no money arithmetic apart from the labelled Delete Transfer warning preview, which the owner approved in D-111 (P10-BL-18 A). No change to that in this range.
 
 ### Behavioral Spot-Checks (run by me)
 
-Preflight first. It showed ports 5180, 5115, 7028 and 5199 free, but TheBETSLLC running its own integration tests with many `BetsLLC_Test_*` databases open in LocalDB. So I did not run any test that needs LocalDB. I ran only tests with no database, no server and no browser.
+I ran the preflight first (`preflight.ps1 -Ports 5180,5115,7028,5199`): all four ports free, no dev or test processes, LocalDB sessions 0 on every database. I still ran only tests with no database, server or browser.
 
 | Behavior | Command | Result | Status |
 |---|---|---|---|
-| Transfer handler (audit entry added, none on a refusal), removed-record detail, audit line reading, removed-transfer handler | `dotnet test --project tests/Csps.Application.UnitTests --filter-class` on `CreateMoneyTransferHandlerTests`, `MoneyAuditDetailTests`, `AuditChangeLinesTests`, `RemoveMoneyTransferHandlerTests` | `Test run summary: Passed! total: 119, failed: 0` | PASS |
-| New action is in the closed audit list | `dotnet test --project tests/Csps.Domain.UnitTests --filter-class "*AuditActionsTests"` | `Passed! total: 87, failed: 0` | PASS |
-| Chart ticks, dashboard page (kept figures), KPI row, status card, recent orders, audit label, dashboard recipe | `npx vitest run --maxWorkers=2` on 7 files | `Test Files  7 passed (7)`, `Tests  240 passed (240)` | PASS |
-| OR-4 dash guard and source layout | `npx vitest run --maxWorkers=2 no-long-dash source-layout` | `Test Files  2 passed (2)`, `Tests  8 passed (8)` | PASS |
+| Transfer window failure line and recovery (D-112), audit code mirror, business-date hook, dashboard page, KPI row, chart, OR-4 dash guard, source layout | `npx vitest run --maxWorkers=2` on `TransferModal.test.tsx`, `auditCopy.test.ts`, `useBusinessToday.test.tsx`, `DashboardPage.test.tsx`, `DashboardKpiRow.test.tsx`, `IncomeExpenseChart.test.tsx`, `no-long-dash`, `source-layout` | `Test Files  8 passed (8)`, `Tests  266 passed (266)` | PASS |
+| Transfer handler (audit entry added, none on a refusal), audit detail, audit line reading, removed-transfer handler | `dotnet test --project tests/Csps.Application.UnitTests` with `--filter-class` on `CreateMoneyTransferHandlerTests`, `MoneyAuditDetailTests`, `AuditChangeLinesTests`, `RemoveMoneyTransferHandlerTests` | `Test run summary: Passed! total: 119, failed: 0` | PASS |
+| New action is in the closed audit list | `dotnet test --project tests/Csps.Domain.UnitTests --filter-class "*AuditActionsTests"` | `succeeded: 87, failed: 0` | PASS |
 
-Not run by me, so quoted from the quick summary and not counted as my evidence: the Server integration classes `MoneyTransferEndpointTests` (63 new lines), `ListOrdersEndpointTests` and `OrderListQueryCountTests` (quick 261109-vj6 reports 104 and 59 passed under LocalDB after a clear preflight); `OrderListTimingTests` (newest sort p95 35.2 ms against the 300 ms limit); and the e2e runs (`@fixture` 36 passed on three engines, `@money`, `@orders-filters` and `@dashboard` 22 passed on WebKit and iPhone). I did not run e2e or any LocalDB test because TheBETSLLC was using the machine.
+Not run by me: the Server integration tests (they need LocalDB), Playwright e2e, parity snapshots, and the full suites. 10-REVIEW-FIX.md says the fixer ran `npm run typecheck` (no errors), `npx eslint --max-warnings 0` on the changed files (clean) and `npm run lint` (exit 0). I did not repeat those and do not count them as my evidence.
 
 ### Probe Execution
 
@@ -390,48 +388,65 @@ Not applicable: no plan declares a probe.
 
 | File | Line | Pattern | Severity | Impact |
 |---|---|---|---|---|
-| Files changed since `c9081a3e` under `src` and `web` | | `TBD`, `FIXME`, `XXX` | none found | |
-| `web/e2e/` | | `test.fixme` | none found | |
-| `web/e2e/dashboard-sweep.spec.ts` | 170 | The stale "left failing on purpose" comment | fixed (now cites D-107, P10-BL-06 A) | |
-| `.planning/phases/999.6-.../DECISIONS.md` | P10-BL-20 | Sign-off list | fixed: it now lists only the parity snapshots, one clean CI run and the owner's sign-off. The working copy of this file has a small uncommitted "Waiting for you" paragraph | Info |
-| `IncomeExpenseChart.tsx` | `tick` | `toFixed(1)` would round a value such as 1250 to "1.3k" | Info | The ticks are 0, the half and the top (`TICK_FRACTIONS = [0, 0.5, 1]`), and the top is a multiple of a power of ten (`step = 10^floor(log10(max))`), so from ₱1,000 up only whole and half thousands occur. Not a gap |
-| `10-VALIDATION.md` | 5 to 6 | status `draft`, `nyquist_compliant: false` | Info | `/gsd-validate-phase 10` has not run. Not a code gap. |
+| `TransferModal.tsx`, `moneyCopy.ts`, `money.spec.ts`, `money-sweep.spec.ts` | | `TBD`, `FIXME`, `XXX` | none found (grep) | |
+| `web/e2e/fixtures.ts` | 77 to 82, 140 to 149, 177 to 179 | IN-03: the WebKit cancelled-request guard matches on wording only | Info (deferred, optional, in D-111 scope) | A real fault in the app's own `/api/` fetch could be hidden on WebKit if it produced the same sentence. Needs a WebKit e2e run to harden safely. Test code only, no product effect |
+| `docs/api/orders.md` | `sort` row | Optional rewording from review IN-04 not done | Info | Docs wording only |
+| `10-VALIDATION.md` | 5 to 6 | status `draft`, `nyquist_compliant: false` | Info | `/gsd-validate-phase 10` has not run. Not a code gap |
+
+No debt markers, no stubs, no hardcoded empty data feeding a screen were found in the five files changed by the fix commits.
+
+### Schema, SQL, packages, dashes
+
+| Check | Result |
+|---|---|
+| Schema, SQL, triggers, packages | `git diff 2feec678..HEAD --stat` on `src`, `Directory.Packages.props`, `web/package.json` and `web/package-lock.json` printed nothing |
+| Long dash in `web/src` (OR-4) | `no-long-dash.node.test.ts` passed in my run |
+| Source layout (OR-6) | `source-layout.node.test.ts` passed in my run |
 
 ### Known failures that predate this work
 
 - Parity `@overlays`: 18 failures, all and only `confirm-delete-order` and `confirm-delete-order-typed` (the Delete Order dialog), named in `10-04-SUMMARY.md` as untouched by Phase 10. The CI parity run on the phase PR is the judge.
 - `ExpenseListTimingTests` missed its 300 ms limit by 3.7 ms once under load (D-76, D-88, D-103).
-- `web/scripts/third-party-notices.test.ts` timed out locally under load (120 s in the full run, 173 s alone) in quick 261109-vj6, and failed on an assertion once in plan 10-15 where the worktree's `node_modules` differed from the lock file. No package, lock file or `web/scripts` file changed in Phase 10 (`git diff c9081a3e..HEAD` on `web/package.json` and the lock file is empty). It needs one run on a clean checkout, which is the CI job.
+- `web/scripts/third-party-notices.test.ts` timed out locally under load. No package, lock file or `web/scripts` file changed in Phase 10. It needs one run on a clean checkout, which is the CI job.
+
+I did not re-run these here. They are carried from `10-UAT.md` and the earlier report.
+
+### UAT record
+
+`10-UAT.md` frontmatter status is `partial`. I counted `result: pass` 147 times. The only other results are test 18 and test 19, both `result: blocked` with `blocked_by: release-build` (owner ruling 2026-11-09). No test is recorded as an issue or fail.
 
 ### Human Verification Required
 
-#### 1. CI parity snapshots (ship gate D-1)
+#### 1. CI parity snapshots (UAT test 18, ship gate D-1)
 **Test:** Open the phase PR and let CI run (`/gsd-ship 10`).
 **Expected:** The parity pixel snapshot job is green before merge.
-**Why human:** UAT test 18 is blocked. No PR exists and the branch is not pushed. Snapshots differ locally by glyph edges, so only CI can confirm.
+**Why human:** No PR exists and the branch is not pushed. Snapshots differ locally by glyph edges, so only CI can confirm.
 
-#### 2. One clean CI run
+#### 2. One clean CI run (UAT test 19)
 **Test:** On the phase PR's CI, one full e2e run, one Server test run and `web/scripts/third-party-notices.test.ts`.
-**Expected:** No e2e failures, `ExpenseListTimingTests` under 300 ms, and the notices test passes.
-**Why human:** UAT test 19 is blocked on the same PR. The notices test could not finish on this loaded machine.
+**Expected:** No e2e failures, `ExpenseListTimingTests` under 300 ms, and the notices test passes. This also runs the e2e toast helpers changed in IN-02, which were not run locally.
+**Why human:** Blocked on the same PR. The shared machine cannot give a clean run.
 
 #### 3. P10-BL-20: the owner's sign-off
 **Test:** Read the sign-off in DECISIONS.md.
 **Expected:** The owner approves or rejects it, and says whether to ship.
 **Why human:** Owner decision.
 
-#### 4. P10-BL-13 follow-up (small, not blocking)
+#### 4. The Transfer window with a failing date read (D-112)
+**Test:** Leave the dashboard open longer than 5 minutes, cut the network, press Transfer.
+**Expected:** "Couldn't load the transfer form." with Try Again. Try Again fills the Date once the network is back.
+**Why human:** The unit test passes, but the wording was ruled by the owner and the fix report asks for a quick look.
+
+#### 5. P10-BL-13 follow-up (small, not blocking)
 **Test:** Choose A (keep hand-over yes or no in the stored record only; built) or B (also show it on the Audit Log screen, with new wording).
 **Expected:** A dated ruling in DECISIONS.md.
 **Why human:** Owner decision. The code uses option A today.
 
-Closed since the last report, no longer on the human list: P10-BL-01 to P10-BL-05, P10-BL-07 to P10-BL-11, P10-BL-13 (the item itself), P10-BL-17 and P10-BL-18, all ruled in D-111 (option A on each). P10-BL-02, 04, 05, 08, 13 and 17 are built; 01 is carried into the Phase 16 plan; 03, 07, 09, 10, 11 and 18 keep today's behavior.
-
 ### Gaps Summary
 
-No gaps. All six success criteria and all 14 requirements are met in the code, and the D-111 changes keep them met: money is still computed on the server, the new audit entry joins the transfer's single save, the Orders sort is a LINQ order by created time then id, the kept-figures state shows only the server's last answer, and the WebKit guard is narrow. What remains is CI work that needs the phase PR (items 1 and 2) and owner decisions (items 3 and 4).
+No gaps. All six success criteria and all 14 requirements are met in the code. The five code review fix commits keep them met: the Transfer window now ends in a failure line with Try Again instead of an endless skeleton, nothing under `src/` changed, money is still computed on the server, and the transfer's audit entry still joins its single save. What remains is CI work that needs the phase PR (items 1 and 2), a quick owner look (item 4) and owner decisions (items 3 and 5).
 
 ---
 
-_Verified: 2026-11-10T07:36:00Z_
+_Verified: 2026-11-10T12:50:00Z_
 _Verifier: Claude (gsd-verifier)_
