@@ -194,7 +194,7 @@ describe('the window from the strip (D-47, D-56)', () => {
     });
   });
 
-  it("says \"Couldn't load the transfer form.\" with Try Again when the business today cannot be read, and recovers (D-112)", async () => {
+  it('says "Couldn\'t load the transfer form." with Try Again when the business today cannot be read, and recovers (D-112)', async () => {
     myMoneyBackend(myMoneyFixture({ name: 'Carmen Reyes', today: 'soon' }));
     transferRecipientsBackend();
     let answering = false;
