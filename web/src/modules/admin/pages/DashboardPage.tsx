@@ -1,11 +1,13 @@
 // D1 Dashboard, /admin (DASH-01, DASH-02, DASH-06, D-13). The header: the greeting, the business date and the two actions, all
 // built from the server's summary, never the device clock; under it the cards that the same summary feeds. While the summary
-// loads or has failed the h1 reads "Dashboard", so the page always has a title; each card shows its own loading and failure.
+// loads or its first read has failed the h1 reads "Dashboard", so the page always has a title; each card shows its own loading
+// and failure. SPEC-DEVIATION: D-111 (P10-BL-04 A): a failed later refresh keeps every figure and the header, and one line under
+// the date says when they are from, with Try Again.
 // The Income vs. expenses card reads its own query (the chart), so a failed chart never blanks the cards that the summary feeds.
 // The money strip under the header (D-46) reads the caller's own money on hand, so a failed summary never blanks it either.
 import clsx from 'clsx';
 import { useEffect } from 'react';
-import { ButtonLink } from '@/components/actions';
+import { Button, ButtonLink, hitAreaClasses } from '@/components/actions';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -17,6 +19,8 @@ import { DashboardKpiRow } from '@/modules/admin/components/DashboardKpiRow';
 import {
   dashboardHeadActionsClasses,
   dashboardRowClasses,
+  dashboardStaleClasses,
+  dashboardStaleTextClasses,
   dashboardTitleClasses,
 } from '@/modules/admin/components/dashboard.recipe';
 import { IncomeExpenseCard } from '@/modules/admin/components/IncomeExpenseCard';
@@ -27,7 +31,7 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import { useDashboardSummaryQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { useMyMoneyQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
-import { formatCalendarDate, formatCalendarWeekday } from '@/utils/format';
+import { formatBusinessTime, formatCalendarDate, formatCalendarWeekday } from '@/utils/format';
 
 const COPY = DASHBOARD_COPY;
 
@@ -45,6 +49,12 @@ export function DashboardRoute() {
   const date = data === undefined ? null : formatCalendarDate(data.today);
   const subline = weekday !== null && date !== null ? COPY.subline(weekday, date) : null;
 
+  // A failed refresh over a good answer: the retry runs quietly, so the line leaves while it does and returns if it fails again.
+  const staleAt =
+    summary.isError && data !== undefined && !summary.isFetching
+      ? formatBusinessTime(new Date(summary.dataUpdatedAt).toISOString())
+      : null;
+
   return (
     <>
       <div className={pageHeadClasses}>
@@ -52,6 +62,23 @@ export function DashboardRoute() {
           <h1 className={clsx(pageTitleClasses, dashboardTitleClasses)}>{title ?? COPY.title}</h1>
           {summary.isPending && <SkeletonText lines={1} />}
           {subline !== null && <p className={pageSublineClasses}>{subline}</p>}
+          {staleAt !== null && (
+            <div className={dashboardStaleClasses}>
+              <p role="alert" className={dashboardStaleTextClasses}>
+                {COPY.stale(staleAt)}
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={hitAreaClasses}
+                onClick={() => {
+                  void summary.refetch();
+                }}
+              >
+                {COPY.retry}
+              </Button>
+            </div>
+          )}
         </div>
         <div className={dashboardHeadActionsClasses}>
           <ButtonLink variant="secondary" to="/admin/orders">

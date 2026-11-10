@@ -22,6 +22,9 @@ export const DASHBOARD_COPY = {
     isGreetingPart(part) ? `Good ${part}, ${firstName}` : null,
   /** "Wednesday, Nov 4, 2026 · Here's how the shop is doing this month." */
   subline: (weekday: string, date: string): string => `${weekday}, ${date} · Here's how the shop is doing this month.`,
+  /** SPEC-DEVIATION: D-111 (P10-BL-04 A): "Showing figures from 9:41 AM. Couldn't refresh." when a later refresh fails. */
+  stale: (time: string): string => `Showing figures from ${time}. Couldn't refresh.`,
+  retry: 'Try Again',
   viewOrders: 'View Orders',
   newOrder: 'New Order',
   /** The KPI row (DASH-02, D-01 to D-07). Months are the short names of the summary's own dates, never the device clock. */

@@ -1,10 +1,10 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
@@ -440,6 +440,120 @@ describe('when the summary fails (DASH-06)', () => {
     const { container } = renderPage();
 
     await screen.findByText("Couldn't load the shop figures.");
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('when a later refresh fails (D-111, P10-BL-04)', () => {
+  const GOOD = dashboardNovemberSummary({ greeting: 'evening', firstName: 'Carmen' });
+  const STALE_LINE = (time: string) => `Showing figures from ${time}. Couldn't refresh.`;
+
+  // 2026-11-04 at 9:41 AM, 9:50 AM and 9:55 AM in Manila (UTC+8).
+  const AT_941 = '2026-11-04T01:41:00Z';
+  const AT_950 = '2026-11-04T01:50:00Z';
+  const AT_955 = '2026-11-04T01:55:00Z';
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(AT_941));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function refreshAt(instant: string) {
+    vi.setSystemTime(new Date(instant));
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: dashboardKey });
+    });
+  }
+
+  it('keeps the greeting, the date, the figures, the status rows and the recent orders, and shows one alert with Try Again', async () => {
+    let answered = 0;
+    dashboardBackend(() => {
+      answered += 1;
+      return answered === 1 ? GOOD : problemResponse(500);
+    });
+    renderPage();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+
+    await refreshAt(AT_955);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(STALE_LINE('9:41 AM'));
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(alert.parentElement).toContainElement(screen.getByRole('button', { name: 'Try Again' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Good evening, Carmen' })).toBeVisible();
+    expect(screen.getByText("Wednesday, Nov 4, 2026 · Here's how the shop is doing this month.")).toBeVisible();
+    expect(screen.getByText('₱126,450.00')).toBeVisible();
+    expect(screen.getByText('18 orders')).toBeVisible();
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
+    expect(screen.getByText('ORD-2026-0148')).toBeVisible();
+    expect(screen.queryByText(/Couldn't load/)).toBeNull();
+  });
+
+  it('names the last good load, not the first one', async () => {
+    let answered = 0;
+    dashboardBackend(() => {
+      answered += 1;
+      return answered <= 2 ? GOOD : problemResponse(500);
+    });
+    renderPage();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+    await refreshAt(AT_950);
+    await refreshAt(AT_955);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(STALE_LINE('9:50 AM'));
+  });
+
+  it('reads the summary again on Try Again: the line leaves when it works and comes back with the same time when it fails', async () => {
+    let answered = 0;
+    const backend = dashboardBackend(() => {
+      answered += 1;
+      return answered === 1 || answered === 4 ? GOOD : problemResponse(500);
+    });
+    renderPage();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+    await refreshAt(AT_950);
+    expect(await screen.findByRole('alert')).toHaveTextContent(STALE_LINE('9:41 AM'));
+
+    vi.setSystemTime(new Date(AT_955));
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    await waitFor(() => {
+      expect(backend.calls).toHaveLength(3);
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(STALE_LINE('9:41 AM'));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+    expect(backend.calls).toHaveLength(4);
+    expect(screen.getByText('₱126,450.00')).toBeVisible();
+    expect(screen.queryByText(/Showing figures/)).toBeNull();
+  });
+
+  it('shows no stale line after a first-load failure, only each card its own alert', async () => {
+    dashboardBackend(() => problemResponse(500));
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load the shop figures.")).toBeVisible();
+    expect(screen.queryByText(/Showing figures/)).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+  });
+
+  it('has no axe violations with the figures kept and the line shown', async () => {
+    let answered = 0;
+    dashboardBackend(() => {
+      answered += 1;
+      return answered === 1 ? GOOD : problemResponse(500);
+    });
+    const { container } = renderPage();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+    await refreshAt(AT_955);
+    await screen.findByText(STALE_LINE('9:41 AM'));
+
     await expectNoAxeViolations(container);
   });
 });

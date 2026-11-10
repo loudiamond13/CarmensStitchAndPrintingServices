@@ -41,6 +41,12 @@ describe('dashboard recipe', () => {
     expect(await checkClassTokens(recipeTokens, { file: recipeFile })).toEqual([]);
   });
 
+  it('writes the stale line in Small (14px) danger text, like the money strip failure line (D-111)', () => {
+    expect(classesOf('dashboardStaleTextClasses')).toBe('text-[14px] leading-5 text-danger');
+    expect(css).toContain('.text-danger');
+    expect(classesOf('dashboardStaleClasses')).toBe('flex flex-wrap items-center gap-x-2');
+  });
+
   it('draws the KPI row as 4 columns, 2 columns up to 1023px, and tightens the gap on phones', () => {
     expect(css).toContain('grid-template-columns: repeat(4,minmax(0,1fr))');
     expect(blockOf('pg-lt-lg:grid-cols-[repeat(2,minmax(0,1fr))]')).toBe('@container pg (max-width: 1023px)');

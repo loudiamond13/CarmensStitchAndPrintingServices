@@ -11,6 +11,12 @@ export const dashboardHeadActionsClasses = tw('flex flex-wrap items-center gap-2
 /** The h1 wraps anywhere, so a very long first name is never cut off. */
 export const dashboardTitleClasses = tw('wrap-anywhere');
 
+/** The stale line and its Try Again under the date line (D-111): same look as the money strip's failure line. */
+export const dashboardStaleClasses = tw('flex flex-wrap items-center gap-x-2');
+
+/** The stale line: Small (14px), in the danger colour. */
+export const dashboardStaleTextClasses = tw('text-[14px] leading-5 text-danger');
+
 /**
  * `.s-kpis`: four columns, 2 x 2 up to 1023px; on phones a 12px gap, 16px card padding and no icon tile, and at 420px and below
  * one column with the figure at 24px (UI-SPEC typography "stat / KPI value"). The long-figure clamp keeps its smaller size.

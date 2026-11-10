@@ -1,7 +1,7 @@
 // The four KPI cards under the dashboard header (DASH-02, DASH-06, D-01 to D-07, D-37; UI-SPEC D1 "KPI row"). Every figure, count
 // and percent is the summary's; the browser only formats them (Core Value). The month names are the short months of the
-// summary's own dates, never the device clock. While the summary loads each card is a skeleton; if it fails the row becomes one
-// alert with Try Again (the figures are not kept beside it, so no old number stands next to the error).
+// summary's own dates, never the device clock. While the summary loads each card is a skeleton; if the first read fails the row
+// becomes one alert with Try Again. A later failed refresh keeps the last good figures, and the page marks them (D-111).
 import { KpiCard } from '@/components/money';
 import { ErrorState, LoadingRegion } from '@/components/states';
 import { dashboardKpiRowClasses } from '@/modules/admin/components/dashboard.recipe';
@@ -16,7 +16,7 @@ export interface DashboardKpiRowProps {
 }
 
 export function DashboardKpiRow({ query }: DashboardKpiRowProps) {
-  if (query.isError) {
+  if (query.isError && query.data === undefined) {
     return (
       <ErrorState
         things={COPY.things}

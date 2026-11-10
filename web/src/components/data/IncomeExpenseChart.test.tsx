@@ -133,6 +133,22 @@ describe('IncomeExpenseChart (App. D.3)', () => {
     expect(ticks.slice(3)).toEqual(['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
   });
 
+  it.each([
+    [2600, ['₱0', '₱1.5k', '₱3k']],
+    [9000, ['₱0', '₱4.5k', '₱9k']],
+    [2000, ['₱0', '₱1k', '₱2k']],
+    [30000, ['₱0', '₱15k', '₱30k']],
+    [200000, ['₱0', '₱100k', '₱200k']],
+  ])(
+    'reads a half-thousand tick with one decimal and a whole thousand as before: a top near %d (D-111)',
+    (income, expected) => {
+      const { container } = render(<IncomeExpenseChart data={[{ month: 'Oct', income, expenses: 100 }]} />);
+      const ticks = [...container.querySelectorAll('text')].map((text) => text.textContent);
+
+      expect(ticks.slice(0, 3)).toEqual(expected);
+    },
+  );
+
   it('writes ticks below ₱1,000 in full', () => {
     const { container } = render(<IncomeExpenseChart data={[]} />);
     const ticks = [...container.querySelectorAll('text')].map((text) => text.textContent);

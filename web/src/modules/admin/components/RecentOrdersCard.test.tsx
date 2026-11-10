@@ -248,15 +248,21 @@ describe('while the orders load', () => {
 });
 
 describe('when the orders fail (DASH-06)', () => {
-  it('shows its own alert and a Try Again that reads the summary again, and keeps no old rows', async () => {
+  it('shows its own alert and a Try Again that reads the summary again when there are no rows to keep', async () => {
     const refetch = vi.fn();
-    renderCard(queryOf({ data: parseDashboardSummary(summaryOf()), isError: true, error: new Error('x'), refetch }));
+    renderCard(queryOf({ isError: true, error: new Error('x'), refetch }));
 
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load recent orders.");
     expect(screen.queryByRole('table')).toBeNull();
-    expect(screen.queryByText('ORD-2026-0148')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the last good rows and shows no alert of its own when a later read fails (D-111)', () => {
+    renderCard(queryOf({ data: parseDashboardSummary(summaryOf()), isError: true, error: new Error('x') }));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('ORD-2026-0148')).toBeVisible();
   });
 });
 

@@ -106,10 +106,15 @@ const MIN_TICK_GAP = 14;
 /** The minus sign (U+2212) for a below-zero tick (D-36); never a hyphen. */
 const MINUS = '−';
 
-/** A tick label: "₱{n}k" from ₱1,000, else the plain figure (App. D.3); below zero it leads with the minus sign. */
+/**
+ * A tick label: "₱{n}k" from ₱1,000 with one decimal for a half thousand ("₱1.5k"), else the plain figure; below zero it leads with
+ * the minus sign. SPEC-DEVIATION: D-111 (P10-BL-17 A): App. D.3 rounds to a whole thousand, which read a 1,500 tick as "₱2k".
+ */
 function tick(value: number): string {
   if (value < 0) return `${MINUS}${tick(-value)}`;
-  return value >= 1000 ? `₱${String(Math.round(value / 1000))}k` : `₱${String(value)}`;
+  if (value < 1000) return `₱${String(value)}`;
+  const thousands = value / 1000;
+  return `₱${Number.isInteger(thousands) ? String(thousands) : thousands.toFixed(1)}k`;
 }
 
 /** Keeps the ticks in priority order unless one sits closer than the label height to a kept one; returns them bottom-up. */

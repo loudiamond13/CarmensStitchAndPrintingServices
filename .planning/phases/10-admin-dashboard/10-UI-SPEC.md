@@ -5,7 +5,7 @@ status: approved
 shadcn_initialized: false
 preset: none
 created: "2026-11-05T11:09:00-06:00"
-updated: "2026-11-09T23:20:00-06:00"
+updated: "2026-11-09T23:45:00-06:00"
 ---
 
 # Phase 10: UI Design Contract (Admin Dashboard and Staff Money)
@@ -267,6 +267,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 **Header (`.s-ph`, DASH-01):**
 - `h1` "Good {morning | afternoon | evening}, {firstName}" from the summary's greeting part and first name (before 12:00 morning, before 18:00 afternoon, otherwise evening, Asia/Manila). While the summary loads, the `h1` reads "Dashboard" (so the page always has a title) and the subline shows `SkeletonText` one line.
 - Subline "{Tuesday}, {Oct 6, 2026} · Here's how the shop is doing this month." from the summary's `today` (weekday in full, then `formatDate`).
+- **Later refresh fails (D-111 (owner, 2026-11-09), P10-BL-04 A):** after one good load, a failed background refresh keeps the greeting, the date line and every summary figure (the KPI row, Orders by status and Recent orders). One line sits in the title column under the date line: Small (14px) in `--danger`, `role="alert"`, "Showing figures from {time}. Couldn't refresh." and a ghost sm "Try Again" (`hitAreaClasses`) that reads the summary again. It follows the money strip's timing: shown while the read has failed and no retry is running, gone while a retry runs, and back (announced again) if the retry fails. `{time}` is the moment this browser got the last good answer, in Asia/Manila, en-PH style ("9:41 AM"); it is a device-clock instant shown in the business zone. The Income vs. expenses card and the money strip read their own queries and keep their own failure lines. A first-load failure is unchanged (see Error below).
 - Actions (`.s-ph-actions`, 8px gap): secondary md `ButtonLink` "View Orders" to `/admin/orders`; primary md `plus` "New Order" to `/admin/orders/new`. On phones they share the row equally (§8.1).
 
 **MoneyStrip (D-46, D-21; MONEY-02 "one card"):**
@@ -289,7 +290,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 - Month names are the short en-PH month of the summary's `today` and of the month before it.
 - A figure of zero shows in the D-39 dim; the label, tile and foot keep their look.
 - **Loading:** the four cards render with `loading` (KpiCard skeletons) inside one `LoadingRegion` "Loading the shop figures…".
-- **Error:** the row is replaced by one `ErrorState align="start"` "Couldn't load the shop figures." with "Try Again". The other cards keep their own states.
+- **Error:** for a **first load** only (no figures yet), the row is replaced by one `ErrorState align="start"` "Couldn't load the shop figures." with "Try Again". The other cards keep their own states. A later failed refresh keeps the figures and the page marks them (D-111, see the header).
 - **Empty:** not a separate state. A new shop shows 0 and ₱0.00 in the zero dim with the zero-case feet (§ Copywriting).
 - Phones: 2 × 2 from 421px to 767px and one column at 420px and below (D-107 (owner, 2026-11-09): at 320px a six-digit figure such as ₱126,450.00 needs more room than a 2 × 2 card has), 16px padding, icons hidden, value 24px (inherited App. C).
 
@@ -298,6 +299,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 - Body: `IncomeExpenseChart` with `showProfit` and the dashboard labels (OQ-3, D-50), data oldest first, current month last; `month` is the short month ("Oct"), `label` the month and year ("Oct 2026").
 - **Bars:** as App. D.3. Income = payments by payment date minus refunds by refund date (D-09); expenses = company plus order expenses, each by its own date (D-10); money on Cancelled orders counts (D-11).
 - **Profit line (D-36):** one point per month at income minus expenses, joined by straight segments; 2px stroke, round caps and joins, no fill; a 4px `--surface` halo stroke drawn first under the whole line so it reads over any bar. At or above zero: `--success`, solid. Below zero: `--danger`, dashed 4 3. The split is exact at the zero gridline: the line is drawn twice, once clipped to the area above zero and once to the area below (two `clipPath`s with `useId()` ids). Points: radius 3.5, `--surface` fill, 2px stroke in the color of their side; the hovered or focused month's point grows to radius 5. Points and line are `aria-hidden` (the month group's name carries the figure).
+- **Tick labels (D-111 (owner, 2026-11-09), P10-BL-17 A):** a whole thousand reads "₱2k", "₱15k", "₱100k"; a half thousand reads with one decimal ("₱1.5k", "₱4.5k"), so a 1,500 tick is never shown as "₱2k". Below ₱1,000 the figure is written in full.
 - **Below-zero scale:** when any income or profit value is below zero, the axis runs from the lowest value rounded down to the same step as the top (App. D.3 rounding) up to the top. Gridlines and ticks at the bottom, at zero, at half the top and at the top; the zero gridline uses the axis look (`--line-strong`). A below-zero tick reads "−₱5k" (U+2212, never a hyphen). Bars grow from the zero line: a below-zero income bar grows down with its rounded corners at the bottom. With no value below zero the chart draws exactly as App. D.3.
 - **Legend (OQ-3, D-50):** "Income (payments minus refunds)" (income swatch), "Expenses (company + orders)" (expense swatch), "Profit (income minus expenses)" with a line swatch: 16 × 2px in `--success` with a 6px `--success` dot in its middle.
 - **Tooltip and names:** the tooltip shows the month and year in bold, then "Income ₱…", "Expenses ₱…", "Profit ₱…" (the profit figure in `--danger` when below zero; this row replaces "Net" when `showProfit` is on, OQ-3, D-50). Each month group's accessible name: "Oct 2026: income ₱126,450.00, expenses ₱58,320.00, profit ₱68,130.00".
@@ -309,7 +311,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 - Head: `h2` "Orders by status"; sub "Open orders + completed this month" (spec verbatim).
 - `ul` (`.s-status-list`), one `li` (`.s-status-row`) per row in this order: Pending, Mockup, In Production, Ready, **Delivered**, **Completed** (completed this month). **Cancelled is not shown** (D-08). Each row: `StatusBadge` | the bar (`.s-status-bar`, track `--surface-2`, fill per § Color, width `--bar-w` = count ÷ the largest of the six counts; a count of 0 shows the track only) | the count (`strong`, display 20px). The Completed row adds a visually hidden " this month" after its badge, so it reads "Completed this month, 11".
 - Footer (`.s-status-total`, dashed top rule): "Active (Pending to Delivered)" and `strong` "{n} orders" (the five active statuses only; "1 order"). Replaces the spec's arrow (OR-4).
-- **Loading:** six `SkeletonText` rows in a `LoadingRegion` "Loading order counts…". **Error:** `ErrorState` "Couldn't load order counts." with "Try Again". **Empty:** all six counts are 0: `EmptyState` `clipboard-list` (§ Copywriting) in place of the list; no footer; no button.
+- **Loading:** six `SkeletonText` rows in a `LoadingRegion` "Loading order counts…". **Error:** `ErrorState` "Couldn't load order counts." with "Try Again" (first load only; a later failed refresh keeps the counts, D-111). **Empty:** all six counts are 0: `EmptyState` `clipboard-list` (§ Copywriting) in place of the list; no footer; no button.
 
 **Recent orders card (`.s-card`, DASH-05, D-38):**
 - Head: `h2` "Recent orders"; sub "Newest first"; right, `UiLink` Small "All orders" + `arrow-right` 16 to `/admin/orders` (default filters).
@@ -326,7 +328,7 @@ Focal anchors: D1 the greeting, then the strip figure and the KPI row; M1 the ba
 | 7 (actions) | "Actions" (visually hidden) | `eye` icon link "View {ORD-2026-0148}" (App. E.6 name) with matching `title` |
 
 - Phones: rows become cards (§8.4), every `td` carries `data-label`.
-- **Loading:** `SkeletonTable` 6 rows, "Loading recent orders…". **Error:** `ErrorState` "Couldn't load recent orders." with "Try Again". **Empty:** `EmptyState` `clipboard-list` (§ Copywriting), **no button** (the header already holds "New Order").
+- **Loading:** `SkeletonTable` 6 rows, "Loading recent orders…". **Error:** `ErrorState` "Couldn't load recent orders." with "Try Again" (first load only; a later failed refresh keeps the rows, D-111). **Empty:** `EmptyState` `clipboard-list` (§ Copywriting), **no button** (the header already holds "New Order").
 
 ### M1 My Money: `/admin/money` (D-39 to D-45; MONEY-02, MONEY-03)
 
@@ -612,6 +614,8 @@ Each item carries `// SPEC-DEVIATION: <ID>` at its site.
 | 08 D-04, D-45 | App. E.6 Balance: figure or Fully Paid | Adds credit badge and "Not collected" states | 08 D-04, D-45 |
 | DASH-06 | §13 "loading (skeleton) and error states for Dashboard" only | Every card has loading, empty and error states | DASH-06 |
 | D-107 | App. C `.s-kpis` keeps 2 × 2 on phones | One column at 420px and below (P10-BL-06 A) | Owner D-107 (2026-11-09) |
+| D-111 | D1 Error: a failed read replaces the card or row with its alert | A failed later refresh keeps the last good figures and shows one line in the header, "Showing figures from {time}. Couldn't refresh.", with Try Again (P10-BL-04 A). A first-load failure is unchanged | Owner D-111 (2026-11-09) |
+| D-111 | App. D.3 chart ticks round to a whole thousand | A half-thousand tick reads with one decimal, "₱1.5k" (P10-BL-17 A) | Owner D-111 (2026-11-09) |
 | D-107 | App. B `.csp-modal-foot` does not wrap | The footer wraps its buttons onto a second row when they do not fit (P10-BL-16 A; look-equality rule group D-107 in `web/visual/reference/rulings.css`) | Owner D-107 (2026-11-09) |
 
 ---

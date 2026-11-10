@@ -287,13 +287,14 @@ describe('when the figures fail (DASH-06)', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('does not keep yesterday figures next to the alert when a later read fails', () => {
+  it('keeps the last good figures and shows no alert of its own when a later read fails (D-111)', () => {
     render(
       <DashboardKpiRow query={queryOf({ data: parseDashboardSummary(dashboardNovemberSummary()), isError: true })} />,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load the shop figures.");
-    expect(screen.queryByText('₱126,450.00')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('₱126,450.00')).toBeVisible();
+    expect(screen.getByText('Active orders')).toBeVisible();
   });
 });
 

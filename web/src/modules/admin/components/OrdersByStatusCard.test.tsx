@@ -287,15 +287,16 @@ describe('when the counts fail (DASH-06)', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('does not keep the old counts next to the alert when a later read fails', () => {
+  it('keeps the last good counts and shows no alert of its own when a later read fails (D-111)', () => {
     render(
       <OrdersByStatusCard
         query={queryOf({ data: parseDashboardSummary(dashboardNovemberSummary()), isError: true })}
       />,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load order counts.");
-    expect(screen.queryByRole('list')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('18 orders')).toBeVisible();
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
   });
 });
 

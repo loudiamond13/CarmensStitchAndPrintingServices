@@ -1,7 +1,7 @@
 // The Orders by status card (DASH-04, DASH-06, D-08, 07 D-01; UI-SPEC D1 "Orders by status card"). Six rows (the five active
 // statuses and Completed this month) with the server's counts. The active total is the server's `orders.active`, never a sum
 // made here. The only arithmetic is the bar: its width is the row's count over the largest of the six counts, a drawing ratio.
-// If the summary fails the card shows its own alert; the old counts are not kept beside it.
+// If the first read fails the card shows its own alert. A later failed refresh keeps the last good counts, and the page marks them (D-111).
 import { EmptyState } from '@/components/feedback';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
@@ -51,7 +51,7 @@ export function OrdersByStatusCard({ query }: OrdersByStatusCardProps) {
   const largest = counts === null ? 0 : Math.max(...counts);
 
   let body;
-  if (query.isError) {
+  if (query.isError && summary === undefined) {
     body = (
       <div className={dashboardCardStateClasses}>
         <ErrorState

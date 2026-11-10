@@ -1,7 +1,7 @@
 // The Recent orders card (DASH-05, DASH-06, D-38, 08 D-36 to D-38; UI-SPEC D1 "Recent orders card"): the summary's six newest
 // created orders, each opened from its number or its eye link. Due and Balance read exactly as on the Orders list (the stacked
 // DueFlag counted from the summary's business date, and the shared balance cell). Every figure and date is the server's.
-// If the summary fails the card shows its own alert and keeps no old rows.
+// If the first read fails the card shows its own alert. A later failed refresh keeps the last good rows, and the page marks them (D-111).
 import { UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { CustomerCell, ResponsiveTable, RowAction, RowActions, type ResponsiveTableColumn } from '@/components/lists';
@@ -105,7 +105,7 @@ export function RecentOrdersCard({ query }: RecentOrdersCardProps) {
           <Icon name="arrow-right" size={16} />
         </UiLink>
       </div>
-      {query.isError ? (
+      {query.isError && summary === undefined ? (
         <div className={dashboardCardStateClasses}>
           <ErrorState
             things={COPY.things}
