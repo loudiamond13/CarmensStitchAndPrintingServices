@@ -141,7 +141,7 @@ describe('the action labels (D-28)', () => {
     expect(auditActionLabel('profile.email-change-canceled')).toBe('Email change canceled');
   });
 
-  it('mirrors the 100 codes of the API', () => {
+  it('mirrors every code of the API', () => {
     expect(API_ACTIONS).toHaveLength(101);
     expect(AUDIT_ACTION_CODES).toHaveLength(101);
   });
