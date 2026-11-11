@@ -1,7 +1,8 @@
 namespace Csps.Application.Ports;
 
 /// <summary>
-/// The one lock that serializes every change that could remove an active Manager (D-18, T-05-60). It is held until the surrounding
+/// The one lock that serializes every change that could remove an active Manager (D-18, T-05-60), and every new account, so two creates
+/// of one address run one after the other. It is held until the surrounding
 /// transaction ends, so a second request waits for the first to commit and then counts the Managers that are really left.
 /// </summary>
 public interface IManagerRosterLock

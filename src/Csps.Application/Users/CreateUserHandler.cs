@@ -21,6 +21,7 @@ public sealed class CreateUserHandler(
     IUserAccounts accounts,
     IUserDirectory directory,
     IAccountTokens tokens,
+    IManagerRosterLock rosterLock,
     ISecureRandom random,
     IEmailOutbox outbox,
     IAuditTrail audit,
@@ -35,7 +36,7 @@ public sealed class CreateUserHandler(
     /// <summary>Creates the person.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new id, a 400 on the fields that failed (a taken email is one), or a 401 when the token names no usable account.</returns>
+    /// <returns>The new id, a 400 on the fields that failed (a taken email is one), a 401 when the token names no usable account, or a 409 when two tries lost a race.</returns>
     public async Task<Result<CreateUserResponse>> HandleAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -53,12 +54,21 @@ public sealed class CreateUserHandler(
         }
 
         var email = request.Email!.Trim();
+        var invitedBy = $"{manager.FirstName} {manager.LastName}";
+
+        // A create that still loses a race (a deadlock in Identity's own reads and saves) runs once more from the email check.
+        return await ConflictRetry
+            .RunAsync(() => AttemptAsync(request, email, invitedBy, cancellationToken), Result.Failure<CreateUserResponse>(AuthErrors.SessionBusy))
+            .ConfigureAwait(false);
+    }
+
+    private async Task<Result<CreateUserResponse>> AttemptAsync(CreateUserRequest request, string email, string invitedBy, CancellationToken cancellationToken)
+    {
         if (await accounts.FindByEmailAsync(email, cancellationToken).ConfigureAwait(false) is { IsDeleted: false })
         {
             return Result.Failure<CreateUserResponse>(UserErrors.EmailInUse);
         }
 
-        var invitedBy = $"{manager.FirstName} {manager.LastName}";
         try
         {
             var id = await unitOfWork
@@ -75,6 +85,9 @@ public sealed class CreateUserHandler(
 
     private async Task<Guid> CreateAsync(CreateUserRequest request, string email, string invitedBy, CancellationToken cancellationToken)
     {
+        // First: a second create waits here until the first has committed, so Identity's own check sees the address taken.
+        await rosterLock.LockActiveManagersAsync(cancellationToken).ConfigureAwait(false);
+
         var role = CreateUserRequestValidator.CanonicalRole(request.Role)!;
         var names = (First: request.FirstName!.Trim(), Last: request.LastName!.Trim());
 

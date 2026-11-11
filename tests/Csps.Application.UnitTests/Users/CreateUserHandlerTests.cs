@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Common;
 using Csps.Application.Email;
 using Csps.Application.Ports;
 using Csps.Application.Security;
@@ -248,6 +249,69 @@ public sealed class CreateUserHandlerTests
         harness.Audit.Entries.ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData("invitation")]
+    [InlineData("temporary-password")]
+    public async Task TheRosterLockIsTakenBeforeTheAccountIsCreatedSoTwoCreatesOfOneAddressRunOneAfterTheOther(string access)
+    {
+        var harness = Harness.Create();
+
+        var result = await harness.Handler.HandleAsync(Request(access: access, temporaryPassword: Temporary), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        Received.InOrder(() =>
+        {
+            harness.RosterLock.LockActiveManagersAsync(Arg.Any<CancellationToken>());
+            harness.Accounts.CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task ALostRaceOnTheCreateChecksTheEmailAgainAndAnswersTheEmailFieldErrorWhenTheOtherCreateTookIt()
+    {
+        var harness = Harness.Create();
+        harness.Accounts.FindByEmailAsync("ana@csps.test", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<UserAccount?>(null), Task.FromResult<UserAccount?>(Existing(deleted: false)));
+        harness.Accounts.CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>())
+            .Returns<Guid>(_ => throw new ConcurrencyConflictException(new InvalidOperationException("deadlock victim")));
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(UserErrors.EmailInUse);
+        await harness.Accounts.Received(1).CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>());
+        harness.Unit.Commits.ShouldBe(0);
+        harness.Outbox.Emails.ShouldBeEmpty();
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ALostRaceOnTheCreateTriesOnceMoreWhenTheEmailIsStillFree()
+    {
+        var harness = Harness.Create();
+        harness.Accounts.CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>())
+            .Returns<Guid>(_ => throw new ConcurrencyConflictException(new InvalidOperationException("deadlock victim")), _ => NewId);
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.Value.Id.ShouldBe(NewId);
+        await harness.Accounts.Received(2).CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>());
+        harness.Unit.Commits.ShouldBe(1);
+        harness.Outbox.Emails.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task TwoLostRacesInARowAnswerBusy()
+    {
+        var harness = Harness.Create();
+        harness.Accounts.CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>())
+            .Returns<Guid>(_ => throw new ConcurrencyConflictException(new InvalidOperationException("deadlock victim")));
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(AuthErrors.SessionBusy);
+        harness.Unit.Commits.ShouldBe(0);
+    }
+
     [Fact]
     public async Task AFailureAnywhereRollsBack()
     {
@@ -277,6 +341,7 @@ public sealed class CreateUserHandlerTests
         private Harness(bool signedIn, bool profile)
         {
             Accounts = Substitute.For<IUserAccounts>();
+            RosterLock = Substitute.For<IManagerRosterLock>();
             Accounts.CreateAsync(Arg.Any<NewUserAccount>(), Arg.Any<CancellationToken>()).Returns(NewId);
             Tokens = Substitute.For<IAccountTokens>();
             Tokens.When(t => t.Add(Arg.Any<AccountToken>())).Do(call => AddedToken = call.Arg<AccountToken>());
@@ -292,6 +357,7 @@ public sealed class CreateUserHandlerTests
                 Accounts,
                 directory,
                 Tokens,
+                RosterLock,
                 random,
                 Outbox,
                 Audit,
@@ -303,6 +369,8 @@ public sealed class CreateUserHandlerTests
         }
 
         public IUserAccounts Accounts { get; }
+
+        public IManagerRosterLock RosterLock { get; }
 
         public IAccountTokens Tokens { get; }
 

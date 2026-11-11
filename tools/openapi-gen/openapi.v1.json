@@ -14599,6 +14599,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "summary": "Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary\npassword the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.",
