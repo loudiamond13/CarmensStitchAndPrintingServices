@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T06:10:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T06:35:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -266,7 +266,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-24 · Deploy Phase 10 to the live site (owner asked 2026-11-11, then went away)
 
-**Status:** moved to Phase 11 (D-119, owner 2026-11-11). PR 24 merged as 25bd3431 on the owner's word; the backup, the migrations script and the deploy are still the owner's · **Blocks:** the live deploy. Nothing was deployed.
+**Status:** moved to Phase 11 (D-119, owner 2026-11-11). Done (2026-11-11): PR 24 merged as 25bd3431, the owner made the backup and applied `csps-migrations.sql`, then said to deploy. Deploy run 43020489428 passed its smoke test (12 of 12) and recorded release `deploy-20261111122749-25bd343` · **Blocks:** nothing.
 
 - **What you asked:** "Deploy the app to live too." The deploy (OPS-04, D-11, `docs/operations/deploy.md`) only takes a commit on `main` whose CI run passed, so it waits on steps that are yours. Claude did not merge, did not run the deploy and did not touch the production database.
 - **Why it waits:**

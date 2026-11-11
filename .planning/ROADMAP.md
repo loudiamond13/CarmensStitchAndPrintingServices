@@ -1171,7 +1171,7 @@ Plans:
 - **OD-14**
 - **Carry-over from Phase 3 (WINDOWS.md entry 1):** public LCP is about 2.1 to 2.2 s against the 2.0 s limit and is report-only in CI. Revisit fonts here (options in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`), then empty `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` so LCP fails the build again.
 - **Carry-over from Phase 10 (D-119, owner 2026-11-11):** PR 24 is merged (25bd3431). Detail for each item is in `.planning/phases/999.6-owner-items-parked-during-phase-10-execution/DECISIONS.md`.
-  - **Live deploy (P10-BL-24):** owner steps, in order: back up the production database, apply `csps-migrations.sql` (four Phase 10 migrations: AddOrderImages, AddImageDeletions, AddMaintenanceCursors, AddMoneyTransfers), then run the Deploy workflow for 25bd3431 (dry run first).
+  - **Live deploy (P10-BL-24):** done 2026-11-11. 25bd3431 is live (release `deploy-20261111122749-25bd343`).
   - **Order-number deadlock answers 500 (P10-BL-22):** fix it the way the staff-money lock was fixed, test first.
   - **Owner review (P10-BL-23):** the expense list deferred-join query, and the create-user roster lock with its 409 "busy" answer.
   - **Owner review (P10-BL-20 item 3):** the choices quick 261109-vj6 made inside D-111.
