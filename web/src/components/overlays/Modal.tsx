@@ -19,6 +19,8 @@
 // D-39: closing is animated. `open` going false keeps the dialog mounted as `data-state="closed"` until its exit animation
 // ends (usePresence, theme keyframes); at once the focus trap returns focus to the trigger, the page is live again, the
 // body scroll lock is released, and Esc, the scrim and the closing layer's pointer events do nothing.
+// D-118: while the body scrolls it is a region named by the title with tabIndex 0, so a keyboard can scroll text that
+// has no field in it (axe scrollable-region-focusable, WCAG 2.1.1). A body that fits stays a plain div.
 // It renders where it is placed, inside the page root, never in a portal, and never inside a ResponsiveTable frame,
 // whose paint containment would trap the fixed scrim: an open Modal there throws (code review WR-05, see
 // fixedLayerGuard.ts).
@@ -41,6 +43,7 @@ import { useFixedLayerGuard } from './fixedLayerGuard';
 import { useBodyScrollLock } from './useBodyScrollLock';
 import { isTopFocusTrap, useFocusTrap } from './useFocusTrap';
 import { useInertOutside } from './useInertOutside';
+import { useScrollsVertically } from './useScrollsVertically';
 
 export interface ModalProps {
   open?: boolean;
@@ -117,6 +120,7 @@ function MountedModal({
   useFixedLayerGuard('Modal');
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
   const hasDescription = Boolean(description);
@@ -126,6 +130,7 @@ function MountedModal({
   // After the trap, so the trap has captured its trigger before the page goes inert (see useInertOutside).
   useInertOutside(dialogRef, !inline && open);
   useBodyScrollLock(open);
+  const bodyScrolls = useScrollsVertically(bodyRef, open);
 
   const setDialog = (node: HTMLDivElement | null) => {
     dialogRef.current = node;
@@ -252,7 +257,16 @@ function MountedModal({
             </button>
           )}
         </header>
-        <div className={modalBodyClasses}>{children}</div>
+        <div
+          ref={bodyRef}
+          className={modalBodyClasses}
+          role={bodyScrolls ? 'region' : undefined}
+          aria-labelledby={bodyScrolls ? titleId : undefined}
+          // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a scrolling body must take keyboard focus (WCAG 2.1.1)
+          tabIndex={bodyScrolls ? 0 : undefined}
+        >
+          {children}
+        </div>
         {Boolean(footer) && <footer className={modalFootClasses}>{footer}</footer>}
       </div>
     </div>

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { CHART_12_MONTHS, CHART_6_MONTHS, scenarios as dataScenarios } from '@/dev/scenarios/groups/data';
@@ -13,10 +13,16 @@ import {
   chartHoverClasses,
   chartLegendClasses,
   chartNetClasses,
+  chartProfitHaloClasses,
+  chartProfitLineClasses,
+  chartProfitLossClasses,
+  chartProfitPointClasses,
+  chartProfitSwatchClasses,
   chartSvgClasses,
   chartSwatchClasses,
   chartTickClasses,
   chartTipClasses,
+  chartZeroLineClasses,
 } from './data.recipe';
 
 // The converted App. D.3 IncomeExpenseChart (plan 02-24, CSPS-UI-SPEC.md §6.4, §8.3, §12.4): hand-rolled SVG bars, the
@@ -48,6 +54,13 @@ function drawing(): HTMLElement {
 /** The month groups: one keyboard-reachable image per month. */
 function months(): HTMLElement[] {
   return within(drawing()).getAllByRole('img');
+}
+
+/** The first month group; throws when there is none. */
+function firstMonth(): HTMLElement {
+  const [first] = months();
+  if (first === undefined) throw new Error('No month group.');
+  return first;
 }
 
 /** The open tooltip card for a month; throws when it is not shown. */
@@ -119,6 +132,22 @@ describe('IncomeExpenseChart (App. D.3)', () => {
     expect(ticks.slice(0, 3)).toEqual(['₱0', '₱100k', '₱200k']);
     expect(ticks.slice(3)).toEqual(['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
   });
+
+  it.each([
+    [2600, ['₱0', '₱1.5k', '₱3k']],
+    [9000, ['₱0', '₱4.5k', '₱9k']],
+    [2000, ['₱0', '₱1k', '₱2k']],
+    [30000, ['₱0', '₱15k', '₱30k']],
+    [200000, ['₱0', '₱100k', '₱200k']],
+  ])(
+    'reads a half-thousand tick with one decimal and a whole thousand as before: a top near %d (D-111)',
+    (income, expected) => {
+      const { container } = render(<IncomeExpenseChart data={[{ month: 'Oct', income, expenses: 100 }]} />);
+      const ticks = [...container.querySelectorAll('text')].map((text) => text.textContent);
+
+      expect(ticks.slice(0, 3)).toEqual(expected);
+    },
+  );
 
   it('writes ticks below ₱1,000 in full', () => {
     const { container } = render(<IncomeExpenseChart data={[]} />);
@@ -268,6 +297,564 @@ describe('IncomeExpenseChart (App. D.3)', () => {
 
     rerender(<IncomeExpenseChart data={TWELVE} height={300} />);
     expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 640 300');
+  });
+});
+
+// The server's profit per month for the six-month series (D-36): the figures the API sends, never worked out here.
+const SERVER_PROFIT = [37200, 62300, 20820, 71780, 43080, 68130];
+const SIX_WITH_PROFIT: ChartDatum[] = SIX.map((datum, index) => ({ ...datum, profit: SERVER_PROFIT[index] ?? 0 }));
+const OCT_PROFIT_NAME = `${OCT_NAME}, profit ₱68,130.00`;
+
+/** The aria-hidden group that holds the profit halo, line and points. */
+function profitDrawing(container: HTMLElement): SVGGElement | null {
+  return container.querySelector('svg g[aria-hidden="true"]');
+}
+
+/** The elements of the profit drawing that carry exactly this class list. */
+function profitParts(container: HTMLElement, selector: string, classes: string): Element[] {
+  const wanted = tokens(classes).join(' ');
+  return [...(profitDrawing(container)?.querySelectorAll(selector) ?? [])].filter(
+    (element) => classTokens(element).join(' ') === wanted,
+  );
+}
+
+/** The plot's y for a figure, with the default 220 height and an axis top of ₱200,000 (App. D.3 `y`). */
+function yAt(value: number): number {
+  return 12 + 180 * (1 - value / 200000);
+}
+
+describe('IncomeExpenseChart profit line (D-36, D-50)', () => {
+  it('draws the server profit as a halo, a line and one point per month', () => {
+    const { container } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+    const xs = [101, 199, 297, 395, 493, 591];
+    const expected = `M${SERVER_PROFIT.map((value, index) => `${String(xs[index])},${String(yAt(value))}`).join('L')}`;
+
+    const halo = profitParts(container, 'path', chartProfitHaloClasses);
+    const line = profitParts(container, 'path', chartProfitLineClasses.above);
+    const points = profitParts(container, 'circle', chartProfitPointClasses.above);
+
+    expect(halo).toHaveLength(1);
+    expect(halo[0]?.getAttribute('d')).toBe(expected);
+    expect(line).toHaveLength(1);
+    expect(line[0]?.getAttribute('d')).toBe(expected);
+    expect(points).toHaveLength(6);
+    expect(points.map((point) => point.getAttribute('cx'))).toEqual(xs.map(String));
+    expect(points.map((point) => point.getAttribute('cy'))).toEqual(SERVER_PROFIT.map((value) => String(yAt(value))));
+    expect(points.every((point) => point.getAttribute('r') === '3.5')).toBe(true);
+  });
+
+  it('draws the halo before the line, and keeps the profit drawing out of the accessibility tree', () => {
+    const { container } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+    const group = profitDrawing(container);
+    const [first, second] = [...(group?.querySelectorAll('path') ?? [])];
+
+    expect(classTokens(first)).toEqual(tokens(chartProfitHaloClasses));
+    expect(classTokens(second)).toEqual(tokens(chartProfitLineClasses.above));
+    expect(group?.getAttribute('aria-hidden')).toBe('true');
+    expect(within(drawing()).getAllByRole('img')).toHaveLength(6);
+  });
+
+  it('grows the point of the hovered month to radius 5', () => {
+    const { container } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const radii = profitParts(container, 'circle', chartProfitPointClasses.above).map((point) =>
+      point.getAttribute('r'),
+    );
+
+    expect(radii).toEqual(['3.5', '3.5', '3.5', '3.5', '3.5', '5']);
+  });
+
+  it('names each month group with the server profit', () => {
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+
+    expect(months().map((group) => group.getAttribute('aria-label'))).toEqual([
+      'May 2026: income ₱98,400.00, expenses ₱61,200.00, profit ₱37,200.00',
+      'Jun 2026: income ₱132,650.00, expenses ₱70,350.00, profit ₱62,300.00',
+      'Jul 2026: income ₱87,300.00, expenses ₱66,480.00, profit ₱20,820.00',
+      'Aug 2026: income ₱145,900.00, expenses ₱74,120.00, profit ₱71,780.00',
+      'Sep 2026: income ₱112,980.00, expenses ₱69,900.00, profit ₱43,080.00',
+      OCT_PROFIT_NAME,
+    ]);
+  });
+
+  it('shows a profit key with a line swatch in the legend when showProfit is on', () => {
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+    const legend = screen.getByText('Income (payments)').parentElement;
+    const key = within(legend ?? document.body).getByText('Profit');
+
+    expect(classTokens(key.querySelector('i'))).toEqual(tokens(chartProfitSwatchClasses));
+    expect(classTokens(legend)).toEqual(tokens(chartLegendClasses));
+  });
+
+  it('shows the profit row from the server figure and no Net row in the tooltip', () => {
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const tip = openTip('Oct');
+
+    expect(within(tip).getByText('Profit ₱68,130.00')).toBeTruthy();
+    expect(within(tip).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(tip).queryByText(/^Net/)).toBeNull();
+  });
+
+  it('draws the profit the server sent even when it differs from income minus expenses', () => {
+    render(
+      <IncomeExpenseChart
+        data={[{ month: 'Jan', label: 'Jan 2026', income: 1000, expenses: 250, profit: 999 }]}
+        showProfit
+      />,
+    );
+
+    expect(months()[0]?.getAttribute('aria-label')).toBe(
+      'Jan 2026: income ₱1,000.00, expenses ₱250.00, profit ₱999.00',
+    );
+    fireEvent.focus(firstMonth());
+    expect(screen.getByText('Profit ₱999.00')).toBeTruthy();
+  });
+
+  it('draws no profit point or figure for a month the server sent without a profit', () => {
+    const { container } = render(
+      <IncomeExpenseChart data={[{ month: 'Jan', label: 'Jan 2026', income: 1000, expenses: 250 }]} showProfit />,
+    );
+
+    expect(profitParts(container, 'circle', chartProfitPointClasses.above)).toHaveLength(0);
+    expect(months()[0]?.getAttribute('aria-label')).toBe('Jan 2026: income ₱1,000.00, expenses ₱250.00');
+    fireEvent.focus(firstMonth());
+    expect(within(openTip('Jan')).queryByText(/^Profit/)).toBeNull();
+    expect(within(openTip('Jan')).queryByText(/^Net/)).toBeNull();
+  });
+
+  it('breaks the profit line at a month with no profit instead of drawing across it (WR-03)', () => {
+    const { container } = render(
+      <IncomeExpenseChart
+        data={[
+          { month: 'Aug', income: 1000, expenses: 500, profit: 500 },
+          { month: 'Sep', income: 1000, expenses: 500 },
+          { month: 'Oct', income: 1000, expenses: 500, profit: 400 },
+        ]}
+        showProfit
+      />,
+    );
+    const line = profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d') ?? '';
+    const halo = profitParts(container, 'path', chartProfitHaloClasses)[0]?.getAttribute('d') ?? '';
+
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line).not.toContain('L');
+    expect(halo).toBe(line);
+    expect(profitParts(container, 'circle', chartProfitPointClasses.above)).toHaveLength(2);
+  });
+
+  it('joins the months on each side of a gap and breaks only at the gap (WR-03)', () => {
+    const profits = [100, 200, undefined, 300, 400];
+    const data: ChartDatum[] = profits.map((profit, index) => ({
+      month: `M${String(index)}`,
+      income: 1000,
+      expenses: 500,
+      profit,
+    }));
+    const { container } = render(<IncomeExpenseChart data={data} showProfit />);
+    const line = profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d') ?? '';
+
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line.match(/L/g)).toHaveLength(2);
+    expect(line).toMatch(/^M[\d.]+,[\d.]+L[\d.]+,[\d.]+M[\d.]+,[\d.]+L[\d.]+,[\d.]+$/);
+  });
+
+  it('draws no profit line at all when no month has a profit', () => {
+    const { container } = render(
+      <IncomeExpenseChart data={[{ month: 'Jan', income: 1000, expenses: 250 }]} showProfit />,
+    );
+
+    expect(profitParts(container, 'path', chartProfitLineClasses.above)[0]?.getAttribute('d')).toBe('');
+  });
+
+  it('draws no profit line, key or name, and keeps the Net row, without showProfit even when profit is given', () => {
+    const { container } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} />);
+
+    expect(profitDrawing(container)).toBeNull();
+    expect(screen.queryByText('Profit')).toBeNull();
+    expect(months().map((group) => group.getAttribute('aria-label'))).toContain(OCT_NAME);
+    fireEvent.focus(screen.getByRole('img', { name: OCT_NAME }));
+    expect(within(openTip('Oct')).getByText('Net ₱68,130.00')).toBeTruthy();
+  });
+
+  it('replaces the legend and tooltip words with the labels prop', () => {
+    const labels = { income: 'Money in', expenses: 'Money out', profit: 'Gain', net: 'Left' };
+    const { rerender } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit labels={labels} />);
+
+    expect(screen.getByText('Money in')).toBeTruthy();
+    expect(screen.getByText('Money out')).toBeTruthy();
+    expect(screen.getByText('Gain')).toBeTruthy();
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    expect(within(openTip('Oct')).getByText('Gain ₱68,130.00')).toBeTruthy();
+
+    rerender(<IncomeExpenseChart data={SIX_WITH_PROFIT} labels={labels} />);
+    expect(within(openTip('Oct')).getByText('Left ₱68,130.00')).toBeTruthy();
+  });
+
+  it('keeps separate legend and tooltip words for income, expenses and profit (D-104, WR-02)', () => {
+    const labels = {
+      income: 'Income (payments minus refunds)',
+      expenses: 'Expenses (company + orders)',
+      profit: 'Profit (income minus expenses)',
+      net: 'Net',
+      incomeTip: 'Income',
+      expensesTip: 'Costs',
+      profitTip: 'Profit',
+    };
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit labels={labels} />);
+    const legend = screen.getByText('Income (payments minus refunds)').parentElement ?? document.body;
+
+    expect(within(legend).getByText('Expenses (company + orders)')).toBeTruthy();
+    expect(within(legend).getByText('Profit (income minus expenses)')).toBeTruthy();
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const tip = openTip('Oct');
+
+    expect(within(tip).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(tip).getByText('Costs ₱58,320.00')).toBeTruthy();
+    expect(within(tip).getByText('Profit ₱68,130.00')).toBeTruthy();
+    expect(tip.textContent).not.toContain('income minus expenses');
+  });
+
+  it("keeps today's tooltip words for any tooltip word that is not passed", () => {
+    const labels = { income: 'Money in', expenses: 'Money out', profit: 'Gain', net: 'Left' };
+    render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit labels={labels} />);
+
+    fireEvent.focus(screen.getByRole('img', { name: OCT_PROFIT_NAME }));
+    const tip = openTip('Oct');
+
+    expect(within(tip).getByText('Income ₱126,450.00')).toBeTruthy();
+    expect(within(tip).getByText('Expenses ₱58,320.00')).toBeTruthy();
+    expect(within(tip).getByText('Gain ₱68,130.00')).toBeTruthy();
+  });
+});
+
+// A month with negative income (refunds over payments) beside a month with negative profit (D-36, UI-SPEC D3). The
+// top is ₱80,000 and the lowest figure is −₱12,000, so the axis bottom is −₱20,000 (the top's ₱10,000 step).
+const LOSS_MONTHS: ChartDatum[] = [
+  { month: 'Aug', label: 'Aug 2026', income: 80000, expenses: 60000, profit: 20000 },
+  { month: 'Sep', label: 'Sep 2026', income: -5000, expenses: 0, profit: -5000 },
+  { month: 'Oct', label: 'Oct 2026', income: 40000, expenses: 52000, profit: -12000 },
+];
+const MINUS = '−';
+
+function lines(container: HTMLElement): Element[] {
+  return [...container.querySelectorAll('line')];
+}
+
+function textsOf(container: HTMLElement): (string | null)[] {
+  return [...container.querySelectorAll('text')].map((text) => text.textContent);
+}
+
+/** Every number in a path's d attribute, in order. */
+function numbersIn(path: Element | undefined): number[] {
+  return (path?.getAttribute('d') ?? '').match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+}
+
+describe('IncomeExpenseChart below zero (D-36)', () => {
+  it('runs the axis from the lowest figure rounded down to the top step, with ticks at the bottom, zero, half and top', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+
+    expect(textsOf(container)).toEqual([`${MINUS}₱20k`, '₱0', '₱40k', '₱80k', 'Aug', 'Sep', 'Oct']);
+    const grid = lines(container).filter((line) => classTokens(line).join(' ') === tokens(chartGridClasses).join(' '));
+    expect(grid.map((line) => Number(line.getAttribute('y1')))).toEqual([192, 156, 84, 12]);
+  });
+
+  it('draws the zero line in the axis look, once, at the zero tick', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const zero = lines(container).filter(
+      (line) => classTokens(line).join(' ') === tokens(chartZeroLineClasses).join(' '),
+    );
+
+    expect(tokens(chartZeroLineClasses)).toEqual(tokens(chartAxisClasses));
+    expect(zero).toHaveLength(1);
+    expect(Number(zero[0]?.getAttribute('y1'))).toBe(156);
+  });
+
+  it('grows a below-zero income bar down from the zero line with rounded corners at the bottom', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const bars = [...container.querySelectorAll('svg > g[role="img"] > path')];
+    // Sep is the second group: income first, then expenses (no bar for a zero figure).
+    const sepIncome = bars.find((bar) => numbersIn(bar)[0] === 327);
+
+    expect(classTokens(sepIncome)).toEqual(tokens(chartBarClasses.income));
+    expect(sepIncome?.getAttribute('d')).toMatch(/^M327,156H345V161Q345,165 341,165H331Q327,165 327,161Z$/);
+  });
+
+  it('keeps expense bars and positive income bars rising from the zero line', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const [augIncome, augExpense] = [...container.querySelectorAll('svg > g[role="img"] > path')];
+
+    expect(numbersIn(augIncome)[1]).toBe(156);
+    expect(numbersIn(augExpense)[1]).toBe(156);
+  });
+
+  it('writes a below-zero tick with the U+2212 minus, also below one thousand', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -500, expenses: 300 }]} />);
+
+    expect(textsOf(container)).toContain(`${MINUS}₱500`);
+    expect(textsOf(container).join('')).not.toContain('-₱');
+  });
+
+  it('reads income below zero for the scale without showProfit, and profit only with it', () => {
+    const profitOnly: ChartDatum[] = [{ month: 'Jan', income: 10000, expenses: 40000, profit: -30000 }];
+    const { container, rerender } = render(<IncomeExpenseChart data={profitOnly} />);
+    expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱20k', '₱40k']);
+
+    rerender(<IncomeExpenseChart data={profitOnly} showProfit />);
+    expect(textsOf(container)[0]).toBe(`${MINUS}₱30k`);
+  });
+
+  it('keeps the scale and ticks as today when nothing is below zero, with and without showProfit', () => {
+    const { container, rerender } = render(<IncomeExpenseChart data={SIX_WITH_PROFIT} showProfit />);
+    expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱100k', '₱200k']);
+    expect(
+      lines(container).filter((line) => classTokens(line).join(' ') === tokens(chartAxisClasses).join(' ')),
+    ).toHaveLength(1);
+
+    rerender(<IncomeExpenseChart data={SIX_WITH_PROFIT} />);
+    expect(textsOf(container).slice(0, 3)).toEqual(['₱0', '₱100k', '₱200k']);
+  });
+
+  it('drops the tick that would crowd the zero tick when a big loss stretches the scale (WR-01)', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -15000, expenses: 2000 }]} />);
+    const grid = lines(container)
+      .filter((line) => classTokens(line).join(' ') === tokens(chartGridClasses).join(' '))
+      .map((line) => Number(line.getAttribute('y1')))
+      .sort((a, b) => a - b);
+
+    expect(textsOf(container)).toEqual([`${MINUS}₱15k`, '₱0', '₱2k', 'Jan']);
+    expect(grid).toHaveLength(3);
+    for (const [index, value] of grid.entries()) {
+      if (index > 0) expect(value - (grid[index - 1] ?? 0)).toBeGreaterThanOrEqual(14);
+    }
+  });
+
+  it('keeps the zero tick and spaces the rest at least 14px apart on a very large loss (WR-01)', () => {
+    const { container } = render(<IncomeExpenseChart data={[{ month: 'Jan', income: -50000, expenses: 3000 }]} />);
+    const ticks = [...container.querySelectorAll('svg > g:not([role]) > text')];
+    const labelYs = ticks.map((text) => Number(text.getAttribute('y'))).sort((a, b) => a - b);
+
+    expect(textsOf(container)).toContain('₱0');
+    expect(ticks.length).toBeGreaterThanOrEqual(2);
+    for (const [index, value] of labelYs.entries()) {
+      if (index > 0) expect(value - (labelYs[index - 1] ?? 0)).toBeGreaterThanOrEqual(14);
+    }
+  });
+
+  it('splits the profit line at zero with two clipPaths whose ids come from useId, dashing the below-zero copy', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const clips = [...container.querySelectorAll('clipPath')];
+    const [above, below] = [
+      profitParts(container, 'path', chartProfitLineClasses.above)[0],
+      profitParts(container, 'path', chartProfitLineClasses.below)[0],
+    ];
+
+    expect(clips).toHaveLength(2);
+    expect(clips.map((clip) => clip.id)).not.toContain('');
+    expect(new Set(clips.map((clip) => clip.id)).size).toBe(2);
+    expect(above?.getAttribute('clip-path')).toBe(`url(#${clips[0]?.id ?? ''})`);
+    expect(below?.getAttribute('clip-path')).toBe(`url(#${clips[1]?.id ?? ''})`);
+    expect(above?.getAttribute('stroke-dasharray')).toBeNull();
+    expect(below?.getAttribute('stroke-dasharray')).toBe('4 3');
+    // The above clip covers the plot down to the zero line (y 156), the below clip from there to the bottom.
+    expect(clips[0]?.querySelector('rect')?.getAttribute('height')).toBe('156');
+    expect(clips[1]?.querySelector('rect')?.getAttribute('y')).toBe('156');
+  });
+
+  it('gives each chart on the page its own clip ids', () => {
+    const { container } = render(
+      <>
+        <IncomeExpenseChart data={LOSS_MONTHS} showProfit />
+        <IncomeExpenseChart data={LOSS_MONTHS} showProfit />
+      </>,
+    );
+    const ids = [...container.querySelectorAll('clipPath')].map((clip) => clip.id);
+
+    expect(new Set(ids).size).toBe(4);
+  });
+
+  it('colors each point by its side of zero', () => {
+    const { container } = render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+    const aboveOnes = profitParts(container, 'circle', chartProfitPointClasses.above);
+    const belowOnes = profitParts(container, 'circle', chartProfitPointClasses.below);
+
+    expect(aboveOnes.map((point) => point.getAttribute('cx'))).toEqual(['150']);
+    expect(belowOnes.map((point) => point.getAttribute('cx'))).toEqual(['346', '542']);
+  });
+
+  it('names a negative profit month with the U+2212 minus', () => {
+    render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+
+    expect(months().map((group) => group.getAttribute('aria-label'))).toEqual([
+      'Aug 2026: income ₱80,000.00, expenses ₱60,000.00, profit ₱20,000.00',
+      `Sep 2026: income ${MINUS}₱5,000.00, expenses ₱0.00, profit ${MINUS}₱5,000.00`,
+      `Oct 2026: income ₱40,000.00, expenses ₱52,000.00, profit ${MINUS}₱12,000.00`,
+    ]);
+  });
+
+  it('shows a below-zero profit in the tooltip in the danger color', () => {
+    render(<IncomeExpenseChart data={LOSS_MONTHS} showProfit />);
+
+    fireEvent.focus(screen.getByRole('img', { name: /^Oct 2026/ }));
+    const figure = within(openTip('Oct')).getByText(`${MINUS}₱12,000.00`, { selector: 'span span' });
+
+    expect(classTokens(figure)).toEqual(tokens(chartProfitLossClasses));
+    expect(openTip('Oct').textContent).toContain(`Profit ${MINUS}₱12,000.00`);
+  });
+});
+
+/** A ResizeObserver stand-in: the test reports the frame width, and sees whether the chart disconnects. */
+function stubResizeObserver() {
+  const disconnect = vi.fn();
+  let callback: ResizeObserverCallback | undefined;
+  class StubResizeObserver {
+    constructor(onResize: ResizeObserverCallback) {
+      callback = onResize;
+    }
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = disconnect;
+  }
+  vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  return {
+    disconnect,
+    resize(width: number) {
+      act(() => {
+        callback?.([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver);
+      });
+    },
+  };
+}
+
+/** The month labels drawn under the bars, in order. */
+function monthLabels(container: HTMLElement): (string | null)[] {
+  return [...container.querySelectorAll('svg > g[role="img"] > text')].map((text) => text.textContent);
+}
+
+function viewBox(container: HTMLElement): string | null | undefined {
+  return container.querySelector('svg')?.getAttribute('viewBox');
+}
+
+describe('IncomeExpenseChart true-pixel width (D-51)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('draws a 640 wide view box until the frame is measured, and without ResizeObserver', () => {
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
+
+    expect(typeof ResizeObserver).toBe('undefined');
+    expect(viewBox(container)).toBe('0 0 640 220');
+  });
+
+  it('keeps the 640 scaled drawing and every month label without showProfit, so the approved look is unchanged', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} />);
+
+    observer.resize(320);
+
+    expect(viewBox(container)).toBe('0 0 640 220');
+    expect(monthLabels(container)).toHaveLength(12);
+  });
+
+  it('uses the measured frame width as the view box width and follows a resize', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
+
+    observer.resize(320);
+    expect(viewBox(container)).toBe('0 0 320 220');
+
+    observer.resize(900);
+    expect(viewBox(container)).toBe('0 0 900 220');
+  });
+
+  it('keeps 640 when the frame reports no width', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
+
+    observer.resize(0);
+
+    expect(viewBox(container)).toBe('0 0 640 220');
+  });
+
+  it('spreads the groups and positions the tooltip over the measured width', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
+
+    observer.resize(320);
+    fireEvent.focus(screen.getByRole('img', { name: OCT_NAME }));
+
+    // Oct is the sixth of six columns over (320 - 52) / 6: (52 + 44.666... * 5 + 22.33...) / 320.
+    const style = openTip('Oct').style;
+    expect(Number.parseFloat(style.getPropertyValue('--tip-x'))).toBeCloseTo(((52 + (268 / 6) * 5.5) / 320) * 100, 6);
+    expect(container.querySelector('line')?.getAttribute('x2')).toBe('320');
+  });
+
+  it('draws every other month label, counting back from the last, when a group is narrower than 28px', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} showProfit />);
+
+    observer.resize(320);
+
+    expect(monthLabels(container)).toEqual(['Dec', 'Feb', 'Apr', 'Jun', 'Aug', 'Oct']);
+    expect(months()).toHaveLength(12);
+    expect(months().every((group) => (group.getAttribute('aria-label') ?? '').includes(': income '))).toBe(true);
+    expect(months()[0]?.getAttribute('aria-label')).toBe('Nov 2025: income ₱76,500.00, expenses ₱52,100.00');
+  });
+
+  it('draws every month label for six months at 320, and at exactly 28px per group', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={SIX} showProfit />);
+
+    observer.resize(320);
+    expect(monthLabels(container)).toEqual(['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
+
+    const { container: twelve } = render(<IncomeExpenseChart data={TWELVE} showProfit />);
+    observer.resize(52 + 28 * 12);
+    expect(monthLabels(twelve)).toHaveLength(12);
+  });
+
+  it('keeps the last month labelled when the count is odd', () => {
+    const observer = stubResizeObserver();
+    const THIRTEEN: ChartDatum[] = [{ month: 'Oct', label: 'Oct 2025', income: 1000, expenses: 500 }, ...TWELVE];
+    const { container } = render(<IncomeExpenseChart data={THIRTEEN} showProfit />);
+
+    observer.resize(320);
+
+    expect(monthLabels(container).at(-1)).toBe('Oct');
+    expect(monthLabels(container)).toHaveLength(7);
+  });
+
+  it('measures the frame and thins the labels with fitWidth even without showProfit (IN-05)', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} fitWidth />);
+
+    observer.resize(320);
+
+    expect(viewBox(container)).toBe('0 0 320 220');
+    expect(monthLabels(container)).toEqual(['Dec', 'Feb', 'Apr', 'Jun', 'Aug', 'Oct']);
+  });
+
+  it('keeps the scaled 640 drawing with showProfit when fitWidth is false (IN-05)', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(<IncomeExpenseChart data={TWELVE} showProfit fitWidth={false} />);
+
+    observer.resize(320);
+
+    expect(viewBox(container)).toBe('0 0 640 220');
+    expect(monthLabels(container)).toHaveLength(12);
+  });
+
+  it('disconnects the observer when the chart unmounts', () => {
+    const observer = stubResizeObserver();
+    const { unmount } = render(<IncomeExpenseChart data={SIX} showProfit />);
+
+    expect(observer.disconnect).not.toHaveBeenCalled();
+    unmount();
+
+    expect(observer.disconnect).toHaveBeenCalledTimes(1);
   });
 });
 

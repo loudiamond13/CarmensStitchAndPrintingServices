@@ -208,6 +208,53 @@ describe('the page', () => {
       expect(calls.at(-1)?.searchParams.has('q')).toBe(false);
     });
   });
+
+  it('shows no empty state, count or pager while a page past the last is replaced by the last page (WR-03)', async () => {
+    const updates: string[] = [];
+    deletedExpensesBackend(async (url) => {
+      const page = Number(url.searchParams.get('page'));
+      if (page === 2) await delay(600);
+      return deletedExpenseList(page === 2 ? ROWS : [], { page, pageSize: 10, total: 15 });
+    });
+    renderPage('?page=3&size=10', (event) => {
+      updates.push(`${event.options.history}:${event.queryString}`);
+    });
+
+    await waitFor(() => {
+      expect(updates.some((entry) => entry.startsWith('replace:') && entry.includes('page=2'))).toBe(true);
+    });
+    expect(screen.queryByText('No deleted expenses')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(await screen.findByText('Shop rent for October')).toBeVisible();
+    expect(screen.queryByText('No deleted expenses')).toBeNull();
+  });
+
+  it('keeps Rows per page when the chosen size fits every row, and the smaller sizes can be chosen again (WR-03)', async () => {
+    const user = userEvent.setup();
+    const { calls } = deletedExpensesBackend((url) =>
+      deletedExpenseList(ROWS, { pageSize: Number(url.searchParams.get('pageSize')), total: 38 }),
+    );
+    renderPage('?size=50');
+
+    await screen.findByText('Shop rent for October');
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    await user.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+  });
+
+  it('draws no Rows per page for a list no longer than the smallest size (WR-03)', async () => {
+    deletedExpensesBackend(deletedExpenseList(ROWS));
+    renderPage('?size=50');
+
+    await screen.findByText('Shop rent for October');
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
+  });
 });
 
 describe('Restore (D-03, OQ-5)', () => {

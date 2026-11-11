@@ -45,6 +45,7 @@ import {
 import { ErrorState } from '@/components/states';
 import { Badge } from '@/components/status';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import { AddUserPanel, type CreatedUser } from '@/modules/admin/components/AddUserPanel';
 import { DeactivateUserDialog } from '@/modules/admin/components/DeactivateUserDialog';
 import { EditUserPanel, type SavedEmail } from '@/modules/admin/components/EditUserPanel';
@@ -52,7 +53,9 @@ import { RoleBadge, StatusBadges } from '@/modules/admin/components/UserBadges';
 import { usersCaptionClasses, usersTitleRowClasses, usersWrapClasses } from '@/modules/admin/components/users.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useRowFocus } from '@/modules/admin/hooks/useRowFocus';
+import { staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { useSession } from '@/modules/admin/hooks/useSession';
+import { moneyTransfersKey } from '@/modules/admin/hooks/useTransferRecipientsQuery';
 import { useUsersListParams } from '@/modules/admin/hooks/useUsersListParams';
 import { useUserAction } from '@/modules/admin/hooks/useUserAction';
 import { useUsersQuery, usersKey } from '@/modules/admin/hooks/useUsersQuery';
@@ -213,20 +216,20 @@ export function UsersRoute() {
 
   // The generated type allows a number or text for an int32; the server sends a number.
   const total = Number(query.data?.total ?? 0);
-  const pageCount = Math.ceil(total / values.size);
+  const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
-  // A page past the last one (a stale link, or rows deleted meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  // A person who is added, edited, deactivated, activated or deleted changes who is on the roster or how they are named, or moves between
+  // active staff and leavers, so the staff money and the transfer lists (All Staff names, roles and badges, who can receive money) are read
+  // again too (D-43). The roster read decides when the caller carries on.
+  const refreshRoster = (): Promise<unknown> => {
+    void queryClient.invalidateQueries({ queryKey: staffMoneyKey });
+    void queryClient.invalidateQueries({ queryKey: moneyTransfersKey });
+    return queryClient.invalidateQueries({ queryKey: usersKey });
+  };
 
   // The roster reads again so the new person shows at once; an invitation also gets its toast (the panel closes itself).
   const created = (user: CreatedUser): void => {
-    void queryClient.invalidateQueries({ queryKey: usersKey });
+    void refreshRoster();
     if (user.access === 'invitation') {
       toast.show({
         tone: 'success',
@@ -247,7 +250,7 @@ export function UsersRoute() {
       message = COPY.edit.toast.moved(name, person.role, person.email);
     }
     toast.show({ tone: 'success', title: COPY.edit.toast.title, message });
-    void queryClient.invalidateQueries({ queryKey: usersKey }).then(() => {
+    void refreshRoster().then(() => {
       if (!rowFocus.focusRow(person.id)) {
         headingRef.current?.focus();
       }
@@ -256,7 +259,7 @@ export function UsersRoute() {
 
   // The roster reads again; once it has, the flipped toggle takes focus (a dialog's own focus return may have run first).
   const refreshThenFocusToggle = (user: UserListItem): Promise<unknown> =>
-    queryClient.invalidateQueries({ queryKey: usersKey }).then(() => toggleFocus.focusRow(user.id));
+    refreshRoster().then(() => toggleFocus.focusRow(user.id));
 
   const closeDeactivate = (): void => {
     setDeactivating((current) => (current === null ? null : { ...current, open: false }));
@@ -296,7 +299,7 @@ export function UsersRoute() {
       afterRemoval.current = { removedId: user.id, focusId: chooseFocusAfter(user) };
       closeDelete();
       toast.show({ title: COPY.remove.toast.title, message: COPY.remove.toast.message(fullName(user)) });
-      return queryClient.invalidateQueries({ queryKey: usersKey });
+      return refreshRoster();
     },
   );
 
@@ -394,7 +397,7 @@ export function UsersRoute() {
               }}
             />
           </FilterBar>
-          <ResultBar count={total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortLabel}>
+          <ResultBar count={pastTheEnd ? 0 : total} thing={COPY.thing} things={COPY.things} sortLabel={COPY.sortLabel}>
             {values.q !== null && (
               <FilterChip
                 label={COPY.search.label}
@@ -448,7 +451,7 @@ export function UsersRoute() {
             // SPEC-DEVIATION: C-35 an inactive row sits on surface-2 by colour, with full-opacity text (App. E.12 faded it).
             isInactive={(user) => user.status === 'inactive'}
             things={COPY.things}
-            pending={query.isPending}
+            pending={query.isPending || pastTheEnd}
             refetching={query.isPlaceholderData && query.isFetching}
             failed={query.isError}
             error={query.error}
@@ -464,14 +467,17 @@ export function UsersRoute() {
             }}
           />
           <p className={usersCaptionClasses}>{COPY.caption}</p>
-          <Pagination
-            page={values.page}
-            pageCount={pageCount}
-            onPageChange={set.setPage}
-            focusTargetId={HEADING_ID}
-            pageSize={values.size}
-            onPageSizeChange={set.setPageSize}
-          />
+          {showPager && (
+            <Pagination
+              page={values.page}
+              pageCount={pageCount}
+              onPageChange={set.setPage}
+              focusTargetId={HEADING_ID}
+              pageSize={values.size}
+              onPageSizeChange={set.setPageSize}
+              sizeOnlyWhenSinglePage
+            />
+          )}
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />

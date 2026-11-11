@@ -213,6 +213,36 @@ public static class AuthorizationMatrix
         // Deleting for good (CEXP-02, D-04): Managers only. A fresh random id is no expense, so a Manager meets 404 company-expenses.not-found.
         new("DELETE", "/api/v1/company-expenses/{id:guid}/permanent", "/api/v1/company-expenses/d7a1b9e3-5c28-4f60-a4d2-1b8e6f3c0a95/permanent", Anonymous: 401, Admin: 403, Manager: 404),
 
+        // The dashboard summary (DASH-01, D-12): both roles read the same figures, and the route takes no input.
+        new("GET", "/api/v1/dashboard/summary", "/api/v1/dashboard/summary", Anonymous: 401, Admin: 200, Manager: 200),
+
+        // The dashboard chart (DASH-03): both roles read the same months; the only input is the months query.
+        new("GET", "/api/v1/dashboard/chart", "/api/v1/dashboard/chart", Anonymous: 401, Admin: 200, Manager: 200),
+
+        // The caller's own money on hand (MONEY-01, MONEY-08): both roles read their own figure; the route takes no id.
+        new("GET", "/api/v1/staff-money/me", "/api/v1/staff-money/me", Anonymous: 401, Admin: 200, Manager: 200),
+        // The caller's own ledger with a running balance (MONEY-02, D-41): both roles read their own rows; the route takes no id.
+        new("GET", "/api/v1/staff-money/me/ledger", "/api/v1/staff-money/me/ledger", Anonymous: 401, Admin: 200, Manager: 200),
+        // Everyone's money on hand with the team total (MONEY-03, D-42 to D-44): Managers only, so an Admin meets 403.
+        new("GET", "/api/v1/staff-money", "/api/v1/staff-money", Anonymous: 401, Admin: 403, Manager: 200),
+        // One person's money (MONEY-03, OD-19, CWE-639): the Staff policy lets both roles in and the handler decides. An Admin meets 403 for any id but their own,
+        // decided before any lookup; a Manager meets 404 staff-money.person-not-found because the sample is a fresh random id that is no staff member.
+        new("GET", "/api/v1/staff-money/{userId:guid}", "/api/v1/staff-money/c0a6bb55-ff52-4ab4-a663-fa4ad1a01dfb", Anonymous: 401, Admin: 403, Manager: 404),
+        // One person's ledger (MONEY-03, OD-19, CWE-639): the same rule as the figure above.
+        new("GET", "/api/v1/staff-money/{userId:guid}/ledger", "/api/v1/staff-money/dfbf7414-2836-4a80-93a9-f77c8e9d55b2/ledger", Anonymous: 401, Admin: 403, Manager: 404),
+        // The transfer list (MONEY-03, D-31, D-48): Staff only; the handler shows an Admin only their own transfers.
+        new("GET", "/api/v1/money-transfers", "/api/v1/money-transfers", Anonymous: 401, Admin: 200, Manager: 200),
+        // Transferring money to a coworker (MONEY-04, MONEY-08): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 money-transfers.invalid-request.
+        new("POST", "/api/v1/money-transfers", "/api/v1/money-transfers", Anonymous: 401, Admin: 400, Manager: 400),
+        // Handing over a former staff member's money (D-17, OD-19): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets 400 and an Admin 403.
+        new("POST", "/api/v1/money-transfers/handovers", "/api/v1/money-transfers/handovers", Anonymous: 401, Admin: 403, Manager: 400),
+        // Who can receive a transfer (D-19, D-49, D-56): both roles read the same figure-free list.
+        new("GET", "/api/v1/money-transfers/recipients", "/api/v1/money-transfers/recipients", Anonymous: 401, Admin: 200, Manager: 200),
+        // Deleting a wrong transfer (MONEY-06, D-23, OD-19): Managers only, so an Admin meets 403. The sample carries a well-formed version, so a Manager reaches the lookup and meets 404 for a fresh random id.
+        new("DELETE", "/api/v1/money-transfers/{id:guid}", "/api/v1/money-transfers/8d2f6a41-5b97-4e03-a1c8-7f0e3b9d6a52?version=AAAAAAAAB9E%3D", Anonymous: 401, Admin: 403, Manager: 404),
+        // Removing a deleted transfer for good (MONEY-06, D-24): Managers only, so an Admin meets 403. A fresh random id is no transfer, so a Manager meets 404 money-transfers.not-found.
+        new("DELETE", "/api/v1/money-transfers/{id:guid}/permanent", "/api/v1/money-transfers/4e7b1c93-6a28-4d50-b3f9-2c8a5e0d7b61/permanent", Anonymous: 401, Admin: 403, Manager: 404),
+
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
         // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.

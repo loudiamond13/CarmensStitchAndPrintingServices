@@ -9,6 +9,13 @@ import { assertNoFindings, expect, expectNoAxeViolations, listFindings, pageAxe,
 
 const DELIBERATE = 'e2e fixture: deliberate console error';
 
+// An empty region to scope an axe check to, beside the page's own content.
+const INSERT_EMPTY_REGION = `(() => {
+  const region = document.createElement('div');
+  region.id = 'e2e-axe-scope';
+  document.body.append(region);
+})()`;
+
 // Resolves true once the browser reports the blocked <style> element (false after 5 s, so a missing report fails the
 // assertion instead of hanging the test).
 const INSERT_STYLE = `new Promise((resolve) => {
@@ -150,6 +157,22 @@ test('@fixture an unlabelled image fails the axe check', async ({ page, guard })
   expect(listFindings(await guard.take())).toEqual([]);
 });
 
+test('@fixture a scoped axe check ignores a finding outside its scope and still finds one inside it', async ({
+  page,
+  guard,
+}) => {
+  await page.goto('/');
+  await page.evaluate(INSERT_EMPTY_REGION);
+  // The image must land inside main, so wait for the app to draw it first.
+  await page.locator('main').waitFor();
+  await page.evaluate(INSERT_UNLABELLED_IMAGE);
+
+  await expectNoAxeViolations(page, '#e2e-axe-scope');
+  await expect(expectNoAxeViolations(page, 'main')).rejects.toThrow(/image-alt/);
+  await expect(expectNoAxeViolations(page)).rejects.toThrow(/image-alt/);
+  expect(listFindings(await guard.take())).toEqual([]);
+});
+
 // Every option is a passing axe node. The check must not spend time per passing node: WebKit took about 25 s per check on
 // the Add Expense dialog's 2,300 options and @expenses-add timed out (debug session expenses-add-save-slow).
 test('@fixture the axe check takes seconds, not minutes, on a page with thousands of passing nodes', async ({
@@ -237,6 +260,79 @@ test('@fixture a same-origin request that fails at network level is caught, and 
   expect(() => {
     assertNoFindings(record);
   }).toThrow('response: failed GET');
+});
+
+// WebKit's page error for a fetch that was cancelled (the page navigated on): the guard ignores exactly this wording, for the app's
+// own host under /api/, in WebKit only (D-111). Playwright reports it without the "Fetch API cannot load https:" start, as seen in a
+// real WebKit run: "/localhost:5199/api/v1/dashboard/chart?months=6 due to access control checks." Each throw runs in its own timer,
+// so the sentinel arriving means the ones before it have been handled.
+const SENTINEL = 'e2e fixture: sentinel page error';
+
+function throwsInOrder(messages: readonly string[]): string {
+  return `(() => {
+  ${JSON.stringify([...messages, SENTINEL])}.forEach((message, index) => {
+    setTimeout(() => { throw new Error(message); }, index * 20);
+  });
+})()`;
+}
+
+const cancelledFetch = (hostAndPath: string): string => `/${hostAndPath} due to access control checks.`;
+
+test("@fixture WebKit's cancelled /api/ request page error is ignored in WebKit only, and is a finding in the other engines", async ({
+  page,
+  guard,
+  baseURL,
+  browserName,
+}) => {
+  await page.goto('/');
+  const host = new URL(String(baseURL)).host;
+  const messages = [
+    cancelledFetch(`${host}/api/v1/dashboard/summary`),
+    cancelledFetch(`${host}/api/v1/dashboard/chart?months=6`),
+  ];
+
+  await page.evaluate(throwsInOrder(messages));
+  await expect.poll(async () => (await guard.peek()).pageErrors.includes(SENTINEL)).toBe(true);
+  const record = await guard.take();
+
+  if (browserName === 'webkit') {
+    expect(record.pageErrors).toEqual([SENTINEL]);
+  } else {
+    expect(record.pageErrors).toEqual([...messages, SENTINEL]);
+    expect(() => {
+      assertNoFindings(record);
+    }).toThrow(`pageerror: ${String(messages[0])}`);
+  }
+});
+
+test('@fixture the WebKit cancelled-request wording is still a finding for another path, another host or extra text, in every engine', async ({
+  page,
+  guard,
+  baseURL,
+}) => {
+  await page.goto('/');
+  const host = new URL(String(baseURL)).host;
+  const good = cancelledFetch(`${host}/api/v1/dashboard/summary`);
+  const messages = [
+    cancelledFetch(`${host}/assets/index.js`),
+    cancelledFetch(`${host}/apiary/v1/dashboard/summary`),
+    cancelledFetch(`${host}/api/../assets/index.js`),
+    cancelledFetch('example.invalid/api/v1/dashboard/summary'),
+    cancelledFetch(`${host}.example.invalid/api/v1/dashboard/summary`),
+    `${good} Extra.`,
+    `Fetch API cannot load https:${good}`,
+    `TypeError: ${good}`,
+    `/${host}/api/v1/dashboard/summary due to a network error.`,
+  ];
+
+  await page.evaluate(throwsInOrder(messages));
+  await expect.poll(async () => (await guard.peek()).pageErrors.includes(SENTINEL)).toBe(true);
+  const record = await guard.take();
+
+  expect(record.pageErrors).toEqual([...messages, SENTINEL]);
+  expect(() => {
+    assertNoFindings(record);
+  }).toThrow(`pageerror: ${String(messages[0])}`);
 });
 
 test('@fixture a second page of the same context is guarded too', async ({ page, guard }) => {

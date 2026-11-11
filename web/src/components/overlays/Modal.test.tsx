@@ -1,4 +1,4 @@
-import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -1089,5 +1089,91 @@ describe('Modal closing animation (D-38, D-39)', () => {
     await user.keyboard('{Escape}');
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+/** A ResizeObserver stand-in: the test says when the body or its content resized. */
+function stubBodyObserver() {
+  const callbacks: ResizeObserverCallback[] = [];
+  class StubResizeObserver {
+    constructor(onResize: ResizeObserverCallback) {
+      callbacks.push(onResize);
+    }
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  }
+  vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  return {
+    resized() {
+      act(() => {
+        for (const callback of callbacks) callback([], {} as ResizeObserver);
+      });
+    },
+  };
+}
+
+function setHeights(element: Element, clientHeight: number, scrollHeight: number): void {
+  Object.defineProperty(element, 'clientHeight', { configurable: true, value: clientHeight });
+  Object.defineProperty(element, 'scrollHeight', { configurable: true, value: scrollHeight });
+}
+
+// axe scrollable-region-focusable (WCAG 2.1.1): a body that scrolls with no field in it, such as a confirm text on a
+// 320px phone, must take keyboard focus so it can be scrolled with the arrow keys.
+describe('the body takes keyboard focus only while it scrolls', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function renderLongConfirm(): { body: Element; title: HTMLElement } {
+    render(
+      <Modal title="Delete this expense?" footer={<Button>Cancel</Button>}>
+        <p>This can&apos;t be undone.</p>
+      </Modal>,
+    );
+    const title = screen.getByRole('heading', { name: 'Delete this expense?' });
+    const body = screen.getByText("This can't be undone.").parentElement;
+    if (body === null) throw new Error('Expected the body.');
+    return { body, title };
+  }
+
+  it('is a plain body while its content fits', () => {
+    stubBodyObserver();
+    const { body } = renderLongConfirm();
+
+    expect(body).not.toHaveAttribute('tabindex');
+    expect(body).not.toHaveAttribute('role');
+  });
+
+  it('becomes a focusable region named by the title when it scrolls, and a plain body again when it fits', async () => {
+    const observer = stubBodyObserver();
+    const { body, title } = renderLongConfirm();
+
+    setHeights(body, 200, 480);
+    observer.resized();
+    expect(body).toHaveAttribute('tabindex', '0');
+    expect(body).toHaveAttribute('role', 'region');
+    expect(body).toHaveAttribute('aria-labelledby', title.id);
+    await expectNoAxeViolations(document.body);
+
+    setHeights(body, 480, 480);
+    observer.resized();
+    expect(body).not.toHaveAttribute('tabindex');
+    expect(body).not.toHaveAttribute('role');
+    expect(body).not.toHaveAttribute('aria-labelledby');
+  });
+
+  it('measures again when content is added, such as an error line', async () => {
+    stubBodyObserver();
+    const { rerender } = render(<Modal title="Delete this expense?">{[<p key="a">First.</p>]}</Modal>);
+    const body = screen.getByText('First.').parentElement;
+    if (body === null) throw new Error('Expected the body.');
+    expect(body).not.toHaveAttribute('tabindex');
+
+    setHeights(body, 200, 480);
+    rerender(<Modal title="Delete this expense?">{[<p key="a">First.</p>, <p key="b">Second.</p>]}</Modal>);
+    await waitFor(() => {
+      expect(body).toHaveAttribute('tabindex', '0');
+    });
   });
 });

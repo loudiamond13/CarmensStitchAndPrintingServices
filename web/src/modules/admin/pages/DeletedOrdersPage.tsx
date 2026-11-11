@@ -35,6 +35,7 @@ import { Money } from '@/components/money';
 import { ErrorState } from '@/components/states';
 import { Badge, StatusBadge, isOrderStatus } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import { PurgeOrderDialog } from '@/modules/admin/components/PurgeOrderDialog';
 import { ExpenseActorCell } from '@/modules/admin/components/ExpenseActorCell';
 import { expensesBackRowClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
@@ -183,16 +184,7 @@ export default function DeletedOrdersPage() {
 
   const data = query.data;
   const total = toNumber(data?.total ?? 0);
-  const pageCount = Math.ceil(total / values.size);
-
-  // A page past the last one (a stale link, or rows restored meanwhile) becomes the last page, once fresh data says so.
-  const { clampPage } = set;
-  const fresh = query.isSuccess && !query.isPlaceholderData;
-  useEffect(() => {
-    if (fresh) {
-      clampPage(pageCount);
-    }
-  }, [fresh, pageCount, clampPage]);
+  const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
   // Focus lands on the Restore button of the next row, else the previous one, else the h1.
   const chooseFocusAfter = (order: { id: string }): string | null => {
@@ -279,14 +271,19 @@ export default function DeletedOrdersPage() {
       </div>
       {denied === null ? (
         <>
-          <ResultBar count={total} thing={COPY.thing} things={COPY.things} orderNote={COPY.orderNote} />
+          <ResultBar
+            count={pastTheEnd ? 0 : total}
+            thing={COPY.thing}
+            things={COPY.things}
+            orderNote={COPY.orderNote}
+          />
           <ResponsiveTable<DeletedOrderListItem>
             caption={COPY.tableCaption}
             columns={columnsFor(wiring)}
             rows={data?.items}
             rowKey={(item) => item.id}
             things={COPY.things}
-            pending={query.isPending}
+            pending={query.isPending || pastTheEnd}
             refetching={query.isPlaceholderData && query.isFetching}
             failed={query.isError}
             error={query.error}
@@ -297,14 +294,17 @@ export default function DeletedOrdersPage() {
             emptyTitle={COPY.empty.title}
             emptyMessage={COPY.empty.message}
           />
-          <Pagination
-            page={values.page}
-            pageCount={pageCount}
-            onPageChange={set.setPage}
-            focusTargetId={HEADING_ID}
-            pageSize={values.size}
-            onPageSizeChange={set.setPageSize}
-          />
+          {showPager && (
+            <Pagination
+              page={values.page}
+              pageCount={pageCount}
+              onPageChange={set.setPage}
+              focusTargetId={HEADING_ID}
+              pageSize={values.size}
+              onPageSizeChange={set.setPageSize}
+              sizeOnlyWhenSinglePage
+            />
+          )}
         </>
       ) : (
         <ErrorState title={denied.title} message={denied.body} error={query.error} />

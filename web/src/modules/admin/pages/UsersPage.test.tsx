@@ -10,6 +10,8 @@ import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { badgeToneClasses } from '@/components/status/status.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { staffBalancesKey } from '@/modules/admin/hooks/useStaffBalancesQuery';
+import { transferRecipientsKey } from '@/modules/admin/hooks/useTransferRecipientsQuery';
 import { UsersRoute } from '@/modules/admin/pages/UsersPage';
 import type { UserListItem, UserListResponse } from '@/modules/admin/services/usersService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
@@ -589,6 +591,53 @@ describe('U1 paging', () => {
     expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 2 of 2');
     expect(calls.map((url) => url.searchParams.get('page'))).toEqual(['3', '2']);
   });
+
+  it('shows no empty state, count or pager while a page past the last is replaced by the last page (WR-03)', async () => {
+    backend(ROWS, async (url) => {
+      const page = Number(url.searchParams.get('page'));
+      if (page === 2) await delay(600);
+      return { items: page === 2 ? ROWS : [], page, pageSize: 10, total: 15 };
+    });
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?page=3&size=10', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).some((write) => write.history === 'replace' && write.query.includes('page=2'))).toBe(
+        true,
+      );
+    });
+    expect(screen.queryByText('No users yet')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(await screen.findByText('Paolo Garcia')).toBeInTheDocument();
+    expect(screen.queryByText('No users yet')).toBeNull();
+  });
+
+  it('keeps Rows per page when the chosen size fits every row, and the smaller sizes can be chosen again (WR-03)', async () => {
+    const { calls } = backend(ROWS, (url) => ({
+      items: ROWS,
+      page: 1,
+      pageSize: Number(url.searchParams.get('pageSize')),
+      total: 38,
+    }));
+    await openPage('?size=50');
+
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    await userEvent.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+  });
+
+  it('draws no Rows per page for a list no longer than the smallest size (WR-03)', async () => {
+    backend(ROWS.slice(0, 5));
+    await openPage('?size=50');
+
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
+  });
 });
 
 describe('U1 refetch', () => {
@@ -680,6 +729,27 @@ describe('U2 Add User from the page (USER-02, D-12)', () => {
     await screen.findByText('Ana Reyes');
     expect(within(rowOf('Ana Reyes')).getByText('Invite pending')).toBeInTheDocument();
     expect(calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('marks the staff money and money-transfers answers old after an invitation, so All Staff and the To lists follow (D-43)', async () => {
+    rosterThatGainsAna();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+    await user.click(addButton());
+    await user.type(screen.getByRole('textbox', { name: /^First name/ }), 'Ana');
+    await user.type(screen.getByRole('textbox', { name: /^Last name/ }), 'Reyes');
+    await user.type(screen.getByRole('textbox', { name: /^Email/ }), 'ana@example.ph');
+
+    await user.click(screen.getByRole('button', { name: 'Create User' }));
+
+    await screen.findByText('User created');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
   });
 
   it('Cancel closes the panel without a request, returns focus to Add User and reopens on the defaults', async () => {
@@ -799,6 +869,27 @@ describe('U3 Edit User from the page (USER-03)', () => {
     await waitFor(() => {
       expect(editButton('Paulo Garcia')).toHaveFocus();
     });
+  });
+
+  it('marks the staff money and money-transfers answers old after a save, so a new name or role shows in All Staff and the To lists (D-43)', async () => {
+    rosterThatRenamesPaolo();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+    await user.click(editButton('Paolo Garcia'));
+    const first = await screen.findByRole('textbox', { name: /^First name/ });
+    await user.clear(first);
+    await user.type(first, 'Paulo');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('User updated');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
   });
 
   it("Cancel closes the panel without a request and returns focus to that row's Edit button", async () => {
@@ -1036,6 +1127,32 @@ describe('U4 Deactivate and Activate from the page (USER-03, OQ-1, OQ-3)', () =>
     });
   });
 
+  it('marks the staff money and money-transfers answers old after Deactivate User and after Activate, so All Staff and the To lists follow (D-43)', async () => {
+    rosterWithToggles();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+
+    await user.click(toggle('Deactivate Paolo'));
+    await user.click(screen.getByRole('button', { name: 'Deactivate User' }));
+    await screen.findByText('User deactivated');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
+
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await user.click(await screen.findByRole('button', { name: 'Activate Paolo' }));
+    await screen.findByText('User activated');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
+  });
+
   it('can deactivate, activate and deactivate the same person again, each with a request of its own', async () => {
     const { posted } = rosterWithToggles();
     await openPage();
@@ -1202,6 +1319,24 @@ describe('U4 Delete from the page (USER-03, USER-04, D-09)', () => {
     });
     expect(deleted).toHaveLength(0);
     expect(deleteButton('Paolo Garcia')).toHaveFocus();
+  });
+
+  it('marks the staff money and money-transfers answers old after Delete User, so All Staff and the To lists follow (D-43)', async () => {
+    rosterThatDeletes();
+    queryClient.setQueryData(staffBalancesKey, { rows: [], total: 0 });
+    queryClient.setQueryData(transferRecipientsKey, []);
+    await openPage();
+    const user = userEvent.setup();
+    expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(false);
+
+    await user.click(deleteButton('Paolo Garcia'));
+    await user.click(screen.getByRole('button', { name: 'Delete User' }));
+
+    await screen.findByText('User deleted');
+    await waitFor(() => {
+      expect(queryClient.getQueryState(staffBalancesKey)?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(transferRecipientsKey)?.isInvalidated).toBe(true);
   });
 
   it("removes the row after Delete User, sends a DELETE with no Idempotency-Key, toasts, and focuses the next row's Edit", async () => {

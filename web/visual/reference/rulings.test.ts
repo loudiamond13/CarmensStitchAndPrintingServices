@@ -43,6 +43,7 @@ const RULING_IDS = [
   'P5 long-text',
   'D-60',
   'D-63',
+  'D-107',
 ] as const;
 
 interface Group {
@@ -408,6 +409,13 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
       ['.s-overlay', 'padding-top: 0;'],
       ['.s-overlay::before', 'flex-basis: 96px;'],
     ]);
+  });
+
+  it('D-107: the window footer buttons wrap onto a second row when they do not fit, nothing else', () => {
+    const groupsOfD107 = byRuling('D-107');
+
+    expect(groupsOfD107.map((group) => group.prelude)).toEqual(['.csp-modal-foot']);
+    expect(normalize(groupsOfD107[0]?.body ?? '')).toBe('flex-wrap: wrap;');
   });
 
   it('OQ-5: the sign-in small link, checkbox label and back link get the invisible 44px ::before tap area, nothing else', () => {

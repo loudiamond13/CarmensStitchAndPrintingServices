@@ -5,8 +5,10 @@
 import { useState } from 'react';
 import { useToast } from '@/components/feedback';
 import { isHttpError } from '@/core/api/errors';
+import { mayHaveSaved } from '@/lib/forms/mayHaveSaved';
 import { useSubmission, type FieldErrors } from '@/lib/forms/useSubmission';
 import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
+import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import { ORDER_WINDOWS_COPY, type OrderThing, type OrderVerb } from '@/modules/admin/orderWindowsCopy';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
 import { formatPeso, isPositiveMoney } from '@/utils/csps';
@@ -98,6 +100,7 @@ export function useOrderChildSave<TData>({
   const toast = useToast();
   const applyOrder = useApplyOrder();
   const refetchOrder = useRefetchOrder();
+  const refreshOrders = useRefreshOrders();
   const [banner, setBanner] = useState<OrderWindowBanner | null>(null);
   const [state, setState] = useState<OrderChildState>('idle');
   // How many stale saves the server has refused since the window was last current; a new count re-announces the banner.
@@ -116,6 +119,11 @@ export function useOrderChildSave<TData>({
   };
 
   const showFailure = (copy: ErrorCopy, error: unknown): void => {
+    // A failure that may have saved (a server error, a timeout, no answer) leaves the order and the money old, so they are read again.
+    if (mayHaveSaved(error)) {
+      void refetchOrder(orderId);
+      void refreshOrders();
+    }
     if (isHttpError(error) && error.kind === 'http') {
       // 05 D-20: a stale save keeps every typed value; the banner offers Load Latest.
       if (error.status === 409 && error.code === EDIT_STALE) {

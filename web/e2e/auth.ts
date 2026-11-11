@@ -1,8 +1,8 @@
 // Sign-in helpers for the auth specs (AUTH-02, D-01, QUAL-05). Import them with `./fixtures.ts` and `./testing-api.ts`.
 // Every test signs in with its own staff user (createStaff) and reads its own code from the Testing sink (D-27).
 import type { APIRequestContext, Page } from '@playwright/test';
-import { expect } from './fixtures.ts';
-import { latestEmail, type SinkEmail, type TestStaff } from './testing-api.ts';
+import { expect, test, type Guard } from './fixtures.ts';
+import { createStaff, latestEmail, type SinkEmail, type StaffRole, type TestStaff } from './testing-api.ts';
 
 /** The subject of the sign-in code email: "123456 is your CSPS sign-in code". */
 const CODE_SUBJECT = 'is your CSPS sign-in code';
@@ -18,6 +18,29 @@ export interface SignedInUser {
 export interface SignInOptions {
   /** Tick "Keep me signed in" on S1. Default false. */
   readonly keepSignedIn?: boolean;
+}
+
+/**
+ * Signs a fresh staff user in (a Manager unless told otherwise); the sign-in lands on the dashboard. The Component Showcase repeats
+ * the shell's parts as demos, so a shell check that needs one topbar, one menu or one drawer runs on this real page. Opening the
+ * sign-in page asks the refresh cookie for a session first, and with none that answer is a 401.
+ */
+export async function signInFreshStaff(
+  page: Page,
+  request: APIRequestContext,
+  guard: Guard,
+  role: StaffRole = 'Manager',
+): Promise<SignedInUser> {
+  // A sign-in takes several seconds on a busy machine, on top of what the spec itself does.
+  test.setTimeout(Math.max(test.info().timeout, 90_000));
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  return signInAs(page, request, await createStaff(request, role));
+}
+
+/** The dashboard h1 of a person: "Good morning, Carmen". The part of the day depends on the server clock, so any of the three matches. */
+export function dashboardHeading(user: Pick<SignedInUser, 'firstName'>): RegExp {
+  const name = user.firstName.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  return new RegExp(`^Good (morning|afternoon|evening), ${name}$`);
 }
 
 /** The six digits from the subject of a sign-in code email. */
@@ -83,7 +106,7 @@ export async function signInAs(
   if (!isSignedInUser(sessionUser)) {
     throw new Error('The verify answer carried no signed-in user.');
   }
-  // The e2e bundle lands on the dev preview at /admin; a production bundle goes on to /admin/sessions.
+  // Every bundle, the e2e one included, lands on the dashboard at /admin (DASH-01).
   await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
   await expect(page.getByRole('main')).toBeVisible();
   return sessionUser;

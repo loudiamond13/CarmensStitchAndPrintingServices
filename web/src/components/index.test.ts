@@ -113,6 +113,11 @@ describe('@/components barrel (WEB-06, WEB-02)', () => {
     expect(exports.SETTINGS_NAV_ITEM).toMatchObject({ id: 'settings', to: '/admin/settings', manager: true });
   });
 
+  // SPEC-DEVIATION: D-39 the My Money nav item sits beside ADMIN_NAV for both roles (plan 10-13).
+  it('exports the My Money nav item beside ADMIN_NAV', () => {
+    expect(exports.MONEY_NAV_ITEM).toMatchObject({ id: 'money', to: '/admin/money', icon: 'wallet' });
+  });
+
   it('exports the useToast hook', () => {
     expect(typeof exports.useToast).toBe('function');
   });

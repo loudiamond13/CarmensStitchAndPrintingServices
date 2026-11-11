@@ -341,7 +341,7 @@
         "description": "One \"What changed\" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed.",
         "properties": {
           "field": {
-            "description": "One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,\n`dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,\n`payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,\n`sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.",
+            "description": "One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,\n`dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,\n`payer`, `refunder`, `from` and `to`, or the name of a text field that changed: `description`, `notes`, `reference`,\n`sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.",
             "type": "string"
           },
           "from": {
@@ -376,7 +376,7 @@
               },
               {
                 "$ref": "#/components/schemas/ActorRef",
-                "description": "For `payer`, `receiver` and `refunder`: the new person."
+                "description": "For `payer`, `receiver` and `refunder`: the new person; for a hand-over's `from` and `to`: that person."
               }
             ]
           }
@@ -1071,6 +1071,103 @@
         ],
         "type": "object"
       },
+      "CreateMoneyHandoverRequest": {
+        "description": "The Hand Over form (D-17): a Manager moves money held by a former staff member to a current coworker. The sender is the former\nstaff member named in the form, because the signed-in Manager only records the hand-over. Any other member in the body, such as\n`createdById` or `isHandover`, is ignored: who recorded it and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "fromUserId": {
+            "description": "The former staff member who holds the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "Optional note.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toUserId": {
+            "description": "The current coworker who gets the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "transferDate": {
+            "description": "The day the money changed hands, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "fromUserId",
+          "toUserId",
+          "amount",
+          "transferDate",
+          "note"
+        ],
+        "type": "object"
+      },
+      "CreateMoneyTransferRequest": {
+        "description": "The Transfer Money form (MONEY-04). The sender is always the signed-in user, so the form has no sender. Any other member in\nthe body, such as a forged sender or `createdById`, is ignored: who recorded the transfer and when come from the token and\nthe clock (SEC-08).",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "Optional note.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toUserId": {
+            "description": "The coworker who gets the money.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "transferDate": {
+            "description": "The day the money changed hands, `yyyy-MM-dd`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "toUserId",
+          "amount",
+          "transferDate",
+          "note"
+        ],
+        "type": "object"
+      },
       "CreateOrderRequest": {
         "description": "The New Order form (ORD-03). Any other member in the body, such as a forged `createdById`, `number` or `totals`, is\nignored: who recorded the order, its number and its money figures come from the token, the clock and the server (SEC-08, ORD-20).",
         "properties": {
@@ -1259,6 +1356,282 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DashboardChartMonth": {
+        "description": "One month of the dashboard chart. Every figure is worked out on the server.",
+        "properties": {
+          "expenses": {
+            "description": "Company expenses plus order expenses, each placed by its own expense date; deleted ones never count (D-10, D-11).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "income": {
+            "description": "Payments dated in the month minus refunds dated in it, on orders that are not deleted; Cancelled orders count; may be below zero (D-09, D-11).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "month": {
+            "description": "The business month as `yyyy-MM`.",
+            "type": "string"
+          },
+          "profit": {
+            "description": "Income minus Expenses (D-36).",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "income",
+          "expenses",
+          "profit"
+        ],
+        "type": "object"
+      },
+      "DashboardChartResponse": {
+        "description": "The money-over-time chart of the dashboard (DASH-03).",
+        "properties": {
+          "items": {
+            "description": "Exactly Months entries, oldest first, the current business month last. A month with no money is still listed, with zeros.",
+            "items": {
+              "$ref": "#/components/schemas/DashboardChartMonth"
+            },
+            "type": "array"
+          },
+          "months": {
+            "description": "How many months the window holds: 6 or 12.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "months",
+          "items"
+        ],
+        "type": "object"
+      },
+      "DashboardCollectedFigures": {
+        "description": "The money collected this month and the comparison.",
+        "properties": {
+          "changePercent": {
+            "description": "The whole-number change against the absolute value of the comparison, rounded away from zero; null when the comparison is 0.00.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "comparison": {
+            "description": "The same figure for the first of last month through the same day number last month.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "comparisonThrough": {
+            "description": "The last day of the comparison.",
+            "format": "date",
+            "type": "string"
+          },
+          "thisMonth": {
+            "description": "Payments dated in this business month minus refunds dated in it; Cancelled orders included, deleted orders excluded; may be below zero.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "thisMonth",
+          "comparison",
+          "comparisonThrough",
+          "changePercent"
+        ],
+        "type": "object"
+      },
+      "DashboardExpenseFigures": {
+        "description": "The company expense figures of the dashboard card.",
+        "properties": {
+          "count": {
+            "description": "How many company expenses this month holds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "thisMonth": {
+            "description": "The sum of this month's company expenses.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "topCategory": {
+            "description": "The name of the category with the most money this month, ties to the alphabetically first name; null with no expenses.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "thisMonth",
+          "count",
+          "topCategory"
+        ],
+        "type": "object"
+      },
+      "DashboardOrderFigures": {
+        "description": "The order figures of the dashboard cards.",
+        "properties": {
+          "active": {
+            "description": "Orders in Pending, Mockup, In Production, Ready or Delivered; deleted orders never count.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "dueThisWeek": {
+            "description": "Active orders due Monday to Sunday of the business week that are not overdue; an order with no due date counts in neither this nor Overdue.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "overdue": {
+            "description": "Pending, Mockup, In Production and Ready orders due before the business today.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "receivables": {
+            "description": "The sum over all active orders, overdue ones included, of the balance when it is above zero, else zero.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "active",
+          "dueThisWeek",
+          "overdue",
+          "receivables"
+        ],
+        "type": "object"
+      },
+      "DashboardStatusCount": {
+        "description": "One status of the orders-by-status bar.",
+        "properties": {
+          "count": {
+            "description": "Pending to Delivered: orders now in the status. Completed: orders moved to Completed in this business month.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "status": {
+            "description": "The status key: `pending`, `mockup`, `production`, `ready`, `delivered` or `completed`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ],
+        "type": "object"
+      },
+      "DashboardSummaryResponse": {
+        "description": "Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ.",
+        "properties": {
+          "collected": {
+            "$ref": "#/components/schemas/DashboardCollectedFigures",
+            "description": "The money collected this month."
+          },
+          "expenses": {
+            "$ref": "#/components/schemas/DashboardExpenseFigures",
+            "description": "The company expenses this month."
+          },
+          "firstName": {
+            "description": "The signed-in person's first name.",
+            "type": "string"
+          },
+          "greeting": {
+            "description": "The part of the business day: `morning`, `afternoon` or `evening`.",
+            "type": "string"
+          },
+          "orders": {
+            "$ref": "#/components/schemas/DashboardOrderFigures",
+            "description": "The order figures."
+          },
+          "recentOrders": {
+            "description": "The 6 newest created orders of any status that are not deleted, newest first, in the order list entry shape.",
+            "items": {
+              "$ref": "#/components/schemas/OrderListEntry"
+            },
+            "type": "array"
+          },
+          "statuses": {
+            "description": "Exactly six entries in this order: pending, mockup, production, ready, delivered, completed. Cancelled is never listed.",
+            "items": {
+              "$ref": "#/components/schemas/DashboardStatusCount"
+            },
+            "type": "array"
+          },
+          "today": {
+            "description": "The business today, so the browser never reads the device clock for it.",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "today",
+          "greeting",
+          "firstName",
+          "orders",
+          "collected",
+          "expenses",
+          "statuses",
+          "recentOrders"
         ],
         "type": "object"
       },
@@ -1912,6 +2285,433 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "LedgerEntryResponse": {
+        "description": "One ledger row. A row has either money in or money out, never both. Only the details its kind names are filled; the rest are null.\nA deleted transfer shows its face amount and no balance after it, because it counts toward no balance.",
+        "properties": {
+          "balanceAfter": {
+            "description": "The person's balance after this row, like a bank statement; null for a deleted transfer.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "category": {
+            "description": "The category of a company or order expense.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "counterpart": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "The other person on a transfer."
+              }
+            ]
+          },
+          "customer": {
+            "description": "That order's customer name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "description": "The day the money moved.",
+            "format": "date",
+            "type": "string"
+          },
+          "deletedAtUtc": {
+            "description": "When a transfer was deleted.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted a transfer."
+              }
+            ]
+          },
+          "description": {
+            "description": "What a company or order expense was for.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isDeleted": {
+            "description": "True for a deleted transfer.",
+            "type": "boolean"
+          },
+          "isHandover": {
+            "description": "True for a transfer a Manager recorded for a former staff member.",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "One of `payment-received`, `refund-handed-back`, `transfer-in`, `transfer-out`, `company-expense`, `order-expense`.",
+            "type": "string"
+          },
+          "moneyIn": {
+            "description": "The amount in pesos for money in; null for money out.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "moneyOut": {
+            "description": "The amount in pesos for money out; null for money in.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "The note of a transfer.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderId": {
+            "description": "The order behind a payment, refund or order expense.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderNumber": {
+            "description": "That order's number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paymentMethod": {
+            "description": "The payment method of a payment.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recordedAtUtc": {
+            "description": "When the row was recorded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded a transfer."
+              }
+            ]
+          },
+          "team": {
+            "description": "That order's team or club name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "transferId": {
+            "description": "The id of a transfer row.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 row version of a transfer.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "date",
+          "recordedAtUtc",
+          "moneyIn",
+          "moneyOut",
+          "balanceAfter",
+          "orderId",
+          "orderNumber",
+          "team",
+          "customer",
+          "paymentMethod",
+          "category",
+          "description",
+          "counterpart",
+          "note",
+          "transferId",
+          "version",
+          "isHandover",
+          "recordedBy",
+          "isDeleted",
+          "deletedBy",
+          "deletedAtUtc"
+        ],
+        "type": "object"
+      },
+      "LedgerPageResponse": {
+        "description": "One page of a person's ledger, newest first, with their money on hand (MONEY-02, D-41).",
+        "properties": {
+          "balance": {
+            "description": "The person's money on hand now, worked out on the server.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "includesDeleted": {
+            "description": "True when deleted transfers are in the page (a Manager asked for them).",
+            "type": "boolean"
+          },
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntryResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many rows the ledger has across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "balance",
+          "includesDeleted"
+        ],
+        "type": "object"
+      },
+      "MoneyTransferListResponse": {
+        "description": "One page of staff money transfers, newest first (MONEY-03, D-48).",
+        "properties": {
+          "items": {
+            "description": "The transfers of this page.",
+            "items": {
+              "$ref": "#/components/schemas/MoneyTransferResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many transfers match across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
+      "MoneyTransferResponse": {
+        "description": "One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance.",
+        "properties": {
+          "amount": {
+            "description": "The amount in pesos.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "deletedAtUtc": {
+            "description": "When it was deleted; null while it counts.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deletedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who deleted it; null while it counts."
+              }
+            ]
+          },
+          "from": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The sender; for a hand-over, the former staff member."
+          },
+          "id": {
+            "description": "The transfer id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isDeleted": {
+            "description": "True once it is in the bin.",
+            "type": "boolean"
+          },
+          "isHandover": {
+            "description": "True when a Manager recorded it for a former staff member (D-17).",
+            "type": "boolean"
+          },
+          "note": {
+            "description": "The note; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recordedAtUtc": {
+            "description": "When it was recorded.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "recordedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who recorded it; null reads as System."
+              }
+            ]
+          },
+          "to": {
+            "$ref": "#/components/schemas/ActorRef",
+            "description": "The recipient."
+          },
+          "transferDate": {
+            "description": "The day the money changed hands.",
+            "format": "date",
+            "type": "string"
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a later change must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "to",
+          "amount",
+          "transferDate",
+          "note",
+          "isHandover",
+          "recordedBy",
+          "recordedAtUtc",
+          "isDeleted",
+          "deletedBy",
+          "deletedAtUtc",
+          "version"
+        ],
+        "type": "object"
+      },
+      "MoneyTransferSavedResponse": {
+        "description": "A saved transfer and the sender's new money on hand. The recipient's balance is never in the answer (OD-19, D-49).",
+        "properties": {
+          "senderBalance": {
+            "description": "The sender's money on hand after the transfer.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "transfer": {
+            "$ref": "#/components/schemas/MoneyTransferResponse",
+            "description": "The saved transfer."
+          }
+        },
+        "required": [
+          "transfer",
+          "senderBalance"
         ],
         "type": "object"
       },
@@ -3980,6 +4780,76 @@
         ],
         "type": "object"
       },
+      "StaffBalanceRow": {
+        "description": "One person's row in the all-staff list.",
+        "properties": {
+          "balance": {
+            "description": "Their money on hand; below zero when they are owed money.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "isYou": {
+            "description": "True for the signed-in person.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Their display name, first then last.",
+            "type": "string"
+          },
+          "role": {
+            "description": "Their role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of `active`, `deactivated` or `deleted`.",
+            "type": "string"
+          },
+          "userId": {
+            "description": "The person.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "role",
+          "status",
+          "balance",
+          "isYou"
+        ],
+        "type": "object"
+      },
+      "StaffBalancesResponse": {
+        "description": "Everyone's money on hand and what staff hold together, for a Manager (MONEY-03, D-42 to D-44).",
+        "properties": {
+          "items": {
+            "description": "The people: active Admins and Managers by name, then former staff whose balance is not 0.00 by name.",
+            "items": {
+              "$ref": "#/components/schemas/StaffBalanceRow"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "The sum of the listed balances; below zero when staff are owed more than they hold.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "StaffMember": {
         "description": "One person who can be named as the payer (CEXP-05): an id and a name, nothing else.",
         "properties": {
@@ -3996,6 +4866,51 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "StaffMoneyResponse": {
+        "description": "One person's money on hand, worked out on the server on every read (MONEY-01, MONEY-03).",
+        "properties": {
+          "balance": {
+            "description": "Money received plus transfers in, minus transfers out, expenses paid and refunds handed back; below zero when they are owed money.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "name": {
+            "description": "Their display name, first then last.",
+            "type": "string"
+          },
+          "role": {
+            "description": "Their role, `Admin` or `Manager`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of `active`, `deactivated` or `deleted`.",
+            "type": "string"
+          },
+          "today": {
+            "description": "The business today.",
+            "format": "date",
+            "type": "string"
+          },
+          "userId": {
+            "description": "The person.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "role",
+          "status",
+          "balance",
+          "today"
         ],
         "type": "object"
       },
@@ -4029,6 +4944,35 @@
           "category",
           "total",
           "sharePercent"
+        ],
+        "type": "object"
+      },
+      "TransferRecipientResponse": {
+        "description": "One person the transfer window may offer in its To list (D-19, D-49, D-56). It has a name and a status word only: nothing about\nwhat the person holds or is owed, for any caller.",
+        "properties": {
+          "id": {
+            "description": "The person's id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isYou": {
+            "description": "True for the signed-in person.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The first and last name.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of `active`, `deactivated` or `deleted`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "isYou"
         ],
         "type": "object"
       },
@@ -6594,6 +7538,92 @@
         ]
       }
     },
+    "/api/v1/dashboard/chart": {
+      "get": {
+        "operationId": "GetDashboardChart",
+        "parameters": [
+          {
+            "description": "How many months to show: 6 or 12; 6 when not sent. Anything else is a 400 on `months`.",
+            "in": "query",
+            "name": "months",
+            "schema": {
+              "enum": [
+                "6",
+                "12"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardChartResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the money-over-time chart: one entry for every month of the window, oldest first, the current business month last. Each\nmonth has `income` (payments minus refunds, so it can be below zero), `expenses` (company plus order expenses) and\n`profit` (income minus expenses). A month with no money is listed with 0.00. Money on Cancelled orders counts; money on\ndeleted orders and deleted company expenses does not. Both roles get the same answer. Nothing is cached.",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "operationId": "GetDashboardSummary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the dashboard summary: the business today (`today`), the part of the day for the greeting (`greeting`:\n`morning`, `afternoon` or `evening`), the signed-in person's first name (`firstName`), the order figures\n(`orders`: active, due this week, overdue and receivables), the money collected this month with last month's comparison\nand the change in percent (`collected`), this month's company expenses with their count and top category\n(`expenses`), the six statuses of the orders-by-status bar (`statuses`) and the six newest orders\n(`recentOrders`). Every figure uses the same business date and instant. Both roles get the same figures; only the first\nname and the greeting can differ. Nothing is cached, so every visit shows live numbers.",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
     "/api/v1/expense-categories": {
       "get": {
         "operationId": "ListExpenseCategories",
@@ -7125,6 +8155,488 @@
         "summary": "Retires a category, Managers only: it can no longer be chosen on a new expense but stays in the list and the list filter,\nmarked `retired`, and old expenses keep it. Others can never be retired. Retiring a retired category is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/money-transfers": {
+      "get": {
+        "operationId": "ListMoneyTransfers",
+        "parameters": [
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "True to show deleted transfers too; Managers only.",
+            "in": "query",
+            "name": "deleted",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyTransferListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an\nAdmin sees only the transfers they sent or received. Each entry has the sender, the recipient, the amount, the date, the note,\nwho recorded it, whether it is a hand-over, its version, and never a balance. Deleted transfers are shown only to a Manager who\nadds `deleted=true`, each marked `isDeleted` with who deleted it and when; an Admin who adds it gets a 403.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      },
+      "post": {
+        "operationId": "CreateMoneyTransfer",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyTransferRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyTransferRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyTransferRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyTransferSavedResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any\nsuch member is ignored. The amount is at least 0.01 with at most two decimal places and no more than the sender holds. The date is\nany day up to today in the business zone. The recipient must be an active Admin or Manager, or former staff who are owed money,\nand a transfer into former staff cannot go above what brings them to 0.00. The answer carries the sender's new balance and never\nthe recipient's. Who recorded it and when come from the token and the clock; any such member in the body is ignored. A retry\nwith the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/money-transfers/handovers": {
+      "post": {
+        "operationId": "CreateMoneyHandover",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyHandoverRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyHandoverRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateMoneyHandoverRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoneyTransferSavedResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Records a hand-over, Managers only: money held by a deactivated or deleted Admin or Manager moves to a current coworker. The body\nnames the former staff member (`fromUserId`) and the coworker (`toUserId`). The amount is at least 0.01 with at most two\ndecimal places and no more than the former staff member holds. The coworker must be an active Admin or Manager, a Manager-locked\nor not-yet-set-up person included. The answer carries the former staff member's new balance and never the coworker's. The\nsigned-in Manager is recorded as who did it and is written to the audit log; any `createdById` or `isHandover` in the\nbody is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/money-transfers/recipients": {
+      "get": {
+        "operationId": "ListTransferRecipients",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TransferRecipientResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists who the transfer window may offer, for either role. Every active Admin and Manager comes first, a person a Manager has\nlocked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or\ndeleted Admins and Managers who are owed money, with status `deactivated` or `deleted`. An entry has an id, a name, a\nstatus and `isYou` and never a figure, for any caller. The legacy placeholder and accounts with no staff role never appear.\nEach group is sorted by first name, last name, then id.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/money-transfers/{id}": {
+      "delete": {
+        "operationId": "DeleteMoneyTransfer",
+        "parameters": [
+          {
+            "description": "The transfer.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The version text the Manager last saw; required.",
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a wrong transfer, Managers only (D-23, D-35). The transfer stays stored with who deleted it and when, and stops counting\ntoward both balances at once. The `version` query parameter is the transfer's version as the Manager last saw it. A Manager\nmay delete any transfer, one they sent or received included, and the delete is allowed even when it leaves the recipient below\nzero (D-33). There is no way to edit or restore a transfer. The Manager and the time are written to the audit log; the note text\nis not.",
+        "tags": [
+          "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/money-transfers/{id}/permanent": {
+      "delete": {
+        "operationId": "RemoveMoneyTransfer",
+        "parameters": [
+          {
+            "description": "The deleted transfer.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Removes a deleted transfer for good, Managers only (D-24, D-25). Only a transfer that was deleted first can go; a live one is\nrefused with 422 \"Delete the transfer first.\" Removing changes no balance, because a deleted transfer already counts for\nnothing. The full record (the people, the amount, the date, whether there was a note, who recorded it, who deleted it and when) is\nwritten to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.",
+        "tags": [
+          "MoneyTransfers"
         ]
       }
     },
@@ -12565,6 +14077,341 @@
         ]
       }
     },
+    "/api/v1/staff-money": {
+      "get": {
+        "operationId": "ListStaffBalances",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffBalancesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists what every staff member holds, Managers only. Every active Admin and Manager comes first by name, a person a Manager has\nlocked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or\ndeleted Admins and Managers whose balance is not 0.00, by name. Each entry has the person, name, role, status\n(`active`, `deactivated` or `deleted`), balance and `isYou`. `total` is the sum of the listed balances\nand may be below zero. The legacy placeholder and accounts with no staff role never appear. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/staff-money/me": {
+      "get": {
+        "operationId": "GetMyMoney",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffMoneyResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Reads the signed-in person's own money on hand: payments they received plus transfers to them, minus transfers from them,\nexpenses they paid and refunds they handed back. The figure can be below zero. The person is the token's user; the route takes\nno id and no balance is ever accepted from a client. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/staff-money/me/ledger": {
+      "get": {
+        "operationId": "GetMyLedger",
+        "parameters": [
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "True to show deleted transfers too; Managers only.",
+            "in": "query",
+            "name": "deleted",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerPageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Reads one page of the signed-in person's own money rows, newest first by date and then by the time recorded. Each row has its\nkind, date, money in or money out (the other is null), the details its kind names, and `balanceAfter`: the running balance\nafter that row, worked out on the server. The newest row's balance after equals the money on hand. A Manager may add\n`deleted=true` to see deleted transfers in their own ledger; they carry no balance after. The route takes no id. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/staff-money/{userId}": {
+      "get": {
+        "operationId": "GetStaffMoney",
+        "parameters": [
+          {
+            "description": "The person asked about.",
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffMoneyResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one named person's money on hand: name, role, status (`active`, `deactivated` or `deleted`), balance and the\nbusiness today. An Admin may ask only for their own id, which answers like `me`; any other id is a 403 decided from the\ntoken alone, before any lookup, so a real coworker and a made-up id look the same. A Manager may ask for any Admin or Manager,\nformer staff included; an unknown id, the legacy placeholder or an account with no staff role is a 404. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/staff-money/{userId}/ledger": {
+      "get": {
+        "operationId": "GetStaffLedger",
+        "parameters": [
+          {
+            "description": "The person asked about.",
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "True to show deleted transfers too; Managers only.",
+            "in": "query",
+            "name": "deleted",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerPageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one page of one named person's money rows, shaped like `me/ledger` and under the same access rule as the person's\nfigure: an Admin may name only themselves and gets a 403 for any other id before any lookup; a Manager may name any Admin or\nManager, former staff included, and gets a 404 for anyone else. Only a Manager may add `deleted=true` to see deleted\ntransfers. Nothing is cached.",
+        "tags": [
+          "StaffMoney"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "operationId": "ListUsers",
@@ -12752,6 +14599,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "summary": "Adds a staff member (USER-02). By invitation the account has no password and a 7-day link is emailed; with a temporary\npassword the Manager hands it over and the person must replace it at first sign-in. The answer holds the new id only.",
@@ -13702,10 +15559,16 @@
       "name": "CompanyExpenses"
     },
     {
+      "name": "Dashboard"
+    },
+    {
       "name": "ExpenseCategories"
     },
     {
       "name": "Invite"
+    },
+    {
+      "name": "MoneyTransfers"
     },
     {
       "name": "OrderDiscounts"
@@ -13757,6 +15620,9 @@
     },
     {
       "name": "Staff"
+    },
+    {
+      "name": "StaffMoney"
     },
     {
       "name": "Users"

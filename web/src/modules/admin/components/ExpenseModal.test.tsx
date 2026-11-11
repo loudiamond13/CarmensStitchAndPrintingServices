@@ -4,6 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { delay } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
+import { dashboardKey } from '@/modules/admin/hooks/useDashboardSummaryQuery';
+import { expensesKey } from '@/modules/admin/hooks/useExpensesQuery';
+import { staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
   categoriesBackend,
@@ -338,6 +341,46 @@ describe('E2 server answers', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(description()).toHaveValue('Thread and needles');
     expect(saveButton()).toHaveFocus();
+  });
+
+  it('reads the expenses, the staff money and the dashboard again after a failure that may have saved', async () => {
+    backends();
+    createExpenseBackend(() => problem(500));
+    const keys = [expensesKey, staffMoneyKey, dashboardKey];
+    keys.forEach((key) => {
+      queryClient.setQueryData(key, { held: true });
+    });
+    const user = userEvent.setup();
+    renderModal();
+    await ready();
+    await fillValid(user);
+
+    await user.click(saveButton());
+
+    await screen.findByRole('alert');
+    keys.forEach((key) => {
+      expect(queryClient.getQueryState(key)?.isInvalidated, JSON.stringify(key)).toBe(true);
+    });
+  });
+
+  it('reads nothing again after a refusal that saved nothing (404 on add)', async () => {
+    backends();
+    createExpenseBackend(() => problem(404, { code: 'company-expenses.not-found' }));
+    const keys = [expensesKey, staffMoneyKey, dashboardKey];
+    keys.forEach((key) => {
+      queryClient.setQueryData(key, { held: true });
+    });
+    const user = userEvent.setup();
+    renderModal();
+    await ready();
+    await fillValid(user);
+
+    await user.click(saveButton());
+
+    await screen.findByRole('alert');
+    keys.forEach((key) => {
+      expect(queryClient.getQueryState(key)?.isInvalidated, JSON.stringify(key)).toBe(false);
+    });
   });
 
   it('shows the mapped alert line for a 404 on add, keeps Save enabled and the typed values (no deleted banner)', async () => {

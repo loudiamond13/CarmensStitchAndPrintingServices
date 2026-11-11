@@ -394,17 +394,17 @@ public sealed class ListOrdersEndpointTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task NewestSortIsLatestOrderDateFirst()
+    public async Task NewestSortIsLatestCreatedFirstWhateverTheOrderDate()
     {
         await using var rig = await Rig.StartAsync(database);
         var today = rig.Today;
-        await rig.NewOrderAsync("Middle", orderDate: today.AddDays(-5));
-        await rig.NewOrderAsync("Oldest", orderDate: today.AddDays(-9));
-        await rig.NewOrderAsync("Newest", orderDate: today);
+        await rig.NewOrderAsync("Recorded First", orderDate: today);
+        await rig.NewOrderAsync("Recorded Second", orderDate: today.AddDays(-9));
+        await rig.NewOrderAsync("Recorded Third", orderDate: today.AddDays(-5));
 
         var page = await rig.ReadAsync("sort=newest");
 
-        Names(page).ShouldBe(["Newest", "Middle", "Oldest"]);
+        Names(page).ShouldBe(["Recorded Third", "Recorded Second", "Recorded First"]);
     }
 
     [Fact]

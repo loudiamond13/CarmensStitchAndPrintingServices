@@ -574,6 +574,47 @@ describe('evaluateBudgets: the showcase in production (D-33, D-41 Q3)', () => {
     ]);
   });
 
+  // D-117: the showcase may load some of its cases on demand (the Phase 10 cases, review fix IN-01).
+  const LAZY_CASES_CHUNK = 'assets/Phase10Demos-S3.js';
+  const LAZY_CASES_MODULE = 'src/modules/admin/components/showcase/Phase10Demos.tsx';
+
+  /** The showcase graph plus a lazy cases chunk, loaded on demand by the chunk named `loader`. */
+  function withLazyCases(loader: string): BudgetGraph {
+    const graph = showcaseGraph();
+    return {
+      ...graph,
+      chunks: [
+        ...graph.chunks.map((c) => (c.fileName === loader ? { ...c, dynamicImports: [LAZY_CASES_CHUNK] } : c)),
+        chunk(LAZY_CASES_CHUNK, 15_000, {
+          isDynamicEntry: true,
+          facadeModuleId: LAZY_CASES_MODULE,
+          imports: [SHARED, SHOWCASE_CHUNK],
+          moduleIds: [LAZY_CASES_MODULE],
+        }),
+      ],
+    };
+  }
+
+  it('passes when a showcase chunk loads more showcase cases on demand, and they do not count toward admin JS (D-117)', () => {
+    const report = evaluateBudgets(withLazyCases(KIT_CHUNK), production);
+    expect(report.errors).toEqual([]);
+    expect(report.ok).toBe(true);
+    expect(report.adminJs).toBe(162_000);
+  });
+
+  it('fails when only a chunk outside the showcase loads the showcase cases on demand (D-117)', () => {
+    const report = evaluateBudgets(withLazyCases(USERS_CHUNK), production);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([
+      expect.stringMatching(
+        /Phase10Demos-S3\.js contains the showcase-only module .*Phase10Demos\.tsx, but the showcase page does not load it/,
+      ),
+      expect.stringMatching(
+        /Phase10Demos-S3\.js imports assets\/ComponentShowcasePage-S1\.js, which holds showcase-only modules/,
+      ),
+    ]);
+  });
+
   it('fails when the build holds showcase modules but no showcase page chunk', () => {
     const graph = showcaseGraph();
     const chunks = graph.chunks.filter((c) => c.fileName !== SHOWCASE_CHUNK);

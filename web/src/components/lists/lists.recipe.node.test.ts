@@ -99,6 +99,21 @@ describe('lists recipe (App. C toolbar and responsive table)', () => {
     expectInOrder('contain-paint', 'pg-phone:contain-none');
   });
 
+  it('draws the embedded frame for a card: no border, only the bottom corners round, the same containment (plan 10-09)', () => {
+    expect(recipeTokensOf('tableWrapEmbeddedClasses')).toEqual(
+      [
+        'overflow-x-auto',
+        'rounded-b-md',
+        'border-0',
+        'bg-surface',
+        'contain-paint',
+        'pg-phone:overflow-visible',
+        'pg-phone:bg-transparent',
+        'pg-phone:contain-none',
+      ].sort(),
+    );
+  });
+
   it('drops a parent row rule when open or last through the row data-edge, and keeps the detail card continuous on phones (D-27)', () => {
     expect(css).toContain(classSelector('group-data-[edge=true]/row:border-b-0'));
     expect(recipeTokensOf('detailRowClasses')).toEqual(

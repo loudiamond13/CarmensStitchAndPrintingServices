@@ -21,11 +21,21 @@ export interface LoadingRegionProps {
   children?: ReactNode;
   /** Layout glue only, on the busy region. */
   className?: string | undefined;
+  /** The id of the status node, so a control can name the spoken loading line as its description. */
+  statusId?: string | undefined;
 }
 
 type Phase = 'idle' | 'loading' | 'loaded' | 'failed';
 
-export function LoadingRegion({ loading, things, failed = false, announce, children, className }: LoadingRegionProps) {
+export function LoadingRegion({
+  loading,
+  things,
+  failed = false,
+  announce,
+  children,
+  className,
+  statusId,
+}: LoadingRegionProps) {
   const [phase, setPhase] = useState<Phase>(loading ? 'loading' : 'idle');
   const [wasLoading, setWasLoading] = useState(loading);
   // Track the loading edges during render, so the announcement changes in the same render as aria-busy.
@@ -44,7 +54,7 @@ export function LoadingRegion({ loading, things, failed = false, announce, child
       <div className={className} aria-busy={loading || undefined}>
         {children}
       </div>
-      <div role="status" aria-live="polite" className={srOnlyClasses}>
+      <div id={statusId} role="status" aria-live="polite" className={srOnlyClasses}>
         {message}
       </div>
     </>

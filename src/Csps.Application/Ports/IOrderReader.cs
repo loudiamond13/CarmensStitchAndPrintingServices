@@ -39,6 +39,16 @@ public interface IOrderReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rows of the page, the total count and the two list-wide counts.</returns>
     Task<OrderListPage> ListAsync(OrderListQuery query, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the newest created orders of any status in the list row shape, newest first, ties by id descending, in one SQL command
+    /// (DASH-05, D-38). Deleted orders are never read. This is not the active list: the status is not filtered. The sort is the same as
+    /// the list's newest sort, when the order was created and then the id (D-111).
+    /// </summary>
+    /// <param name="count">How many orders to read, from 1.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>Up to <paramref name="count"/> rows.</returns>
+    Task<IReadOnlyList<OrderListRow>> ListNewestAsync(int count, CancellationToken cancellationToken);
 }
 
 /// <summary>Which orders the status part of the list keeps.</summary>
@@ -60,7 +70,7 @@ public enum OrderListSort
     /// <summary>Due date, soonest first; orders with no due date last (the default).</summary>
     Due = 0,
 
-    /// <summary>Newest order date first, then newest recorded.</summary>
+    /// <summary>Newest created first, then id descending; the same order as the dashboard's Recent orders (D-111).</summary>
     Newest = 1,
 
     /// <summary>Largest balance first.</summary>

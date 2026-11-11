@@ -10,6 +10,7 @@
 // count of exactly 0. A text value is shown as given and never dimmed. App. D.3 has no zero state.
 import clsx from 'clsx';
 import { formatPeso, round2 } from '@/utils/csps';
+import { formatCount } from '@/utils/format';
 import { Icon, type IconName } from '@/components/brand';
 import { Skeleton } from '@/components/feedback';
 import { EmptyValue } from '@/components/states';
@@ -64,19 +65,16 @@ export function KpiCard({
   const footText = deltaLabel !== undefined && deltaLabel !== '' ? deltaLabel : hint;
   const hasFoot = delta !== undefined || (hint !== undefined && hint !== '');
   const zero = typeof value === 'number' && (money ? round2(value) === 0 : value === 0);
-  const figure = money && typeof value === 'number' ? formatPeso(value) : value;
+  const figure = typeof value !== 'number' ? value : money ? formatPeso(value) : formatCount(value);
+  const long = !empty && money && typeof figure === 'string' && figure.length >= LONG_FIGURE;
   const valueClasses =
-    typeof value === 'string' && !empty
-      ? kpiTextValueClasses
-      : !empty && money && typeof figure === 'string' && figure.length >= LONG_FIGURE
-        ? kpiLongValueClasses
-        : kpiValueClasses;
+    typeof value === 'string' && !empty ? kpiTextValueClasses : long ? kpiLongValueClasses : kpiValueClasses;
   return (
     <div className={kpiClasses} aria-busy={loading || undefined}>
       <div className={kpiHeadClasses}>
         <span className={overlineClasses}>{label}</span>
         {icon !== undefined && (
-          <span className={kpiIconClasses}>
+          <span className={kpiIconClasses} data-kpi-icon="">
             <Icon name={icon} size={18} />
           </span>
         )}
@@ -84,7 +82,10 @@ export function KpiCard({
       {loading ? (
         <Skeleton width="70%" height={36} />
       ) : (
-        <div className={clsx(valueClasses, (zero || empty) && kpiZeroValueClasses)}>
+        <div
+          className={clsx(valueClasses, (zero || empty) && kpiZeroValueClasses)}
+          data-kpi-value={long ? 'long' : 'normal'}
+        >
           {empty ? <EmptyValue /> : figure}
         </div>
       )}

@@ -99,8 +99,7 @@ test('@orders-list a Manager opens Orders and sees a seeded order as a card with
   });
   await signInAs(page, request, manager);
 
-  // The e2e bundle's dev routes keep /admin as the Dashboard preview, so the D-61 redirect is proved in routes.test.tsx and the
-  // page is opened directly. The list answer of this visit is what the page draws.
+  // /admin is the dashboard now (DASH-01), so the page is opened directly. The list answer of this visit is what the page draws.
   const first = await openList(page, '/admin/orders');
   await expect(page).toHaveURL(/\/admin\/orders$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Orders' })).toBeVisible();

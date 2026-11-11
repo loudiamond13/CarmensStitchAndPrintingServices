@@ -127,10 +127,11 @@ export const modalBodyClasses = tw('flex flex-1 flex-col gap-5 overflow-y-auto p
 
 /**
  * `.csp-modal-foot`: the buttons on the right, 12px apart, a `--line` rule above; below 640px (App. B) and in the
- * region on phone pages (App. C) the buttons share the width.
+ * region on phone pages (App. C) the buttons share the width. They wrap onto a second row when they do not fit.
+ * SPEC-DEVIATION: D-107 (App. B `.csp-modal-foot` does not wrap).
  */
 export const modalFootClasses = tw(
-  'flex justify-end gap-3 border-t border-line px-6 py-4 pg-phone:in-data-[ui=s-overlay]:*:flex-1 vp-lt-sm:*:flex-1',
+  'flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4 pg-phone:in-data-[ui=s-overlay]:*:flex-1 vp-lt-sm:*:flex-1',
 );
 
 /** `.csp-confirm`: the danger icon tile beside the text column. */

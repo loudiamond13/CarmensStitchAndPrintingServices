@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-05T19:20:00-06:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-10T00:45:00-06:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -200,6 +200,16 @@ Both routes follow the rule above: Debug builds only, Testing environment only, 
 ### WebKit and late module preloads
 
 WebKit writes a console warning ("... was preloaded using link preload but not used within a few seconds from the window's load event") when a route's lazy chunk is fetched, through a Vite `modulepreload` link, more than about 3 seconds after the page loaded. The chunk is used, but WebKit does not count a module-map hit as a use. Typing a password and a code takes that long, so the guard in `fixtures.ts` ignores exactly this warning for the app's own `/assets/*.js` chunks. Nothing else is ignored.
+
+### WebKit and cancelled API requests
+
+When a page navigates away while one of its requests is still in flight, WebKit can report the cancelled request as a page error. WebKit's own text is `Fetch API cannot load <url> due to access control checks.`, and Playwright hands the guard this message without the start: `/localhost:5199/api/v1/dashboard/chart?months=6 due to access control checks.` The app did nothing wrong, so the guard in `fixtures.ts` ignores it, with these limits (D-111):
+
+- only in WebKit (the `webkit` and `iphone` projects), never in Chromium or Firefox;
+- only this exact sentence, the whole message and nothing before or after it;
+- only when the host is the app's own host and the path starts with `/api/`.
+
+Every other page error is still a finding: another engine, other wording (including the long form with the `Fetch API cannot load` start), another path, another host. The fixture self-tests (`@fixture`) prove each of these cases in all three engines. The sign-in helper in `web/e2e/auth.ts` no longer waits for the dashboard summary on its own account, so a spec can leave the dashboard at once.
 
 ## 9. Reports
 

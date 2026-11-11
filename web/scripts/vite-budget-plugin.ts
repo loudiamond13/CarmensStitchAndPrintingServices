@@ -77,6 +77,7 @@ export function toBudgetGraph(bundle: Rollup.OutputBundle, root: string): Budget
         isDynamicEntry: output.isDynamicEntry,
         facadeModuleId: output.facadeModuleId === null ? null : relativeId(output.facadeModuleId, root),
         imports: output.imports,
+        dynamicImports: output.dynamicImports,
         // Only modules that ship code of their own: Rolldown also lists modules tree-shaken to nothing (renderedLength 0),
         // such as src/modules/admin/routes.tsx behind the production build's literal-false __DEV_ROUTES__, and modules
         // cut down to the CommonJS bindings of their imports, such as AdminPreviewPage behind the showcase previews.

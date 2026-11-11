@@ -1,6 +1,8 @@
+using Csps.Application.Common;
 using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
+using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +68,23 @@ public sealed class OrderImageSchemaTests(CspsDatabase database) : IClassFixture
         var refused = await Should.ThrowAsync<DbUpdateException>(() => InsertImageAsync(orderId, slot: 2, position: 1));
 
         Detail(refused).ShouldContain("IX_OrderImages_OrderId_Slot");
+        (await CountAsync(orderId)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ASaveThatLosesTheSlotToAnotherUploadIsALostRaceSoTheCallerReadsTheOrderAgain()
+    {
+        var orderId = await InsertOrderAsync();
+        await using var context = database.CreateContext();
+        var order = await context.Orders.Include(row => row.Images).SingleAsync(row => row.Id == orderId, TestContext.Current.CancellationToken);
+        order.AddImage(new NewOrderImage("csps-test/orders/" + Guid.NewGuid().ToString("N"), 640, 480, 1000, "jpg", null), Now).IsSuccess.ShouldBeTrue();
+
+        // Another upload takes the same free slot first; the order's own row is untouched, so only the slot index refuses this save.
+        await InsertImageAsync(orderId, slot: 0, position: 0);
+        var lost = await Should.ThrowAsync<ConcurrencyConflictException>(() => new CspsUnitOfWork(context).SaveChangesAsync(TestContext.Current.CancellationToken));
+
+        lost.OuterTransactionEnded.ShouldBeFalse();
+        Detail(lost.InnerException.ShouldBeOfType<DbUpdateException>()).ShouldContain("IX_OrderImages_OrderId_Slot");
         (await CountAsync(orderId)).ShouldBe(1);
     }
 

@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -20,12 +21,21 @@ public static class OpenApiRegistration
 
         if (environment.IsDevelopment())
         {
-            services.AddOpenApi(options => options.AddOperationTransformer(
-                (operation, context, _) =>
-                {
-                    MarkFileFormsAsMultipart(operation, context.Description.ParameterDescriptions.Any(parameter => parameter.Type == typeof(IFormFile)));
-                    return Task.CompletedTask;
-                }));
+            services.AddOpenApi(options =>
+            {
+                options.AddOperationTransformer(
+                    (operation, context, _) =>
+                    {
+                        MarkFileFormsAsMultipart(operation, context.Description.ParameterDescriptions.Any(parameter => parameter.Type == typeof(IFormFile)));
+                        return Task.CompletedTask;
+                    });
+                options.AddOperationTransformer(
+                    (operation, _, _) =>
+                    {
+                        RestrictChartMonths(operation);
+                        return Task.CompletedTask;
+                    });
+            });
         }
 
         return services;
@@ -40,6 +50,16 @@ public static class OpenApiRegistration
         if (hasFile && operation.RequestBody?.Content is { } content && content.Remove(UrlEncoded, out var media))
         {
             content[Multipart] = media;
+        }
+    }
+
+    // The chart window is 6 or 12 and the query is read as text so a bad value is a plain 400, so the document lists the two values.
+    private static void RestrictChartMonths(OpenApiOperation operation)
+    {
+        if (operation.OperationId == "GetDashboardChart"
+            && operation.Parameters?.FirstOrDefault(parameter => parameter.Name == "months")?.Schema is OpenApiSchema schema)
+        {
+            schema.Enum = [JsonValue.Create("6"), JsonValue.Create("12")];
         }
     }
 

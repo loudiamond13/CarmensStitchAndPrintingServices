@@ -43,7 +43,7 @@ import {
 
 // SPEC-DEVIATION: OQ-2 (contract default) 'audit' joins the sections for the Manager-only Audit Log item (USER-08); OQ-3 'settings' joins
 // them for the Manager-only Settings item (D-14).
-export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'users' | 'audit' | 'settings' | 'profile';
+export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'money' | 'users' | 'audit' | 'settings' | 'profile';
 
 /** One admin section: its id, label, 20px icon, path, and whether only a manager sees it. */
 export interface AdminNavItem {
@@ -87,6 +87,18 @@ export const SETTINGS_NAV_ITEM: AdminNavItem = {
   manager: true,
 };
 
+/**
+ * SPEC-DEVIATION: D-39, D-40 the My Money item (plan 10-13): both roles, after Company Expenses, in the sidebar and the phone drawer and
+ * not in the tab bar. Like the Audit Log it is not in ADMIN_NAV (App. D.3's five items stay as they are); the Sidebar adds it with
+ * `withMoney`.
+ */
+export const MONEY_NAV_ITEM: AdminNavItem = {
+  id: 'money',
+  label: 'My Money',
+  icon: 'wallet',
+  to: '/admin/money',
+};
+
 export interface SidebarProps {
   /**
    * The current section (`aria-current="page"`); Dashboard when not given. SPEC-DEVIATION (A11Y-01, plan 02-34): null
@@ -105,6 +117,8 @@ export interface SidebarProps {
   user?: { name: string } | undefined;
   /** Adds the Audit Log and Settings items after Users (a manager still needs the role to see them). The real admin shell sets it. */
   withAuditLog?: boolean | undefined;
+  /** Adds the My Money item after Company Expenses, for both roles. The real admin shell sets it. */
+  withMoney?: boolean | undefined;
 }
 
 export function Sidebar({
@@ -116,15 +130,22 @@ export function Sidebar({
   onLogout,
   user,
   withAuditLog = false,
+  withMoney = false,
 }: SidebarProps) {
   const [collapsedState, setCollapsedState] = useState(defaultCollapsed);
   const collapsed = collapsedProp ?? collapsedState;
   const layout = collapsed ? 'collapsed' : 'expanded';
   const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
   const idBase = useId();
-  const items = withAuditLog
-    ? ADMIN_NAV.flatMap((item) => (item.id === 'users' ? [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM] : [item]))
-    : ADMIN_NAV;
+  // SPEC-DEVIATION: D-39, D-40 My Money follows Company Expenses; the Audit Log and Settings follow Users.
+  const items =
+    withAuditLog || withMoney
+      ? ADMIN_NAV.flatMap((item) => {
+          if (withMoney && item.id === 'expenses') return [item, MONEY_NAV_ITEM];
+          if (withAuditLog && item.id === 'users') return [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM];
+          return [item];
+        })
+      : ADMIN_NAV;
   return (
     <aside className={clsx(sidebarClasses, sidebarWidthClasses[layout])}>
       <div className={clsx(sidebarTopClasses, sidebarTopLayoutClasses[layout])}>

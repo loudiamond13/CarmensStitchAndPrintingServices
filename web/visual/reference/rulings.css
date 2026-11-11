@@ -541,3 +541,9 @@ button.csp-nav {
     bottom: 10%;
   }
 }
+
+/* D-107 (owner, 2026-11-09) the window footer buttons wrap onto a second row when they do not fit, so Cancel never leaves the
+   screen at 320px. */
+.csp-modal-foot {
+  flex-wrap: wrap;
+}

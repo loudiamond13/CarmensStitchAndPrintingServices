@@ -1,6 +1,6 @@
 // Component Showcase E2E (D-22, WEB-06, A11Y-01; plan 02-34): /dev/components on the real host (the e2e bundle has the
 // dev-only routes) in all five projects, in Blush and in Espresso (switched with the shell's own toggle, D-13). Each
-// run checks one h1, the fourteen sections, no "Missing component" alert, a page-level axe pass over every case, and the
+// run checks one h1, the fifteen sections, no "Missing component" alert, a page-level axe pass over every case, and the
 // guard (no console, page, CSP or failed-response findings). Then: nothing in the showcase widens the page at 320px
 // (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, a picked image previews under
 // the strict CSP (UI-CR-01: a `data:` URL, never a blocked `blob:` one), and an open Delete Order dialog is axe-clean
@@ -12,6 +12,7 @@
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { createStaff } from './testing-api.ts';
 
 const SECTIONS = [
@@ -29,6 +30,7 @@ const SECTIONS = [
   'Expenses and settings',
   'Orders',
   'Order photos',
+  'Dashboard and staff money',
 ];
 
 /**
@@ -213,6 +215,10 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const manager = await createStaff(request, 'Manager');
   await signInAs(page, request, manager);
+  // Sign-in lands on the dashboard; its own reads finish first, so none is counted against the showcase page.
+  await expect(page.getByRole('status').filter({ hasText: 'The shop figures loaded.' })).toBeAttached();
+  await expect(page.getByRole('status').filter({ hasText: 'The chart loaded.' })).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Your money on hand' })).toContainText(/₱[\d,]+\.\d{2}/);
 
   const calls: string[] = [];
   page.on('request', (call) => {
@@ -230,7 +236,7 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   await expect(page.locator('main > div').first().getByText('Demo data', { exact: true })).toBeVisible();
   await expect(page.locator('main > div').nth(1)).toHaveText(DEMO_BANNER);
   await expect(page.locator('main > section').first()).toBeVisible();
-  await expect(page.locator('main > section > div > h2')).toHaveCount(14);
+  await expect(page.locator('main > section > div > h2')).toHaveCount(15);
   await expect(page.getByText(/^Missing component/)).toHaveCount(0);
   // No sidebar item claims the page, and the sidebar has no link to it.
   await expect(page.locator('[data-ui="s-admin-side"] [aria-current="page"]')).toHaveCount(0);
@@ -331,3 +337,88 @@ test('@showcase the Staff and audit demos open and close for a Manager, show a s
 
   expect([...new Set(calls)]).toEqual(['/api/v1/auth/refresh']);
 });
+
+// Plan 10-21: the Dashboard and staff money cases load on request, make no API call, fit 320, 390 and 1440 px in both themes, and every
+// window and dialog opens axe-clean. Axe checks the Phase 10 section only (and the open dialog inside it), not the whole 250-case page.
+const DASHBOARD_WINDOWS = [
+  ['Open Transfer Money', 'Transfer Money'],
+  ['Open Hand Over Money', 'Hand Over Money'],
+  ['Open Delete (warning)', 'Delete this transfer?'],
+  ['Open Delete Transfer', 'Delete this transfer?'],
+  ['Open Remove Permanently', 'Permanently remove this transfer?'],
+] as const;
+
+/** Marks the Phase 10 section for the axe checks, which scan it and not the whole page. */
+const AXE_SECTION = '[data-axe-scope]';
+
+const DASHBOARD_WIDTHS = [
+  { width: 320, height: 568 },
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+] as const;
+
+// One test for each theme and width, so each stays inside the usual time budget (the whole page is about 250 cases).
+for (const { name, theme } of THEMES) {
+  for (const { width, height } of DASHBOARD_WIDTHS) {
+    test(`@showcase @dashboard-showcase the Dashboard and staff money cases show on request in ${name}, fit ${String(width)} px, make no API call, and open every window clean`, async ({
+      page,
+    }) => {
+      const calls: string[] = [];
+      page.on('request', (request) => {
+        const { pathname } = new URL(request.url());
+        if (pathname.startsWith('/api/')) calls.push(pathname);
+      });
+      if (theme === 'dark') {
+        await page.addInitScript({ content: `try { localStorage.setItem('csps-theme', 'dark'); } catch {}` });
+      }
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width, height });
+      const response = await page.goto('/dev/components');
+      expect(response?.status()).toBe(200);
+      await expect(page.locator('h1')).toHaveText('Component Showcase');
+      await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
+      await expect(page.locator('[data-case="dashboard-d1-demo"]')).toHaveCount(0);
+      // Whatever the page itself asks for while it loads is not the demos' doing: the count starts when they are asked for.
+      calls.length = 0;
+
+      await page.getByRole('button', { name: 'Show the Dashboard cases' }).click();
+
+      const section = page.getByRole('region', { name: 'Dashboard and staff money' });
+      await expect(section.locator('[data-case="dashboard-d1-demo"]')).toBeVisible({ timeout: 30_000 });
+      await expect(section.locator('[data-case]')).toHaveCount(20);
+      await page.evaluate(`(() => {
+        const heading = Array.from(document.querySelectorAll('h2')).find((h2) => h2.textContent === 'Dashboard and staff money');
+        heading?.closest('section')?.setAttribute('data-axe-scope', '');
+      })()`);
+      await page.evaluate('document.fonts.ready.then(() => true)');
+      expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL), `no sideways scroll at ${String(width)} px`).toBe(true);
+      await expectNoAxeViolations(page, AXE_SECTION);
+      for (const [trigger, title] of DASHBOARD_WINDOWS) {
+        await section.getByRole('button', { name: trigger, exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: title });
+        await expect(dialog).toBeVisible();
+        expect(
+          await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL),
+          `${trigger}: no sideways scroll at ${String(width)} px`,
+        ).toBe(true);
+        await expectNoAxeViolations(page, `${AXE_SECTION} [role="dialog"]`);
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeHidden();
+      }
+
+      // A press on the strip's Transfer opens nothing, and a made-up save in the Transfer demo closes it without a request (wave 11 WR-03).
+      await section
+        .locator('[data-case="dashboard-d1-demo"]')
+        .getByRole('button', { name: 'Transfer', exact: true })
+        .click();
+      await expect(section.getByRole('dialog')).toHaveCount(0);
+      await section.getByRole('button', { name: 'Open Transfer Money', exact: true }).click();
+      const transfer = page.getByRole('dialog', { name: 'Transfer Money' });
+      await transfer.getByLabel(/^To/).selectOption({ label: 'Paolo Garcia' });
+      await transfer.getByLabel(/^Amount/).fill('100');
+      await transfer.getByRole('button', { name: 'Record Transfer' }).click();
+      await expect(transfer).toBeHidden();
+      expect([...new Set(calls)], 'the demos call no API').toEqual([]);
+    });
+  }
+}

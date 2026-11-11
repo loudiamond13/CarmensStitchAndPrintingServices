@@ -1112,6 +1112,7 @@ describe('a photo change that is refused (D-11, D-15, UIC-16, UIC-19)', () => {
   });
 
   it('shows the danger toast with the plain-English line for any other failure, and keeps the photos as they were', async () => {
+    useOrderHandlers({ detail: namedPhotos(['Front', 'Back', 'Sleeve']) });
     vi.spyOn(orderPhotosService, 'move').mockRejectedValue(new HttpError({ kind: 'network' }));
     renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
     await screen.findByRole('list', { name: 'Order photos' });
@@ -1382,6 +1383,7 @@ describe('deleting a photo (D-15, D-11, UIC-18, UIC-36, UIC-41)', () => {
 
   it('keeps the dialog open with a role=alert line and no Saved on a server failure', async () => {
     const remove = vi.spyOn(orderPhotosService, 'remove').mockRejectedValue(new HttpError({ kind: 'network' }));
+    useOrderHandlers({ detail: namedPhotos(['Front', 'Back', 'Sleeve']) });
     renderCard(namedPhotos(['Front', 'Back', 'Sleeve']));
     await screen.findByRole('list', { name: 'Order photos' });
     const user = userEvent.setup();

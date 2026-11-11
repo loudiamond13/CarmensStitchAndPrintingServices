@@ -407,6 +407,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the money-over-time chart: one entry for every month of the window, oldest first, the current business month last. Each
+         *     month has `income` (payments minus refunds, so it can be below zero), `expenses` (company plus order expenses) and
+         *     `profit` (income minus expenses). A month with no money is listed with 0.00. Money on Cancelled orders counts; money on
+         *     deleted orders and deleted company expenses does not. Both roles get the same answer. Nothing is cached.
+         */
+        get: operations["GetDashboardChart"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the dashboard summary: the business today (`today`), the part of the day for the greeting (`greeting`:
+         *     `morning`, `afternoon` or `evening`), the signed-in person's first name (`firstName`), the order figures
+         *     (`orders`: active, due this week, overdue and receivables), the money collected this month with last month's comparison
+         *     and the change in percent (`collected`), this month's company expenses with their count and top category
+         *     (`expenses`), the six statuses of the orders-by-status bar (`statuses`) and the six newest orders
+         *     (`recentOrders`). Every figure uses the same business date and instant. Both roles get the same figures; only the first
+         *     name and the greeting can differ. Nothing is cached, so every visit shows live numbers.
+         */
+        get: operations["GetDashboardSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-categories": {
         parameters: {
             query?: never;
@@ -499,6 +546,128 @@ export interface paths {
          */
         post: operations["RetireExpenseCategory"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/money-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists staff money transfers newest first: by transfer date, then the time recorded, then id. A Manager sees every transfer; an
+         *     Admin sees only the transfers they sent or received. Each entry has the sender, the recipient, the amount, the date, the note,
+         *     who recorded it, whether it is a hand-over, its version, and never a balance. Deleted transfers are shown only to a Manager who
+         *     adds `deleted=true`, each marked `isDeleted` with who deleted it and when; an Admin who adds it gets a 403.
+         */
+        get: operations["ListMoneyTransfers"];
+        put?: never;
+        /**
+         * Records a transfer from the signed-in person to a coworker. The sender is always the token's user; the body has no sender and any
+         *     such member is ignored. The amount is at least 0.01 with at most two decimal places and no more than the sender holds. The date is
+         *     any day up to today in the business zone. The recipient must be an active Admin or Manager, or former staff who are owed money,
+         *     and a transfer into former staff cannot go above what brings them to 0.00. The answer carries the sender's new balance and never
+         *     the recipient's. Who recorded it and when come from the token and the clock; any such member in the body is ignored. A retry
+         *     with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.
+         */
+        post: operations["CreateMoneyTransfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/money-transfers/handovers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a hand-over, Managers only: money held by a deactivated or deleted Admin or Manager moves to a current coworker. The body
+         *     names the former staff member (`fromUserId`) and the coworker (`toUserId`). The amount is at least 0.01 with at most two
+         *     decimal places and no more than the former staff member holds. The coworker must be an active Admin or Manager, a Manager-locked
+         *     or not-yet-set-up person included. The answer carries the former staff member's new balance and never the coworker's. The
+         *     signed-in Manager is recorded as who did it and is written to the audit log; any `createdById` or `isHandover` in the
+         *     body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and records nothing more.
+         */
+        post: operations["CreateMoneyHandover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/money-transfers/recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists who the transfer window may offer, for either role. Every active Admin and Manager comes first, a person a Manager has
+         *     locked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or
+         *     deleted Admins and Managers who are owed money, with status `deactivated` or `deleted`. An entry has an id, a name, a
+         *     status and `isYou` and never a figure, for any caller. The legacy placeholder and accounts with no staff role never appear.
+         *     Each group is sorted by first name, last name, then id.
+         */
+        get: operations["ListTransferRecipients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/money-transfers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a wrong transfer, Managers only (D-23, D-35). The transfer stays stored with who deleted it and when, and stops counting
+         *     toward both balances at once. The `version` query parameter is the transfer's version as the Manager last saw it. A Manager
+         *     may delete any transfer, one they sent or received included, and the delete is allowed even when it leaves the recipient below
+         *     zero (D-33). There is no way to edit or restore a transfer. The Manager and the time are written to the audit log; the note text
+         *     is not.
+         */
+        delete: operations["DeleteMoneyTransfer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/money-transfers/{id}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Removes a deleted transfer for good, Managers only (D-24, D-25). Only a transfer that was deleted first can go; a live one is
+         *     refused with 422 "Delete the transfer first." Removing changes no balance, because a deleted transfer already counts for
+         *     nothing. The full record (the people, the amount, the date, whether there was a note, who recorded it, who deleted it and when) is
+         *     written to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.
+         */
+        delete: operations["RemoveMoneyTransfer"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1560,6 +1729,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff-money": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists what every staff member holds, Managers only. Every active Admin and Manager comes first by name, a person a Manager has
+         *     locked or who has not finished set-up included, with the signed-in person marked `isYou`. Then come the deactivated or
+         *     deleted Admins and Managers whose balance is not 0.00, by name. Each entry has the person, name, role, status
+         *     (`active`, `deactivated` or `deleted`), balance and `isYou`. `total` is the sum of the listed balances
+         *     and may be below zero. The legacy placeholder and accounts with no staff role never appear. Nothing is cached.
+         */
+        get: operations["ListStaffBalances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-money/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the signed-in person's own money on hand: payments they received plus transfers to them, minus transfers from them,
+         *     expenses they paid and refunds they handed back. The figure can be below zero. The person is the token's user; the route takes
+         *     no id and no balance is ever accepted from a client. Nothing is cached.
+         */
+        get: operations["GetMyMoney"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-money/me/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one page of the signed-in person's own money rows, newest first by date and then by the time recorded. Each row has its
+         *     kind, date, money in or money out (the other is null), the details its kind names, and `balanceAfter`: the running balance
+         *     after that row, worked out on the server. The newest row's balance after equals the money on hand. A Manager may add
+         *     `deleted=true` to see deleted transfers in their own ledger; they carry no balance after. The route takes no id. Nothing is cached.
+         */
+        get: operations["GetMyLedger"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-money/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one named person's money on hand: name, role, status (`active`, `deactivated` or `deleted`), balance and the
+         *     business today. An Admin may ask only for their own id, which answers like `me`; any other id is a 403 decided from the
+         *     token alone, before any lookup, so a real coworker and a made-up id look the same. A Manager may ask for any Admin or Manager,
+         *     former staff included; an unknown id, the legacy placeholder or an account with no staff role is a 404. Nothing is cached.
+         */
+        get: operations["GetStaffMoney"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-money/{userId}/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one page of one named person's money rows, shaped like `me/ledger` and under the same access rule as the person's
+         *     figure: an Admin may name only themselves and gets a 403 for any other id before any lookup; a Manager may name any Admin or
+         *     Manager, former staff included, and gets a 404 for anyone else. Only a Manager may add `deleted=true` to see deleted
+         *     transfers. Nothing is cached.
+         */
+        get: operations["GetStaffLedger"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -1943,7 +2222,7 @@ export interface components {
             /**
              * @description One of `amount`, `date`, `category`, `name`, `tone`, the order fields `status`, `orderDate`,
              *     `dueDate`, `quantity`, `unitPrice`, `kind`, `value`, `productType`, `method`, `receiver`,
-             *     `payer` and `refunder`, or the name of a text field that changed: `description`, `notes`, `reference`,
+             *     `payer`, `refunder`, `from` and `to`, or the name of a text field that changed: `description`, `notes`, `reference`,
              *     `sizeVariant`, `reason`, `customerName`, `teamName`, `contactNumber`, `email` or `address`.
              */
             field: string;
@@ -2238,6 +2517,53 @@ export interface components {
             tone: null | string;
         };
         /**
+         * @description The Hand Over form (D-17): a Manager moves money held by a former staff member to a current coworker. The sender is the former
+         *     staff member named in the form, because the signed-in Manager only records the hand-over. Any other member in the body, such as
+         *     `createdById` or `isHandover`, is ignored: who recorded it and when come from the token and the clock (SEC-08).
+         */
+        CreateMoneyHandoverRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /**
+             * Format: uuid
+             * @description The former staff member who holds the money.
+             */
+            fromUserId: null | string;
+            /** @description Optional note. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The current coworker who gets the money.
+             */
+            toUserId: null | string;
+            /** @description The day the money changed hands, `yyyy-MM-dd`. */
+            transferDate: null | string;
+        };
+        /**
+         * @description The Transfer Money form (MONEY-04). The sender is always the signed-in user, so the form has no sender. Any other member in
+         *     the body, such as a forged sender or `createdById`, is ignored: who recorded the transfer and when come from the token and
+         *     the clock (SEC-08).
+         */
+        CreateMoneyTransferRequest: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: null | number | string;
+            /** @description Optional note. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The coworker who gets the money.
+             */
+            toUserId: null | string;
+            /** @description The day the money changed hands, `yyyy-MM-dd`. */
+            transferDate: null | string;
+        };
+        /**
          * @description The New Order form (ORD-03). Any other member in the body, such as a forged `createdById`, `number` or `totals`, is
          *     ignored: who recorded the order, its number and its money figures come from the token, the clock and the server (SEC-08, ORD-20).
          */
@@ -2294,6 +2620,129 @@ export interface components {
              * @description The new account id.
              */
             id: string;
+        };
+        /** @description One month of the dashboard chart. Every figure is worked out on the server. */
+        DashboardChartMonth: {
+            /**
+             * Format: double
+             * @description Company expenses plus order expenses, each placed by its own expense date; deleted ones never count (D-10, D-11).
+             */
+            expenses: number | string;
+            /**
+             * Format: double
+             * @description Payments dated in the month minus refunds dated in it, on orders that are not deleted; Cancelled orders count; may be below zero (D-09, D-11).
+             */
+            income: number | string;
+            /** @description The business month as `yyyy-MM`. */
+            month: string;
+            /**
+             * Format: double
+             * @description Income minus Expenses (D-36).
+             */
+            profit: number | string;
+        };
+        /** @description The money-over-time chart of the dashboard (DASH-03). */
+        DashboardChartResponse: {
+            /** @description Exactly Months entries, oldest first, the current business month last. A month with no money is still listed, with zeros. */
+            items: components["schemas"]["DashboardChartMonth"][];
+            /**
+             * Format: int32
+             * @description How many months the window holds: 6 or 12.
+             */
+            months: number | string;
+        };
+        /** @description The money collected this month and the comparison. */
+        DashboardCollectedFigures: {
+            /**
+             * Format: int32
+             * @description The whole-number change against the absolute value of the comparison, rounded away from zero; null when the comparison is 0.00.
+             */
+            changePercent: null | number | string;
+            /**
+             * Format: double
+             * @description The same figure for the first of last month through the same day number last month.
+             */
+            comparison: number | string;
+            /**
+             * Format: date
+             * @description The last day of the comparison.
+             */
+            comparisonThrough: string;
+            /**
+             * Format: double
+             * @description Payments dated in this business month minus refunds dated in it; Cancelled orders included, deleted orders excluded; may be below zero.
+             */
+            thisMonth: number | string;
+        };
+        /** @description The company expense figures of the dashboard card. */
+        DashboardExpenseFigures: {
+            /**
+             * Format: int32
+             * @description How many company expenses this month holds.
+             */
+            count: number | string;
+            /**
+             * Format: double
+             * @description The sum of this month's company expenses.
+             */
+            thisMonth: number | string;
+            /** @description The name of the category with the most money this month, ties to the alphabetically first name; null with no expenses. */
+            topCategory: null | string;
+        };
+        /** @description The order figures of the dashboard cards. */
+        DashboardOrderFigures: {
+            /**
+             * Format: int32
+             * @description Orders in Pending, Mockup, In Production, Ready or Delivered; deleted orders never count.
+             */
+            active: number | string;
+            /**
+             * Format: int32
+             * @description Active orders due Monday to Sunday of the business week that are not overdue; an order with no due date counts in neither this nor Overdue.
+             */
+            dueThisWeek: number | string;
+            /**
+             * Format: int32
+             * @description Pending, Mockup, In Production and Ready orders due before the business today.
+             */
+            overdue: number | string;
+            /**
+             * Format: double
+             * @description The sum over all active orders, overdue ones included, of the balance when it is above zero, else zero.
+             */
+            receivables: number | string;
+        };
+        /** @description One status of the orders-by-status bar. */
+        DashboardStatusCount: {
+            /**
+             * Format: int32
+             * @description Pending to Delivered: orders now in the status. Completed: orders moved to Completed in this business month.
+             */
+            count: number | string;
+            /** @description The status key: `pending`, `mockup`, `production`, `ready`, `delivered` or `completed`. */
+            status: string;
+        };
+        /** @description Everything the dashboard shows except the chart (DASH-01). Both roles get the same figures; only the name and greeting part can differ. */
+        DashboardSummaryResponse: {
+            /** @description The money collected this month. */
+            collected: components["schemas"]["DashboardCollectedFigures"];
+            /** @description The company expenses this month. */
+            expenses: components["schemas"]["DashboardExpenseFigures"];
+            /** @description The signed-in person's first name. */
+            firstName: string;
+            /** @description The part of the business day: `morning`, `afternoon` or `evening`. */
+            greeting: string;
+            /** @description The order figures. */
+            orders: components["schemas"]["DashboardOrderFigures"];
+            /** @description The 6 newest created orders of any status that are not deleted, newest first, in the order list entry shape. */
+            recentOrders: components["schemas"]["OrderListEntry"][];
+            /** @description Exactly six entries in this order: pending, mockup, production, ready, delivered, completed. Cancelled is never listed. */
+            statuses: components["schemas"]["DashboardStatusCount"][];
+            /**
+             * Format: date
+             * @description The business today, so the browser never reads the device clock for it.
+             */
+            today: string;
         };
         /** @description One deleted expense in the deleted list. It carries no notes (D-19). */
         DeletedExpenseListItem: {
@@ -2566,6 +3015,176 @@ export interface components {
         InviteTokenRequest: {
             /** @description The 43-character token. */
             token: null | string;
+        };
+        /**
+         * @description One ledger row. A row has either money in or money out, never both. Only the details its kind names are filled; the rest are null.
+         *     A deleted transfer shows its face amount and no balance after it, because it counts toward no balance.
+         */
+        LedgerEntryResponse: {
+            /**
+             * Format: double
+             * @description The person's balance after this row, like a bank statement; null for a deleted transfer.
+             */
+            balanceAfter: null | number | string;
+            /** @description The category of a company or order expense. */
+            category: null | string;
+            counterpart: null | components["schemas"]["ActorRef"];
+            /** @description That order's customer name. */
+            customer: null | string;
+            /**
+             * Format: date
+             * @description The day the money moved.
+             */
+            date: string;
+            /**
+             * Format: date-time
+             * @description When a transfer was deleted.
+             */
+            deletedAtUtc: null | string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description What a company or order expense was for. */
+            description: null | string;
+            /** @description True for a deleted transfer. */
+            isDeleted: boolean;
+            /** @description True for a transfer a Manager recorded for a former staff member. */
+            isHandover: boolean;
+            /** @description One of `payment-received`, `refund-handed-back`, `transfer-in`, `transfer-out`, `company-expense`, `order-expense`. */
+            kind: string;
+            /**
+             * Format: double
+             * @description The amount in pesos for money in; null for money out.
+             */
+            moneyIn: null | number | string;
+            /**
+             * Format: double
+             * @description The amount in pesos for money out; null for money in.
+             */
+            moneyOut: null | number | string;
+            /** @description The note of a transfer. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The order behind a payment, refund or order expense.
+             */
+            orderId: null | string;
+            /** @description That order's number. */
+            orderNumber: null | string;
+            /** @description The payment method of a payment. */
+            paymentMethod: null | string;
+            /**
+             * Format: date-time
+             * @description When the row was recorded.
+             */
+            recordedAtUtc: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description That order's team or club name. */
+            team: null | string;
+            /**
+             * Format: uuid
+             * @description The id of a transfer row.
+             */
+            transferId: null | string;
+            /** @description The base64 row version of a transfer. */
+            version: null | string;
+        };
+        /** @description One page of a person's ledger, newest first, with their money on hand (MONEY-02, D-41). */
+        LedgerPageResponse: {
+            /**
+             * Format: double
+             * @description The person's money on hand now, worked out on the server.
+             */
+            balance: number | string;
+            /** @description True when deleted transfers are in the page (a Manager asked for them). */
+            includesDeleted: boolean;
+            /** @description The rows of this page. */
+            items: components["schemas"]["LedgerEntryResponse"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many rows the ledger has across all pages.
+             */
+            total: number | string;
+        };
+        /** @description One page of staff money transfers, newest first (MONEY-03, D-48). */
+        MoneyTransferListResponse: {
+            /** @description The transfers of this page. */
+            items: components["schemas"]["MoneyTransferResponse"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description How many transfers match across all pages.
+             */
+            total: number | string;
+        };
+        /** @description One staff money transfer with the people on it, who recorded it and its version (MONEY-04). It never carries a balance. */
+        MoneyTransferResponse: {
+            /**
+             * Format: double
+             * @description The amount in pesos.
+             */
+            amount: number | string;
+            /**
+             * Format: date-time
+             * @description When it was deleted; null while it counts.
+             */
+            deletedAtUtc: null | string;
+            deletedBy: null | components["schemas"]["ActorRef"];
+            /** @description The sender; for a hand-over, the former staff member. */
+            from: components["schemas"]["ActorRef"];
+            /**
+             * Format: uuid
+             * @description The transfer id.
+             */
+            id: string;
+            /** @description True once it is in the bin. */
+            isDeleted: boolean;
+            /** @description True when a Manager recorded it for a former staff member (D-17). */
+            isHandover: boolean;
+            /** @description The note; null when none. */
+            note: null | string;
+            /**
+             * Format: date-time
+             * @description When it was recorded.
+             */
+            recordedAtUtc: string;
+            recordedBy: null | components["schemas"]["ActorRef"];
+            /** @description The recipient. */
+            to: components["schemas"]["ActorRef"];
+            /**
+             * Format: date
+             * @description The day the money changed hands.
+             */
+            transferDate: string;
+            /** @description The base64 of the eight-byte row version a later change must send back. */
+            version: string;
+        };
+        /** @description A saved transfer and the sender's new money on hand. The recipient's balance is never in the answer (OD-19, D-49). */
+        MoneyTransferSavedResponse: {
+            /**
+             * Format: double
+             * @description The sender's money on hand after the transfer.
+             */
+            senderBalance: number | string;
+            /** @description The saved transfer. */
+            transfer: components["schemas"]["MoneyTransferResponse"];
         };
         /** @description One month of the KPI row. */
         MonthKpi: {
@@ -3441,6 +4060,37 @@ export interface components {
             /** @description The business time zone id. */
             timeZoneId: string;
         };
+        /** @description One person's row in the all-staff list. */
+        StaffBalanceRow: {
+            /**
+             * Format: double
+             * @description Their money on hand; below zero when they are owed money.
+             */
+            balance: number | string;
+            /** @description True for the signed-in person. */
+            isYou: boolean;
+            /** @description Their display name, first then last. */
+            name: string;
+            /** @description Their role, `Admin` or `Manager`. */
+            role: string;
+            /** @description One of `active`, `deactivated` or `deleted`. */
+            status: string;
+            /**
+             * Format: uuid
+             * @description The person.
+             */
+            userId: string;
+        };
+        /** @description Everyone's money on hand and what staff hold together, for a Manager (MONEY-03, D-42 to D-44). */
+        StaffBalancesResponse: {
+            /** @description The people: active Admins and Managers by name, then former staff whose balance is not 0.00 by name. */
+            items: components["schemas"]["StaffBalanceRow"][];
+            /**
+             * Format: double
+             * @description The sum of the listed balances; below zero when staff are owed more than they hold.
+             */
+            total: number | string;
+        };
         /** @description One person who can be named as the payer (CEXP-05): an id and a name, nothing else. */
         StaffMember: {
             /**
@@ -3450,6 +4100,30 @@ export interface components {
             id: string;
             /** @description The first and last name as saved, joined by one space. */
             name: string;
+        };
+        /** @description One person's money on hand, worked out on the server on every read (MONEY-01, MONEY-03). */
+        StaffMoneyResponse: {
+            /**
+             * Format: double
+             * @description Money received plus transfers in, minus transfers out, expenses paid and refunds handed back; below zero when they are owed money.
+             */
+            balance: number | string;
+            /** @description Their display name, first then last. */
+            name: string;
+            /** @description Their role, `Admin` or `Manager`. */
+            role: string;
+            /** @description One of `active`, `deactivated` or `deleted`. */
+            status: string;
+            /**
+             * Format: date
+             * @description The business today.
+             */
+            today: string;
+            /**
+             * Format: uuid
+             * @description The person.
+             */
+            userId: string;
         };
         /** @description The category with the highest total this month. */
         TopCategoryKpi: {
@@ -3465,6 +4139,23 @@ export interface components {
              * @description Its total this month.
              */
             total: number | string;
+        };
+        /**
+         * @description One person the transfer window may offer in its To list (D-19, D-49, D-56). It has a name and a status word only: nothing about
+         *     what the person holds or is owed, for any caller.
+         */
+        TransferRecipientResponse: {
+            /**
+             * Format: uuid
+             * @description The person's id.
+             */
+            id: string;
+            /** @description True for the signed-in person. */
+            isYou: boolean;
+            /** @description The first and last name. */
+            name: string;
+            /** @description One of `active`, `deactivated` or `deleted`. */
+            status: string;
         };
         /**
          * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
@@ -4970,6 +5661,76 @@ export interface operations {
             };
         };
     };
+    GetDashboardChart: {
+        parameters: {
+            query?: {
+                /** @description How many months to show: 6 or 12; 6 when not sent. Anything else is a 400 on `months`. */
+                months?: "6" | "12";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardChartResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetDashboardSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListExpenseCategories: {
         parameters: {
             query?: never;
@@ -5311,6 +6072,345 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The category id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListMoneyTransfers: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+                /** @description True to show deleted transfers too; Managers only. */
+                deleted?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyTransferListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateMoneyTransfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateMoneyTransferRequest"];
+                "application/json": null | components["schemas"]["CreateMoneyTransferRequest"];
+                "text/json": null | components["schemas"]["CreateMoneyTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyTransferSavedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateMoneyHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+                "application/json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+                "text/json": null | components["schemas"]["CreateMoneyHandoverRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyTransferSavedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTransferRecipients: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRecipientResponse"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteMoneyTransfer: {
+        parameters: {
+            query?: {
+                /** @description The version text the Manager last saw; required. */
+                version?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The transfer. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RemoveMoneyTransfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The deleted transfer. */
                 id: string;
             };
             cookie?: never;
@@ -9118,6 +10218,243 @@ export interface operations {
             };
         };
     };
+    ListStaffBalances: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBalancesResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMyMoney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMoneyResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMyLedger: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+                /** @description True to show deleted transfers too; Managers only. */
+                deleted?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerPageResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetStaffMoney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The person asked about. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMoneyResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetStaffLedger: {
+        parameters: {
+            query?: {
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+                /** @description True to show deleted transfers too; Managers only. */
+                deleted?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description The person asked about. */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerPageResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListUsers: {
         parameters: {
             query?: {
@@ -9221,6 +10558,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

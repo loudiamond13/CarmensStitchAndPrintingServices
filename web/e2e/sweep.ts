@@ -19,12 +19,10 @@ export interface PageCase {
   readonly admin: boolean;
 }
 
-// /admin/expenses and the order pages are signed-in pages with no dev preview, so they are not in this list (the specs that use it
-// open pages without a session). The sweep of the first is expenses-sweep.spec.ts; the order pages are ORDER_PAGES below.
-const ADMIN_PAGES = [
-  { path: '/admin', h1: 'Dashboard' },
-  { path: '/dev/components', h1: 'Component Showcase' },
-] as const;
+// /admin (the dashboard), /admin/expenses and the order pages are signed-in pages with no dev preview, so they are not in this list
+// (the specs that use it open pages without a session). The sweep of the first is plan 10-21; of the second expenses-sweep.spec.ts;
+// the order pages are ORDER_PAGES below.
+const ADMIN_PAGES = [{ path: '/dev/components', h1: 'Component Showcase' }] as const;
 
 const THEMES: readonly Theme[] = ['light', 'dark'];
 
@@ -51,7 +49,8 @@ export async function openPage(page: Page, pageCase: PageCase): Promise<void> {
   }
   const response = await page.goto(pageCase.path);
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText(pageCase.h1);
+  // The showcase draws about 250 cases in one commit, which a loaded phone engine takes longer than the 5 s default to show.
+  await expect(page.locator('h1')).toHaveText(pageCase.h1, isShowcase(pageCase) ? { timeout: 30_000 } : {});
   await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', pageCase.theme);
   await page.evaluate('document.fonts.ready.then(() => true)');
   await settle(page);

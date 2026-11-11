@@ -289,6 +289,54 @@ describe('A1 the rows', () => {
     expect(screen.getByText('Showing', { exact: false })).toHaveTextContent('Showing 1 entry · newest first');
   });
 
+  it('shows no empty state, count or pager while a page past the last is replaced by the last page (WR-03)', async () => {
+    const updates: string[] = [];
+    backend(ITEMS, async (url) => {
+      const page = Number(url.searchParams.get('page'));
+      if (page === 2) await delay(600);
+      return { items: page === 2 ? ITEMS : [], total: 15, page, pageSize: 10 };
+    });
+    renderPage('?page=3&size=10', (event) => {
+      updates.push(`${event.options.history}:${event.queryString}`);
+    });
+
+    await waitFor(() => {
+      expect(updates.some((item) => item.startsWith('replace:') && item.includes('page=2'))).toBe(true);
+    });
+    expect(screen.queryByText('No audit entries yet')).toBeNull();
+    expect(screen.queryByText(/^Showing/)).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
+    expect(await screen.findByRole('table', { name: 'Audit log' }, { timeout: 3000 })).toBeVisible();
+    expect(screen.queryByText('No audit entries yet')).toBeNull();
+  });
+
+  it('keeps Rows per page when the chosen size fits every row, and the smaller sizes can be chosen again (WR-03)', async () => {
+    const user = userEvent.setup();
+    const { calls } = backend(ITEMS, (url) => ({
+      items: ITEMS,
+      total: 38,
+      page: 1,
+      pageSize: Number(url.searchParams.get('pageSize')),
+    }));
+    await openPage('?size=50');
+
+    const select = screen.getByRole('combobox', { name: 'Rows per page' });
+    expect(select).toHaveValue('50');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    await user.selectOptions(select, '10');
+
+    await waitFor(() => {
+      expect(calls.at(-1)?.searchParams.get('pageSize')).toBe('10');
+    });
+  });
+
+  it('draws no Rows per page for a list no longer than the smallest size (WR-03)', async () => {
+    backend();
+    await openPage('?size=50');
+
+    expect(screen.queryByRole('combobox', { name: 'Rows per page' })).toBeNull();
+  });
+
   it('shows no chip for the default range', async () => {
     backend();
     await openPage();
@@ -1058,6 +1106,7 @@ const GROUP_NAMES = [
   'Expense categories',
   'Orders',
   'Order lists',
+  'Staff money',
 ];
 
 function optionTexts(select: HTMLElement): (string | null)[] {
@@ -1065,7 +1114,7 @@ function optionTexts(select: HTMLElement): (string | null)[] {
 }
 
 describe('A1 the Group select (D-80)', () => {
-  it('sits before Action, lists All groups then the seven groups, and starts at All groups', async () => {
+  it('sits before Action, lists All groups then the eight groups, and starts at All groups', async () => {
     backend();
     await openPage();
 

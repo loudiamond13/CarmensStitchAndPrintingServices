@@ -19,6 +19,7 @@ import {
   tableRowClasses,
   tableSectionClasses,
   tableWrapClasses,
+  tableWrapEmbeddedClasses,
 } from './lists.recipe';
 import { headSide, kindOf, type ResponsiveTableColumn } from './columns';
 
@@ -32,19 +33,28 @@ export interface SkeletonTableProps {
   columns: readonly SkeletonTableColumn[];
   /** No 680px floor on tablets (as on ResponsiveTable). */
   fitTablet?: boolean | undefined;
+  /** How many skeleton rows: 4 by default (spec 8.5); a card that lists a fixed count shows that many. */
+  rows?: number | undefined;
+  /** The frame sits in a card that draws the border (as on ResponsiveTable). */
+  embedded?: boolean | undefined;
 }
 
-/** The four skeleton rows (spec §8.5). */
-const SKELETON_ROWS = [0, 1, 2, 3] as const;
+/** The skeleton rows when none are asked for (spec §8.5). */
+const DEFAULT_ROWS = 4;
 
 function barWidth(column: SkeletonTableColumn): number | string {
   if (column.actions === true) return 72;
   return column.money === true ? '60%' : '80%';
 }
 
-export function SkeletonTable({ columns, fitTablet = false }: SkeletonTableProps) {
+export function SkeletonTable({
+  columns,
+  fitTablet = false,
+  rows = DEFAULT_ROWS,
+  embedded = false,
+}: SkeletonTableProps) {
   return (
-    <div className={tableWrapClasses} aria-hidden="true">
+    <div className={embedded ? tableWrapEmbeddedClasses : tableWrapClasses} aria-hidden="true">
       <table className={fitTablet ? tableFitTabletClasses : tableClasses}>
         <thead className={tableHeadClasses}>
           <tr>
@@ -56,7 +66,7 @@ export function SkeletonTable({ columns, fitTablet = false }: SkeletonTableProps
           </tr>
         </thead>
         <tbody className={tableSectionClasses}>
-          {SKELETON_ROWS.map((index) => (
+          {Array.from({ length: rows }, (_, index) => (
             <tr key={index} className={tableRowClasses.active}>
               {columns.map((column) => (
                 <td

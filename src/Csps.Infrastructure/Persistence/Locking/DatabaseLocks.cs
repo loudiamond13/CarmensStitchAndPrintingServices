@@ -16,6 +16,9 @@ internal static class DatabaseLocks
     /// <summary>The lock that serializes every order number allocation (ORD-14, D-23).</summary>
     public const string OrderNumbers = "order-numbers";
 
+    /// <summary>The lock that serializes every staff money transfer and hand-over (MONEY-05, D-53).</summary>
+    public const string StaffMoney = "staff-money";
+
     /// <summary>How many fixed per-person lock rows exist.</summary>
     public const int AccountStripeCount = 64;
 
@@ -24,11 +27,12 @@ internal static class DatabaseLocks
 
     private const string AccountPrefix = "account-token:";
 
-    /// <summary>Gets every standing lock name: the roster lock, the order number lock, then the 64 account locks in order.</summary>
+    /// <summary>Gets every standing lock name: the roster lock, the order number lock, the staff money lock, then the 64 account locks in order.</summary>
     public static IReadOnlyList<string> StandingNames { get; } =
     [
         ActiveManagers,
         OrderNumbers,
+        StaffMoney,
         .. Enumerable.Range(0, AccountStripeCount).Select(index => AccountPrefix + index.ToString("D2", CultureInfo.InvariantCulture)),
     ];
 
@@ -48,9 +52,11 @@ internal static class DatabaseLocks
     /// <param name="name">The standing lock name.</param>
     /// <param name="now">The current UTC time.</param>
     /// <param name="wait">The longest to wait for the lock, more than zero; rounded up to whole seconds.</param>
-    /// <param name="failureMessage">The message of the error when the lock is not had in time or the wait deadlocks.</param>
+    /// <param name="failureMessage">The message of the <see cref="DatabaseLockTimeoutException"/> thrown when the lock is not had in time or the wait deadlocks.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes once the lock is held.</returns>
+    /// <exception cref="DatabaseLockTimeoutException">The lock was not had in time, or the wait deadlocked.</exception>
+    /// <exception cref="DatabaseLockMissingException">The standing lock row does not exist.</exception>
     public static async Task TakeAsync(
         CspsDbContext context, string name, DateTimeOffset now, TimeSpan wait, string failureMessage, CancellationToken cancellationToken)
     {
@@ -79,12 +85,12 @@ internal static class DatabaseLocks
                 .ConfigureAwait(false);
             if (changed != 1)
             {
-                throw new InvalidOperationException(failureMessage);
+                throw new DatabaseLockMissingException(name);
             }
         }
         catch (Exception error) when (SqlErrors.Has(error, SqlErrors.Timeout, SqlErrors.DeadlockVictim))
         {
-            throw new InvalidOperationException(failureMessage, error);
+            throw new DatabaseLockTimeoutException(failureMessage, error);
         }
         finally
         {

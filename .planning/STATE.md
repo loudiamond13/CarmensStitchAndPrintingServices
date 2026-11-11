@@ -1,21 +1,20 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 09
-current_phase_name: Order Images & Maintenance Jobs
-status: executing
-stopped_at: All 32 Phase 9 plans done (09-31 and 09-32 deferred, D-51); next is phase verification
-last_updated: "2026-11-06T00:55:00.000Z"
-last_activity: 2026-11-05
-last_activity_desc: "Backups skipped for now (D-51): 09-31 and 09-32 deferred, the disk backup probe removed; Phase 9 ready for verification"
-state_head: 2fb3f8ae
+current_phase: 10
+current_phase_name: Admin Dashboard
+status: "Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word"
+stopped_at: Phase 10 UI-SPEC approved
+last_updated: "2026-11-10T15:43:39.722Z"
+last_activity: 2026-11-10
+state_head: 3ccebab6a17e3a83737caa24955344c4b3a8570b
 progress:
   total_phases: 18
   completed_phases: 8
-  total_plans: 280
-  completed_plans: 272
+  total_plans: 302
+  completed_plans: 302
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-05T18:55:00-06:00"
+updated: "2026-11-10T15:10:00-06:00"
 ---
 
 # Project State
@@ -25,14 +24,14 @@ updated: "2026-11-05T18:55:00-06:00"
 See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 09 — Order Images & Maintenance Jobs
+**Current focus:** Phase 10 — Admin Dashboard
 
 ## Current Position
 
-Phase: 09 (Order Images & Maintenance Jobs) — EXECUTING
-Plan: 32 of 32
-Status: All plans done; ready for phase verification
-Last activity: 2026-11-05: database backups skipped for now by owner ruling (D-51); 09-31 and 09-32 deferred and the disk backup probe removed (75d575e6)
+Phase: 10 (Admin Dashboard) — EXECUTING
+Plan: 1 of 21
+Status: Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word
+Last activity: 2026-11-10
 
 Progress: [████░░░░░░] 44%
 
@@ -905,6 +904,21 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 09]: 09-09: fail-next takes a count from 0 to 50 and answers 204; the rules endpoint names types jpeg, png, webp, heic
 - [Phase 09]: D-103 (owner, 2026-11-03): wave 5 is marked complete although `ExpenseListTimingTests` (300 ms p95) failed in the post-merge gate and again alone; it is the known machine timing issue already in the backlog (09-01 timing tests), wave 5 changed no expense code, and the test stays open there
 - [Phase 09]: D-49 (owner, 2026-11-03, 09-CONTEXT): the host probe may ask the SQL server one read-only question, its default backup folder (`POST /probe/backup-folder`), the second named exception to the no-inline-SQL rule next to the D-40 backup statement
+- [Phase 10]: Wave 1 post-merge gate: build 0 warnings; web typecheck and lint clean; web 8080 tests passed; .NET 7172 of 7175 passed (2 skipped), 1 failed: ExpenseListTimingTests five-years last page p95 311 ms vs 300 ms, failed again alone. Known machine timing issue (D-76, D-103, backlog 09-01 timing tests); wave 1 changed no expense code.
+- [Phase 10]: D-104 (owner, 2026-11-06): chart labels prop takes separate legend and tooltip words (UI-SPEC D3); review WR-02
+- [Phase 10]: D-105 (owner, 2026-11-06): plan 10-14 runs the four ledger reads in one serializable read transaction, no DB option change; review WR-04
+- [Phase 10]: D-106 (owner, 2026-11-06): fix chart WR-01 and WR-03 now, before 10-11; other wave 1 review items go to the phase-end review
+- [Phase 10]: Wave 2 (10-05) post-merge gate: build 0 warnings; dotnet format, typecheck, lint and OpenAPI check clean. Web 8086 of 8087 passed; third-party-notices --check test timed out at 120 s under load, passed alone 11 of 11. Full .NET run had 50 load failures (email transport, migration script, matrix HEAD /health, user create races); each project re-run alone: all 7227 pass (2 skipped). 10-05 executor also saw OrderImagesEndpointTests last-free-slot race return 500 once under load (passed alone): watch it. 10-05 followed D-05 over a contradicting Task 2 test note (Oct 31 payment in neither figure).
+- [Phase 10]: Wave 3 gate (10-06, 10-07): build, format, typecheck, lint and OpenAPI clean; .NET 7285 passed, 0 failed (per project); web 8118 passed, 0 failed; e2e 1609 passed, 24 failed under load, and all 24 passed when re-run alone (mostly /dev/components h1 not shown within 5 s on a cold WebKit/iPhone server). Recorded as load flakes, not fixed.
+- [Phase 10]: Wave 4 gate (10-08, 10-09, plus review fixes): build, format, typecheck, lint and OpenAPI clean; .NET 7338 with 1 real failure (IdempotencyGate purge test hard-coded 66 standing locks; fixed 9747445f to read DatabaseLocks.StandingNames); web 8223 passed; e2e 1604 passed, 34 failed. 6 are a real 320 px sideways scroll on the dashboard with large figures (Firefox, WebKit, iPhone), parked as P10-BL-06 and left failing on purpose. The other 28 passed when re-run alone or one worker at a time (WebKit/iPhone showcase load); recorded as load flakes.
+- [Phase 10]: Wave 5 (10-10, 10-11) closed 2026-11-07: build, format, types, lint, OpenAPI clean; .NET 7443 passed 0 failed; vitest 8298 passed; e2e 1604 passed, 33 failed then all 33 passed on one worker (load; the 6 P10-BL-06 checks pass only on small figures). Review fixes merged 3850b2a0.
+- [Phase 10]: Wave 6 (10-12, 10-13) closed 2026-11-07: build, format, types, lint, OpenAPI clean; .NET 7527 run, only ExpenseListTimingTests failed (3 times under load), then passed alone on a quiet machine; vitest 8418 passed; e2e 1699: 51 failed, 49 passed on one worker, the last 2 (P10-BL-06 on iPhone) passed alone on fresh data, and a probe found no element past 320 px, so the new money strip does not overflow. Review fixes merged 0d344799; IN-05 parked as P10-BL-09.
+- [Phase 10]: Wave 7 (10-14, 10-15) closed 2026-11-07: final gate clean (build, lint, types, 7584 .NET, 8499 web); browser 1577 passed, 65 load failures all passed on one worker (27.5m).
+- [Phase 10]: Wave 8 (10-16, 10-17) closed 2026-11-08: review 0 critical, 2 warnings, 8 info; 7 fixed, 1 parked (P10-BL-12), 2 deferred. Final gate clean (7672 .NET, 8589 web); browser 1606 passed, 41 load failures all passed on one worker.
+- [Phase 10]: Wave 9 (10-18, 10-19) closed 2026-11-08: final gate green (build, format, types, lint, OpenAPI, all .NET suites incl. timing test, Vitest 8716/0). Full e2e 1610 passed, 43 load failures all passed on one worker (16.7m, 42 passed, 1 skipped). Review fixes merged 661bf32d.
+- [Phase 10]: Wave 10 (10-20) closed 2026-11-08: final gate build, format, types, lint, OpenAPI clean; Vitest 8849/0; .NET all green except ExpenseListTimingTests (five years last page p95 378 ms alone; known machine issue D-88/D-103, no expense code changed). Full e2e 1596 passed, 63 failed under load; on one worker 60 passed, 2 skipped, 1 failed: a11y-rulings O-6 iPhone toast test, which also fails 1 of 3 on the pre-wave-10 commit 6b8322f1 (pre-existing flaky test, fix queued for phase end). Review fixes merged af9b2683; money e2e 20/20.
+- [Phase 10]: Wave 11 closed (2026-11-09): the 10-21 review fixes merged (a1761fd2) plus a scoped-axe self-test fix (7b328251). Full gate green apart from load: 20 Vitest and 81 e2e failures under TheBETSLLC load all passed when re-run (531/531 Vitest, 80/81 e2e, the last one was the self-test bug); both list timing tests passed alone. P10-BL-16 parked (footer buttons at 320 px).
+- [Phase 10]: Phase-end review fixed (merges dd854328, 22300b43, 81606503, 61a6f71d). Regression gate green: Vitest 9010/9010, all .NET but ExpenseListTimingTests (303.7 ms vs 300, known machine issue); all 88 e2e load failures passed on a quiet machine. Verifier: human_needed, no gaps (37f4deda). Sign-off parked as P10-BL-20; phase not marked complete.
 
 ### Pending Todos
 
@@ -1050,6 +1064,9 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 | 261028-2e4 | Fix 320px chip overflow, reset CSPS_E2E each e2e run (D-77), keep long names inside phone cards and dropdowns | 2026-10-28 | abe815b0 | [261028-2e4-fix-320px-filter-chip-overflow-and-webki](./quick/261028-2e4-fix-320px-filter-chip-overflow-and-webki/) |
 | 261029-87p | Fix Phase 7 UI review findings in the Audit Log (D-79 to D-82) | 2026-10-29 | 0f4c00c5 | [261029-87p-fix-phase-7-ui-review-findings-in-the-au](./quick/261029-87p-fix-phase-7-ui-review-findings-in-the-au/) |
 | 261031-3oo | Filter chip Clear button drawn 24 px (D-98, supersedes D-93) | 2026-10-31 | fd4ab2c2 | [261031-3oo-make-the-filter-chip-clear-button-24-px-](./quick/261031-3oo-make-the-filter-chip-clear-button-24-px-/) |
+| 261109-c4l | Fix the Phase 10 UI review findings UI-01 to UI-24 (D-107, D-108) | 2026-11-09 | 96a5981f | [261109-c4l-fix-the-phase-10-ui-review-findings-ui-0](./quick/261109-c4l-fix-the-phase-10-ui-review-findings-ui-0/) |
+| 261109-fmv | Fix P10-BL-21: header Transfer reason, tablet tables, focus-after-delete test (D-109, D-110) | 2026-11-09 | 77b4f562 | [261109-fmv-fix-p10-bl-21-header-transfer-reason-tab](./quick/261109-fmv-fix-p10-bl-21-header-transfer-reason-tab/) |
+| 261109-vj6 | Fix the D-111 rulings: P10-BL-02, 04, 05, 08, 13, 17 | 2026-11-10 | 647e2aa5 | [261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08](./quick/261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08/) |
 
 ## Deferred Items
 
@@ -1061,9 +1078,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T01:44:31-06:00
-Stopped at: Wave 8 merged and recorded (09-29).
-Resume file: None
+Last session: 2026-11-05T18:26:31.199Z
+Stopped at: Phase 10 UI-SPEC approved
+Resume file: .planning/phases/10-admin-dashboard/10-UI-SPEC.md
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 

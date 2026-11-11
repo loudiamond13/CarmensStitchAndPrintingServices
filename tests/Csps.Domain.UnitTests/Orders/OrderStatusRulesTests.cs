@@ -193,6 +193,39 @@ public sealed class OrderStatusRulesTests
         OrderStatusRules.IsLocked(status).ShouldBe(locked);
     }
 
+    [Theory]
+    [InlineData(OrderStatus.Pending, true)]
+    [InlineData(OrderStatus.Mockup, true)]
+    [InlineData(OrderStatus.InProduction, true)]
+    [InlineData(OrderStatus.Ready, true)]
+    [InlineData(OrderStatus.Delivered, false)]
+    [InlineData(OrderStatus.Completed, false)]
+    [InlineData(OrderStatus.Cancelled, false)]
+    public void OnlyTheFourOpenStatusesCanBeOverdue(OrderStatus status, bool expected) =>
+        OrderStatusRules.CanBeOverdue(status).ShouldBe(expected);
+
+    [Fact]
+    public void CanBeOverdueAgreesWithTheOverdueStatusesListForEveryStatus()
+    {
+        foreach (var status in Enum.GetValues<OrderStatus>())
+        {
+            OrderStatusRules.CanBeOverdue(status).ShouldBe(OrderStatusRules.OverdueStatuses.Contains(status), status.ToString());
+        }
+    }
+
+    [Fact]
+    public void OverdueStatusesListsTheFourInStoredOrder() =>
+        OrderStatusRules.OverdueStatuses.ShouldBe(
+            [OrderStatus.Pending, OrderStatus.Mockup, OrderStatus.InProduction, OrderStatus.Ready]);
+
+    [Fact]
+    public void DeliveredIsActiveButNeverOverdue()
+    {
+        OrderStatusRules.IsActive(OrderStatus.Delivered).ShouldBeTrue();
+        OrderStatusRules.CanBeOverdue(OrderStatus.Delivered).ShouldBeFalse();
+        OrderStatusRules.OverdueStatuses.ShouldNotContain(OrderStatus.Delivered);
+    }
+
     [Fact]
     public void ActiveStatusesListsTheFiveInStoredOrder() =>
         OrderStatusRules.ActiveStatuses.ShouldBe(

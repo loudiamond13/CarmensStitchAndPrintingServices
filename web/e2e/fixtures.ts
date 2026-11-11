@@ -11,7 +11,7 @@
 // finding that only a fixed or sticky bar causes is re-checked after the target is scrolled clear of the bar (D-71).
 import { AxeBuilder } from '@axe-core/playwright';
 import { test as base, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import type { CheckResult, NodeResult, Result } from 'axe-core';
 import { AXE_TAGS } from '../src/test/axeTags.ts';
 
@@ -74,6 +74,12 @@ const UNUSED_PRELOAD =
 // It is matched exactly: our own /assets/archivo-latin-wght-normal-*.woff2 and Firefox's wording, nothing else.
 const UNUSED_FONT_PRELOAD =
   /^\[JavaScript Warning: "The resource at “https?:\/\/[^\s/]+\/assets\/archivo-latin-wght-normal-[\w-]+\.woff2” preloaded with link preload was not used within a few seconds\. Make sure all attributes of the preload tag are set correctly\."/;
+// WebKit's page error for a fetch that was still in flight when the page navigated on (a spec that leaves the dashboard before its
+// answer arrives): the cancelled request rejects. Playwright hands the guard the message without its "Fetch API cannot load https:"
+// start, so it reads "/localhost:5199/api/v1/dashboard/summary due to access control checks." It is not a failure of the app. It is
+// matched exactly (the whole message, nothing before or after), and only counts for WebKit and for the app's own host with a path
+// under /api/ (checked in the listener); any other page error stays a finding (D-111).
+const CANCELLED_FETCH = /^\/([^\s/]+)(\/api\/\S*) due to access control checks\.$/;
 // How each engine names a cancelled request: Chromium net::ERR_ABORTED, Firefox NS_BINDING_ABORTED, WebKit cancelled.
 const CANCELLED = /ERR_ABORTED|NS_BINDING_ABORTED|cancel/i;
 
@@ -103,123 +109,161 @@ export function assertNoFindings(record: GuardRecord): void {
   }
 }
 
+/** A guard on one browser context, and the end-of-test check that throws when the guard recorded anything. */
+export interface ContextGuard {
+  readonly guard: Guard;
+  /** Delivers any binding call still on its way, then throws with every finding when the record is not empty. */
+  readonly finish: () => Promise<void>;
+}
+
+/**
+ * Guards every page of `context`, those open now and those opened later, with the same listeners and the same declared
+ * statuses as the fixture's guard (IN-05). The fixture uses it for the test's own context; a test that opens a second
+ * browser context (a second signed-in person) calls it on that context too. Call it before the context's first page
+ * loads anything, then call `finish()` when the test is done with the context.
+ */
+export async function guardContext(context: BrowserContext, baseURL: string | undefined): Promise<ContextGuard> {
+  const origin = new URL(baseURL ?? 'https://localhost:5199').origin;
+  const expected: { urlPart: string; status: number }[] = [];
+  const expectedFailures: string[] = [];
+  let consoleMessages: string[] = [];
+  let pageErrors: string[] = [];
+  let cspViolations: CspViolation[] = [];
+  let failedResponses: string[] = [];
+
+  const isDeclared = (url: string, status: number): boolean =>
+    URL.canParse(url) &&
+    new URL(url).origin === origin &&
+    expected.some((entry) => entry.status === status && url.includes(entry.urlPart));
+
+  const isSameOrigin = (url: string): boolean => URL.canParse(url) && new URL(url).origin === origin;
+  const isWebKit = context.browser()?.browserType().name() === 'webkit';
+  // WebKit's cancelled-request page error for one of the app's own /api/ requests (D-111); nothing else matches.
+  const isCancelledApiFetch = (message: string): boolean => {
+    const match = CANCELLED_FETCH.exec(message);
+    if (!isWebKit || match === null) {
+      return false;
+    }
+    const url = `${new URL(origin).protocol}//${match[1] ?? ''}${match[2] ?? ''}`;
+    return isSameOrigin(url) && new URL(url).pathname.startsWith('/api/');
+  };
+  const isDeclaredFailure = (url: string): boolean =>
+    isSameOrigin(url) && expectedFailures.some((urlPart) => url.includes(urlPart));
+
+  /** Attaches the console, page error, response and network-failure listeners to one page of the context. */
+  const watch = (target: Page): void => {
+    target.on('console', (message) => {
+      const type = message.type();
+      if (type !== 'error' && type !== 'warning') {
+        return;
+      }
+      const text = message.text();
+      const { url, lineNumber } = message.location();
+      // Chromium and WebKit also log every failed load as a console error located at the resource URL. A status or
+      // a network failure the test declared is not a finding there either.
+      const loadFailure = LOAD_FAILURE.exec(text);
+      if (loadFailure?.[1] !== undefined && isDeclared(url, Number(loadFailure[1]))) {
+        return;
+      }
+      if (loadFailure === null && NETWORK_FAILURE.test(text) && isDeclaredFailure(url)) {
+        return;
+      }
+      if (type === 'warning' && (UNUSED_PRELOAD.test(text) || UNUSED_FONT_PRELOAD.test(text))) {
+        return;
+      }
+      consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
+    });
+    target.on('pageerror', (error) => {
+      if (isCancelledApiFetch(error.message)) {
+        return;
+      }
+      pageErrors.push(error.message);
+    });
+    target.on('response', (response) => {
+      const status = response.status();
+      const url = response.url();
+      if (status < 400 || new URL(url).origin !== origin || isDeclared(url, status)) {
+        return;
+      }
+      failedResponses.push(`${String(status)} ${response.request().method()} ${url}`);
+    });
+    // TOOL-WR-14: a request with no response at all (reset, refused) never reaches the response listener.
+    target.on('requestfailed', (request) => {
+      const url = request.url();
+      const reason = request.failure()?.errorText ?? 'unknown';
+      if (!isSameOrigin(url) || CANCELLED.test(reason) || isDeclaredFailure(url)) {
+        return;
+      }
+      failedResponses.push(`failed ${request.method()} ${url} (${reason})`);
+    });
+  };
+  for (const open of context.pages()) {
+    watch(open);
+  }
+  context.on('page', watch);
+  // Context-wide, so every page of the test (popups, context.newPage()) reports its CSP violations too.
+  await context.exposeBinding(CSP_BINDING, (_source, violation: unknown) => {
+    cspViolations.push(
+      isCspViolation(violation) ? violation : { directive: 'unknown', blockedURI: JSON.stringify(violation) },
+    );
+  });
+  await context.addInitScript({ content: cspListener });
+
+  // A round trip to each open page delivers any binding call the page made before it, so a violation raised during
+  // the last load is recorded before the guard reads it. A closed page has nothing left to deliver.
+  const settle = async (): Promise<void> => {
+    for (const open of context.pages()) {
+      if (!open.isClosed()) {
+        await open.evaluate('0').catch(() => undefined);
+      }
+    }
+  };
+
+  const snapshot = (): GuardRecord => ({
+    console: [...consoleMessages],
+    pageErrors: [...pageErrors],
+    cspViolations: [...cspViolations],
+    failedResponses: [...failedResponses],
+  });
+
+  const guard: Guard = {
+    expectStatus: (urlPart, status) => {
+      expected.push({ urlPart, status });
+    },
+    expectFailure: (urlPart) => {
+      expectedFailures.push(urlPart);
+    },
+    peek: async () => {
+      await settle();
+      return snapshot();
+    },
+    take: async () => {
+      await settle();
+      const record = snapshot();
+      consoleMessages = [];
+      pageErrors = [];
+      cspViolations = [];
+      failedResponses = [];
+      return record;
+    },
+  };
+
+  return {
+    guard,
+    finish: async () => {
+      await settle();
+      assertNoFindings(snapshot());
+    },
+  };
+}
+
 export const test = base.extend<{ guard: Guard }>({
   guard: [
     // The callback is named `provide`, not `use`, so react-hooks/rules-of-hooks does not misfire (L-23).
     async ({ page, baseURL }, provide) => {
-      const context = page.context();
-      const origin = new URL(baseURL ?? 'https://localhost:5199').origin;
-      const expected: { urlPart: string; status: number }[] = [];
-      const expectedFailures: string[] = [];
-      let consoleMessages: string[] = [];
-      let pageErrors: string[] = [];
-      let cspViolations: CspViolation[] = [];
-      let failedResponses: string[] = [];
-
-      const isDeclared = (url: string, status: number): boolean =>
-        URL.canParse(url) &&
-        new URL(url).origin === origin &&
-        expected.some((entry) => entry.status === status && url.includes(entry.urlPart));
-
-      const isSameOrigin = (url: string): boolean => URL.canParse(url) && new URL(url).origin === origin;
-      const isDeclaredFailure = (url: string): boolean =>
-        isSameOrigin(url) && expectedFailures.some((urlPart) => url.includes(urlPart));
-
-      /** Attaches the console, page error, response and network-failure listeners to one page of the context. */
-      const watch = (target: Page): void => {
-        target.on('console', (message) => {
-          const type = message.type();
-          if (type !== 'error' && type !== 'warning') {
-            return;
-          }
-          const text = message.text();
-          const { url, lineNumber } = message.location();
-          // Chromium and WebKit also log every failed load as a console error located at the resource URL. A status or
-          // a network failure the test declared is not a finding there either.
-          const loadFailure = LOAD_FAILURE.exec(text);
-          if (loadFailure?.[1] !== undefined && isDeclared(url, Number(loadFailure[1]))) {
-            return;
-          }
-          if (loadFailure === null && NETWORK_FAILURE.test(text) && isDeclaredFailure(url)) {
-            return;
-          }
-          if (type === 'warning' && (UNUSED_PRELOAD.test(text) || UNUSED_FONT_PRELOAD.test(text))) {
-            return;
-          }
-          consoleMessages.push(`console.${type}: ${text}${url ? ` (${url}:${String(lineNumber)})` : ''}`);
-        });
-        target.on('pageerror', (error) => {
-          pageErrors.push(error.message);
-        });
-        target.on('response', (response) => {
-          const status = response.status();
-          const url = response.url();
-          if (status < 400 || new URL(url).origin !== origin || isDeclared(url, status)) {
-            return;
-          }
-          failedResponses.push(`${String(status)} ${response.request().method()} ${url}`);
-        });
-        // TOOL-WR-14: a request with no response at all (reset, refused) never reaches the response listener.
-        target.on('requestfailed', (request) => {
-          const url = request.url();
-          const reason = request.failure()?.errorText ?? 'unknown';
-          if (!isSameOrigin(url) || CANCELLED.test(reason) || isDeclaredFailure(url)) {
-            return;
-          }
-          failedResponses.push(`failed ${request.method()} ${url} (${reason})`);
-        });
-      };
-      watch(page);
-      context.on('page', watch);
-      // Context-wide, so every page of the test (popups, context.newPage()) reports its CSP violations too.
-      await context.exposeBinding(CSP_BINDING, (_source, violation: unknown) => {
-        cspViolations.push(
-          isCspViolation(violation) ? violation : { directive: 'unknown', blockedURI: JSON.stringify(violation) },
-        );
-      });
-      await context.addInitScript({ content: cspListener });
-
-      // A round trip to each open page delivers any binding call the page made before it, so a violation raised during
-      // the last load is recorded before the guard reads it. A closed page has nothing left to deliver.
-      const settle = async (): Promise<void> => {
-        for (const open of context.pages()) {
-          if (!open.isClosed()) {
-            await open.evaluate('0').catch(() => undefined);
-          }
-        }
-      };
-
-      const snapshot = (): GuardRecord => ({
-        console: [...consoleMessages],
-        pageErrors: [...pageErrors],
-        cspViolations: [...cspViolations],
-        failedResponses: [...failedResponses],
-      });
-
-      await provide({
-        expectStatus: (urlPart, status) => {
-          expected.push({ urlPart, status });
-        },
-        expectFailure: (urlPart) => {
-          expectedFailures.push(urlPart);
-        },
-        peek: async () => {
-          await settle();
-          return snapshot();
-        },
-        take: async () => {
-          await settle();
-          const record = snapshot();
-          consoleMessages = [];
-          pageErrors = [];
-          cspViolations = [];
-          failedResponses = [];
-          return record;
-        },
-      });
-
-      await settle();
-      assertNoFindings(snapshot());
+      const guarded = await guardContext(page.context(), baseURL);
+      await provide(guarded.guard);
+      await guarded.finish();
     },
     { auto: true },
   ],
@@ -388,15 +432,19 @@ async function withoutBarCoveredNodes(page: Page, violations: Result[]): Promise
  * sticky bar (the admin top bar, the phone tab bar, the public header), is scrolled to the middle of the window inside the
  * page's scroll padding, checked again for target-size alone, and the scroll is put back. It fails only if it is still
  * covered. Every other finding, and the message format, are unchanged.
+ *
+ * `scope` is a CSS selector: only that part of the page is checked. A page of hundreds of cases (the Component Showcase) takes
+ * minutes per whole-page pass, so a check that only cares about one section or one open dialog names it.
  */
-export async function expectNoAxeViolations(page: Page): Promise<void> {
+export async function expectNoAxeViolations(page: Page, scope?: string): Promise<void> {
   // Axe reads colors as painted, so a toast or dialog still fading in fails contrast. Finite animations finish first.
   await page.evaluate<boolean>(`(async () => {
     const running = document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
     await Promise.allSettled(running.map((animation) => animation.finished));
     return true;
   })()`);
-  const results = await pageAxe(page).analyze();
+  const builder = pageAxe(page);
+  const results = await (scope === undefined ? builder : builder.include(scope)).analyze();
   const lines = (await withoutBarCoveredNodes(page, results.violations))
     .map((violation) => ({
       id: violation.id,

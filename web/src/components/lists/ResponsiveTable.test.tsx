@@ -402,6 +402,13 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(screen.getByText(WALK_IN_CUSTOMER)).toBeInTheDocument();
   });
 
+  it('RowActions: keeps its own classes by default and adds the ones it is handed (D-110)', () => {
+    const { rerender } = render(<RowActions>x</RowActions>);
+    expect(screen.getByText('x').className).toBe('inline-flex justify-end gap-2');
+    rerender(<RowActions className="pg-tablet:flex-wrap">x</RowActions>);
+    expect(screen.getByText('x').className).toBe('inline-flex justify-end gap-2 pg-tablet:flex-wrap');
+  });
+
   it('RowAction: a named 36px icon button; the danger one hovers in the danger look', () => {
     const onClick = vi.fn();
     render(
@@ -545,6 +552,36 @@ describe('table fit on tablets (fitTablet)', () => {
   });
 });
 
+describe('a table inside a card and a taller first-load skeleton (plan 10-09)', () => {
+  const EMBEDDED_ONLY = ['border-0', 'rounded-b-md'];
+  const STANDARD_ONLY = ['border', 'border-line', 'rounded-md'];
+
+  it('keeps the bordered frame by default', () => {
+    render(table());
+    const frame = tokens(screen.getByRole('region', { name: 'Users' }).className);
+    for (const token of STANDARD_ONLY) expect(frame).toContain(token);
+    for (const token of EMBEDDED_ONLY) expect(frame).not.toContain(token);
+  });
+
+  it('draws no border and only the bottom corners round with embedded, so a card can hold it', () => {
+    render(table({ embedded: true }));
+    const frame = tokens(screen.getByRole('region', { name: 'Users' }).className);
+    for (const token of EMBEDDED_ONLY) expect(frame).toContain(token);
+    for (const token of STANDARD_ONLY) expect(frame).not.toContain(token);
+  });
+
+  it('draws the loading skeleton in the same embedded frame', () => {
+    const { container } = render(table({ rows: undefined, pending: true, embedded: true }));
+    const frame = tokens(container.querySelector('[aria-busy="true"] > [aria-hidden="true"]')?.className);
+    for (const token of EMBEDDED_ONLY) expect(frame).toContain(token);
+  });
+
+  it('shows the number of skeleton rows asked for on the first load', () => {
+    const { container } = render(table({ rows: undefined, pending: true, skeletonRows: 6 }));
+    expect(container.querySelectorAll('[aria-hidden="true"] tbody tr')).toHaveLength(6);
+  });
+});
+
 describe('SkeletonTable', () => {
   it('renders the column headers and 4 aria-hidden skeleton rows, every cell labelled', () => {
     const { container } = render(<SkeletonTable columns={COLUMNS} />);
@@ -565,6 +602,14 @@ describe('SkeletonTable', () => {
       'Paid',
       'Actions',
     ]);
+  });
+
+  it('renders as many rows as asked for, and four by default', () => {
+    const six = render(<SkeletonTable columns={COLUMNS} rows={6} />);
+    expect(six.container.querySelectorAll('tbody tr')).toHaveLength(6);
+    six.unmount();
+    const none = render(<SkeletonTable columns={COLUMNS} rows={0} />);
+    expect(none.container.querySelectorAll('tbody tr')).toHaveLength(0);
   });
 });
 

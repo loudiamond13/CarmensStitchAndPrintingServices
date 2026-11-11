@@ -230,3 +230,105 @@ describe('pagination scenarios (lists-states group)', () => {
     }
   });
 });
+
+describe('Pagination size-only mode (opt-in, one page)', () => {
+  it('draws only the "Rows per page" select, with no nav and no buttons, and calls the size setter', async () => {
+    const user = userEvent.setup();
+    const onPageSizeChange = vi.fn();
+    render(
+      <Pagination
+        page={1}
+        pageCount={1}
+        onPageChange={() => undefined}
+        pageSize={50}
+        onPageSizeChange={onPageSizeChange}
+        sizeOnlyWhenSinglePage
+      />,
+    );
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    const size = screen.getByRole('combobox', { name: LISTS_COPY.pagination.rowsPerPage });
+    expect(size).toHaveValue('50');
+    await user.selectOptions(size, '10');
+    expect(onPageSizeChange).toHaveBeenCalledWith(10);
+  });
+
+  it('draws nothing for one page without the size setter, even when opted in', () => {
+    const { container } = render(
+      <Pagination page={1} pageCount={1} onPageChange={() => undefined} sizeOnlyWhenSinglePage />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('draws nothing for one page with a size setter when not opted in (the default)', () => {
+    const { container } = render(
+      <Pagination
+        page={1}
+        pageCount={1}
+        onPageChange={() => undefined}
+        pageSize={50}
+        onPageSizeChange={() => undefined}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('draws the full bar for several pages', () => {
+    render(
+      <Pagination
+        page={1}
+        pageCount={3}
+        onPageChange={() => undefined}
+        pageSize={20}
+        onPageSizeChange={() => undefined}
+        sizeOnlyWhenSinglePage
+      />,
+    );
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 3');
+    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+  });
+
+  it('keeps the focused size select when the page count crosses one page (WCAG 2.4.3)', async () => {
+    const user = userEvent.setup();
+    // 38 rows: 20 per page gives two pages, 50 per page gives one.
+    function SizedList() {
+      const [size, setSize] = useState<PaginationProps['pageSize']>(20);
+      return (
+        <Pagination
+          page={1}
+          pageCount={Math.ceil(38 / (size ?? 20))}
+          onPageChange={() => undefined}
+          pageSize={size}
+          onPageSizeChange={setSize}
+          sizeOnlyWhenSinglePage
+        />
+      );
+    }
+    render(<SizedList />);
+    const select = screen.getByRole('combobox', { name: LISTS_COPY.pagination.rowsPerPage });
+
+    await user.selectOptions(select, '50');
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.getByRole('combobox')).toBe(select);
+    expect(select).toHaveFocus();
+
+    await user.selectOptions(select, '20');
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 2');
+    expect(screen.getByRole('combobox')).toBe(select);
+    expect(select).toHaveFocus();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(
+      <Pagination
+        page={1}
+        pageCount={1}
+        onPageChange={() => undefined}
+        pageSize={50}
+        onPageSizeChange={() => undefined}
+        sizeOnlyWhenSinglePage
+      />,
+    );
+    await expectNoAxeViolations(container);
+  });
+});

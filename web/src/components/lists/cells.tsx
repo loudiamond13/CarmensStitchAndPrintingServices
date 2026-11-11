@@ -65,10 +65,12 @@ export function CustomerCell({ team, customer }: CustomerCellProps) {
 export interface RowActionsProps {
   /** The row's RowAction buttons. */
   children?: ReactNode;
+  /** Extra classes, for a table that needs its actions to wrap. */
+  className?: string | undefined;
 }
 
-export function RowActions({ children }: RowActionsProps) {
-  return <span className={rowActionsClasses}>{children}</span>;
+export function RowActions({ children, className }: RowActionsProps) {
+  return <span className={clsx(rowActionsClasses, className)}>{children}</span>;
 }
 
 interface RowActionCommon {
