@@ -148,9 +148,18 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
             .ConfigureAwait(false);
 
         // Command 2: the page, with the category, payer and recorder read in the same statement. The order ends on the id so
-        // paging is stable. A deleted person keeps their name (D-08, D-11).
+        // paging is stable. The page's ids are picked first from the sorted list index, so a late page joins only its own rows.
+        // A deleted person keeps their name (D-08, D-11).
+        var pageIds = matches
+            .OrderByDescending(expense => expense.ExpenseDate)
+            .ThenByDescending(expense => expense.CreatedAtUtc)
+            .ThenByDescending(expense => expense.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(expense => expense.Id);
         var rows = await (
-            from expense in matches
+            from expense in context.CompanyExpenses.AsNoTracking()
+            where pageIds.Contains(expense.Id)
             join category in context.ExpenseCategories.AsNoTracking() on expense.CategoryId equals category.Id
             join payer in context.Users.AsNoTracking() on expense.PaidByUserId equals payer.Id
             join recorderUser in context.Users.AsNoTracking() on expense.CreatedById equals (Guid?)recorderUser.Id into recorders
@@ -175,8 +184,6 @@ internal sealed class CompanyExpenseReader(CspsDbContext context) : ICompanyExpe
                 RecorderLast = (string?)recorder.LastName,
                 RecorderFormer = recorder.DeletedAtUtc != null,
             })
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
