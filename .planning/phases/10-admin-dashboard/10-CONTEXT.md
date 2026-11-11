@@ -1,5 +1,5 @@
 # Phase 10: Admin Dashboard - Context
-*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-10T15:10:00-06:00*
+*Created: 2026-11-05T06:50:00-06:00 · Updated: 2026-11-10T21:35:00-06:00*
 
 **Gathered:** 2026-11-05
 **Status:** Ready for planning
@@ -131,6 +131,7 @@ The owner decisions the roadmap lists for this phase are closed here: C-40 (D-01
 - **D-116 (owner, 2026-11-10):** GitHub Actions asks the owner to approve CI runs on a pull request from every outside contributor, not only first-timers (repository setting "fork PR contributor approval" = `all_external_contributors`).
 - **D-117 (owner, 2026-11-10):** the D-33 showcase build rule also follows what a chunk holding showcase modules loads on demand, so the lazy Phase 10 cases chunk (review fix IN-01) counts as loaded by the showcase page. On-demand loads from other chunks are still not followed, and showcase code in the public or admin initial JS still fails. The rule broke every PR 24 CI run since IN-01; locally the build-output test had read an old build.
 - **Correction to D-114 (2026-11-10):** a draft PR runs only the fast CI mode, which skips the integration tests, the browser tests with the parity snapshots, Lighthouse and the coverage gate. The owner had PR 24 marked ready for review on 2026-11-10 so the full mode runs.
+- **D-118 (owner, 2026-11-10):** a dialog body that scrolls becomes a region named by the dialog title with `tabIndex 0`, so a keyboard can scroll it (axe scrollable-region-focusable, WCAG 2.1.1). A body that fits stays a plain div. The first full PR 24 run found it: at 320 px the D-107 footer wrap put Delete Permanently and Cancel on two rows, and the text-only body of the Delete Permanently dialog then scrolled. The owner chose this over keeping the buttons on one row on phones, because it covers every dialog at any size. The same run also fixed two E2E tests with no product change: the dashboard KPI fit test pins the shop-wide money figures to its six-digit amount (other specs seed payments and expenses of 1,000,000 into the shared database), and the money tests wait for the dashboard's own balance read before the reload that reads the API answer.
 
 </decisions>
 
