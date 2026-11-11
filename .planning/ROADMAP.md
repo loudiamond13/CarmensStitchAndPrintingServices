@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-10T06:30:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-11T08:35:00-06:00*
 
 ## Overview
 
@@ -1163,13 +1163,14 @@ Plans:
 
      Each change appears publicly at once, because the cache is invalidated (`ETag`/`Cache-Control`).
 **Owner decisions to close at discuss step:**
+- **Closed 2026-11-11 (owner):** C-21, C-12, C-36 (scope) and the LCP follow-up are ruled in `.planning/phases/11-public-site-content-management/11-CONTEXT.md` (Phase 11 D-01 to D-29). C-35, C-17 and OD-14 carry forward unchanged.
 - **C-21** content model: fixed product lines with rich copy vs a database price list (a hybrid `ProductLine` is recommended)
 - **C-12** Gallery scope. Owner input from 09 CONTEXT Deferred (2026-10-31): order photos show on the public site by default, and a Manager can hide any order. Settle customer consent (Data Privacy Act, LEGAL-01) when discussing.
 - **C-36** scope check only: does the quote/inquiry feature ship this milestone? The answer decides the Contact layout; the details close in Phase 13.
 - **C-35** apply the Phase 2 ruling on lightbox controls on phones
 - **C-17** spec-gap screens: site content and price-list management
 - **OD-14**
-- **Carry-over from Phase 3 (WINDOWS.md entry 1):** public LCP is about 2.1 to 2.2 s against the 2.0 s limit and is report-only in CI. Revisit fonts here (options in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`), then empty `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` so LCP fails the build again.
+- **Carry-over from Phase 3 (WINDOWS.md entry 1):** public LCP is about 2.1 to 2.2 s against the 2.0 s limit and is report-only in CI. Revisit fonts here (options in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`), Ruled 2026-11-11 (owner, 11 D-28, D-29): fixes that keep the look first, and LCP **stays report-only** in CI (supersedes emptying `REPORT_ONLY_METRICS`).
 - **Carry-over from Phase 10 (D-119, owner 2026-11-11):** PR 24 is merged (25bd3431). Detail for each item is in `.planning/phases/999.6-owner-items-parked-during-phase-10-execution/DECISIONS.md`.
   - **Live deploy (P10-BL-24):** done 2026-11-11. 25bd3431 is live (release `deploy-20261111122749-25bd343`).
   - **Order-number deadlock answers 500 (P10-BL-22):** fix it the way the staff-money lock was fixed, test first.
