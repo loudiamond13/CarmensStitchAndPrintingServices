@@ -1,5 +1,5 @@
 # Phase 11: Public Site & Content Management - Context
-*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-11T08:30:00-06:00*
+*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-11T09:20:00-06:00*
 
 **Gathered:** 2026-11-11
 **Status:** Ready for planning
@@ -59,6 +59,17 @@ All rulings below: owner, 2026-11-11, in this discussion.
 ### Page speed (LCP carry-over from Phase 3)
 - **D-28:** **Fixes that keep the look come first:** precompressed Brotli files, subsetting fonts to the characters the site uses, and dropping font files a page doesn't need. Measure on the real Phase 11 pages. If LCP is still over 2.0 s, bring the owner before/after screenshots of a font change (for example a system font for body text) and wait for a ruling. Never change the fonts or the look without that ruling.
 - **D-29:** **LCP stays report-only in CI after this phase.** The number keeps printing on every run with the 2000 ms target, and `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` keeps LCP. This supersedes the Phase 3 plan (deferred-items.md, WINDOWS.md entry 1) to empty that list in Phase 11. The 2000 ms target itself is unchanged.
+
+### UI design rulings (owner, 2026-11-11, `/gsd-ui-phase 11`; detail in `11-UI-SPEC.md` § Owner Questions)
+- **D-30 (OQ-1):** the Gallery shows **one tile per order** (its cover photo). The viewer has thumbnails to switch between that order's photos, and Previous / Next go to the next order.
+- **D-31 (OQ-2):** caption text over photos sits on a **solid blush band**, with the fade only above it, so it always passes contrast.
+- **D-32 (OQ-3):** the Products jump links and Gallery filter pills are **44px** tall (the drawing has 40px).
+- **D-33 (OQ-4):** the footer squares are spoken as **"FB, CSPS on Facebook"**, "IG, CSPS on Instagram" and "TT, CSPS on TikTok". Nothing visible changes.
+- **D-34 (OQ-5):** each product line has **two text fields**: "Card text" (Home card) and "Description" (Products page).
+- **D-35 (OQ-6):** time zone (Asia/Manila) and money format (PHP, en-PH) show on Business Info **read-only**.
+- **D-36 (OQ-7):** the "Fast turnaround" promise is an **editable Business Info field**, the "Turnaround line" (optional, at most 120 characters). It starts empty. When it is empty, the card shows a line with no time promise. This field is new in the settings schema.
+- **D-37 (OQ-8):** add the `chevron-up` and `globe` icons from the installed lucide-react (no new package).
+- **D-38 (OQ-9):** any order **except Cancelled** may be shown on the website, Completed included. Cancelling an order takes it off the website.
 
 ### Carried forward (already ruled, not re-asked)
 - **C-35 (02 D-06):** on phones the lightbox has invisible full-height left/right tap zones that are real `<button>`s ("Previous photo" / "Next photo"), focusable with a visible ring; swipe, Esc, ← and → also work.
