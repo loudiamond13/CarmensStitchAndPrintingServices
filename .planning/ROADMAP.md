@@ -1170,6 +1170,13 @@ Plans:
 - **C-17** spec-gap screens: site content and price-list management
 - **OD-14**
 - **Carry-over from Phase 3 (WINDOWS.md entry 1):** public LCP is about 2.1 to 2.2 s against the 2.0 s limit and is report-only in CI. Revisit fonts here (options in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`), then empty `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` so LCP fails the build again.
+- **Carry-over from Phase 10 (D-119, owner 2026-11-11):** PR 24 is merged (25bd3431). Detail for each item is in `.planning/phases/999.6-owner-items-parked-during-phase-10-execution/DECISIONS.md`.
+  - **Live deploy (P10-BL-24):** owner steps, in order: back up the production database, apply `csps-migrations.sql` (four Phase 10 migrations: AddOrderImages, AddImageDeletions, AddMaintenanceCursors, AddMoneyTransfers), then run the Deploy workflow for 25bd3431 (dry run first).
+  - **Order-number deadlock answers 500 (P10-BL-22):** fix it the way the staff-money lock was fixed, test first.
+  - **Owner review (P10-BL-23):** the expense list deferred-join query, and the create-user roster lock with its 409 "busy" answer.
+  - **Owner review (P10-BL-20 item 3):** the choices quick 261109-vj6 made inside D-111.
+  - **UAT tests 18 and 19:** met by the green full CI run on 89d723cd; mark them passed with `/gsd-verify-work 10`.
+  - **Dependabot alert 6 (minimatch, GHSA-g3hv-75wg-m249):** dev-only and pulled in by another package, fixed in 11.0.1. A package change needs the usual owner approval.
 
 **Owner prerequisites:** Real business content: prices, hours, address, phone numbers, Messenger URL and gallery photos. The phase doesn't need it, since the seed holds placeholders, but it must be entered through the management screens before cutover.
 
@@ -1522,4 +1529,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-10-07*
-*Last updated: 2026-10-17T09:30:00-05:00 after plans 03-20 to 03-22 were marked complete (CSPS live, first Manager signed in, owner acceptance 2026-10-17). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*
+*Last updated: 2026-11-11T06:10:00-06:00 after D-119 moved the open Phase 10 items into Phase 11. Earlier: 2026-10-17T09:30:00-05:00 after plans 03-20 to 03-22 were marked complete (CSPS live, first Manager signed in, owner acceptance 2026-10-17). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*

@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T01:55:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T06:10:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -212,7 +212,7 @@ The project rule says money is computed on the server only. The Delete Transfer 
 
 ## P10-BL-20 · Phase 10 sign-off: what needs you before the phase is marked done
 
-**Status:** ruled D-114 (owner, 2026-11-10): screens passed, go-ahead to ship; the PR opens as a draft. Still open: items 3 (review the 261109-vj6 choices, can change later) and 5 (CI parity and full run, then `/gsd-verify-work 10`). Was open · **Blocks:** marking Phase 10 complete and the merge to main. All 21 plans are built, reviewed and tested.
+**Status:** moved to Phase 11 (D-119, owner 2026-11-11). Item 5 is met (PR 24's full CI run passed and it merged as 25bd3431); item 3 is carried. Was: ruled D-114 (owner, 2026-11-10): screens passed, go-ahead to ship; the PR opens as a draft. Still open: items 3 (review the 261109-vj6 choices, can change later) and 5 (CI parity and full run, then `/gsd-verify-work 10`). Was open · **Blocks:** marking Phase 10 complete and the merge to main. All 21 plans are built, reviewed and tested.
 
 The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success criteria and 14 of 14 requirements are met, checked in the code. Status is "human needed" because these steps are yours. P10-BL-01 to 19 are all ruled now (D-107 and D-111), and P10-BL-01 is carried into the Phase 16 plan. What is left:
 
@@ -248,7 +248,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-22 · A deadlock on the order-number lock answers 500 instead of 409 (found while fixing the PR 24 Copilot review)
 
-**Status:** open, parked by the owner (2026-11-10) · **Blocks:** nothing; today's behavior stays until it is fixed.
+**Status:** moved to Phase 11 (D-119, owner 2026-11-11). Was open, parked by the owner (2026-11-10) · **Blocks:** nothing; today's behavior stays until it is fixed.
 
 - **What:** Copilot found that a deadlock on the staff-money lock, inside the idempotency gate's transaction, gave a 500 (fixed in eb3ad29a). The order-number lock has the same gap. `OrderNumberAllocator.TakeLockAsync` turns every lock failure, a deadlock included, into `OrderNumberBusyException`. Inside the gate's outer transaction (every order write, D-46) the server has already rolled the whole transaction back, so `CspsUnitOfWork.RunInSavepointAsync` fails when it rolls back to a savepoint that no longer exists (SQL error 3903). The caller gets a 500, not the order "busy" 409.
 - **When it happens:** only when two order creates or imports deadlock on the order-number row. That is rare, and a retry works.
@@ -256,7 +256,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-23 · Push the expense list speed fix after the CI run on 19b3bc13 (owner away, 2026-11-10)
 
-**Status:** pushed (2026-11-11) with the Auto-fix push for the CI run on 19b3bc13, which failed on a showcase test race; the owner still reviews the two changes below · **Blocks:** nothing.
+**Status:** moved to Phase 11 (D-119, owner 2026-11-11). Merged in PR 24; the owner's review is carried. Was: pushed (2026-11-11) with the Auto-fix push for the CI run on 19b3bc13, which failed on a showcase test race; the owner still reviews the two changes below · **Blocks:** nothing.
 
 - **What:** the owner said to wait for CI, then investigate the slow expense list test. The owner then went away. The investigation ran locally while CI ran, and the fix is committed on the local branch but **not pushed**, so the running CI result on 19b3bc13 stays valid. A push starts a new full run.
 - **Cause:** the list page joined the category, payer and recorder for every row before it skipped to the page, so a late page (five years, page 365 of 100) built about 36,500 joined rows to keep 100. The fix picks the page's 100 ids from the sorted list index first, then joins only those rows, still in one statement.
@@ -266,14 +266,14 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-24 · Deploy Phase 10 to the live site (owner asked 2026-11-11, then went away)
 
-**Status:** open, waiting on the owner · **Blocks:** the live deploy. Nothing was merged or deployed.
+**Status:** moved to Phase 11 (D-119, owner 2026-11-11). PR 24 merged as 25bd3431 on the owner's word; the backup, the migrations script and the deploy are still the owner's · **Blocks:** the live deploy. Nothing was deployed.
 
 - **What you asked:** "Deploy the app to live too." The deploy (OPS-04, D-11, `docs/operations/deploy.md`) only takes a commit on `main` whose CI run passed, so it waits on steps that are yours. Claude did not merge, did not run the deploy and did not touch the production database.
 - **Why it waits:**
   1. PR 24 is not merged. Its full CI run on 89d723cd had not reported when you left (the runs before it each found a rare race bug, now fixed). A merge needs your word for the merge itself, through `tools/scripts/Merge-PullRequest.ps1` (D-08).
   2. Phase 10 adds four migrations: `AddOrderImages`, `AddImageDeletions`, `AddMaintenanceCursors`, `AddMoneyTransfers`. Before the deploy, the reviewed idempotent `csps-migrations.sql` from the build's package must be applied to the production database ("Migrations before a deploy" in the runbook).
   3. Make a database backup in the SmarterASP.NET control panel and download it first (D-51: backups are manual, before every deploy).
-  4. Phase 10 verification is still open: UAT tests 18 and 19 (`/gsd-verify-work 10`), the security and UI reviews, and P10-BL-23's two changes for your review.
+  4. Phase 10 still had UAT tests 18 and 19 open (`/gsd-verify-work 10`) and P10-BL-23's two changes for your review. The security and UI reviews were already done (10-SECURITY.md, 10-UI-REVIEW.md).
 - **When you are back, in order:**
   1. Check that CI on PR 24 is green.
   2. Say "merge PR 24".
