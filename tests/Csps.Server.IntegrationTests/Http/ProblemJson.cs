@@ -23,6 +23,21 @@ internal static class ProblemJson
         return document.RootElement.Clone();
     }
 
+    /// <summary>
+    /// Asserts the problem media type and returns the body text without its <c>traceId</c>, for checks that a figure
+    /// is not in the body: the random hex id can hold a run of digits such as "654" by chance.
+    /// </summary>
+    /// <param name="response">The HTTP response.</param>
+    /// <param name="cancellationToken">The test cancellation token.</param>
+    /// <returns>The body as JSON text, every property but <c>traceId</c>.</returns>
+    public static async Task<string> ReadWithoutTraceIdAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var problem = await ReadAsync(response, cancellationToken);
+        TraceId(problem);
+        var rest = problem.EnumerateObject().Where(property => property.Name != "traceId").ToDictionary(property => property.Name, property => property.Value);
+        return JsonSerializer.Serialize(rest);
+    }
+
     /// <summary>Returns the <c>traceId</c> extension after checking it is a 32-character lowercase hex id.</summary>
     /// <param name="problem">The parsed ProblemDetails body.</param>
     /// <returns>The trace id.</returns>

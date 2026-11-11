@@ -248,7 +248,7 @@ public sealed class MoneyTransferDeletionTests(CspsDatabase database) : IClassFi
         {
             using var response = await MoneyFixtures.DeleteTransferAsync(world.Client, world.Liza.AccessToken, id, version);
             response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-            bodies.Add(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            bodies.Add(await ProblemJson.ReadWithoutTraceIdAsync(response, TestContext.Current.CancellationToken));
         }
 
         foreach (var body in bodies)
@@ -391,7 +391,7 @@ public sealed class MoneyTransferDeletionTests(CspsDatabase database) : IClassFi
         {
             using var response = await MoneyFixtures.RemoveTransferAsync(world.Client, world.Liza.AccessToken, id);
             response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-            bodies.Add(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            bodies.Add(await ProblemJson.ReadWithoutTraceIdAsync(response, TestContext.Current.CancellationToken));
         }
 
         using var anonymous = await MoneyFixtures.RemoveTransferAsync(world.Client, null, gone);

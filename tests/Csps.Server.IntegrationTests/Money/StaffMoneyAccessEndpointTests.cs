@@ -215,9 +215,10 @@ public sealed class StaffMoneyAccessEndpointTests(CspsDatabase database) : IClas
     private static async Task<string> AssertOwnMoneyOnlyAsync(HttpResponseMessage response)
     {
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
-        problem.GetProperty("detail").GetString().ShouldBe("You can only see your own money.");
-        return problem.GetRawText();
+        var text = await ProblemJson.ReadWithoutTraceIdAsync(response, TestContext.Current.CancellationToken);
+        using var problem = JsonDocument.Parse(text);
+        problem.RootElement.GetProperty("detail").GetString().ShouldBe("You can only see your own money.");
+        return text;
     }
 
     private static async Task AssertPersonNotFoundAsync(HttpResponseMessage response)

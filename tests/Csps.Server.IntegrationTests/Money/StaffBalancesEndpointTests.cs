@@ -3,6 +3,7 @@ using System.Text.Json;
 using Csps.Application.Security;
 using Csps.Domain.Identity;
 using Csps.Server.IntegrationTests.CompanyExpenses;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Money;
@@ -86,7 +87,7 @@ public sealed class StaffBalancesEndpointTests(CspsDatabase database) : IClassFi
         using var response = await MoneyFixtures.GetStaffBalancesAsync(world.Client, world.Liza.AccessToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldNotContain("9650");
+        (await ProblemJson.ReadWithoutTraceIdAsync(response, TestContext.Current.CancellationToken)).ShouldNotContain("9650");
     }
 
     [Fact]
