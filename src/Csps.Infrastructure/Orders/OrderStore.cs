@@ -12,6 +12,7 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
 {
     private const string SoftDeleteFilter = "SoftDelete";
     private const string NumberIndex = "IX_Orders_Number";
+    private const string ImageSlotIndex = "IX_OrderImages_OrderId_Slot";
     private const int UniqueIndexViolation = 2601;
     private const int UniqueConstraintViolation = 2627;
 
@@ -34,18 +35,26 @@ internal sealed class OrderStore(CspsDbContext context) : IOrders
     }
 
     /// <summary>
-    /// Turns a failed save into the typed exception the Application understands, or returns null when the failure is not the unique
-    /// number index: the index found a number another order already holds, so two saves of one number raced.
+    /// Turns a failed save into the typed exception the Application understands, or returns null when the failure is neither unique
+    /// index: the number index found a number another order already holds, so two saves of one number raced; the photo slot index
+    /// found the slot another upload took, so the save lost a race and the caller reads the order again.
     /// </summary>
     /// <param name="error">The failed save.</param>
     /// <returns>The typed exception, or null.</returns>
     internal static Exception? TranslateSaveFailure(DbUpdateException error)
     {
         ArgumentNullException.ThrowIfNull(error);
-        return error.InnerException is SqlException { Number: UniqueIndexViolation or UniqueConstraintViolation } sql
-            && sql.Message.Contains(NumberIndex, StringComparison.Ordinal)
-                ? new OrderNumberTakenException()
-                : null;
+        if (error.InnerException is not SqlException { Number: UniqueIndexViolation or UniqueConstraintViolation } sql)
+        {
+            return null;
+        }
+
+        if (sql.Message.Contains(NumberIndex, StringComparison.Ordinal))
+        {
+            return new OrderNumberTakenException();
+        }
+
+        return sql.Message.Contains(ImageSlotIndex, StringComparison.Ordinal) ? new ConcurrencyConflictException(error) : null;
     }
 
     public async Task<Order?> FindAsync(Guid id, bool includeDeleted, CancellationToken cancellationToken)
