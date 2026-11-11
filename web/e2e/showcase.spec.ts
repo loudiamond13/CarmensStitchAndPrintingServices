@@ -215,6 +215,10 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const manager = await createStaff(request, 'Manager');
   await signInAs(page, request, manager);
+  // Sign-in lands on the dashboard; its own reads finish first, so none is counted against the showcase page.
+  await expect(page.getByRole('status').filter({ hasText: 'The shop figures loaded.' })).toBeAttached();
+  await expect(page.getByRole('status').filter({ hasText: 'The chart loaded.' })).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Your money on hand' })).toContainText(/₱[\d,]+\.\d{2}/);
 
   const calls: string[] = [];
   page.on('request', (call) => {
