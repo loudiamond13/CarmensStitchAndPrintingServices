@@ -74,6 +74,15 @@ const READ_KPI_FIT = `(() => ({
   })),
 }))()`;
 
+/** The money figures of the summary answer this file pins. */
+interface DashboardSummary {
+  collected: { thisMonth: number | string };
+  expenses: { thisMonth: number | string };
+  orders: { receivables: number | string };
+}
+
+const SIX_DIGITS = '126450.00';
+
 /** Seeds a payment of 126,450.00 this month (a six-digit Collected figure), opens the dashboard at 320px and reads the KPI fit. */
 async function openPhoneDashboard(page: Page, request: APIRequestContext, guard: Guard): Promise<KpiFit> {
   guard.expectStatus('/api/v1/auth/refresh', 401);
@@ -84,6 +93,16 @@ async function openPhoneDashboard(page: Page, request: APIRequestContext, guard:
     orderDate: today,
     items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E jersey', quantity: 1, unitPrice: 126_450 }],
     payments: [{ paymentDate: today, amount: 126_450, paymentMethodId: CASH_ID, receivedByUserId: manager.userId }],
+  });
+  // The money figures are shop-wide, and other specs seed payments and expenses of 1,000,000 into the same database, so by
+  // the last project they reach billions. The server's answer is kept, with each money figure set to the six-digit amount.
+  await page.route('**/api/v1/dashboard/summary', async (route) => {
+    const response = await route.fetch();
+    const summary = (await response.json()) as DashboardSummary;
+    summary.collected.thisMonth = SIX_DIGITS;
+    summary.expenses.thisMonth = SIX_DIGITS;
+    summary.orders.receivables = SIX_DIGITS;
+    await route.fulfill({ response, json: summary });
   });
   await page.setViewportSize({ width: 320, height: 800 });
   await signInAs(page, request, manager);

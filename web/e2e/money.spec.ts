@@ -34,6 +34,21 @@ async function signInSecondPerson(
   return { context, page, finish: watched.finish };
 }
 
+/**
+ * The person's own balance as the server answers it on a reload. The dashboard's own read from the sign-in finishes
+ * first (its figure shows), so the reload cannot drop a response that is still in flight.
+ */
+async function readOwnBalance(person: SecondPerson): Promise<number> {
+  await expect(person.page.getByRole('region', { name: 'Your money on hand' })).toContainText(/₱[\d,]+\.\d{2}/);
+  const [answer] = await Promise.all([
+    person.page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/staff-money/me'),
+    person.page.reload(),
+  ]);
+  expect(answer.status(), 'GET /api/v1/staff-money/me').toBe(200);
+  const body = (await answer.json()) as { balance: number | string };
+  return Number(body.balance);
+}
+
 /** Seeds an order of 5,000.00 paid in full, with the payment received by `receiver`: that person now holds 5,000.00. */
 async function seedPaymentTo(request: APIRequestContext, receiver: TestStaff): Promise<void> {
   await createOrder(request, {
@@ -87,13 +102,7 @@ test('@money a staff member sends part of their money to a coworker from the das
   // The coworker holds the amount: their own money answer, read after they sign in, says 1,250.50.
   const other = await signInSecondPerson(browser, baseURL, request, receiver);
   try {
-    const [answer] = await Promise.all([
-      other.page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/staff-money/me'),
-      other.page.reload(),
-    ]);
-    expect(answer.status(), 'GET /api/v1/staff-money/me').toBe(200);
-    const body = (await answer.json()) as { balance: number | string };
-    expect(Number(body.balance)).toBe(1250.5);
+    expect(await readOwnBalance(other)).toBe(1250.5);
     await expect(other.page.getByRole('region', { name: 'Your money on hand' })).toContainText('₱1,250.50');
     await other.finish();
   } finally {
@@ -303,13 +312,7 @@ test('@money a Manager deletes a wrong transfer from the Transfers tab and both 
   await expect(page.getByRole('region', { name: 'Money on hand' })).toContainText('₱5,000.00');
   const other = await signInSecondPerson(browser, baseURL, request, receiver);
   try {
-    const [answer] = await Promise.all([
-      other.page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/staff-money/me'),
-      other.page.reload(),
-    ]);
-    expect(answer.status(), 'GET /api/v1/staff-money/me').toBe(200);
-    const body = (await answer.json()) as { balance: number | string };
-    expect(Number(body.balance)).toBe(0);
+    expect(await readOwnBalance(other)).toBe(0);
     await other.finish();
   } finally {
     await other.context.close();
