@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T23:55:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T01:10:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -256,7 +256,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-23 · Push the expense list speed fix after the CI run on 19b3bc13 (owner away, 2026-11-10)
 
-**Status:** open, waiting on the owner · **Blocks:** the expense list fix reaching PR 24.
+**Status:** pushed (2026-11-11) with the Auto-fix push for the CI run on 19b3bc13, which failed on a showcase test race; the owner still reviews the two changes below · **Blocks:** nothing.
 
 - **What:** the owner said to wait for CI, then investigate the slow expense list test. The owner then went away. The investigation ran locally while CI ran, and the fix is committed on the local branch but **not pushed**, so the running CI result on 19b3bc13 stays valid. A push starts a new full run.
 - **Cause:** the list page joined the category, payer and recorder for every row before it skipped to the page, so a late page (five years, page 365 of 100) built about 36,500 joined rows to keep 100. The fix picks the page's 100 ids from the sorted list index first, then joins only those rows, still in one statement.
