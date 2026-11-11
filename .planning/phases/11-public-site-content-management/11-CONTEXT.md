@@ -1,5 +1,5 @@
 # Phase 11: Public Site & Content Management - Context
-*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-11T09:20:00-06:00*
+*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-11T17:06:00-06:00*
 
 **Gathered:** 2026-11-11
 **Status:** Ready for planning
@@ -70,6 +70,16 @@ All rulings below: owner, 2026-11-11, in this discussion.
 - **D-36 (OQ-7):** the "Fast turnaround" promise is an **editable Business Info field**, the "Turnaround line" (optional, at most 120 characters). It starts empty. When it is empty, the card shows a line with no time promise. This field is new in the settings schema.
 - **D-37 (OQ-8):** add the `chevron-up` and `globe` icons from the installed lucide-react (no new package).
 - **D-38 (OQ-9):** any order **except Cancelled** may be shown on the website, Completed included. Cancelling an order takes it off the website.
+
+### Research rulings (owner, 2026-11-11, `/gsd-plan-phase 11`; detail in `11-RESEARCH.md` § Open Questions)
+- **D-39 (OQ-R1):** keep the old `ContactPhone` and `AddressLine` columns and stop using them. They are removed later, only in a cleanup the owner approves (no drop in Phase 11). The migration blanks the bracket placeholders in `FacebookUrl` and `ContactEmail` and never copies placeholders into the new phone and address fields.
+- **D-40 (OQ-R2):** the six seeded product lines **start shown** at go-live, with "Message us for a price" until a price is added (D-04).
+- **D-41 (OQ-R3):** cancelling an order also turns off "Show on the website" (the customer OK stays). Reopening does not put it back; staff turn it on again on purpose.
+- **D-42 (OQ-R4):** TanStack Query stays off public pages (the PERF-02 build rule is unchanged). Public pages use a small built-in loader plus data sent inside the server HTML.
+- **D-43 (OQ-R5):** JSON responses stay uncompressed, public reads included.
+- **D-44 (OQ-R6):** the owner runs the existing Cloudinary setup command once after the Phase 11 deploy to create the new named sizes. It goes on the go-live checklist.
+- **D-45 (OQ-R7):** extend the minimatch and glob audit exceptions in `docs/audit-exceptions.json` by 30 days (to 2026-12-14) and check again then. No minimatch 11 in Phase 11. This must land before 2026-11-14.
+- **D-46 (OQ-R8):** D-28 font work goes in order: precompressed Brotli and dropping unused font files first, then measure. Ask the owner about a font subsetting tool only if LCP is still over 2.0 s.
 
 ### Carried forward (already ruled, not re-asked)
 - **C-35 (02 D-06):** on phones the lightbox has invisible full-height left/right tap zones that are real `<button>`s ("Previous photo" / "Next photo"), focusable with a visible ring; swipe, Esc, ← and → also work.
