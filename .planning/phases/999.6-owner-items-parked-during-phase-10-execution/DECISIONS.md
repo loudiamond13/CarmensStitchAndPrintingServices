@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T01:10:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T01:55:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -263,3 +263,20 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 - **Evidence (same machine, same hour, `ExpenseListTimingTests` p95):** old query: staff-name search 362.9 ms, last page 819.0 ms, default window over 300 ms. New query: default window 24.8 ms, category 15.8 ms, staff-name search 73.5 ms, last page 100.9 ms, month KPIs 18.1 ms. All 15 infrastructure and 149 server expense tests pass, the two-commands-per-page test included.
 - **Owner action:** when back, check the CI result on 19b3bc13, then say "push" (or ask for changes). The deleted-expenses list (`ListDeletedAsync`) pages the same way; it holds few rows, so it was left as it is.
 - **Also for review:** the create-user race fix (a11c15b0) can now answer 409 "busy" when two tries both lose a deadlock, and every create takes the Manager roster lock. Record in `.planning/debug/create-user-deadlock-500.md`.
+
+## P10-BL-24 · Deploy Phase 10 to the live site (owner asked 2026-11-11, then went away)
+
+**Status:** open, waiting on the owner · **Blocks:** the live deploy. Nothing was merged or deployed.
+
+- **What you asked:** "Deploy the app to live too." The deploy (OPS-04, D-11, `docs/operations/deploy.md`) only takes a commit on `main` whose CI run passed, so it waits on steps that are yours. Claude did not merge, did not run the deploy and did not touch the production database.
+- **Why it waits:**
+  1. PR 24 is not merged. Its full CI run on 89d723cd had not reported when you left (the runs before it each found a rare race bug, now fixed). A merge needs your word for the merge itself, through `tools/scripts/Merge-PullRequest.ps1` (D-08).
+  2. Phase 10 adds four migrations: `AddOrderImages`, `AddImageDeletions`, `AddMaintenanceCursors`, `AddMoneyTransfers`. Before the deploy, the reviewed idempotent `csps-migrations.sql` from the build's package must be applied to the production database ("Migrations before a deploy" in the runbook).
+  3. Make a database backup in the SmarterASP.NET control panel and download it first (D-51: backups are manual, before every deploy).
+  4. Phase 10 verification is still open: UAT tests 18 and 19 (`/gsd-verify-work 10`), the security and UI reviews, and P10-BL-23's two changes for your review.
+- **When you are back, in order:**
+  1. Check that CI on PR 24 is green.
+  2. Say "merge PR 24".
+  3. Make the backup.
+  4. Apply `csps-migrations.sql`.
+  5. Say "deploy <sha>", or press Run on the Deploy workflow. A dry run first is recommended (`-f dry_run=true`).
