@@ -46,7 +46,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24.21.0"
 
@@ -85,7 +85,7 @@ jobs:
 
       # OPS-02: one Node for every web and tooling step; npm's download cache is keyed on both lock files.
       - name: setup node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24.21.0"
           cache: npm
@@ -268,7 +268,7 @@ jobs:
       # T-03-42: only the Playwright report and results leave the runner, only on failure, for seven days.
       - name: 6 upload failure reports
         if: failure() && needs.classify.outputs.mode == 'full'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-failure-reports
           path: |
@@ -316,7 +316,7 @@ jobs:
       # D-11: stored under the commit id, which is the name deploy.mjs findPackage downloads. 14 days, about 60 MB each zipped (self-contained).
       - name: 7 package upload
         if: github.event_name == 'push' && (needs.classify.outputs.mode == 'full' || needs.classify.outputs.mode == 'package')
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: csps-package-${{ github.sha }}
           path: artifacts/package
