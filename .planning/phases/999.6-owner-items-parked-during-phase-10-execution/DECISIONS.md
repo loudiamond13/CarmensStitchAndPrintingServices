@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T13:25:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-10T23:55:00-06:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -253,3 +253,13 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 - **What:** Copilot found that a deadlock on the staff-money lock, inside the idempotency gate's transaction, gave a 500 (fixed in eb3ad29a). The order-number lock has the same gap. `OrderNumberAllocator.TakeLockAsync` turns every lock failure, a deadlock included, into `OrderNumberBusyException`. Inside the gate's outer transaction (every order write, D-46) the server has already rolled the whole transaction back, so `CspsUnitOfWork.RunInSavepointAsync` fails when it rolls back to a savepoint that no longer exists (SQL error 3903). The caller gets a 500, not the order "busy" 409.
 - **When it happens:** only when two order creates or imports deadlock on the order-number row. That is rare, and a retry works.
 - **Fix (same as the money lock):** in `TakeLockAsync`, a deadlock (`SqlErrors.DeadlockVictim`) becomes `ConcurrencyConflictException` after clearing the change tracker, and a timeout stays `OrderNumberBusyException`. Test first: copy `StaffMoneyLockTests.ADeadlockOnTheLockInsideAnOuterTransactionIsALostRaceWithTheTransactionEnded` for the order-number lock, then check that the create and import handlers answer the busy 409. The Manager roster and account-token locks have no busy wrapper; look at them at the same time.
+
+## P10-BL-23 · Push the expense list speed fix after the CI run on 19b3bc13 (owner away, 2026-11-10)
+
+**Status:** open, waiting on the owner · **Blocks:** the expense list fix reaching PR 24.
+
+- **What:** the owner said to wait for CI, then investigate the slow expense list test. The owner then went away. The investigation ran locally while CI ran, and the fix is committed on the local branch but **not pushed**, so the running CI result on 19b3bc13 stays valid. A push starts a new full run.
+- **Cause:** the list page joined the category, payer and recorder for every row before it skipped to the page, so a late page (five years, page 365 of 100) built about 36,500 joined rows to keep 100. The fix picks the page's 100 ids from the sorted list index first, then joins only those rows, still in one statement.
+- **Evidence (same machine, same hour, `ExpenseListTimingTests` p95):** old query: staff-name search 362.9 ms, last page 819.0 ms, default window over 300 ms. New query: default window 24.8 ms, category 15.8 ms, staff-name search 73.5 ms, last page 100.9 ms, month KPIs 18.1 ms. All 15 infrastructure and 149 server expense tests pass, the two-commands-per-page test included.
+- **Owner action:** when back, check the CI result on 19b3bc13, then say "push" (or ask for changes). The deleted-expenses list (`ListDeletedAsync`) pages the same way; it holds few rows, so it was left as it is.
+- **Also for review:** the create-user race fix (a11c15b0) can now answer 409 "busy" when two tries both lose a deadlock, and every create takes the Manager roster lock. Record in `.planning/debug/create-user-deadlock-500.md`.
