@@ -93,6 +93,98 @@ export const SITE_CONTENT_COPY = {
     latestLoaded: 'Latest version loaded. Make your changes again.',
     toast: { title: 'Business info saved', message: 'The website shows the new details now.' },
   },
+  /** S2 Hours & Closures, card A: the weekly hours (plan 11-16). */
+  hours: {
+    /** "Loading the opening hours…", "The opening hours loaded." and "Couldn't load the opening hours." */
+    things: 'the opening hours',
+    card: { title: 'Opening hours', hint: 'One opening and closing time per day.' },
+    /** The day labels, Monday first. */
+    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    /** The visible words over a select, and the hidden words a screen reader hears first: "Monday opens". */
+    opens: { label: 'Opens', name: (day: string): string => `${day} opens` },
+    closes: { label: 'Closes', name: (day: string): string => `${day} closes` },
+    closed: 'Closed',
+    /** The line under the rows: the summary line of the current choices. */
+    preview: (summary: string): string => `Visitors see: ${summary}`,
+    previewClosed: 'Visitors see: Closed every day',
+    actions: { undo: 'Undo Changes', save: 'Save Hours', saving: 'Saving' },
+    /** The polite line after Load Latest. */
+    latestLoaded: 'Latest hours loaded. Make your changes again.',
+    toast: { title: 'Opening hours saved', message: 'The Contact page and the open status use them now.' },
+    /** The server's own words (UI-SPEC Validation), so the browser and the API say the same thing. */
+    errors: {
+      opensRequired: 'Choose the opening time.',
+      closesRequired: 'Choose the closing time.',
+      closesAfterOpens: 'Closing time must be after opening time.',
+      timeStep: 'Choose a time on the hour or half hour, from 5:00 AM to 11:30 PM.',
+    },
+  },
+  /** S2 Hours & Closures, card B: the holidays and closures, the closure window and the delete question (plan 11-16). */
+  closures: {
+    /** "Loading closures…", "The closures loaded." and "Couldn't load closures." */
+    things: 'closures',
+    card: {
+      title: 'Holidays and closures',
+      hint: 'Days the shop is closed. The Contact page lists them, and the open or closed status follows them.',
+    },
+    add: 'Add Closure',
+    table: { caption: 'Upcoming closures', date: 'Date', note: 'Public note', actions: 'Actions' },
+    /** A closure of several days: "Dec 30, 2026 to Jan 1, 2027". */
+    range: (first: string, last: string): string => `${first} to ${last}`,
+    rowActions: {
+      edit: (date: string): string => `Edit closure on ${date}`,
+      remove: (date: string): string => `Delete closure on ${date}`,
+    },
+    empty: {
+      title: 'No closures coming up',
+      message: "Add holidays and special closures so visitors know when you're closed.",
+    },
+    window: {
+      addTitle: 'Add Closure',
+      editTitle: 'Edit Closure',
+      firstDay: 'First day',
+      lastDay: 'Last day',
+      lastDayHint: 'Leave empty for one day. Up to 31 days.',
+      note: 'Public note',
+      notePlaceholder: 'e.g. Christmas',
+      noteHint: 'Shown on the Contact page, like Closed today for Christmas.',
+      cancel: 'Cancel',
+      save: 'Save Closure',
+      saving: 'Saving',
+      /** The polite line after Load Latest. */
+      latestLoaded: 'Latest closure loaded. Make your changes again.',
+      /** A save or Load Latest finds the closure gone (SPEC-GAP). */
+      gone: "This closure wasn't found. It may have been deleted.",
+    },
+    /** The "Discard changes?" dialog over a changed window (08 D-58), the order windows' own words. */
+    discard: {
+      title: 'Discard changes?',
+      message: "What you typed in this window hasn't been saved. If you close it now, it's lost.",
+      keep: 'Keep Editing',
+      discard: 'Discard Changes',
+    },
+    toast: {
+      added: { title: 'Closure added', message: (date: string): string => `${date} shows as closed.` },
+      saved: { title: 'Closure saved', message: 'The Contact page shows the change.' },
+      deleted: { title: 'Closure deleted', message: (date: string): string => `${date} shows normal hours.` },
+      alreadyDeleted: 'Already deleted',
+    },
+    remove: {
+      title: 'Delete this closure?',
+      message: (date: string): string => `${date}. The shop shows its normal hours that day.`,
+      confirm: 'Delete Closure',
+      pending: 'Deleting',
+    },
+    /** The server's own words (UI-SPEC Validation), so the browser and the API say the same thing. */
+    errors: {
+      firstRequired: 'Enter the first day.',
+      notADate: 'Enter a real date.',
+      firstInPast: 'Pick today or a later date.',
+      lastBeforeFirst: 'The last day must be on or after the first day.',
+      spanTooLong: 'A closure can be up to 31 days. Add another one for longer.',
+      noteTooLong: 'Keep the note to 80 characters or fewer.',
+    },
+  },
   /** Inline errors: the server's own words (UI-SPEC Validation). */
   errors: {
     businessNameRequired: 'Enter the business name.',

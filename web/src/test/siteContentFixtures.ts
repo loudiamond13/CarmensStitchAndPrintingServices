@@ -2,6 +2,7 @@
 // GET /api/v1/site-settings answers it, and an MSW backend that records every save. Every value is made up.
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw';
+import { buildOrderList } from '@/test/orderFixtures';
 import type { components } from '@/types/api.generated';
 
 type Schemas = components['schemas'];
@@ -129,4 +130,184 @@ export function siteSettingsBackend(
     }),
   );
   return backend;
+}
+
+// Hours and closures (plan 11-16): the staff view of the weekly hours and the closure list as the API answers them, with an MSW backend
+// for each that records every call.
+export type OpeningHoursFixture = Schemas['OpeningHoursDto'];
+export type OpeningHoursBody = Schemas['UpdateOpeningHoursRequest'];
+export type ShopClosureFixture = Schemas['ShopClosureDto'];
+export type ShopClosureBody = Schemas['ShopClosureRequest'];
+
+/** The demo week: Monday to Saturday 9:00 AM to 6:00 PM, Sunday closed. */
+export const demoOpeningHours: OpeningHoursFixture = {
+  days: [1, 2, 3, 4, 5, 6, 7].map((day) => ({
+    day,
+    opensAt: day <= 6 ? '09:00' : null,
+    closesAt: day <= 6 ? '18:00' : null,
+  })),
+  updatedByName: 'Carmen Reyes',
+  updatedAtUtc: '2026-10-06T02:30:00Z',
+  version: 'AAAAAAAAC9E=',
+};
+
+/** The version the fake API gives the week after save number `n`. */
+export function hoursVersionAfter(n: number): string {
+  return `AAAAAAAAC${String(n).padStart(2, '0')}=`;
+}
+
+export interface OpeningHoursBackend {
+  current: OpeningHoursFixture;
+  gets: number;
+  puts: OpeningHoursBody[];
+}
+
+export interface OpeningHoursBackendOptions {
+  /** Answers a save instead of the default success. Return undefined to let it go through (it may wait first). */
+  onPut?: (
+    body: OpeningHoursBody,
+    backend: OpeningHoursBackend,
+  ) => Response | undefined | Promise<Response | undefined>;
+  /** Answers a read instead of the default success. */
+  onGet?: (backend: OpeningHoursBackend) => Response | undefined;
+}
+
+/** Answers GET and PUT /api/v1/opening-hours from `initial`, keeps what a save left, and records every call. */
+export function openingHoursBackend(
+  initial: OpeningHoursFixture = demoOpeningHours,
+  options: OpeningHoursBackendOptions = {},
+): OpeningHoursBackend {
+  const backend: OpeningHoursBackend = { current: initial, gets: 0, puts: [] };
+  server.use(
+    http.get('*/api/v1/opening-hours', () => {
+      backend.gets += 1;
+      return options.onGet?.(backend) ?? HttpResponse.json(backend.current);
+    }),
+    http.put('*/api/v1/opening-hours', async ({ request }) => {
+      const body = (await request.json()) as OpeningHoursBody;
+      backend.puts.push(body);
+      const answer = await options.onPut?.(body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.current = {
+        ...backend.current,
+        days: (body.days ?? []).map((day) => ({ ...day })),
+        version: hoursVersionAfter(backend.puts.length),
+        updatedByName: 'Carmen Reyes',
+        updatedAtUtc: '2026-10-07T03:00:00Z',
+      };
+      return HttpResponse.json(backend.current);
+    }),
+  );
+  return backend;
+}
+
+/** Two upcoming closures: one day with a note, and three days with none. */
+export const demoClosures: ShopClosureFixture[] = [
+  {
+    id: '6f1c2a10-0000-4000-8000-000000000001',
+    firstDay: '2026-12-25',
+    lastDay: '2026-12-25',
+    note: 'Christmas',
+    version: 'AAAAAAAAD01=',
+  },
+  {
+    id: '6f1c2a10-0000-4000-8000-000000000002',
+    firstDay: '2026-12-30',
+    lastDay: '2027-01-01',
+    note: null,
+    version: 'AAAAAAAAD02=',
+  },
+];
+
+export interface ShopClosuresBackend {
+  /** The closures the API lists, by first day. */
+  current: ShopClosureFixture[];
+  gets: number;
+  /** Every add: the body and the Idempotency-Key it carried. */
+  posts: { body: ShopClosureBody; key: string | null }[];
+  /** Every edit: the closure id and the body. */
+  puts: { id: string; body: ShopClosureBody }[];
+  /** The id of every delete. */
+  deletes: string[];
+}
+
+export interface ShopClosuresBackendOptions {
+  onPost?: (
+    body: ShopClosureBody,
+    backend: ShopClosuresBackend,
+  ) => Response | undefined | Promise<Response | undefined>;
+  onPut?: (
+    id: string,
+    body: ShopClosureBody,
+    backend: ShopClosuresBackend,
+  ) => Response | undefined | Promise<Response | undefined>;
+  onDelete?: (id: string, backend: ShopClosuresBackend) => Response | undefined | Promise<Response | undefined>;
+  onGet?: (backend: ShopClosuresBackend) => Response | undefined;
+}
+
+function byFirstDay(list: ShopClosureFixture[]): ShopClosureFixture[] {
+  return [...list].sort((a, b) => a.firstDay.localeCompare(b.firstDay));
+}
+
+/** Answers the four /api/v1/shop-closures routes from `initial`, keeps what the writes left, and records every call. */
+export function shopClosuresBackend(
+  initial: ShopClosureFixture[] = demoClosures,
+  options: ShopClosuresBackendOptions = {},
+): ShopClosuresBackend {
+  const backend: ShopClosuresBackend = { current: initial, gets: 0, posts: [], puts: [], deletes: [] };
+  const closureOf = (body: ShopClosureBody, id: string, version: string): ShopClosureFixture => ({
+    id,
+    firstDay: body.firstDay ?? '',
+    lastDay: body.lastDay ?? body.firstDay ?? '',
+    note: body.note,
+    version,
+  });
+  server.use(
+    http.get('*/api/v1/shop-closures', () => {
+      backend.gets += 1;
+      return options.onGet?.(backend) ?? HttpResponse.json(byFirstDay(backend.current));
+    }),
+    http.post('*/api/v1/shop-closures', async ({ request }) => {
+      const body = (await request.json()) as ShopClosureBody;
+      backend.posts.push({ body, key: request.headers.get('Idempotency-Key') });
+      const answer = await options.onPost?.(body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const id = `6f1c2a10-0000-4000-8000-0000000001${String(backend.posts.length).padStart(2, '0')}`;
+      const made = closureOf(body, id, 'AAAAAAAAD99=');
+      backend.current = [...backend.current, made];
+      return HttpResponse.json(made, { status: 201 });
+    }),
+    http.put('*/api/v1/shop-closures/:id', async ({ request, params }) => {
+      const id = String(params.id);
+      const body = (await request.json()) as ShopClosureBody;
+      backend.puts.push({ id, body });
+      const answer = await options.onPut?.(id, body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const made = closureOf(body, id, hoursVersionAfter(backend.puts.length));
+      backend.current = backend.current.map((closure) => (closure.id === id ? made : closure));
+      return HttpResponse.json(made);
+    }),
+    http.delete('*/api/v1/shop-closures/:id', async ({ params }) => {
+      const id = String(params.id);
+      backend.deletes.push(id);
+      const answer = await options.onDelete?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.current = backend.current.filter((closure) => closure.id !== id);
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return backend;
+}
+
+/** Answers the small business-today call that closure forms make (the date comes from the server, never the device). */
+export function businessTodayIs(today: string): void {
+  server.use(http.get('*/api/v1/orders', () => HttpResponse.json(buildOrderList([], { today }))));
 }

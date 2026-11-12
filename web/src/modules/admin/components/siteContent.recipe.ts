@@ -24,3 +24,23 @@ export const phoneControlCellClasses = tw('flex items-center pt-[26px] pg-phone:
 
 /** The rows and the Add Number button under them: a column 16px apart. */
 export const phoneListClasses = tw('flex flex-col gap-4');
+
+/** The seven day rows of the hours card: a column 12px apart. */
+export const hoursListClasses = tw('flex flex-col gap-3');
+
+/**
+ * One day row (S2 card A): the day column 160px, then Opens and Closes at one share each. On phones the day sits on top and the two
+ * selects side by side under it.
+ */
+export const hoursRowClasses = tw(
+  'grid grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] items-end gap-x-4 gap-y-2 pg-phone:grid-cols-2',
+);
+
+/** The day checkbox, as tall as a select so the row lines up; on phones it takes the whole top line. */
+export const hoursDayCellClasses = tw('flex min-h-11 min-w-0 items-center pg-phone:col-span-2');
+
+/** The word Closed that stands in place of the two selects. */
+export const hoursClosedCellClasses = tw('col-span-2 flex min-h-11 items-center text-[14px] text-ink-muted');
+
+/** The "Visitors see" lines under the rows (14px muted). */
+export const hoursPreviewClasses = tw('flex flex-col gap-0.5 text-[14px] leading-5 text-ink-muted');

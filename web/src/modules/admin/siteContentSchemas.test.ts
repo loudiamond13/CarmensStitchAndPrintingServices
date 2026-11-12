@@ -2,11 +2,18 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { demoSiteSettings } from '@/test/siteContentFixtures';
+import { demoClosures, demoOpeningHours, demoSiteSettings } from '@/test/siteContentFixtures';
 import {
   businessInfoSchema,
   businessInfoValuesOf,
+  closureSchema,
+  closureValuesOf,
+  DEFAULT_CLOSES,
+  DEFAULT_OPENS,
   hasBracketPlaceholder,
+  HOURS_TIME_OPTIONS,
+  hoursSchema,
+  hoursValuesOf,
   isDirectionsLink,
   isFacebookLink,
   isInstagramLink,
@@ -15,8 +22,13 @@ import {
   isTikTokLink,
   phoneE164,
   reduceEmbedCode,
+  toClosureRequest,
+  toOpeningHoursRequest,
   toSiteSettingsRequest,
+  weekOfValues,
   type BusinessInfoInput,
+  type ClosureInput,
+  type HoursInput,
 } from './siteContentSchemas';
 
 // The Business Info form schema (OR-3; CONT-01, D-23, D-24; plan 11-12): it mirrors the server's validator, so the browser checks
@@ -401,5 +413,246 @@ describe('the save request (CONT-01)', () => {
     expect(request.aboutText).toBeNull();
     expect(request.postalCode).toBe('8600');
     expect(request.phones).toEqual([{ number: '0917 123 4567', label: null, isMain: true }]);
+  });
+});
+
+// The weekly hours form (OR-3; CONT-01, D-21; plan 11-16): it mirrors UpdateOpeningHoursRequestValidator and OpeningHours.Check.
+describe('hoursSchema', () => {
+  const WEEK: HoursInput = hoursValuesOf(demoOpeningHours);
+
+  /** The demo week with one day changed. */
+  function withDay(index: number, change: Partial<HoursInput['days'][number]>): HoursInput {
+    return { days: WEEK.days.map((day, at) => (at === index ? { ...day, ...change } : day)) };
+  }
+
+  /** The messages of a week, keyed by the path of the field they belong to ("days.6.closesAt"). */
+  function messagesOf(values: HoursInput): Record<string, string> {
+    const result = hoursSchema.safeParse(values);
+    if (result.success) {
+      return {};
+    }
+    return Object.fromEntries(result.error.issues.map((issue) => [issue.path.join('.'), issue.message]));
+  }
+
+  it('offers every half hour from 5:00 AM to 11:30 PM, written like 9:00 AM', () => {
+    expect(HOURS_TIME_OPTIONS).toHaveLength(38);
+    expect(HOURS_TIME_OPTIONS[0]).toEqual({ value: '05:00', label: '5:00 AM' });
+    expect(HOURS_TIME_OPTIONS[8]).toEqual({ value: '09:00', label: '9:00 AM' });
+    expect(HOURS_TIME_OPTIONS.at(-1)).toEqual({ value: '23:30', label: '11:30 PM' });
+  });
+
+  it('takes the demo week: six open days and a closed Sunday', () => {
+    expect(WEEK.days.map((day) => day.open)).toEqual([true, true, true, true, true, true, false]);
+    expect(hoursSchema.safeParse(WEEK).success).toBe(true);
+  });
+
+  it('refuses an open day with no opening time with the server message', () => {
+    expect(messagesOf(withDay(6, { open: true, opensAt: '', closesAt: '15:00' }))).toEqual({
+      'days.6.opensAt': 'Choose the opening time.',
+    });
+  });
+
+  it('refuses an open day with no closing time with the server message', () => {
+    expect(messagesOf(withDay(6, { open: true, opensAt: '10:00', closesAt: '' }))).toEqual({
+      'days.6.closesAt': 'Choose the closing time.',
+    });
+  });
+
+  it('refuses closing at or before opening with "Closing time must be after opening time."', () => {
+    expect(messagesOf(withDay(0, { opensAt: '18:00', closesAt: '09:00' }))).toEqual({
+      'days.0.closesAt': 'Closing time must be after opening time.',
+    });
+    expect(messagesOf(withDay(0, { opensAt: '09:00', closesAt: '09:00' }))).toEqual({
+      'days.0.closesAt': 'Closing time must be after opening time.',
+    });
+  });
+
+  it.each(['09:15', '04:30', '23:45', '24:00', '9:00', 'nine'])(
+    'refuses %s, which is not on the half hour from 5:00 AM to 11:30 PM',
+    (time) => {
+      expect(messagesOf(withDay(1, { opensAt: time }))).toEqual({
+        'days.1.opensAt': 'Choose a time on the hour or half hour, from 5:00 AM to 11:30 PM.',
+      });
+    },
+  );
+
+  it('does not look at the times of a closed day', () => {
+    expect(messagesOf(withDay(2, { open: false, opensAt: '99:99', closesAt: '' }))).toEqual({});
+  });
+
+  it('reports every broken day at once', () => {
+    const values = withDay(0, { opensAt: '18:00', closesAt: '09:00' });
+    const both = { days: values.days.map((day, at) => (at === 3 ? { ...day, opensAt: '' } : day)) };
+
+    expect(Object.keys(messagesOf(both)).sort()).toEqual(['days.0.closesAt', 'days.3.opensAt']);
+  });
+});
+
+describe('the hours form values and request (plan 11-16)', () => {
+  it('shows a closed day unticked with no times, and an open day ticked with its 24-hour times', () => {
+    const values = hoursValuesOf(demoOpeningHours);
+
+    expect(values.days[0]).toEqual({ day: 1, open: true, opensAt: '09:00', closesAt: '18:00' });
+    expect(values.days[6]).toEqual({ day: 7, open: false, opensAt: '', closesAt: '' });
+  });
+
+  it('sends the seven days Monday first, a closed day with null times, and the version the form opened with', () => {
+    const values = hoursValuesOf(demoOpeningHours);
+    const ticked = {
+      days: values.days.map((day) =>
+        day.day === 7 ? { ...day, open: true, opensAt: '10:00', closesAt: '15:00' } : day,
+      ),
+    };
+
+    const request = toOpeningHoursRequest(ticked, 'v1');
+
+    expect(request.version).toBe('v1');
+    expect(request.days).toHaveLength(7);
+    expect(request.days?.[6]).toEqual({ day: 7, opensAt: '10:00', closesAt: '15:00' });
+    expect(toOpeningHoursRequest(values, 'v1').days?.[6]).toEqual({ day: 7, opensAt: null, closesAt: null });
+  });
+
+  it('sends the times of a day that was unticked as null even when the form still holds them', () => {
+    const values = hoursValuesOf(demoOpeningHours);
+    const unticked = { days: values.days.map((day) => (day.day === 1 ? { ...day, open: false } : day)) };
+
+    expect(toOpeningHoursRequest(unticked, 'v1').days?.[0]).toEqual({ day: 1, opensAt: null, closesAt: null });
+  });
+
+  it('gives a ticked day 9:00 AM to 6:00 PM when it has no times of its own', () => {
+    expect(DEFAULT_OPENS).toBe('09:00');
+    expect(DEFAULT_CLOSES).toBe('18:00');
+  });
+
+  it('reads the week back as the days the preview needs', () => {
+    const days = weekOfValues(hoursValuesOf(demoOpeningHours));
+
+    expect(days[0]).toEqual({ day: 1, opensAt: '09:00', closesAt: '18:00' });
+    expect(days[6]).toEqual({ day: 7, opensAt: null, closesAt: null });
+  });
+});
+
+// The closure form (OR-3; CONT-04; plan 11-16): it mirrors ShopClosureRequestValidator and ShopClosure.Check. The business today comes from the
+// server; an edit keeps a first day that is already past (parked owner item OI-1, built as option A).
+describe('closureSchema', () => {
+  const TODAY = '2031-03-04';
+  const GOOD: ClosureInput = { firstDay: '2031-03-10', lastDay: '', note: 'Christmas' };
+
+  /** The messages of a closure form, keyed by the field they belong to. */
+  function messagesOf(values: ClosureInput, today: string | null = TODAY, savedFirstDay: string | null = null) {
+    const result = closureSchema(today, savedFirstDay).safeParse(values);
+    if (result.success) {
+      return {};
+    }
+    return Object.fromEntries(result.error.issues.map((issue) => [issue.path.join('.'), issue.message]));
+  }
+
+  it('takes a closure from today on, with or without a last day and a note', () => {
+    expect(messagesOf(GOOD)).toEqual({});
+    expect(messagesOf({ firstDay: TODAY, lastDay: '', note: '' })).toEqual({});
+    expect(messagesOf({ firstDay: TODAY, lastDay: '2031-04-03', note: '' })).toEqual({});
+  });
+
+  it('needs a first day', () => {
+    expect(messagesOf({ ...GOOD, firstDay: '' })).toEqual({ firstDay: 'Enter the first day.' });
+    expect(messagesOf({ ...GOOD, firstDay: '   ' })).toEqual({ firstDay: 'Enter the first day.' });
+  });
+
+  it.each(['2031-02-30', '2031-13-01', '31/03/2031', 'soon'])(
+    'refuses %s as a first day that is not a real date',
+    (day) => {
+      expect(messagesOf({ ...GOOD, firstDay: day })).toEqual({ firstDay: 'Enter a real date.' });
+    },
+  );
+
+  it('refuses a first day before the business today with "Pick today or a later date."', () => {
+    expect(messagesOf({ ...GOOD, firstDay: '2031-03-03' })).toEqual({ firstDay: 'Pick today or a later date.' });
+  });
+
+  it('does not check the first day against today while the business today is not known', () => {
+    expect(messagesOf({ ...GOOD, firstDay: '2031-03-03' }, null)).toEqual({});
+  });
+
+  it('keeps an edit that leaves a past first day as it was, and refuses an edit that moves it to another past day', () => {
+    expect(messagesOf({ ...GOOD, firstDay: '2031-03-01' }, TODAY, '2031-03-01')).toEqual({});
+    expect(messagesOf({ ...GOOD, firstDay: '2031-03-02' }, TODAY, '2031-03-01')).toEqual({
+      firstDay: 'Pick today or a later date.',
+    });
+  });
+
+  it('refuses a last day that is not a real date', () => {
+    expect(messagesOf({ ...GOOD, lastDay: '2031-02-30' })).toEqual({ lastDay: 'Enter a real date.' });
+  });
+
+  it('refuses a last day before the first day', () => {
+    expect(messagesOf({ ...GOOD, lastDay: '2031-03-09' })).toEqual({
+      lastDay: 'The last day must be on or after the first day.',
+    });
+  });
+
+  it('allows 31 days and refuses 32 with "A closure can be up to 31 days. Add another one for longer."', () => {
+    expect(messagesOf({ firstDay: '2031-03-04', lastDay: '2031-04-03', note: '' })).toEqual({});
+    expect(messagesOf({ firstDay: '2031-03-04', lastDay: '2031-04-04', note: '' })).toEqual({
+      lastDay: 'A closure can be up to 31 days. Add another one for longer.',
+    });
+  });
+
+  it('counts the days across a leap day', () => {
+    expect(messagesOf({ firstDay: '2032-02-01', lastDay: '2032-03-02', note: '' }, '2032-01-01')).toEqual({});
+    expect(messagesOf({ firstDay: '2032-02-01', lastDay: '2032-03-03', note: '' }, '2032-01-01')).toEqual({
+      lastDay: 'A closure can be up to 31 days. Add another one for longer.',
+    });
+  });
+
+  it('allows a note of 80 characters after the trim and refuses 81', () => {
+    expect(messagesOf({ ...GOOD, note: `  ${'a'.repeat(80)}  ` })).toEqual({});
+    expect(messagesOf({ ...GOOD, note: 'a'.repeat(81) })).toEqual({
+      note: 'Keep the note to 80 characters or fewer.',
+    });
+  });
+
+  it('judges only what could be read: a bad first day makes no made-up second error', () => {
+    expect(messagesOf({ firstDay: '2031-02-30', lastDay: '2031-01-01', note: '' })).toEqual({
+      firstDay: 'Enter a real date.',
+    });
+  });
+});
+
+describe('the closure form values and request (plan 11-16)', () => {
+  it('starts an add on the business today with no last day and no note', () => {
+    expect(closureValuesOf(null, '2031-03-04')).toEqual({ firstDay: '2031-03-04', lastDay: '', note: '' });
+    expect(closureValuesOf(null, null)).toEqual({ firstDay: '', lastDay: '', note: '' });
+  });
+
+  it('shows a saved closure with its days and note, a one day closure with no last day', () => {
+    expect(closureValuesOf(demoClosures[0] ?? null, '2031-03-04')).toEqual({
+      firstDay: '2026-12-25',
+      lastDay: '',
+      note: 'Christmas',
+    });
+    expect(closureValuesOf(demoClosures[1] ?? null, '2031-03-04')).toEqual({
+      firstDay: '2026-12-30',
+      lastDay: '2027-01-01',
+      note: '',
+    });
+  });
+
+  it('sends an add with no version, an empty last day and note as null, and the note trimmed', () => {
+    expect(toClosureRequest({ firstDay: '2031-03-10', lastDay: '', note: '  Christmas  ' }, null)).toEqual({
+      firstDay: '2031-03-10',
+      lastDay: null,
+      note: 'Christmas',
+      version: null,
+    });
+    expect(toClosureRequest({ firstDay: '2031-03-10', lastDay: '', note: '   ' }, null).note).toBeNull();
+  });
+
+  it('sends an edit with the version the form was opened with', () => {
+    expect(toClosureRequest({ firstDay: '2031-03-10', lastDay: '2031-03-12', note: '' }, 'v1')).toEqual({
+      firstDay: '2031-03-10',
+      lastDay: '2031-03-12',
+      note: null,
+      version: 'v1',
+    });
   });
 });

@@ -12,7 +12,12 @@ import { SiteContentPage, SiteContentRoute, type SiteContentPanels } from '@/mod
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoSiteSettings, siteSettingsBackend } from '@/test/siteContentFixtures';
+import {
+  demoSiteSettings,
+  openingHoursBackend,
+  shopClosuresBackend,
+  siteSettingsBackend,
+} from '@/test/siteContentFixtures';
 
 // S0 Site Content, /admin/site-content (D-27, WEB-10; plan 11-12): the Manager's header and tabs.
 
@@ -89,16 +94,27 @@ describe('the tabs (WEB-10)', () => {
     await openPage();
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Business Info']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Business Info', 'Hours & Closures']);
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: 'Business Info' })).toBeVisible();
   });
 
   it('shows Business Info for a tab that does not exist yet', async () => {
-    await openPage('?tab=hours');
+    await openPage('?tab=products');
 
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText(/^Tagline/)).toBeVisible();
+  });
+
+  it('opens the Hours & Closures tab from ?tab=hours and shows the Opening hours card in its panel', async () => {
+    openingHoursBackend();
+    shopClosuresBackend();
+    renderPage('?tab=hours');
+
+    const panel = await screen.findByRole('tabpanel', { name: 'Hours & Closures' });
+    expect(screen.getByRole('tab', { name: 'Hours & Closures' })).toHaveAttribute('aria-selected', 'true');
+    await within(panel).findByRole('checkbox', { name: 'Monday' });
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Opening hours' })).toBeVisible();
   });
 
   it('has the Business Info card inside the tab panel', async () => {
@@ -282,5 +298,74 @@ describe('leaving a tab with unsaved changes (S0, 08 D-58)', () => {
     await screen.findByRole('dialog', { name: 'Discard changes?' });
 
     await expectNoAxeViolations(container);
+  });
+});
+
+// The Hours & Closures tab holds unsaved hours (plan 11-16): the same questions, through the real route.
+describe('leaving the Hours & Closures tab with unsaved hours (S0, 08 D-58)', () => {
+  async function openHours() {
+    openingHoursBackend();
+    shopClosuresBackend();
+    const view = renderPage('?tab=hours');
+    await screen.findByRole('checkbox', { name: 'Sunday' });
+    return { ...view, user: userEvent.setup() };
+  }
+
+  it('asks Discard changes? when another tab is chosen after a day was ticked', async () => {
+    const { user } = await openHours();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+
+    await user.click(screen.getByRole('tab', { name: 'Business Info' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Hours & Closures' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps the ticked day on Keep Editing, and changes the tab on Discard Changes', async () => {
+    const { user } = await openHours();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.click(screen.getByRole('tab', { name: 'Business Info' }));
+
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Discard changes?' })).getByRole('button', {
+        name: 'Keep Editing',
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.getByRole('checkbox', { name: 'Sunday' })).toBeChecked();
+
+    await user.click(screen.getByRole('tab', { name: 'Business Info' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Discard changes?' })).getByRole('button', {
+        name: 'Discard Changes',
+      }),
+    );
+    expect(await screen.findByLabelText(/^Tagline/)).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('changes the tab at once when the hours are as saved, and sets beforeunload only while they are not', async () => {
+    const { user } = await openHours();
+    const clean = new Event('beforeunload', { cancelable: true });
+    act(() => {
+      window.dispatchEvent(clean);
+    });
+    expect(clean.defaultPrevented).toBe(false);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    const dirty = new Event('beforeunload', { cancelable: true });
+    act(() => {
+      window.dispatchEvent(dirty);
+    });
+    expect(dirty.defaultPrevented).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Undo Changes' }));
+    await user.click(screen.getByRole('tab', { name: 'Business Info' }));
+
+    expect(await screen.findByLabelText(/^Tagline/)).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

@@ -6,7 +6,11 @@
 // tests/fixtures/site-link-cases.json. Only what the server alone can know stays server-side.
 import { z } from 'zod';
 import { isEmailShaped } from '@/modules/admin/authSchemas';
+import type { OpeningHours, UpdateOpeningHoursRequest } from '@/modules/admin/services/openingHoursService';
+import type { ShopClosure, ShopClosureRequest } from '@/modules/admin/services/shopClosuresService';
 import type { SiteSettings, UpdateSiteSettingsRequest } from '@/modules/admin/services/siteSettingsService';
+import { isCalendarDate } from '@/lib/url-state/parsers';
+import { formatTime, type WeekDayHours } from '@/utils/hours';
 import { SITE_CONTENT_COPY } from './siteContentCopy';
 
 // The strict CSP has no 'unsafe-eval': every schema runs in its plain (non-generated) mode (see profileSchemas.ts).
@@ -388,5 +392,210 @@ export function toSiteSettingsRequest(values: BusinessInfoInput, version: string
       label: optional(phone.label),
       isMain: phone.isMain,
     })),
+  };
+}
+
+// ---- The weekly hours form (CONT-01, D-21; plan 11-16) -------------------------------------------------------------------------------
+// It mirrors UpdateOpeningHoursRequestValidator and OpeningHours.Check with the server's own messages: an open day needs both times, each on
+// the half hour from 5:00 AM to 11:30 PM, and closing must be after opening. A closed day is never checked.
+
+const HOURS = SITE_CONTENT_COPY.hours.errors;
+
+/** A ticked day with no times of its own starts at 9:00 AM to 6:00 PM. */
+export const DEFAULT_OPENS = '09:00';
+export const DEFAULT_CLOSES = '18:00';
+
+const EARLIEST_MINUTE = 5 * 60;
+const LATEST_MINUTE = 23 * 60 + 30;
+const STEP_MINUTES = 30;
+const TIME_24H = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/** The minutes after midnight of a "HH:mm" time, or null when the text is not one. */
+function minutesOf(time: string): number | null {
+  const match = TIME_24H.exec(time);
+  return match === null ? null : Number(match[1]) * 60 + Number(match[2]);
+}
+
+function isChoosableMinute(minute: number): boolean {
+  return minute >= EARLIEST_MINUTE && minute <= LATEST_MINUTE && minute % STEP_MINUTES === 0;
+}
+
+/** Every time a Manager can choose, as the select lists it: "05:00" written "5:00 AM", every 30 minutes to "23:30". */
+export const HOURS_TIME_OPTIONS: readonly { readonly value: string; readonly label: string }[] = Array.from(
+  { length: (LATEST_MINUTE - EARLIEST_MINUTE) / STEP_MINUTES + 1 },
+  (_unused, index) => {
+    const minute = EARLIEST_MINUTE + index * STEP_MINUTES;
+    const value = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+    return { value, label: formatTime(value) ?? value };
+  },
+);
+
+/** One day as the form holds it: the weekday (1 Monday to 7 Sunday), whether it is open, and its two times as "HH:mm" or "". */
+const hoursDaySchema = z.object({
+  day: z.number(),
+  open: z.boolean(),
+  opensAt: z.string(),
+  closesAt: z.string(),
+});
+
+/** What a time field says about itself: nothing chosen, a time that is not a choosable one, or its minutes. */
+function readTime(time: string): 'blank' | 'unchoosable' | number {
+  if (time === '') {
+    return 'blank';
+  }
+  const minute = minutesOf(time);
+  return minute !== null && isChoosableMinute(minute) ? minute : 'unchoosable';
+}
+
+/** OpeningHours.Check for every open day, each message on the field the server keys it to. */
+export const hoursSchema = z.object({
+  days: z.array(hoursDaySchema).superRefine((days, ctx) => {
+    days.forEach((day, index) => {
+      if (!day.open) {
+        return;
+      }
+      const opens = readTime(day.opensAt);
+      const closes = readTime(day.closesAt);
+      if (opens === 'blank') {
+        ctx.addIssue({ code: 'custom', message: HOURS.opensRequired, path: [index, 'opensAt'] });
+      } else if (opens === 'unchoosable') {
+        ctx.addIssue({ code: 'custom', message: HOURS.timeStep, path: [index, 'opensAt'] });
+      }
+      if (closes === 'blank') {
+        ctx.addIssue({ code: 'custom', message: HOURS.closesRequired, path: [index, 'closesAt'] });
+      } else if (closes === 'unchoosable') {
+        ctx.addIssue({ code: 'custom', message: HOURS.timeStep, path: [index, 'closesAt'] });
+      } else if (typeof opens === 'number' && closes <= opens) {
+        ctx.addIssue({ code: 'custom', message: HOURS.closesAfterOpens, path: [index, 'closesAt'] });
+      }
+    });
+  }),
+});
+
+/** What the hours form holds while it is edited. */
+export type HoursInput = z.input<typeof hoursSchema>;
+
+/** The form values of the saved week, Monday first: a closed day is unticked with no times. */
+export function hoursValuesOf(hours: OpeningHours): HoursInput {
+  return {
+    days: [1, 2, 3, 4, 5, 6, 7].map((weekday) => {
+      const saved = hours.days.find((entry) => Number(entry.day) === weekday);
+      const opensAt = saved?.opensAt ?? '';
+      const closesAt = saved?.closesAt ?? '';
+      return { day: weekday, open: opensAt !== '' && closesAt !== '', opensAt, closesAt };
+    }),
+  };
+}
+
+/** The save request for the form's values: all seven days, a closed day with no times, and the version the form was opened with. */
+export function toOpeningHoursRequest(values: HoursInput, version: string): UpdateOpeningHoursRequest {
+  return {
+    version,
+    days: values.days.map((day) =>
+      day.open
+        ? { day: day.day, opensAt: day.opensAt, closesAt: day.closesAt }
+        : { day: day.day, opensAt: null, closesAt: null },
+    ),
+  };
+}
+
+/** The week as utils/hours reads it, for the "Visitors see" line: a day with no pair of times is closed. */
+export function weekOfValues(values: HoursInput): WeekDayHours[] {
+  return values.days.map((day) => {
+    const open = day.open && day.opensAt !== '' && day.closesAt !== '';
+    return {
+      day: day.day as WeekDayHours['day'],
+      opensAt: open ? day.opensAt : null,
+      closesAt: open ? day.closesAt : null,
+    };
+  });
+}
+
+/** True when the two forms would send the same week: a closed day's leftover times do not count. */
+export function sameWeek(a: HoursInput, b: HoursInput): boolean {
+  return JSON.stringify(toOpeningHoursRequest(a, '').days) === JSON.stringify(toOpeningHoursRequest(b, '').days);
+}
+
+// ---- The closure form (CONT-04, D-22; plan 11-16) -----------------------------------------------------------------------------------
+// It mirrors ShopClosureRequestValidator and ShopClosure.Check with the server's own messages: a real first day that is today or later, a
+// last day on or after it, at most 31 days in all, and a note of at most 80 characters. The business today comes from the server. An edit
+// keeps a first day that is already past (a closure that is running can still have its note fixed); moving it is checked like an add (owner
+// item OI-1 of plan 11-13, built as option A). An overlap with another closure is the one rule only the server can check.
+
+const CLOSURE = SITE_CONTENT_COPY.closures.errors;
+
+export const CLOSURE_NOTE_MAX = 80;
+export const CLOSURE_MAX_DAYS = 31;
+
+const MS_PER_DAY = 86_400_000;
+
+/** The number of the day in a running count, for counting the days between two real `YYYY-MM-DD` dates. */
+function dayNumberOf(day: string): number {
+  const [year, month, date] = day.split('-').map(Number) as [number, number, number];
+  return Math.round(Date.UTC(year, month - 1, date) / MS_PER_DAY);
+}
+
+/** The schema of the closure form for this business today (null while it is not known) and, for an edit, the first day it was opened with. */
+export function closureSchema(today: string | null, savedFirstDay: string | null = null) {
+  return z
+    .object({
+      firstDay: z.string(),
+      lastDay: z.string(),
+      note: z.string(),
+    })
+    .superRefine((values, ctx) => {
+      const first = values.firstDay.trim();
+      const last = values.lastDay.trim();
+      const firstRead = isCalendarDate(first);
+      if (first === '') {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.firstRequired, path: ['firstDay'] });
+      } else if (!firstRead) {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.notADate, path: ['firstDay'] });
+      } else if (today !== null && first < today && first !== savedFirstDay) {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.firstInPast, path: ['firstDay'] });
+      }
+
+      if (last !== '') {
+        if (!isCalendarDate(last)) {
+          ctx.addIssue({ code: 'custom', message: CLOSURE.notADate, path: ['lastDay'] });
+        } else if (firstRead && last < first) {
+          ctx.addIssue({ code: 'custom', message: CLOSURE.lastBeforeFirst, path: ['lastDay'] });
+        } else if (firstRead && dayNumberOf(last) - dayNumberOf(first) + 1 > CLOSURE_MAX_DAYS) {
+          ctx.addIssue({ code: 'custom', message: CLOSURE.spanTooLong, path: ['lastDay'] });
+        }
+      }
+
+      if (values.note.trim().length > CLOSURE_NOTE_MAX) {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.noteTooLong, path: ['note'] });
+      }
+    });
+}
+
+/** What the closure form holds while it is edited: every control is text, an empty optional value is "". */
+export interface ClosureInput {
+  firstDay: string;
+  lastDay: string;
+  note: string;
+}
+
+/** The form values: an add starts on the business today (empty while it is not known); an edit shows the saved closure, a one day closure with no last day. */
+export function closureValuesOf(closure: ShopClosure | null, today: string | null): ClosureInput {
+  if (closure === null) {
+    return { firstDay: today ?? '', lastDay: '', note: '' };
+  }
+  return {
+    firstDay: closure.firstDay,
+    lastDay: closure.lastDay === closure.firstDay ? '' : closure.lastDay,
+    note: closure.note ?? '',
+  };
+}
+
+/** The save request: trimmed, an empty last day or note as null, and the version an edit was opened with (null for an add). */
+export function toClosureRequest(values: ClosureInput, version: string | null): ShopClosureRequest {
+  return {
+    firstDay: values.firstDay.trim(),
+    lastDay: optional(values.lastDay),
+    note: optional(values.note),
+    version,
   };
 }
