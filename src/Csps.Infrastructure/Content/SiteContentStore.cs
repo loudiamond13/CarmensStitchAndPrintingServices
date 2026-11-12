@@ -96,6 +96,30 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
         return rows.Count == OpeningHours.DayCount ? rows : throw new InvalidOperationException(MissingHoursMessage);
     }
 
+    public async Task<IReadOnlyList<ShopClosure>> GetUpcomingClosuresAsync(DateOnly today, CancellationToken cancellationToken) =>
+        await context.ShopClosures
+            .AsNoTracking()
+            .Where(closure => closure.LastDay >= today)
+            .OrderBy(closure => closure.FirstDay)
+            .ThenBy(closure => closure.LastDay)
+            .ThenBy(closure => closure.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    public Task<ShopClosure?> FindClosureAsync(Guid id, CancellationToken cancellationToken) =>
+        context.ShopClosures.SingleOrDefaultAsync(closure => closure.Id == id, cancellationToken);
+
+    public Task<ShopClosure?> FindOverlappingClosureAsync(DateOnly firstDay, DateOnly lastDay, Guid? exceptId, CancellationToken cancellationToken) =>
+        context.ShopClosures
+            .AsNoTracking()
+            .Where(closure => closure.FirstDay <= lastDay && closure.LastDay >= firstDay && closure.Id != exceptId)
+            .OrderBy(closure => closure.FirstDay)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public void AddClosure(ShopClosure closure) => context.ShopClosures.Add(closure);
+
+    public void RemoveClosure(ShopClosure closure) => context.ShopClosures.Remove(closure);
+
     // The last changer is the user of the most recently changed day.
     public async Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken)
     {

@@ -90,14 +90,26 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return Build(settings, phones, hours);
+            // The closures that touch the next 60 days: the open status skips them and the page head lists them as closed days.
+            var (zone, source) = TimeZoneResolver.Resolve(settings.TimeZoneId);
+            var clock = new BusinessClock(zone, source, time.GetUtcNow());
+            var today = clock.Today;
+            var windowEnd = today.AddDays(ShopClosure.SearchWindowDays);
+            var closures = await db.ShopClosures
+                .AsNoTracking()
+                .Where(row => row.LastDay >= today && row.FirstDay <= windowEnd)
+                .OrderBy(row => row.FirstDay)
+                .ThenBy(row => row.LastDay)
+                .Select(row => new ClosureRow(row.FirstDay, row.LastDay, row.Note, row.UpdatedAtUtc ?? row.CreatedAtUtc))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return Build(settings, phones, hours, closures, clock.Year);
         }
     }
 
-    private PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours)
+    private static PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours, List<ClosureRow> closures, int year)
     {
-        var (zone, source) = TimeZoneResolver.Resolve(settings.TimeZoneId);
-        var year = new BusinessClock(zone, source, time.GetUtcNow()).Year;
         var site = new PublicSiteDto(
             settings.BusinessName,
             settings.Tagline,
@@ -117,8 +129,15 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 
         var json = JsonSerializer.Serialize(site, JsonOptions);
         var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
-        var lastChanged = phones.Select(phone => phone.ChangedAtUtc).Concat(hours.Select(day => day.ChangedAtUtc)).Append(settings.ChangedAtUtc).Max();
-        return new PublicSiteSnapshot(site, new PublicJsonSnapshot(json, etag, lastChanged));
+        var lastChanged = phones.Select(phone => phone.ChangedAtUtc)
+            .Concat(hours.Select(day => day.ChangedAtUtc))
+            .Concat(closures.Select(closure => closure.ChangedAtUtc))
+            .Append(settings.ChangedAtUtc)
+            .Max();
+        return new PublicSiteSnapshot(
+            site,
+            new PublicJsonSnapshot(json, etag, lastChanged),
+            [.. closures.Select(closure => new ClosureSpan(closure.FirstDay, closure.LastDay, closure.Note))]);
     }
 
     private static string DisplayOf(string number) => PhilippinePhone.TryParse(number, out var phone) ? phone.Display : number;
@@ -143,6 +162,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         string? MapEmbedUrl,
         string TimeZoneId,
         DateTimeOffset ChangedAtUtc);
+
+    private sealed record ClosureRow(DateOnly FirstDay, DateOnly LastDay, string? Note, DateTimeOffset ChangedAtUtc);
 
     private sealed record HoursRow(int Day, TimeOnly? OpensAt, TimeOnly? ClosesAt, DateTimeOffset ChangedAtUtc);
 

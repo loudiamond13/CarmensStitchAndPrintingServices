@@ -33,6 +33,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The weekly opening hours: seven rows, Monday (1) to Sunday (7), created closed by the migration (D-21).</summary>
     public DbSet<OpeningHours> OpeningHours => Set<OpeningHours>();
 
+    /// <summary>The holidays and closures: days the shop is closed whatever its weekly hours say (CONT-04).</summary>
+    public DbSet<ShopClosure> ShopClosures => Set<ShopClosure>();
+
     /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 

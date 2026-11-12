@@ -24,6 +24,10 @@ public sealed class OpenStatusEndpointTests(CspsDatabase database) : IClassFixtu
     private static readonly DateTimeOffset MondayTenAmManila = new(2026, 11, 16, 2, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset MondaySixPmManila = new(2026, 11, 16, 10, 0, 0, TimeSpan.Zero);
 
+    // Monday 2 Nov 2026, 10:00 in Manila. The closure tests use a clock earlier than the real one, so a session started on the real
+    // clock is still valid on the pinned host.
+    private static readonly DateTimeOffset PastMondayTenAmManila = new(2026, 11, 2, 2, 0, 0, TimeSpan.Zero);
+
     [Fact]
     public async Task AtTenOnAMondayTheShopIsOpenUntilSixPmAndTheAnswerIsCachedForAMinuteWithNoETag()
     {
@@ -108,13 +112,14 @@ public sealed class OpenStatusEndpointTests(CspsDatabase database) : IClassFixtu
     [Fact]
     public async Task AClosureForTodayMakesTheStatusClosedWithItsNoteAndTheNextOpeningSkipsIt()
     {
+        await database.ResetAsync();
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
         await SaveMondayNineToSixAsync(baseFactory);
         var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
-        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(MondayTenAmManila));
+        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(PastMondayTenAmManila));
         using var client = factory.CreateClient();
 
-        using var created = await PostClosureAsync(client, manager.AccessToken, "2026-11-16", null, "Christmas");
+        using var created = await PostClosureAsync(client, manager.AccessToken, "2026-11-02", null, "Christmas");
         created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         using var response = await client.GetAsync(new Uri(StatusRoute, UriKind.Relative), TestContext.Current.CancellationToken);
 
@@ -125,7 +130,7 @@ public sealed class OpenStatusEndpointTests(CspsDatabase database) : IClassFixtu
         root.GetProperty("closedToday").GetBoolean().ShouldBeTrue();
         root.GetProperty("todayClosureNote").GetString().ShouldBe("Christmas");
         var next = root.GetProperty("nextOpening");
-        next.GetProperty("date").GetString().ShouldBe("2026-11-23");
+        next.GetProperty("date").GetString().ShouldBe("2026-11-09");
         next.GetProperty("when").GetString().ShouldBe("weekday");
         next.GetProperty("opensAt").GetString().ShouldBe("09:00");
     }
@@ -133,11 +138,12 @@ public sealed class OpenStatusEndpointTests(CspsDatabase database) : IClassFixtu
     [Fact]
     public async Task AManagerListsTheClosureWithItsVersionAndAnAdminGets403()
     {
+        await database.ResetAsync();
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
         await SaveMondayNineToSixAsync(baseFactory);
         var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
         var admin = await TestSessions.StartAsync(baseFactory, Roles.Admin);
-        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(MondayTenAmManila));
+        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(PastMondayTenAmManila));
         using var client = factory.CreateClient();
         using var created = await PostClosureAsync(client, manager.AccessToken, "2026-12-24", "2026-12-26", "Christmas");
         created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));

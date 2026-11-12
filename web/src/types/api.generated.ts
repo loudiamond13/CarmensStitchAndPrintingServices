@@ -1760,6 +1760,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/shop-closures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the upcoming closures: every closure whose last day is today or later in business time, by first day. Each has its id, its
+         *     first and last day as "yyyy-MM-dd" (the same day for a single day), its public note or none, and the version an edit must send
+         *     back. Past closures are not listed.
+         */
+        get: operations["ListShopClosures"];
+        put?: never;
+        /**
+         * Adds a closure. The first day is required and is today or later in business time. The last day is optional, on or after the first
+         *     day and at most 31 days in all; leave it out for one day. The note is optional and at most 80 characters. A closure that shares a
+         *     day with another one is a 400 on `firstDay` naming the first shared day, such as "There's already a closure on Dec 25,
+         *     2026." If the shop is busy saving another closure the answer is 409. Who added it and when come from the token and the clock; any
+         *     such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds
+         *     nothing more. The next public read, open-status read and page show the closure.
+         */
+        post: operations["CreateShopClosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shop-closures/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edits a closure with the version the form was opened with. The days and the note follow the same rules as when adding, except
+         *     that a first day that is already past is kept as it is, so the note of a closure that is running can still be fixed. A
+         *     `version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form
+         *     with no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member
+         *     in the body is ignored.
+         */
+        put: operations["UpdateShopClosure"];
+        post?: never;
+        /** Deletes a closure for good; the shop shows its normal hours on those days again. It takes no version. Deleting a closure that is already gone is a 404. */
+        delete: operations["DeleteShopClosure"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-settings": {
         parameters: {
             query?: never;
@@ -4243,6 +4296,36 @@ export interface components {
         SetTemporaryPasswordRequest: {
             /** @description The temporary password as typed. */
             temporaryPassword: null | string;
+        };
+        /** @description One closure as a Manager sees it (CONT-04): the days as "yyyy-MM-dd", the public note and the version a save must send back. */
+        ShopClosureDto: {
+            /** @description The first closed day, "yyyy-MM-dd". */
+            firstDay: string;
+            /**
+             * Format: uuid
+             * @description The closure id.
+             */
+            id: string;
+            /** @description The last closed day, "yyyy-MM-dd"; the same as the first for a single day. */
+            lastDay: string;
+            /** @description A short reason shown to visitors; null when there is none. */
+            note: null | string;
+            /** @description The text a save must send back (409 on a stale one). */
+            version: string;
+        };
+        /**
+         * @description The closure form (CONT-04, SEC-07), for adding and for editing. Any other member in the body is ignored: who changed the closure
+         *     and when come from the token and the clock (SEC-08).
+         */
+        ShopClosureRequest: {
+            /** @description The first closed day as "yyyy-MM-dd"; required. */
+            firstDay: null | string;
+            /** @description The last closed day as "yyyy-MM-dd"; empty or missing means one day. */
+            lastDay: null | string;
+            /** @description A short reason shown to visitors, at most 80 characters; empty or missing means none. */
+            note: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** @description The sign-in form: email, password and the "keep me signed in" choice (D-03). */
         SignInRequest: {
@@ -10634,6 +10717,241 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListShopClosures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopClosureDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateShopClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ShopClosureRequest"];
+                "application/json": null | components["schemas"]["ShopClosureRequest"];
+                "text/json": null | components["schemas"]["ShopClosureRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopClosureDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateShopClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The closure id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ShopClosureRequest"];
+                "application/json": null | components["schemas"]["ShopClosureRequest"];
+                "text/json": null | components["schemas"]["ShopClosureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopClosureDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteShopClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The closure id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

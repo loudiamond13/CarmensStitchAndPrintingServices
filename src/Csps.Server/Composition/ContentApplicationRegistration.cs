@@ -20,6 +20,11 @@ public static class ContentApplicationRegistration
         services.AddScoped<GetOpeningHoursHandler>();
         services.AddScoped<UpdateOpeningHoursHandler>();
         services.AddSingleton<IValidator<UpdateOpeningHoursRequest>, UpdateOpeningHoursRequestValidator>();
+        services.AddScoped<ListShopClosuresHandler>();
+        services.AddScoped<CreateShopClosureHandler>();
+        services.AddScoped<UpdateShopClosureHandler>();
+        services.AddScoped<DeleteShopClosureHandler>();
+        services.AddSingleton<IValidator<ShopClosureRequest>, ShopClosureRequestValidator>();
         return services;
     }
 }

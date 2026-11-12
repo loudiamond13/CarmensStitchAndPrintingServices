@@ -7,7 +7,7 @@ namespace Csps.Application.Content;
 /// <summary>
 /// Use case: whether the shop is open now (PUB-05, D-22). The hours come from the public site snapshot, which is cached and cleared by
 /// every content change, and the clock from the business calendar, so the answer is worked out in the business zone and costs no query
-/// per visit. Closures join in a later plan. A reader failure is an infrastructure error and is not turned into a result.
+/// per visit. Closures ride in the same snapshot, so a closure day is closed whatever the weekly hours say. A reader failure is an infrastructure error and is not turned into a result.
 /// </summary>
 /// <param name="reader">The public content reader.</param>
 /// <param name="calendar">The business calendar.</param>
@@ -21,6 +21,6 @@ public sealed class GetOpenStatusHandler(IPublicContentReader reader, IBusinessC
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var snapshot = await reader.GetSiteAsync(cancellationToken).ConfigureAwait(false);
         var week = snapshot.Site.Hours.Select(static day => day.ToDomain()).ToList();
-        return Result.Success(OpenStatusDto.From(OpenStatus.Compute(clock, week, [])));
+        return Result.Success(OpenStatusDto.From(OpenStatus.Compute(clock, week, snapshot.Closures)));
     }
 }

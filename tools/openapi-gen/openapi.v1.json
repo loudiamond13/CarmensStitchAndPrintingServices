@@ -5096,6 +5096,83 @@
         ],
         "type": "object"
       },
+      "ShopClosureDto": {
+        "description": "One closure as a Manager sees it (CONT-04): the days as \"yyyy-MM-dd\", the public note and the version a save must send back.",
+        "properties": {
+          "firstDay": {
+            "description": "The first closed day, \"yyyy-MM-dd\".",
+            "type": "string"
+          },
+          "id": {
+            "description": "The closure id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastDay": {
+            "description": "The last closed day, \"yyyy-MM-dd\"; the same as the first for a single day.",
+            "type": "string"
+          },
+          "note": {
+            "description": "A short reason shown to visitors; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text a save must send back (409 on a stale one).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstDay",
+          "lastDay",
+          "note",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ShopClosureRequest": {
+        "description": "The closure form (CONT-04, SEC-07), for adding and for editing. Any other member in the body is ignored: who changed the closure\nand when come from the token and the clock (SEC-08).",
+        "properties": {
+          "firstDay": {
+            "description": "The first closed day as \"yyyy-MM-dd\"; required.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastDay": {
+            "description": "The last closed day as \"yyyy-MM-dd\"; empty or missing means one day.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "A short reason shown to visitors, at most 80 characters; empty or missing means none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstDay",
+          "lastDay",
+          "note",
+          "version"
+        ],
+        "type": "object"
+      },
       "SignInRequest": {
         "description": "The sign-in form: email, password and the \"keep me signed in\" choice (D-03).",
         "properties": {
@@ -14943,6 +15020,341 @@
         ]
       }
     },
+    "/api/v1/shop-closures": {
+      "get": {
+        "operationId": "ListShopClosures",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShopClosureDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists the upcoming closures: every closure whose last day is today or later in business time, by first day. Each has its id, its\nfirst and last day as \"yyyy-MM-dd\" (the same day for a single day), its public note or none, and the version an edit must send\nback. Past closures are not listed.",
+        "tags": [
+          "ShopClosures"
+        ]
+      },
+      "post": {
+        "operationId": "CreateShopClosure",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopClosureDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds a closure. The first day is required and is today or later in business time. The last day is optional, on or after the first\nday and at most 31 days in all; leave it out for one day. The note is optional and at most 80 characters. A closure that shares a\nday with another one is a 400 on `firstDay` naming the first shared day, such as \"There's already a closure on Dec 25,\n2026.\" If the shop is busy saving another closure the answer is 409. Who added it and when come from the token and the clock; any\nsuch member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds\nnothing more. The next public read, open-status read and page show the closure.",
+        "tags": [
+          "ShopClosures"
+        ]
+      }
+    },
+    "/api/v1/shop-closures/{id}": {
+      "delete": {
+        "operationId": "DeleteShopClosure",
+        "parameters": [
+          {
+            "description": "The closure id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a closure for good; the shop shows its normal hours on those days again. It takes no version. Deleting a closure that is already gone is a 404.",
+        "tags": [
+          "ShopClosures"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateShopClosure",
+        "parameters": [
+          {
+            "description": "The closure id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopClosureDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits a closure with the version the form was opened with. The days and the note follow the same rules as when adding, except\nthat a first day that is already past is kept as it is, so the note of a closure that is running can still be fixed. A\n`version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form\nwith no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member\nin the body is ignored.",
+        "tags": [
+          "ShopClosures"
+        ]
+      }
+    },
     "/api/v1/site-settings": {
       "get": {
         "operationId": "GetSiteSettings",
@@ -16638,6 +17050,9 @@
     },
     {
       "name": "Sessions"
+    },
+    {
+      "name": "ShopClosures"
     },
     {
       "name": "SignIn"
