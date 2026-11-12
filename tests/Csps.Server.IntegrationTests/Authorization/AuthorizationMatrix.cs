@@ -92,6 +92,15 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/shop-closures", "/api/v1/shop-closures", Anonymous: 401, Admin: 403, Manager: 400),
         new("PUT", "/api/v1/shop-closures/{id:guid}", "/api/v1/shop-closures/5b7e2c94-1d08-4a63-9e5f-8c3a6d0b7f21", Anonymous: 401, Admin: 403, Manager: 400),
         new("DELETE", "/api/v1/shop-closures/{id:guid}", "/api/v1/shop-closures/a94d1f36-7c20-4e8b-b5d3-2f6e0c8a9b47", Anonymous: 401, Admin: 403, Manager: 404),
+        // Product lines (CONT-02, D-01): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets the 400 field errors on add, edit and move, and a fresh random id is no line (404) on read, hide, show and delete.
+        new("GET", "/api/v1/product-lines", "/api/v1/product-lines", Anonymous: 401, Admin: 403, Manager: 200),
+        new("GET", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/8d3f5a21-0b64-4e97-a1c8-5f2e7b9d0c43", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/product-lines", "/api/v1/product-lines", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/2e7c9b46-8a15-4d03-b6f2-c1a4e8d5f730", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/product-lines/{id:guid}/move", "/api/v1/product-lines/b5a1d8e3-4c72-4f09-9e60-3d7f2a8c1b54/move", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/product-lines/{id:guid}/hide", "/api/v1/product-lines/6c0e4f97-d238-4a15-b8e1-9a3b5d7c2f08/hide", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/product-lines/{id:guid}/show", "/api/v1/product-lines/f4d2a6b8-1e90-4c37-a5d3-0b8e6c9f1a72/show", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/09a7e3c5-b641-4d82-8f10-e6c2d4a9b357", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
