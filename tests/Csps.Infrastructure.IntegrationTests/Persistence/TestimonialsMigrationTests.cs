@@ -70,7 +70,7 @@ public sealed class TestimonialsMigrationTests(CspsDatabase database) : IClassFi
                 index.ShouldBeGreaterThan(0);
                 var before = all[index - 1];
                 await migrator.MigrateAsync(before, TestContext.Current.CancellationToken);
-                var script = migrator.GenerateScript(fromMigration: before, options: MigrationsSqlGenerationOptions.Idempotent);
+                var script = migrator.GenerateScript(fromMigration: before, toMigration: all[index], options: MigrationsSqlGenerationOptions.Idempotent);
 
                 script.ShouldContain(all[index]);
                 script.ShouldContain("CREATE TABLE [Testimonials]");

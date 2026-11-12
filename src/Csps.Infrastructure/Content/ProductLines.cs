@@ -119,12 +119,15 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
             .ConfigureAwait(false);
     }
 
-    // Gallery items arrive with the gallery plan; their count joins here then.
+    // Gallery items are the uploads filed under the line plus the orders staff chose the line for, deleted orders included, because the
+    // foreign keys hold the line either way.
     public async Task<ProductLineUsage> GetUsageAsync(Guid lineId, CancellationToken cancellationToken)
     {
         var photos = await context.ProductLinePhotos.AsNoTracking().CountAsync(photo => photo.LineId == lineId, cancellationToken).ConfigureAwait(false);
         var types = await context.ProductTypes.AsNoTracking().CountAsync(type => type.ProductLineId == lineId, cancellationToken).ConfigureAwait(false);
-        return new ProductLineUsage(photos, types, 0);
+        var uploads = await context.GalleryEntries.AsNoTracking().CountAsync(entry => entry.ProductLineId == lineId, cancellationToken).ConfigureAwait(false);
+        var orders = await context.Orders.IgnoreQueryFilters(["SoftDelete"]).AsNoTracking().CountAsync(order => order.PublicProductLineId == lineId, cancellationToken).ConfigureAwait(false);
+        return new ProductLineUsage(photos, types, uploads + orders);
     }
 
     public async Task<IReadOnlySet<string>> GetKeysAsync(CancellationToken cancellationToken)

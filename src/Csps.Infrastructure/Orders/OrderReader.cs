@@ -316,6 +316,8 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             from recorder in recorders.DefaultIfEmpty()
             join changerUser in context.Users on row.UpdatedById equals (Guid?)changerUser.Id into changers
             from changer in changers.DefaultIfEmpty()
+            join consenterUser in context.Users on row.PublicConsentById equals (Guid?)consenterUser.Id into consenters
+            from consenter in consenters.DefaultIfEmpty()
             select new
             {
                 Order = row,
@@ -326,6 +328,8 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                 ChangerFirst = (string?)changer.FirstName,
                 ChangerLast = (string?)changer.LastName,
                 ChangerFormer = changer.DeletedAtUtc != null,
+                ConsenterFirst = (string?)consenter.FirstName,
+                ConsenterLast = (string?)consenter.LastName,
             })
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -346,6 +350,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             select new
             {
                 Item = item,
+                ProductLineId = productType.ProductLineId,
                 ProductTypeName = productType.Name,
                 ProductTypeTone = productType.Tone,
                 ProductTypeRetired = productType.RetiredAtUtc != null,
@@ -520,7 +525,31 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // The lines in display order give the auto line its tie break and the shown line its title.
+        var lineRows = await context.ProductLines.AsNoTracking()
+            .OrderBy(line => line.Position)
+            .ThenBy(line => line.Id)
+            .Select(line => new { line.Id, line.Title })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var order = header.Order;
+        var filingItems = itemRows.Select(row => new PublicFilingItem(row.ProductLineId, row.Item.Quantity)).ToList();
+        var autoLine = OrderPublicFiling.AutoLine(filingItems, [.. lineRows.Select(line => line.Id)]);
+        var shownLine = order.PublicProductLineId ?? autoLine;
+        var publicWebsite = new OrderPublicWebsiteDto(
+            order.HasCustomerConsent,
+            order.PublicConsentAtUtc,
+            header.ConsenterFirst is null ? null : $"{header.ConsenterFirst} {header.ConsenterLast}",
+            order.IsShownOnWebsite,
+            order.ShownOnWebsiteSinceUtc,
+            shownLine,
+            lineRows.Find(line => line.Id == shownLine)?.Title,
+            autoLine,
+            order.PublicName,
+            OrderPublicFiling.Pieces(filingItems),
+            imageRows.Count > 0,
+            order.Status != OrderStatus.Cancelled);
         return new OrderDetailResponse(
             order.Id,
             order.Number,
@@ -643,6 +672,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                 order.ExpensesTotal,
                 order.Profit,
                 order.FullyPaid),
+            publicWebsite,
             order.CreatedById is { } creator && header.RecorderFirst is not null
                 ? new ActorRef(creator, $"{header.RecorderFirst} {header.RecorderLast}", header.RecorderFormer)
                 : null,

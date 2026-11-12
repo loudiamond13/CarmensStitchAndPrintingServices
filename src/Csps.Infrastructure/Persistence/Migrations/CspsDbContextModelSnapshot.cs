@@ -86,6 +86,100 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.GalleryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Bytes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Format")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsShown")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Pieces")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ProductLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(80)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GalleryEntries_OrderId")
+                        .HasFilter("[OrderId] IS NOT NULL");
+
+                    b.HasIndex("ProductLineId")
+                        .HasDatabaseName("IX_GalleryEntries_ProductLineId");
+
+                    b.HasIndex("Position", "Id")
+                        .HasDatabaseName("IX_GalleryEntries_Position");
+
+                    b.ToTable("GalleryEntries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GalleryEntries_Kind", "([Kind] = 'Order' AND [OrderId] IS NOT NULL) OR ([Kind] = 'Upload' AND [OrderId] IS NULL AND [PublicId] IS NOT NULL AND [TeamName] IS NOT NULL AND [ProductLineId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_GalleryEntries_Pieces", "[Pieces] IS NULL OR [Pieces] BETWEEN 1 AND 9999");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Content.OpeningHours", b =>
                 {
                     b.Property<int>("DayOfWeek")
@@ -1569,6 +1663,20 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTimeOffset?>("PublicConsentAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("PublicConsentById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublicName")
+                        .HasMaxLength(80)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<Guid?>("PublicProductLineId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("RefundedTotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -1578,6 +1686,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("ShownOnWebsiteSinceUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<byte>("Status")
                         .HasColumnType("tinyint");
@@ -1615,6 +1726,12 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasIndex("Number")
                         .IsUnique()
                         .HasDatabaseName("IX_Orders_Number");
+
+                    b.HasIndex("PublicConsentById")
+                        .HasDatabaseName("IX_Orders_PublicConsentById");
+
+                    b.HasIndex("PublicProductLineId")
+                        .HasDatabaseName("IX_Orders_PublicProductLineId");
 
                     b.HasIndex("UpdatedById")
                         .HasDatabaseName("IX_Orders_UpdatedById");
@@ -2934,6 +3051,19 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.GalleryEntry", b =>
+                {
+                    b.HasOne("Csps.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("ProductLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Csps.Domain.Content.ProductLinePhoto", b =>
                 {
                     b.HasOne("Csps.Domain.Content.ProductLine", null)
@@ -3116,6 +3246,16 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DeletedById")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PublicConsentById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("PublicProductLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()

@@ -161,6 +161,27 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <summary>Gets a value indicating whether the order is soft-deleted.</summary>
     public bool IsDeleted => DeletedAtUtc is not null;
 
+    /// <summary>Gets when the customer's OK to show the order was recorded; null while there is none (D-11).</summary>
+    public DateTimeOffset? PublicConsentAtUtc { get; private set; }
+
+    /// <summary>Gets who recorded the customer's OK; null while there is none.</summary>
+    public Guid? PublicConsentById { get; private set; }
+
+    /// <summary>Gets when the order was put on the website; null while it is not shown (D-15).</summary>
+    public DateTimeOffset? ShownOnWebsiteSinceUtc { get; private set; }
+
+    /// <summary>Gets the line staff chose to show the order under when it is not the auto line; null to use the auto line (D-09).</summary>
+    public Guid? PublicProductLineId { get; private set; }
+
+    /// <summary>Gets the name shown instead of the team; null to show the team (D-13).</summary>
+    public string? PublicName { get; private set; }
+
+    /// <summary>Gets a value indicating whether the customer said OK to show the order.</summary>
+    public bool HasCustomerConsent => PublicConsentAtUtc is not null;
+
+    /// <summary>Gets a value indicating whether the order is put on the website.</summary>
+    public bool IsShownOnWebsite => ShownOnWebsiteSinceUtc is not null;
+
     /// <inheritdoc />
     public Guid EditVersion { get; private set; }
 
@@ -1367,6 +1388,115 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         DeletedAtUtc = null;
         DeletedById = null;
         return true;
+    }
+
+    /// <summary>
+    /// Sets the order's place on the public website (D-09 to D-16). It does not call <c>EnsureEditable</c>, so a Completed order can be
+    /// shown (D-38). The consent's who and when come from <paramref name="callerId"/> and <paramref name="now"/> only (D-11). An edit that
+    /// changes nothing leaves the order and its edit version untouched.
+    /// </summary>
+    /// <param name="values">What staff set.</param>
+    /// <param name="callerId">The staff member who saves it.</param>
+    /// <param name="autoLineId">The line the items file the order under, from <see cref="OrderPublicFiling.AutoLine"/>; null when none.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>What changed, or the error that refuses the save.</returns>
+    public Result<OrderPublicSettingsChanges> SetPublicSettings(OrderPublicSettings values, Guid callerId, Guid? autoLineId, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        if (Status == OrderStatus.Cancelled)
+        {
+            return Result.Failure<OrderPublicSettingsChanges>(Error.BusinessRule(OrderPublicSettings.CancelledCode, OrderPublicSettings.CancelledMessage));
+        }
+
+        var errors = CheckPublicSettings(values, autoLineId);
+        if (errors.Count > 0)
+        {
+            return Result.Failure<OrderPublicSettingsChanges>(Error.Validation(OrderRules.InvalidCode, OrderRules.InvalidMessage, errors));
+        }
+
+        bool? consentChange = null;
+        if (values.CustomerConsent && !HasCustomerConsent)
+        {
+            PublicConsentAtUtc = now;
+            PublicConsentById = callerId;
+            consentChange = true;
+        }
+        else if (!values.CustomerConsent && HasCustomerConsent)
+        {
+            PublicConsentAtUtc = null;
+            PublicConsentById = null;
+            consentChange = false;
+        }
+
+        bool? shownChange = null;
+        if (values.ShowOnWebsite && !IsShownOnWebsite)
+        {
+            ShownOnWebsiteSinceUtc = now;
+            shownChange = true;
+        }
+        else if (!values.ShowOnWebsite && IsShownOnWebsite)
+        {
+            ShownOnWebsiteSinceUtc = null;
+            shownChange = false;
+        }
+
+        var detailFields = new List<string>();
+        var lineOverride = values.ProductLineId == autoLineId ? null : values.ProductLineId;
+        if (lineOverride != PublicProductLineId)
+        {
+            PublicProductLineId = lineOverride;
+            detailFields.Add(OrderPublicSettingsChanges.LineDetail);
+        }
+
+        var name = string.IsNullOrWhiteSpace(values.PublicName) ? null : values.PublicName.Trim();
+        if (!string.Equals(name, PublicName, StringComparison.Ordinal))
+        {
+            PublicName = name;
+            detailFields.Add(OrderPublicSettingsChanges.NameDetail);
+        }
+
+        var changes = new OrderPublicSettingsChanges(consentChange, shownChange, detailFields);
+        if (changes.HasAny)
+        {
+            Touch(now);
+        }
+
+        return Result.Success(changes);
+    }
+
+    // The rules a public settings save must meet: a name of at most 80 characters, and, to show the order, the customer's OK, a line to
+    // show it under and a name (the team, or one typed when the order has no team).
+    private Dictionary<string, string[]> CheckPublicSettings(OrderPublicSettings values, Guid? autoLineId)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        var name = values.PublicName?.Trim();
+        if (name?.Length > OrderPublicSettings.PublicNameMaxLength)
+        {
+            errors[OrderPublicSettings.NameField] = [OrderPublicSettings.NameTooLongMessage];
+        }
+
+        if (!values.ShowOnWebsite)
+        {
+            return errors;
+        }
+
+        if (!values.CustomerConsent)
+        {
+            errors[OrderPublicSettings.ShowField] = [OrderPublicSettings.ConsentRequiredMessage];
+        }
+
+        if ((values.ProductLineId ?? autoLineId) is null)
+        {
+            errors[OrderPublicSettings.LineField] = [OrderPublicSettings.LineRequiredMessage];
+        }
+
+        if (string.IsNullOrEmpty(name) && string.IsNullOrWhiteSpace(TeamName))
+        {
+            errors[OrderPublicSettings.NameField] = [OrderPublicSettings.NameRequiredMessage];
+        }
+
+        return errors;
     }
 
     // An order in an end state refuses every change until it is reopened (D-05, T-07-36).

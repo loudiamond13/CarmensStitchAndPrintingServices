@@ -191,7 +191,9 @@ public sealed class OrdersMigrationTests(CspsDatabase database) : IClassFixture<
         var changes = await ReadForeignKeyActionsAsync("OrderStatusChanges");
 
         orders.ShouldAllBe(action => action == "NO_ACTION");
-        orders.Count.ShouldBe(3);
+
+        // Created by, updated by and deleted by, plus who recorded the customer's OK and the line staff chose to show the order under.
+        orders.Count.ShouldBe(5);
         items.Order().ShouldBe(["CASCADE", "NO_ACTION", "NO_ACTION", "NO_ACTION"]);
         changes.Order().ShouldBe(["CASCADE", "NO_ACTION"]);
     }

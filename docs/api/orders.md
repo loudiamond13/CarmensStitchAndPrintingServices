@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-09T23:25:00-06:00
+updated: 2026-11-12T14:08:00-06:00
 ---
 
 # The orders API
@@ -31,6 +31,7 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `GET /orders?q=&status=&from=&to=&productType=&hasBalance=&sort=&page=&pageSize=` | Staff | none | `200` the list page; `400` field errors |
 | `GET /orders/{id}` | Staff | none | `200` the order; `404 orders.not-found` |
 | `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale` |
+| `PUT /orders/{id}/public` | Staff | the public website form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.public-cancelled` |
 | `POST /orders/{id}/items` | Staff | the item form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-items` or `orders.discount-above-subtotal` |
 | `PUT /orders/{id}/items/{itemId}` | Staff | the item form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.item-not-found`; `409 edit.stale`; `422 orders.discount-above-subtotal` |
 | `DELETE /orders/{id}/items/{itemId}` | Staff | none | `200` the whole order; `404 orders.not-found` or `orders.item-not-found`; `409 edit.stale`; `422 orders.last-item` or `orders.discount-above-subtotal` |
@@ -187,6 +188,36 @@ changed here; each has its own route.
   clock. `recordedBy` stays the person who created the order. Any attribution, `number`, `status`, `totals` or `items` member in
   the body is ignored.
 - A deleted or unknown id is `404 orders.not-found`. A bad form lists every broken field in one `400`, as when creating.
+
+## Showing an order on the website (`PUT /api/v1/orders/{id}/public`) (D-09 to D-16, D-38)
+
+An order reaches the public site only with the customer's recorded OK. Admin and Manager can both do this; it is the one public-content
+write that is not Manager only (D-16). It works on a Completed order, because the edit lock does not apply here (D-38).
+
+| Field | Required | Rule |
+|---|---|---|
+| `version` | yes | the `version` the window was opened with. Anything else is `400` on `version`, "Reload the form and try again." |
+| `customerConsent` | no (false) | true when the customer said OK to show |
+| `showOnWebsite` | no (false) | true to show the order. It needs `customerConsent`: `400` on `showOnWebsite`, "Tick Customer said OK to show first." |
+| `productLineId` | no | the line to show the order under. Null uses the auto line. An id that is not a line is `400` on `productLineId`. Showing with no line at all is `400`, "Choose the product line to show this order under." |
+| `publicName` | no | the name shown instead of the team, at most 80 characters after trimming: "Keep the name to 80 characters or fewer." Needed to show an order that has no team: "This order has no team name. Enter the name to show." |
+
+- **Who and when come from the server (D-11, SEC-08).** The person who recorded the OK is the signed-in staff member and the time is
+  the server clock. A consent or shown time, or a person, in the body is ignored. Saving the same OK again keeps the first person and
+  time. The OK is off for every order, migrated ones included.
+- **Removing the OK also takes the order off the website.** Showing again needs a new OK.
+- **The auto line (D-09).** It is the line, through the order's product types, with the most pieces; a tie goes to the line that comes
+  first in the display order; items whose product type is filed under no line count for nothing. A line chosen by staff is kept as an
+  override only when it differs from the auto line.
+- **The pieces (D-13)** are the sum of the item quantities.
+- **The gallery.** Showing an order adds its entry at the top of the gallery order; taking it off removes the entry. The order's photos
+  stay (D-15).
+- **A Cancelled order** answers `422 orders.public-cancelled`, "Cancelled orders can't be shown on the website." and nothing changes
+  (D-38).
+- **The version contract.** A `version` that is not the stored one answers `409 edit.stale` and changes nothing; the save is never
+  retried. A save that changes nothing answers `200`, keeps the `version` and writes no audit entry.
+- **The lock.** The save takes the site-content lock, so a delete of the line it files the order under is decided before or after it.
+  A line that an order has chosen cannot be deleted: `422 product-lines.in-use`.
 
 ## Items (`/api/v1/orders/{id}/items`)
 
@@ -502,6 +533,8 @@ Who may do what:
   images: [ { id, position, description, width, height, thumb: { src, srcSet }, viewer: { src, srcSet }, fullSize } ],
   statusHistory: [ { from, to, changedBy, changedAt } ],
   totals: { subtotal, discount, total, paid, refunded, balance, customerCredit, expenses, profit, fullyPaid },
+  publicWebsite: { customerConsent, consentRecordedAtUtc, consentRecordedByName, shownOnWebsite, shownSinceUtc,
+                   productLineId, productLineTitle, autoProductLineId, publicName, pieces, hasPhoto, canShow },
   recordedBy, recordedAt, lastChangedBy, lastChangedAt, version, today
 }
 ```
@@ -521,6 +554,11 @@ Who may do what:
   item request body is ignored (SEC-08).
 - `today` is the business date from the shop's time zone (D-59). Every order answer carries it (create, read, details, items, discounts,
   payments, refunds, expenses and status), so the browser never reads the device clock for a due date.
+- `publicWebsite` is the order's place on the public site (see above). `customerConsent` and `shownOnWebsite` are false and the times and
+  the name are `null` for every order until staff set them. `productLineId` is the line the order shows under (the one staff chose, else
+  `autoProductLineId`), `pieces` is the sum of the item quantities, `hasPhoto` says whether the order has a photo (an order with none
+  does not show until it has one) and `canShow` is false for a Cancelled order. `publicName` is the stored name; when it is `null` the
+  team shows. It never holds the customer's name, contact details, prices or notes.
 - `productType.retired` is true when a Manager later retired the type; old orders keep showing it.
 - `version` is the base64 of the eight-byte row version a later save must send back.
 - `images` lists the order's photos in display order (ORD-04, IMG-04), `[]` when there are none. The photo at `position` 0 is the cover.
@@ -565,6 +603,11 @@ Each status move writes one `order.status-changed` entry and each reopen from Co
 request for the status the order already has writes nothing.
 Each photo upload writes one `order-image.added` entry for the order in the same save: `number=<n>;position=<n>`, with `position` counting from 1.
 It never holds the photo's address, id, file name or description.
+Each public website save writes one entry for each thing that changed, in the same save, each with `number=<n>` and no customer data: the
+actor is the staff member who saved. `order.public-consent-recorded` and `order.public-consent-removed` for the customer's OK,
+`order.shown-on-website` and `order.taken-off-website` for the shown flag, and `order.public-details-changed` for the line or the name,
+with `number=<n>;fields=line,name` naming what changed and never the name typed. Removing the OK of a shown order writes the removal and
+the take-off. A save that changes nothing, and every refusal, writes nothing.
 A delete writes one `order.deleted` entry and a restore one `order.restored` entry in the same save, each with
 `number=<n>;status=<key>;total=<amount>;paid=<amount>;balance=<amount>`. A delete for good writes one `order.permanently-deleted`
 entry first, in the same save as the removal: `number`, `status`, `subtotal`, `discount`, `total`, `paid`, `refunded`, `balance` and
