@@ -2,11 +2,19 @@ import { render, screen, within } from '@testing-library/react';
 import { http } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
-import { answerProductLines, demoLines, demoSite, oneLine, putBootBlock } from '@/test/publicFixtures';
+import {
+  answerProductLines,
+  answerSite,
+  demoLines,
+  demoSite,
+  oneLine,
+  putBootBlock,
+  siteWithoutOptionals,
+} from '@/test/publicFixtures';
 
 /** The real route tree at /products, settled once the page's h1 is on screen (the lazy chunks load on first use). */
 async function renderProducts(path = '/products') {
@@ -111,5 +119,116 @@ describe('ProductsPage product articles (PUB-02, D-42)', { timeout: 20_000 }, ()
 
     expect(screen.getAllByRole('article')).toHaveLength(6);
     expect(requests).toBe(0);
+  });
+});
+
+describe('ProductsPage pills and help card (D-19, D-32)', { timeout: 20_000 }, () => {
+  it('shows the Product lines pill bar above the articles, one link per line', async () => {
+    await renderProducts();
+
+    const nav = await screen.findByRole('navigation', { name: 'Product lines' });
+    expect(within(nav).getAllByRole('link')).toHaveLength(6);
+    expect(within(nav).getByRole('link', { name: 'Polo Shirts' })).toHaveAttribute('href', '#polo');
+  });
+
+  it('shows the help card with Get a Quote to /contact and Message us to the Messenger link', async () => {
+    await renderProducts();
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: "Tell us the sport. We'll suggest the rest." }),
+    ).toBeVisible();
+    expect(screen.getByText('Not sure what to pick?')).toBeInTheDocument();
+    const help = screen.getByRole('heading', { name: /Tell us the sport/ }).closest('section');
+    expect(help).not.toBeNull();
+    const quote = within(help as HTMLElement).getByRole('link', { name: 'Get a Quote' });
+    expect(quote).toHaveAttribute('href', '/contact');
+    await vi.waitFor(() => {
+      expect(within(help as HTMLElement).getByRole('link', { name: 'Message us' })).toHaveAttribute(
+        'href',
+        'https://m.me/cspsdemo',
+      );
+    });
+  });
+
+  it('sends Message us to /contact when no Messenger link is set', async () => {
+    answerSite(siteWithoutOptionals);
+    await renderProducts();
+
+    const help = (await screen.findByRole('heading', { name: /Tell us the sport/ })).closest('section');
+    await vi.waitFor(() => {
+      expect(within(help as HTMLElement).getByRole('link', { name: 'Message us' })).toHaveAttribute('href', '/contact');
+    });
+  });
+
+  it('has no axe violations with the pills, articles and help card', async () => {
+    const { container } = await renderProducts();
+    await screen.findAllByRole('article');
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('ProductsPage hash on load (UI-SPEC P1 Hash on load)', { timeout: 20_000 }, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function reducedMotion(reduced: boolean): void {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query) =>
+        ({
+          matches: reduced && query.includes('prefers-reduced-motion'),
+          media: query,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }) as unknown as MediaQueryList,
+    );
+  }
+
+  it('scrolls the polo article into view once after the lines load, smoothly, and leaves focus alone', async () => {
+    reducedMotion(false);
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const before = document.activeElement;
+
+    await renderProducts('/products#polo');
+    await screen.findAllByRole('article');
+
+    await vi.waitFor(() => {
+      expect(scroll).toHaveBeenCalledTimes(1);
+    });
+    expect(scroll.mock.contexts[0]).toBe(document.getElementById('polo'));
+    expect(scroll).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(document.activeElement).toBe(before);
+  });
+
+  it('scrolls instantly under prefers-reduced-motion', async () => {
+    reducedMotion(true);
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+
+    await renderProducts('/products#moto');
+    await screen.findAllByRole('article');
+
+    await vi.waitFor(() => {
+      expect(scroll).toHaveBeenCalledWith({ behavior: 'instant', block: 'start' });
+    });
+  });
+
+  it('does nothing for a hash that matches no article', async () => {
+    reducedMotion(false);
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+
+    await renderProducts('/products#nope');
+    await screen.findAllByRole('article');
+
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it('does nothing with no hash', async () => {
+    reducedMotion(false);
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+
+    await renderProducts();
+    await screen.findAllByRole('article');
+
+    expect(scroll).not.toHaveBeenCalled();
   });
 });

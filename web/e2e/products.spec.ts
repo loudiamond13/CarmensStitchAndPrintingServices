@@ -34,3 +34,74 @@ test('@products /products shows six articles and the basketball demo price, with
     expect(lineRequests).toEqual([]);
   });
 });
+
+const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
+const BAR = '[data-products-bar]';
+
+test('@products opening /products#polo lands on the polo article, clear of the header and the pill bar', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/products#polo');
+
+    const bar = page.locator(BAR);
+    const polo = page.locator('article#polo');
+    await expect(polo).toBeVisible();
+    await expect
+      .poll(
+        async () => {
+          const [barBox, poloBox] = await Promise.all([bar.boundingBox(), polo.boundingBox()]);
+          return (poloBox?.y ?? 99999) - ((barBox?.y ?? 0) + (barBox?.height ?? 0));
+        },
+        { timeout: 15_000 },
+      )
+      .toBeGreaterThanOrEqual(0);
+    const poloBox = await polo.boundingBox();
+    expect(poloBox?.y ?? 99999).toBeLessThan(450);
+  });
+});
+
+test('@products at 320px the pill bar scrolls inside itself, the pills are 44px tall and the page has no sideways scroll', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto('/products');
+
+    const nav = page.getByRole('navigation', { name: 'Product lines' });
+    await expect(nav.getByRole('link')).toHaveCount(6);
+    const inner = await nav.evaluate((element) => element.scrollWidth - element.clientWidth);
+    expect(inner, 'the pills are wider than the bar, so it scrolls inside itself').toBeGreaterThan(0);
+    for (const link of await nav.getByRole('link').all()) {
+      expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    }
+    const bar = await page.locator(BAR).boundingBox();
+    expect(bar?.height).toBeGreaterThanOrEqual(69);
+    expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+  });
+});
+
+test('@products a control reached by focus stops clear of the header and the pill bar', async ({ page, request }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/products');
+    await expect(page.getByRole('article')).toHaveCount(6);
+
+    const barBottom = async () => {
+      const box = await page.locator(BAR).boundingBox();
+      return (box?.y ?? 0) + (box?.height ?? 0);
+    };
+    for (const link of await page.getByRole('main').getByRole('link', { name: 'Get a Quote' }).all()) {
+      await link.focus();
+      await expect(link).toBeFocused();
+      await page.waitForTimeout(150);
+      const top = (await link.boundingBox())?.y ?? 0;
+      expect(top, 'the focused link is below the sticky bars').toBeGreaterThanOrEqual((await barBottom()) - 1);
+    }
+  });
+});

@@ -4,7 +4,8 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { demoLine, lineWithPhotos, makeLine, type PublicProductLineFixture } from '@/test/publicFixtures';
+import { demoLine, demoLines, lineWithPhotos, makeLine, type PublicProductLineFixture } from '@/test/publicFixtures';
+import { AnchorPills } from './AnchorPills';
 import { PriceLine } from './PriceLine';
 import { ProductArticle } from './ProductArticle';
 import { ProductMedia } from './ProductMedia';
@@ -198,5 +199,95 @@ describe('ProductMedia (D-02)', () => {
   it('has no axe violations', async () => {
     const { container } = render(<ProductMedia line={BASKETBALL} />);
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('AnchorPills (D-32)', () => {
+  function renderPills(lines: readonly PublicProductLineFixture[]) {
+    return render(
+      <MemoryRouter>
+        <AnchorPills lines={lines} />
+      </MemoryRouter>,
+    );
+  }
+
+  it('is a nav named "Product lines" with one link per line to #key, in display order', () => {
+    renderPills(demoLines.lines);
+
+    const nav = screen.getByRole('navigation', { name: 'Product lines' });
+    const links = within(nav).getAllByRole('link');
+    expect(links.map((link) => link.textContent)).toEqual(demoLines.lines.map((line) => line.title));
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(demoLines.lines.map((line) => `#${line.key}`));
+  });
+
+  it('makes every pill 44px tall (min-h-11) so a thumb can hit it', () => {
+    renderPills(demoLines.lines);
+
+    for (const link of screen.getAllByRole('link')) {
+      expect(link.className.split(' ')).toContain('min-h-11');
+    }
+  });
+
+  it('gives a key that fails the allow-list no link', () => {
+    renderPills([
+      makeLine({ key: 'Bad Key', title: 'Bad one' }),
+      makeLine({ key: 'javascript:alert(1)', title: 'Script one' }),
+      makeLine({ key: 'polo', title: 'Polo Shirts' }),
+    ]);
+
+    const links = screen.getAllByRole('link');
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['#polo']);
+  });
+
+  it('draws nothing when no key is safe', () => {
+    const { container } = renderPills([makeLine({ key: 'Bad Key' })]);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = renderPills(demoLines.lines);
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('ProductArticle buttons (D-19)', () => {
+  it('"Get a Quote" goes to /contact', () => {
+    renderArticle(BASKETBALL);
+
+    expect(screen.getByRole('link', { name: 'Get a Quote' })).toHaveAttribute('href', '/contact');
+  });
+
+  it('shows "See basketball work" to the gallery filter when the line has gallery items', () => {
+    renderArticle(BASKETBALL);
+
+    expect(screen.getByRole('link', { name: 'See basketball work' })).toHaveAttribute(
+      'href',
+      '/gallery?category=basketball',
+    );
+  });
+
+  it('puts the short name in lower case in the button text', () => {
+    renderArticle(
+      makeLine({ key: 'longsleeves', title: 'Long Sleeves', shortName: 'Long Sleeves', hasGalleryItems: true }),
+    );
+
+    expect(screen.getByRole('link', { name: 'See long sleeves work' })).toHaveAttribute(
+      'href',
+      '/gallery?category=longsleeves',
+    );
+  });
+
+  it('leaves "See work" out when the line has no gallery item', () => {
+    renderArticle(demoLine('volleyball'));
+
+    expect(screen.getByRole('link', { name: 'Get a Quote' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^See .* work$/ })).toBeNull();
+  });
+
+  it('leaves "See work" out when the key fails the allow-list', () => {
+    renderArticle(makeLine({ key: 'Bad Key', title: 'Bad one', shortName: 'Bad', hasGalleryItems: true }));
+
+    expect(screen.queryByRole('link', { name: /^See .* work$/ })).toBeNull();
   });
 });

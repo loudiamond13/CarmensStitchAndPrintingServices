@@ -114,6 +114,20 @@ describe('PublicLayout landmarks and page root (A11Y-01, D-14)', () => {
     );
   });
 
+  it('adds the 69px pill bar to the top scroll padding on /products only (focus not obscured)', async () => {
+    const products = await renderAt('/products');
+    const padded = '[:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6)+69px)]';
+    expect(screen.getByRole('main').className.split(' ')).toContain(padded);
+    expect(screen.getByRole('main').className).not.toContain('var(--space-6))]');
+    products.unmount();
+
+    for (const path of ['/', '/gallery', '/contact']) {
+      const { unmount } = await renderAt(path);
+      expect(screen.getByRole('main').className).not.toContain('+69px');
+      unmount();
+    }
+  });
+
   it('has no axe violations', async () => {
     const { container } = await renderAt('/products');
     await expectNoAxeViolations(container);
