@@ -47,6 +47,14 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     expect(existsSync(join(webRoot, 'index.html'))).toBe(true);
   });
 
+  // PUB-04: the server fills this block with each page's own head, so both markers must survive the build.
+  it('keeps the head markers the server fills with each page head', () => {
+    const html = indexHtml();
+    expect(html).toContain('<!--csps:head-->');
+    expect(html).toContain('<!--/csps:head-->');
+    expect(html.indexOf('<!--csps:head-->')).toBeLessThan(html.indexOf('<!--/csps:head-->'));
+  });
+
   it('links exactly one hashed stylesheet under /assets', () => {
     const links = indexHtml().match(/<link\b[^>]*rel="stylesheet"[^>]*>/g) ?? [];
     expect(links).toHaveLength(1);

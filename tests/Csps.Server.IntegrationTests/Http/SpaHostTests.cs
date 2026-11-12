@@ -42,7 +42,7 @@ public sealed class SpaHostTests
     [Fact]
     public async Task HeadServesTheShell()
     {
-        // MapFallbackToFile registers GET and HEAD, so a HEAD on a page path gets the shell's headers without a body.
+        // The shell endpoint maps GET and HEAD, so a HEAD on a page path gets the shell's headers without a body.
         await using var factory = new CspsApiFactory();
         using var client = factory.CreateClient();
         using var request = ApiRequests.Create(HttpMethod.Head, "/products");
@@ -186,12 +186,11 @@ public sealed class SpaHostTests
 
     [Theory]
     [InlineData("/robots.txt")]
-    [InlineData("/index.html")]
     [InlineData("/")]
-    public async Task OtherStaticFilesRevalidate(string path)
+    public async Task OtherResponsesWithoutAContentHashRevalidate(string path)
     {
-        // Files without a content hash (the shell, robots.txt) are revalidated on every use, so a deploy is seen at once
-        // (T-02-10).
+        // The shell and robots.txt carry no content hash, so they are revalidated on every use and a deploy
+        // is seen at once (T-02-10).
         await using var factory = new CspsApiFactory();
         using var client = factory.CreateClient();
 
