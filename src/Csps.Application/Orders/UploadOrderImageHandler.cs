@@ -14,8 +14,8 @@ namespace Csps.Application.Orders;
 /// room, and the description must fit (404 or 422), then the file is read by its first bytes and held to the size limits (400), its location and camera data
 /// is removed (400 when that cannot be done, D-02), and only then is it sent to the storage under a random id (D-01). The photo row is saved through the order's row lock with one <c>order-image.added</c> entry
 /// that names the order number and the photo's place, never its id or address (D-19). A save that loses a race is read again and
-/// decided again once. When the photo row cannot be saved after the file reached storage, the file is queued for removal as
-/// <c>UploadUndone</c> on its own short context (JOB-02); so is a file whose upload ended with a lost reply. The client file name and content type never shape the stored id.
+/// decided again once, and so is the check before storage when the order changes while it is read. When the photo row
+/// cannot be saved after the file reached storage, the file is queued for removal as <c>UploadUndone</c> on its own short context (JOB-02); so is a file whose upload ended with a lost reply. The client file name and content type never shape the stored id.
 /// </summary>
 public sealed class UploadOrderImageHandler(
     IOrders orders,
@@ -34,7 +34,7 @@ public sealed class UploadOrderImageHandler(
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>
     /// The order as saved, a 400 when there is no file, the file is not a photo we can use, is too large or too big, or the description is too long, a 401 when the
-    /// token names no usable account, a 404 when the order does not exist or was deleted, a 409 when two saves lost a race twice, a 422
+    /// token names no usable account, a 404 when the order does not exist or was deleted, a 409 when the check or the save lost a race twice, a 422
     /// when the order is completed or cancelled or already has 5 photos, or a 503 when photo storage is not set up or did not take the file.
     /// </returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(Guid orderId, UploadOrderImageRequest request, CancellationToken cancellationToken)
@@ -56,13 +56,10 @@ public sealed class UploadOrderImageHandler(
             return Result.Failure<OrderDetailResponse>(ImageErrors.FileMissing);
         }
 
-        var precheck = await orders.FindAsync(orderId, includeDeleted: false, cancellationToken).ConfigureAwait(false);
-        if (precheck is null)
-        {
-            return Result.Failure<OrderDetailResponse>(OrderErrors.NotFound);
-        }
-
-        var refused = precheck.CheckCanAddImage() ?? OrderImageRules.CheckDescription(request.Description);
+        // Another save can land while the order is read here, as at save time, so the check is read again once.
+        var refused = await ConflictRetry.RunAsync(
+            () => CheckOrderAsync(orderId, request.Description, cancellationToken),
+            (Error?)EditErrors.Stale).ConfigureAwait(false);
         if (refused is not null)
         {
             return Result.Failure<OrderDetailResponse>(refused);
@@ -100,6 +97,15 @@ public sealed class UploadOrderImageHandler(
         return outcome.IsFailure
             ? Result.Failure<OrderDetailResponse>(outcome.Error)
             : await OrderChildWrite.ReadAsync(reader, orderId, cancellationToken).ConfigureAwait(false);
+    }
+
+    // Null when the order exists, is open and has room, and the description fits.
+    private async Task<Error?> CheckOrderAsync(Guid orderId, string? description, CancellationToken cancellationToken)
+    {
+        var order = await orders.FindAsync(orderId, includeDeleted: false, cancellationToken).ConfigureAwait(false);
+        return order is null
+            ? OrderErrors.NotFound
+            : order.CheckCanAddImage() ?? OrderImageRules.CheckDescription(description);
     }
 
     // The file is already in storage here. Whatever stops the photo row from being saved, the file is queued for removal on its own
