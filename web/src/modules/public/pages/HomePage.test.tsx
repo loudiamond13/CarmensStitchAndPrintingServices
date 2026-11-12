@@ -1,9 +1,12 @@
 import { render, screen, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { demoHome, demoSite, putBootBlock } from '@/test/publicFixtures';
 
 /** The real route tree at /, settled once the hero h1 is on screen. */
 async function renderHome() {
@@ -63,6 +66,44 @@ describe('HomePage at / (PUB-01, UI-SPEC H1 item 1)', { timeout: 20_000 }, () =>
 
   it('has no axe violations', async () => {
     const { container } = await renderHome();
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('HomePage product categories (PUB-02, D-34, D-42)', { timeout: 20_000 }, () => {
+  it('shows one category card per active line, each linking to its place on Products', async () => {
+    await renderHome();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' }, { timeout: 15_000 })).toBeVisible();
+    const main = within(screen.getByRole('main'));
+    const cards = main.getAllByRole('link').filter((link) => link.getAttribute('href')?.startsWith('/products#'));
+    expect(cards).toHaveLength(6);
+    expect(cards[0]).toHaveAttribute('href', '/products#basketball');
+    expect(
+      main.getByText('Full sublimation tops and shorts, any colorway, names and numbers included.'),
+    ).toBeInTheDocument();
+  });
+
+  it('reads the home boot block on a first visit and sends no request for it', async () => {
+    let requests = 0;
+    server.use(
+      http.get('*/api/v1/public/home', () => {
+        requests += 1;
+        return HttpResponse.json(demoHome);
+      }),
+    );
+    putBootBlock(demoSite, undefined, demoHome);
+
+    await renderHome();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' })).toBeVisible();
+    expect(requests).toBe(0);
+  });
+
+  it('has no axe violations with the categories showing', async () => {
+    const { container } = await renderHome();
+    await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' }, { timeout: 15_000 });
+
     await expectNoAxeViolations(container);
   });
 });

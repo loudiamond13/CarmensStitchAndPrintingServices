@@ -5,8 +5,10 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { installConsoleGuard } from './consoleGuard';
 import { server } from './msw';
 import {
+  demoHome,
   demoLines,
   demoSite,
+  homeHandler,
   openStatusAt0900,
   openStatusHandler,
   productLinesHandler,
@@ -57,7 +59,12 @@ if (typeof window !== 'undefined') {
     server.listen({ onUnhandledFrame: 'error' });
   });
   beforeEach(() => {
-    server.use(siteHandler(demoSite), openStatusHandler(openStatusAt0900), productLinesHandler(demoLines));
+    server.use(
+      siteHandler(demoSite),
+      openStatusHandler(openStatusAt0900),
+      productLinesHandler(demoLines),
+      homeHandler(demoHome),
+    );
   });
   afterEach(() => {
     server.resetHandlers();
