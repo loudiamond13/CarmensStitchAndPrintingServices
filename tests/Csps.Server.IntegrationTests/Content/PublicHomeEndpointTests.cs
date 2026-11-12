@@ -7,8 +7,8 @@ namespace Csps.Server.IntegrationTests.Content;
 
 /// <summary>
 /// CONT-03, PUB-02, D-05: <c>GET /api/v1/public/home</c> answers anonymously with the shown product lines as card data, the line
-/// count, the first three shown testimonials in display order, and no recent work and no hero tag until plan 11-26. It has a strong
-/// ETag, no-cache and 304 on a repeat.
+/// count, the first three shown testimonials in display order, the six newest shown orders as Recent work and the newest as the hero tag
+/// (D-14). It has a strong ETag, no-cache and 304 on a repeat.
 /// </summary>
 public sealed class PublicHomeEndpointTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
@@ -38,6 +38,69 @@ public sealed class PublicHomeEndpointTests(CspsDatabase database) : IClassFixtu
             root.GetProperty("testimonials").GetArrayLength().ShouldBe(0);
             root.GetProperty("recentWork").GetArrayLength().ShouldBe(0);
             root.GetProperty("heroTag").ValueKind.ShouldBe(JsonValueKind.Null);
+        }
+    }
+
+    [Fact]
+    public async Task SevenShownOrdersGiveTheSixNewestAsRecentWorkNewestFirstWithStripPhotosAndNoUploadAndTheHeroTagIsTheNewest()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        var now = new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        var staff = await OrderSeeding.AddStaffAsync(database, "Gallery", now);
+
+        // The gallery order is the reverse of the shown dates, so Recent work cannot be following it (D-14).
+        await GallerySeeding.AddOrdersAsync(
+            database,
+            [
+                .. Enumerable.Range(1, 7).Select(number => new SeedGalleryOrder($"Team {number}")
+                {
+                    Pieces = number * 3,
+                    LineKey = number % 2 == 0 ? "volleyball" : "basketball",
+                    ShownAtUtc = now.AddDays(number),
+                    Position = number,
+                }),
+            ],
+            staff,
+            now);
+        await GallerySeeding.AddUploadAsync(database, new SeedGalleryUpload("Upload only", "basketball") { Position = 0 }, now);
+
+        var (document, _) = await rig.PublicHomeAsync();
+
+        using (document)
+        {
+            var recent = document.RootElement.GetProperty("recentWork").EnumerateArray().ToList();
+            recent.Select(tile => tile.GetProperty("team").GetString()).ShouldBe(["Team 7", "Team 6", "Team 5", "Team 4", "Team 3", "Team 2"]);
+            var newest = recent[0];
+            newest.GetProperty("lineKey").GetString().ShouldBe("basketball");
+            newest.GetProperty("lineShortName").GetString().ShouldBe("Basketball");
+            newest.GetProperty("pieces").GetInt32().ShouldBe(21);
+            newest.GetProperty("placeholderArt").GetString().ShouldBe("basketball");
+            var photo = newest.GetProperty("photo");
+            photo.GetProperty("src").GetString().ShouldNotBeNull().ShouldContain("size=csps_strip_");
+            photo.GetProperty("srcSet").GetString().ShouldNotBeNull().ShouldContain("csps_strip_240");
+            photo.GetProperty("width").GetInt32().ShouldBe(800);
+            photo.GetProperty("height").GetInt32().ShouldBe(600);
+            recent[1].GetProperty("lineKey").GetString().ShouldBe("volleyball");
+            var hero = document.RootElement.GetProperty("heroTag");
+            hero.GetProperty("name").GetString().ShouldBe("Team 7");
+            hero.GetProperty("pieces").GetInt32().ShouldBe(21);
+        }
+    }
+
+    [Fact]
+    public async Task AnOrderTheWebsiteDoesNotShowIsNotInRecentWorkAndTheHeroTagIsNullWhenNothingIsShown()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        var now = new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        var staff = await OrderSeeding.AddStaffAsync(database, "Gallery", now);
+        await GallerySeeding.AddOrdersAsync(database, [new SeedGalleryOrder("Not shown") { Show = false }, new SeedGalleryOrder("No OK") { Consent = false, Show = true }], staff, now);
+
+        var (document, _) = await rig.PublicHomeAsync();
+
+        using (document)
+        {
+            document.RootElement.GetProperty("recentWork").GetArrayLength().ShouldBe(0);
+            document.RootElement.GetProperty("heroTag").ValueKind.ShouldBe(JsonValueKind.Null);
         }
     }
 

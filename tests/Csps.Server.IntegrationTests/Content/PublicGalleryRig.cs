@@ -120,8 +120,41 @@ internal sealed class PublicGalleryRig : IAsyncDisposable
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Deletes a product line through the Manager route.</summary>
+    public async Task<HttpResponseMessage> DeleteLineAsync(Guid lineId)
+    {
+        using var client = Factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"/api/v1/product-lines/{lineId:D}", Manager.AccessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the Manager's list of product lines.</summary>
+    public async Task<List<LineListItem>> ListLinesAsync()
+    {
+        using var client = Factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Get, "/api/v1/product-lines", Manager.AccessToken);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return (await response.Content.ReadFromJsonAsync<List<LineListItem>>(JsonSerializerOptions.Web, TestContext.Current.CancellationToken))!;
+    }
+
+    /// <summary>Makes the photo at a place in the order's list the cover.</summary>
+    public async Task MakeCoverAsync(Guid orderId, int photoIndex)
+    {
+        using var client = Factory.CreateClient();
+        var order = await OrderFixtures.ReadDetailAsync(client, Manager.AccessToken, orderId);
+        var photoId = order.GetProperty("images")[photoIndex].GetProperty("id").GetGuid();
+        using var request = ApiRequests.Create(HttpMethod.Put, $"/api/v1/orders/{orderId:D}/images/{photoId:D}/position", Manager.AccessToken);
+        request.Content = JsonContent.Create(new Dictionary<string, object?> { ["position"] = 0, ["version"] = order.GetProperty("version").GetString() });
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
     /// <summary>Reads the anonymous gallery answer and its ETag.</summary>
     public async Task<(JsonDocument Document, string ETag)> GalleryAsync() => await ReadAsync(GalleryRoute);
+
+    /// <summary>Reads the anonymous Home answer and its ETag.</summary>
+    public async Task<(JsonDocument Document, string ETag)> PublicHomeAsync() => await ReadAsync("/api/v1/public/home");
 
     /// <summary>Reads any anonymous public route as JSON with its ETag.</summary>
     public async Task<(JsonDocument Document, string ETag)> ReadAsync(string route)
