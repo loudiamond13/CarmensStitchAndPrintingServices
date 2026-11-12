@@ -38,6 +38,21 @@ public sealed class OpeningHours : IAttributedRecord, IPublicContentRecord
     /// <summary>The message for an open day with no closing time.</summary>
     public const string ClosingTimeRequiredMessage = "Choose the closing time.";
 
+    /// <summary>The message for a closing time that is not after the opening time.</summary>
+    public const string ClosesAfterOpensMessage = "Closing time must be after opening time.";
+
+    /// <summary>The message for a time that is not on the hour or half hour between 5:00 AM and 11:30 PM.</summary>
+    public const string TimeStepMessage = "Choose a time on the hour or half hour, from 5:00 AM to 11:30 PM.";
+
+    /// <summary>The minutes between the times a Manager can choose.</summary>
+    public const int StepMinutes = 30;
+
+    /// <summary>The earliest time a day can open.</summary>
+    public static readonly TimeOnly EarliestOpening = new(5, 0);
+
+    /// <summary>The latest time a day can open or close.</summary>
+    public static readonly TimeOnly LatestTime = new(23, 30);
+
     // Used by EF Core (constructor binding) and by the migration's seed row values.
     private OpeningHours(
         int dayOfWeek,
@@ -94,14 +109,20 @@ public sealed class OpeningHours : IAttributedRecord, IPublicContentRecord
     /// <summary>Optimistic-concurrency token maintained by the database (409 on conflict).</summary>
     public byte[] RowVersion { get; private set; }
 
+    /// <summary>Tells whether a time is one a Manager can choose: on the hour or half hour, from 5:00 AM to 11:30 PM.</summary>
+    /// <param name="time">The time.</param>
+    /// <returns>True when the time can be an opening or a closing time.</returns>
+    public static bool IsChoosableTime(TimeOnly time) =>
+        time >= EarliestOpening && time <= LatestTime && time.Ticks % (TimeSpan.TicksPerMinute * StepMinutes) == 0;
+
     /// <summary>
-    /// Sets this day's hours. Both times set is an open day, neither is a closed day, and one alone is refused. A failure changes
-    /// nothing.
+    /// Checks one day's two times against the rules, so the request validator and <see cref="SetHours"/> never disagree. An open day
+    /// needs both times, each time must be choosable, and closing must be after opening.
     /// </summary>
-    /// <param name="opensAt">The opening time, or null for a closed day.</param>
-    /// <param name="closesAt">The closing time, or null for a closed day.</param>
-    /// <returns>The change, null when the hours are the same, or a validation error naming <c>opensAt</c> or <c>closesAt</c>.</returns>
-    public Result<OpeningHoursChange?> SetHours(TimeOnly? opensAt, TimeOnly? closesAt)
+    /// <param name="opensAt">The opening time, or null for none.</param>
+    /// <param name="closesAt">The closing time, or null for none.</param>
+    /// <returns>The messages by field name (<c>opensAt</c> or <c>closesAt</c>); empty when the hours are fine.</returns>
+    public static Dictionary<string, string[]> Check(TimeOnly? opensAt, TimeOnly? closesAt)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
         if (opensAt is null && closesAt is not null)
@@ -114,12 +135,40 @@ public sealed class OpeningHours : IAttributedRecord, IPublicContentRecord
             errors["closesAt"] = [ClosingTimeRequiredMessage];
         }
 
+        if (opensAt is { } opens && !IsChoosableTime(opens))
+        {
+            errors["opensAt"] = [TimeStepMessage];
+        }
+
+        if (closesAt is { } closes && !IsChoosableTime(closes))
+        {
+            errors["closesAt"] = [TimeStepMessage];
+        }
+
+        if (errors.Count == 0 && opensAt is { } start && closesAt is { } end && end <= start)
+        {
+            errors["closesAt"] = [ClosesAfterOpensMessage];
+        }
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Sets this day's hours. Both times set is an open day and neither is a closed day; a time off the half hour or outside 5:00 AM to
+    /// 11:30 PM, one time alone, and a closing time that is not after the opening time are refused. A failure changes nothing.
+    /// </summary>
+    /// <param name="opensAt">The opening time, or null for a closed day.</param>
+    /// <param name="closesAt">The closing time, or null for a closed day.</param>
+    /// <returns>The change, null when the hours are the same, or a validation error naming <c>opensAt</c> or <c>closesAt</c>.</returns>
+    public Result<OpeningHoursChange?> SetHours(TimeOnly? opensAt, TimeOnly? closesAt)
+    {
+        var errors = Check(opensAt, closesAt);
         if (errors.Count > 0)
         {
             return Result.Failure<OpeningHoursChange?>(Error.Validation(InvalidCode, InvalidMessage, errors));
         }
 
-        if (opensAt == OpensAt && closesAt == ClosesAt)
+        if (opensAt.Equals(OpensAt) && closesAt.Equals(ClosesAt))
         {
             return Result.Success<OpeningHoursChange?>(null);
         }

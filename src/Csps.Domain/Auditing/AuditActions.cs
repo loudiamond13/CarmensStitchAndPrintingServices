@@ -150,6 +150,9 @@ public static class AuditActions
     /// <summary>A Manager saved the business info; the detail names the changed fields (CONT-01).</summary>
     public const string SiteSettingsChanged = "site-settings.changed";
 
+    /// <summary>A Manager saved the weekly opening hours; the detail names each changed day with its old and new times (CONT-01).</summary>
+    public const string OpeningHoursChanged = "opening-hours.changed";
+
     /// <summary>An expense category was added (D-27).</summary>
     public const string ExpenseCategoryAdded = "expense-category.added";
 
@@ -530,5 +533,6 @@ public static class AuditActions
         MoneyTransferPermanentlyDeleted,
         MoneyHandedOver,
         SiteSettingsChanged,
+        OpeningHoursChanged,
     ];
 }

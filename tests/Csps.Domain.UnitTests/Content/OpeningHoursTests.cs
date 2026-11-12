@@ -59,6 +59,37 @@ public sealed class OpeningHoursTests
     }
 
     [Fact]
+    public void AClosedDayKeptClosedIsNoChange()
+    {
+        var result = Monday().SetHours(null, null);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ChangingOnlyTheClosingTimeIsAChange()
+    {
+        var day = Monday();
+        day.SetHours(new TimeOnly(9, 0), new TimeOnly(18, 0));
+
+        var result = day.SetHours(new TimeOnly(9, 0), new TimeOnly(17, 0));
+
+        result.Value.ShouldBe(new OpeningHoursChange(1, new TimeOnly(9, 0), new TimeOnly(18, 0), new TimeOnly(9, 0), new TimeOnly(17, 0)));
+    }
+
+    [Fact]
+    public void ChangingOnlyTheOpeningTimeIsAChange()
+    {
+        var day = Monday();
+        day.SetHours(new TimeOnly(9, 0), new TimeOnly(18, 0));
+
+        var result = day.SetHours(new TimeOnly(10, 0), new TimeOnly(18, 0));
+
+        result.Value.ShouldBe(new OpeningHoursChange(1, new TimeOnly(9, 0), new TimeOnly(18, 0), new TimeOnly(10, 0), new TimeOnly(18, 0)));
+    }
+
+    [Fact]
     public void SettingNoTimesClosesAnOpenDayAndReportsTheOldTimes()
     {
         var day = Monday();
