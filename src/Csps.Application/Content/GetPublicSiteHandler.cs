@@ -13,9 +13,9 @@ public sealed class GetPublicSiteHandler(IPublicContentReader reader)
     /// <summary>Returns the public site snapshot.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The snapshot.</returns>
-    public Task<Result<PublicSiteSnapshot>> HandleAsync(CancellationToken cancellationToken)
+    public async Task<Result<PublicSiteSnapshot>> HandleAsync(CancellationToken cancellationToken)
     {
-        _ = reader;
-        throw new NotImplementedException();
+        var snapshot = await reader.GetSiteAsync(cancellationToken).ConfigureAwait(false);
+        return Result.Success(snapshot);
     }
 }

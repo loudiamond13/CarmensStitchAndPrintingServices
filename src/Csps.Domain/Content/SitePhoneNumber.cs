@@ -64,6 +64,26 @@ public sealed class SitePhoneNumber : IAttributedRecord, IPublicContentRecord
     /// <param name="position">The place in the list.</param>
     /// <param name="now">The current instant, which makes the key.</param>
     /// <returns>The new, unsaved row, or a validation error on <c>number</c> or <c>label</c>.</returns>
-    public static Result<SitePhoneNumber> Create(string number, string? label, bool isMain, int position, DateTimeOffset now) =>
-        throw new NotImplementedException();
+    public static Result<SitePhoneNumber> Create(string number, string? label, bool isMain, int position, DateTimeOffset now)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        var parsed = PhilippinePhone.TryParse(number, out var phone);
+        if (!parsed)
+        {
+            errors["number"] = [PhilippinePhone.InvalidMessage];
+        }
+
+        var trimmed = label?.Trim();
+        if (trimmed?.Length > LabelMaxLength)
+        {
+            errors["label"] = [LabelTooLongMessage];
+        }
+
+        if (errors.Count > 0)
+        {
+            return Result.Failure<SitePhoneNumber>(Error.Validation(SiteSettings.InvalidCode, SiteSettings.InvalidMessage, errors));
+        }
+
+        return Result.Success(new SitePhoneNumber(Guid.CreateVersion7(now), phone!.E164, string.IsNullOrEmpty(trimmed) ? null : trimmed, isMain, position, now));
+    }
 }

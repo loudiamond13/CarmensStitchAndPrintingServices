@@ -246,8 +246,55 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
     /// <param name="values">The new values.</param>
     /// <param name="now">The current instant, which stamps the new phone rows.</param>
     /// <returns>The names of the fields that changed and the new phone rows, or a validation error naming each broken field.</returns>
-    public Result<BusinessInfoChanges> UpdateBusinessInfo(BusinessInfo values, DateTimeOffset now) =>
-        throw new NotImplementedException();
+    public Result<BusinessInfoChanges> UpdateBusinessInfo(BusinessInfo values, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        var name = Required(values.BusinessName, BusinessNameMaxLength, BusinessInfoFields.BusinessName, BusinessNameRequiredMessage, TooLongMessage(BusinessNameMaxLength), errors);
+        var tagline = Required(values.Tagline, TaglineMaxLength, BusinessInfoFields.Tagline, TaglineRequiredMessage, TaglineTooLongMessage, errors);
+        var about = Optional(values.AboutText, AboutTextMaxLength, BusinessInfoFields.AboutText, TooLongMessage(AboutTextMaxLength), errors);
+        var turnaround = Optional(values.TurnaroundLine, TurnaroundLineMaxLength, BusinessInfoFields.TurnaroundLine, TurnaroundLineTooLongMessage, errors);
+        var street = Optional(values.Street, StreetMaxLength, BusinessInfoFields.Street, TooLongMessage(StreetMaxLength), errors);
+        var town = Optional(values.TownOrCity, TownOrCityMaxLength, BusinessInfoFields.TownOrCity, TooLongMessage(TownOrCityMaxLength), errors);
+        var province = Optional(values.Province, ProvinceMaxLength, BusinessInfoFields.Province, TooLongMessage(ProvinceMaxLength), errors);
+        var postalCode = Optional(values.PostalCode, PostalCodeMaxLength, BusinessInfoFields.PostalCode, TooLongMessage(PostalCodeMaxLength), errors);
+        var directions = Optional(values.DirectionsUrl, DirectionsUrlMaxLength, BusinessInfoFields.DirectionsUrl, TooLongMessage(DirectionsUrlMaxLength), errors);
+        var mapEmbed = Optional(values.MapEmbedUrl, MapEmbedUrlMaxLength, BusinessInfoFields.MapEmbedUrl, TooLongMessage(MapEmbedUrlMaxLength), errors);
+        var messenger = Optional(values.MessengerUrl, MessengerUrlMaxLength, BusinessInfoFields.MessengerUrl, TooLongMessage(MessengerUrlMaxLength), errors);
+        var facebook = Optional(values.FacebookUrl, FacebookUrlMaxLength, BusinessInfoFields.FacebookUrl, TooLongMessage(FacebookUrlMaxLength), errors);
+        var instagram = Optional(values.InstagramUrl, InstagramUrlMaxLength, BusinessInfoFields.InstagramUrl, TooLongMessage(InstagramUrlMaxLength), errors);
+        var tiktok = Optional(values.TikTokUrl, TikTokUrlMaxLength, BusinessInfoFields.TiktokUrl, TooLongMessage(TikTokUrlMaxLength), errors);
+        var email = Optional(values.ContactEmail, ContactEmailMaxLength, BusinessInfoFields.ContactEmail, TooLongMessage(ContactEmailMaxLength), errors);
+        var phones = BuildPhones(values.Phones, now, errors);
+        if (errors.Count > 0)
+        {
+            return Result.Failure<BusinessInfoChanges>(Error.Validation(InvalidCode, InvalidMessage, errors));
+        }
+
+        var changed = new List<string>();
+        BusinessName = Track(changed, BusinessInfoFields.BusinessName, BusinessName, name);
+        Tagline = Track(changed, BusinessInfoFields.Tagline, Tagline, tagline);
+        AboutText = TrackOptional(changed, BusinessInfoFields.AboutText, AboutText, about);
+        TurnaroundLine = TrackOptional(changed, BusinessInfoFields.TurnaroundLine, TurnaroundLine, turnaround);
+        Street = TrackOptional(changed, BusinessInfoFields.Street, Street, street);
+        TownOrCity = TrackOptional(changed, BusinessInfoFields.TownOrCity, TownOrCity, town);
+        Province = TrackOptional(changed, BusinessInfoFields.Province, Province, province);
+        PostalCode = TrackOptional(changed, BusinessInfoFields.PostalCode, PostalCode, postalCode);
+        DirectionsUrl = TrackOptional(changed, BusinessInfoFields.DirectionsUrl, DirectionsUrl, directions);
+        MapEmbedUrl = TrackOptional(changed, BusinessInfoFields.MapEmbedUrl, MapEmbedUrl, mapEmbed);
+        MessengerUrl = TrackOptional(changed, BusinessInfoFields.MessengerUrl, MessengerUrl, messenger);
+        FacebookUrl = Track(changed, BusinessInfoFields.FacebookUrl, FacebookUrl, facebook ?? string.Empty);
+        InstagramUrl = TrackOptional(changed, BusinessInfoFields.InstagramUrl, InstagramUrl, instagram);
+        TikTokUrl = TrackOptional(changed, BusinessInfoFields.TiktokUrl, TikTokUrl, tiktok);
+        ContactEmail = Track(changed, BusinessInfoFields.ContactEmail, ContactEmail, email ?? string.Empty);
+        if (changed.Count > 0)
+        {
+            UpdatedAtUtc = now;
+        }
+
+        return Result.Success(new BusinessInfoChanges(changed, phones));
+    }
 
     /// <summary>
     /// Puts every <see cref="SiteSettingsDefaults"/> value back (business name, tagline, zone, currency, locale and the
@@ -286,5 +333,101 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
         UpdatedAtUtc = utcNow;
         UpdatedById = null;
         return true;
+    }
+
+    private static string TooLongMessage(int max) => $"Keep this to {max} characters or fewer.";
+
+    // Always returns the trimmed text; the caller uses it only when no error was recorded.
+    private static string Required(string value, int max, string field, string requiredMessage, string tooLongMessage, Dictionary<string, string[]> errors)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+        {
+            errors[field] = [requiredMessage];
+        }
+        else if (trimmed.Length > max)
+        {
+            errors[field] = [tooLongMessage];
+        }
+
+        return trimmed;
+    }
+
+    private static string? Optional(string? value, int max, string field, string tooLongMessage, Dictionary<string, string[]> errors)
+    {
+        var trimmed = value?.Trim();
+        if (trimmed?.Length > max)
+        {
+            errors[field] = [tooLongMessage];
+        }
+
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
+    }
+
+    private static string Track(List<string> changed, string field, string current, string next)
+    {
+        if (!string.Equals(current, next, StringComparison.Ordinal))
+        {
+            changed.Add(field);
+        }
+
+        return next;
+    }
+
+    private static string? TrackOptional(List<string> changed, string field, string? current, string? next)
+    {
+        if (!string.Equals(current, next, StringComparison.Ordinal))
+        {
+            changed.Add(field);
+        }
+
+        return next;
+    }
+
+    // Main number first. With none flagged the first row is the main one. Row errors are keyed "phones[i].number" or ".label".
+    private static List<SitePhoneNumber> BuildPhones(IReadOnlyList<BusinessPhone> input, DateTimeOffset now, Dictionary<string, string[]> errors)
+    {
+        var listErrors = new List<string>();
+        if (input.Count > SitePhoneNumber.MaxCount)
+        {
+            listErrors.Add(TooManyPhonesMessage);
+        }
+
+        var flaggedMain = input.Select((phone, index) => (phone, index)).Where(pair => pair.phone.IsMain).Select(pair => pair.index).ToList();
+        if (flaggedMain.Count > 1)
+        {
+            listErrors.Add(MainPhoneMessage);
+        }
+
+        if (listErrors.Count > 0)
+        {
+            errors[BusinessInfoFields.Phones] = [.. listErrors];
+        }
+
+        var mainIndex = flaggedMain.Count > 0 ? flaggedMain[0] : 0;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var rows = new List<SitePhoneNumber>();
+        for (var index = 0; index < input.Count; index++)
+        {
+            var position = index == mainIndex ? 0 : index < mainIndex ? index + 1 : index;
+            var created = SitePhoneNumber.Create(input[index].Number, input[index].Label, index == mainIndex, position, now);
+            if (created.IsFailure)
+            {
+                foreach (var (key, messages) in created.Error.FieldErrors!)
+                {
+                    errors[$"{BusinessInfoFields.Phones}[{index}].{key}"] = messages;
+                }
+            }
+            else if (seen.Add(created.Value.Number))
+            {
+                rows.Add(created.Value);
+            }
+            else
+            {
+                errors[$"{BusinessInfoFields.Phones}[{index}].number"] = [DuplicatePhoneMessage];
+            }
+        }
+
+        return [.. rows.OrderBy(row => row.Position)];
     }
 }
