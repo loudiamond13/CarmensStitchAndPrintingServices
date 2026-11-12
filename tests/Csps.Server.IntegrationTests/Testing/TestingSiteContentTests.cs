@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Csps.Domain.Content;
 using Csps.Server.Composition;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -77,6 +78,65 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
         closure.FirstDay.ShouldBeOneOf(before.AddDays(20), after.AddDays(20));
         closure.LastDay.ShouldBe(closure.FirstDay);
         await PublicContentSeeding.SaveClosuresAsync(database, []);
+    }
+
+    [Fact]
+    public async Task APostRestoresTheSixLinesToTheSeededTextWithOnlyBasketballPricedSixHundredFiftyWithAMinimumOfTen()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await using (var context = database.CreateContext())
+        {
+            await context.ProductLines.Where(line => line.Key == "polo").ExecuteUpdateAsync(
+                update => update.SetProperty(line => line.IsActive, false).SetProperty(line => line.Title, "Changed title"),
+                TestContext.Current.CancellationToken);
+            await context.ProductLines.Where(line => line.Key == "moto").ExecuteUpdateAsync(
+                update => update.SetProperty(line => line.StartsAtPrice, 99.00m).SetProperty(line => line.Position, 9),
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var seed = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        using var read = await client.GetAsync(new Uri("/api/v1/public/product-lines", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        using var document = JsonDocument.Parse(await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var lines = document.RootElement.GetProperty("lines").EnumerateArray().ToList();
+        lines.Select(line => line.GetProperty("key").GetString()).ShouldBe(["basketball", "volleyball", "moto", "longsleeves", "polo", "custom"]);
+        lines.Select(line => line.GetProperty("title").GetString()).ShouldBe(ProductLineSeed.All.Select(entry => entry.Title));
+        lines[0].GetProperty("startsAtPrice").GetDecimal().ShouldBe(650.00m);
+        lines[0].GetProperty("minimumQuantity").GetInt32().ShouldBe(10);
+        lines.Skip(1).ShouldAllBe(line => line.GetProperty("startsAtPrice").ValueKind == JsonValueKind.Null && line.GetProperty("minimumQuantity").ValueKind == JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task APostRemovesTheLinesWhoseShortNameStartsWithE2EAndTheirPhotosAndLinks()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        var now = new DateTimeOffset(2026, 11, 12, 3, 0, 0, TimeSpan.Zero);
+        var spec = ProductLineSeed.All[0] with { Id = Guid.CreateVersion7(now), Key = "e2e-kit", ShortName = "E2E-Kit", Position = 20 };
+        var photo = ProductLinePhoto.Create(spec.Id, ProductLinePhotoSlot.Main, "test/e2e-kit", 100, 100, 1000, "jpg", now);
+        await using (var context = database.CreateContext())
+        {
+            context.ProductLines.Add(ProductLine.FromSeed(spec, null, null, now));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            context.ProductLinePhotos.Add(photo);
+            var type = await context.ProductTypes.OrderBy(row => row.Id).FirstAsync(TestContext.Current.CancellationToken);
+            context.Entry(type).Property(row => row.ProductLineId).CurrentValue = spec.Id;
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var seed = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+
+        seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var check = database.CreateContext();
+        (await check.ProductLines.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(6);
+        (await check.ProductLinePhotos.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await check.ProductTypes.CountAsync(row => row.ProductLineId != null, TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Data.SqlTypes;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -162,6 +163,120 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
 
             error.Message.ShouldContain("SiteSettings");
             error.Message.ShouldContain("migrations");
+        }
+    }
+
+    [Fact]
+    public async Task TheLinesSnapshotListsTheSixSeededLinesInOrderWithNoPricesAndNoPhotos()
+    {
+        var fresh = await CspsDatabase.CreateAsync();
+        await using (fresh)
+        {
+            await using var services = PublicContentServices.Build(fresh.ConnectionString);
+
+            var snapshot = await PublicContentServices.ReadLinesAsync(services);
+
+            snapshot.Lines.Lines.Select(line => line.Key).ShouldBe(["basketball", "volleyball", "moto", "longsleeves", "polo", "custom"]);
+            snapshot.Lines.Lines.ShouldAllBe(line => line.StartsAtPrice == null && line.MinimumQuantity == null && !line.HasGalleryItems);
+            snapshot.Lines.Lines.ShouldAllBe(line => line.Photos.Main == null && line.Photos.Back == null && line.Photos.Fabric == null);
+            snapshot.Lines.Lines.Select(line => line.PlaceholderArt).ShouldBe(["basketball", "volleyball", "moto", "longSleeves", "polo", "custom"]);
+            snapshot.Lines.Lines[0].Customize.ShouldBe(new PublicCustomizeDto(
+                "Dri-fit mesh, aircool or spandex blend",
+                "V-neck, round or layered",
+                "Standard, slim, women's fit and kids",
+                "Any font: front, back and shorts",
+                "Team crest, sponsors and barangay seal in full color"));
+            snapshot.Json.LastChangedUtc.ShouldBe(ProductLineSeed.SeededAtUtc);
+        }
+    }
+
+    [Fact]
+    public async Task TheSecondLinesReadRunsNoDatabaseCommand()
+    {
+        var counter = new CommandCounter();
+        await using var services = PublicContentServices.Build(database.ConnectionString, counter);
+
+        var first = await PublicContentServices.ReadLinesAsync(services);
+        counter.Reset();
+        var second = await PublicContentServices.ReadLinesAsync(services);
+
+        counter.Count.ShouldBe(0);
+        second.ShouldBeSameAs(first);
+    }
+
+    [Fact]
+    public async Task AHiddenLineIsLeftOutAndWithEveryLineHiddenTheListIsEmpty()
+    {
+        var fresh = await CspsDatabase.CreateAsync();
+        await using (fresh)
+        {
+            await using (var context = fresh.CreateContext())
+            {
+                await context.ProductLines.Where(line => line.Key == "moto").ExecuteUpdateAsync(
+                    update => update.SetProperty(line => line.IsActive, false), TestContext.Current.CancellationToken);
+            }
+
+            await using (var services = PublicContentServices.Build(fresh.ConnectionString))
+            {
+                (await PublicContentServices.ReadLinesAsync(services)).Lines.Lines.Select(line => line.Key)
+                    .ShouldBe(["basketball", "volleyball", "longsleeves", "polo", "custom"]);
+            }
+
+            await using (var context = fresh.CreateContext())
+            {
+                await context.ProductLines.ExecuteUpdateAsync(update => update.SetProperty(line => line.IsActive, false), TestContext.Current.CancellationToken);
+            }
+
+            await using var other = PublicContentServices.Build(fresh.ConnectionString);
+            var empty = await PublicContentServices.ReadLinesAsync(other);
+            empty.Lines.Lines.ShouldBeEmpty();
+            empty.Json.Json.ShouldBe("{\"lines\":[]}");
+        }
+    }
+
+    [Fact]
+    public async Task LinesThatShareAPositionComeInTheOrderOfTheirIdsEveryTime()
+    {
+        var fresh = await CspsDatabase.CreateAsync();
+        await using (fresh)
+        {
+            await using (var context = fresh.CreateContext())
+            {
+                await context.ProductLines.ExecuteUpdateAsync(update => update.SetProperty(line => line.Position, 1), TestContext.Current.CancellationToken);
+            }
+
+            await using var services = PublicContentServices.Build(fresh.ConnectionString);
+            var keys = (await PublicContentServices.ReadLinesAsync(services)).Lines.Lines.Select(line => line.Key).ToList();
+
+            // SQL Server sorts ids by its own rule, which SqlGuid follows.
+            keys.ShouldBe([.. ProductLineSeed.All.OrderBy(entry => new SqlGuid(entry.Id)).Select(entry => entry.Key)]);
+        }
+    }
+
+    [Fact]
+    public async Task ThePricesAndMinimumsShowAsNumbersAndTheJsonUsesCamelCase()
+    {
+        var fresh = await CspsDatabase.CreateAsync();
+        await using (fresh)
+        {
+            await using (var context = fresh.CreateContext())
+            {
+                await context.ProductLines.Where(line => line.Key == "basketball").ExecuteUpdateAsync(
+                    update => update.SetProperty(line => line.StartsAtPrice, 650.00m).SetProperty(line => line.MinimumQuantity, 10),
+                    TestContext.Current.CancellationToken);
+            }
+
+            await using var services = PublicContentServices.Build(fresh.ConnectionString);
+
+            var snapshot = await PublicContentServices.ReadLinesAsync(services);
+
+            using var document = JsonDocument.Parse(snapshot.Json.Json);
+            var first = document.RootElement.GetProperty("lines")[0];
+            first.GetProperty("startsAtPrice").GetDecimal().ShouldBe(650.00m);
+            first.GetProperty("minimumQuantity").GetInt32().ShouldBe(10);
+            first.GetProperty("customize").GetProperty("collar").GetString().ShouldBe("V-neck, round or layered");
+            first.GetProperty("hasGalleryItems").GetBoolean().ShouldBeFalse();
+            snapshot.Json.ETag.ShouldBe($"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(snapshot.Json.Json)))}\"");
         }
     }
 }

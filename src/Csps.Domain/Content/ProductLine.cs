@@ -117,7 +117,7 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
     /// <summary>Optimistic-concurrency token maintained by the database (409 on conflict).</summary>
     public byte[] RowVersion { get; private set; }
 
-    /// <summary>Builds a line from a seeded entry, shown, with the given price and minimum, for tests and the Testing seeder.</summary>
+    /// <summary>Builds a line from a seeded entry, shown, with the given price and minimum, for the Testing seeder and tests.</summary>
     /// <param name="entry">The seeded entry.</param>
     /// <param name="startsAtPrice">The starting price; null for none.</param>
     /// <param name="minimumQuantity">The minimum order; null for none.</param>
@@ -127,48 +127,20 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
     {
         ArgumentNullException.ThrowIfNull(entry);
         var line = new ProductLine(entry.Id, now);
-        line.ResetToSeed(entry, startsAtPrice, minimumQuantity, now);
-        line.UpdatedAtUtc = null;
+        line.ResetToSeed(entry, startsAtPrice, minimumQuantity);
         return line;
     }
 
     /// <summary>
     /// Puts every value back to the seeded entry's, shown, with the given price and minimum. It is for seeding only (the Testing seeder);
-    /// the Manager's own edits come through their own methods.
+    /// the Manager's own edits come through their own methods. Saving an unchanged line writes nothing, so a repeat leaves the row alone.
     /// </summary>
     /// <param name="entry">The seeded entry.</param>
     /// <param name="startsAtPrice">The starting price; null for none.</param>
     /// <param name="minimumQuantity">The minimum order; null for none.</param>
-    /// <param name="now">The current instant.</param>
-    /// <returns>True when at least one value differed and was reset; false when nothing changed.</returns>
-    public bool ResetToSeed(ProductLineSeedEntry entry, decimal? startsAtPrice, int? minimumQuantity, DateTimeOffset now)
+    public void ResetToSeed(ProductLineSeedEntry entry, decimal? startsAtPrice, int? minimumQuantity)
     {
         ArgumentNullException.ThrowIfNull(entry);
-
-        // Ordinal: the seed text must round-trip byte-exact, so a case-only difference is a difference.
-        var differs =
-            !string.Equals(Key, entry.Key, StringComparison.Ordinal)
-            || !string.Equals(Title, entry.Title, StringComparison.Ordinal)
-            || !string.Equals(ShortName, entry.ShortName, StringComparison.Ordinal)
-            || !string.Equals(Number, entry.Number, StringComparison.Ordinal)
-            || !string.Equals(CardText, entry.CardText, StringComparison.Ordinal)
-            || !string.Equals(Description, entry.Description, StringComparison.Ordinal)
-            || !string.Equals(FabricText, entry.FabricText, StringComparison.Ordinal)
-            || !string.Equals(CollarText, entry.CollarText, StringComparison.Ordinal)
-            || !string.Equals(CutText, entry.CutText, StringComparison.Ordinal)
-            || !string.Equals(NamesText, entry.NamesText, StringComparison.Ordinal)
-            || !string.Equals(LogosText, entry.LogosText, StringComparison.Ordinal)
-            || StartsAtPrice != startsAtPrice
-            || MinimumQuantity != minimumQuantity
-            || Position != entry.Position
-            || !IsActive
-            || PlaceholderArt != entry.PlaceholderArt;
-
-        if (!differs)
-        {
-            return false;
-        }
-
         Key = entry.Key;
         Title = entry.Title;
         ShortName = entry.ShortName;
@@ -185,8 +157,5 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
         Position = entry.Position;
         IsActive = true;
         PlaceholderArt = entry.PlaceholderArt;
-        UpdatedAtUtc = now;
-        UpdatedById = null;
-        return true;
     }
 }
