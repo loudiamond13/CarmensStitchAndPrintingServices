@@ -1,9 +1,13 @@
 using Csps.Domain.Common;
+using Csps.Domain.Content;
 
 namespace Csps.Domain.OrderLists;
 
-/// <summary>What an order item is, for example a basketball jersey (D-18). Managers add, rename, recolor and retire product types.</summary>
-public sealed class ProductType : OrderListEntry
+/// <summary>
+/// What an order item is, for example a basketball jersey (D-18). Managers add, rename, recolor and retire product types, and file each
+/// under at most one public product line (D-09). A saved change clears the public cache, because the filing rule is public (PUB-03).
+/// </summary>
+public sealed class ProductType : OrderListEntry, IPublicContentRecord
 {
     private const string Prefix = "product-types";
     private const string NounText = "product type";
@@ -16,6 +20,20 @@ public sealed class ProductType : OrderListEntry
 
     /// <summary>The public product line orders of this type are filed under (D-09); null until a Manager links it.</summary>
     public Guid? ProductLineId { get; private set; }
+
+    /// <summary>Files the product type under a public product line, or under none.</summary>
+    /// <param name="lineId">The line, or null to unlink it.</param>
+    /// <returns>True when the link changed.</returns>
+    public bool LinkToLine(Guid? lineId)
+    {
+        if (ProductLineId == lineId)
+        {
+            return false;
+        }
+
+        ProductLineId = lineId;
+        return true;
+    }
 
     /// <inheritdoc />
     private protected override string ErrorPrefix => Prefix;

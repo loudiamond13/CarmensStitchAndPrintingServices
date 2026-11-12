@@ -167,6 +167,54 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
         }
     }
 
+    [Fact]
+    public async Task FilingAProductTypeUnderALineClearsThePublicCache()
+    {
+        const string LinesRoute = "/api/v1/public/product-lines";
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var contexts = factory.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+        try
+        {
+            (await BasketballPriceAsync(client, LinesRoute)).ShouldBeNull();
+
+            // A save through a context that is not wired to the host's cache leaves the cached answer as it was.
+            await using (var plain = database.CreateContext())
+            {
+                var line = await plain.ProductLines.SingleAsync(row => row.Key == "basketball", TestContext.Current.CancellationToken);
+                line.ResetToSeed(Csps.Domain.Content.ProductLineSeed.All[0], 650.00m, 10);
+                await plain.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            (await BasketballPriceAsync(client, LinesRoute)).ShouldBeNull("the cache still holds the old answer");
+
+            await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+            {
+                var line = await context.ProductLines.AsNoTracking().SingleAsync(row => row.Key == "basketball", TestContext.Current.CancellationToken);
+                var type = await context.ProductTypes.FirstAsync(TestContext.Current.CancellationToken);
+                type.LinkToLine(line.Id).ShouldBeTrue();
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            (await BasketballPriceAsync(client, LinesRoute)).ShouldBe(650.00m, "a saved product type link clears the public cache");
+        }
+        finally
+        {
+            await database.ResetAsync();
+            await ProductLineSeeding.RestoreSixAsync(database);
+        }
+    }
+
+    private static async Task<decimal?> BasketballPriceAsync(HttpClient client, string route)
+    {
+        using var response = await client.GetAsync(new Uri(route, UriKind.Relative), TestContext.Current.CancellationToken);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var price = document.RootElement.GetProperty("lines")[0].GetProperty("startsAtPrice");
+        return price.ValueKind == JsonValueKind.Null ? null : price.GetDecimal();
+    }
+
     private static async Task SetTitleAsync(IDbContextFactory<CspsDbContext> contexts, string from, string to)
     {
         await using var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken);

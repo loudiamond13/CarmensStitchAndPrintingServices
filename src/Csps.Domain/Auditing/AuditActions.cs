@@ -162,6 +162,27 @@ public static class AuditActions
     /// <summary>A Manager deleted a closure; the detail holds its first and last day (CONT-04).</summary>
     public const string ShopClosureDeleted = "shop-closure.deleted";
 
+    /// <summary>A Manager added a product line; the detail holds its key and title (CONT-02).</summary>
+    public const string ProductLineAdded = "product-line.added";
+
+    /// <summary>A Manager changed a product line; the detail names the changed fields and holds the old and new title, short name, price and minimum, never the long texts (CONT-02).</summary>
+    public const string ProductLineChanged = "product-line.changed";
+
+    /// <summary>A Manager moved a product line in the display order; the detail holds the old and new position (CONT-02).</summary>
+    public const string ProductLineMoved = "product-line.moved";
+
+    /// <summary>A Manager hid a product line (CONT-02, D-08).</summary>
+    public const string ProductLineHidden = "product-line.hidden";
+
+    /// <summary>A Manager showed a product line (CONT-02).</summary>
+    public const string ProductLineShown = "product-line.shown";
+
+    /// <summary>A Manager deleted an unused product line (CONT-02, D-08).</summary>
+    public const string ProductLineDeleted = "product-line.deleted";
+
+    /// <summary>A Manager filed an order product type under a product line, moved it to another line or took it off its line; the detail holds the old and new line titles (D-09).</summary>
+    public const string ProductTypeLineLinked = "product-type.line-linked";
+
     /// <summary>An expense category was added (D-27).</summary>
     public const string ExpenseCategoryAdded = "expense-category.added";
 
@@ -546,5 +567,12 @@ public static class AuditActions
         ShopClosureAdded,
         ShopClosureChanged,
         ShopClosureDeleted,
+        ProductLineAdded,
+        ProductLineChanged,
+        ProductLineMoved,
+        ProductLineHidden,
+        ProductLineShown,
+        ProductLineDeleted,
+        ProductTypeLineLinked,
     ];
 }

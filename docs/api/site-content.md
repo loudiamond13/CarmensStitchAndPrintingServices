@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T03:55:00-06:00
+updated: 2026-11-12T07:40:00-06:00
 ---
 
 # The site content API
@@ -11,8 +11,8 @@ Android app will use. Everything here is under `/api/v1`. The OpenAPI document (
 (`web/src/types/api.generated.ts`). Sign-in and the access token are in [auth.md](auth.md). What visitors read is in
 [public-site.md](public-site.md).
 
-Right now this page covers the Business Info save, the weekly opening hours and the holidays and closures. The product lines,
-testimonials and gallery routes join this page in later plans.
+Right now this page covers the Business Info save, the weekly opening hours, the holidays and closures, and the product lines. The
+line photos, testimonials and gallery routes join this page in later plans.
 
 ## In plain words
 
@@ -33,6 +33,13 @@ testimonials and gallery routes join this page in later plans.
 | `POST /api/v1/shop-closures` | Manager | `201` the new closure; `400` field errors or an overlap; `401`; `403` for an Admin; `409` when the shop is busy saving another closure. Needs an `Idempotency-Key`. |
 | `PUT /api/v1/shop-closures/{id}` | Manager | `200` the closure as saved; `400` field errors or an overlap; `401`; `403` for an Admin; `404`; `409 edit.stale` or busy. |
 | `DELETE /api/v1/shop-closures/{id}` | Manager | `204`; `401`; `403` for an Admin; `404` when it is already gone. |
+| `GET /api/v1/product-lines` | Manager | `200` every line, shown and hidden, in order; `401`; `403` for an Admin. |
+| `GET /api/v1/product-lines/{id}` | Manager | `200` one line with every field; `401`; `403`; `404`. |
+| `POST /api/v1/product-lines` | Manager | `201` the new line; `400` field errors or a short name in use; `401`; `403`; `409` when the shop is busy. Needs an `Idempotency-Key`. |
+| `PUT /api/v1/product-lines/{id}` | Manager | `200` the line as saved; `400`; `401`; `403`; `404`; `409 edit.stale` or busy. |
+| `POST /api/v1/product-lines/{id}/move` | Manager | `204`; `400` for a direction that is not `up` or `down`; `401`; `403`; `404`; `409` when the shop is busy. Needs an `Idempotency-Key`. |
+| `POST /api/v1/product-lines/{id}/hide` and `/show` | Manager | `204`; `401`; `403`; `404`; `409` when the shop is busy. Need an `Idempotency-Key`. |
+| `DELETE /api/v1/product-lines/{id}` | Manager | `204`; `401`; `403`; `404` when it is already gone; `422 product-lines.in-use`. |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. An `Admin` can read the settings
 but cannot save them. No token is `401`.
@@ -282,6 +289,102 @@ Each change writes one entry in the same save, with target type `ShopClosure` an
 | `shop-closure.deleted` | `first=2026-12-24;last=2026-12-26` |
 
 The note text is never copied into the audit log: `fields=note` is the whole record of it, and the audit screen reads it as "Note changed".
+
+## Product lines
+
+A product line is one of the lines the Home and Products pages show (basketball, volleyball and so on). Only a Manager can list, read,
+add, edit, move, hide, show or delete them. Every change is stamped with the Manager and the clock, audited, and clears the public
+cache once it commits, so the next `GET /api/v1/public/product-lines` and the next page head show it with a new `ETag`.
+
+### Reading the lines
+
+`GET /api/v1/product-lines` lists every line, shown and hidden, by `position` (from 1), then by id.
+
+```json
+[
+  {
+    "id": "3a48a1d6-c812-4481-a6be-d7d7412484a0", "key": "basketball", "title": "Basketball Jerseys", "shortName": "Basketball",
+    "startsAtPrice": 650.00, "minimumQuantity": 10, "isActive": true, "position": 1, "mainPhotoThumb": null,
+    "productTypeIds": ["01a17fce-7800-7f5d-bc6c-5d14ceeca0c6"], "shownGalleryCount": 0, "photoCount": 0,
+    "canDelete": false, "version": "AAAAAAAAJxQ="
+  }
+]
+```
+
+`startsAtPrice` and `minimumQuantity` are `null` when not set. `mainPhotoThumb` is `null` until photos arrive and `shownGalleryCount` is
+`0` until the gallery arrives. `productTypeIds` are the order product types filed under the line, A to Z. `canDelete` is `true` only
+when nothing is filed under the line. `GET /api/v1/product-lines/{id}` adds `number`, `cardText`, `description`, `fabricText`,
+`collarText`, `cutText`, `namesText`, `logosText`, `placeholderArt` (`basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or
+`custom`), `createdAtUtc`, `updatedAtUtc` and `updatedByName`.
+
+### Adding and editing
+
+`POST` and `PUT` take the same form and `PUT` adds `"version"`:
+
+```json
+{
+  "title": "Basketball Jerseys", "shortName": "Basketball", "number": "23",
+  "cardText": "...", "description": "...",
+  "fabricText": "...", "collarText": "...", "cutText": "...", "namesText": "...", "logosText": "...",
+  "startsAtPrice": 650.00, "minimumQuantity": 10, "isActive": true, "productTypeIds": ["..."], "version": "AAAAAAAAJxQ="
+}
+```
+
+Anything else in the body, such as the key, the position, who changed the line or when, is ignored. A new line goes to the end of the
+order with the `custom` drawing, and is hidden unless `isActive` is `true`. On an edit a missing `isActive` or `productTypeIds` leaves
+the line as it is.
+
+| Field | Rule | Message |
+|---|---|---|
+| `title` | Required, at most 60 characters after trimming | "Enter the title." · "Keep the title to 60 characters or fewer." |
+| `shortName` | Required, at most 20 characters | "Enter a short name." · "Keep the short name to 20 characters or fewer." |
+| `shortName` | Not used by another line, ignoring letter case and spaces around it (server only) | "Another product line already uses this short name." |
+| `number` | Optional, up to 2 letters or digits | "Use up to 2 letters or digits, like 23 or 3X." |
+| `cardText` | Required, at most 140 | "Enter the card text." · "Keep the card text to 140 characters or fewer." |
+| `description` | Required, at most 300 | "Enter the description." · "Keep the description to 300 characters or fewer." |
+| `fabricText`, `collarText`, `cutText`, `namesText`, `logosText` | Required, at most 120 each | "Enter the Fabric text." (Collar style, Cut & fit, Names & numbers, Logos & sponsors) · "Keep this to 120 characters or fewer." |
+| `startsAtPrice` | Optional, ₱0.01 to ₱999,999.99, at most 2 decimals | "Enter a price of at least ₱0.01." · "Enter a price up to ₱999,999.99." · "Use at most 2 decimal places." |
+| `minimumQuantity` | Optional, a whole number from 1 to 9,999 | "Enter a whole number from 1 to 9,999." |
+| `productTypeIds` | Every id is an order product type that exists | "Reload the form and try again." |
+| `version` | Required on `PUT` | "Reload the form and try again." |
+
+These rules are the same in the browser, which checks them before it sends anything.
+
+**The key never changes.** It is made once, when the line is added, from the short name: lower case `a` to `z` and `0` to `9`, words
+joined by `-`, and `-2`, `-3` and so on when the key is taken. Renaming the short name later keeps the key, so shared links keep working.
+A key reaches a link only after the allow-list check (CWE-601).
+
+**Order product types (D-09).** `productTypeIds` sets exactly which order product types are filed under the line. A type that was under
+another line moves here, and a type that was under this line and is not in the list is freed. A type is under at most one line.
+
+A `version` that is not the stored one answers `409 edit.stale` and changes nothing. A save with no change stores nothing, writes no
+audit entry and keeps the version. An unknown id is `404 product-lines.not-found` ("This product line wasn't found.").
+
+### Moving, hiding, showing and deleting
+
+- **Move.** `POST /api/v1/product-lines/{id}/move` with `{ "direction": "up" }` or `{ "direction": "down" }` trades places with the line
+  next to it in the Manager's list, hidden lines included. It runs under the `site-content` lock, so two Managers moving at once end
+  with every place used once. A move at the end of the order is `204` and changes and records nothing. The same request sent twice
+  with one `Idempotency-Key` moves once.
+- **Hide and show.** `POST .../hide` takes the line, and everything filed under it, off the public site; nothing is lost. `POST .../show`
+  puts it back. Doing either twice is `204` and records once.
+- **Delete.** `DELETE` removes a line only when nothing is filed under it. A line with a photo, a gallery item or an order product type
+  answers `422 product-lines.in-use` with "This product line is in use. Hide it instead." and nothing is deleted.
+
+### The product line audit entries
+
+Each change writes entries in the same save. A product line entry has target type `ProductLine` and the line id as target id.
+
+| Action | Detail |
+|---|---|
+| `product-line.added` | `key=shorts;title=Shorts` |
+| `product-line.changed` | `fields=` naming every changed field in form order, then `title=old>new`, `shortName=old>new`, `price=old>new` and `minimum=old>new` for the ones that changed (an empty side means none). The long texts are named, never copied. |
+| `product-line.moved` | `title=Volleyball Jerseys;position=2>1` |
+| `product-line.hidden`, `product-line.shown` | `key=polo;title=Polo Shirts` |
+| `product-line.deleted` | `key=shorts;title=Shorts` |
+| `product-type.line-linked` | target type `ProductType`, the type id as target id, `line=old title>new title`; an empty side means no line |
+
+A flip of `isActive` in an edit writes `product-line.shown` or `product-line.hidden`.
 
 ## The audit entry
 
