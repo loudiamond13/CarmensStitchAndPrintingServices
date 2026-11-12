@@ -1404,6 +1404,17 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     {
         ArgumentNullException.ThrowIfNull(values);
 
+        if (Status == OrderStatus.Cancelled)
+        {
+            return Result.Failure<OrderPublicSettingsChanges>(Error.BusinessRule(OrderPublicSettings.CancelledCode, OrderPublicSettings.CancelledMessage));
+        }
+
+        var errors = CheckPublicSettings(values, autoLineId);
+        if (errors.Count > 0)
+        {
+            return Result.Failure<OrderPublicSettingsChanges>(Error.Validation(OrderRules.InvalidCode, OrderRules.InvalidMessage, errors));
+        }
+
         bool? consentChange = null;
         if (values.CustomerConsent && !HasCustomerConsent)
         {
@@ -1452,6 +1463,40 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
 
         return Result.Success(changes);
+    }
+
+    // The rules a public settings save must meet: a name of at most 80 characters, and, to show the order, the customer's OK, a line to
+    // show it under and a name (the team, or one typed when the order has no team).
+    private Dictionary<string, string[]> CheckPublicSettings(OrderPublicSettings values, Guid? autoLineId)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        var name = values.PublicName?.Trim();
+        if (name?.Length > OrderPublicSettings.PublicNameMaxLength)
+        {
+            errors[OrderPublicSettings.NameField] = [OrderPublicSettings.NameTooLongMessage];
+        }
+
+        if (!values.ShowOnWebsite)
+        {
+            return errors;
+        }
+
+        if (!values.CustomerConsent)
+        {
+            errors[OrderPublicSettings.ShowField] = [OrderPublicSettings.ConsentRequiredMessage];
+        }
+
+        if ((values.ProductLineId ?? autoLineId) is null)
+        {
+            errors[OrderPublicSettings.LineField] = [OrderPublicSettings.LineRequiredMessage];
+        }
+
+        if (string.IsNullOrEmpty(name) && string.IsNullOrWhiteSpace(TeamName))
+        {
+            errors[OrderPublicSettings.NameField] = [OrderPublicSettings.NameRequiredMessage];
+        }
+
+        return errors;
     }
 
     // An order in an end state refuses every change until it is reopened (D-05, T-07-36).

@@ -201,6 +201,21 @@ public static class AuditActions
     /// <summary>A Manager deleted a testimonial.</summary>
     public const string TestimonialDeleted = "testimonial.deleted";
 
+    /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
+    public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
+
+    /// <summary>Staff removed the customer's OK to show an order; the order also leaves the website (D-11, D-15).</summary>
+    public const string OrderPublicConsentRemoved = "order.public-consent-removed";
+
+    /// <summary>Staff put an order on the website (D-16).</summary>
+    public const string OrderShownOnWebsite = "order.shown-on-website";
+
+    /// <summary>An order came off the website: staff took it off or removed the customer's OK (D-15).</summary>
+    public const string OrderTakenOffWebsite = "order.taken-off-website";
+
+    /// <summary>Staff changed the line or the name an order is shown under; the detail names the fields, never the words (D-09, D-13).</summary>
+    public const string OrderPublicDetailsChanged = "order.public-details-changed";
+
     /// <summary>A Manager filed an order product type under a product line, moved it to another line or took it off its line; the detail holds the old and new line titles (D-09).</summary>
     public const string ProductTypeLineLinked = "product-type.line-linked";
 
@@ -602,5 +617,10 @@ public static class AuditActions
         TestimonialHidden,
         TestimonialShown,
         TestimonialDeleted,
+        OrderPublicConsentRecorded,
+        OrderPublicConsentRemoved,
+        OrderShownOnWebsite,
+        OrderTakenOffWebsite,
+        OrderPublicDetailsChanged,
     ];
 }

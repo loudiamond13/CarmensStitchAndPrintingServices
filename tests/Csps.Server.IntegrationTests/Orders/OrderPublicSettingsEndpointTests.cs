@@ -249,8 +249,7 @@ public sealed class OrderPublicSettingsEndpointTests(CspsDatabase database) : IC
         await using (context.ConfigureAwait(false))
         {
             var entries = await context.AuditLog.AsNoTracking()
-                .Where(row => row.ActorUserId == admin.UserId && row.TargetId == id.ToString("D") && row.TargetType == "Order")
-                .OrderBy(row => row.Id)
+                .Where(row => row.ActorUserId == admin.UserId && row.TargetId == id.ToString("D") && row.TargetType == "Order" && row.Action != "order.created" && row.Action != "order.status-changed")
                 .Select(row => new { row.Action, row.Detail })
                 .ToListAsync(TestContext.Current.CancellationToken);
             entries.Select(row => row.Action).Order(StringComparer.Ordinal).ShouldBe(
@@ -260,8 +259,7 @@ public sealed class OrderPublicSettingsEndpointTests(CspsDatabase database) : IC
                     "order.public-details-changed",
                     "order.shown-on-website",
                     "order.taken-off-website",
-                ],
-                ignoreOrder: false);
+                ]);
             foreach (var entry in entries)
             {
                 entry.Detail.ShouldNotBeNull().ShouldContain($"number={number}");

@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 using Csps.Domain.Orders;
@@ -21,6 +22,7 @@ namespace Csps.Application.Orders;
 /// <param name="lines">The product line store, for the display order and the filing of the product types.</param>
 /// <param name="gallery">The gallery entry store.</param>
 /// <param name="siteLock">The site-content lock.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="requestContext">The signed-in user.</param>
 /// <param name="time">The clock.</param>
@@ -31,6 +33,7 @@ public sealed class SetOrderPublicSettingsHandler(
     IProductLines lines,
     IGalleryEntries gallery,
     ISiteContentLock siteLock,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     TimeProvider time,
@@ -116,8 +119,29 @@ public sealed class SetOrderPublicSettingsHandler(
         }
 
         await ApplyGalleryAsync(order, changes.Value, now, cancellationToken).ConfigureAwait(false);
+        RecordAudit(order, changes.Value);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
+    }
+
+    // One entry for each thing that changed, in the change's own save. They name the order and never the customer (AUDIT-01).
+    private void RecordAudit(Order order, OrderPublicSettingsChanges changes)
+    {
+        var key = AuditKey.Of(order.Id);
+        if (changes.ConsentChange is { } consent)
+        {
+            audit.Record(consent ? AuditActions.OrderPublicConsentRecorded : AuditActions.OrderPublicConsentRemoved, OrderAuditDetail.OrderTarget, key, OrderAuditDetail.PublicSetting(order));
+        }
+
+        if (changes.ShownChange is { } shown)
+        {
+            audit.Record(shown ? AuditActions.OrderShownOnWebsite : AuditActions.OrderTakenOffWebsite, OrderAuditDetail.OrderTarget, key, OrderAuditDetail.PublicSetting(order));
+        }
+
+        if (changes.DetailFields.Count > 0)
+        {
+            audit.Record(AuditActions.OrderPublicDetailsChanged, OrderAuditDetail.OrderTarget, key, OrderAuditDetail.PublicDetailsChanged(order, changes));
+        }
     }
 
     private static Guid? AutoLineOf(Order order, IReadOnlyList<ProductLineListRow> listed)

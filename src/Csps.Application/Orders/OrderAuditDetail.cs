@@ -398,6 +398,34 @@ public static class OrderAuditDetail
     public static string StatusChanged(OrderStatus from, OrderStatus to) =>
         AuditDetailFormat.Change("status", OrderStatusNames.ToKey(from), OrderStatusNames.ToKey(to));
 
+    /// <summary>
+    /// The detail of <c>order.public-consent-recorded</c>, <c>order.public-consent-removed</c>, <c>order.shown-on-website</c> and
+    /// <c>order.taken-off-website</c>: the order number only. Who did it is the entry's own actor; the customer is never named.
+    /// </summary>
+    /// <param name="order">The order.</param>
+    /// <returns>For example <c>number=ORD-2026-0148</c>.</returns>
+    public static string PublicSetting(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return AuditDetailFormat.Join(AuditDetailFormat.Pair("number", order.Number));
+    }
+
+    /// <summary>
+    /// The detail of <c>order.public-details-changed</c>: the order number, then <c>fields=</c> naming what changed (<c>line</c>,
+    /// <c>name</c>), never the name typed.
+    /// </summary>
+    /// <param name="order">The order.</param>
+    /// <param name="changes">What the save changed.</param>
+    /// <returns>For example <c>number=ORD-2026-0148;fields=line,name</c>.</returns>
+    public static string PublicDetailsChanged(Order order, OrderPublicSettingsChanges changes)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(changes);
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("number", order.Number),
+            AuditDetailFormat.Pair("fields", string.Join(',', changes.DetailFields)));
+    }
+
     /// <summary>The detail of <c>order.deleted</c>: the number, status, total, paid and balance, never customer details or notes.</summary>
     /// <param name="order">The order that was deleted.</param>
     /// <returns>For example <c>number=ORD-2026-0148;status=pending;total=21327.50;paid=12000.00;balance=9327.50</c>.</returns>
