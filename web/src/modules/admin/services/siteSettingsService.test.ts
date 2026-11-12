@@ -7,14 +7,27 @@ import { createSiteSettingsService, siteSettingsService, type SiteSettings } fro
 
 const settings: SiteSettings = {
   businessName: "Carmen's Stitch & Printing Services",
+  tagline: 'Sample tagline',
+  aboutText: null,
+  turnaroundLine: null,
+  street: '12 Sample St., Poblacion',
+  townOrCity: 'Sample City',
+  province: 'Sample Province',
+  postalCode: '1000',
+  directionsUrl: 'https://maps.app.goo.gl/abc123',
+  mapEmbedUrl: null,
+  messengerUrl: 'https://m.me/cspsdemo',
+  facebookUrl: 'https://www.facebook.com/example',
+  instagramUrl: null,
+  tiktokUrl: null,
+  contactEmail: 'hello@example.ph',
+  phones: [{ number: '0917 123 4567', label: 'Globe', isMain: true }],
   timeZoneId: 'Asia/Manila',
   currencyCode: 'PHP',
   locale: 'en-PH',
-  contactEmail: 'hello@example.ph',
-  contactPhone: '+63 912 345 6789',
-  addressLine: 'Quezon City, Metro Manila',
-  facebookUrl: 'https://www.facebook.com/example',
-  rowVersion: 'AAAAAAAAB9E=',
+  version: 'AAAAAAAAB9E=',
+  updatedByName: null,
+  updatedAtUtc: null,
 };
 
 const notFound: Plan = {

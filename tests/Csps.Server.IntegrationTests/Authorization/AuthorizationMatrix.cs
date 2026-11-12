@@ -79,6 +79,8 @@ public static class AuthorizationMatrix
         new("HEAD", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
         new("*", "/api/{**path}", "/api/v1/does-not-exist", Anonymous: 404, Admin: 404, Manager: 404),
         new("GET", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 200, Manager: 200),
+        // Saving the business info (CONT-01): Managers only. With no body a Manager meets the 400 field errors.
+        new("PUT", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 403, Manager: 400),
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),

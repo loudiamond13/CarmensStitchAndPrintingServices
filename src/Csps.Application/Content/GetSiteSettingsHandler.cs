@@ -4,19 +4,19 @@ using Csps.Domain.Common;
 namespace Csps.Application.Content;
 
 /// <summary>
-/// Use case: read the site settings (D-29). One handler per use case, no mediator (PRD section 3.3). The settings
-/// come from the cached <see cref="ISiteSettingsReader"/>; a reader failure (for example a missing row) is a
-/// programming or infrastructure error and is not turned into a result.
+/// Use case: read the site settings for staff (D-29, CONT-01). One handler per use case, no mediator (PRD section 3.3). The settings
+/// are read from the database, not a cache, because the Business Info form needs the version a save will be checked against. A
+/// failure (for example a missing row) is a programming or infrastructure error and is not turned into a result.
 /// </summary>
-/// <param name="reader">The cached settings reader.</param>
-public sealed class GetSiteSettingsHandler(ISiteSettingsReader reader)
+/// <param name="store">The business info store.</param>
+public sealed class GetSiteSettingsHandler(ISiteContentStore store)
 {
     /// <summary>Returns the current site settings.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The settings.</returns>
     public async Task<Result<SiteSettingsDto>> HandleAsync(CancellationToken cancellationToken)
     {
-        var snapshot = await reader.GetAsync(cancellationToken).ConfigureAwait(false);
-        return Result.Success(SiteSettingsDto.From(snapshot));
+        var view = await store.GetViewAsync(cancellationToken).ConfigureAwait(false);
+        return Result.Success(SiteSettingsDto.From(view));
     }
 }

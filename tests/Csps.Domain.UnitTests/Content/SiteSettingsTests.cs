@@ -119,6 +119,19 @@ public sealed class SiteSettingsTests
         settings.BusinessName.ShouldBe(SiteSettingsDefaults.BusinessName);
     }
 
+    [Fact]
+    public void MarkPhonesChangedMovesTheLastChangedTimeAndNothingElse()
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        settings.MarkPhonesChanged(ResetAt);
+
+        settings.UpdatedAtUtc.ShouldBe(ResetAt);
+        settings.CreatedAtUtc.ShouldBe(CreatedAt);
+        settings.BusinessName.ShouldBe(SiteSettingsDefaults.BusinessName);
+        settings.Tagline.ShouldBe(SiteSettingsDefaults.Tagline);
+    }
+
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 7, 1, 2, 3, TimeSpan.Zero);
 
     private static readonly DateTimeOffset ResetAt = new(2026, 10, 8, 4, 5, 6, TimeSpan.Zero);

@@ -1,11 +1,12 @@
 using Csps.Application.Content;
+using FluentValidation;
 
 namespace Csps.Server.Composition;
 
 /// <summary>Registers the public site content use cases: one handler class per use case, no mediator.</summary>
 public static class ContentApplicationRegistration
 {
-    /// <summary>Adds the public content handlers as scoped services.</summary>
+    /// <summary>Adds the public content handlers as scoped services and their form rules as singletons.</summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The same service collection.</returns>
     public static IServiceCollection AddCspsContentHandlers(this IServiceCollection services)
@@ -13,6 +14,8 @@ public static class ContentApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<GetPublicSiteHandler>();
+        services.AddScoped<UpdateSiteSettingsHandler>();
+        services.AddSingleton<IValidator<UpdateSiteSettingsRequest>, UpdateSiteSettingsRequestValidator>();
         return services;
     }
 }
