@@ -186,7 +186,7 @@ public sealed partial class ShellPageTests
     [Fact]
     public async Task BusinessNameIsHtmlEncodedInTheHead()
     {
-        await using var factory = new ShellTestFactory(new StubSiteSettingsReader("A<b>\"x\"&</b>"));
+        await using var factory = new ShellTestFactory(new StubPublicContentReader("A<b>\"x\"&</b>"));
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/products", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -291,7 +291,7 @@ public sealed partial class ShellPageTests
     [Fact]
     public async Task ASettingsFailureSendsThePlainTemplateHeadWithTheSameStatusRulesAndLogsOnce()
     {
-        await using var factory = new ShellTestFactory(new StubSiteSettingsReader(new InvalidOperationException("settings are down")));
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(new InvalidOperationException("settings are down")));
         using var client = factory.CreateClient();
 
         using var first = await client.GetAsync(new Uri("/products", UriKind.Relative), TestContext.Current.CancellationToken);

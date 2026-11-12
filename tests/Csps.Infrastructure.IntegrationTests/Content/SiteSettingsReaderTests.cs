@@ -30,10 +30,10 @@ public sealed class SiteSettingsReaderTests(CspsDatabase database) : IClassFixtu
         snapshot.TimeZoneId.ShouldBe("Asia/Manila");
         snapshot.CurrencyCode.ShouldBe("PHP");
         snapshot.Locale.ShouldBe("en-PH");
-        snapshot.ContactEmail.ShouldBe("[hello@yourdomain.ph]");
+        snapshot.ContactEmail.ShouldBeEmpty();
         snapshot.ContactPhone.ShouldBe("[0917 000 0000]");
         snapshot.AddressLine.ShouldBe("[Shop address], [City], Philippines");
-        snapshot.FacebookUrl.ShouldBe("[Facebook page URL]");
+        snapshot.FacebookUrl.ShouldBeEmpty();
         snapshot.RowVersion.ShouldNotBeNullOrWhiteSpace();
         Convert.FromBase64String(snapshot.RowVersion).Length.ShouldBe(8);
     }

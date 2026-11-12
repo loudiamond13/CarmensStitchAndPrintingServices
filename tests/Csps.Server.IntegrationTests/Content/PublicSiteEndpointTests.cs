@@ -1,0 +1,190 @@
+using System.Net;
+using System.Text.Json;
+using Csps.Application.Security;
+using Csps.Domain.Content;
+using Csps.Server.IntegrationTests.Auth;
+using Csps.Server.IntegrationTests.Http;
+using Csps.Testing;
+using Microsoft.Extensions.Time.Testing;
+
+namespace Csps.Server.IntegrationTests.Content;
+
+/// <summary>
+/// PUB-02, PUB-03, CONT-05, D-25, D-43: <c>GET /api/v1/public/site</c> answers anonymously from the database with the shop's facts, a
+/// strong ETag and 304 on a repeat, never the shop email, never a bracket placeholder, and never compressed.
+/// </summary>
+public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixture<CspsDatabase>
+{
+    private const string Route = "/api/v1/public/site";
+
+    private static readonly string[] DtoPropertyNames =
+    [
+        "businessName", "tagline", "aboutText", "turnaroundLine", "address", "phones", "messengerUrl", "facebookUrl", "instagramUrl",
+        "tiktokUrl", "directionsUrl", "mapEmbedUrl", "year",
+    ];
+
+    [Fact]
+    public async Task AnAnonymousVisitorGetsTheStoredFactsWithTheMainNumberFirst()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo("Sample tagline") with
+        {
+            Phones = [new BusinessPhone("02 8123 4567", null, false), new BusinessPhone("0917 123 4567", "Globe", true)],
+        });
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/json");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var site = document.RootElement;
+        site.EnumerateObject().Select(property => property.Name).ShouldBe(DtoPropertyNames, ignoreOrder: true);
+        site.GetProperty("businessName").GetString().ShouldBe("Sample Shop");
+        site.GetProperty("tagline").GetString().ShouldBe("Sample tagline");
+        site.GetProperty("turnaroundLine").GetString().ShouldBe("Mockups in 24 hours.");
+        var address = site.GetProperty("address");
+        address.GetProperty("street").GetString().ShouldBe("12 Sample St., Poblacion");
+        address.GetProperty("townOrCity").GetString().ShouldBe("Sample City");
+        address.GetProperty("province").GetString().ShouldBe("Sample Province");
+        address.GetProperty("postalCode").GetString().ShouldBe("1000");
+        var phones = site.GetProperty("phones");
+        phones.GetArrayLength().ShouldBe(2);
+        phones[0].GetProperty("display").GetString().ShouldBe("0917 123 4567");
+        phones[0].GetProperty("e164").GetString().ShouldBe("+639171234567");
+        phones[0].GetProperty("label").GetString().ShouldBe("Globe");
+        phones[0].GetProperty("isMain").GetBoolean().ShouldBeTrue();
+        phones[1].GetProperty("display").GetString().ShouldBe("02 8123 4567");
+        phones[1].GetProperty("isMain").GetBoolean().ShouldBeFalse();
+        site.GetProperty("messengerUrl").GetString().ShouldBe("https://m.me/cspsdemo");
+        site.GetProperty("facebookUrl").GetString().ShouldBe("https://facebook.example.test/cspsdemo");
+        site.GetProperty("directionsUrl").GetString().ShouldBe("https://maps.example.test/directions");
+        site.GetProperty("mapEmbedUrl").GetString().ShouldBe("https://maps.example.test/embed");
+        site.GetProperty("year").GetInt32().ShouldBeGreaterThanOrEqualTo(2026);
+    }
+
+    [Fact]
+    public async Task TheResponseHasAStrongETagNoCacheAndIsNeverCompressed()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var request = ApiRequests.Get(Route);
+        request.Headers.AcceptEncoding.ParseAdd("gzip, br");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Headers.ETag.ShouldNotBeNull().IsWeak.ShouldBeFalse();
+        response.Headers.CacheControl.ShouldNotBeNull().NoCache.ShouldBeTrue();
+        response.Content.Headers.ContentEncoding.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AMatchingIfNoneMatchGets304WithNoBodyAndADifferentOneGets200()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var first = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+        var etag = first.Headers.ETag.ShouldNotBeNull();
+
+        using var matching = ApiRequests.Get(Route);
+        matching.Headers.TryAddWithoutValidation("If-None-Match", etag.ToString());
+        using var repeat = await client.SendAsync(matching, TestContext.Current.CancellationToken);
+        using var different = ApiRequests.Get(Route);
+        different.Headers.TryAddWithoutValidation("If-None-Match", "\"not-this-one\"");
+        using var changed = await client.SendAsync(different, TestContext.Current.CancellationToken);
+
+        repeat.StatusCode.ShouldBe(HttpStatusCode.NotModified);
+        (await repeat.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBeEmpty();
+        repeat.Headers.ETag.ShouldBe(etag);
+        repeat.Headers.CacheControl.ShouldNotBeNull().NoCache.ShouldBeTrue();
+        changed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await changed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task NoPublicBodyHoldsTheShopEmailAnAtSignOrABracket()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await (await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken))
+            .Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        body.ShouldNotContain("shop-private@example.test", Case.Insensitive);
+        body.ShouldNotContain("@");
+        body.ShouldNotContain("[");
+    }
+
+    [Fact]
+    public async Task AFreshlyMigratedDatabaseShowsTheApprovedTaglineAndNothingElse()
+    {
+        var fresh = await CspsDatabase.CreateAsync();
+        await using (fresh)
+        {
+            await using var factory = CspsApiFactory.ForDatabase(fresh.ConnectionString);
+            using var client = factory.CreateClient();
+
+            using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            body.ShouldNotContain("[");
+            body.ShouldNotContain("@");
+            using var document = JsonDocument.Parse(body);
+            var site = document.RootElement;
+            site.GetProperty("tagline").GetString().ShouldBe("Custom tailoring and full-sublimation printing for teams, leagues and riding groups.");
+            site.GetProperty("phones").GetArrayLength().ShouldBe(0);
+            site.GetProperty("address").GetProperty("street").ValueKind.ShouldBe(JsonValueKind.Null);
+            site.GetProperty("facebookUrl").ValueKind.ShouldBe(JsonValueKind.Null);
+            site.GetProperty("turnaroundLine").ValueKind.ShouldBe(JsonValueKind.Null);
+        }
+    }
+
+    [Fact]
+    public async Task AnEmptyRowAnswers200WithEmptyOrNullFieldsNeverA500()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Bare());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("phones").GetArrayLength().ShouldBe(0);
+        document.RootElement.GetProperty("messengerUrl").ValueKind.ShouldBe(JsonValueKind.Null);
+        document.RootElement.GetProperty("address").GetProperty("townOrCity").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task TheYearIsTheBusinessYear()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(new DateTimeOffset(2026, 12, 31, 16, 30, 0, TimeSpan.Zero)));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("year").GetInt32().ShouldBe(2027);
+    }
+
+    [Theory]
+    [InlineData(Roles.Admin)]
+    [InlineData(Roles.Manager)]
+    public async Task StaffReadItToo(string role)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var request = ApiRequests.Get(Route, (await TestSessions.StartAsync(factory, role)).AccessToken);
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+}

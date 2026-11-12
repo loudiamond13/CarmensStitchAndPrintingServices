@@ -27,6 +27,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The SiteSettings singleton (one row, Id 1).</summary>
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
 
+    /// <summary>The public phone numbers of the shop, at most four, one of them main (D-23).</summary>
+    public DbSet<SitePhoneNumber> SitePhoneNumbers => Set<SitePhoneNumber>();
+
     /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 

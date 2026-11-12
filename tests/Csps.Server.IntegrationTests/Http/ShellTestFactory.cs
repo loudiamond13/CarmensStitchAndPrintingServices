@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Csps.Application.Content;
 using Csps.Application.Ports;
 using Csps.Testing;
@@ -7,14 +10,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Http;
 
-/// <summary>A test host with no database whose site settings come from a stub, so the shell's head can be checked on its own.</summary>
-internal sealed class ShellTestFactory(ISiteSettingsReader reader) : CspsApiFactory
+/// <summary>A test host with no database whose public site facts come from a stub, so the shell's head can be checked on its own.</summary>
+internal sealed class ShellTestFactory(IPublicContentReader reader) : CspsApiFactory
 {
     /// <summary>The business name the default stub returns.</summary>
     public const string DefaultBusinessName = "Test Shop's Name & Co";
 
     public ShellTestFactory()
-        : this(new StubSiteSettingsReader(DefaultBusinessName))
+        : this(new StubPublicContentReader(DefaultBusinessName))
     {
     }
 
@@ -26,20 +29,49 @@ internal sealed class ShellTestFactory(ISiteSettingsReader reader) : CspsApiFact
     }
 }
 
-/// <summary>Returns a fixed settings snapshot, or throws the given exception.</summary>
-internal sealed class StubSiteSettingsReader : ISiteSettingsReader
+/// <summary>Returns a fixed public site snapshot, or throws the given exception.</summary>
+internal sealed class StubPublicContentReader : IPublicContentReader
 {
-    private readonly SiteSettingsSnapshot? _snapshot;
+    /// <summary>The approved tagline, the default of the stub.</summary>
+    public const string ApprovedTagline = "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.";
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private readonly PublicSiteSnapshot? _snapshot;
     private readonly Exception? _failure;
 
-    public StubSiteSettingsReader(string businessName)
+    public StubPublicContentReader(string businessName, string tagline = ApprovedTagline)
+        : this(Site(businessName, tagline))
     {
-        _snapshot = new SiteSettingsSnapshot(
-            businessName, "Asia/Manila", "PHP", "en-PH", "owner@example.test", "0917 000 0000", "Test Street", "https://facebook.example/test", "AAAA");
     }
 
-    public StubSiteSettingsReader(Exception failure) => _failure = failure;
+    public StubPublicContentReader(PublicSiteDto site, DateTimeOffset? lastChangedUtc = null) =>
+        _snapshot = Snapshot(site, lastChangedUtc ?? new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero));
 
-    public ValueTask<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken) =>
+    public StubPublicContentReader(Exception failure) => _failure = failure;
+
+    public static PublicSiteDto Site(string businessName, string tagline = ApprovedTagline) => new(
+        businessName,
+        tagline,
+        null,
+        null,
+        new PublicAddressDto("12 Sample St., Poblacion", "Sample City", "Sample Province", "1000"),
+        [new PublicPhoneDto("0917 123 4567", "+639171234567", "Globe", true), new PublicPhoneDto("02 8123 4567", "+63281234567", null, false)],
+        "https://m.me/cspsdemo",
+        "https://facebook.example.test/cspsdemo",
+        null,
+        "https://tiktok.example.test/cspsdemo",
+        null,
+        null,
+        2026);
+
+    public static PublicSiteSnapshot Snapshot(PublicSiteDto site, DateTimeOffset lastChangedUtc)
+    {
+        var json = JsonSerializer.Serialize(site, JsonOptions);
+        var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+        return new PublicSiteSnapshot(site, new PublicJsonSnapshot(json, etag, lastChangedUtc));
+    }
+
+    public ValueTask<PublicSiteSnapshot> GetSiteAsync(CancellationToken cancellationToken) =>
         _failure is not null ? throw _failure : ValueTask.FromResult(_snapshot!);
 }
