@@ -577,5 +577,6 @@ public static class AuditActions
         ProductLineShown,
         ProductLineDeleted,
         ProductTypeLineLinked,
+        ProductLinePhotoChanged,
     ];
 }

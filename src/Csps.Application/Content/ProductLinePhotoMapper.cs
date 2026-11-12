@@ -45,7 +45,7 @@ public static class ProductLinePhotoMapper
     /// <param name="photos">The photo rows of the line; none or null for a line with no photo.</param>
     /// <param name="delivery">Makes the addresses.</param>
     /// <returns>The slots.</returns>
-    public static ProductLinePhotosDto ToAdmin(IReadOnlyList<ProductLinePhoto>? photos, IImageDelivery delivery)
+    public static ProductLinePhotosDto ToAdminSlots(IReadOnlyList<ProductLinePhoto>? photos, IImageDelivery delivery)
     {
         if (photos is null || photos.Count == 0)
         {

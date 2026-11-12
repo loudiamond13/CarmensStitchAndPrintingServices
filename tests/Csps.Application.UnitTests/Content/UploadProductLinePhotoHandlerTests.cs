@@ -3,6 +3,7 @@ using Csps.Application.Content;
 using Csps.Application.Images;
 using Csps.Application.Ports;
 using Csps.Application.UnitTests.Auth;
+using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Testing.Images;
 using NSubstitute;
@@ -108,6 +109,10 @@ public sealed class UploadProductLinePhotoHandlerTests
         added.PublicId.ShouldBe(harness.StoredIds.ShouldHaveSingleItem());
         harness.Queue.Calls.ShouldBeEmpty();
         harness.Unit.Commits.ShouldBe(1);
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        (entry.Action, entry.TargetType, entry.TargetId).ShouldBe((AuditActions.ProductLinePhotoChanged, "ProductLine", LineId.ToString("D")));
+        entry.Detail.ShouldBe("key=basketball;title=Basketball Jerseys;slot=back;change=added");
+        entry.Detail!.ShouldNotContain(added.PublicId);
     }
 
     [Fact]
@@ -127,6 +132,70 @@ public sealed class UploadProductLinePhotoHandlerTests
         (existing.Width, existing.Height).ShouldBe((640, 480));
         harness.Queue.Calls.ShouldBe([($"csps-test/content/lines/{LineId:D}/oldoldoldoldoldoldoldold2", ImageDeletionReason.PhotoReplaced, false)]);
         queuedInsideTransaction.ShouldBeTrue();
+        harness.Audit.Entries.ShouldHaveSingleItem().Detail.ShouldBe("key=basketball;title=Basketball Jerseys;slot=main;change=replaced");
+    }
+
+    [Theory]
+    [InlineData(ImageFailureCodes.Transient, 1)]
+    [InlineData("refused", 0)]
+    public async Task AFileTheStorageDidNotTakeIsAStorageFailureAndOnlyALostReplyQueuesIt(string code, int queued)
+    {
+        var harness = new Harness();
+        harness.Storage.UploadAsync(Arg.Any<ImageUpload>(), Arg.Any<CancellationToken>()).Returns(ImageUploadOutcome.Failed(code));
+
+        var result = await harness.Handler.HandleAsync(Request(), Token);
+
+        result.Error.ShouldBe(ImageErrors.StorageFailed);
+        harness.Queue.Calls.Count.ShouldBe(queued);
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AFileThatIsNotAPhotoIsRefusedBeforeItReachesTheStorage()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request(bytes: SyntheticImages.Svg()), Token);
+
+        result.Error.Code.ShouldBe(ImageErrors.TypeCode);
+        harness.StoredIds.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUploadThatCannotGetTheSiteContentLockAnswersBusyAndQueuesTheFile()
+    {
+        var harness = new Harness();
+        harness.SiteLock.TakeAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new SiteContentBusyException()));
+
+        var result = await harness.Handler.HandleAsync(Request(), Token);
+
+        result.Error.ShouldBe(AuthErrors.SessionBusy);
+        harness.Queue.Calls.Select(call => call.Reason).ShouldBe([ImageDeletionReason.UploadUndone]);
+    }
+
+    [Fact]
+    public async Task ASaveThatLosesARaceTwiceAnswersBusyAndQueuesTheFile()
+    {
+        var harness = new Harness();
+        harness.Unit.FailEverySaveWithConflict();
+
+        var result = await harness.Handler.HandleAsync(Request(), Token);
+
+        result.Error.ShouldBe(AuthErrors.SessionBusy);
+        harness.Queue.Calls.Select(call => call.Reason).ShouldBe([ImageDeletionReason.UploadUndone]);
+    }
+
+    [Fact]
+    public async Task AQueueWriteThatFailsDoesNotReplaceTheOriginalAnswer()
+    {
+        var harness = new Harness();
+        harness.Queue.FailWith(new InvalidOperationException("The queue could not be written."));
+        harness.Unit.FailEverySaveWithConflict();
+
+        var result = await harness.Handler.HandleAsync(Request(), Token);
+
+        result.Error.ShouldBe(AuthErrors.SessionBusy);
+        harness.Queue.Calls.Count.ShouldBe(1);
     }
 
     private sealed class RecordingQueue : IImageDeletionQueue
@@ -134,6 +203,10 @@ public sealed class UploadProductLinePhotoHandlerTests
         public List<(string PublicId, ImageDeletionReason Reason, bool TokenWasCancelled)> Calls { get; } = [];
 
         public Action? OnEnqueue { get; set; }
+
+        public void FailWith(Exception failure) => _failure = failure;
+
+        private Exception? _failure;
 
         public void Enqueue(string publicId, ImageDeletionReason reason)
         {
@@ -144,7 +217,7 @@ public sealed class UploadProductLinePhotoHandlerTests
         public Task EnqueueNowAsync(string publicId, ImageDeletionReason reason, CancellationToken cancellationToken)
         {
             Calls.Add((publicId, reason, cancellationToken.IsCancellationRequested));
-            return Task.CompletedTask;
+            return _failure is null ? Task.CompletedTask : Task.FromException(_failure);
         }
 
         public Task EnqueueManyNowAsync(IReadOnlyCollection<string> publicIds, ImageDeletionReason reason, CancellationToken cancellationToken) =>
@@ -183,14 +256,14 @@ public sealed class UploadProductLinePhotoHandlerTests
             });
             Context = Substitute.For<IRequestContext>();
             Context.UserId.Returns(CallerId);
-            var siteLock = Substitute.For<ISiteContentLock>();
-            siteLock.TakeAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+            SiteLock = Substitute.For<ISiteContentLock>();
+            SiteLock.TakeAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
             var time = Substitute.For<TimeProvider>();
             time.GetUtcNow().Returns(Now);
             var delivery = Substitute.For<IImageDelivery>();
             var source = new ImageSource("https://images.example.test/a", "https://images.example.test/a 640w");
             delivery.ForLinePhoto(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>()).Returns(new LinePhotoUrls(source, source, source, "https://images.example.test/t"));
-            Handler = new UploadProductLinePhotoHandler(Lines, siteLock, Unit, time, Context, Storage, Queue, delivery, new ImageUploadSettings());
+            Handler = new UploadProductLinePhotoHandler(Lines, SiteLock, Audit, Unit, time, Context, Storage, Queue, delivery, new ImageUploadSettings());
         }
 
         public IProductLines Lines { get; }
@@ -199,7 +272,11 @@ public sealed class UploadProductLinePhotoHandlerTests
 
         public IRequestContext Context { get; }
 
+        public ISiteContentLock SiteLock { get; }
+
         public FakeUnitOfWork Unit { get; } = new();
+
+        public RecordingAudit Audit { get; } = new();
 
         public RecordingQueue Queue { get; } = new();
 

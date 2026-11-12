@@ -19,6 +19,15 @@ public static class ProductLineAuditDetail
     /// <summary>The target type of a product type link audit entry.</summary>
     public const string LinkTargetType = "ProductType";
 
+    /// <summary>The change word of a photo put in an empty slot.</summary>
+    public const string PhotoAdded = "added";
+
+    /// <summary>The change word of a photo put in the place of another.</summary>
+    public const string PhotoReplaced = "replaced";
+
+    /// <summary>The change word of a photo taken out of its slot.</summary>
+    public const string PhotoRemoved = "removed";
+
     private const char PairSeparator = ';';
     private const char FieldSeparator = ',';
 
@@ -78,6 +87,22 @@ public static class ProductLineAuditDetail
         return AuditDetailFormat.Join(
             AuditDetailFormat.Pair("title", line.Title),
             AuditDetailFormat.Change("position", Quantity(oldPosition), Quantity(line.Position)));
+    }
+
+    /// <summary>Writes the detail of a photo that was added, replaced or removed: the line, the slot and the change, never the address.</summary>
+    /// <param name="line">The line.</param>
+    /// <param name="slot">The slot.</param>
+    /// <param name="change">One of <see cref="PhotoAdded"/>, <see cref="PhotoReplaced"/> or <see cref="PhotoRemoved"/>.</param>
+    /// <returns>The detail text.</returns>
+    public static string PhotoChanged(ProductLine line, ProductLinePhotoSlot slot, string change)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        ArgumentNullException.ThrowIfNull(change);
+        return AuditDetailFormat.Join(
+            AuditDetailFormat.Pair("key", line.Key),
+            AuditDetailFormat.Pair("title", line.Title),
+            AuditDetailFormat.Pair("slot", ProductLinePhotoSlots.ToText(slot)),
+            AuditDetailFormat.Pair("change", change));
     }
 
     /// <summary>Writes the detail of a product type that was filed under another line or none.</summary>

@@ -138,7 +138,7 @@ public sealed record ProductLineDetailDto(
             line.Position,
             string.Concat(char.ToLowerInvariant(art[0]).ToString(), art.AsSpan(1)),
             row.ProductTypeIds,
-            ProductLinePhotoMapper.ToAdmin(row.Photos, delivery),
+            ProductLinePhotoMapper.ToAdminSlots(row.Photos, delivery),
             RowVersions.ToText(line.RowVersion),
             row.UpdatedByName,
             line.CreatedAtUtc,

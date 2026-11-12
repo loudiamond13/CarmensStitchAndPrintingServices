@@ -287,7 +287,7 @@ public sealed class AuditActionsTests
     {
         PhaseSeven.Length.ShouldBe(43);
         AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
-        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed", "opening-hours.changed", "shop-closure.added", "shop-closure.changed", "shop-closure.deleted", "product-line.added", "product-line.changed", "product-line.moved", "product-line.hidden", "product-line.shown", "product-line.deleted", "product-type.line-linked"]);
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed", "opening-hours.changed", "shop-closure.added", "shop-closure.changed", "shop-closure.deleted", "product-line.added", "product-line.changed", "product-line.moved", "product-line.hidden", "product-line.shown", "product-line.deleted", "product-type.line-linked", "product-line.photo-changed"]);
     }
 
     [Theory]

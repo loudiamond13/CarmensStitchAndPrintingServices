@@ -1,20 +1,24 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 
 namespace Csps.Application.Content;
 
 /// <summary>
-/// Use case: a Manager removes the photo in one slot of a product line (D-02). One transaction under the site-content lock deletes the
-/// photo row, so a line delete or an upload at the same moment is decided one after the other. No version is sent: the removal applies to
-/// the latest state.
+/// Use case: a Manager removes the photo in one slot of a product line (D-02, AUDIT-01). One transaction under the site-content lock
+/// deletes the photo row, queues its file for removal and writes <c>product-line.photo-changed</c> with the line, the slot and
+/// <c>removed</c>, never the address. A line delete or an upload at the same moment is decided one after the other. Nothing calls the
+/// storage during the request; the file leaves it on the next cleanup run. No version is sent: the removal applies to the latest state.
 /// </summary>
 /// <param name="lines">The product line store.</param>
 /// <param name="siteLock">The site-content lock.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
-public sealed class RemoveProductLinePhotoHandler(IProductLines lines, ISiteContentLock siteLock, IUnitOfWork unitOfWork)
+/// <param name="imageDeletions">The removal queue.</param>
+public sealed class RemoveProductLinePhotoHandler(IProductLines lines, ISiteContentLock siteLock, IAuditTrail audit, IUnitOfWork unitOfWork, IImageDeletionQueue imageDeletions)
 {
     /// <summary>Removes the photo.</summary>
     /// <param name="lineId">The line.</param>
@@ -54,6 +58,8 @@ public sealed class RemoveProductLinePhotoHandler(IProductLines lines, ISiteCont
         }
 
         lines.RemovePhoto(photo);
+        imageDeletions.Enqueue(photo.PublicId, ImageDeletionReason.PhotoDeleted);
+        audit.Record(AuditActions.ProductLinePhotoChanged, ProductLineAuditDetail.TargetType, AuditKey.Of(line.Id), ProductLineAuditDetail.PhotoChanged(line, slot, ProductLineAuditDetail.PhotoRemoved));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }

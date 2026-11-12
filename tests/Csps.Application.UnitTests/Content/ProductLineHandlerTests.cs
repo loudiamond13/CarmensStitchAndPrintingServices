@@ -723,7 +723,7 @@ public sealed class ProductLineHandlerTests
             Update = new UpdateProductLineHandler(Lines, SiteLock, Audit, Unit, rules, delivery);
             Move = new MoveProductLineHandler(Lines, SiteLock, Audit, Unit, moveRules);
             SetShown = new SetProductLineShownHandler(Lines, Audit, Unit);
-            Delete = new DeleteProductLineHandler(Lines, Audit, Unit);
+            Delete = new DeleteProductLineHandler(Lines, SiteLock, Audit, Unit);
         }
 
         public IProductLines Lines { get; }

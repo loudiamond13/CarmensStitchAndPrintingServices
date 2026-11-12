@@ -2,6 +2,7 @@ using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Images;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 
@@ -19,6 +20,7 @@ namespace Csps.Application.Content;
 /// </summary>
 /// <param name="lines">The product line store.</param>
 /// <param name="siteLock">The site-content lock.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="time">The clock.</param>
 /// <param name="requestContext">The signed-in user of the request.</param>
@@ -29,6 +31,7 @@ namespace Csps.Application.Content;
 public sealed class UploadProductLinePhotoHandler(
     IProductLines lines,
     ISiteContentLock siteLock,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     TimeProvider time,
     IRequestContext requestContext,
@@ -149,16 +152,21 @@ public sealed class UploadProductLinePhotoHandler(
         }
 
         var photo = await lines.FindPhotoAsync(line.Id, request.Slot, cancellationToken).ConfigureAwait(false);
+        string change;
         if (photo is null)
         {
             photo = ProductLinePhoto.Create(line.Id, request.Slot, file, time.GetUtcNow());
             lines.AddPhoto(photo);
+            change = ProductLineAuditDetail.PhotoAdded;
         }
         else
         {
-            photo.Replace(file);
+            // The old file leaves the storage with the next cleanup run, and only if this save goes through.
+            imageDeletions.Enqueue(photo.Replace(file), ImageDeletionReason.PhotoReplaced);
+            change = ProductLineAuditDetail.PhotoReplaced;
         }
 
+        audit.Record(AuditActions.ProductLinePhotoChanged, ProductLineAuditDetail.TargetType, AuditKey.Of(line.Id), ProductLineAuditDetail.PhotoChanged(line, request.Slot, change));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(photo);
     }
