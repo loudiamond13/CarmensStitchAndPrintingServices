@@ -26,6 +26,7 @@ import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
+import { siteSettingsBackend } from '@/test/siteContentFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -159,7 +160,7 @@ const adminSession = () =>
   });
 
 describe('Manager-only routes (USER-08)', () => {
-  it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
+  it.each(['/admin/users', '/admin/audit-log', '/admin/settings', '/admin/site-content'])(
     'an Admin who opens %s lands on the dashboard at /admin',
     async (path) => {
       answerRefresh(adminSession());
@@ -243,7 +244,7 @@ describe('Manager-only routes (USER-08)', () => {
     });
   });
 
-  it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
+  it.each(['/admin/users', '/admin/audit-log', '/admin/settings', '/admin/site-content'])(
     'a visitor without a session opening %s goes to sign-in with the return path',
     async (path) => {
       answerRefresh();
@@ -617,6 +618,37 @@ describe('Settings for Managers (D-14, OQ-3; plan 06-17)', () => {
 
     await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
     expect(screen.queryByRole('link', { name: /^Settings/ })).toBeNull();
+  }, 30_000);
+});
+
+describe('Site Content for Managers (D-27; plan 11-12)', () => {
+  it('a Manager who opens /admin/site-content stays and sees the page, with Site Content the one current item and no tab current', async () => {
+    answerRefresh(sessionResponse());
+    siteSettingsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/site-content'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Site Content' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByLabelText(/^Tagline/)).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/site-content');
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Site Content']);
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(document.title).toBe('Site Content · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('an Admin sees no Site Content item in the shell', async () => {
+    answerRefresh(adminSession());
+    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/sessions'] });
+    render(<RouterProvider router={router} />);
+
+    await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
+    expect(screen.queryByRole('link', { name: /^Site Content/ })).toBeNull();
   }, 30_000);
 });
 

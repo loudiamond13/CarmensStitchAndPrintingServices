@@ -42,8 +42,9 @@ import {
 } from './navItem.recipe';
 
 // SPEC-DEVIATION: OQ-2 (contract default) 'audit' joins the sections for the Manager-only Audit Log item (USER-08); OQ-3 'settings' joins
-// them for the Manager-only Settings item (D-14).
-export type AdminSection = 'dashboard' | 'orders' | 'expenses' | 'money' | 'users' | 'audit' | 'settings' | 'profile';
+// them for the Manager-only Settings item (D-14); 'content' joins them for the Manager-only Site Content item (D-27).
+export type AdminSection =
+  'dashboard' | 'orders' | 'expenses' | 'money' | 'users' | 'audit' | 'settings' | 'content' | 'profile';
 
 /** One admin section: its id, label, 20px icon, path, and whether only a manager sees it. */
 export interface AdminNavItem {
@@ -99,6 +100,18 @@ export const MONEY_NAV_ITEM: AdminNavItem = {
   to: '/admin/money',
 };
 
+/**
+ * SPEC-DEVIATION: D-27 the Site Content item (plan 11-12): Manager only, after Settings, in the sidebar and the phone drawer and not in the
+ * tab bar. Like Settings it is not in ADMIN_NAV; the Sidebar adds it with `withAuditLog`.
+ */
+export const CONTENT_NAV_ITEM: AdminNavItem = {
+  id: 'content',
+  label: 'Site Content',
+  icon: 'globe',
+  to: '/admin/site-content',
+  manager: true,
+};
+
 export interface SidebarProps {
   /**
    * The current section (`aria-current="page"`); Dashboard when not given. SPEC-DEVIATION (A11Y-01, plan 02-34): null
@@ -115,7 +128,7 @@ export interface SidebarProps {
   onLogout?: (() => void) | undefined;
   /** Shows the user chip (avatar, name, role) above Logout. */
   user?: { name: string } | undefined;
-  /** Adds the Audit Log and Settings items after Users (a manager still needs the role to see them). The real admin shell sets it. */
+  /** Adds the Audit Log, Settings and Site Content items after Users (a manager still needs the role to see them). The real admin shell sets it. */
   withAuditLog?: boolean | undefined;
   /** Adds the My Money item after Company Expenses, for both roles. The real admin shell sets it. */
   withMoney?: boolean | undefined;
@@ -137,12 +150,12 @@ export function Sidebar({
   const layout = collapsed ? 'collapsed' : 'expanded';
   const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
   const idBase = useId();
-  // SPEC-DEVIATION: D-39, D-40 My Money follows Company Expenses; the Audit Log and Settings follow Users.
+  // SPEC-DEVIATION: D-39, D-40 My Money follows Company Expenses; the Audit Log, Settings and Site Content follow Users.
   const items =
     withAuditLog || withMoney
       ? ADMIN_NAV.flatMap((item) => {
           if (withMoney && item.id === 'expenses') return [item, MONEY_NAV_ITEM];
-          if (withAuditLog && item.id === 'users') return [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM];
+          if (withAuditLog && item.id === 'users') return [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM, CONTENT_NAV_ITEM];
           return [item];
         })
       : ADMIN_NAV;

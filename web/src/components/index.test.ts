@@ -113,6 +113,16 @@ describe('@/components barrel (WEB-06, WEB-02)', () => {
     expect(exports.SETTINGS_NAV_ITEM).toMatchObject({ id: 'settings', to: '/admin/settings', manager: true });
   });
 
+  // SPEC-DEVIATION: D-27 the Manager-only Site Content nav item sits beside ADMIN_NAV (plan 11-12).
+  it('exports the Site Content nav item beside ADMIN_NAV', () => {
+    expect(exports.CONTENT_NAV_ITEM).toMatchObject({
+      id: 'content',
+      to: '/admin/site-content',
+      icon: 'globe',
+      manager: true,
+    });
+  });
+
   // SPEC-DEVIATION: D-39 the My Money nav item sits beside ADMIN_NAV for both roles (plan 10-13).
   it('exports the My Money nav item beside ADMIN_NAV', () => {
     expect(exports.MONEY_NAV_ITEM).toMatchObject({ id: 'money', to: '/admin/money', icon: 'wallet' });

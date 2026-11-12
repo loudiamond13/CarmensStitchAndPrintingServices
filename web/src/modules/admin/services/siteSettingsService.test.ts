@@ -3,7 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDeferred, createFakeFetch, type Plan } from '@/test/fakeFetch';
 import { createHttpClient } from '@/core/api/apiClient';
 import { HttpError, isHttpError } from '@/core/api/errors';
-import { createSiteSettingsService, siteSettingsService, type SiteSettings } from './siteSettingsService';
+import {
+  createSiteSettingsService,
+  siteSettingsService,
+  type SiteSettings,
+  type UpdateSiteSettingsRequest,
+} from './siteSettingsService';
 
 const settings: SiteSettings = {
   businessName: "Carmen's Stitch & Printing Services",
@@ -101,6 +106,74 @@ describe('siteSettingsService.get (WEB-04)', () => {
 
     expect(fake.calls.map((call) => call.url)).toEqual(['/api/v1/site-settings']);
     expect(fake.calls[0]?.init.credentials).toBe('same-origin');
+  });
+});
+
+const saveRequest: UpdateSiteSettingsRequest = {
+  version: settings.version,
+  businessName: 'Sample Shop',
+  tagline: 'A new tagline',
+  aboutText: null,
+  turnaroundLine: null,
+  street: '12 Sample St., Poblacion',
+  townOrCity: 'Sample City',
+  province: 'Sample Province',
+  postalCode: '1000',
+  directionsUrl: null,
+  mapEmbedUrl: null,
+  messengerUrl: null,
+  facebookUrl: null,
+  instagramUrl: null,
+  tiktokUrl: null,
+  contactEmail: null,
+  phones: [{ number: '0917 123 4567', label: null, isMain: true }],
+};
+
+describe('siteSettingsService.update (CONT-01, SEC-07)', () => {
+  it('calls PUT /api/v1/site-settings with the body, no Idempotency-Key, and resolves the saved settings', async () => {
+    const saved: SiteSettings = { ...settings, tagline: 'A new tagline', version: 'AAAAAAAAB9I=' };
+    const fake = createFakeFetch([{ body: saved }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const result = await createSiteSettingsService(client).update(saveRequest);
+
+    expect(result).toEqual(saved);
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('PUT');
+    expect(fake.calls[0]?.url).toBe('/api/v1/site-settings');
+    const sent: unknown = JSON.parse(String(fake.calls[0]?.body));
+    expect(sent).toEqual(saveRequest);
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+  });
+
+  it('a stale save rejects with a 409 HttpError carrying the edit.stale code', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 409,
+        headers: { 'Content-Type': 'application/problem+json' },
+        body: { title: 'x', status: 409, code: 'edit.stale' },
+      },
+    ]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const error = await rejection(createSiteSettingsService(client).update(saveRequest));
+
+    expect(error).toMatchObject({ kind: 'http', status: 409, code: 'edit.stale' });
+  });
+
+  it('a 400 rejects with the field errors the server sent', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/problem+json' },
+        body: { title: 'x', status: 400, errors: { tagline: ['Enter a tagline.'] } },
+      },
+    ]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const error = await rejection(createSiteSettingsService(client).update(saveRequest));
+
+    expect(error).toMatchObject({ status: 400, fieldErrors: { tagline: ['Enter a tagline.'] } });
   });
 });
 
