@@ -896,7 +896,10 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     for (let index = 1; index <= 16; index += 1) {
       expect(screen.getByRole('textbox', { name: `Field ${String(index)}` })).toBeVisible();
     }
-    expect(document.title).toBe('Public layout check');
+    // The title is set in an effect, which can land after the heading under load.
+    await waitFor(() => {
+      expect(document.title).toBe('Public layout check');
+    });
     expect(probe.count).toBe(0);
     await expectNoAxeViolations(container);
   }, 30_000);
