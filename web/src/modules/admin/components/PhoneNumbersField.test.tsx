@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { describe, expect, it } from 'vitest';
 import { PhoneNumbersField } from '@/modules/admin/components/PhoneNumbersField';
 import type { BusinessInfoInput } from '@/modules/admin/siteContentSchemas';
@@ -20,10 +20,11 @@ const SUN: Row = { number: '0922 123 4567', label: '', isMain: false };
 /** The current rows, printed so a test can read what the form holds. */
 function Harness({ phones }: { phones: Row[] }) {
   const form = useForm<BusinessInfoInput>({ defaultValues: { ...businessInfoValuesOf(demoSiteSettings), phones } });
+  const held = useWatch({ control: form.control, name: 'phones' });
   return (
     <FormProvider {...form}>
       <PhoneNumbersField />
-      <output aria-label="values">{JSON.stringify(form.watch('phones'))}</output>
+      <div data-testid="values">{JSON.stringify(held)}</div>
     </FormProvider>
   );
 }
@@ -34,7 +35,16 @@ function renderField(phones: Row[]) {
 }
 
 function heldRows(): Row[] {
-  return JSON.parse(screen.getByLabelText('values').textContent) as Row[];
+  return JSON.parse(screen.getByTestId('values').textContent) as Row[];
+}
+
+/** The nth element of a query result; a missing one fails the test with a clear line. */
+function nth(list: readonly HTMLElement[], index: number): HTMLElement {
+  const element = list[index];
+  if (element === undefined) {
+    throw new Error(`No element at ${String(index)}.`);
+  }
+  return element;
 }
 
 function numberFields(): HTMLElement[] {
@@ -76,7 +86,7 @@ describe('the rows', () => {
   it('moves the main number with the radio and keeps exactly one main row', async () => {
     const { user } = renderField([GLOBE, LANDLINE]);
 
-    await user.click(screen.getAllByRole('radio')[1] as HTMLElement);
+    await user.click(nth(screen.getAllByRole('radio'), 1));
 
     expect(heldRows().map((row) => row.isMain)).toEqual([false, true]);
     expect(screen.getAllByRole('radio')[1]).toBeChecked();
@@ -85,7 +95,7 @@ describe('the rows', () => {
 
   it('follows what is typed into the Number in the radio name', async () => {
     const { user } = renderField([GLOBE]);
-    const field = numberFields()[0] as HTMLElement;
+    const field = nth(numberFields(), 0);
 
     await user.clear(field);
     await user.type(field, '0999 000 1111');

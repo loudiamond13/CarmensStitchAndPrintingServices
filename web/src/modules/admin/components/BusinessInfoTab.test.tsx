@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
@@ -50,6 +50,15 @@ async function openTab(onDirtyChange?: (dirty: boolean) => void) {
   const view = renderTab(onDirtyChange);
   await screen.findByLabelText(/^Tagline/);
   return view;
+}
+
+/** The nth element of a query result; a missing one fails the test with a clear line. */
+function nth(list: readonly HTMLElement[], index: number): HTMLElement {
+  const element = list[index];
+  if (element === undefined) {
+    throw new Error(`No element at ${String(index)}.`);
+  }
+  return element;
 }
 
 async function typeInto(user: ReturnType<typeof userEvent.setup>, label: RegExp, text: string): Promise<void> {
@@ -236,7 +245,7 @@ describe('the cards (S1)', () => {
     expect(screen.getByLabelText(/^Facebook page/)).toHaveValue('https://www.facebook.com/cspsdemo');
     expect(screen.getByLabelText(/^Instagram/)).toHaveValue('https://www.instagram.com/cspsdemo');
     expect(screen.getByLabelText(/^TikTok/)).toHaveValue('');
-    expect(screen.getByLabelText(/^Email/)).toHaveValue('shop@example.test');
+    expect(screen.getByRole('textbox', { name: /^Email/ })).toHaveValue('shop@example.test');
   });
 
   it('shows both saved phone numbers with their labels and the main number chosen', async () => {
@@ -299,8 +308,8 @@ describe('the phone numbers inside the form (D-23)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add Number' }));
     const fields = screen.getAllByLabelText(/^Number/);
-    await user.type(fields[2] as HTMLElement, '0918 765 4321');
-    await user.click(screen.getAllByRole('radio')[2] as HTMLElement);
+    await user.type(nth(fields, 2), '0918 765 4321');
+    await user.click(nth(screen.getAllByRole('radio'), 2));
     await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
 
     await waitFor(() => {
@@ -317,7 +326,7 @@ describe('the phone numbers inside the form (D-23)', () => {
     const backend = siteSettingsBackend();
     const { user } = await openTab();
 
-    const first = screen.getAllByLabelText(/^Number/)[0] as HTMLElement;
+    const first = nth(screen.getAllByLabelText(/^Number/), 0);
     await user.clear(first);
     await user.type(first, '0917 123 456');
     await user.tab();
@@ -331,7 +340,7 @@ describe('the phone numbers inside the form (D-23)', () => {
     siteSettingsBackend();
     const { user } = await openTab();
 
-    const second = screen.getAllByLabelText(/^Number/)[1] as HTMLElement;
+    const second = nth(screen.getAllByLabelText(/^Number/), 1);
     await user.clear(second);
     await user.type(second, '+63 917 123 4567');
     await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
@@ -478,7 +487,7 @@ describe('accessibility of the whole form', () => {
     siteSettingsBackend();
     const { container, user } = await openTab();
     await user.clear(screen.getByLabelText(/^Business name/));
-    await user.clear(screen.getAllByLabelText(/^Number/)[0] as HTMLElement);
+    await user.clear(nth(screen.getAllByLabelText(/^Number/), 0));
     await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
     await screen.findByText('Enter the business name.');
 

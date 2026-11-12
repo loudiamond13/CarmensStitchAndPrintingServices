@@ -78,13 +78,15 @@ export const SITE_CONTENT_COPY = {
       number: { label: 'Number', placeholder: '0917 123 4567' },
       label: { label: 'Label (optional)', placeholder: 'e.g. Globe' },
       main: 'Main number',
-      /** The visually hidden name of one row's radio: "Main number, 0917 123 4567". */
-      mainNamed: (number: string): string => `Main number, ${number}`,
+      /** The visually hidden end of one row's radio name, after the visible "Main number": ", 0917 123 4567". */
+      mainFor: (number: string): string => `, ${number}`,
       add: 'Add Number',
       remove: (position: number): string => `Remove number ${String(position)}`,
       limit: 'You can list up to 4 numbers.',
       /** The polite line after the main number is removed. */
       nowMain: (number: string): string => `${number} is now the main number.`,
+      /** The same line for a new main row that has no number typed yet. */
+      nowMainNamed: (position: number): string => `Number ${String(position)} is now the main number.`,
     },
     actions: { undo: 'Undo Changes', save: 'Save Business Info', saving: 'Saving' },
     /** The polite line after Load Latest (the banner itself is the shared ConflictBanner, 05 D-20). */
