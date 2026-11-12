@@ -268,7 +268,7 @@ describe('Manager-only routes (USER-08)', () => {
 });
 
 describe('an unknown admin address (D-89)', () => {
-  it('shows the in-shell Page not found screen, not the public holding page', async () => {
+  it('shows the in-shell Page not found screen, not the public 404 page', async () => {
     answerRefresh(sessionResponse());
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/no-such-page'] });
     render(<RouterProvider router={router} />);
@@ -276,7 +276,7 @@ describe('an unknown admin address (D-89)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 10_000 })).toBeVisible();
     expect(router.state.location.pathname).toBe('/admin/no-such-page');
     expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('heading', { level: 1, name: /New website/ })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Out of bounds.' })).toBeNull();
     await waitFor(() => {
       expect(document.title).toBe('Page not found · CSPS Admin');
     });
@@ -711,11 +711,11 @@ function devTree(): RouteObject[] {
 }
 
 describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
-  it('the production routes have no /dev/components: it falls through to the public holding page', async () => {
+  it('the production routes have no /dev/components: it falls through to the public 404 page', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/dev/components'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: /New website/ }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Out of bounds.' }, { timeout: 10_000 })).toBeVisible();
     expect(screen.queryByText('Component Showcase')).toBeNull();
   });
 
@@ -869,11 +869,11 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     await expectNoAxeViolations(container);
   }, 30_000);
 
-  it('the production routes have no /dev/public: it falls through to the public holding page', async () => {
+  it('the production routes have no /dev/public: it falls through to the public 404 page', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/dev/public'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: /New website/ }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Out of bounds.' }, { timeout: 10_000 })).toBeVisible();
     expect(screen.queryByText('Public layout check')).toBeNull();
   });
 });
