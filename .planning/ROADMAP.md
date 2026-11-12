@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-11T08:35:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-11T18:30:00-06:00*
 
 ## Overview
 
@@ -1186,7 +1186,78 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: TBD
+**Plans**: 38 plans in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+
+**Wave 1**
+- [ ] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
+- [ ] 11-02-PLAN.md — Server-shaped shell: per-page head, real 404, admin noindex, robots.txt, sitemap.xml (PUB-04, PUB-01)
+- [ ] 11-03-PLAN.md — Open or closed status as one pure rule in Manila time (PUB-05, CONT-04)
+- [ ] 11-04-PLAN.md — Philippine phone numbers: tel: and display forms (PUB-06, CONT-01)
+- [ ] 11-05-PLAN.md — Weekly hours text for footer, Contact and admin preview (PUB-05, CONT-04)
+
+**Wave 2**
+- [ ] 11-06-PLAN.md — Owner reviews P10-BL-23 and P10-BL-20 item 3; UAT 18 and 19 reminder (carry-over)
+- [ ] 11-07-PLAN.md — Site contact details from the database, cached public read, JSON-LD and boot data (PUB-02, PUB-03, PUB-04, CONT-01, CONT-05)
+- [ ] 11-08-PLAN.md — Public layout, the four page heads, the 404 page and per-page budgets (PUB-01)
+
+**Wave 3**
+- [ ] 11-09-PLAN.md — Manager Business Info write with every rule, audit and 409 (CONT-01, PUB-02, PUB-03)
+- [ ] 11-10-PLAN.md — Public data store, data-driven footer and the Contact page base with tap-to-load map (PUB-02, PUB-06, PUB-01)
+
+**Wave 4**
+- [ ] 11-11-PLAN.md — Opening hours and the open-status API (PUB-05, CONT-01, PUB-04)
+- [ ] 11-12-PLAN.md — Site Content area and the Business Info tab (CONT-01, PUB-03)
+
+**Wave 5**
+- [ ] 11-13-PLAN.md — Shop closures under the site-content lock (CONT-04, PUB-05, PUB-04)
+
+**Wave 6**
+- [ ] 11-14-PLAN.md — Contact hours card and open status (PUB-05, CONT-04, PUB-02)
+- [ ] 11-15-PLAN.md — Product lines table, six seeded lines and the public read (PUB-02, CONT-02)
+- [ ] 11-16-PLAN.md — Hours & Closures tab (CONT-04, CONT-01, PUB-05)
+
+**Wave 7**
+- [ ] 11-17-PLAN.md — Product lines admin API: edit, move, hide, show, delete when unused, type links (CONT-02, PUB-03)
+- [ ] 11-18-PLAN.md — Products page (PUB-01, PUB-02, CONT-02)
+
+**Wave 8**
+- [ ] 11-19-PLAN.md — Line photos, new Cloudinary sizes, content folder sweep, Products og:image (CONT-02, PUB-04, PUB-02)
+- [ ] 11-20-PLAN.md — Products tab and the product line editor (CONT-02, PUB-03)
+
+**Wave 9**
+- [ ] 11-21-PLAN.md — Testimonials and the public Home read (CONT-03, PUB-02, PUB-03)
+- [ ] 11-22-PLAN.md — PhotoSlot and the editor's Photos card (CONT-02, GAL-03)
+
+**Wave 10**
+- [ ] 11-23-PLAN.md — Order public settings: customer OK, show on the website, gallery entries (GAL-03, CONT-03, PUB-03)
+- [ ] 11-24-PLAN.md — Testimonials tab (CONT-03, PUB-03)
+- [ ] 11-25-PLAN.md — Home page (PUB-01, PUB-02, CONT-03)
+
+**Wave 11**
+- [ ] 11-26-PLAN.md — Public gallery read, Recent work, hero tag, privacy backstop (GAL-01, CONT-03, PUB-02, PUB-04)
+- [ ] 11-27-PLAN.md — Public website card and window on the order page (GAL-03, CONT-03)
+
+**Wave 12**
+- [ ] 11-28-PLAN.md — Gallery admin API: uploads, edit, hide, show, delete, moves (GAL-03, CONT-03, PUB-03)
+- [ ] 11-29-PLAN.md — Gallery page with category pills and masonry; Home Recent work (GAL-01, CONT-03, PUB-01)
+
+**Wave 13**
+- [ ] 11-30-PLAN.md — Default share picture and og:image on every page (PUB-04, CONT-01)
+- [ ] 11-31-PLAN.md — Gallery lightbox (GAL-02)
+- [ ] 11-32-PLAN.md — Gallery tab (GAL-03, CONT-03)
+
+**Wave 14**
+- [ ] 11-33-PLAN.md — Order create and edit carry the public website block (GAL-03)
+- [ ] 11-34-PLAN.md — Link preview picture card in Business Info (PUB-04, CONT-01)
+
+**Wave 15**
+- [ ] 11-35-PLAN.md — Public website card on the New Order and Edit Order forms (GAL-03)
+- [ ] 11-36-PLAN.md — LCP: Brotli, unused fonts dropped, measured; LCP stays report-only (D-28, D-29, D-46) (PERF-02, PUB-01)
+
+**Wave 16**
+- [ ] 11-37-PLAN.md — Link-preview, layout, accessibility, CSP and focus sweeps; showcase; audit labels (PUB-01, PUB-04, CONT-05, GAL-02)
+- [ ] 11-38-PLAN.md — Go-live checklist (D-44), dev seed demo content, deploy-gap ruling (PUB-02, CONT-01, CONT-02)
+
 **UI hint**: yes
 
 ### Phase 12: Consent, Analytics & Legal
