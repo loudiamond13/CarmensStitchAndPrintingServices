@@ -107,6 +107,57 @@ describe('a shown order', () => {
   });
 });
 
+describe('a shown order with no photo', () => {
+  it('says it shows once the order has a photo', () => {
+    renderCard(buildOrderDetail({ publicWebsite: { ...SHOWN.publicWebsite, hasPhoto: false } }));
+
+    expect(valueOf('On the website')).toHaveTextContent('Shown');
+    expect(screen.getByText('It shows once the order has a photo.')).toBeVisible();
+  });
+
+  it('says nothing about a photo once the order has one', () => {
+    renderCard(SHOWN);
+
+    expect(screen.queryByText('It shows once the order has a photo.')).not.toBeInTheDocument();
+  });
+
+  it('says nothing about a photo on an order that is not shown', () => {
+    renderCard(order0148);
+
+    expect(screen.queryByText('It shows once the order has a photo.')).not.toBeInTheDocument();
+  });
+});
+
+describe('a Cancelled order (D-38)', () => {
+  const CANCELLED = buildOrderDetail({
+    status: 'cancelled',
+    publicWebsite: publicWebsiteBlock({ customerConsent: true, canShow: false }),
+  });
+
+  it('reads Not shown, explains why, and offers no Edit', () => {
+    renderCard(CANCELLED);
+
+    expect(valueOf('On the website')).toHaveTextContent('Not shown');
+    expect(screen.getByText("Cancelled orders can't be shown on the website.")).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Edit public website settings' })).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = renderCard(CANCELLED);
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('a Completed order', () => {
+  it('can still be edited: the order lock does not cover this card', () => {
+    renderCard(buildOrderDetail({ status: 'completed' }));
+
+    expect(screen.getByRole('button', { name: 'Edit public website settings' })).toBeVisible();
+    expect(screen.queryByText("Cancelled orders can't be shown on the website.")).not.toBeInTheDocument();
+  });
+});
+
 describe('the Edit button and accessibility', () => {
   it('opens the Public Website window from the Edit button named Edit public website settings', async () => {
     const { user } = renderCard();

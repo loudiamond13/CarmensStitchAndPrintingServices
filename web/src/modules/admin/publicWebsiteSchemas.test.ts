@@ -47,6 +47,59 @@ describe('publicWebsiteSchema: showing needs the customer OK (D-11)', () => {
   });
 });
 
+describe('publicWebsiteSchema: the line (D-09)', () => {
+  it('asks for a line when the order is shown with none', () => {
+    expect(messageAt(true, { ...SHOWN, productLineId: '' }, 'productLineId')).toBe(
+      'Choose the product line to show this order under.',
+    );
+  });
+
+  it('does not ask for a line while the order is not shown', () => {
+    expect(messageAt(true, { ...SHOWN, showOnWebsite: false, productLineId: '' }, 'productLineId')).toBeNull();
+  });
+});
+
+describe('publicWebsiteSchema: the name shown (D-13)', () => {
+  it('accepts a name of 80 characters and refuses one of 81', () => {
+    expect(messageAt(true, { ...SHOWN, publicName: 'a'.repeat(80) }, 'publicName')).toBeNull();
+    expect(messageAt(true, { ...SHOWN, publicName: 'a'.repeat(81) }, 'publicName')).toBe(
+      'Keep the name to 80 characters or fewer.',
+    );
+  });
+
+  it('counts the name without the spaces around it', () => {
+    expect(messageAt(true, { ...SHOWN, publicName: `  ${'a'.repeat(80)}  ` }, 'publicName')).toBeNull();
+  });
+
+  it('refuses a name that is too long even while the order is not shown', () => {
+    expect(
+      messageAt(true, { ...SHOWN, showOnWebsite: false, productLineId: '', publicName: 'a'.repeat(81) }, 'publicName'),
+    ).toBe('Keep the name to 80 characters or fewer.');
+  });
+
+  it('asks for a name when the order is shown, has no team and no name was typed', () => {
+    const message = 'This order has no team name. Enter the name to show.';
+
+    expect(messageAt(false, { ...SHOWN, publicName: '' }, 'publicName')).toBe(message);
+    expect(messageAt(false, { ...SHOWN, publicName: '   ' }, 'publicName')).toBe(message);
+  });
+
+  it('is content with the team when there is one, or with a typed name when there is no team', () => {
+    expect(messageAt(true, { ...SHOWN, publicName: '' }, 'publicName')).toBeNull();
+    expect(messageAt(false, { ...SHOWN, publicName: 'Sample Ballers' }, 'publicName')).toBeNull();
+  });
+
+  it('does not ask for a name while the order is not shown', () => {
+    expect(
+      messageAt(
+        false,
+        { customerConsent: true, showOnWebsite: false, productLineId: '', publicName: '' },
+        'publicName',
+      ),
+    ).toBeNull();
+  });
+});
+
 describe('toPublicWebsiteRequest', () => {
   it('sends the ticks, the line, the name and the order version', () => {
     expect(toPublicWebsiteRequest({ ...SHOWN, publicName: 'Sample Ballers' }, ORDER_VERSION)).toEqual({

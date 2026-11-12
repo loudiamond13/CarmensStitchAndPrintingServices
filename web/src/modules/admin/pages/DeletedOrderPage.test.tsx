@@ -114,6 +114,16 @@ describe('the page, read-only (ORD-06, D-24)', () => {
     expect(screen.getByText('Status history')).toBeVisible();
   });
 
+  it('draws no Public website card: a deleted order is off the website (D-15)', async () => {
+    backend();
+    renderPage();
+
+    await loaded();
+
+    expect(screen.queryByRole('region', { name: 'Public website' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit public website settings' })).not.toBeInTheDocument();
+  });
+
   it('is read-only: no Change Status, Edit Details, Delete Order, Add button, row action, Record Refund or Edit link', async () => {
     const cleared = buildOrderDetail({
       ...creditOrder,

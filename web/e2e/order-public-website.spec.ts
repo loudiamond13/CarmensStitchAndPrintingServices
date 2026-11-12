@@ -5,7 +5,7 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
-import { drawJpegs, openOrder, seedOrder, uploadAndWait } from './photos.ts';
+import { drawJpegs, openOrder, seedOrder, tiles, uploadAndWait } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, type StaffRole } from './testing-api.ts';
 
@@ -111,4 +111,95 @@ test('@order-public-website an Admin ticks the customer OK, shows an order from 
     }
     expect(teams).toContain(order.team);
   });
+});
+
+/** The value cell beside a row label of the card. */
+function valueOf(page: Page, label: string) {
+  return card(page).locator('dt', { hasText: label }).locator('xpath=following-sibling::dd');
+}
+
+/** Opens the window, unticks the customer's OK (which unticks Show too) and saves. */
+async function takeOffFromWindow(page: Page): Promise<void> {
+  await press(page, card(page).getByRole('button', { name: 'Edit public website settings' }));
+  const dialog = page.getByRole('dialog', { name: 'Public Website' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('checkbox', { name: 'Customer said OK to show' }).uncheck();
+  await expect(dialog.getByRole('checkbox', { name: 'Show on the website' })).not.toBeChecked();
+  await dialog.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(dialog).toBeHidden();
+}
+
+test('@order-public-website a Manager takes a shown order off the website: the gallery drops it and its photo stays on the order', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const order = await openOrderWithPhoto(page, request, 'Manager', 'Take Off');
+  await showFromWindow(page);
+  await expect(page.getByText('Order shown on the website')).toBeVisible();
+  await expect(valueOf(page, 'On the website')).toContainText('Shown');
+
+  await takeOffFromWindow(page);
+  await expect(page.getByText('Order taken off the website')).toBeVisible();
+  await expect(page.getByText('Its photos stay on the order.')).toBeVisible();
+  await expect(valueOf(page, 'Customer OK')).toHaveText('No');
+  await expect(valueOf(page, 'On the website')).toContainText('Not shown');
+  await expect(tiles(page)).toHaveCount(1);
+
+  // The public gallery no longer lists the order on its next read.
+  await withSiteContentLock(async () => {
+    const teams = await publicGalleryTeams(request);
+    if (teams === null) {
+      test
+        .info()
+        .annotations.push({ type: 'pending', description: 'GET /api/v1/public/gallery arrives with plan 11-26' });
+      return;
+    }
+    expect(teams).not.toContain(order.team);
+  });
+});
+
+test('@order-public-website a Cancelled order says it cannot be shown and offers no Edit, and a Completed order can still be edited', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const cancelled = await seedOrder(
+    request,
+    { prefix: 'ORD-2085', label: 'Public Cancelled', itemDescription: 'E2E cancelled jersey', status: 'cancelled' },
+    manager.userId,
+  );
+  await openOrder(page, request, manager, cancelled.id, cancelled.number);
+  await expect(card(page)).toContainText("Cancelled orders can't be shown on the website.");
+  await expect(valueOf(page, 'On the website')).toContainText('Not shown');
+  await expect(card(page).getByRole('button', { name: 'Edit public website settings' })).toHaveCount(0);
+  await expectNoAxeViolations(page);
+
+  // 6 x 700 = 4,200.00 paid in full, so the order can be Completed, which locks every other card and not this one.
+  const completed = await seedOrder(
+    request,
+    {
+      prefix: 'ORD-2084',
+      label: 'Public Completed',
+      itemDescription: 'E2E completed jersey',
+      status: 'completed',
+      payment: { amount: 4200 },
+    },
+    manager.userId,
+  );
+  await page.goto(`/admin/orders/${completed.id}`);
+  await expect(page.getByRole('heading', { level: 1, name: completed.number })).toBeVisible();
+  await press(page, card(page).getByRole('button', { name: 'Edit public website settings' }));
+  const dialog = page.getByRole('dialog', { name: 'Public Website' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('checkbox', { name: 'Customer said OK to show' }).check();
+  await dialog.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Public website settings saved')).toBeVisible();
+  await expect(valueOf(page, 'Customer OK')).toContainText(/^Yes, recorded /);
 });
