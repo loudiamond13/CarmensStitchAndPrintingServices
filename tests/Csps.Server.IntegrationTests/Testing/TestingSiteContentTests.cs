@@ -39,6 +39,24 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task APostPutsTheDemoWeekInPlaceMondayToSaturdayNineToSixAndSundayClosed()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await PublicContentSeeding.SaveHoursAsync(database, []);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var seed = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+
+        seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        var rows = await context.OpeningHours.AsNoTracking().OrderBy(row => row.DayOfWeek).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Take(6).ShouldAllBe(row => row.OpensAt == new TimeOnly(9, 0) && row.ClosesAt == new TimeOnly(18, 0));
+        rows[6].OpensAt.ShouldBeNull();
+        rows[6].ClosesAt.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task RunningItTwiceLeavesTheSameRows()
     {
         Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
