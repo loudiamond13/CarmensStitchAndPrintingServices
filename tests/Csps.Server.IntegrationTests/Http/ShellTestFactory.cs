@@ -86,6 +86,22 @@ internal sealed class StubPublicContentReader : IPublicContentReader
     public ValueTask<PublicProductLinesSnapshot> GetProductLinesAsync(CancellationToken cancellationToken) =>
         (_failure ?? LinesFailure) is { } failure ? throw failure : ValueTask.FromResult(Lines(ProductLines));
 
+    /// <summary>The Home data the stub returns; empty by default.</summary>
+    public PublicHomeDto Home { get; set; } = new([], 0, [], [], null);
+
+    /// <summary>When set, only the Home read throws it; the site read still works.</summary>
+    public Exception? HomeFailure { get; set; }
+
+    public ValueTask<PublicHomeSnapshot> GetHomeAsync(CancellationToken cancellationToken) =>
+        (_failure ?? HomeFailure) is { } failure ? throw failure : ValueTask.FromResult(HomeSnapshot(Home));
+
+    public static PublicHomeSnapshot HomeSnapshot(PublicHomeDto home)
+    {
+        var json = JsonSerializer.Serialize(home, JsonOptions);
+        var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+        return new PublicHomeSnapshot(home, new PublicJsonSnapshot(json, etag, new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero)));
+    }
+
     public static PublicProductLinesSnapshot Lines(PublicProductLinesDto lines)
     {
         var json = JsonSerializer.Serialize(lines, JsonOptions);

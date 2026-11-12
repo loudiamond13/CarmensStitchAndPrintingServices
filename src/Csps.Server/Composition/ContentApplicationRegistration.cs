@@ -37,6 +37,15 @@ public static class ContentApplicationRegistration
         services.AddScoped<RemoveProductLinePhotoHandler>();
         services.AddSingleton<IValidator<ProductLineRequest>, ProductLineRequestValidator>();
         services.AddSingleton<IValidator<MoveProductLineRequest>, MoveProductLineRequestValidator>();
+        services.AddScoped<GetPublicHomeHandler>();
+        services.AddScoped<ListTestimonialsHandler>();
+        services.AddScoped<CreateTestimonialHandler>();
+        services.AddScoped<UpdateTestimonialHandler>();
+        services.AddScoped<MoveTestimonialHandler>();
+        services.AddScoped<SetTestimonialShownHandler>();
+        services.AddScoped<DeleteTestimonialHandler>();
+        services.AddSingleton<IValidator<TestimonialRequest>, TestimonialRequestValidator>();
+        services.AddSingleton<IValidator<MoveTestimonialRequest>, MoveTestimonialRequestValidator>();
         return services;
     }
 }

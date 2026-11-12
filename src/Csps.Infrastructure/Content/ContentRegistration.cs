@@ -18,6 +18,7 @@ public static class ContentRegistration
         services.AddScoped<ISiteContentStore, SiteContentStore>();
         services.AddScoped<ISiteContentLock, SiteContentLock>();
         services.AddScoped<IProductLines, ProductLines>();
+        services.AddScoped<ITestimonials, Testimonials>();
 #if CSPS_TESTING
         services.AddScoped<TestingSiteContentSeeder>();
 #endif

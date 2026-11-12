@@ -1831,6 +1831,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads what the Home page shows (PUB-02, CONT-03): `lines`, one card for each shown product line in display order with its
+         *     `key`, `number`, `title`, `cardText`, `placeholderArt` and `cardPhoto` (null until the line has a main
+         *     photo), `lineCount`, `testimonials` (the first three shown ones in display order, each with `quote`, `name`,
+         *     `teamOrRole` and `stars`), `recentWork` (empty for now) and `heroTag` (null for now). A hidden line or testimonial
+         *     is left out. A request whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicHome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/open-status": {
         parameters: {
             query?: never;
@@ -2137,6 +2160,114 @@ export interface paths {
         get: operations["GetStaffLedger"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every testimonial, shown and hidden, in display order. Each has its id, quote, name, team or role (null when not set), stars,
+         *     position from 1, whether it is shown, and the version an edit must send back. The Home page shows the first three shown ones.
+         */
+        get: operations["ListTestimonials"];
+        put?: never;
+        /**
+         * Adds a testimonial. It goes to the end of the order and is hidden unless `isShown` is true. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored 201 and adds nothing more. Who added it and when come from the token and
+         *     the clock; any such member in the body is ignored.
+         */
+        post: operations["CreateTestimonial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edits a testimonial with the version the form was opened with. The values follow the same rules as when adding. A
+         *     `version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form
+         *     with no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member in
+         *     the body is ignored.
+         */
+        put: operations["UpdateTestimonial"];
+        post?: never;
+        /** Deletes a testimonial for good. It takes no version. Deleting a testimonial that is already gone is a 404. */
+        delete: operations["DeleteTestimonial"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hides a testimonial: it leaves the public Home page and nothing is lost. Hiding a hidden testimonial is a 204 that changes and
+         *     records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["HideTestimonial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves a testimonial one place up or down in the display order. A move at the end of the order is a 204 that changes and records
+         *     nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["MoveTestimonial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}/show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Shows a hidden testimonial on the public site again. Showing a shown testimonial is a 204 that changes and records nothing. It
+         *     takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["ShowTestimonial"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3538,6 +3669,11 @@ export interface components {
             /** @description "up" or "down". */
             direction: null | string;
         };
+        /** @description The move form: which way a testimonial goes in the order. */
+        MoveTestimonialRequest: {
+            /** @description "up" or "down". */
+            direction: null | string;
+        };
         /** @description When the shop opens next, as facts the page turns into words (D-22). */
         NextOpeningDto: {
             /** @description The business date of the opening, "yyyy-MM-dd". */
@@ -4495,6 +4631,48 @@ export interface components {
             /** @description What the Names and numbers card says. */
             names: string;
         };
+        /** @description The Home page's hero tag: the newest shown order. It stays null until the plan that reads shown orders fills it. */
+        PublicHeroTagDto: {
+            /** @description The public name of the order. */
+            name: string;
+            /**
+             * Format: int32
+             * @description The number of pieces.
+             */
+            pieces: number | string;
+        };
+        /**
+         * @description What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three
+         *     shown testimonials in display order, the Recent work strip and the hero tag. The last two are empty until a later plan fills them.
+         */
+        PublicHomeDto: {
+            heroTag: null | components["schemas"]["PublicHeroTagDto"];
+            /**
+             * Format: int32
+             * @description How many lines are shown.
+             */
+            lineCount: number | string;
+            /** @description The shown product lines in display order. */
+            lines: components["schemas"]["PublicHomeLineDto"][];
+            /** @description The Recent work tiles; empty for now. */
+            recentWork: components["schemas"]["PublicRecentWorkDto"][];
+            /** @description The first three shown testimonials in display order; empty when none is shown. */
+            testimonials: components["schemas"]["PublicTestimonialDto"][];
+        };
+        /** @description One product line card on the Home page (PUB-02, D-01): what a visitor needs to draw it and link to its place on Products. */
+        PublicHomeLineDto: {
+            cardPhoto: null | components["schemas"]["PublicPhotoDto"];
+            /** @description The card text. */
+            cardText: string;
+            /** @description The key the card links to, such as "basketball" (`/products#basketball`). */
+            key: string;
+            /** @description The number drawn on the jersey, such as "23". */
+            number: string;
+            /** @description The drawing shown when the line has no photo: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /** @description The title, such as "Basketball Jerseys". */
+            title: string;
+        };
         /** @description The three photo slots of a product line; a slot with no photo is null and the page shows the drawing. */
         PublicLinePhotosDto: {
             back: null | components["schemas"]["PublicPhotoDto"];
@@ -4567,6 +4745,23 @@ export interface components {
             /** @description The lines. */
             lines: components["schemas"]["PublicProductLineDto"][];
         };
+        /** @description One tile of the Home page's Recent work strip. It stays empty until the plan that reads shown orders fills it. */
+        PublicRecentWorkDto: {
+            /** @description The key of the order's line, which the tile links to in the Gallery. */
+            lineKey: string;
+            /** @description The short name of the order's line. */
+            lineShortName: string;
+            photo: null | components["schemas"]["PublicPhotoDto"];
+            /**
+             * Format: int32
+             * @description The number of pieces; null when unknown.
+             */
+            pieces: null | number | string;
+            /** @description The drawing shown when the order has no photo. */
+            placeholderArt: string;
+            /** @description The public name of the order. */
+            team: string;
+        };
         /**
          * @description The shop facts every visitor sees (PUB-02): name, words, address, phones and links. It carries nothing private; the shop email is
          *     not a member (D-25). A value that is not set is null and the page leaves it out.
@@ -4605,6 +4800,20 @@ export interface components {
              * @description The current business-calendar year, for the footer's copyright line.
              */
             year: number | string;
+        };
+        /** @description One testimonial a visitor sees (CONT-03, D-05). */
+        PublicTestimonialDto: {
+            /** @description The name shown under the quote. */
+            name: string;
+            /** @description The customer's words. */
+            quote: string;
+            /**
+             * Format: int32
+             * @description The rating, 1 to 5.
+             */
+            stars: number | string;
+            /** @description The team or role line; null when not set. */
+            teamOrRole: null | string;
         };
         /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
         RequestEmailChangeRequest: {
@@ -4896,6 +5105,55 @@ export interface components {
              * @description The person.
              */
             userId: string;
+        };
+        /** @description One testimonial as the Manager's Testimonials tab reads it (CONT-03, D-05). */
+        TestimonialDto: {
+            /**
+             * Format: uuid
+             * @description The testimonial id.
+             */
+            id: string;
+            /** @description True while the testimonial can show on the website. */
+            isShown: boolean;
+            /** @description The name shown under the quote. */
+            name: string;
+            /**
+             * Format: int32
+             * @description The place in the order, from 1.
+             */
+            position: number | string;
+            /** @description The customer's words. */
+            quote: string;
+            /**
+             * Format: int32
+             * @description The rating, 1 to 5.
+             */
+            stars: number | string;
+            /** @description The team or role line; null when not set. */
+            teamOrRole: null | string;
+            /** @description The text an edit must send back. */
+            version: string;
+        };
+        /**
+         * @description The testimonial form (CONT-03, SEC-07), for adding and for editing. Any other member in the body is ignored: the order, who changed
+         *     the testimonial and when come from the server (SEC-08).
+         */
+        TestimonialRequest: {
+            /** @description True to show the testimonial on the website. A new testimonial is hidden when this is missing; an edit keeps it as it is when this is missing. */
+            isShown: null | boolean;
+            /** @description The name, required, at most 60 characters. */
+            name: null | string;
+            /** @description The customer's words, required, at most 300 characters. */
+            quote: null | string;
+            /**
+             * Format: double
+             * @description The rating, a whole number from 1 to 5.
+             */
+            stars: null | number | string;
+            /** @description The team or role line, at most 80 characters; empty for none. */
+            teamOrRole: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** @description The category with the highest total this month. */
         TopCategoryKpi: {
@@ -11656,6 +11914,44 @@ export interface operations {
             };
         };
     };
+    GetPublicHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicHomeDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetOpenStatus: {
         parameters: {
             query?: never;
@@ -12424,6 +12720,434 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTestimonials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestimonialDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["TestimonialRequest"];
+                "application/json": null | components["schemas"]["TestimonialRequest"];
+                "text/json": null | components["schemas"]["TestimonialRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestimonialDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["TestimonialRequest"];
+                "application/json": null | components["schemas"]["TestimonialRequest"];
+                "text/json": null | components["schemas"]["TestimonialRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestimonialDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HideTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveTestimonialRequest"];
+                "application/json": null | components["schemas"]["MoveTestimonialRequest"];
+                "text/json": null | components["schemas"]["MoveTestimonialRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ShowTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
