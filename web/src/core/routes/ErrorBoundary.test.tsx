@@ -149,17 +149,24 @@ describe('the root error boundary (WEB-05)', () => {
   });
 });
 
-describe('the holding page failing (D-17)', () => {
-  it('shows the error screen in a page root of its own when the app holding page crashes', async () => {
+describe('a public page of the real app failing (PUB-01)', () => {
+  it('shows the error screen inside the layout main, keeping the header and footer', async () => {
     const [root] = routes;
-    const children = (root?.children ?? []).map((child) =>
-      child.path === '*' ? { ...child, lazy: crashingModule } : child,
+    const layout = root?.children?.[0];
+    const children = (layout?.children ?? []).map((child) =>
+      child.path === 'products' ? { ...child, lazy: crashingModule } : child,
     );
-    const { container } = await renderTree([{ ...root, children } as RouteObject], '/products');
+    const tree = [
+      {
+        ...root,
+        children: [{ ...layout, children } as RouteObject, ...(root?.children?.slice(1) ?? [])],
+      } as RouteObject,
+    ];
+    await renderTree(tree, '/products');
 
-    expect(container.firstElementChild).toHaveAttribute('data-theme', 'light');
-    expect(screen.getByRole('main')).toHaveAttribute('id', 'main');
     expectErrorScreen(screen.getByRole('main'));
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     expectOnlyReportsOf(CRASH);
   });
 });
@@ -174,12 +181,16 @@ describe('the boundaries in the route tree', () => {
     }
   });
 
-  it('leaves the standalone holding page to RootErrorBoundary, which brings its own page root and main (D-17)', () => {
+  it('puts RootErrorBoundary on the real root route and RouteErrorBoundary on every public page below the layout', () => {
     const root = routes[0];
     expect(root?.ErrorBoundary).toBe(RootErrorBoundary);
-    const holding = root?.children?.find((child) => child.path === '*');
-    expect(holding).toBeDefined();
-    expect(holding?.ErrorBoundary).toBeUndefined();
+    const layout = root?.children?.[0];
+    expect(layout?.ErrorBoundary).toBeUndefined();
+    const pages = layout?.children ?? [];
+    expect(pages.some((page) => page.path === '*')).toBe(true);
+    for (const page of pages) {
+      expect(page.ErrorBoundary).toBe(RouteErrorBoundary);
+    }
   });
 
   it('lazyRoute passes a loaded module through and turns a failed load into a component that throws that error', async () => {

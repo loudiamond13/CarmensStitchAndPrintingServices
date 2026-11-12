@@ -2,9 +2,11 @@
 // rendered by `RouterProvider` from `react-router/dom` in main.tsx.
 //   - The root route shows the minimal page root while the first route chunks load (its hydrate fallback, research
 //     Pitfall 10) and catches what no inner boundary does (RootErrorBoundary).
-//   - Pages are lazy route modules, so each lands in its own chunk. The holding page has no layout around it, so a
-//     crash or a chunk that fails to load falls to RootErrorBoundary, which brings its own page root and main.
-//   - Phase 3: every non-admin path renders the D-17 HoldingPage; PublicLayout returns with Phase 11.
+//   - Pages are lazy route modules, so each lands in its own chunk. Every public path renders inside PublicLayout (header,
+//     one main, footer): the four pages, and NotFoundPage for any other path (PUB-01). A crash or a chunk that fails to
+//     load in a page falls to RouteErrorBoundary inside the layout's main; a failure of the layout itself falls to
+//     RootErrorBoundary, which brings its own page root and main. The Gallery route alone sits under the lazy UrlStateLayout
+//     (the one NuqsAdapter, WEB-10), so no other public page loads nuqs.
 //   - The admin branch (./admin/routes.tsx) ships in every build, behind sign-in (plan 04-25, D-20 reversed): its layout
 //     route's loader boots the session or redirects to /admin/login. The dev-only branch (`devRoutes`: the unguarded
 //     previews and the /dev showcase) exists only where the compile-time `__DEV_ROUTES__` switch is true:
@@ -14,7 +16,7 @@
 //     loads with the admin chunks, so the public entry carries neither it nor any admin page code (PERF-02).
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import { adminRoutes, devRoutes } from '@/modules/admin/routes';
-import { RootErrorBoundary } from './ErrorBoundary';
+import { RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
 import { lazyRoute } from './lazyRoute';
 import { ShellFallback } from './ShellFallback';
 
@@ -27,17 +29,68 @@ export const queryBranch = (children: RouteObject[]): RouteObject => ({
   children,
 });
 
+const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/layouts/PublicLayout')).PublicLayout,
+}));
+
+const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/lib/url-state/UrlStateLayout')).default,
+}));
+
+/** The public pages inside PublicLayout (UI-SPEC Layout Contract, Routes), each a lazy chunk with the in-layout error screen. */
+export const publicRoutes: RouteObject[] = [
+  {
+    lazy: publicLayout,
+    children: [
+      {
+        index: true,
+        ErrorBoundary: RouteErrorBoundary,
+        lazy: lazyRoute(async () => ({ Component: (await import('@/modules/public/pages/HomePage')).HomePage })),
+      },
+      {
+        path: 'products',
+        ErrorBoundary: RouteErrorBoundary,
+        lazy: lazyRoute(async () => ({
+          Component: (await import('@/modules/public/pages/ProductsPage')).ProductsPage,
+        })),
+      },
+      {
+        lazy: urlStateLayout,
+        ErrorBoundary: RouteErrorBoundary,
+        children: [
+          {
+            path: 'gallery',
+            ErrorBoundary: RouteErrorBoundary,
+            lazy: lazyRoute(async () => ({
+              Component: (await import('@/modules/public/pages/GalleryPage')).GalleryPage,
+            })),
+          },
+        ],
+      },
+      {
+        path: 'contact',
+        ErrorBoundary: RouteErrorBoundary,
+        lazy: lazyRoute(async () => ({
+          Component: (await import('@/modules/public/pages/ContactPage')).ContactPage,
+        })),
+      },
+      {
+        path: '*',
+        ErrorBoundary: RouteErrorBoundary,
+        lazy: lazyRoute(async () => ({
+          Component: (await import('@/modules/public/pages/NotFoundPage')).NotFoundPage,
+        })),
+      },
+    ],
+  },
+];
+
 export const routes: RouteObject[] = [
   {
     HydrateFallback: ShellFallback,
     ErrorBoundary: RootErrorBoundary,
     children: [
-      {
-        path: '*',
-        lazy: lazyRoute(async () => ({
-          Component: (await import('@/modules/public/pages/HoldingPage')).HoldingPage,
-        })),
-      },
+      ...publicRoutes,
       // Dev-only previews first (see the header), then the guarded admin routes every build has.
       queryBranch([...(__DEV_ROUTES__ ? devRoutes : []), ...adminRoutes]),
     ],

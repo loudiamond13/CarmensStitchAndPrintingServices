@@ -1,8 +1,8 @@
 // Reference side of the public frame (plan 02-29; test only, never shipped): a JSX transcription of the App. E.1 page
-// frame, the frozen App. D.3 SiteHeader, then the App. E.2 page head (`section.s-pagehead.s-mesh`) with the D-21
-// placeholder copy (UI-SPEC Copywriting) in place of the Products copy and with no breadcrumb, then the App. E.1
-// `footer.s-foot` markup verbatim, inline styles included. App. E.1's design-canvas links become paths (spec §2.9).
-// The implementation side renders the real components (web/src/dev/previews/PublicShell.tsx).
+// frame, the frozen App. D.3 SiteHeader, then the App. E.3 page head (`section.s-pagehead.s-mesh` with the 48px bottom
+// padding) with the Gallery copy (UI-SPEC Copywriting), then the App. E.1 `footer.s-foot` markup verbatim, inline styles
+// included. App. E.1's design-canvas links become paths (spec §2.9). The implementation side renders the real components
+// (web/src/dev/previews/PublicShell.tsx).
 //
 // The frozen components come from the extracted spec module, loaded the way kit.ts loads it (import.meta.glob, so the
 // frozen code is never type-checked).
@@ -29,103 +29,103 @@ const PLACEHOLDER = '#';
 
 export interface PublicShellProps {
   active?: string;
-  header?: boolean;
-  footer?: boolean;
 }
 
-export function PublicShell({ active = 'Home', header = true, footer = true }: PublicShellProps) {
+export function PublicShell({ active = 'Home' }: PublicShellProps) {
   return (
     <>
-      {header && <SiteHeader active={active} />}
-      <section className="s-pagehead s-mesh">
+      <SiteHeader active={active} />
+      <section className="s-pagehead s-mesh" style={{ paddingBottom: 48 }}>
         <div className="s-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <span className="s-eyebrow">Custom sublimation · Philippines</span>
+          <nav className="s-crumbs" aria-label="Breadcrumb">
+            <a href="/">Home</a>
+            <span>/</span>
+            <span>Gallery</span>
+          </nav>
+          <span className="s-eyebrow">Our work</span>
           <h1 className="s-h1">
-            Site update <em>in progress.</em>
+            Worn on <em>court &amp; road.</em>
           </h1>
           <p className="s-lead">
-            We&apos;re building our new website. To order now, message us on Messenger or call the shop. The details are
-            below.
+            Real orders from barangay leagues, school teams, riding clubs and offices. Tap any piece to see it up close.
           </p>
         </div>
       </section>
-      {footer && (
-        <footer className="s-foot">
-          <div className="s-wrap">
-            <div className="s-foot-grid">
-              <div>
-                <Logo size="md" />
-                <p className="s-small s-muted" style={{ marginTop: 16, maxWidth: 320 }}>
-                  Custom tailoring and full-sublimation printing for teams, leagues and riding groups.
-                </p>
-                <div className="s-socials">
-                  <a className="s-social" href={PLACEHOLDER} aria-label="CSPS onFacebook">
-                    FB
-                  </a>
-                  <a className="s-social" href={PLACEHOLDER} aria-label="CSPS onInstagram">
-                    IG
-                  </a>
-                  <a className="s-social" href={PLACEHOLDER} aria-label="CSPS onTikTok">
-                    TT
-                  </a>
-                </div>
-              </div>
-              <div>
-                <h4>Shop</h4>
-                <ul>
-                  <li>
-                    <a href="/products">Products</a>
-                  </li>
-                  <li>
-                    <a href="/gallery">Gallery</a>
-                  </li>
-                  <li>
-                    <a href="/contact">Get a Quote</a>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4>Visit</h4>
-                <ul>
-                  <li>
-                    <Icon name="map-pin" size={16} />
-                    <span>[Shop address], [City], Philippines</span>
-                  </li>
-                  <li>
-                    <Icon name="clock" size={16} />
-                    {/* Mirrors siteContact.ts under the owner's 2026-10-14 no-long-dash rule. */}
-                    <span>Mon-Sat · 9:00 AM - 6:00 PM</span>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4>Contact</h4>
-                <ul>
-                  <li>
-                    <Icon name="phone" size={16} />
-                    <a href={PLACEHOLDER}>[0917 000 0000]</a>
-                  </li>
-                  <li>
-                    <Icon name="message-circle" size={16} />
-                    <a href={PLACEHOLDER}>Message us on Messenger</a>
-                  </li>
-                  <li>
-                    <Icon name="mail" size={16} />
-                    <a href={PLACEHOLDER}>[hello@yourdomain.ph]</a>
-                  </li>
-                </ul>
+      <footer className="s-foot">
+        <div className="s-wrap">
+          <div className="s-foot-grid">
+            <div>
+              <Logo size="md" />
+              <p className="s-small s-muted" style={{ marginTop: 16, maxWidth: 320 }}>
+                Custom tailoring and full-sublimation printing for teams, leagues and riding groups.
+              </p>
+              <div className="s-socials">
+                <a className="s-social" href={PLACEHOLDER} aria-label="CSPS onFacebook">
+                  FB
+                </a>
+                <a className="s-social" href={PLACEHOLDER} aria-label="CSPS onInstagram">
+                  IG
+                </a>
+                <a className="s-social" href={PLACEHOLDER} aria-label="CSPS onTikTok">
+                  TT
+                </a>
               </div>
             </div>
-            <div className="s-foot-base">
-              <span>© 2026 Carmen&apos;s Stitch &amp; Printing Services. All rights reserved.</span>
-              <a className="s-staff" href="/admin/login">
-                <Icon name="lock" size={14} />
-                Staff Login
-              </a>
+            <div>
+              <h4>Shop</h4>
+              <ul>
+                <li>
+                  <a href="/products">Products</a>
+                </li>
+                <li>
+                  <a href="/gallery">Gallery</a>
+                </li>
+                <li>
+                  <a href="/contact">Get a Quote</a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4>Visit</h4>
+              <ul>
+                <li>
+                  <Icon name="map-pin" size={16} />
+                  <span>[Shop address], [City], Philippines</span>
+                </li>
+                <li>
+                  <Icon name="clock" size={16} />
+                  {/* Mirrors siteContact.ts under the owner's 2026-10-14 no-long-dash rule. */}
+                  <span>Mon-Sat · 9:00 AM - 6:00 PM</span>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4>Contact</h4>
+              <ul>
+                <li>
+                  <Icon name="phone" size={16} />
+                  <a href={PLACEHOLDER}>[0917 000 0000]</a>
+                </li>
+                <li>
+                  <Icon name="message-circle" size={16} />
+                  <a href={PLACEHOLDER}>Message us on Messenger</a>
+                </li>
+                <li>
+                  <Icon name="mail" size={16} />
+                  <a href={PLACEHOLDER}>[hello@yourdomain.ph]</a>
+                </li>
+              </ul>
             </div>
           </div>
-        </footer>
-      )}
+          <div className="s-foot-base">
+            <span>© 2026 Carmen&apos;s Stitch &amp; Printing Services. All rights reserved.</span>
+            <a className="s-staff" href="/admin/login">
+              <Icon name="lock" size={14} />
+              Staff Login
+            </a>
+          </div>
+        </div>
+      </footer>
     </>
   );
 }

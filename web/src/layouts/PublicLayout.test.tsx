@@ -28,13 +28,13 @@ function currentLinks(container: HTMLElement): string[] {
 }
 
 describe('PublicLayout tracer (WEB-05)', () => {
-  it('on /products shows the designed header with Products current, the placeholder page and the footer', async () => {
+  it('on /products shows the designed header with Products current, the page and the footer', async () => {
     await renderAt('/products');
 
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(within(mainNav()).getByRole('link', { name: 'Products' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1 }));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('Site update in progress.');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('Out of bounds.');
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
   });
 });
