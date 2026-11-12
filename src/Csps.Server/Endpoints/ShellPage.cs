@@ -242,7 +242,7 @@ internal sealed partial class ShellRenderer(
                 origin + match.CanonicalPath,
                 site.BusinessName,
                 NoIndex: false,
-                JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, origin),
+                JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, snapshot.Closures, origin),
                 BootJson: boot));
         return head.ToString();
     }

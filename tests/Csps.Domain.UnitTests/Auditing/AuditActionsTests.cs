@@ -11,7 +11,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixSevenAndEleventhCodes()
     {
-        AuditActions.All.Count.ShouldBe(103);
+        AuditActions.All.Count.ShouldBe(106);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -29,6 +29,16 @@ public sealed class AuditActionsTests
     {
         AuditActions.All.ShouldContain("opening-hours.changed");
         AuditActions.SelfService.ShouldNotContain("opening-hours.changed");
+    }
+
+    [Theory]
+    [InlineData("shop-closure.added")]
+    [InlineData("shop-closure.changed")]
+    [InlineData("shop-closure.deleted")]
+    public void TheShopClosureCodesAreInTheCatalog(string code)
+    {
+        AuditActions.All.ShouldContain(code);
+        AuditActions.SelfService.ShouldNotContain(code);
     }
 
     [Fact]
@@ -258,11 +268,11 @@ public sealed class AuditActionsTests
     }
 
     [Fact]
-    public void ThePhaseSevenCodesComeAfterThePhaseSixCodesInThisOrderAndTheEleventhPhaseCodeComesLast()
+    public void ThePhaseSevenCodesComeAfterThePhaseSixCodesInThisOrderAndTheEleventhPhaseCodesComeLast()
     {
         PhaseSeven.Length.ShouldBe(43);
         AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
-        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed", "opening-hours.changed"]);
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed", "opening-hours.changed", "shop-closure.added", "shop-closure.changed", "shop-closure.deleted"]);
     }
 
     [Theory]

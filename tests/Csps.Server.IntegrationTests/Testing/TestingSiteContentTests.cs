@@ -57,6 +57,29 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task APostKeepsExactlyOneDemoClosureTwentyDaysAheadEvenWhenRunTwiceAndReplacesOtherClosures()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        var before = PublicContentSeeding.ManilaToday();
+        await PublicContentSeeding.SaveClosuresAsync(database, [(before.AddDays(3), before.AddDays(4), "Left over")]);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var first = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        using var second = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+
+        var after = PublicContentSeeding.ManilaToday();
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        var closure = await context.ShopClosures.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+        closure.Note.ShouldBe("Demo holiday");
+        closure.FirstDay.ShouldBeOneOf(before.AddDays(20), after.AddDays(20));
+        closure.LastDay.ShouldBe(closure.FirstDay);
+        await PublicContentSeeding.SaveClosuresAsync(database, []);
+    }
+
+    [Fact]
     public async Task RunningItTwiceLeavesTheSameRows()
     {
         Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");

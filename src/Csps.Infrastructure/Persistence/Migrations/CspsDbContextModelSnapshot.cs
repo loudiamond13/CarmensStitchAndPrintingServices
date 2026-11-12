@@ -127,6 +127,52 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.ShopClosure", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("FirstDay")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("LastDay")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastDay")
+                        .HasDatabaseName("IX_ShopClosures_LastDay");
+
+                    b.ToTable("ShopClosures", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ShopClosures_LastOnOrAfterFirst", "[LastDay] >= [FirstDay]");
+
+                            t.HasCheckConstraint("CK_ShopClosures_Span", "DATEDIFF(day, [FirstDay], [LastDay]) < 31");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Content.SitePhoneNumber", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2202,6 +2248,10 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         new
                         {
                             Name = "staff-money"
+                        },
+                        new
+                        {
+                            Name = "site-content"
                         },
                         new
                         {

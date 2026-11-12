@@ -89,6 +89,45 @@ public static class PublicContentSeeding
         await context.SaveChangesAsync().ConfigureAwait(false);
     }
 
+    /// <summary>Gets today's date in Asia/Manila (UTC+8, no daylight saving), the business day the public reads use.</summary>
+    /// <returns>The business today.</returns>
+    public static DateOnly ManilaToday() => DateOnly.FromDateTime(TimeProvider.System.GetUtcNow().AddHours(8).DateTime);
+
+    /// <summary>
+    /// Replaces every closure with the given ones, with a plain context (no interceptors). A closure may start in the past, for a
+    /// closure that is already running.
+    /// </summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="closures">The closures to store; none removes them all.</param>
+    /// <returns>A task that completes when the closures are stored.</returns>
+    public static async Task SaveClosuresAsync(CspsDatabase database, IReadOnlyList<(DateOnly First, DateOnly? Last, string? Note)> closures)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            await SaveClosuresAsync(context, closures).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Replaces every closure with the given ones through the given context, so its interceptors run.</summary>
+    /// <param name="context">The context to save through.</param>
+    /// <param name="closures">The closures to store; none removes them all.</param>
+    /// <returns>A task that completes when the closures are stored.</returns>
+    public static async Task SaveClosuresAsync(CspsDbContext context, IReadOnlyList<(DateOnly First, DateOnly? Last, string? Note)> closures)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(closures);
+        context.ShopClosures.RemoveRange(await context.ShopClosures.ToListAsync().ConfigureAwait(false));
+        foreach (var (first, last, note) in closures)
+        {
+            var created = ShopClosure.Create(first, last, note, first, DefaultNow);
+            context.ShopClosures.Add(created.IsSuccess ? created.Value : throw new InvalidOperationException($"The test closure is not valid: {created.Error.Message}"));
+        }
+
+        await context.SaveChangesAsync().ConfigureAwait(false);
+    }
+
     /// <summary>Saves the info through the given context, so its interceptors run: the old phone rows go first, then the new ones.</summary>
     /// <param name="context">The context to save through.</param>
     /// <param name="info">The values to store.</param>

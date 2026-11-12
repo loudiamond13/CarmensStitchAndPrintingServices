@@ -161,9 +161,54 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task UpcomingClosuresHoldTheNextThirtyDaysByFirstDayAndLeaveOutOneStartingInFortyDays()
+    {
+        var today = PublicContentSeeding.ManilaToday();
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveClosuresAsync(
+            database,
+            [
+                (today.AddDays(40), null, "Too far"),
+                (today.AddDays(10), null, "Christmas"),
+                (today.AddDays(-1), today.AddDays(1), "Running"),
+                (today.AddDays(-9), today.AddDays(-5), "Past"),
+            ]);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+        await PublicContentSeeding.SaveClosuresAsync(database, []);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var closures = document.RootElement.GetProperty("upcomingClosures").EnumerateArray().ToList();
+        closures.Select(closure => closure.GetProperty("note").GetString()).ShouldBe(["Running", "Christmas"]);
+        closures[0].GetProperty("firstDay").GetString().ShouldBe(today.AddDays(-1).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        closures[0].GetProperty("lastDay").GetString().ShouldBe(today.AddDays(1).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        closures[1].GetProperty("lastDay").GetString().ShouldBe(closures[1].GetProperty("firstDay").GetString());
+    }
+
+    [Fact]
+    public async Task AClosureWithNoNoteHasANullNote()
+    {
+        var today = PublicContentSeeding.ManilaToday();
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveClosuresAsync(database, [(today.AddDays(3), today.AddDays(4), null)]);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+        await PublicContentSeeding.SaveClosuresAsync(database, []);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var closure = document.RootElement.GetProperty("upcomingClosures").EnumerateArray().ShouldHaveSingleItem();
+        closure.GetProperty("note").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
     public async Task TheHoursAreSevenDaysMondayFirstAndTheUpcomingClosuresAreEmpty()
     {
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveClosuresAsync(database, []);
         await PublicContentSeeding.SaveHoursAsync(database, PublicContentSeeding.DemoWeek);
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();

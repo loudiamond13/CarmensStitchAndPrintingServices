@@ -86,6 +86,11 @@ public static class AuthorizationMatrix
         // The weekly opening hours (CONT-01, D-21): Managers only. With no body a Manager meets the 400 field errors.
         new("GET", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 200),
         new("PUT", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 400),
+        // Holidays and closures (CONT-04, D-21): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets the 400 field errors on add and edit, and a fresh random id is no closure (404) on delete.
+        new("GET", "/api/v1/shop-closures", "/api/v1/shop-closures", Anonymous: 401, Admin: 403, Manager: 200),
+        new("POST", "/api/v1/shop-closures", "/api/v1/shop-closures", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/shop-closures/{id:guid}", "/api/v1/shop-closures/5b7e2c94-1d08-4a63-9e5f-8c3a6d0b7f21", Anonymous: 401, Admin: 403, Manager: 400),
+        new("DELETE", "/api/v1/shop-closures/{id:guid}", "/api/v1/shop-closures/a94d1f36-7c20-4e8b-b5d3-2f6e0c8a9b47", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).

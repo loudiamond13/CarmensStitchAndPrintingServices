@@ -36,6 +36,34 @@ public interface ISiteContentStore
     /// <returns>The seven days, their versions and who last changed them.</returns>
     /// <exception cref="InvalidOperationException">A row is missing (the migrations were not applied).</exception>
     Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken);
+
+    /// <summary>Reads the closures whose last day is the given day or later, by first day, without tracking them.</summary>
+    /// <param name="today">The business today.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The closures, earliest first.</returns>
+    Task<IReadOnlyList<ShopClosure>> GetUpcomingClosuresAsync(DateOnly today, CancellationToken cancellationToken);
+
+    /// <summary>Loads one closure as a tracked row, so a change to it is saved by the unit of work.</summary>
+    /// <param name="id">The closure id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The closure, or null when there is none.</returns>
+    Task<ShopClosure?> FindClosureAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Finds the earliest stored closure that shares a day with the given days.</summary>
+    /// <param name="firstDay">The first day.</param>
+    /// <param name="lastDay">The last day.</param>
+    /// <param name="exceptId">A closure to leave out (the one being edited); null for none.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The overlapping closure, or null when the days are free.</returns>
+    Task<ShopClosure?> FindOverlappingClosureAsync(DateOnly firstDay, DateOnly lastDay, Guid? exceptId, CancellationToken cancellationToken);
+
+    /// <summary>Marks a new closure for insert. The next save writes it.</summary>
+    /// <param name="closure">The new closure.</param>
+    void AddClosure(ShopClosure closure);
+
+    /// <summary>Marks a stored closure for removal. The next save deletes it.</summary>
+    /// <param name="closure">The tracked closure.</param>
+    void RemoveClosure(ShopClosure closure);
 }
 
 /// <summary>One day of the week as the read port returns it.</summary>

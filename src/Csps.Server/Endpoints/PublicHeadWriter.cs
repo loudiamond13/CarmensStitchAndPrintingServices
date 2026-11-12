@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
 using Csps.Application.Content;
+using Csps.Domain.Content;
 
 namespace Csps.Server.Endpoints;
 
@@ -108,14 +109,18 @@ internal static class PublicHeadWriter
     /// Builds the <c>LocalBusiness</c> JSON-LD of a page from a typed model (D-25): name, description (the about text, else the tagline),
     /// url, the main number as an E.164 telephone, a <c>PostalAddress</c> in the Philippines when any address part is set, and the social
     /// links that are set. A value that is not set is left out. The model has no contact-mail member, so none can be written.
-    /// Each open weekday adds an <c>OpeningHoursSpecification</c> with its day name and its opening and closing times (PUB-04, CONT-04).
+    /// Each open weekday adds an <c>OpeningHoursSpecification</c> with its day name and its opening and closing times, and each closure
+    /// adds a <c>specialOpeningHoursSpecification</c> closed day with <c>opens</c> and <c>closes</c> both "00:00" and its first and last
+    /// day as <c>validFrom</c> and <c>validThrough</c> (PUB-04, CONT-04). The closure notes are never written here.
     /// </summary>
     /// <param name="site">The public site facts.</param>
+    /// <param name="closures">The closures to list as closed days, by first day: the ones that touch the next 60 days.</param>
     /// <param name="origin">The site's own address, from <c>App:PublicBaseUrl</c>, without a trailing slash.</param>
     /// <returns>The JSON text, safe inside a script block.</returns>
-    public static string LocalBusinessJsonLd(PublicSiteDto site, string origin)
+    public static string LocalBusinessJsonLd(PublicSiteDto site, IReadOnlyList<ClosureSpan> closures, string origin)
     {
         ArgumentNullException.ThrowIfNull(site);
+        ArgumentNullException.ThrowIfNull(closures);
         ArgumentNullException.ThrowIfNull(origin);
 
         var main = site.Phones.FirstOrDefault(phone => phone.IsMain) ?? (site.Phones.Count > 0 ? site.Phones[0] : null);
@@ -129,6 +134,7 @@ internal static class PublicHeadWriter
             main?.E164,
             AddressModel.From(site.Address),
             HoursModel.From(site.Hours),
+            ClosedDayModel.From(closures),
             sameAs.Count > 0 ? sameAs : null);
         return JsonSerializer.Serialize(business, JsonLdOptions);
     }
@@ -158,7 +164,34 @@ internal static class PublicHeadWriter
         string? Telephone,
         AddressModel? Address,
         IReadOnlyList<HoursModel>? OpeningHoursSpecification,
+        IReadOnlyList<ClosedDayModel>? SpecialOpeningHoursSpecification,
         IReadOnlyList<string>? SameAs);
+
+    // One closed day or run of days for each closure, written under the JSON key specialOpeningHoursSpecification; null when there is
+    // none, so the key is left out. A closed day is written as opening and closing at "00:00".
+    private sealed record ClosedDayModel(
+        [property: JsonPropertyName("@type")] string Type,
+        string Opens,
+        string Closes,
+        string ValidFrom,
+        string ValidThrough)
+    {
+        private const string Midnight = "00:00";
+
+        public static List<ClosedDayModel>? From(IReadOnlyList<ClosureSpan> closures)
+        {
+            var days = closures
+                .OrderBy(static closure => closure.FirstDay)
+                .Select(static closure => new ClosedDayModel(
+                    "OpeningHoursSpecification",
+                    Midnight,
+                    Midnight,
+                    ShopClosureDto.FormatDay(closure.FirstDay),
+                    ShopClosureDto.FormatDay(closure.LastDay)))
+                .ToList();
+            return days.Count > 0 ? days : null;
+        }
+    }
 
     // One entry for each weekday that has both times, written under the JSON key openingHoursSpecification; null when no day is
     // open, so the key is left out.

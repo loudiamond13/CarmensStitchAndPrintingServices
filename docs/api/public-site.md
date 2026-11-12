@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T20:07:28-06:00
-updated: 2026-11-12T03:13:00-05:00
+updated: 2026-11-12T03:56:00-06:00
 ---
 
 # The public site
@@ -69,6 +69,7 @@ Every public page (not the 404 page) carries one `<script type="application/ld+j
 | `telephone` | The main number in E.164 form, such as `+639171234567` |
 | `address` | A `PostalAddress` with `streetAddress`, `addressLocality`, `addressRegion`, `postalCode` (only the parts that are set) and `addressCountry` `PH`; left out when no part is set |
 | `openingHoursSpecification` | One `OpeningHoursSpecification` for each open weekday, with `dayOfWeek` (`Monday` to `Sunday`), `opens` and `closes` as `"HH:mm"`; left out when no day is open |
+| `specialOpeningHoursSpecification` | One closed-day `OpeningHoursSpecification` for each closure that touches the next 60 days, earliest first, with `opens` and `closes` both `"00:00"` and `validFrom` and `validThrough` as `"yyyy-MM-dd"` (the same value for a one-day closure); the note is never written; left out when there is none |
 | `sameAs` | The Facebook, Instagram and TikTok links that are set; left out when none is |
 
 A value that is not set is left out. There is no `email` (D-25). The JSON is written by the JSON serializer with its default
@@ -138,8 +139,9 @@ The shop facts every visitor sees. Anonymous, never compressed, limited per addr
 - **No email.** The shop email is stored for staff use only and is never selected for a public answer (D-25).
 - **`hours`** is always seven days, Monday (1) first, with `"HH:mm"` times in business time. A closed day has `null` for both. Until a
   Manager saves hours every day is closed; the server never invents hours.
-- **`upcomingClosures`** lists the closures in the next 30 days, each as `{ firstDay, lastDay, note }`. It is an empty list until the
-  closures plan adds them.
+- **`upcomingClosures`** lists the closures that touch the next 30 days (the last day is today or later and the first day is within 30
+  days), earliest first, each as `{ firstDay, lastDay, note }` with `"yyyy-MM-dd"` days. A closure that is running now is included.
+  The list is empty when a Manager has added none.
 - **`year`** is the current year in the business zone, for the footer's copyright line. The snapshot is rebuilt at least every hour,
   so it changes on 1 January without a write.
 
@@ -182,12 +184,13 @@ same answer whatever their phone says (PUB-05, D-22). Anonymous and limited per 
 |---|---|
 | `isOpen` | `true` when the shop is open at this instant: no closure today and the time is from the opening time up to, not including, the closing time |
 | `closesAt` | The closing time today as `"HH:mm"` when open; otherwise `null` |
-| `closedToday` | `true` when a closure covers today (closures arrive in a later plan, so it is `false` for now) |
+| `closedToday` | `true` when a closure covers today; the shop is then closed whatever the weekly hours say |
 | `todayClosureNote` | The note of the closure that covers today; `null` when none or no note |
 | `nextOpening` | When the shop opens next within 14 days; `null` when open, or when nothing opens in that time (for example while every day is closed) |
 
 `nextOpening.when` is `"today"` (it opens later today), `"tomorrow"` or `"weekday"` (a later day). `day` is 1 (Monday) to 7 (Sunday) and
-`date` is the business date. The page turns these facts into words; it does no time maths of its own.
+`date` is the business date, and a day covered by a closure is never the next opening. The page turns these facts into words; it does
+no time maths of its own.
 
 Unlike the other public reads, this answer has no `ETag` and is sent with `Cache-Control: public, max-age=60`, so a phone or a CDN may
 keep it for a minute. The hours come from the same cached snapshot as the site read, and a committed hours change clears it, so the

@@ -49,6 +49,24 @@ public sealed class FixedSiteContentStore : ISiteContentStore
     /// <inheritdoc />
     public Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken) =>
         throw new NotSupportedException("This stub only answers the business info read.");
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ShopClosure>> GetUpcomingClosuresAsync(DateOnly today, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This stub only answers the business info read.");
+
+    /// <inheritdoc />
+    public Task<ShopClosure?> FindClosureAsync(Guid id, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This stub only answers the business info read.");
+
+    /// <inheritdoc />
+    public Task<ShopClosure?> FindOverlappingClosureAsync(DateOnly firstDay, DateOnly lastDay, Guid? exceptId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This stub only answers the business info read.");
+
+    /// <inheritdoc />
+    public void AddClosure(ShopClosure closure) => throw new NotSupportedException("This stub only answers reads.");
+
+    /// <inheritdoc />
+    public void RemoveClosure(ShopClosure closure) => throw new NotSupportedException("This stub only answers reads.");
 }
 
 /// <summary>A business info store whose read fails with a given message, to prove a 500 never shows it.</summary>
@@ -74,4 +92,22 @@ public sealed class ThrowingSiteContentStore(string message) : ISiteContentStore
     /// <inheritdoc />
     public Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken) =>
         throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ShopClosure>> GetUpcomingClosuresAsync(DateOnly today, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public Task<ShopClosure?> FindClosureAsync(Guid id, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public Task<ShopClosure?> FindOverlappingClosureAsync(DateOnly firstDay, DateOnly lastDay, Guid? exceptId, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public void AddClosure(ShopClosure closure) => throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public void RemoveClosure(ShopClosure closure) => throw new InvalidOperationException(message);
 }

@@ -18,10 +18,15 @@ public sealed class OpenStatusEndpointTests(CspsDatabase database) : IClassFixtu
 {
     private const string HoursRoute = "/api/v1/opening-hours";
     private const string StatusRoute = "/api/v1/public/open-status";
+    private const string ClosuresRoute = "/api/v1/shop-closures";
 
     // Monday 16 Nov 2026, 10:00 and 18:00 in Manila (UTC+8).
     private static readonly DateTimeOffset MondayTenAmManila = new(2026, 11, 16, 2, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset MondaySixPmManila = new(2026, 11, 16, 10, 0, 0, TimeSpan.Zero);
+
+    // Monday 2 Nov 2026, 10:00 in Manila. The closure tests use a clock earlier than the real one, so a session started on the real
+    // clock is still valid on the pinned host.
+    private static readonly DateTimeOffset PastMondayTenAmManila = new(2026, 11, 2, 2, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task AtTenOnAMondayTheShopIsOpenUntilSixPmAndTheAnswerIsCachedForAMinuteWithNoETag()
@@ -102,6 +107,69 @@ public sealed class OpenStatusEndpointTests(CspsDatabase database) : IClassFixtu
         days[0].GetProperty("closesAt").GetString().ShouldBe("18:00");
         days[1].GetProperty("opensAt").ValueKind.ShouldBe(JsonValueKind.Null);
         document.RootElement.GetProperty("version").GetString().ShouldNotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task AClosureForTodayMakesTheStatusClosedWithItsNoteAndTheNextOpeningSkipsIt()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await SaveMondayNineToSixAsync(baseFactory);
+        var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
+        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(PastMondayTenAmManila));
+        using var client = factory.CreateClient();
+
+        using var created = await PostClosureAsync(client, manager.AccessToken, "2026-11-02", null, "Christmas");
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        using var response = await client.GetAsync(new Uri(StatusRoute, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var root = document.RootElement;
+        root.GetProperty("isOpen").GetBoolean().ShouldBeFalse();
+        root.GetProperty("closedToday").GetBoolean().ShouldBeTrue();
+        root.GetProperty("todayClosureNote").GetString().ShouldBe("Christmas");
+        var next = root.GetProperty("nextOpening");
+        next.GetProperty("date").GetString().ShouldBe("2026-11-09");
+        next.GetProperty("when").GetString().ShouldBe("weekday");
+        next.GetProperty("opensAt").GetString().ShouldBe("09:00");
+    }
+
+    [Fact]
+    public async Task AManagerListsTheClosureWithItsVersionAndAnAdminGets403()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await SaveMondayNineToSixAsync(baseFactory);
+        var manager = await TestSessions.StartAsync(baseFactory, Roles.Manager);
+        var admin = await TestSessions.StartAsync(baseFactory, Roles.Admin);
+        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(PastMondayTenAmManila));
+        using var client = factory.CreateClient();
+        using var created = await PostClosureAsync(client, manager.AccessToken, "2026-12-24", "2026-12-26", "Christmas");
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        using var listRequest = ApiRequests.Get(ClosuresRoute, manager.AccessToken);
+        using var list = await client.SendAsync(listRequest, TestContext.Current.CancellationToken);
+        using var adminRequest = ApiRequests.Get(ClosuresRoute, admin.AccessToken);
+        using var forbidden = await client.SendAsync(adminRequest, TestContext.Current.CancellationToken);
+
+        list.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await list.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var closure = document.RootElement.EnumerateArray().ShouldHaveSingleItem();
+        closure.GetProperty("firstDay").GetString().ShouldBe("2026-12-24");
+        closure.GetProperty("lastDay").GetString().ShouldBe("2026-12-26");
+        closure.GetProperty("note").GetString().ShouldBe("Christmas");
+        closure.GetProperty("version").GetString().ShouldNotBeNullOrEmpty();
+        closure.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
+        forbidden.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    private static async Task<HttpResponseMessage> PostClosureAsync(HttpClient client, string accessToken, string firstDay, string? lastDay, string? note)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Post, ClosuresRoute, accessToken);
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("D"));
+        request.Content = JsonContent.Create(new { firstDay, lastDay, note });
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private static async Task SaveMondayNineToSixAsync(Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> factory)
