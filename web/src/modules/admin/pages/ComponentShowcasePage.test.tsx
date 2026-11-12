@@ -189,11 +189,11 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(caseFrame('button-primary-md')).not.toHaveAttribute('data-theme');
   });
 
-  it('shows all 69 icons in a grid with their names', () => {
+  it('shows all 71 icons in a grid with their names', () => {
     renderShowcase();
 
     const names = Object.keys(ICONS);
-    expect(names).toHaveLength(69);
+    expect(names).toHaveLength(71);
     const grid = within(caseFrame('showcase-icon-names'));
     for (const name of names) {
       expect(grid.getByText(name)).toBeInTheDocument();
