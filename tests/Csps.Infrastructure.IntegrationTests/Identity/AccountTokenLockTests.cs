@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
+using Csps.Application.Common;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Identity;
+using Csps.Infrastructure.IntegrationTests.Persistence;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
 using Csps.Testing;
@@ -73,6 +75,23 @@ public sealed class AccountTokenLockTests(CspsDatabase database) : IClassFixture
         var store = new AccountTokenStore(context, new FakeTimeProvider(Now));
 
         await Should.ThrowAsync<InvalidOperationException>(() => store.LockAccountAsync(Guid.NewGuid(), TestContext.Current.CancellationToken));
+    }
+
+    // P10-BL-22: a lost deadlock on the person's lock row is a lost race with the outer transaction ended, never a 500.
+    [Fact]
+    public async Task ADeadlockOnTheLockInsideAnOuterTransactionIsALostRaceWithTheTransactionEnded()
+    {
+        var userId = Guid.NewGuid();
+
+        var outcome = await LockDeadlockScenario.RunAsync(
+            database,
+            (context, token) => new AccountTokenStore(context, new FakeTimeProvider(Now)).LockAccountAsync(userId, token));
+
+        var lost = outcome.Victim.ShouldBeOfType<ConcurrencyConflictException>(outcome.Victim?.ToString());
+        lost.OuterTransactionEnded.ShouldBeTrue();
+        SqlErrors.Has(lost, SqlErrors.DeadlockVictim).ShouldBeTrue("the deadlock must travel as the cause");
+        outcome.VictimTrackedEntries.ShouldBe(0);
+        outcome.Holder.ShouldBeNull(outcome.Holder?.ToString());
     }
 
     private async Task RunTogetherAsync(params Guid[] requests)
