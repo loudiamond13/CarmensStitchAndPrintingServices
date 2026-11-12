@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T08:29:10-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T10:36:41-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -46,7 +46,7 @@ The exact text is in 11-12-SUMMARY.md under the owner items.
 
 ## P11-BL-05 · Question shown before "Load Latest" throws away edits (plan 11-12, owner item 2)
 
-**Status:** open · **Blocks:** nothing. Built as option A. Plan 11-16 reuses the same question on the hours card (recommended: one wording for every Site Content tab).
+**Status:** open · **Blocks:** nothing. Built as option A. Plan 11-16 reuses the same question on the hours card (recommended: one wording for every Site Content tab). Plan 11-20 reuses it in the product line editor too.
 
 After a refused save, "Load Latest" would throw away the Manager's unsaved edits, so the page first asks "Discard changes?". The UI spec has no text for this question; the executor wrote it (marked SPEC-GAP in the code). The exact text is in 11-12-SUMMARY.md.
 
@@ -55,7 +55,7 @@ After a refused save, "Load Latest" would throw away the Manager's unsaved edits
 
 ## P11-BL-06 · "Recorded by: Not set" on Business Info (plan 11-12, owner item 3)
 
-**Status:** open · **Blocks:** nothing. Built as option A.
+**Status:** open · **Blocks:** nothing. Built as option A. Plan 11-20 shows the same "Recorded by: Not set" on a product line, so one ruling covers both.
 
 The shared "who recorded / who last changed" block always shows both rows. Business Info has no creator (the settings row always existed), so the first row reads "Recorded by" with the empty-value icon and "Not set".
 
@@ -165,6 +165,66 @@ Using the shared loading, error and button parts on the Products page pushed the
 
 - **A (built, recommended):** keep the copies for now and plan a later fix to how the build groups shared code.
 - **B:** use the shared parts and raise or rework the size limit.
+
+## P11-BL-18 · Message when a product line has no photo in a slot (plan 11-19, owner item 1)
+
+**Status:** open · **Blocks:** nothing. Built as option A. Staff screens only.
+
+A Manager who removes a photo that is already gone sees "This product line has no photo there."
+
+- **A (built, recommended):** keep that line.
+- **B:** give your own words.
+
+## P11-BL-19 · Link-preview card tag on every public page (plan 11-19, owner item 2)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+Every public page now tells X (Twitter) and similar apps which preview card to show: a large picture where the page has one, a small card otherwise.
+
+- **A (built, recommended):** keep it on every page, as the UI-SPEC row says.
+- **B:** only on pages that have a picture.
+
+## P11-BL-20 · Sharpness of the small photo in the Manager's product line list (plan 11-19, owner item 3)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+The list shows each line's main photo as one 44 px picture. On sharp phone screens it may look a little soft.
+
+- **A (built, recommended):** keep one 44 px picture.
+- **B:** also send a double-size picture for sharp screens (small extra work in plan 11-20).
+
+## P11-BL-21 · Manual step after the Phase 11 deploy: create the new Cloudinary picture sizes (plan 11-19, owner item 4)
+
+**Status:** open · **Blocks:** product photos look right on the live site only after this step. **Action for the owner, not a choice.**
+
+Phase 11 adds 21 picture sizes. After the Phase 11 deploy, run the setup command once on the live Cloudinary account, as `docs/operations/cloudinary-setup.md` "Phase 11 sizes" says. It creates only the missing sizes and leaves the 13 existing ones alone. No agent ran it (D-44).
+
+## P11-BL-22 · The whole product line list waits while one action saves (plan 11-20, owner item 2)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+When a Manager presses Move, Hide or Show on one line, every row's buttons wait until that save ends. Only one change can be sent at a time, so a press on another row would otherwise be dropped without a word.
+
+- **A (built, recommended):** hold every row while one saves.
+- **B:** hold only the pressed row, and queue presses on the others (more work).
+
+## P11-BL-23 · Failure messages for Move, Hide and Show (plan 11-20, owner item 3)
+
+**Status:** open · **Blocks:** nothing. Built as option A. The spec has no words for these.
+
+A failed save shows a short message such as "Couldn't move {title}", "Couldn't hide {title}" or "Couldn't show {title}".
+
+- **A (built, recommended):** keep these.
+- **B:** give your own words.
+
+## P11-BL-24 · The Contact page is at its size limit (plan 11-20, owner item 4)
+
+**Status:** open · **Blocks:** nothing yet. Every later plan is told to keep public additions lazy, and the post-merge gate now builds the size check.
+
+The Contact page's first download is 149.97 KB of its 150 KB limit (compressed). Any shared code a later plan adds can push it over, which fails the build.
+
+- **A (recommended):** after Phase 11, plan a small task to regroup the shared public code so Contact gets room back (see also P11-BL-17).
+- **B:** raise the Contact limit a little (for example to 155 KB). This trades a small amount of phone load time.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
