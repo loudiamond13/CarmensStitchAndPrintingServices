@@ -116,7 +116,258 @@ public sealed class OrderPublicSettingsEndpointTests(CspsDatabase database) : IC
         settings.GetProperty("autoProductLineId").GetGuid().ShouldBe(BasketballLine);
     }
 
+    [Fact]
+    public async Task ShowingWithoutTheOkIsA400OnTheShowFlagAndStoresNothing()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await CreateCompletedOrderAsync(factory, client, admin, [(OrderFixtures.BasketballId, 5)]);
+        var id = order.GetProperty("id").GetGuid();
+
+        using var response = await PutPublicAsync(client, admin.AccessToken, id, PublicBody(order, consent: false, show: true));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        OrderFixtures.FieldErrors(problem, "showOnWebsite").ShouldBe(["Tick Customer said OK to show first."]);
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        var stored = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        stored.GetProperty("publicWebsite").GetProperty("customerConsent").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ACancelledOrderAnswers422WithTheCancelledMessage()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, created.GetProperty("id").GetGuid(), "cancelled");
+
+        using var response = await PutPublicAsync(client, admin.AccessToken, cancelled.GetProperty("id").GetGuid(), PublicBody(cancelled, consent: true, show: true));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("orders.public-cancelled");
+        problem.GetProperty("detail").GetString().ShouldBe("Cancelled orders can't be shown on the website.");
+        cancelled.GetProperty("publicWebsite").GetProperty("canShow").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AnOrderWithNoTeamNeedsANameAndAnUnknownLineIsRefused()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var today = await OrderFixtures.TodayAsync(factory);
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["teamName"] = null;
+        var created = await OrderFixtures.CreateAsync(client, admin.AccessToken, body);
+        var id = created.GetProperty("id").GetGuid();
+
+        using var noName = await PutPublicAsync(client, admin.AccessToken, id, PublicBody(created, consent: true, show: true));
+        using var unknownLine = await PutPublicAsync(client, admin.AccessToken, id, PublicBody(created, consent: true, show: false, lineId: Guid.NewGuid()));
+        using var named = await PutPublicAsync(client, admin.AccessToken, id, PublicBody(created, consent: true, show: true, name: "Tondo Riders MC"));
+
+        noName.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(noName, TestContext.Current.CancellationToken), "publicName")
+            .ShouldBe(["This order has no team name. Enter the name to show."]);
+        unknownLine.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(unknownLine, TestContext.Current.CancellationToken), "productLineId")
+            .ShouldBe(["Choose the product line to show this order under."]);
+        named.StatusCode.ShouldBe(HttpStatusCode.OK, await named.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AStaleVersionIs409AndAnUnknownOrderIs404()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await CreateCompletedOrderAsync(factory, client, admin, [(OrderFixtures.BasketballId, 5)]);
+        var id = order.GetProperty("id").GetGuid();
+        using (var first = await PutPublicAsync(client, admin.AccessToken, id, PublicBody(order, consent: true, show: false)))
+        {
+            first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var stale = await PutPublicAsync(client, admin.AccessToken, id, PublicBody(order, consent: true, show: true));
+        using var missing = await PutPublicAsync(client, admin.AccessToken, Guid.NewGuid(), PublicBody(order, consent: true, show: true));
+
+        stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ProblemJson.ReadAsync(stale, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("edit.stale");
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AConsentTimeAndPersonSentByTheClientAreIgnored()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var other = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await CreateCompletedOrderAsync(factory, client, admin, [(OrderFixtures.BasketballId, 5)]);
+        var body = PublicBody(order, consent: true, show: true);
+        body["publicConsentAtUtc"] = "2020-01-01T00:00:00Z";
+        body["consentRecordedAtUtc"] = "2020-01-01T00:00:00Z";
+        body["publicConsentById"] = other.UserId;
+        body["consentRecordedByName"] = "Someone Else";
+        body["shownSinceUtc"] = "2020-01-01T00:00:00Z";
+        var before = TimeProvider.System.GetUtcNow();
+
+        using var response = await PutPublicAsync(client, admin.AccessToken, order.GetProperty("id").GetGuid(), body);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        var settings = document.RootElement.GetProperty("publicWebsite");
+        settings.GetProperty("consentRecordedByName").GetString().ShouldBe(await NameOfAsync(admin.UserId));
+        settings.GetProperty("consentRecordedAtUtc").GetDateTimeOffset().ShouldBeGreaterThanOrEqualTo(before.AddSeconds(-1));
+        settings.GetProperty("shownSinceUtc").GetDateTimeOffset().ShouldBeGreaterThanOrEqualTo(before.AddSeconds(-1));
+    }
+
+    [Fact]
+    public async Task EachChangeWritesItsAuditEntryNamingTheOrderAndNeverTheCustomer()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await CreateCompletedOrderAsync(factory, client, admin, [(OrderFixtures.BasketballId, 5)]);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString()!;
+
+        var recorded = await SaveAsync(client, admin, id, PublicBody(order, consent: true, show: false));
+        var shown = await SaveAsync(client, admin, id, PublicBody(recorded, consent: true, show: true));
+        var changed = await SaveAsync(client, admin, id, PublicBody(shown, consent: true, show: true, lineId: VolleyballLine, name: "Display Name"));
+        var removed = await SaveAsync(client, admin, id, PublicBody(changed, consent: false, show: false, lineId: VolleyballLine, name: "Display Name"));
+        var again = await SaveAsync(client, admin, id, PublicBody(removed, consent: false, show: false, lineId: VolleyballLine, name: "Display Name"));
+
+        again.GetProperty("version").GetString().ShouldBe(removed.GetProperty("version").GetString());
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            var entries = await context.AuditLog.AsNoTracking()
+                .Where(row => row.ActorUserId == admin.UserId && row.TargetId == id.ToString("D") && row.TargetType == "Order")
+                .OrderBy(row => row.Id)
+                .Select(row => new { row.Action, row.Detail })
+                .ToListAsync(TestContext.Current.CancellationToken);
+            entries.Select(row => row.Action).Order(StringComparer.Ordinal).ShouldBe(
+                [
+                    "order.public-consent-recorded",
+                    "order.public-consent-removed",
+                    "order.public-details-changed",
+                    "order.shown-on-website",
+                    "order.taken-off-website",
+                ],
+                ignoreOrder: false);
+            foreach (var entry in entries)
+            {
+                entry.Detail.ShouldNotBeNull().ShouldContain($"number={number}");
+                entry.Detail.ShouldNotContain("Juan");
+                entry.Detail.ShouldNotContain("0917");
+                entry.Detail.ShouldNotContain("example.com");
+                entry.Detail.ShouldNotContain("Display Name");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TakingAnOrderOffTheWebsiteRemovesItsEntryAndKeepsTheOk()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await CreateCompletedOrderAsync(factory, client, admin, [(OrderFixtures.BasketballId, 5)]);
+        var id = order.GetProperty("id").GetGuid();
+        var shown = await SaveAsync(client, admin, id, PublicBody(order, consent: true, show: true));
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+
+        var off = await SaveAsync(client, admin, id, PublicBody(shown, consent: true, show: false));
+
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        var settings = off.GetProperty("publicWebsite");
+        settings.GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
+        settings.GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        OrderFixtures.IsNull(settings, "shownSinceUtc").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task APublicDetailNeverHoldsTheCustomerBeyondTheOrderItself()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await CreateCompletedOrderAsync(factory, client, admin, [(OrderFixtures.BasketballId, 5)]);
+
+        var saved = await SaveAsync(client, admin, order.GetProperty("id").GetGuid(), PublicBody(order, consent: true, show: true));
+
+        var settings = saved.GetProperty("publicWebsite").GetRawText();
+        settings.ShouldNotContain("Juan");
+        settings.ShouldNotContain("0917");
+        settings.ShouldNotContain("example.com");
+    }
+
+    [Fact]
+    public async Task ALineAnOrderIsFiledUnderCannotBeDeletedUntilTheOrderLetsGo()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await CreateCompletedOrderAsync(factory, client, admin, [(OrderFixtures.BasketballId, 5)]);
+        var line = await AddLineAsync(client, manager);
+        _ = await SaveAsync(client, admin, order.GetProperty("id").GetGuid(), PublicBody(order, consent: true, show: true, lineId: line));
+
+        using var delete = await DeleteLineAsync(client, manager, line);
+
+        delete.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(delete, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("product-lines.in-use");
+    }
+
     private static Guid LineId(string key) => ProductLineSeed.All.Single(entry => entry.Key == key).Id;
+
+    private static async Task<JsonElement> SaveAsync(HttpClient client, StartedSession who, Guid orderId, object body)
+    {
+        using var response = await PutPublicAsync(client, who.AccessToken, orderId, body);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
+    // A new hidden line that nothing else uses, added through the Manager route.
+    private static async Task<Guid> AddLineAsync(HttpClient client, StartedSession manager)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Post, "/api/v1/product-lines", manager.AccessToken);
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("D"));
+        request.Content = JsonContent.Create(new
+        {
+            title = "Sample Shorts",
+            shortName = "Shorts",
+            number = "7",
+            cardText = "Light sample shorts.",
+            description = "Sample shorts printed edge to edge.",
+            fabricText = "Sample mesh",
+            collarText = "No collar",
+            cutText = "Standard fit",
+            namesText = "Any font",
+            logosText = "Team crest",
+            isActive = false,
+        });
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<HttpResponseMessage> DeleteLineAsync(HttpClient client, StartedSession manager, Guid lineId)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Delete, $"/api/v1/product-lines/{lineId:D}", manager.AccessToken);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
 
     private async Task<CspsApiFactory> StartAsync()
     {
