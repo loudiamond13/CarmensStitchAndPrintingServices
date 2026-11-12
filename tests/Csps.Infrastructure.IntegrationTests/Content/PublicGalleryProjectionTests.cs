@@ -1,8 +1,13 @@
+using System.Data.Common;
 using Csps.Application.Content;
 using Csps.Application.Ports;
 using Csps.Domain.Content;
+using Csps.Infrastructure.Content;
+using Csps.Infrastructure.Persistence;
+using Csps.Infrastructure.Persistence.Locking;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Infrastructure.IntegrationTests.Content;
@@ -226,6 +231,100 @@ public sealed class PublicGalleryProjectionTests(CspsDatabase database) : IClass
 
         items.Select(item => item.Team).ShouldBe(["Upload at 1", "Order at 2", "Upload at 3"]);
         items[1].Pieces.ShouldBe(9);
+    }
+
+    [Fact]
+    public async Task ADeadlockVictimOnTheFirstReadIsReadAgainAndTheSecondAttemptAnswers()
+    {
+        var staff = await PrepareAsync();
+        await GallerySeeding.AddOrdersAsync(database, [new SeedGalleryOrder("Brgy. Sample Ballers")], staff, Now);
+        var failing = new FailTheFirstReads(await DeadlockAsync(), 1);
+        await using var context = database.CreateContext(failing);
+
+        var read = await PublicGalleryProjection.LoadAsync(context, TestContext.Current.CancellationToken);
+
+        failing.Thrown.ShouldBe(1);
+        read.Items.Select(item => item.Team).ShouldBe(["Brgy. Sample Ballers"]);
+    }
+
+    [Fact]
+    public async Task ADeadlockVictimOnEveryOneOfThreeAttemptsSurfacesTheThirdFailure()
+    {
+        await PrepareAsync();
+        var failing = new FailTheFirstReads(await DeadlockAsync(), 3);
+        await using var context = database.CreateContext(failing);
+
+        var error = await Should.ThrowAsync<Exception>(() => PublicGalleryProjection.LoadAsync(context, TestContext.Current.CancellationToken));
+
+        SqlErrors.Has(error, SqlErrors.DeadlockVictim).ShouldBeTrue();
+        failing.Thrown.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task AnOtherErrorIsNotReadAgain()
+    {
+        await PrepareAsync();
+        var failing = new FailTheFirstReads(new InvalidOperationException("Not a deadlock."), 1);
+        await using var context = database.CreateContext(failing);
+
+        await Should.ThrowAsync<InvalidOperationException>(() => PublicGalleryProjection.LoadAsync(context, TestContext.Current.CancellationToken));
+
+        failing.Thrown.ShouldBe(1);
+    }
+
+    // A real deadlock as EF reports it: two transactions each update one standing lock row, then reach for the other's.
+    private async Task<Exception> DeadlockAsync()
+    {
+        await using var one = database.CreateContext();
+        await using var two = database.CreateContext();
+        var first = await one.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var second = await two.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (first)
+        await using (second)
+        {
+            await TouchAsync(one, "account-token:60");
+            await TouchAsync(two, "account-token:61");
+            var outcomes = await Task.WhenAll(CaptureAsync(() => TouchAsync(one, "account-token:61")), CaptureAsync(() => TouchAsync(two, "account-token:60")))
+                .WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
+            return outcomes.Single(outcome => outcome is not null).ShouldNotBeNull();
+        }
+
+        static Task TouchAsync(CspsDbContext context, string lockName) =>
+            context.Set<DatabaseLock>().Where(row => row.Name == lockName)
+                .ExecuteUpdateAsync(set => set.SetProperty(row => row.TakenAtUtc, Now), TestContext.Current.CancellationToken);
+
+        static async Task<Exception?> CaptureAsync(Func<Task> work)
+        {
+            try
+            {
+                await work();
+                return null;
+            }
+            catch (InvalidOperationException error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+            {
+                return error;
+            }
+        }
+    }
+
+    // Throws the given error from the first reader commands, one error per command, then lets the rest through.
+    private sealed class FailTheFirstReads(Exception error, int failures) : DbCommandInterceptor
+    {
+        private int _thrown;
+
+        public int Thrown => _thrown;
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (_thrown < failures)
+            {
+                _thrown++;
+                throw error;
+            }
+
+            return ValueTask.FromResult(result);
+        }
     }
 
     private async Task<Guid> PrepareAsync()
