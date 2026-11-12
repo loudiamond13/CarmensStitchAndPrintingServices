@@ -67,3 +67,51 @@ test('@site-content-products a Manager edits Polo with the price 450.00, saves, 
     }
   });
 });
+
+/** Fills every required text of a new line with fake words, under the names of the fields. */
+async function fillRequiredTexts(page: Page, name: string): Promise<void> {
+  await page.getByLabel(/^Title/).fill(name);
+  await page.getByLabel(/^Short name/).fill(name);
+  await page.getByLabel(/^Card text/).fill('A line made by an end-to-end test.');
+  await page.getByLabel(/^Description/).fill('This line only exists while the test runs.');
+  await page.getByLabel(/^Fabric/).fill('Test fabric.');
+  await page.getByLabel(/^Collar style/).fill('Test collar.');
+  await page.getByLabel(/^Cut & fit/).fill('Test cut.');
+  await page.getByLabel(/^Names & numbers/).fill('Test names.');
+  await page.getByLabel(/^Logos & sponsors/).fill('Test logos.');
+}
+
+test('@site-content-products a Manager adds E2E-Shorts, lands on its editor, and the line stays off /products until it is shown', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await withSiteContentLock(async () => {
+    try {
+      await seedDemoSiteContent(request);
+      await openProductsTab(page);
+
+      await page.getByRole('link', { name: 'Add Product Line' }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'New Product Line' })).toBeVisible();
+      await expect(page.getByRole('checkbox', { name: 'Show on the website' })).not.toBeChecked();
+      await expect(page.getByText('Save the product line first, then add photos.')).toBeVisible();
+      await fillRequiredTexts(page, 'E2E-Shorts');
+      await press(page, page.getByRole('button', { name: 'Save Product Line' }));
+
+      await expect(page.getByText('Product line added')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(page.getByText("It's hidden until you tick Show on the website.")).toBeVisible();
+      await expect(page).toHaveURL(/\/admin\/site-content\/products\/[0-9a-f-]{36}$/);
+      await expect(page.getByRole('heading', { level: 1, name: 'E2E-Shorts' })).toBeVisible();
+      await expect(page.getByText('Hidden', { exact: true })).toBeVisible();
+
+      // Hidden: the public Products page still has its six articles and none is the new line.
+      await page.goto('/products');
+      await expect(page.getByRole('article')).toHaveCount(6);
+      await expect(page.getByRole('article', { name: 'E2E-Shorts' })).toHaveCount(0);
+    } finally {
+      await seedDemoSiteContent(request);
+    }
+  });
+});
