@@ -1,6 +1,7 @@
 // The Public Website window rules (OR-3; plan 11-27): the browser checks every rule of the order's public settings before a request is sent,
 // with the server's own words (OrderPublicSettings.cs). Every control is text or a tick; an empty line or name is sent as null. The form is
-// shared with the New Order and Edit Order card (plan 11-35).
+// shared with the New Order and Edit Order card (plan 11-35). The server's order of checks is kept: the name length first, then, only when
+// the order is shown, the customer's OK, the line and the name.
 import { z } from 'zod';
 import { PUBLIC_WEBSITE_COPY } from '@/modules/admin/publicWebsiteCopy';
 import type { SetOrderPublicSettingsRequest } from '@/modules/admin/services/publicWebsiteService';
@@ -13,9 +14,8 @@ const COPY = PUBLIC_WEBSITE_COPY.errors;
 /** The longest name shown (OrderPublicSettings.PublicNameMaxLength). */
 export const PUBLIC_NAME_MAX = 80;
 
-/** The form for an order that has a team (`hasTeam`) or none. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the name rules arrive in plan task 2
-export function publicWebsiteSchema(_hasTeam: boolean) {
+/** The form for an order that has a team (`hasTeam`) or none: an order with no team needs a name typed to be shown. */
+export function publicWebsiteSchema(hasTeam: boolean) {
   return z
     .object({
       customerConsent: z.boolean(),
@@ -24,8 +24,21 @@ export function publicWebsiteSchema(_hasTeam: boolean) {
       publicName: z.string(),
     })
     .superRefine((data, context) => {
-      if (data.showOnWebsite && !data.customerConsent) {
+      const name = data.publicName.trim();
+      if (name.length > PUBLIC_NAME_MAX) {
+        context.addIssue({ code: 'custom', message: COPY.nameTooLong, path: ['publicName'] });
+      }
+      if (!data.showOnWebsite) {
+        return;
+      }
+      if (!data.customerConsent) {
         context.addIssue({ code: 'custom', message: COPY.consentFirst, path: ['showOnWebsite'] });
+      }
+      if (data.productLineId === '') {
+        context.addIssue({ code: 'custom', message: COPY.lineRequired, path: ['productLineId'] });
+      }
+      if (name === '' && !hasTeam) {
+        context.addIssue({ code: 'custom', message: COPY.nameRequired, path: ['publicName'] });
       }
     });
 }

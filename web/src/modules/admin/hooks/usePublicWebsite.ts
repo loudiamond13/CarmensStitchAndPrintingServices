@@ -41,6 +41,18 @@ export interface SavePublicWebsiteOptions {
   onLatest?: ((order: OrderDetailResponse) => boolean) | undefined;
 }
 
+/** What a save did to the website: the order is shown now, taken off, or only its settings changed. */
+function savedToast(wasShown: boolean, answer: OrderDetailResponse): { title: string; message: string } {
+  const nowShown = answer.publicWebsite.shownOnWebsite;
+  if (nowShown && !wasShown) {
+    return TOAST.shown;
+  }
+  if (!nowShown && wasShown) {
+    return TOAST.takenOff;
+  }
+  return { title: TOAST.saved.title, message: TOAST.saved.message(answer.number) };
+}
+
 export function useSavePublicWebsite({
   order,
   onSaved,
@@ -56,12 +68,7 @@ export function useSavePublicWebsite({
     // The window shows its own toast: what the save did to the website matters more than the balance.
     quiet: true,
     onSaved: (answer) => {
-      toast.show({
-        tone: 'success',
-        ...(answer.publicWebsite.shownOnWebsite
-          ? TOAST.shown
-          : { title: TOAST.saved.title, message: TOAST.saved.message(answer.number) }),
-      });
+      toast.show({ tone: 'success', ...savedToast(order.publicWebsite.shownOnWebsite, answer) });
       onSaved(answer);
     },
     onFieldErrors,

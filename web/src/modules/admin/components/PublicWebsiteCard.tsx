@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/actions';
 import { Icon, type IconName } from '@/components/brand';
 import { Badge } from '@/components/status';
-import { EmptyValue } from '@/components/states';
+import { EmptyValue, Note } from '@/components/states';
 import { PublicWebsiteModal } from '@/modules/admin/components/PublicWebsiteModal';
 import {
   orderCardBodyClasses,
@@ -13,6 +13,7 @@ import {
   orderCardTitleClasses,
   orderMetaClasses,
   orderMetaMutedClasses,
+  orderMetaNoteClasses,
   orderMetaRowClasses,
   orderMetaTermClasses,
   orderMetaValueClasses,
@@ -50,6 +51,8 @@ function nameShown(order: OrderDetailResponse): ReactNode {
 
 function rowsOf(order: OrderDetailResponse): readonly MetaRow[] {
   const block = order.publicWebsite;
+  // A Cancelled order is never shown (D-38): the server clears the flag, and the card reads Not shown whatever it holds.
+  const shown = block.shownOnWebsite && block.canShow;
   const recordedOn = block.consentRecordedAtUtc === null ? null : formatBusinessDate(block.consentRecordedAtUtc);
   const shownSince = block.shownSinceUtc === null ? null : formatBusinessDate(block.shownSinceUtc);
   return [
@@ -61,10 +64,11 @@ function rowsOf(order: OrderDetailResponse): readonly MetaRow[] {
     {
       icon: 'globe',
       label: COPY.rows.onWebsite,
-      value: block.shownOnWebsite ? (
+      value: shown ? (
         <>
           <Badge tone="success">{COPY.shown}</Badge>
           {shownSince !== null && <span className={orderMetaMutedClasses}> {COPY.shownSince(shownSince)}</span>}
+          {!block.hasPhoto && <span className={orderMetaNoteClasses}>{COPY.needsPhoto}</span>}
         </>
       ) : (
         <Badge tone="neutral">{COPY.notShown}</Badge>
@@ -84,6 +88,8 @@ export interface PublicWebsiteCardProps {
 }
 
 export function PublicWebsiteCard({ order }: PublicWebsiteCardProps) {
+  // A Cancelled order cannot be shown (D-38, OQ-9 A): no Edit, and a note says why. A Completed order can: the order lock does not cover this card.
+  const { canShow } = order.publicWebsite;
   // The window mounts on its first open and stays so its close can animate; each new open starts clean.
   const [used, setUsed] = useState(false);
   const [open, setOpen] = useState(false);
@@ -103,18 +109,20 @@ export function PublicWebsiteCard({ order }: PublicWebsiteCardProps) {
           <h2 id={TITLE_ID} className={orderCardTitleClasses}>
             {COPY.title}
           </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={COPY.editName}
-            ref={editRef}
-            onClick={() => {
-              setUsed(true);
-              setOpen(true);
-            }}
-          >
-            {COPY.edit}
-          </Button>
+          {canShow && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={COPY.editName}
+              ref={editRef}
+              onClick={() => {
+                setUsed(true);
+                setOpen(true);
+              }}
+            >
+              {COPY.edit}
+            </Button>
+          )}
         </div>
         <div className={orderCardBodyClasses}>
           <dl className={orderMetaClasses}>
@@ -128,6 +136,7 @@ export function PublicWebsiteCard({ order }: PublicWebsiteCardProps) {
               </div>
             ))}
           </dl>
+          {!canShow && <Note icon="info">{COPY.cancelled}</Note>}
         </div>
       </section>
       {used && (

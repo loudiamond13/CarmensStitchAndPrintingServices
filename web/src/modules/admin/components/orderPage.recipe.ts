@@ -117,6 +117,9 @@ export const orderPublicPreviewClasses = tw('m-0 text-[14px] leading-5 wrap-anyw
 /** The muted words after a value: "since Oct 8, 2026", " (team name)". */
 export const orderMetaMutedClasses = tw('font-normal text-ink-muted');
 
+/** A muted line under a value, on its own row: "It shows once the order has a photo." */
+export const orderMetaNoteClasses = tw('block font-normal text-ink-muted');
+
 /** The title of a side card with an icon or a link beside it. */
 export const orderCardTitleRowClasses = tw('flex items-center gap-2');
 
