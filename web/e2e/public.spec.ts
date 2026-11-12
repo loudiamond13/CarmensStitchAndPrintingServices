@@ -1,5 +1,6 @@
-// Holding page E2E (D-17, WEB-05, A11Y-01, A11Y-02): the real host serves the SPA for every non-API path, and each public
-// path shows the one standalone holding page in all five projects: one h1 with the approved heading, one main, no
+// Holding page E2E (D-17, WEB-05, A11Y-01, A11Y-02, PUB-01): the real host serves the SPA for every non-API path (a path
+// the site does not know answers a real 404 with the same shell), and each public path shows the one standalone holding
+// page in all five projects: one h1 with the approved heading, one main, no
 // banner or contentinfo (no site frame), the phone as a tel: link and the Facebook page as an https link, the skip link
 // first in the keyboard order moving focus to main without a hash in the URL, and no console, page, CSP, response (the
 // guard) or axe findings.
@@ -9,6 +10,9 @@ const HEADING = 'New website on the way.';
 
 const PATHS: readonly string[] = ['/', '/products', '/gallery', '/contact', '/some/deep/path'];
 
+/** A path no page owns: the server answers 404 with the shell, and the holding page still draws until plan 11-08. */
+const UNKNOWN_PATH = '/some/deep/path';
+
 /** The text of the first element in document order that Tab can reach (a page script: the node program has no DOM). */
 const FIRST_FOCUSABLE_TEXT = `document.querySelector('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')?.textContent ?? null`;
 
@@ -16,10 +20,15 @@ for (const path of PATHS) {
   test(`@public ${path} shows the holding page with the shop facts and no site frame`, async ({
     page,
     browserName,
+    guard,
   }) => {
+    const status = path === UNKNOWN_PATH ? 404 : 200;
+    if (status === 404) {
+      guard.expectStatus(path, status);
+    }
     const response = await page.goto(path);
 
-    expect(response?.status()).toBe(200);
+    expect(response?.status()).toBe(status);
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('h1')).toHaveText(HEADING);
     await expect(page.getByRole('main')).toHaveCount(1);

@@ -122,8 +122,9 @@ app.UseSerilogRequestLogging(options => options.Logger = requestLogger);
 app.UseResponseCompression();
 
 // The built React app's files from the (wrapped) web root, anonymously and before authorization (WEB-01). Hashed
-// /assets/* files are cached as immutable, everything else revalidates (PERF-02).
-app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = SpaCaching.Apply });
+// /assets/* files are cached as immutable, everything else revalidates (PERF-02). index.html is never served raw: the
+// shell endpoint shapes it (PUB-04).
+app.UseStaticFiles(SpaCaching.CreateStaticFileOptions(app.Environment.WebRootFileProvider));
 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();

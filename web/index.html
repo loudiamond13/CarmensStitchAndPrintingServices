@@ -1,16 +1,19 @@
 <!doctype html>
 <!-- Source: CSPS-UI-SPEC.md App. D.7c. SPEC-DEVIATION: adds the meta description (UI-SPEC Copywriting, the approved
-     footer line). No inline script or style anywhere (strict CSP, T-02-05). -->
+     footer line). No inline script or style anywhere (strict CSP, T-02-05). The server replaces the block between the
+     csps:head markers with each page's own head (PUB-04). -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--csps:head-->
     <meta
       name="description"
       content="Custom tailoring and full-sublimation printing for teams, leagues and riding groups."
     />
-    <link rel="icon" type="image/svg+xml" href="/mark.svg" />
     <title>CSPS: Carmen's Stitch & Printing Services</title>
+    <!--/csps:head-->
+    <link rel="icon" type="image/svg+xml" href="/mark.svg" />
   </head>
   <body>
     <div id="root"></div>

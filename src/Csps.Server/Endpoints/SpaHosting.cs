@@ -1,14 +1,13 @@
 using System.Net.Mime;
 using Csps.Server.Http;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Net.Http.Headers;
 
 namespace Csps.Server.Endpoints;
 
 /// <summary>
 /// Serves the React single-page app from the web root (WEB-01). Every non-file path that matches no other endpoint
-/// gets the shell <c>index.html</c>, anonymously, so the browser router can draw the page. Unknown <c>/api</c> paths
-/// never reach it: the literal <see cref="ApiRouting.FallbackPattern"/> outranks the catch-all (FND-05).
+/// gets the shell <c>index.html</c>, anonymously, shaped by <see cref="ShellPage"/> with the page's own head and status
+/// (PUB-04), so the browser router can draw the page. Unknown <c>/api</c> paths never reach it: the literal
+/// <see cref="ApiRouting.FallbackPattern"/> outranks the catch-all (FND-05).
 /// </summary>
 /// <remarks>
 /// Fallbacks with a literal prefix (<c>/api/{**path}</c>, <c>/openapi/{**path}</c>, <c>/scalar/{**path}</c>) outrank
@@ -22,7 +21,7 @@ public static class SpaHosting
     public const string ShellFile = "index.html";
 
     /// <summary>
-    /// The route pattern <c>MapFallbackToFile</c> registers: any path whose last segment has no dot. It is the key the
+    /// The route pattern of the shell endpoint: any path whose last segment has no dot. It is the key the
     /// authorization matrix uses for the shell endpoint, once for GET and once for HEAD.
     /// </summary>
     public const string ShellPattern = "{*path:nonfile}";
@@ -40,15 +39,17 @@ public static class SpaHosting
     public static IReadOnlyList<string> ReservedDocsPatterns { get; } = ["/openapi/{**path}", "/scalar/{**path}"];
 
     /// <summary>
-    /// Maps the whole SPA host, in order: the missing-file 404, the reserved API-doc 404s (outside Development only,
-    /// D-29), then the shell. All are anonymous. <c>MapFallbackToFile</c> registers GET and HEAD only, so any other
-    /// method on a page path still meets the default-deny fallback policy (L-01).
+    /// Maps the whole SPA host, in order: <c>robots.txt</c> and <c>sitemap.xml</c>, the missing-file 404, the reserved
+    /// API-doc 404s (outside Development only, D-29), then the shell. All are anonymous. The shell endpoint carries GET
+    /// and HEAD metadata only, so any other method on a page path still meets the default-deny fallback policy (L-01).
     /// </summary>
     /// <param name="app">The web application.</param>
     /// <returns>The same application.</returns>
     public static WebApplication MapSpaHost(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
+
+        app.MapSeoEndpoints();
 
         app.MapFallback(FilePattern, NotFound).AllowAnonymous().ExcludeFromDescription();
 
@@ -63,10 +64,12 @@ public static class SpaHosting
             }
         }
 
-        // The shell is sent with Cache-Control: no-cache, so a browser always revalidates it and picks up a new
-        // deploy's hashed assets.
-        app.MapFallbackToFile(ShellFile, new StaticFileOptions { OnPrepareResponse = static context => NoCache(context) })
-            .AllowAnonymous();
+        // Shaped with the page's own head and status; Cache-Control: no-cache, so a browser always revalidates it and
+        // picks up a new deploy's hashed assets. Without the method metadata a fallback matches every method.
+        app.MapFallback(ShellPattern, ShellPage.WriteAsync)
+            .WithMetadata(new HttpMethodMetadata([HttpMethods.Get, HttpMethods.Head]))
+            .AllowAnonymous()
+            .ExcludeFromDescription();
 
         return app;
     }
@@ -86,7 +89,4 @@ public static class SpaHosting
 
         return CspsProblemDetails.WriteAsync(context, StatusCodes.Status404NotFound);
     }
-
-    private static void NoCache(StaticFileResponseContext context) =>
-        context.Context.Response.Headers[HeaderNames.CacheControl] = "no-cache";
 }
