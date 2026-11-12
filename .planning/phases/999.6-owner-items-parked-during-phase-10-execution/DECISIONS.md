@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T19:58:00-05:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T21:00:00-05:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -212,7 +212,7 @@ The project rule says money is computed on the server only. The Delete Transfer 
 
 ## P10-BL-20 · Phase 10 sign-off: what needs you before the phase is marked done
 
-**Status:** moved to Phase 11 (D-119, owner 2026-11-11). Item 5 is met (PR 24's full CI run passed and it merged as 25bd3431); item 3 is carried. Was: ruled D-114 (owner, 2026-11-10): screens passed, go-ahead to ship; the PR opens as a draft. Still open: items 3 (review the 261109-vj6 choices, can change later) and 5 (CI parity and full run, then `/gsd-verify-work 10`). Was open · **Blocks:** marking Phase 10 complete and the merge to main. All 21 plans are built, reviewed and tested.
+**Status:** ruled D-121 (owner, 2026-11-11): item 3 approved, all three choices stay as built. Was: moved to Phase 11 (D-119, owner 2026-11-11). Item 5 is met (PR 24's full CI run passed and it merged as 25bd3431); item 3 is carried. Was: ruled D-114 (owner, 2026-11-10): screens passed, go-ahead to ship; the PR opens as a draft. Still open: items 3 (review the 261109-vj6 choices, can change later) and 5 (CI parity and full run, then `/gsd-verify-work 10`). Was open · **Blocks:** marking Phase 10 complete and the merge to main. All 21 plans are built, reviewed and tested.
 
 The verifier (10-VERIFICATION.md, commit 37f4deda) found no gaps: 6 of 6 success criteria and 14 of 14 requirements are met, checked in the code. Status is "human needed" because these steps are yours. P10-BL-01 to 19 are all ruled now (D-107 and D-111), and P10-BL-01 is carried into the Phase 16 plan. What is left:
 
@@ -256,7 +256,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-23 · Push the expense list speed fix after the CI run on 19b3bc13 (owner away, 2026-11-10)
 
-**Status:** moved to Phase 11 (D-119, owner 2026-11-11). Merged in PR 24; the owner's review is carried. Was: pushed (2026-11-11) with the Auto-fix push for the CI run on 19b3bc13, which failed on a showcase test race; the owner still reviews the two changes below · **Blocks:** nothing.
+**Status:** ruled D-120 (owner, 2026-11-11): both changes approved as they are. Was: moved to Phase 11 (D-119, owner 2026-11-11). Merged in PR 24; the owner's review is carried. Was: pushed (2026-11-11) with the Auto-fix push for the CI run on 19b3bc13, which failed on a showcase test race; the owner still reviews the two changes below · **Blocks:** nothing.
 
 - **What:** the owner said to wait for CI, then investigate the slow expense list test. The owner then went away. The investigation ran locally while CI ran, and the fix is committed on the local branch but **not pushed**, so the running CI result on 19b3bc13 stays valid. A push starts a new full run.
 - **Cause:** the list page joined the category, payer and recorder for every row before it skipped to the page, so a late page (five years, page 365 of 100) built about 36,500 joined rows to keep 100. The fix picks the page's 100 ids from the sorted list index first, then joins only those rows, still in one statement.

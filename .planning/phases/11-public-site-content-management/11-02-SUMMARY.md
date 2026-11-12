@@ -4,7 +4,7 @@ plan: 02
 subsystem: api
 tags: [aspnetcore, seo, open-graph, robots, sitemap, spa-hosting, minimal-api]
 created: 2026-11-11T20:20:00-06:00
-updated: 2026-11-11T20:20:00-06:00
+updated: 2026-11-11T21:00:00-05:00
 
 requires:
   - phase: 02-web-host
@@ -155,7 +155,7 @@ RED/GREEN pairs exist for both TDD tasks, in order. The plan frontmatter is `typ
 
 - **Home description** is the approved tagline constant `PublicPageHeads.HomeTagline` until plan 11-07 reads the stored tagline.
 - **Settings are read only for known pages.** Admin, dev and 404 heads need no database, so a database outage never touches them. A failure on a known page sends the template's own head with the same status and logs one warning until a read works again (an `Interlocked` flag, so an outage does not log once per request).
-- **Latin-1 HTML encoder** (`HtmlEncoder.Create(BasicLatin, Latin1Supplement)`) instead of `HtmlEncoder.Default`: the default turns the middle dot in the titles into `&#xB7;`, which breaks the plan's literal `<title>Products and Prices · CSPS</title>`. The five markup characters (`< > & ' "`) are still always escaped (tested with `A<b>"x"&</b>`), so the XSS protection is the same.
+- **Latin-1 HTML encoder** (`HtmlEncoder.Create(BasicLatin, Latin1Supplement)`) instead of `HtmlEncoder.Default`: the default turns the middle dot in the titles into `&#xB7;`, which breaks the plan's literal `<title>Products and Prices · CSPS</title>`. The five markup characters (`< > & ' "`) are still always escaped (tested with `A<b>"x"&</b>`), so the XSS protection is the same. Ruled D-122 (owner, 2026-11-11): keep.
 - `PublicPageHeads`, `PublicHeadModel` and `PublicHeadWriter` are internal; `PublicRouteTable`, `ShellPage` and `SeoEndpoints` are public (tests and later plans use them).
 - Tracer gate: automated-only `<verify>`, `human_verify_mode` default; the tracer's verify was re-run end to end (80/80 and 29/29) before expanding.
 
