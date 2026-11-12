@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 using FluentValidation;
@@ -9,17 +10,21 @@ namespace Csps.Application.Content;
 
 /// <summary>
 /// Use case: a Manager edits a closure with the version the form was opened with (CONT-04, SEC-07). The steps run in this order and
-/// stop at the first failure: the form is checked (400), the closure is found (404), the version is the stored one (409), then the
-/// days are checked (400). A form save never retries on a conflict. A form with no change saves nothing and keeps the version.
+/// stop at the first failure: the form is checked (400), the closure is found (404), the version is the stored one (409), the new days
+/// do not share a day with another closure (400, checked under the site-content lock and ignoring this closure itself), then the days are
+/// checked against the domain rules (400). A form save never retries on a conflict. A form with no change saves nothing, writes no audit
+/// entry and keeps the version; a change writes one <c>shop-closure.changed</c> entry in the same save.
 /// </summary>
 /// <param name="store">The site content store.</param>
 /// <param name="siteLock">The site-content lock.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="calendar">The business calendar.</param>
 /// <param name="validator">The form rules.</param>
 public sealed class UpdateShopClosureHandler(
     ISiteContentStore store,
     ISiteContentLock siteLock,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IBusinessCalendar calendar,
     IValidator<ShopClosureRequest> validator)
@@ -77,17 +82,25 @@ public sealed class UpdateShopClosureHandler(
             return Result.Failure<ShopClosureDto>(EditErrors.Stale);
         }
 
+        // The overlap check runs before the change, so a refused edit leaves the tracked row untouched.
+        var overlapping = await store.FindOverlappingClosureAsync(firstDay, lastDay ?? firstDay, closure.Id, cancellationToken).ConfigureAwait(false);
+        if (overlapping is not null)
+        {
+            return Result.Failure<ShopClosureDto>(ShopClosureErrors.Overlap(overlapping.FirstDay > firstDay ? overlapping.FirstDay : firstDay));
+        }
+
         var changed = closure.Change(firstDay, lastDay, note, today);
         if (changed.IsFailure)
         {
             return Result.Failure<ShopClosureDto>(changed.Error);
         }
 
-        if (changed.Value is null)
+        if (changed.Value is not { } change)
         {
             return Result.Success(ShopClosureDto.From(closure));
         }
 
+        audit.Record(AuditActions.ShopClosureChanged, ShopClosureAuditDetail.TargetType, AuditKey.Of(closure.Id), ShopClosureAuditDetail.Changed(change));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(ShopClosureDto.From(closure));
     }

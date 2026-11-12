@@ -37,23 +37,47 @@ public sealed class ShopClosureRequestValidator : AbstractValidator<ShopClosureR
 
     private static void CheckForm(ShopClosureRequest request, ValidationContext<ShopClosureRequest> context)
     {
-        if (context.RootContextData.ContainsKey(EditKey) && !RowVersions.TryParse(request.Version, out _))
+        var editing = context.RootContextData.ContainsKey(EditKey);
+        if (editing && !RowVersions.TryParse(request.Version, out _))
         {
             context.AddFailure(nameof(ShopClosureRequest.Version), RowVersions.InvalidMessage);
         }
 
+        if (!context.RootContextData.TryGetValue(TodayKey, out var value) || value is not DateOnly today)
+        {
+            throw new InvalidOperationException($"The closure validator needs the business today as a DateOnly under '{TodayKey}'.");
+        }
+
+        var firstRead = TryParseDay(request.FirstDay, out var firstDay);
         if (string.IsNullOrWhiteSpace(request.FirstDay))
         {
             context.AddFailure(nameof(ShopClosureRequest.FirstDay), ShopClosure.FirstDayRequiredMessage);
         }
-        else if (!TryParseDay(request.FirstDay, out _))
+        else if (!firstRead)
         {
             context.AddFailure(nameof(ShopClosureRequest.FirstDay), ShopClosure.FirstDayInvalidMessage);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.LastDay) && !TryParseDay(request.LastDay, out _))
+        var lastGiven = !string.IsNullOrWhiteSpace(request.LastDay);
+        var lastRead = TryParseDay(request.LastDay, out var lastDay);
+        if (lastGiven && !lastRead)
         {
             context.AddFailure(nameof(ShopClosureRequest.LastDay), ShopClosure.LastDayInvalidMessage);
+        }
+
+        // The domain rules judge only what could be read, so a bad date never causes a made-up second error. An edit keeps a first day that is already past.
+        var errors = ShopClosure.Check(
+            firstRead ? firstDay : today,
+            firstRead && lastGiven && lastRead ? lastDay : null,
+            request.Note,
+            today,
+            requireFirstDayFromToday: firstRead && !editing);
+        foreach (var field in new[] { "firstDay", "lastDay", "note" })
+        {
+            if (errors.TryGetValue(field, out var messages))
+            {
+                context.AddFailure(char.ToUpperInvariant(field[0]) + field[1..], messages[0]);
+            }
         }
     }
 }

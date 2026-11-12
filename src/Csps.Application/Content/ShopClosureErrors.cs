@@ -1,4 +1,5 @@
 using Csps.Domain.Common;
+using Csps.Domain.Content;
 
 namespace Csps.Application.Content;
 
@@ -13,4 +14,13 @@ public static class ShopClosureErrors
 
     /// <summary>Gets the 404 for a closure that does not exist.</summary>
     public static Error NotFound { get; } = Error.NotFound(NotFoundCode, NotFoundMessage);
+
+    /// <summary>Builds the 400 for a closure that shares a day with another one, under <c>firstDay</c>.</summary>
+    /// <param name="day">The first shared day.</param>
+    /// <returns>The error.</returns>
+    public static Error Overlap(DateOnly day) =>
+        Error.Validation(
+            SiteContentErrors.InvalidCode,
+            SiteSettings.InvalidMessage,
+            new Dictionary<string, string[]>(StringComparer.Ordinal) { ["firstDay"] = [ShopClosure.OverlapMessage(day)] });
 }

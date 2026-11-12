@@ -153,6 +153,15 @@ public static class AuditActions
     /// <summary>A Manager saved the weekly opening hours; the detail names each changed day with its old and new times (CONT-01).</summary>
     public const string OpeningHoursChanged = "opening-hours.changed";
 
+    /// <summary>A Manager added a holiday or closure; the detail holds its first and last day and says when a note was set, never the note (CONT-04).</summary>
+    public const string ShopClosureAdded = "shop-closure.added";
+
+    /// <summary>A Manager changed a closure; the detail holds the old and new days and says when the note changed, never the note (CONT-04).</summary>
+    public const string ShopClosureChanged = "shop-closure.changed";
+
+    /// <summary>A Manager deleted a closure; the detail holds its first and last day (CONT-04).</summary>
+    public const string ShopClosureDeleted = "shop-closure.deleted";
+
     /// <summary>An expense category was added (D-27).</summary>
     public const string ExpenseCategoryAdded = "expense-category.added";
 
@@ -534,5 +543,8 @@ public static class AuditActions
         MoneyHandedOver,
         SiteSettingsChanged,
         OpeningHoursChanged,
+        ShopClosureAdded,
+        ShopClosureChanged,
+        ShopClosureDeleted,
     ];
 }

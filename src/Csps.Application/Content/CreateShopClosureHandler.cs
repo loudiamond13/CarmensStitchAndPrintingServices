@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 using FluentValidation;
@@ -9,11 +10,14 @@ namespace Csps.Application.Content;
 
 /// <summary>
 /// Use case: a Manager adds a closure (CONT-04, D-21). The form is checked first (400), then one transaction takes the site-content
-/// lock and saves the closure. Who added it and when come from the token and the clock (SEC-08). A save that loses a deadlock is a 409
-/// and is not retried by this handler beyond one more pass.
+/// lock, checks that no stored closure shares a day with the new one (a 400 on the first day, naming the first shared day) and saves
+/// the closure with its <c>shop-closure.added</c> audit entry. The lock makes two Managers adding overlapping closures at once end
+/// with one stored closure and one refusal. Who added it and when come from the token and the clock (SEC-08). A save that loses a
+/// deadlock is read again once and is a 409 if it loses again.
 /// </summary>
 /// <param name="store">The site content store.</param>
 /// <param name="siteLock">The site-content lock.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="calendar">The business calendar.</param>
 /// <param name="time">The clock.</param>
@@ -21,6 +25,7 @@ namespace Csps.Application.Content;
 public sealed class CreateShopClosureHandler(
     ISiteContentStore store,
     ISiteContentLock siteLock,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IBusinessCalendar calendar,
     TimeProvider time,
@@ -69,7 +74,14 @@ public sealed class CreateShopClosureHandler(
         }
 
         var closure = created.Value;
+        var overlapping = await store.FindOverlappingClosureAsync(closure.FirstDay, closure.LastDay, null, cancellationToken).ConfigureAwait(false);
+        if (overlapping is not null)
+        {
+            return Result.Failure<ShopClosureDto>(ShopClosureErrors.Overlap(closure.FirstSharedDay(overlapping)!.Value));
+        }
+
         store.AddClosure(closure);
+        audit.Record(AuditActions.ShopClosureAdded, ShopClosureAuditDetail.TargetType, AuditKey.Of(closure.Id), ShopClosureAuditDetail.Added(closure));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(ShopClosureDto.From(closure));
     }
