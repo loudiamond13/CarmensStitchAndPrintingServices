@@ -27,6 +27,8 @@ export const queryBranch = (children: RouteObject[]): RouteObject => ({
   children,
 });
 
+export const publicRoutes: RouteObject[] = [];
+
 export const routes: RouteObject[] = [
   {
     HydrateFallback: ShellFallback,
