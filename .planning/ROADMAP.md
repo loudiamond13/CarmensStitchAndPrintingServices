@@ -1186,14 +1186,14 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: 38 plans in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+**Plans**: 5/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
 
 **Wave 1**
-- [ ] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
-- [ ] 11-02-PLAN.md — Server-shaped shell: per-page head, real 404, admin noindex, robots.txt, sitemap.xml (PUB-04, PUB-01)
-- [ ] 11-03-PLAN.md — Open or closed status as one pure rule in Manila time (PUB-05, CONT-04)
-- [ ] 11-04-PLAN.md — Philippine phone numbers: tel: and display forms (PUB-06, CONT-01)
-- [ ] 11-05-PLAN.md — Weekly hours text for footer, Contact and admin preview (PUB-05, CONT-04)
+- [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
+- [x] 11-02-PLAN.md — Server-shaped shell: per-page head, real 404, admin noindex, robots.txt, sitemap.xml (PUB-04, PUB-01)
+- [x] 11-03-PLAN.md — Open or closed status as one pure rule in Manila time (PUB-05, CONT-04)
+- [x] 11-04-PLAN.md — Philippine phone numbers: tel: and display forms (PUB-06, CONT-01)
+- [x] 11-05-PLAN.md — Weekly hours text for footer, Contact and admin preview (PUB-05, CONT-04)
 
 **Wave 2**
 - [ ] 11-06-PLAN.md — Owner reviews P10-BL-23 and P10-BL-20 item 3; UAT 18 and 19 reminder (carry-over)
@@ -1538,7 +1538,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | In Progress | - |
-| 11. Public Site & Content Management | 0/TBD | Not started | - |
+| 11. Public Site & Content Management | 5/38 | In Progress | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
