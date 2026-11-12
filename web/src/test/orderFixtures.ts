@@ -22,6 +22,34 @@ export type OrderTotalsFixture = Schemas['OrderTotalsResponse'];
 export type DeletedOrderListFixture = Schemas['DeletedOrderListResponse'];
 export type ListRefFixture = Schemas['OrderListRef'];
 export type ActorRefFixture = Schemas['ActorRef'];
+export type OrderPublicWebsiteFixture = Schemas['OrderPublicWebsiteDto'];
+export type ProductLineOptionFixture = Schemas['ProductLineOptionDto'];
+
+/** The active product lines the Public Website window offers (GET /product-lines/options), in display order. */
+export const PRODUCT_LINE_OPTIONS: readonly ProductLineOptionFixture[] = [
+  { id: '8c1f4a20-0000-4000-8000-000000000001', title: 'Basketball Jerseys', shortName: 'Basketball' },
+  { id: '8c1f4a20-0000-4000-8000-000000000002', title: 'Volleyball Jerseys', shortName: 'Volleyball' },
+  { id: '8c1f4a20-0000-4000-8000-000000000003', title: 'Moto and Riding Jerseys', shortName: 'Moto' },
+];
+
+/** An order's public website block: never shown, no OK, 48 pieces; overrides change what a test needs. */
+export function publicWebsiteBlock(overrides: Partial<OrderPublicWebsiteFixture> = {}): OrderPublicWebsiteFixture {
+  return {
+    customerConsent: false,
+    consentRecordedAtUtc: null,
+    consentRecordedByName: null,
+    shownOnWebsite: false,
+    shownSinceUtc: null,
+    productLineId: null,
+    productLineTitle: null,
+    autoProductLineId: null,
+    publicName: null,
+    pieces: 48,
+    hasPhoto: false,
+    canShow: true,
+    ...overrides,
+  };
+}
 
 /** The business today the fixtures answer with: ORD-2026-0153, due Oct 5, is overdue by 3 days. */
 export const ORDER_TODAY = '2026-10-08';
@@ -323,20 +351,7 @@ export function buildOrderDetail(overrides: Partial<OrderDetailFixture> = {}): O
       expenses: 6065,
       profit: 15262.5,
     }),
-    publicWebsite: {
-      customerConsent: false,
-      consentRecordedAtUtc: null,
-      consentRecordedByName: null,
-      shownOnWebsite: false,
-      shownSinceUtc: null,
-      productLineId: null,
-      productLineTitle: null,
-      autoProductLineId: null,
-      publicName: null,
-      pieces: 48,
-      hasPhoto: false,
-      canShow: true,
-    },
+    publicWebsite: publicWebsiteBlock(),
     recordedBy: ORDER_STAFF,
     recordedAt: '2026-09-28T02:00:00Z',
     lastChangedBy: null,
@@ -577,6 +592,8 @@ export interface OrderHandlerOptions {
   deleted?: DeletedOrderListFixture | ((url: URL) => OrderResult<DeletedOrderListFixture>);
   /** The order GET /orders/{id} answers, or a function of the id. Default: ORD-2026-0148. */
   detail?: OrderDetailFixture | ((id: string) => OrderResult<OrderDetailFixture>);
+  /** The active lines GET /product-lines/options answers. Default: PRODUCT_LINE_OPTIONS. */
+  lineOptions?: readonly ProductLineOptionFixture[];
   /**
    * What a write answers. Return nothing to take the default: 201 (create) or 200 (every other change) with the order, or
    * 204 (delete, restore and permanent delete of an order).
@@ -669,6 +686,8 @@ export function useOrderHandlers(options: OrderHandlerOptions = {}): OrderBacken
     http.put('*/api/v1/orders/:id', ({ request }) => written(request, orderAnswer(200))),
     http.delete('*/api/v1/orders/:id', ({ request }) => written(request, noContent)),
     http.post('*/api/v1/orders/:id/status', ({ request }) => written(request, orderAnswer(200))),
+    http.put('*/api/v1/orders/:id/public', ({ request }) => written(request, orderAnswer(200))),
+    http.get('*/api/v1/product-lines/options', () => HttpResponse.json(options.lineOptions ?? PRODUCT_LINE_OPTIONS)),
     http.post('*/api/v1/orders/:id/restore', ({ request }) => written(request, noContent)),
     http.delete('*/api/v1/orders/:id/permanent', ({ request }) => written(request, noContent)),
     ...CHILD_KINDS.flatMap((kind) => [

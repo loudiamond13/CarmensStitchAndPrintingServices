@@ -1009,3 +1009,26 @@ describe('leaving with photos that have not uploaded (D-29, UIC-23)', () => {
     expect(fireBeforeUnload().defaultPrevented).toBe(true);
   });
 });
+
+// The Public website card (UI-SPEC O1; D-16; plan 11-27): both roles see it in the side column, after Customer and before Status history.
+describe('the Public website card', () => {
+  it('sits after the Customer card and before the Status history card', async () => {
+    renderOrder();
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+
+    const sideHeadings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent)
+      .filter((text) => text === 'Customer' || text === 'Public website' || text === 'Status history');
+
+    expect(sideHeadings).toEqual(['Customer', 'Public website', 'Status history']);
+  });
+
+  it('shows the card with its Edit button on an order that is Completed', async () => {
+    useOrderHandlers({ detail: completedOrder });
+    renderOrder({ order: completedOrder });
+
+    expect(await screen.findByRole('region', { name: 'Public website' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Edit public website settings' })).toBeVisible();
+  });
+});
