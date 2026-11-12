@@ -3,10 +3,10 @@
 // for every project, so a test that reads or changes them runs under the site content lock and puts the demo lines back at the end
 // (seedDemoSiteContent also deletes every line whose short name starts with "E2E-"). Signing in takes the longest, so every test signs in
 // before it takes the lock. Every test runs under the shared guard (console, page errors, CSP, failed responses).
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
-import { press } from './helpers.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedDemoSiteContent } from './testing-api.ts';
 
@@ -110,6 +110,98 @@ test('@site-content-products a Manager adds E2E-Shorts, lands on its editor, and
       await page.goto('/products');
       await expect(page.getByRole('article')).toHaveCount(6);
       await expect(page.getByRole('article', { name: 'E2E-Shorts' })).toHaveCount(0);
+    } finally {
+      await seedDemoSiteContent(request);
+    }
+  });
+});
+
+/** The short names of the lines the public site shows. */
+async function publicShortNames(request: APIRequestContext): Promise<string[]> {
+  const response = await request.get('/api/v1/public/product-lines');
+  expect(response.status()).toBe(200);
+  return ((await response.json()) as { lines: { shortName: string }[] }).lines.map((line) => line.shortName);
+}
+
+// This one only looks at the layout, which any lines give, so it does not take the lock.
+test('@site-content-products at 390px the list is row cards, at 768px it scrolls inside its frame, and at 320px the page has no sideways scroll and axe finds nothing', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openProductsTab(page);
+
+  // Phone: no header row, each cell on its own line with its label.
+  await expect(page.locator('thead')).toBeHidden();
+  await expect(page.locator('td[data-label="Starts at"]').first()).toHaveCSS('display', 'flex');
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+
+  // Tablet: the columns stay and the frame scrolls on its own, a named region a keyboard can reach.
+  await page.setViewportSize({ width: 768, height: 900 });
+  await expect(page.locator('thead')).toBeVisible();
+  const frame = page.getByRole('region', { name: 'Product lines' });
+  await expect(frame).toHaveAttribute('tabindex', '0');
+  expect(await frame.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true);
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+
+  await page.setViewportSize({ width: 320, height: 640 });
+  await expect(page.getByRole('table', { name: 'Product lines' })).toBeAttached();
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});
+
+test('@site-content-products a Manager hides E2E-Shorts, shows it again and deletes it, and the public site follows each step', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await withSiteContentLock(async () => {
+    try {
+      await seedDemoSiteContent(request);
+      await openProductsTab(page);
+      await page.getByRole('link', { name: 'Add Product Line' }).click();
+      await fillRequiredTexts(page, 'E2E-Shorts');
+      await page.getByRole('checkbox', { name: 'Show on the website' }).check();
+      await press(page, page.getByRole('button', { name: 'Save Product Line' }));
+      await expect(page.getByText("It's on the website now.")).toBeVisible({ timeout: SAVE_WAIT_MS });
+      expect(await publicShortNames(request)).toContain('E2E-Shorts');
+
+      await page.getByRole('link', { name: 'Site Content' }).click();
+      await expect(page.getByRole('table', { name: 'Product lines' })).toBeVisible();
+      const row = page.getByRole('row').filter({ hasText: 'E2E-Shorts' });
+      await expect(row.getByText('Shown', { exact: true })).toBeVisible();
+
+      // Hide: no question, the toast, the badge, and focus stays on the toggle, now Show.
+      await page.getByRole('button', { name: 'Hide E2E-Shorts' }).click();
+      await expect(page.getByText('E2E-Shorts hidden')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(row.getByText('Hidden', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Show E2E-Shorts' })).toBeFocused();
+      expect(await publicShortNames(request)).not.toContain('E2E-Shorts');
+
+      await page.getByRole('button', { name: 'Show E2E-Shorts' }).click();
+      await expect(page.getByText('E2E-Shorts shown')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(row.getByText('Shown', { exact: true })).toBeVisible();
+      expect(await publicShortNames(request)).toContain('E2E-Shorts');
+
+      // Move: the new line is last; Move up puts it one place higher and focus stays on Move up.
+      await page.getByRole('button', { name: 'Move E2E-Shorts up' }).click();
+      await expect(page.getByText('E2E-Shorts moved to position 6 of 7.')).toBeAttached({ timeout: SAVE_WAIT_MS });
+      await expect(page.getByRole('button', { name: 'Move E2E-Shorts up' })).toBeFocused();
+
+      // Delete: the question focuses Cancel first, and the line is gone for good.
+      await page.getByRole('button', { name: 'Delete E2E-Shorts' }).click();
+      const question = page.getByRole('dialog', { name: 'Delete E2E-Shorts?' });
+      await expect(question.getByRole('button', { name: 'Cancel' })).toBeFocused();
+      await press(page, question.getByRole('button', { name: 'Delete Product Line' }));
+      await expect(page.getByText('Product line deleted')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(page.getByText('E2E-Shorts was removed.')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Edit E2E-Shorts' })).toHaveCount(0);
+      expect(await publicShortNames(request)).not.toContain('E2E-Shorts');
     } finally {
       await seedDemoSiteContent(request);
     }
