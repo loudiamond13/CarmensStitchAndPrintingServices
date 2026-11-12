@@ -63,6 +63,12 @@ public interface IProductLines
     /// <returns>The title of each line that exists, by id.</returns>
     Task<IReadOnlyDictionary<Guid, string>> GetTitlesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 
+    /// <summary>Counts what is filed under a line: photos, order product types and gallery items.</summary>
+    /// <param name="lineId">The line id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The counts.</returns>
+    Task<ProductLineUsage> GetUsageAsync(Guid lineId, CancellationToken cancellationToken);
+
     /// <summary>Gives the place at the end of the display order.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>One more than the highest position, or 1 when there are no lines.</returns>
@@ -83,6 +89,16 @@ public interface IProductLines
 /// <param name="PhotoCount">How many photos it has.</param>
 /// <param name="GalleryItemCount">How many gallery items are filed under it.</param>
 public sealed record ProductLineListRow(ProductLine Line, IReadOnlyList<Guid> ProductTypeIds, int PhotoCount, int GalleryItemCount);
+
+/// <summary>What is filed under a line, as the usage read returns it.</summary>
+/// <param name="PhotoCount">How many photos the line has.</param>
+/// <param name="ProductTypeCount">How many order product types are filed under it.</param>
+/// <param name="GalleryItemCount">How many gallery items are filed under it.</param>
+public sealed record ProductLineUsage(int PhotoCount, int ProductTypeCount, int GalleryItemCount)
+{
+    /// <summary>Gets a value indicating whether anything is filed under the line, so it can only be hidden.</summary>
+    public bool IsUsed => PhotoCount > 0 || ProductTypeCount > 0 || GalleryItemCount > 0;
+}
 
 /// <summary>One line with who last changed it, as the detail read returns it.</summary>
 /// <param name="Line">The line.</param>

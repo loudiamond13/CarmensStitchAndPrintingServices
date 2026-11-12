@@ -14555,9 +14555,29 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         },
-        "summary": "Deletes a product line for good. It takes no version. Deleting a line that is already gone is a 404.",
+        "summary": "Deletes a product line for good, only while nothing is filed under it. A line with a photo, a gallery item or an order product\ntype answers 422 `product-lines.in-use` (\"This product line is in use. Hide it instead.\") and nothing is deleted. It takes no\nversion. Deleting a line that is already gone is a 404.",
         "tags": [
           "ProductLines"
         ]

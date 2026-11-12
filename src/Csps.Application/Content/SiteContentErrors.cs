@@ -20,6 +20,15 @@ public static class SiteContentErrors
     /// <summary>Gets the 404 for a product line that does not exist.</summary>
     public static Error LineNotFound { get; } = Error.NotFound(LineNotFoundCode, LineNotFoundMessage);
 
+    /// <summary>The machine code of a delete refused because something is filed under the product line.</summary>
+    public const string LineInUseCode = "product-lines.in-use";
+
+    /// <summary>The plain-English text for a delete refused because something is filed under the product line.</summary>
+    public const string LineInUseMessage = "This product line is in use. Hide it instead.";
+
+    /// <summary>Gets the 422 for a delete refused because a photo, a gallery item or an order product type is filed under the line.</summary>
+    public static Error LineInUse { get; } = Error.BusinessRule(LineInUseCode, LineInUseMessage);
+
     /// <summary>The text for a short name another product line already uses.</summary>
     public const string ShortNameTakenMessage = "Another product line already uses this short name.";
 

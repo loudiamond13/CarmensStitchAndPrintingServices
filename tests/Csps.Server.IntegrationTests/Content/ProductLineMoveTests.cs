@@ -116,7 +116,10 @@ public sealed class ProductLineMoveTests(CspsDatabase database) : IClassFixture<
         var after = await rig.ListAsync();
         after.Select(line => line.Position).Order().ShouldBe([1, 2, 3, 4, 5, 6]);
         after.Select(line => line.Key).Order().ShouldBe(SeededKeys.Order());
-        after.Select(line => line.Key).ShouldNotBe(SeededKeys);
+
+        // Either order of the two moves is a valid outcome: moving Moto up and then Volleyball up puts the two lines back where they were.
+        await using var context = database.CreateContext();
+        (await context.AuditLog.AsNoTracking().CountAsync(row => row.Action == "product-line.moved" && (row.ActorUserId == rig.Manager.UserId || row.ActorUserId == other.UserId), TestContext.Current.CancellationToken)).ShouldBe(2);
     }
 
     [Fact]

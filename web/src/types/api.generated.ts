@@ -1510,7 +1510,11 @@ export interface paths {
          */
         put: operations["UpdateProductLine"];
         post?: never;
-        /** Deletes a product line for good. It takes no version. Deleting a line that is already gone is a 404. */
+        /**
+         * Deletes a product line for good, only while nothing is filed under it. A line with a photo, a gallery item or an order product
+         *     type answers 422 `product-lines.in-use` ("This product line is in use. Hide it instead.") and nothing is deleted. It takes no
+         *     version. Deleting a line that is already gone is a 404.
+         */
         delete: operations["DeleteProductLine"];
         options?: never;
         head?: never;
@@ -10412,6 +10416,24 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -181,17 +181,21 @@ public sealed class ProductLinesController(
     }
 
     /// <summary>
-    /// Deletes a product line for good. It takes no version. Deleting a line that is already gone is a 404.
+    /// Deletes a product line for good, only while nothing is filed under it. A line with a photo, a gallery item or an order product
+    /// type answers 422 <c>product-lines.in-use</c> ("This product line is in use. Hide it instead.") and nothing is deleted. It takes no
+    /// version. Deleting a line that is already gone is a 404.
     /// </summary>
     /// <param name="id">The line id.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>204, 401 without a valid token, 403 for an Admin, or 404 when it does not exist.</returns>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when it does not exist, 422 for a line in use, or 409 when two saves lost a race.</returns>
     [HttpDelete("{id:guid}")]
     [EndpointName("DeleteProductLine")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var result = await delete.HandleAsync(id, cancellationToken).ConfigureAwait(false);

@@ -115,6 +115,14 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
             .ConfigureAwait(false);
     }
 
+    // Gallery items arrive with the gallery plan; their count joins here then.
+    public async Task<ProductLineUsage> GetUsageAsync(Guid lineId, CancellationToken cancellationToken)
+    {
+        var photos = await context.ProductLinePhotos.AsNoTracking().CountAsync(photo => photo.LineId == lineId, cancellationToken).ConfigureAwait(false);
+        var types = await context.ProductTypes.AsNoTracking().CountAsync(type => type.ProductLineId == lineId, cancellationToken).ConfigureAwait(false);
+        return new ProductLineUsage(photos, types, 0);
+    }
+
     public async Task<IReadOnlySet<string>> GetKeysAsync(CancellationToken cancellationToken)
     {
         var keys = await context.ProductLines.AsNoTracking().Select(line => line.Key).ToListAsync(cancellationToken).ConfigureAwait(false);
