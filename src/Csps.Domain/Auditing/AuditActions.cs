@@ -147,6 +147,9 @@ public static class AuditActions
     /// <summary>A Manager handed money from a former staff member to a coworker (D-17).</summary>
     public const string MoneyHandedOver = "money-transfer.handed-over";
 
+    /// <summary>A Manager saved the business info; the detail names the changed fields (CONT-01).</summary>
+    public const string SiteSettingsChanged = "site-settings.changed";
+
     /// <summary>An expense category was added (D-27).</summary>
     public const string ExpenseCategoryAdded = "expense-category.added";
 

@@ -9,11 +9,19 @@ public sealed class AuditActionsTests
     private static readonly DateTimeOffset Now = new(2026, 10, 14, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void CatalogHoldsTheAuthProfileUserPhaseSixAndPhaseSevenCodes()
+    public void CatalogHoldsTheAuthProfileUserPhaseSixSevenAndEleventhCodes()
     {
-        AuditActions.All.Count.ShouldBe(101);
+        AuditActions.All.Count.ShouldBe(102);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
+    }
+
+    [Fact]
+    public void TheSiteSettingsChangedCodeIsInTheCatalog()
+    {
+        AuditActions.SiteSettingsChanged.ShouldBe("site-settings.changed");
+        AuditActions.All.ShouldContain(AuditActions.SiteSettingsChanged);
+        AuditActions.SelfService.ShouldNotContain(AuditActions.SiteSettingsChanged);
     }
 
     [Fact]

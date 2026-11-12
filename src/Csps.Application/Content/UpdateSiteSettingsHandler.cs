@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 using FluentValidation;
@@ -11,11 +12,13 @@ namespace Csps.Application.Content;
 /// shows the change (PUB-03). Who changed it and when come from the token and the clock (SEC-08).
 /// </summary>
 /// <param name="store">The business info store.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="validator">The form rules.</param>
 /// <param name="time">The clock.</param>
 public sealed class UpdateSiteSettingsHandler(
     ISiteContentStore store,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IValidator<UpdateSiteSettingsRequest> validator,
     TimeProvider time)
@@ -55,6 +58,7 @@ public sealed class UpdateSiteSettingsHandler(
         }
 
         store.ReplacePhones(current.Phones, changes.Value.Phones);
+        audit.Record(AuditActions.SiteSettingsChanged, "SiteSettings", "1", null);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }
