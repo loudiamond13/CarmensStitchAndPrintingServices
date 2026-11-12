@@ -12,7 +12,7 @@ import { SiteContentPage, SiteContentRoute, type SiteContentPanels } from '@/mod
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoSiteSettings, siteSettingsBackend } from '@/test/siteContentFixtures';
+import { demoSiteSettings, openingHoursBackend, siteSettingsBackend } from '@/test/siteContentFixtures';
 
 // S0 Site Content, /admin/site-content (D-27, WEB-10; plan 11-12): the Manager's header and tabs.
 
@@ -89,16 +89,25 @@ describe('the tabs (WEB-10)', () => {
     await openPage();
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Business Info']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Business Info', 'Hours & Closures']);
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: 'Business Info' })).toBeVisible();
   });
 
   it('shows Business Info for a tab that does not exist yet', async () => {
-    await openPage('?tab=hours');
+    await openPage('?tab=products');
 
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText(/^Tagline/)).toBeVisible();
+  });
+
+  it('opens the Hours & Closures tab from ?tab=hours and shows the Opening hours card in its panel', async () => {
+    openingHoursBackend();
+    renderPage('?tab=hours');
+
+    const panel = await screen.findByRole('tabpanel', { name: 'Hours & Closures' });
+    expect(screen.getByRole('tab', { name: 'Hours & Closures' })).toHaveAttribute('aria-selected', 'true');
+    expect(await within(panel).findByRole('heading', { level: 2, name: 'Opening hours' })).toBeVisible();
   });
 
   it('has the Business Info card inside the tab panel', async () => {

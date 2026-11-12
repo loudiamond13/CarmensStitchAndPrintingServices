@@ -2,11 +2,16 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { demoSiteSettings } from '@/test/siteContentFixtures';
+import { demoOpeningHours, demoSiteSettings } from '@/test/siteContentFixtures';
 import {
   businessInfoSchema,
   businessInfoValuesOf,
+  DEFAULT_CLOSES,
+  DEFAULT_OPENS,
   hasBracketPlaceholder,
+  HOURS_TIME_OPTIONS,
+  hoursSchema,
+  hoursValuesOf,
   isDirectionsLink,
   isFacebookLink,
   isInstagramLink,
@@ -15,8 +20,11 @@ import {
   isTikTokLink,
   phoneE164,
   reduceEmbedCode,
+  toOpeningHoursRequest,
   toSiteSettingsRequest,
+  weekOfValues,
   type BusinessInfoInput,
+  type HoursInput,
 } from './siteContentSchemas';
 
 // The Business Info form schema (OR-3; CONT-01, D-23, D-24; plan 11-12): it mirrors the server's validator, so the browser checks
@@ -401,5 +409,117 @@ describe('the save request (CONT-01)', () => {
     expect(request.aboutText).toBeNull();
     expect(request.postalCode).toBe('8600');
     expect(request.phones).toEqual([{ number: '0917 123 4567', label: null, isMain: true }]);
+  });
+});
+
+// The weekly hours form (OR-3; CONT-01, D-21; plan 11-16): it mirrors UpdateOpeningHoursRequestValidator and OpeningHours.Check.
+describe('hoursSchema', () => {
+  const WEEK: HoursInput = hoursValuesOf(demoOpeningHours);
+
+  /** The demo week with one day changed. */
+  function withDay(index: number, change: Partial<HoursInput['days'][number]>): HoursInput {
+    return { days: WEEK.days.map((day, at) => (at === index ? { ...day, ...change } : day)) };
+  }
+
+  /** The messages of a week, keyed by the path of the field they belong to ("days.6.closesAt"). */
+  function messagesOf(values: HoursInput): Record<string, string> {
+    const result = hoursSchema.safeParse(values);
+    if (result.success) {
+      return {};
+    }
+    return Object.fromEntries(result.error.issues.map((issue) => [issue.path.join('.'), issue.message]));
+  }
+
+  it('offers every half hour from 5:00 AM to 11:30 PM, written like 9:00 AM', () => {
+    expect(HOURS_TIME_OPTIONS).toHaveLength(38);
+    expect(HOURS_TIME_OPTIONS[0]).toEqual({ value: '05:00', label: '5:00 AM' });
+    expect(HOURS_TIME_OPTIONS[8]).toEqual({ value: '09:00', label: '9:00 AM' });
+    expect(HOURS_TIME_OPTIONS.at(-1)).toEqual({ value: '23:30', label: '11:30 PM' });
+  });
+
+  it('takes the demo week: six open days and a closed Sunday', () => {
+    expect(WEEK.days.map((day) => day.open)).toEqual([true, true, true, true, true, true, false]);
+    expect(hoursSchema.safeParse(WEEK).success).toBe(true);
+  });
+
+  it('refuses an open day with no opening time with the server message', () => {
+    expect(messagesOf(withDay(6, { open: true, opensAt: '', closesAt: '15:00' }))).toEqual({
+      'days.6.opensAt': 'Choose the opening time.',
+    });
+  });
+
+  it('refuses an open day with no closing time with the server message', () => {
+    expect(messagesOf(withDay(6, { open: true, opensAt: '10:00', closesAt: '' }))).toEqual({
+      'days.6.closesAt': 'Choose the closing time.',
+    });
+  });
+
+  it('refuses closing at or before opening with "Closing time must be after opening time."', () => {
+    expect(messagesOf(withDay(0, { opensAt: '18:00', closesAt: '09:00' }))).toEqual({
+      'days.0.closesAt': 'Closing time must be after opening time.',
+    });
+    expect(messagesOf(withDay(0, { opensAt: '09:00', closesAt: '09:00' }))).toEqual({
+      'days.0.closesAt': 'Closing time must be after opening time.',
+    });
+  });
+
+  it.each(['09:15', '04:30', '23:45', '24:00', '9:00', 'nine'])(
+    'refuses %s, which is not on the half hour from 5:00 AM to 11:30 PM',
+    (time) => {
+      expect(messagesOf(withDay(1, { opensAt: time }))).toEqual({
+        'days.1.opensAt': 'Choose a time on the hour or half hour, from 5:00 AM to 11:30 PM.',
+      });
+    },
+  );
+
+  it('does not look at the times of a closed day', () => {
+    expect(messagesOf(withDay(2, { open: false, opensAt: '99:99', closesAt: '' }))).toEqual({});
+  });
+
+  it('reports every broken day at once', () => {
+    const values = withDay(0, { opensAt: '18:00', closesAt: '09:00' });
+    const both = { days: values.days.map((day, at) => (at === 3 ? { ...day, opensAt: '' } : day)) };
+
+    expect(Object.keys(messagesOf(both)).sort()).toEqual(['days.0.closesAt', 'days.3.opensAt']);
+  });
+});
+
+describe('the hours form values and request (plan 11-16)', () => {
+  it('shows a closed day unticked with no times, and an open day ticked with its 24-hour times', () => {
+    const values = hoursValuesOf(demoOpeningHours);
+
+    expect(values.days[0]).toEqual({ day: 1, open: true, opensAt: '09:00', closesAt: '18:00' });
+    expect(values.days[6]).toEqual({ day: 7, open: false, opensAt: '', closesAt: '' });
+  });
+
+  it('sends the seven days Monday first, a closed day with null times, and the version the form opened with', () => {
+    const values = hoursValuesOf(demoOpeningHours);
+    const ticked = { days: values.days.map((day) => (day.day === 7 ? { ...day, open: true, opensAt: '10:00', closesAt: '15:00' } : day)) };
+
+    const request = toOpeningHoursRequest(ticked, 'v1');
+
+    expect(request.version).toBe('v1');
+    expect(request.days).toHaveLength(7);
+    expect(request.days?.[6]).toEqual({ day: 7, opensAt: '10:00', closesAt: '15:00' });
+    expect(toOpeningHoursRequest(values, 'v1').days?.[6]).toEqual({ day: 7, opensAt: null, closesAt: null });
+  });
+
+  it('sends the times of a day that was unticked as null even when the form still holds them', () => {
+    const values = hoursValuesOf(demoOpeningHours);
+    const unticked = { days: values.days.map((day) => (day.day === 1 ? { ...day, open: false } : day)) };
+
+    expect(toOpeningHoursRequest(unticked, 'v1').days?.[0]).toEqual({ day: 1, opensAt: null, closesAt: null });
+  });
+
+  it('gives a ticked day 9:00 AM to 6:00 PM when it has no times of its own', () => {
+    expect(DEFAULT_OPENS).toBe('09:00');
+    expect(DEFAULT_CLOSES).toBe('18:00');
+  });
+
+  it('reads the week back as the days the preview needs', () => {
+    const days = weekOfValues(hoursValuesOf(demoOpeningHours));
+
+    expect(days[0]).toEqual({ day: 1, opensAt: '09:00', closesAt: '18:00' });
+    expect(days[6]).toEqual({ day: 7, opensAt: null, closesAt: null });
   });
 });
