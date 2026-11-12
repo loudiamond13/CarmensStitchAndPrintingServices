@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
-import { demoHome, demoSite, putBootBlock } from '@/test/publicFixtures';
+import { demoHome, demoSite, putBootBlock, siteHandler, siteWithoutOptionals } from '@/test/publicFixtures';
 
 /** The real route tree at /, settled once the hero h1 is on screen. */
 async function renderHome() {
@@ -103,6 +103,80 @@ describe('HomePage product categories (PUB-02, D-34, D-42)', { timeout: 20_000 }
   it('has no axe violations with the categories showing', async () => {
     const { container } = await renderHome();
     await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' }, { timeout: 15_000 });
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('HomePage story (PUB-01, D-05, D-36, PUB-06)', { timeout: 20_000 }, () => {
+  const TYPED = 'Mockups in 24 hours; production starts as soon as the downpayment is in.';
+  const FALLBACK = 'Mockups come fast; production starts as soon as the downpayment is in.';
+
+  async function renderSettled() {
+    const view = await renderHome();
+    await screen.findByRole('heading', { level: 2, name: 'Teams that suit up with us.' }, { timeout: 15_000 });
+    return view;
+  }
+
+  it('shows the sections in the spec order, with the hero drawing hidden from assistive technology', async () => {
+    const { container } = await renderSettled();
+
+    const main = screen.getByRole('main');
+    const headings = within(main)
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(headings).toEqual([
+      'Pick your kit.',
+      'Made to move. Made to last.',
+      'Idea to jersey in four steps.',
+      'Teams that suit up with us.',
+      "Got a team? Let's suit them up.",
+    ]);
+    expect(container.querySelector('svg[viewBox="0 0 400 480"]')?.closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it('shows the no-promise fallback on the Fast turnaround card when no line is typed', async () => {
+    await renderSettled();
+
+    expect(within(screen.getByRole('main')).getByText(FALLBACK)).toBeInTheDocument();
+  });
+
+  it('shows the typed turnaround line as typed', async () => {
+    server.use(siteHandler({ ...demoSite, turnaroundLine: TYPED }));
+    await renderSettled();
+
+    expect(await within(screen.getByRole('main')).findByText(TYPED)).toBeInTheDocument();
+    expect(within(screen.getByRole('main')).queryByText(FALLBACK)).toBeNull();
+  });
+
+  it('shows the three testimonials with their ratings', async () => {
+    await renderSettled();
+
+    const figures = within(screen.getByRole('main')).getAllByRole('figure');
+    expect(figures).toHaveLength(3);
+    expect(within(screen.getByRole('main')).getAllByRole('img', { name: '5 out of 5' })).toHaveLength(2);
+  });
+
+  it('takes "Message us on Messenger" to the shop link, and the final "Get a Quote" to /contact', async () => {
+    await renderSettled();
+
+    const main = within(screen.getByRole('main'));
+    expect(await main.findByRole('link', { name: 'Message us on Messenger' })).toHaveAttribute(
+      'href',
+      'https://m.me/cspsdemo',
+    );
+    expect(main.getAllByRole('link', { name: 'Get a Quote' }).at(-1)).toHaveAttribute('href', '/contact');
+  });
+
+  it('leaves the Messenger button out when the shop has no link', async () => {
+    server.use(siteHandler(siteWithoutOptionals));
+    await renderSettled();
+
+    expect(within(screen.getByRole('main')).queryByRole('link', { name: 'Message us on Messenger' })).toBeNull();
+  });
+
+  it('has no axe violations on the whole page', async () => {
+    const { container } = await renderSettled();
 
     await expectNoAxeViolations(container);
   });

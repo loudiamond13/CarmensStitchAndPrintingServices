@@ -36,3 +36,63 @@ test('@home / shows six category cards with the seeded card texts, with no home 
     expect(homeRequests).toEqual([]);
   });
 });
+
+const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
+
+test('@home / shows the demo testimonials in order and the typed turnaround line', async ({ page, request }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/');
+
+    const figures = page.getByRole('main').getByRole('figure');
+    await expect(figures).toHaveCount(3);
+    await expect(figures.nth(0)).toContainText('Seventeen pieces, names and numbers perfect.');
+    await expect(figures.nth(0)).toContainText('Juan Dela Cruz');
+    await expect(figures.nth(1)).toContainText('Ana Reyes');
+    await expect(figures.nth(2)).toContainText('Ben Santos');
+    await expect(
+      page.getByRole('main').getByText('Mockups in 24 hours; production starts as soon as the downpayment is in.'),
+    ).toBeVisible();
+    await expect(page.getByRole('main').getByRole('link', { name: 'Message us on Messenger' })).toHaveAttribute(
+      'href',
+      'https://m.me/cspsdemo',
+    );
+  });
+});
+
+test('@home at 390px the testimonials are a focusable region with a visible ring and scroll inside themselves', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto('/');
+
+    const region = page.getByRole('region', { name: 'Testimonials' });
+    await expect(region).toBeAttached();
+    await region.scrollIntoViewIfNeeded();
+    await region.focus();
+    await expect(region).toBeFocused();
+    const ring = await region.evaluate(
+      '(element) => { const style = getComputedStyle(element); return { style: style.outlineStyle, width: parseFloat(style.outlineWidth) }; }',
+    );
+    expect(ring, 'a visible focus ring').toEqual({ style: 'solid', width: 2 });
+    const inner = await region.evaluate('(element) => element.scrollWidth - element.clientWidth');
+    expect(inner, 'the cards are wider than the row, so it scrolls inside itself').toBeGreaterThan(0);
+    expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+  });
+});
+
+for (const width of [320, 768, 1024, 1280, 1920]) {
+  test(`@home at ${String(width)}px the page has no sideways scroll`, async ({ page, request }) => {
+    await withSiteContentLock(async () => {
+      await seedDemoSiteContent(request);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      await expect(page.getByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeVisible();
+
+      expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+    });
+  });
+}
