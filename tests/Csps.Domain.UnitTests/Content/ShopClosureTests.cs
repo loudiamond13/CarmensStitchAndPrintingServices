@@ -13,6 +13,10 @@ public sealed class ShopClosureTests
         Closure("2026-12-24", "2026-12-25").Overlaps(Closure("2026-12-26", "2026-12-27")).ShouldBeFalse();
 
     [Fact]
+    public void AClosureStartingTheDayAfterTheOtherEndsDoesNotOverlapItEither() =>
+        Closure("2026-12-26", "2026-12-27").Overlaps(Closure("2026-12-24", "2026-12-25")).ShouldBeFalse();
+
+    [Fact]
     public void RangesSharingOneDayOverlapInBothDirections()
     {
         var first = Closure("2026-12-24", "2026-12-26");
