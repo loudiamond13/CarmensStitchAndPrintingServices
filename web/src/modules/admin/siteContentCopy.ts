@@ -252,6 +252,8 @@ export const SITE_CONTENT_COPY = {
   productLine: {
     /** "Loading the product line…", "The product line loaded." and "Couldn't load the product line." */
     things: 'the product line',
+    /** The document title while there is no line to name it: "{title} · CSPS Admin". */
+    documentTitle: 'Product Line',
     back: 'Site Content',
     newTitle: 'New Product Line',
     subline: 'Shown on the Home and Products pages.',
@@ -308,7 +310,11 @@ export const SITE_CONTENT_COPY = {
       minimum: (pieces: number): string => ` · min. ${String(pieces)} ${pieces === 1 ? 'pc' : 'pcs'}`,
     },
     types: {
+      /** "Loading order product types…" and "Couldn't load order product types." */
+      things: 'order product types',
       legend: 'Order product types filed here',
+      /** The line under the checklist. */
+      hint: 'A product type belongs to one line. Ticking one from another line moves it here.',
       /** The end of a label whose type is filed under another line: " (now under Volleyball Jerseys)". */
       nowUnder: (title: string): string => ` (now under ${title})`,
       /** The note when there are no order product types: the middle word is a link to Settings. */

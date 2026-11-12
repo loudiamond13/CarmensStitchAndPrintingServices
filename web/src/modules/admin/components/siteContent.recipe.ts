@@ -79,5 +79,8 @@ export const lineTypesFieldsetClasses = tw('m-0 flex min-w-0 flex-col gap-3 bord
 /** The checklist's legend: the field label look (14px 600). */
 export const lineTypesLegendClasses = tw('mb-3 p-0 text-[14px] leading-5 font-semibold text-ink');
 
+/** The line under the checklist, and the note when there are no product types (14px muted). */
+export const lineTypesHintClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');
+
 /** " (now under Volleyball Jerseys)" after a type's name (muted). */
 export const lineTypeNoteClasses = tw('text-[12px] leading-4 font-normal text-ink-muted');

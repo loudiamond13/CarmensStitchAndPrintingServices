@@ -306,7 +306,7 @@ describe('the Order product types card (D-09)', () => {
     productLinesBackend();
     await openLine(LINE_IDS.polo);
 
-    const group = screen.getByRole('group', { name: 'Order product types filed here' });
+    const group = await screen.findByRole('group', { name: 'Order product types filed here' });
     expect(
       within(group)
         .getAllByRole('checkbox')
@@ -331,7 +331,7 @@ describe('the Order product types card (D-09)', () => {
     productLinesBackend();
     await openLine(LINE_IDS.basketball);
 
-    expect(screen.getByRole('checkbox', { name: 'Basketball Jersey' })).toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: 'Basketball Jersey' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Cycling Jersey' })).not.toBeChecked();
   });
 
@@ -339,7 +339,7 @@ describe('the Order product types card (D-09)', () => {
     const backend = productLinesBackend();
     const { user } = await openLine(LINE_IDS.polo);
 
-    await user.click(screen.getByRole('checkbox', { name: /^Volleyball Jersey/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /^Volleyball Jersey/ }));
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     expect(await screen.findByText('Product line saved')).toBeVisible();
@@ -353,11 +353,13 @@ describe('the Order product types card (D-09)', () => {
     ]);
     const { user } = await openLine(LINE_IDS.moto);
 
-    await user.click(screen.getByRole('checkbox', { name: 'Cycling Jersey' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Cycling Jersey' }));
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     expect(await screen.findByText('Product line saved')).toBeVisible();
-    expect(backend.puts[0]?.body.productTypeIds).toEqual([LINE_TYPE_IDS.cycling, LINE_TYPE_IDS.old]);
+    expect([...(backend.puts[0]?.body.productTypeIds ?? [])].sort()).toEqual(
+      [LINE_TYPE_IDS.cycling, LINE_TYPE_IDS.old].sort(),
+    );
   });
 
   it('says there are no order product types yet and links to Settings', async () => {
@@ -365,7 +367,7 @@ describe('the Order product types card (D-09)', () => {
     productLinesBackend();
     await openLine(LINE_IDS.polo);
 
-    expect(screen.getByText(/No order product types yet\. Add them in/)).toBeVisible();
+    expect(await screen.findByText(/No order product types yet\. Add them in/)).toBeVisible();
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/admin/settings');
     expect(screen.queryByRole('group', { name: 'Order product types filed here' })).toBeNull();
   });
@@ -374,10 +376,21 @@ describe('the Order product types card (D-09)', () => {
     productLinesBackend();
     await openNewLine();
 
-    expect(
-      screen.getByRole('checkbox', { name: 'Basketball Jersey (now under Basketball Jerseys)' }),
-    ).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Cycling Jersey' })).not.toBeChecked();
+    const group = await screen.findByRole('group', { name: 'Order product types filed here' });
+    await waitFor(() => {
+      expect(
+        within(group)
+          .getAllByRole('checkbox')
+          .map((box) => box.closest('label')?.textContent),
+      ).toEqual([
+        'Basketball Jersey (now under Basketball Jerseys)',
+        'Cycling Jersey',
+        'Volleyball Jersey (now under Volleyball Jerseys)',
+      ]);
+    });
+    for (const box of within(group).getAllByRole('checkbox')) {
+      expect(box).not.toBeChecked();
+    }
   });
 });
 
@@ -390,7 +403,7 @@ describe('the record, the Hidden badge and the 409 banner (S4)', () => {
     await openLine(LINE_IDS.polo);
 
     expect(screen.getByText('Last changed by')).toBeVisible();
-    expect(screen.getByText('Carmen Reyes')).toBeVisible();
+    expect(screen.getByText(/Carmen Reyes/)).toBeVisible();
   });
 
   it('shows the Hidden badge beside the title, outside the h1, while the line is hidden', async () => {

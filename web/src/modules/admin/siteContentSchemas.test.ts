@@ -722,11 +722,12 @@ describe('the product line form values and request (CONT-02; plan 11-20)', () =>
     expect(toProductLineRequest(productLineValuesOf(null), null).version).toBeNull();
   });
 
-  it('keeps the product types the checklist does not show (retired ones) filed under the line', () => {
-    const values = { ...productLineValuesOf(demoLineDetail('moto')), productTypeIds: [LINE_TYPE_IDS.cycling] };
-    expect(toProductLineRequest(values, 'v1', [LINE_TYPE_IDS.old]).productTypeIds).toEqual([
-      LINE_TYPE_IDS.cycling,
+  it('sends every product type id the form holds, retired ones the checklist does not show included', () => {
+    const line = demoLineDetail('moto', { productTypeIds: [LINE_TYPE_IDS.old, LINE_TYPE_IDS.cycling] });
+    expect(productLineValuesOf(line).productTypeIds).toEqual([LINE_TYPE_IDS.old, LINE_TYPE_IDS.cycling]);
+    expect(toProductLineRequest(productLineValuesOf(line), 'v1').productTypeIds).toEqual([
       LINE_TYPE_IDS.old,
+      LINE_TYPE_IDS.cycling,
     ]);
   });
 

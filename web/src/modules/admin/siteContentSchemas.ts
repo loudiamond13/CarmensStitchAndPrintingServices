@@ -670,21 +670,65 @@ export function readLineMinimum(text: string): number | null {
   return value === '' || lineMinimumError(value) !== null ? null : Number(value);
 }
 
-/** The product line form while it is edited: every control is text, a checkbox is a boolean, the filed types are ids. */
+/** A required text: empty after the trim, then too long, each with its own message (the server counts after the trim too). */
+function lineText(requiredMessage: string, max: number, tooLongMessage: string) {
+  return z.string().superRefine((value, ctx) => {
+    const length = value.trim().length;
+    if (length === 0) {
+      ctx.addIssue({ code: 'custom', message: requiredMessage });
+    } else if (length > max) {
+      ctx.addIssue({ code: 'custom', message: tooLongMessage });
+    }
+  });
+}
+
+/** The number on the drawing: optional, up to 2 ASCII letters or digits, so it always draws on the jersey. */
+const lineNumberField = z.string().superRefine((value, ctx) => {
+  const text = value.trim();
+  let plain = text.length <= LINE_NUMBER_MAX;
+  for (let index = 0; plain && index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    plain = (code >= 0x30 && code <= 0x39) || (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a);
+  }
+  if (!plain) {
+    ctx.addIssue({ code: 'custom', message: LINE.number });
+  }
+});
+
+/** One "what you can customize" text: required with its card title in the message, at most 120 characters. */
+function lineCustomizeText(field: LineCustomizeField) {
+  return lineText(
+    LINE.customizeRequired(SITE_CONTENT_COPY.productLine.customize[field]),
+    LINE_CUSTOMIZE_MAX,
+    LINE.customizeTooLong,
+  );
+}
+
+/** A value checked by one of the message functions above: null is fine. */
+function lineChecked(messageOf: (text: string) => string | null) {
+  return z.string().superRefine((value, ctx) => {
+    const message = messageOf(value);
+    if (message !== null) {
+      ctx.addIssue({ code: 'custom', message });
+    }
+  });
+}
+
+/** ProductLine.Check: every product line rule the server checks, with its message. */
 export const productLineSchema = z.object({
   isActive: z.boolean(),
-  title: z.string(),
-  shortName: z.string(),
-  number: z.string(),
-  cardText: z.string(),
-  description: z.string(),
-  fabricText: z.string(),
-  collarText: z.string(),
-  cutText: z.string(),
-  namesText: z.string(),
-  logosText: z.string(),
-  startsAtPrice: z.string(),
-  minimumQuantity: z.string(),
+  title: lineText(LINE.titleRequired, LINE_TITLE_MAX, LINE.titleTooLong),
+  shortName: lineText(LINE.shortNameRequired, LINE_SHORT_NAME_MAX, LINE.shortNameTooLong),
+  number: lineNumberField,
+  cardText: lineText(LINE.cardTextRequired, LINE_CARD_TEXT_MAX, LINE.cardTextTooLong),
+  description: lineText(LINE.descriptionRequired, LINE_DESCRIPTION_MAX, LINE.descriptionTooLong),
+  fabricText: lineCustomizeText('fabricText'),
+  collarText: lineCustomizeText('collarText'),
+  cutText: lineCustomizeText('cutText'),
+  namesText: lineCustomizeText('namesText'),
+  logosText: lineCustomizeText('logosText'),
+  startsAtPrice: lineChecked(linePriceError),
+  minimumQuantity: lineChecked(lineMinimumError),
   productTypeIds: z.array(z.string()),
 });
 
@@ -742,14 +786,10 @@ export function productLineValuesOf(line: ProductLineDetail | null): ProductLine
 
 /**
  * The save request for the form's values: texts trimmed, the price and minimum as numbers (null for none), and the version an edit was opened
- * with (null for an add). `keptTypeIds` are product types filed under the line that the checklist does not show (retired ones): they stay
- * filed, because the list sent is the whole set.
+ * with (null for an add). The product type list is the whole set, so the form keeps the ids of types its checklist does not show (retired
+ * ones) in `productTypeIds` and they stay filed.
  */
-export function toProductLineRequest(
-  values: ProductLineInput,
-  version: string | null,
-  keptTypeIds: readonly string[] = [],
-): ProductLineRequest {
+export function toProductLineRequest(values: ProductLineInput, version: string | null): ProductLineRequest {
   const price = values.startsAtPrice.trim();
   const minimum = values.minimumQuantity.trim();
   return {
@@ -767,6 +807,6 @@ export function toProductLineRequest(
     startsAtPrice: price === '' || price === '.' ? null : Number(price),
     minimumQuantity: minimum === '' ? null : Number(minimum),
     isActive: values.isActive,
-    productTypeIds: [...values.productTypeIds, ...keptTypeIds.filter((id) => !values.productTypeIds.includes(id))],
+    productTypeIds: [...values.productTypeIds],
   };
 }

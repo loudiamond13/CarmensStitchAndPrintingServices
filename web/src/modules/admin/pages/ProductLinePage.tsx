@@ -15,6 +15,7 @@ import { Controller, FormProvider, useForm, useWatch, type Control, type Path } 
 import { useNavigate, useParams } from 'react-router';
 import { ButtonLink, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon, type IconName } from '@/components/brand';
+import { RecordMeta } from '@/components/data';
 import { Checkbox, MoneyInput } from '@/components/entry';
 import { useToast } from '@/components/feedback';
 import { Field } from '@/components/forms';
@@ -24,8 +25,10 @@ import {
   pageHeadTitleClasses,
   pageSublineClasses,
   pageTitleClasses,
+  srOnlyClasses,
 } from '@/components/layout/layout.recipe';
-import { ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
+import { ConfirmDialog } from '@/components/overlays';
+import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonText } from '@/components/states';
 import { Badge } from '@/components/status';
 import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
@@ -34,6 +37,7 @@ import { expensesFullRowClasses, expensesTitleRowClasses } from '@/modules/admin
 import { OrderFormSaveBar, saveBarCaption } from '@/modules/admin/components/OrderFormSaveBar';
 import { orderFormColClasses, orderFormPageClasses } from '@/modules/admin/components/orderForm.recipe';
 import { orderBackRowClasses, orderStateActionClasses } from '@/modules/admin/components/orderPage.recipe';
+import { OrderProductTypesCard } from '@/modules/admin/components/OrderProductTypesCard';
 import {
   profileCardClasses,
   profileCardBodyClasses,
@@ -47,7 +51,9 @@ import {
   useProductLineQuery,
   useUpdateProductLine,
 } from '@/modules/admin/hooks/useProductLineQueries';
+import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import type { ProductLineDetail } from '@/modules/admin/services/productLinesService';
+import { describeHttpError } from '@/utils/describeHttpError';
 import { SITE_CONTENT_COPY } from '@/modules/admin/siteContentCopy';
 import {
   LINE_CUSTOMIZE_FIELDS,
@@ -157,12 +163,20 @@ function previewOf(priceText: string, minimumText: string): string {
   return price === null ? COPY.preview.noPrice(minimumWords) : COPY.preview.startsAt(formatPeso(price), minimumWords);
 }
 
+/** The machine code of a save made against an old edit version (SEC-07). */
+const EDIT_STALE = 'edit.stale';
+
+/** The latest line from the server, or why it could not be read. */
+export type ReloadResult = { readonly line: ProductLineDetail } | { readonly error: unknown };
+
 interface ProductLineFormProps {
   /** The line as it was read when the editor opened, or null for a new one. */
   line: ProductLineDetail | null;
+  /** Reads the line from the server again (Load Latest); an edit only. */
+  reload?: (() => Promise<ReloadResult>) | undefined;
 }
 
-function ProductLineForm({ line }: ProductLineFormProps) {
+function ProductLineForm({ line, reload }: ProductLineFormProps) {
   const toast = useToast();
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
@@ -172,6 +186,12 @@ function ProductLineForm({ line }: ProductLineFormProps) {
   const [focusTick, setFocusTick] = useState(0);
   // The line was deleted while the editor was open (404).
   const [gone, setGone] = useState(false);
+  // How many stale saves the server has refused since the form was last current; the banner shows from the first.
+  const [conflicts, setConflicts] = useState(0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // The polite line read out after Load Latest.
+  const [status, setStatus] = useState('');
   const form = useForm<ProductLineInput>({
     resolver: zodResolver(productLineSchema),
     mode: 'onBlur',
@@ -185,6 +205,12 @@ function ProductLineForm({ line }: ProductLineFormProps) {
     formState: { errors, isDirty },
   } = form;
   const [priceText, minimumText] = useWatch({ control, name: ['startsAtPrice', 'minimumQuantity'] });
+  const guard = useUnsavedChangesGuard({ isDirty });
+
+  const title = saved === null ? COPY.newTitle : saved.title;
+  useEffect(() => {
+    document.title = `${title}${ADMIN_COPY.titleSuffix}`;
+  }, [title]);
 
   useEffect(() => {
     if (focusTick > 0 && formRef.current !== null) {
@@ -195,6 +221,11 @@ function ProductLineForm({ line }: ProductLineFormProps) {
   const onFailure = (copy: { title: string; body: string }, error: unknown): void => {
     if (isHttpError(error) && error.status === 404 && saved !== null) {
       setGone(true);
+      return;
+    }
+    // 05 D-20: a stale save keeps every typed value; the banner offers Load Latest, which takes focus.
+    if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
+      setConflicts((count) => count + 1);
       return;
     }
     if (isHttpError(error) && error.status === 400) {
@@ -225,6 +256,8 @@ function ProductLineForm({ line }: ProductLineFormProps) {
 
   const create = useCreateProductLine({
     onSuccess: (made) => {
+      // The saved form must not hold its own way to the new line's editor.
+      guard.allowLeave();
       void navigate(editorPath(made.id), { replace: true });
       toast.show({
         title: COPY.toast.added.title,
@@ -237,6 +270,7 @@ function ProductLineForm({ line }: ProductLineFormProps) {
   const update = useUpdateProductLine({
     onSuccess: (made) => {
       setSaved(made);
+      setConflicts(0);
       reset(productLineValuesOf(made));
       toast.show({ title: COPY.toast.saved.title, message: COPY.toast.saved.message });
     },
@@ -257,12 +291,41 @@ function ProductLineForm({ line }: ProductLineFormProps) {
     setFocusTick((tick) => tick + 1);
   };
 
+  /** Load Latest, once the person has agreed to lose what was typed: the values are replaced only when the latest line has arrived. */
+  const loadLatest = async (): Promise<void> => {
+    if (reload === undefined) {
+      return;
+    }
+    setLoadingLatest(true);
+    const result = await reload();
+    setLoadingLatest(false);
+    if ('error' in result) {
+      if (isHttpError(result.error) && result.error.status === 404) {
+        setGone(true);
+        return;
+      }
+      const copy = describeHttpError(result.error);
+      if (copy !== null) {
+        toast.show({ tone: 'danger', title: copy.title, message: copy.body });
+      }
+      return;
+    }
+    setSaved(result.line);
+    setConflicts(0);
+    reset(productLineValuesOf(result.line));
+    setStatus(COPY.latestLoaded);
+    formRef.current?.querySelector<HTMLElement>('input')?.focus();
+  };
+
   if (gone) {
     return <ProductLineNotFound />;
   }
 
-  const title = saved === null ? COPY.newTitle : saved.title;
   const caption = saveBarCaption(pending, Object.keys(errors).length, isDirty);
+  const changedBy =
+    saved?.updatedByName === null || saved?.updatedByName === undefined
+      ? null
+      : { name: saved.updatedByName, formerStaff: false };
 
   return (
     <div className={orderFormPageClasses} data-savebar="">
@@ -290,6 +353,15 @@ function ProductLineForm({ line }: ProductLineFormProps) {
             void handleSubmit(onValid, onInvalid)(event);
           }}
         >
+          {conflicts > 0 && (
+            <ConflictBanner
+              key={conflicts}
+              pending={loadingLatest}
+              onLoadLatest={() => {
+                setAsking(true);
+              }}
+            />
+          )}
           <SiteContentCard title={COPY.cards.names.title} hint={COPY.cards.names.hint}>
             <div className={profileFormGridClasses}>
               <Controller
@@ -396,6 +468,21 @@ function ProductLineForm({ line }: ProductLineFormProps) {
               <p className={clsx(hoursPreviewClasses, expensesFullRowClasses)}>{previewOf(priceText, minimumText)}</p>
             </div>
           </SiteContentCard>
+          {/* SPEC-GAP: product line editor. The three photo slots arrive with plan 11-22; a new line says to save first. */}
+          {saved === null && (
+            <SiteContentCard title={COPY.cards.photos.title} hint={COPY.cards.photos.hint}>
+              <Note icon="info">{COPY.cards.photos.saveFirst}</Note>
+            </SiteContentCard>
+          )}
+          <OrderProductTypesCard control={control} lineId={saved === null ? null : saved.id} />
+          {saved !== null && (
+            <RecordMeta
+              recordedBy={null}
+              recordedAt={null}
+              lastChangedBy={changedBy}
+              lastChangedAt={saved.updatedAtUtc}
+            />
+          )}
           <OrderFormSaveBar
             caption={caption}
             saveLabel={saved === null ? COPY.actions.saveNew : COPY.actions.saveEdit}
@@ -404,6 +491,33 @@ function ProductLineForm({ line }: ProductLineFormProps) {
           />
         </form>
       </FormProvider>
+      <div role="status" aria-live="polite" className={srOnlyClasses}>
+        {status}
+      </div>
+      <ConfirmDialog
+        open={guard.dialog.open}
+        title={COPY.discard.title}
+        message={COPY.discard.message}
+        cancelLabel={COPY.discard.keep}
+        confirmLabel={COPY.discard.discard}
+        onConfirm={guard.dialog.onDiscard}
+        onCancel={guard.dialog.onKeepEditing}
+        loading={pending}
+      />
+      <ConfirmDialog
+        open={asking}
+        title={COPY.discard.title}
+        message={COPY.discard.loadLatestMessage}
+        cancelLabel={COPY.discard.keep}
+        confirmLabel={COPY.discard.discard}
+        onConfirm={() => {
+          setAsking(false);
+          void loadLatest();
+        }}
+        onCancel={() => {
+          setAsking(false);
+        }}
+      />
     </div>
   );
 }
@@ -450,10 +564,18 @@ function EditProductLinePage({ idParam }: { idParam: string }) {
   if (initial === null && query.isSuccess && query.isFetchedAfterMount) {
     setInitial(query.data);
   }
-  const title = initial?.title;
+  // The form names the page once it is open; until then (and when there is no line) the page has the plain name.
   useEffect(() => {
-    document.title = `${title ?? COPY.notFound.title}${ADMIN_COPY.titleSuffix}`;
-  }, [title]);
+    if (initial === null) {
+      document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
+    }
+  }, [initial]);
+
+  /** Load Latest: the line read again; the form replaces what was typed only when it has arrived. */
+  const reload = async (): Promise<ReloadResult> => {
+    const result = await query.refetch();
+    return result.isError || result.data === undefined ? { error: result.error } : { line: result.data };
+  };
 
   const notFound = id === null || (isHttpError(query.error) && query.error.status === 404);
   if (initial === null && notFound) {
@@ -474,7 +596,7 @@ function EditProductLinePage({ idParam }: { idParam: string }) {
         </div>
       )}
       <LoadingRegion loading={initial === null && !failed} failed={failed} things={COPY.things}>
-        {initial !== null && <ProductLineForm line={initial} />}
+        {initial !== null && <ProductLineForm line={initial} reload={reload} />}
         {initial === null && !failed && <ProductLineSkeleton />}
       </LoadingRegion>
     </>
@@ -483,9 +605,6 @@ function EditProductLinePage({ idParam }: { idParam: string }) {
 
 /** The editor of a new line. */
 function NewProductLinePage() {
-  useEffect(() => {
-    document.title = `${COPY.newTitle}${ADMIN_COPY.titleSuffix}`;
-  }, []);
   return <ProductLineForm line={null} />;
 }
 
