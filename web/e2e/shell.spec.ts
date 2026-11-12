@@ -396,10 +396,15 @@ for (const { width, height } of [
   { width: 390, height: 844 },
 ] as const) {
   for (const path of ['/', '/not-a-public-page'] as const) {
-    test(`@shell full bleed public ${path} at ${String(width)}x${String(height)}`, async ({ page }) => {
+    test(`@shell full bleed public ${path} at ${String(width)}x${String(height)}`, async ({ page, guard }) => {
+      // An unknown public path is a real 404 with the shell (plan 11-02), drawn as the 404 page.
+      const status = path === '/' ? 200 : 404;
+      if (status === 404) {
+        guard.expectStatus(path, status);
+      }
       await page.setViewportSize({ width, height });
       const response = await page.goto(path);
-      expect(response?.status()).toBe(200);
+      expect(response?.status()).toBe(status);
       await expect(page.locator('main')).toBeVisible();
       const reading = await geometry(page);
       expect(reading.rootBottom ?? 0, 'page root reaches the viewport bottom').toBeGreaterThanOrEqual(

@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-26T19:02:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-11T21:40:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -40,6 +40,34 @@ A route module is usually the start of its own lazy chunk. In the parity build t
 `QueryRoot` is the lazy route that holds the TanStack Query client for every admin screen. It is in both admin rows because the admin screens need it before they show anything.
 
 If a route module cannot be found in the build at all, the build fails. A renamed or moved route must update `PUBLIC_ROUTE` or `ADMIN_ROUTE` in `budget.ts`; the check never silently skips it.
+
+## Public routes (Phase 11)
+
+From plan 11-08 the public site is measured **one page at a time** (requirement PUB-01, research P-7). Each public page is `PublicLayout` plus that page, on top of the entry chunk and everything they import, and each of the five figures must be at or under 150 KB gzip. A page that grows is named in the table, and the others are not blamed. This replaces the single holding-page row above; the code is `PUBLIC_ROUTES` in `web/scripts/budget.ts`.
+
+| Page | Route modules (after the layout, `src/layouts/PublicLayout.tsx`) |
+|---|---|
+| Home (`/`) | `src/modules/public/pages/HomePage.tsx` |
+| Products (`/products`) | `src/modules/public/pages/ProductsPage.tsx` |
+| Gallery (`/gallery`) | `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/public/pages/GalleryPage.tsx` |
+| Contact (`/contact`) | `src/modules/public/pages/ContactPage.tsx` |
+| Not found (any other path) | `src/modules/public/pages/NotFoundPage.tsx` |
+
+- The report and the numbers file give one figure per page (`publicRoutes`), and `publicJs` is the largest of them.
+- TanStack Query, react-hook-form, zod and admin code are forbidden in every page. nuqs and the `src/lib/url-state/` modules are allowed only in the Gallery row, which is the one route under the lazy `UrlStateLayout` (WEB-10). A module in a chunk the Contact page loads fails the build; the same module in the `UrlStateLayout` chunk passes.
+- The production build preloads only the layout and the Home page (`PUBLIC_PRELOAD_ROUTE`), not all five pages.
+
+Figures from plan 11-08 (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for every page):
+
+| Page | `npm run build:budget` (admin routes included) | `npm run build` (production) |
+|---|---|---|
+| Home | 137.68 KB | 137.41 KB |
+| Products | 138.08 KB | 137.81 KB |
+| Gallery | 143.04 KB | 142.78 KB |
+| Contact | 138.09 KB | 137.82 KB |
+| Not found | 138.22 KB | 137.95 KB |
+
+The Gallery page is the largest because it also loads nuqs. The data sections of later plans must fit in the room that is left (about 12 KB on Home and 7 KB on Gallery), or load lazily.
 
 ## The builds
 

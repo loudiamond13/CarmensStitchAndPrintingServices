@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-10T00:45:00-06:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-11T21:30:00-06:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -107,9 +107,9 @@ Put the tag at the start of the test title so `--grep` can select it.
 
 | Tag | What it covers | Added by |
 |---|---|---|
-| `@smoke` | The home page (the D-17 holding page) loads clean under the strict CSP in all five projects | plans 02-09, 03-09 |
+| `@smoke` | The home page loads clean under the strict CSP in all five projects | plans 02-09, 03-09 |
 | `@fixture` | Self-tests that prove each guard fires: a console error, a CSP violation (an injected `<style>` element), an unlabelled image (axe `image-alt`), and an undeclared 404; and that the axe check finishes in under 10 s on a page with a 3,000-option picker; and the two bar self-tests: a target only a sticky bar partly covers passes the axe check once scrolled clear (the scroll position is kept), and one still covered after the scroll fails | plan 02-09, debug `expenses-add-save-slow`, quick 261026-ooe |
-| `@public` | Every public path (`/`, `/products`, `/gallery`, `/contact`, a deep path) shows the one D-17 holding page: one h1, one main, no site header or footer, the phone as a `tel:` link and the Facebook page as an https link, the skip link, the 320 px fit with no sideways scroll, and page-level axe | plans 02-29, 03-09 |
+| `@public` | Each public path (`/`, `/products`, `/gallery`, `/contact`) answers 200 with its page inside the public layout (one h1, the document title the server sends, one banner, one main, one contentinfo), and an unknown path (`/nope`, a deep path) answers 404 with the "Out of bounds." page; the skip link first in the keyboard order, a footer link that opens Products and sets its title, no sideways scroll and a fitting h1 from 320 to 1920 px, and page-level axe | plans 02-29, 03-09, 11-02, 11-08 |
 | `@admin`, `@showcase` | The admin shell and the Component Showcase, with page-level axe | plans 02-31, 02-34 |
 | `@keyboard` | Keyboard-only paths and focus order: skip link, Tabs, SegmentedControl, dialog traps, toast Dismiss, the phone drawer and the user menu | plans 02-32, 02-35 |
 | `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
