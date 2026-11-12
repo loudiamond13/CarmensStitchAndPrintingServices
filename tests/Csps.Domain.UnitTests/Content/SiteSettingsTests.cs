@@ -5,7 +5,7 @@ namespace Csps.Domain.UnitTests.Content;
 public sealed class SiteSettingsTests
 {
     [Fact]
-    public void CreateDefaultUsesPlaceholderValues()
+    public void CreateDefaultStartsWithTheApprovedTaglineAndNoPublicContactValues()
     {
         var createdAt = new DateTimeOffset(2026, 10, 7, 1, 2, 3, TimeSpan.Zero);
 
@@ -14,17 +14,23 @@ public sealed class SiteSettingsTests
         settings.Id.ShouldBe(SiteSettings.SingletonId);
         settings.Id.ShouldBe(1);
         settings.BusinessName.ShouldBe("Carmen's Stitch & Printing Services");
+        settings.Tagline.ShouldBe("Custom tailoring and full-sublimation printing for teams, leagues and riding groups.");
         settings.TimeZoneId.ShouldBe("Asia/Manila");
         settings.CurrencyCode.ShouldBe("PHP");
         settings.Locale.ShouldBe("en-PH");
-        settings.ContactEmail.ShouldBe("[hello@yourdomain.ph]");
+        settings.ContactEmail.ShouldBeEmpty();
+        settings.FacebookUrl.ShouldBeEmpty();
         settings.ContactPhone.ShouldBe("[0917 000 0000]");
         settings.AddressLine.ShouldBe("[Shop address], [City], Philippines");
-        settings.FacebookUrl.ShouldBe("[Facebook page URL]");
+        new[]
+        {
+            settings.AboutText, settings.TurnaroundLine, settings.Street, settings.TownOrCity, settings.Province, settings.PostalCode,
+            settings.DirectionsUrl, settings.MapEmbedUrl, settings.MessengerUrl, settings.InstagramUrl, settings.TikTokUrl,
+        }.ShouldAllBe(value => value == null);
         settings.CreatedAtUtc.ShouldBe(createdAt);
-        settings.CreatedByUserId.ShouldBeNull();
+        settings.CreatedById.ShouldBeNull();
         settings.UpdatedAtUtc.ShouldBeNull();
-        settings.UpdatedByUserId.ShouldBeNull();
+        settings.UpdatedById.ShouldBeNull();
         settings.RowVersion.ShouldBeEmpty();
     }
 
@@ -39,6 +45,16 @@ public sealed class SiteSettingsTests
         SiteSettingsDefaults.ContactPhone.Length.ShouldBeLessThanOrEqualTo(SiteSettings.ContactPhoneMaxLength);
         SiteSettingsDefaults.AddressLine.Length.ShouldBeLessThanOrEqualTo(SiteSettings.AddressLineMaxLength);
         SiteSettingsDefaults.FacebookUrl.Length.ShouldBeLessThanOrEqualTo(SiteSettings.FacebookUrlMaxLength);
+        SiteSettingsDefaults.Tagline.Length.ShouldBeLessThanOrEqualTo(SiteSettings.TaglineMaxLength);
+    }
+
+    [Fact]
+    public void TheSettingsAreAnAttributedPublicContentRecord()
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        settings.ShouldBeAssignableTo<Csps.Domain.Common.IAttributedRecord>();
+        settings.ShouldBeAssignableTo<IPublicContentRecord>();
     }
 
     [Fact]
@@ -60,6 +76,7 @@ public sealed class SiteSettingsTests
 
     [Theory]
     [InlineData(nameof(SiteSettings.BusinessName))]
+    [InlineData(nameof(SiteSettings.Tagline))]
     [InlineData(nameof(SiteSettings.TimeZoneId))]
     [InlineData(nameof(SiteSettings.CurrencyCode))]
     [InlineData(nameof(SiteSettings.Locale))]
@@ -77,9 +94,10 @@ public sealed class SiteSettingsTests
         settings.ResetToSeedDefaults(ResetAt).ShouldBeTrue();
 
         settings.UpdatedAtUtc.ShouldBe(ResetAt);
-        settings.UpdatedByUserId.ShouldBeNull();
+        settings.UpdatedById.ShouldBeNull();
         settings.CreatedAtUtc.ShouldBe(CreatedAt);
         settings.BusinessName.ShouldBe(SiteSettingsDefaults.BusinessName);
+        settings.Tagline.ShouldBe(SiteSettingsDefaults.Tagline);
         settings.TimeZoneId.ShouldBe(SiteSettingsDefaults.TimeZoneId);
         settings.CurrencyCode.ShouldBe(SiteSettingsDefaults.CurrencyCode);
         settings.Locale.ShouldBe(SiteSettingsDefaults.Locale);

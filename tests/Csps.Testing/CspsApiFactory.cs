@@ -143,6 +143,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // The photo upload limit too; the concurrency cap of two uploads at a time stays on (it is not a setting).
         builder.UseSetting("RateLimits:Images:PermitLimit", "100000");
 
+        // The public reads too; RealLimitsFactory restores the real 600 a minute.
+        builder.UseSetting("RateLimits:PublicRead:PermitLimit", "100000");
+
         ConfigureSettings(builder);
     }
 

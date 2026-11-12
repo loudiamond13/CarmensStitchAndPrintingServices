@@ -1657,6 +1657,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the shop facts every visitor sees: business name, tagline, about text, turnaround line, address parts, phone numbers (the
+         *     main one first), the Messenger, Facebook, Instagram, TikTok, directions and map links, and the current business year. A value
+         *     that is not set is null. The shop email is never sent. A request whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicSite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -3905,6 +3926,63 @@ export interface components {
              * @description The edit version to send back with the next save (SEC-07).
              */
             version: string;
+        };
+        /** @description The shop address as parts; a part that is not set is null. */
+        PublicAddressDto: {
+            /** @description Postal code. */
+            postalCode: null | string;
+            /** @description Province. */
+            province: null | string;
+            /** @description Street and barangay. */
+            street: null | string;
+            /** @description Town or city. */
+            townOrCity: null | string;
+        };
+        /** @description One public phone number. */
+        PublicPhoneDto: {
+            /** @description The number as people read it, such as "0917 123 4567". */
+            display: string;
+            /** @description The number for a `tel:` link, such as "+639171234567". */
+            e164: string;
+            /** @description True for the number the Call buttons dial; the main number is listed first. */
+            isMain: boolean;
+            /** @description An optional label such as "Globe"; null when not set. */
+            label: null | string;
+        };
+        /**
+         * @description The shop facts every visitor sees (PUB-02): name, words, address, phones and links. It carries nothing private; the shop email is
+         *     not a member (D-25). A value that is not set is null and the page leaves it out.
+         */
+        PublicSiteDto: {
+            /** @description The about text, used in search results. */
+            aboutText: null | string;
+            /** @description The address parts. */
+            address: components["schemas"]["PublicAddressDto"];
+            /** @description The business name. */
+            businessName: string;
+            /** @description The directions link. */
+            directionsUrl: null | string;
+            /** @description The Facebook page link. */
+            facebookUrl: null | string;
+            /** @description The Instagram link. */
+            instagramUrl: null | string;
+            /** @description The map embed link. */
+            mapEmbedUrl: null | string;
+            /** @description The Messenger link. */
+            messengerUrl: null | string;
+            /** @description The phone numbers, the main one first. */
+            phones: components["schemas"]["PublicPhoneDto"][];
+            /** @description The tagline. */
+            tagline: string;
+            /** @description The TikTok link. */
+            tiktokUrl: null | string;
+            /** @description The turnaround promise; null makes no time promise. */
+            turnaroundLine: null | string;
+            /**
+             * Format: int32
+             * @description The current business-calendar year, for the footer's copyright line.
+             */
+            year: number | string;
         };
         /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
         RequestEmailChangeRequest: {
@@ -10068,6 +10146,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPublicSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicSiteDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Too Many Requests */

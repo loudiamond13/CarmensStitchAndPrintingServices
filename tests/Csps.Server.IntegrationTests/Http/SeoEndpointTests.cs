@@ -15,7 +15,7 @@ public sealed class SeoEndpointTests
     [Fact]
     public async Task RobotsAllowsTheSiteDisallowsAdminAndApiAndNamesTheSitemap()
     {
-        await using var factory = new CspsApiFactory();
+        await using var factory = new ShellTestFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/robots.txt", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -34,7 +34,7 @@ public sealed class SeoEndpointTests
     [Fact]
     public async Task SitemapListsTheFourPublicPagesUnderTheConfiguredOrigin()
     {
-        await using var factory = new CspsApiFactory();
+        await using var factory = new ShellTestFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -46,6 +46,34 @@ public sealed class SeoEndpointTests
         document.Root.ShouldNotBeNull().Name.ShouldBe(ns + "urlset");
         document.Root.Elements(ns + "url").Select(url => url.Element(ns + "loc")!.Value).ShouldBe(
             [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact"]);
+    }
+
+    [Fact]
+    public async Task EachSitemapUrlHasTheDateOfTheNewestContentChange()
+    {
+        var lastChanged = new DateTimeOffset(2026, 11, 10, 23, 30, 0, TimeSpan.Zero);
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(StubPublicContentReader.Site("Sample Shop"), lastChanged));
+        using var client = factory.CreateClient();
+
+        var document = XDocument.Parse(await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken));
+
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
+            ["2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10"]);
+    }
+
+    [Fact]
+    public async Task WhenTheContentCannotBeReadTheSitemapIsStillSentWithoutDates()
+    {
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(new InvalidOperationException("content is down")));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var document = XDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Count().ShouldBe(4);
         document.Descendants(ns + "lastmod").ShouldBeEmpty();
     }
 
@@ -54,7 +82,7 @@ public sealed class SeoEndpointTests
     [InlineData("/sitemap.xml")]
     public async Task AForgedHostHeaderChangesNothing(string path)
     {
-        await using var factory = new CspsApiFactory();
+        await using var factory = new ShellTestFactory();
         using var client = factory.CreateClient();
         using var honest = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
         using var request = ApiRequests.Get(path);
@@ -73,7 +101,7 @@ public sealed class SeoEndpointTests
     [InlineData("/sitemap.xml")]
     public async Task HeadGetsTheHeadersWithNoBody(string path)
     {
-        await using var factory = new CspsApiFactory();
+        await using var factory = new ShellTestFactory();
         using var client = factory.CreateClient();
         using var request = ApiRequests.Create(HttpMethod.Head, path);
 
@@ -88,7 +116,7 @@ public sealed class SeoEndpointTests
     [InlineData("/sitemap.xml")]
     public async Task BothRevalidateOnEveryUse(string path)
     {
-        await using var factory = new CspsApiFactory();
+        await using var factory = new ShellTestFactory();
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);

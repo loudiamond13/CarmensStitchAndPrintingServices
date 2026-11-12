@@ -4410,6 +4410,182 @@
         ],
         "type": "object"
       },
+      "PublicAddressDto": {
+        "description": "The shop address as parts; a part that is not set is null.",
+        "properties": {
+          "postalCode": {
+            "description": "Postal code.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "province": {
+            "description": "Province.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "street": {
+            "description": "Street and barangay.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "townOrCity": {
+            "description": "Town or city.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "street",
+          "townOrCity",
+          "province",
+          "postalCode"
+        ],
+        "type": "object"
+      },
+      "PublicPhoneDto": {
+        "description": "One public phone number.",
+        "properties": {
+          "display": {
+            "description": "The number as people read it, such as \"0917 123 4567\".",
+            "type": "string"
+          },
+          "e164": {
+            "description": "The number for a `tel:` link, such as \"+639171234567\".",
+            "type": "string"
+          },
+          "isMain": {
+            "description": "True for the number the Call buttons dial; the main number is listed first.",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "An optional label such as \"Globe\"; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "display",
+          "e164",
+          "label",
+          "isMain"
+        ],
+        "type": "object"
+      },
+      "PublicSiteDto": {
+        "description": "The shop facts every visitor sees (PUB-02): name, words, address, phones and links. It carries nothing private; the shop email is\nnot a member (D-25). A value that is not set is null and the page leaves it out.",
+        "properties": {
+          "aboutText": {
+            "description": "The about text, used in search results.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
+            "$ref": "#/components/schemas/PublicAddressDto",
+            "description": "The address parts."
+          },
+          "businessName": {
+            "description": "The business name.",
+            "type": "string"
+          },
+          "directionsUrl": {
+            "description": "The directions link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "facebookUrl": {
+            "description": "The Facebook page link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instagramUrl": {
+            "description": "The Instagram link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mapEmbedUrl": {
+            "description": "The map embed link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messengerUrl": {
+            "description": "The Messenger link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phones": {
+            "description": "The phone numbers, the main one first.",
+            "items": {
+              "$ref": "#/components/schemas/PublicPhoneDto"
+            },
+            "type": "array"
+          },
+          "tagline": {
+            "description": "The tagline.",
+            "type": "string"
+          },
+          "tiktokUrl": {
+            "description": "The TikTok link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "turnaroundLine": {
+            "description": "The turnaround promise; null makes no time promise.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "year": {
+            "description": "The current business-calendar year, for the footer's copyright line.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "businessName",
+          "tagline",
+          "aboutText",
+          "turnaroundLine",
+          "address",
+          "phones",
+          "messengerUrl",
+          "facebookUrl",
+          "instagramUrl",
+          "tiktokUrl",
+          "directionsUrl",
+          "mapEmbedUrl",
+          "year"
+        ],
+        "type": "object"
+      },
       "RequestEmailChangeRequest": {
         "description": "The My Profile change-email form: the new sign-in email and the current password (PROF-02).",
         "properties": {
@@ -13915,6 +14091,43 @@
         ]
       }
     },
+    "/api/v1/public/site": {
+      "get": {
+        "operationId": "GetPublicSite",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSiteDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the shop facts every visitor sees: business name, tagline, about text, turnaround line, address parts, phone numbers (the\nmain one first), the Messenger, Facebook, Instagram, TikTok, directions and map links, and the current business year. A value\nthat is not set is null. The shop email is never sent. A request whose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -15608,6 +15821,9 @@
     },
     {
       "name": "Profile"
+    },
+    {
+      "name": "PublicSite"
     },
     {
       "name": "Sessions"

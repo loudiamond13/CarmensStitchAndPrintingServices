@@ -58,7 +58,7 @@ public static class AuthorizationMatrix
     ];
 
     // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
-    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400.
+    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400. POST /api/testing/site-content needs no body and answers 204.
     private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
         ?
         [
@@ -66,6 +66,7 @@ public static class AuthorizationMatrix
             new("POST", "/api/testing/staff", "/api/testing/staff", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/expenses", "/api/testing/expenses", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/orders", "/api/testing/orders", Anonymous: 400, Admin: 400, Manager: 400),
+            new("POST", "/api/testing/site-content", "/api/testing/site-content", Anonymous: 204, Admin: 204, Manager: 204),
             new("GET", "/api/testing/images/{id}", "/api/testing/images/unknown-photo", Anonymous: 404, Admin: 404, Manager: 404),
             new("POST", "/api/testing/images/fail-next", "/api/testing/images/fail-next", Anonymous: 400, Admin: 400, Manager: 400),
         ]
@@ -78,6 +79,7 @@ public static class AuthorizationMatrix
         new("HEAD", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
         new("*", "/api/{**path}", "/api/v1/does-not-exist", Anonymous: 404, Admin: 404, Manager: 404),
         new("GET", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
@@ -337,6 +339,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/profile/email-change/confirm",
             "POST /api/v1/profile/email-change/check",
             "POST /api/v1/maintenance/run",
+            "GET /api/v1/public/site",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
@@ -349,7 +352,7 @@ public static class AuthorizationMatrix
             "* /scalar/{**path}",
         }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
 
-    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "POST /api/testing/site-content", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>
