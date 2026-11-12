@@ -1,13 +1,16 @@
 using System.IO.Compression;
+using Csps.Server.Endpoints;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 
 namespace Csps.Server.Composition;
 
 /// <summary>
-/// Services the SPA host needs (WEB-01, PERF-02): response compression for the app's static text, so Lighthouse sees
-/// small transfers on the shared host (research Pitfall 3).
+/// Services the SPA host needs (WEB-01, PERF-02, PUB-04): response compression for the app's static text, so Lighthouse
+/// sees small transfers on the shared host (research Pitfall 3), and the shaped shell page.
 /// </summary>
 public static class SpaRegistration
 {
@@ -34,6 +37,9 @@ public static class SpaRegistration
         services.Configure<BrotliCompressionProviderOptions>(static options => options.Level = CompressionLevel.Optimal);
         services.Configure<GzipCompressionProviderOptions>(static options => options.Level = CompressionLevel.Optimal);
 
+        services.AddSingleton<ShellTemplate>();
+        services.AddSingleton<ShellRenderer>();
+
         return services;
     }
 }
@@ -52,9 +58,20 @@ public static class SpaCaching
         ["text/html", "text/css", "text/javascript", "application/javascript", "image/svg+xml"];
 
     /// <summary>
+    /// Builds the static file options: the web root without <c>index.html</c>, so the shell is reachable only through
+    /// the shaped endpoint and never as the raw template (PUB-04), and <see cref="Apply"/> for the cache headers.
+    /// </summary>
+    /// <param name="webRoot">The (already wrapped) web-root file provider.</param>
+    /// <returns>The options for <c>UseStaticFiles</c>.</returns>
+    public static StaticFileOptions CreateStaticFileOptions(IFileProvider webRoot)
+    {
+        ArgumentNullException.ThrowIfNull(webRoot);
+        return new StaticFileOptions { FileProvider = new ShellExcludedFileProvider(webRoot), OnPrepareResponse = Apply };
+    }
+
+    /// <summary>
     /// Sets <c>Cache-Control</c> on a static file: immutable for <c>/assets/*</c>, whose names Vite content-hashes,
-    /// and <c>no-cache</c> for everything else (<c>index.html</c>, <c>robots.txt</c>, <c>mark.svg</c>), so a new
-    /// deploy is picked up at once.
+    /// and <c>no-cache</c> for everything else (<c>mark.svg</c>), so a new deploy is picked up at once.
     /// </summary>
     /// <param name="context">The static file response being prepared.</param>
     public static void Apply(StaticFileResponseContext context)
@@ -65,4 +82,19 @@ public static class SpaCaching
         context.Context.Response.Headers[HeaderNames.CacheControl] =
             isHashedAsset ? ImmutableCacheControl : RevalidateCacheControl;
     }
+}
+
+/// <summary>Hides the shell template from the static file middleware; every other file passes through.</summary>
+/// <param name="inner">The web-root file provider.</param>
+internal sealed class ShellExcludedFileProvider(IFileProvider inner) : IFileProvider
+{
+    public IFileInfo GetFileInfo(string subpath) =>
+        IsShell(subpath) ? new NotFoundFileInfo(subpath) : inner.GetFileInfo(subpath);
+
+    public IDirectoryContents GetDirectoryContents(string subpath) => inner.GetDirectoryContents(subpath);
+
+    public IChangeToken Watch(string filter) => inner.Watch(filter);
+
+    private static bool IsShell(string subpath) =>
+        string.Equals(subpath.Replace('\\', '/').Trim('/'), SpaHosting.ShellFile, StringComparison.OrdinalIgnoreCase);
 }

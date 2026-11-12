@@ -40,16 +40,62 @@ public enum PublicRouteKind
 /// <param name="CanonicalPath">The lower-case path without a trailing slash, for a page.</param>
 public sealed record PublicRouteMatch(PublicRouteKind Kind, PublicPage? Page, string? CanonicalPath);
 
-/// <summary>Skeleton: replaced by the implementation in the next commit.</summary>
+/// <summary>
+/// The one list of paths the server answers as the site (PUB-01, PUB-04). It mirrors the client router: React Router
+/// matches case-insensitively and tolerates one trailing slash, so the server does too, else it would send 404 for a
+/// page the browser draws. <c>tests/fixtures/public-paths.json</c> holds the same page list for the client tests.
+/// </summary>
 public static class PublicRouteTable
 {
-    /// <summary>Gets the known page paths.</summary>
-    public static IReadOnlyList<string> PagePaths { get; } = [];
+    private const string AdminPrefix = "/admin";
+    private const string DevPrefix = "/dev";
 
-    /// <summary>Matches a request path.</summary>
+    private static readonly (string Path, PublicPage Page)[] Pages =
+    [
+        ("/", PublicPage.Home),
+        ("/products", PublicPage.Products),
+        ("/gallery", PublicPage.Gallery),
+        ("/contact", PublicPage.Contact),
+    ];
+
+    /// <summary>Gets the known page paths, lower case, in sitemap order.</summary>
+    public static IReadOnlyList<string> PagePaths { get; } = [.. Pages.Select(static entry => entry.Path)];
+
+    /// <summary>Matches a request path: a page, the admin app, a dev preview path, or nothing.</summary>
     /// <param name="path">The request path.</param>
-    /// <param name="devRoutesKnown">Whether dev paths exist in this environment.</param>
-    /// <returns>The match.</returns>
-    public static PublicRouteMatch Match(PathString path, bool devRoutesKnown) =>
-        new(PublicRouteKind.NotFound, null, null);
+    /// <param name="devRoutesKnown">Whether the <c>/dev</c> preview paths exist in this environment.</param>
+    /// <returns>The match. A page carries its lower-case canonical path, never the request's own text.</returns>
+    public static PublicRouteMatch Match(PathString path, bool devRoutesKnown)
+    {
+        var value = path.Value;
+        if (string.IsNullOrEmpty(value))
+        {
+            return new PublicRouteMatch(PublicRouteKind.Page, PublicPage.Home, "/");
+        }
+
+        var trimmed = value.Length > 1 && value[^1] == '/' ? value[..^1] : value;
+        foreach (var (pagePath, page) in Pages)
+        {
+            if (string.Equals(trimmed, pagePath, StringComparison.OrdinalIgnoreCase))
+            {
+                return new PublicRouteMatch(PublicRouteKind.Page, page, pagePath);
+            }
+        }
+
+        if (IsAtOrUnder(trimmed, AdminPrefix))
+        {
+            return new PublicRouteMatch(PublicRouteKind.Admin, null, null);
+        }
+
+        if (devRoutesKnown && IsAtOrUnder(trimmed, DevPrefix))
+        {
+            return new PublicRouteMatch(PublicRouteKind.Dev, null, null);
+        }
+
+        return new PublicRouteMatch(PublicRouteKind.NotFound, null, null);
+    }
+
+    private static bool IsAtOrUnder(string path, string prefix) =>
+        path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+        && (path.Length == prefix.Length || path[prefix.Length] == '/');
 }
