@@ -11,6 +11,9 @@ export type PublicSiteFixture = components['schemas']['PublicSiteDto'];
 export type PublicPhoneFixture = components['schemas']['PublicPhoneDto'];
 
 export type OpenStatusFixture = components['schemas']['OpenStatusDto'];
+export type PublicProductLinesFixture = components['schemas']['PublicProductLinesDto'];
+export type PublicProductLineFixture = components['schemas']['PublicProductLineDto'];
+export type PublicPhotoFixture = components['schemas']['PublicPhotoDto'];
 
 /** Seven closed days, Monday (1) to Sunday (7): what a shop with no saved hours answers. */
 export const closedWeek: PublicSiteFixture['hours'] = [1, 2, 3, 4, 5, 6, 7].map((day) => ({
@@ -180,13 +183,13 @@ export function answerOpenStatus(status: OpenStatusFixture): void {
   server.use(openStatusHandler(status));
 }
 
-/** Puts the server's boot block into the document, as the shell carries it. */
-export function putBootBlock(site: PublicSiteFixture): void {
+/** Puts the server's boot block into the document, as the shell carries it; /products also carries the product lines. */
+export function putBootBlock(site: PublicSiteFixture, productLines?: PublicProductLinesFixture): void {
   removeBootBlock();
   const block = document.createElement('script');
   block.type = 'application/json';
   block.id = 'csps-boot';
-  block.textContent = JSON.stringify({ site });
+  block.textContent = JSON.stringify(productLines === undefined ? { site } : { site, productLines });
   document.head.append(block);
 }
 
@@ -200,4 +203,137 @@ export function resetPublicData(): void {
   removeBootBlock();
   resetBootData();
   resetPublicResources();
+}
+
+const NO_PHOTOS: PublicProductLineFixture['photos'] = { main: null, back: null, fabric: null };
+
+/** A product line as the API answers it; every part can be overridden. Made-up texts. */
+export function makeLine(overrides: Partial<PublicProductLineFixture> & { key: string }): PublicProductLineFixture {
+  return {
+    title: 'Sample Jerseys',
+    shortName: 'Sample',
+    number: '00',
+    cardText: 'A sample card text.',
+    description: 'A sample description.',
+    customize: {
+      fabric: 'Sample fabric text',
+      collar: 'Sample collar text',
+      cut: 'Sample cut text',
+      names: 'Sample names text',
+      logos: 'Sample logos text',
+    },
+    startsAtPrice: null,
+    minimumQuantity: null,
+    placeholderArt: 'basketball',
+    photos: NO_PHOTOS,
+    hasGalleryItems: false,
+    ...overrides,
+  };
+}
+
+/** The six starting lines: basketball has a price, a minimum and gallery work; volleyball has neither price nor minimum. */
+export const demoLines: PublicProductLinesFixture = {
+  lines: [
+    makeLine({
+      key: 'basketball',
+      title: 'Basketball Jerseys',
+      shortName: 'Basketball',
+      number: '23',
+      description: 'Game-ready tops and shorts, printed edge to edge in any colorway.',
+      customize: {
+        fabric: 'Dri-fit mesh, aircool or spandex blend',
+        collar: 'V-neck, round or layered',
+        cut: "Standard, slim, women's fit and kids",
+        names: 'Any font: front, back and shorts',
+        logos: 'Team crest, sponsors and barangay seal in full color',
+      },
+      startsAtPrice: 650,
+      minimumQuantity: 10,
+      placeholderArt: 'basketball',
+      hasGalleryItems: true,
+    }),
+    makeLine({
+      key: 'volleyball',
+      title: 'Volleyball Jerseys',
+      shortName: 'Volleyball',
+      number: '11',
+      description: 'Light, stretchy and quick-drying for every dig and spike, indoor or beach.',
+      placeholderArt: 'volleyball',
+    }),
+    makeLine({
+      key: 'moto',
+      title: 'Moto Riding Jerseys',
+      shortName: 'Moto',
+      number: '07',
+      description: "Long-sleeve riding tops that breathe on long hauls and keep your club's colors loud on the road.",
+      minimumQuantity: 5,
+      placeholderArt: 'moto',
+    }),
+    makeLine({
+      key: 'longsleeves',
+      title: 'Long Sleeves',
+      shortName: 'Long Sleeves',
+      number: '14',
+      description: 'Warm-ups, shooting shirts and everyday dri-fit long sleeves for training days and team events.',
+      placeholderArt: 'longSleeves',
+    }),
+    makeLine({
+      key: 'polo',
+      title: 'Polo Shirts',
+      shortName: 'Polo',
+      number: '03',
+      description: 'Clean polos for coaches, staff, reunions and company events, sublimated or plain.',
+      startsAtPrice: 450,
+      minimumQuantity: 1,
+      placeholderArt: 'polo',
+    }),
+    makeLine({
+      key: 'custom',
+      title: 'Custom Designs',
+      shortName: 'Custom',
+      number: '00',
+      description: 'Have only an idea or a phone photo? Our artists build the full design from scratch.',
+      placeholderArt: 'custom',
+    }),
+  ],
+};
+
+/** One shown line only. */
+export const oneLine: PublicProductLinesFixture = { lines: demoLines.lines.slice(0, 1) };
+
+/** Every line hidden by the Manager. */
+export const noLines: PublicProductLinesFixture = { lines: [] };
+
+/** A made-up delivered photo with its small sizes. */
+export function photoFor(name: string): PublicPhotoFixture {
+  const base = `https://res.cloudinary.com/sample-cloud/image/upload/${name}`;
+  return { src: `${base}-800.jpg`, srcSet: `${base}-400.jpg 400w, ${base}-800.jpg 800w`, width: 800, height: 1000 };
+}
+
+/** The basketball line with all three photos set. */
+export const lineWithPhotos: PublicProductLineFixture = {
+  ...makeLine({ key: 'basketball', title: 'Basketball Jerseys', shortName: 'Basketball', number: '23' }),
+  startsAtPrice: 650,
+  minimumQuantity: 10,
+  photos: { main: photoFor('main'), back: photoFor('back'), fabric: photoFor('fabric') },
+};
+
+/** An MSW handler that answers GET /api/v1/public/product-lines with `lines`. */
+export function productLinesHandler(lines: PublicProductLinesFixture) {
+  return http.get('*/api/v1/public/product-lines', () => HttpResponse.json(lines));
+}
+
+/** An MSW handler that answers GET /api/v1/public/product-lines with a failure. */
+export function productLinesFailureHandler(status = 500) {
+  return http.get('*/api/v1/public/product-lines', () =>
+    HttpResponse.json(
+      { title: 'Something went wrong.', status },
+      { status, headers: { 'Content-Type': 'application/problem+json' } },
+    ),
+  );
+}
+
+/** Answers the product lines read with `lines` for the rest of the test. */
+export function answerProductLines(lines: PublicProductLinesFixture): void {
+  server.use(productLinesHandler(lines));
 }
