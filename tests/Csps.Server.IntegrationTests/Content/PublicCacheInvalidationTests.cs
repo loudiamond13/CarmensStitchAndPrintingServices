@@ -1,11 +1,18 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
+using Csps.Application.Security;
 using Csps.Infrastructure.Persistence;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
+using Csps.Server.IntegrationTests.Orders;
 using Csps.Testing;
+using Csps.Testing.Images;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Server.IntegrationTests.Content;
@@ -18,6 +25,24 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
 {
     private const string Route = "/api/v1/public/site";
     private static readonly DateTimeOffset Later = new(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+
+    // The writes in the order they are made. "cancel" runs on a second order, because it takes the first one off the website.
+    private static readonly string[] OrderWriteNames =
+    [
+        "public settings save",
+        "item add",
+        "item quantity edit",
+        "item delete",
+        "team name change",
+        "photo add",
+        "second photo add",
+        "cover change",
+        "photo remove",
+        "delete",
+        "restore",
+        "permanent delete",
+        "cancel",
+    ];
 
     [Fact]
     public async Task TheFirstReadAfterACommittedChangeShowsTheNewTaglineAndANewETag()
@@ -274,6 +299,179 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
         {
             await database.ResetAsync();
             await ProductLineSeeding.RestoreSixAsync(database);
+        }
+    }
+
+    [Fact]
+    public async Task EveryWriteToAShownOrderClearsThePublicCache()
+    {
+        var clears = await RunOrderWritesAsync(shown: true);
+
+        clears.Select(step => step.Write).ShouldBe(OrderWriteNames);
+        clears.Where(step => step.Clears == 0).Select(step => step.Write).ShouldBeEmpty("each of these writes on a shown order must clear the public cache");
+    }
+
+    [Fact]
+    public async Task TheSameWritesToAnOrderThatWasNeverShownDoNotClearThePublicCache()
+    {
+        var clears = await RunOrderWritesAsync(shown: false);
+
+        clears.Select(step => step.Write).ShouldBe(OrderWriteNames);
+        clears.Where(step => step.Clears != 0).Select(step => step.Write).ShouldBeEmpty("an order that was never shown is not public data");
+    }
+
+    private async Task<List<(string Write, int Clears)>> RunOrderWritesAsync(bool shown)
+    {
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        var basketball = Csps.Domain.Content.ProductLineSeed.All.Single(entry => entry.Key == "basketball").Id;
+        await using (var setup = database.CreateContext())
+        {
+            (await setup.ProductTypes.SingleAsync(row => row.Id == OrderFixtures.BasketballId, TestContext.Current.CancellationToken)).LinkToLine(basketball);
+            await setup.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var counter = new CountingPublicCache();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<Csps.Application.Ports.IPublicContentCache>();
+            services.AddSingleton<Csps.Application.Ports.IPublicContentCache>(counter);
+        }));
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var token = manager.AccessToken;
+        var today = await TodayAsync(factory);
+        var steps = new List<(string Write, int Clears)>();
+
+        async Task<JsonElement> NewOrderAsync()
+        {
+            var created = await OrderFixtures.CreateAsync(client, token, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+            return shown ? await SavePublicAsync(client, token, created, consent: true, show: true, name: null) : created;
+        }
+
+        async Task StepAsync(string write, Func<Task> action)
+        {
+            var before = counter.Count;
+            await action();
+            steps.Add((write, counter.Count - before));
+        }
+
+        var order = await NewOrderAsync();
+        if (shown)
+        {
+            counter.Count.ShouldBeGreaterThan(0, "showing the order adds its gallery entry, so the counter must have seen a clear");
+        }
+
+        var orderId = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString()!;
+        Task<JsonElement> LatestAsync() => OrderFixtures.ReadDetailAsync(client, token, orderId);
+
+        await StepAsync("public settings save", async () => _ = await SavePublicAsync(client, token, await LatestAsync(), consent: true, show: shown, name: shown ? "Display Name" : null));
+        await StepAsync("item add", async () => _ = await OrderFixtures.AddItemAndReadAsync(client, token, await LatestAsync(), OrderFixtures.BasketballId, "Sample shorts"));
+        var itemId = (await LatestAsync()).GetProperty("items").EnumerateArray().Single(item => item.GetProperty("description").GetString() == "Sample shorts").GetProperty("id").GetGuid();
+        await StepAsync("item quantity edit", async () =>
+        {
+            using var response = await OrderFixtures.PutItemAsync(client, token, orderId, itemId, OrderFixtures.ItemBody(OrderFixtures.BasketballId, (await LatestAsync()).GetProperty("version").GetString(), "Sample shorts", "L", 3, 300.00m));
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        });
+        await StepAsync("item delete", async () =>
+        {
+            using var response = await OrderFixtures.DeleteItemAsync(client, token, orderId, itemId);
+            response.IsSuccessStatusCode.ShouldBeTrue(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        });
+        await StepAsync("team name change", async () =>
+        {
+            var body = OrderFixtures.DetailsBodyFrom(await LatestAsync());
+            body["teamName"] = "Tondo Riders MC";
+            using var response = await OrderFixtures.PutDetailsAsync(client, token, orderId, body);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        });
+        await StepAsync("photo add", () => UploadPhotoAsync(client, token, orderId, 640, 480));
+        await StepAsync("second photo add", () => UploadPhotoAsync(client, token, orderId, 800, 600));
+        var photos = (await LatestAsync()).GetProperty("images").EnumerateArray().Select(image => image.GetProperty("id").GetGuid()).ToList();
+        await StepAsync("cover change", async () =>
+        {
+            using var request = ApiRequests.Create(HttpMethod.Put, $"/api/v1/orders/{orderId:D}/images/{photos[1]:D}/position", token);
+            request.Content = JsonContent.Create(new Dictionary<string, object?> { ["position"] = 0, ["version"] = (await LatestAsync()).GetProperty("version").GetString() });
+            using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        });
+        await StepAsync("photo remove", async () =>
+        {
+            using var request = ApiRequests.Create(HttpMethod.Delete, $"/api/v1/orders/{orderId:D}/images/{photos[0]:D}", token);
+            using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            response.IsSuccessStatusCode.ShouldBeTrue(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        });
+        await StepAsync("delete", async () =>
+        {
+            using var response = await OrderFixtures.DeleteAsync(client, token, orderId);
+            response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        });
+        await StepAsync("restore", async () =>
+        {
+            using var response = await OrderFixtures.RestoreAsync(client, token, orderId);
+            response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        });
+        await StepAsync("permanent delete", async () =>
+        {
+            using var response = await OrderFixtures.PermanentlyDeleteAsync(client, token, orderId, number);
+            response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        });
+
+        var second = await NewOrderAsync();
+        await StepAsync("cancel", async () => _ = await OrderFixtures.ChangeStatusAndReadAsync(client, token, second.GetProperty("id").GetGuid(), "cancelled"));
+        return steps;
+    }
+
+    private static async Task<DateOnly> TodayAsync(WebApplicationFactory<Program> factory)
+    {
+        var scope = factory.Services.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            var calendar = scope.ServiceProvider.GetRequiredService<Csps.Application.Ports.IBusinessCalendar>();
+            return (await calendar.GetClockAsync(TestContext.Current.CancellationToken)).Today;
+        }
+    }
+
+    private static async Task<JsonElement> SavePublicAsync(HttpClient client, string token, JsonElement order, bool consent, bool show, string? name)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Put, $"/api/v1/orders/{order.GetProperty("id").GetGuid():D}/public", token);
+        request.Content = JsonContent.Create(new Dictionary<string, object?>
+        {
+            ["version"] = order.GetProperty("version").GetString(),
+            ["customerConsent"] = consent,
+            ["showOnWebsite"] = show,
+            ["productLineId"] = null,
+            ["publicName"] = name,
+        });
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
+    private static async Task UploadPhotoAsync(HttpClient client, string token, Guid orderId, int width, int height)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Post, $"/api/v1/orders/{orderId:D}/images", token);
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("D"));
+        request.Content = MultipartBodies.Content("cache-boundary", [MultipartPart.Upload("file", SyntheticImages.Jpeg(width, height))]);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    // Counts the clears the interceptor asks for; it never touches the real cache.
+    private sealed class CountingPublicCache : Csps.Application.Ports.IPublicContentCache
+    {
+        private int _count;
+
+        public int Count => Volatile.Read(ref _count);
+
+        public ValueTask InvalidateAsync(CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _count);
+            return ValueTask.CompletedTask;
         }
     }
 

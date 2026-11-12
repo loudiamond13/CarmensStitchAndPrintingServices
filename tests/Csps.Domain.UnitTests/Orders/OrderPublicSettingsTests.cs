@@ -320,6 +320,67 @@ public sealed class OrderPublicSettingsTests
     }
 
     [Fact]
+    public void CancellingAShownOrderTurnsShowingOffAndKeepsTheOk()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+
+        var moved = order.ChangeStatus(OrderStatus.Cancelled, Manager, Latest);
+
+        moved.IsSuccess.ShouldBeTrue();
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.ShownOnWebsiteSinceUtc.ShouldBeNull();
+        order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
+    }
+
+    [Fact]
+    public void ReopeningACancelledOrderDoesNotPutItBackOnTheWebsite()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+        order.ChangeStatus(OrderStatus.Cancelled, Manager, Latest).IsSuccess.ShouldBeTrue();
+
+        var reopened = order.ChangeStatus(OrderStatus.Pending, Manager, Latest.AddDays(1));
+
+        reopened.IsSuccess.ShouldBeTrue();
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.HasCustomerConsent.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void CancellingAnOrderThatWasNeverShownKeepsItsOkAndStaysOff()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(new OrderPublicSettings(true, false, null, null), Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+
+        order.ChangeStatus(OrderStatus.Cancelled, Manager, Latest).IsSuccess.ShouldBeTrue();
+
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.HasCustomerConsent.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void DeletingAShownOrderChangesNoWebsiteSettingAndARestoreKeepsThemAsTheyWereP11BL29()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+
+        order.SoftDelete(Manager, Latest).ShouldBeTrue();
+
+        order.IsShownOnWebsite.ShouldBeTrue();
+        order.ShownOnWebsiteSinceUtc.ShouldBe(Later);
+        order.HasCustomerConsent.ShouldBeTrue();
+
+        order.Restore().ShouldBeTrue();
+
+        order.IsShownOnWebsite.ShouldBeTrue();
+        order.ShownOnWebsiteSinceUtc.ShouldBe(Later);
+        order.HasCustomerConsent.ShouldBeTrue();
+    }
+
+    [Fact]
     public void ANullSettingsValueIsRefused() =>
         Should.Throw<ArgumentNullException>(() => NewOrder().SetPublicSettings(null!, Admin, null, Later));
 
