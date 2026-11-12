@@ -185,6 +185,184 @@ export const SITE_CONTENT_COPY = {
       noteTooLong: 'Keep the note to 80 characters or fewer.',
     },
   },
+  /** S3 Products tab: the ordered list of the product lines and its row actions (plan 11-20). */
+  products: {
+    /** "Loading product lines…", "The product lines loaded." and "Couldn't load product lines." */
+    things: 'product lines',
+    card: {
+      title: 'Product lines',
+      hint: 'Shown on the Home and Products pages, in this order. The Gallery filters use the short names.',
+    },
+    add: 'Add Product Line',
+    table: {
+      caption: 'Product lines',
+      line: 'Product line',
+      startsAt: 'Starts at',
+      orderTypes: 'Order types',
+      gallery: 'Gallery',
+      status: 'Status',
+      actions: 'Actions',
+    },
+    status: { shown: 'Shown', hidden: 'Hidden' },
+    /** "min. 10 pcs", under the price. */
+    minimum: (pieces: number): string => `min. ${String(pieces)} ${pieces === 1 ? 'pc' : 'pcs'}`,
+    /** The line under the table: hide versus delete. */
+    caption:
+      "A product line with photos, gallery items or linked order types can't be deleted. Hide it to take it off the website. Nothing is lost.",
+    /** The polite line after a move: "Basketball Jerseys moved to position 2 of 6." */
+    moved: (title: string, position: number, total: number): string =>
+      `${title} moved to position ${String(position)} of ${String(total)}.`,
+    rowActions: {
+      up: (title: string): string => `Move ${title} up`,
+      down: (title: string): string => `Move ${title} down`,
+      edit: (title: string): string => `Edit ${title}`,
+      hide: (title: string): string => `Hide ${title}`,
+      show: (title: string): string => `Show ${title}`,
+      remove: (title: string): string => `Delete ${title}`,
+    },
+    empty: {
+      title: 'No product lines yet',
+      message: 'Add your first product line to show it on the Home and Products pages.',
+    },
+    toast: {
+      hidden: {
+        title: (title: string): string => `${title} hidden`,
+        message: 'It and its gallery photos are off the website. Nothing is deleted.',
+      },
+      shown: { title: (title: string): string => `${title} shown`, message: "It's on the website again." },
+      deleted: { title: 'Product line deleted', message: (title: string): string => `${title} was removed.` },
+      alreadyDeleted: 'Already deleted',
+    },
+    /** The danger toast of an immediate action that failed (SPEC-GAP); its message is the shared error line. */
+    failed: {
+      move: (title: string): string => `Couldn't move ${title}`,
+      hide: (title: string): string => `Couldn't hide ${title}`,
+      show: (title: string): string => `Couldn't show ${title}`,
+    },
+    remove: {
+      title: (title: string): string => `Delete ${title}?`,
+      message: "It's removed for good. This can't be undone.",
+      confirm: 'Delete Product Line',
+      pending: 'Deleting',
+      /** The server's own words for a line that became used meanwhile (UI-SPEC Validation). */
+      inUse: 'This product line is in use. Hide it instead.',
+    },
+  },
+  /** S4 Product line editor: /admin/site-content/products/new and /:lineId (plan 11-20). */
+  productLine: {
+    /** "Loading the product line…", "The product line loaded." and "Couldn't load the product line." */
+    things: 'the product line',
+    /** The document title while there is no line to name it: "{title} · CSPS Admin". */
+    documentTitle: 'Product Line',
+    back: 'Site Content',
+    newTitle: 'New Product Line',
+    subline: 'Shown on the Home and Products pages.',
+    hidden: 'Hidden',
+    cards: {
+      names: { title: 'Names', hint: 'How the line is named on the website.' },
+      words: { title: 'Words', hint: 'The Home card text and the Products page description.' },
+      customize: {
+        title: 'What you can customize',
+        hint: 'The five cards stay the same. Write what each offers for this line.',
+      },
+      price: { title: 'Price', hint: 'Leave the price empty to show Message us for a price.' },
+      photos: {
+        title: 'Photos',
+        hint: 'Main photo, back view and fabric detail. Until a photo is added, the drawing shows.',
+        saveFirst: 'Save the product line first, then add photos.',
+      },
+      types: {
+        title: 'Order product types',
+        hint: 'Orders with these product types are filed under this line when staff show them on the website.',
+      },
+    },
+    fields: {
+      show: 'Show on the website',
+      title: { label: 'Title', placeholder: 'e.g. Basketball Jerseys' },
+      shortName: {
+        label: 'Short name',
+        placeholder: 'e.g. Basketball',
+        hint: 'Used on the Gallery filters and the See basketball work button.',
+      },
+      number: {
+        label: 'Number on the drawing',
+        placeholder: 'e.g. 23',
+        hint: 'Shown on the drawn jersey and the empty photo boxes.',
+      },
+      cardText: { label: 'Card text', hint: 'Shown on the Home page card.' },
+      description: { label: 'Description', hint: 'Shown on the Products page under the title.' },
+      price: { label: 'Starts at, per piece' },
+      minimum: { label: 'Minimum order, pieces' },
+    },
+    /** The five fixed customize cards, in the order the public page draws them. */
+    customize: {
+      fabricText: 'Fabric',
+      collarText: 'Collar style',
+      cutText: 'Cut & fit',
+      namesText: 'Names & numbers',
+      logosText: 'Logos & sponsors',
+    },
+    /** The line under the price fields: what visitors will read. */
+    preview: {
+      startsAt: (price: string, minimum: string): string => `Visitors see: Starts at ${price} / pc${minimum}`,
+      noPrice: (minimum: string): string => `Visitors see: Message us for a price${minimum}`,
+      /** " · min. 10 pcs" */
+      minimum: (pieces: number): string => ` · min. ${String(pieces)} ${pieces === 1 ? 'pc' : 'pcs'}`,
+    },
+    types: {
+      /** "Loading order product types…" and "Couldn't load order product types." */
+      things: 'order product types',
+      legend: 'Order product types filed here',
+      /** The line under the checklist. */
+      hint: 'A product type belongs to one line. Ticking one from another line moves it here.',
+      /** The end of a label whose type is filed under another line: " (now under Volleyball Jerseys)". */
+      nowUnder: (title: string): string => ` (now under ${title})`,
+      /** The note when there are no order product types: the middle word is a link to Settings. */
+      none: { before: 'No order product types yet. Add them in ', link: 'Settings', after: '.' },
+    },
+    actions: { cancel: 'Cancel', saveNew: 'Save Product Line', saveEdit: 'Save Changes', saving: 'Saving' },
+    notFound: {
+      title: "This product line wasn't found.",
+      message: 'It may have been deleted. Go back to the list.',
+      back: 'Back to Products',
+    },
+    toast: {
+      added: {
+        title: 'Product line added',
+        hiddenMessage: "It's hidden until you tick Show on the website.",
+        shownMessage: "It's on the website now.",
+      },
+      saved: { title: 'Product line saved', message: 'The website shows the changes now.' },
+    },
+    /** The polite line after Load Latest. */
+    latestLoaded: 'Latest version loaded. Make your changes again.',
+    /** The "Discard changes?" dialog over a changed editor (08 D-58). */
+    discard: {
+      title: 'Discard changes?',
+      message: "Your changes to this product line haven't been saved. If you leave now, they're lost.",
+      keep: 'Keep Editing',
+      discard: 'Discard Changes',
+      loadLatestMessage: 'Load Latest replaces what you typed with the saved version. Your typed changes are lost.',
+    },
+    /** The server's own words (UI-SPEC Validation), so the browser and the API say the same thing. */
+    errors: {
+      titleRequired: 'Enter the title.',
+      titleTooLong: 'Keep the title to 60 characters or fewer.',
+      shortNameRequired: 'Enter a short name.',
+      shortNameTooLong: 'Keep the short name to 20 characters or fewer.',
+      number: 'Use up to 2 letters or digits, like 23 or 3X.',
+      cardTextRequired: 'Enter the card text.',
+      cardTextTooLong: 'Keep the card text to 140 characters or fewer.',
+      descriptionRequired: 'Enter the description.',
+      descriptionTooLong: 'Keep the description to 300 characters or fewer.',
+      customizeRequired: (label: string): string => `Enter the ${label} text.`,
+      customizeTooLong: 'Keep this to 120 characters or fewer.',
+      priceDecimals: 'Use at most 2 decimal places.',
+      priceTooLow: 'Enter a price of at least ₱0.01.',
+      priceTooHigh: 'Enter a price up to ₱999,999.99.',
+      minimum: 'Enter a whole number from 1 to 9,999.',
+    },
+  },
   /** Inline errors: the server's own words (UI-SPEC Validation). */
   errors: {
     businessNameRequired: 'Enter the business name.',

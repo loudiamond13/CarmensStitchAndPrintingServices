@@ -208,7 +208,8 @@ export const adminRoutes: RouteObject[] = [
           // D-14: the Manager-only Settings page (expense categories); an Admin is sent to /admin by the loader.
           { path: 'settings', loader: requireManager, lazy: settingsPage },
           // D-27: the Manager-only Site Content page (the public website's words, hours, products and gallery); an Admin is sent to /admin by the loader.
-          { path: 'site-content', loader: requireManager, lazy: siteContentPage },
+          // D-34, CONT-02: the splat also carries the Manager-only product line editor (`products/new`, `products/{id}`): the page reads the rest of the address, so the shared entry grows by almost nothing (PERF-01: Contact has no room).
+          { path: 'site-content/*', loader: requireManager, lazy: siteContentPage },
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
           { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },

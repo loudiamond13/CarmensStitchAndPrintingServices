@@ -2,7 +2,13 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { demoClosures, demoOpeningHours, demoSiteSettings } from '@/test/siteContentFixtures';
+import {
+  demoClosures,
+  demoLineDetail,
+  demoOpeningHours,
+  demoSiteSettings,
+  LINE_TYPE_IDS,
+} from '@/test/siteContentFixtures';
 import {
   businessInfoSchema,
   businessInfoValuesOf,
@@ -21,9 +27,14 @@ import {
   isMessengerLink,
   isTikTokLink,
   phoneE164,
+  productLineSchema,
+  productLineValuesOf,
+  readLineMinimum,
+  readLinePrice,
   reduceEmbedCode,
   toClosureRequest,
   toOpeningHoursRequest,
+  toProductLineRequest,
   toSiteSettingsRequest,
   weekOfValues,
   type BusinessInfoInput,
@@ -654,5 +665,190 @@ describe('the closure form values and request (plan 11-16)', () => {
       note: null,
       version: 'v1',
     });
+  });
+});
+
+describe('the product line form values and request (CONT-02; plan 11-20)', () => {
+  it('shows a saved line as text: the price with two decimals, the minimum as digits, no price as an empty box', () => {
+    const basketball = productLineValuesOf(demoLineDetail('basketball'));
+    expect(basketball).toMatchObject({
+      isActive: true,
+      title: 'Basketball Jerseys',
+      shortName: 'Basketball',
+      number: '23',
+      startsAtPrice: '650.00',
+      minimumQuantity: '10',
+      productTypeIds: [LINE_TYPE_IDS.basketball],
+    });
+    expect(productLineValuesOf(demoLineDetail('polo'))).toMatchObject({ startsAtPrice: '', minimumQuantity: '' });
+  });
+
+  it('starts a new line unticked (hidden), with every text empty and no product type', () => {
+    expect(productLineValuesOf(null)).toEqual({
+      isActive: false,
+      title: '',
+      shortName: '',
+      number: '',
+      cardText: '',
+      description: '',
+      fabricText: '',
+      collarText: '',
+      cutText: '',
+      namesText: '',
+      logosText: '',
+      startsAtPrice: '',
+      minimumQuantity: '',
+      productTypeIds: [],
+    });
+  });
+
+  it('sends an edit with the version, the texts trimmed, the price and minimum as numbers and an empty one as null', () => {
+    const values = {
+      ...productLineValuesOf(demoLineDetail('polo')),
+      title: '  Polo Shirts ',
+      startsAtPrice: '450.00',
+      minimumQuantity: '',
+    };
+    expect(toProductLineRequest(values, 'v1')).toMatchObject({
+      version: 'v1',
+      title: 'Polo Shirts',
+      startsAtPrice: 450,
+      minimumQuantity: null,
+      isActive: true,
+    });
+  });
+
+  it('sends an add with no version', () => {
+    expect(toProductLineRequest(productLineValuesOf(null), null).version).toBeNull();
+  });
+
+  it('sends every product type id the form holds, retired ones the checklist does not show included', () => {
+    const line = demoLineDetail('moto', { productTypeIds: [LINE_TYPE_IDS.old, LINE_TYPE_IDS.cycling] });
+    expect(productLineValuesOf(line).productTypeIds).toEqual([LINE_TYPE_IDS.old, LINE_TYPE_IDS.cycling]);
+    expect(toProductLineRequest(productLineValuesOf(line), 'v1').productTypeIds).toEqual([
+      LINE_TYPE_IDS.old,
+      LINE_TYPE_IDS.cycling,
+    ]);
+  });
+
+  it('reads the price and minimum a visitor would see, and nothing from a value the rules refuse', () => {
+    expect(readLinePrice('650.00')).toBe(650);
+    expect(readLinePrice('')).toBeNull();
+    expect(readLinePrice('0.00')).toBeNull();
+    expect(readLinePrice('1000000.00')).toBeNull();
+    expect(readLineMinimum('10')).toBe(10);
+    expect(readLineMinimum('')).toBeNull();
+    expect(readLineMinimum('0')).toBeNull();
+    expect(readLineMinimum('10000')).toBeNull();
+  });
+});
+
+describe('productLineSchema: every ProductLine.Check rule with the server message (OR-3, CONT-02; plan 11-20)', () => {
+  const good = productLineValuesOf(demoLineDetail('basketball'));
+
+  /** The first message per field for these values, by field name. */
+  function messagesOf(overrides: Partial<ReturnType<typeof productLineValuesOf>>): Record<string, string> {
+    const result = productLineSchema.safeParse({ ...good, ...overrides });
+    const messages: Record<string, string> = {};
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        messages[String(issue.path[0])] ??= issue.message;
+      }
+    }
+    return messages;
+  }
+
+  it('accepts a saved line and a line with every text and no price, minimum or number', () => {
+    expect(messagesOf({})).toEqual({});
+    expect(messagesOf({ startsAtPrice: '', minimumQuantity: '', number: '' })).toEqual({});
+  });
+
+  it('title: required, and at most 60 characters counted after the trim', () => {
+    expect(messagesOf({ title: '' }).title).toBe('Enter the title.');
+    expect(messagesOf({ title: '   ' }).title).toBe('Enter the title.');
+    expect(messagesOf({ title: 'a'.repeat(61) }).title).toBe('Keep the title to 60 characters or fewer.');
+    expect(messagesOf({ title: 'a'.repeat(60) }).title).toBeUndefined();
+    expect(messagesOf({ title: `  ${'a'.repeat(60)}  ` }).title).toBeUndefined();
+  });
+
+  it('short name: required, and at most 20 characters', () => {
+    expect(messagesOf({ shortName: '' }).shortName).toBe('Enter a short name.');
+    expect(messagesOf({ shortName: 'a'.repeat(21) }).shortName).toBe('Keep the short name to 20 characters or fewer.');
+    expect(messagesOf({ shortName: 'a'.repeat(20) }).shortName).toBeUndefined();
+  });
+
+  it('number: optional, up to 2 ASCII letters or digits', () => {
+    for (const number of ['', '3', '23', '3X', 'ab']) {
+      expect(messagesOf({ number }).number, number).toBeUndefined();
+    }
+    for (const number of ['123', 'abc', '2 3', '#1', 'é1', '3.']) {
+      expect(messagesOf({ number }).number, number).toBe('Use up to 2 letters or digits, like 23 or 3X.');
+    }
+  });
+
+  it('card text and description: required, at most 140 and 300 characters', () => {
+    expect(messagesOf({ cardText: '' }).cardText).toBe('Enter the card text.');
+    expect(messagesOf({ cardText: 'a'.repeat(141) }).cardText).toBe('Keep the card text to 140 characters or fewer.');
+    expect(messagesOf({ cardText: 'a'.repeat(140) }).cardText).toBeUndefined();
+    expect(messagesOf({ description: '' }).description).toBe('Enter the description.');
+    expect(messagesOf({ description: 'a'.repeat(301) }).description).toBe(
+      'Keep the description to 300 characters or fewer.',
+    );
+    expect(messagesOf({ description: 'a'.repeat(300) }).description).toBeUndefined();
+  });
+
+  it('each customize text: required with its own card title in the message, at most 120 characters', () => {
+    const labels = {
+      fabricText: 'Fabric',
+      collarText: 'Collar style',
+      cutText: 'Cut & fit',
+      namesText: 'Names & numbers',
+      logosText: 'Logos & sponsors',
+    } as const;
+    for (const [field, label] of Object.entries(labels)) {
+      expect(messagesOf({ [field]: '' })[field], field).toBe(`Enter the ${label} text.`);
+      expect(messagesOf({ [field]: 'a'.repeat(121) })[field], field).toBe('Keep this to 120 characters or fewer.');
+      expect(messagesOf({ [field]: 'a'.repeat(120) })[field], field).toBeUndefined();
+    }
+  });
+
+  it('price: 0.01 and 999,999.99 pass; 0.00, 1,000,000.00 and three decimals fail, the decimals checked before the range', () => {
+    for (const price of ['', '0.01', '1', '650.00', '999999.99', '999999']) {
+      expect(messagesOf({ startsAtPrice: price }).startsAtPrice, price).toBeUndefined();
+    }
+    for (const price of ['0', '0.00', '0.0']) {
+      expect(messagesOf({ startsAtPrice: price }).startsAtPrice, price).toBe('Enter a price of at least ₱0.01.');
+    }
+    for (const price of ['1000000.00', '1000000', '9999999.99']) {
+      expect(messagesOf({ startsAtPrice: price }).startsAtPrice, price).toBe('Enter a price up to ₱999,999.99.');
+    }
+    for (const price of ['1.234', '0.001', '1000000.001']) {
+      expect(messagesOf({ startsAtPrice: price }).startsAtPrice, price).toBe('Use at most 2 decimal places.');
+    }
+  });
+
+  it('minimum: 1 and 9,999 pass; 0, 10,000, a fraction and a word fail', () => {
+    for (const minimum of ['', '1', '10', '9999']) {
+      expect(messagesOf({ minimumQuantity: minimum }).minimumQuantity, minimum).toBeUndefined();
+    }
+    for (const minimum of ['0', '10000', '1.5', 'abc', '-1', '1e3']) {
+      expect(messagesOf({ minimumQuantity: minimum }).minimumQuantity, minimum).toBe(
+        'Enter a whole number from 1 to 9,999.',
+      );
+    }
+  });
+
+  it('flags every required field of a new, empty line, and nothing else', () => {
+    expect(Object.keys(messagesOf(productLineValuesOf(null))).sort()).toEqual([
+      'cardText',
+      'collarText',
+      'cutText',
+      'description',
+      'fabricText',
+      'logosText',
+      'namesText',
+      'shortName',
+      'title',
+    ]);
   });
 });

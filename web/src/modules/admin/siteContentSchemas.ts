@@ -5,11 +5,14 @@
 // The accept and refuse cases are the files the .NET tests read too: tests/fixtures/philippine-phone-cases.json and
 // tests/fixtures/site-link-cases.json. Only what the server alone can know stays server-side.
 import { z } from 'zod';
+import { ENTRY_COPY } from '@/components/entry/copy';
 import { isEmailShaped } from '@/modules/admin/authSchemas';
 import type { OpeningHours, UpdateOpeningHoursRequest } from '@/modules/admin/services/openingHoursService';
+import type { ProductLineDetail, ProductLineRequest } from '@/modules/admin/services/productLinesService';
 import type { ShopClosure, ShopClosureRequest } from '@/modules/admin/services/shopClosuresService';
 import type { SiteSettings, UpdateSiteSettingsRequest } from '@/modules/admin/services/siteSettingsService';
 import { isCalendarDate } from '@/lib/url-state/parsers';
+import { centavosToMoneyText } from '@/utils/format';
 import { formatTime, type WeekDayHours } from '@/utils/hours';
 import { SITE_CONTENT_COPY } from './siteContentCopy';
 
@@ -597,5 +600,213 @@ export function toClosureRequest(values: ClosureInput, version: string | null): 
     lastDay: optional(values.lastDay),
     note: optional(values.note),
     version,
+  };
+}
+
+// ---- The product line form (CONT-02, D-04, D-07; plans 11-17 and 11-20) --------------------------------------------------------------
+// It mirrors ProductLine.Check (the rules the request validator and the domain share) with the server's own messages. Every control is text;
+// the price and minimum become numbers only for the request. What only the server can know (a short name another line uses) stays there.
+
+const LINE = SITE_CONTENT_COPY.productLine.errors;
+
+export const LINE_TITLE_MAX = 60;
+export const LINE_SHORT_NAME_MAX = 20;
+export const LINE_NUMBER_MAX = 2;
+export const LINE_CARD_TEXT_MAX = 140;
+export const LINE_DESCRIPTION_MAX = 300;
+export const LINE_CUSTOMIZE_MAX = 120;
+export const LINE_MINIMUM_MAX = 9999;
+
+/** The most a price may be, in centavos (999,999.99 pesos). */
+const LINE_PRICE_MAX_CENTAVOS = 99_999_999;
+
+/** The five "what you can customize" fields of the form and the request, in the order the public page draws them. */
+export const LINE_CUSTOMIZE_FIELDS = ['fabricText', 'collarText', 'cutText', 'namesText', 'logosText'] as const;
+export type LineCustomizeField = (typeof LINE_CUSTOMIZE_FIELDS)[number];
+
+/** The message under the price for `text`, or null when it is empty (no price) or from 0.01 to 999,999.99 with at most 2 decimals. */
+export function linePriceError(text: string): string | null {
+  const value = text.trim();
+  if (value === '' || value === '.') {
+    return null;
+  }
+  if (!/^\d*(\.\d*)?$/.test(value)) {
+    return ENTRY_COPY.money.invalid;
+  }
+  const [whole = '', fraction = ''] = value.split('.');
+  // The decimals are checked before the range, as the server does.
+  if (fraction.length > 2) {
+    return LINE.priceDecimals;
+  }
+  const pesos = whole.replace(/^0+/, '');
+  if (pesos.length > 6) {
+    return LINE.priceTooHigh;
+  }
+  const centavos = Number(pesos === '' ? '0' : pesos) * 100 + Number(fraction.padEnd(2, '0'));
+  if (centavos < 1) {
+    return LINE.priceTooLow;
+  }
+  return centavos > LINE_PRICE_MAX_CENTAVOS ? LINE.priceTooHigh : null;
+}
+
+/** The message under the minimum for `text`, or null when it is empty (no minimum) or a whole number from 1 to 9,999. */
+export function lineMinimumError(text: string): string | null {
+  const value = text.trim();
+  if (value === '') {
+    return null;
+  }
+  return /^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= LINE_MINIMUM_MAX ? null : LINE.minimum;
+}
+
+/** The price a visitor would see for what is typed: null when there is none or the rules refuse it. */
+export function readLinePrice(text: string): number | null {
+  const value = text.trim();
+  return value === '' || value === '.' || linePriceError(value) !== null ? null : Number(value);
+}
+
+/** The minimum a visitor would see for what is typed: null when there is none or the rules refuse it. */
+export function readLineMinimum(text: string): number | null {
+  const value = text.trim();
+  return value === '' || lineMinimumError(value) !== null ? null : Number(value);
+}
+
+/** A required text: empty after the trim, then too long, each with its own message (the server counts after the trim too). */
+function lineText(requiredMessage: string, max: number, tooLongMessage: string) {
+  return z.string().superRefine((value, ctx) => {
+    const length = value.trim().length;
+    if (length === 0) {
+      ctx.addIssue({ code: 'custom', message: requiredMessage });
+    } else if (length > max) {
+      ctx.addIssue({ code: 'custom', message: tooLongMessage });
+    }
+  });
+}
+
+/** The number on the drawing: optional, up to 2 ASCII letters or digits, so it always draws on the jersey. */
+const lineNumberField = z.string().superRefine((value, ctx) => {
+  const text = value.trim();
+  let plain = text.length <= LINE_NUMBER_MAX;
+  for (let index = 0; plain && index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    plain = (code >= 0x30 && code <= 0x39) || (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a);
+  }
+  if (!plain) {
+    ctx.addIssue({ code: 'custom', message: LINE.number });
+  }
+});
+
+/** One "what you can customize" text: required with its card title in the message, at most 120 characters. */
+function lineCustomizeText(field: LineCustomizeField) {
+  return lineText(
+    LINE.customizeRequired(SITE_CONTENT_COPY.productLine.customize[field]),
+    LINE_CUSTOMIZE_MAX,
+    LINE.customizeTooLong,
+  );
+}
+
+/** A value checked by one of the message functions above: null is fine. */
+function lineChecked(messageOf: (text: string) => string | null) {
+  return z.string().superRefine((value, ctx) => {
+    const message = messageOf(value);
+    if (message !== null) {
+      ctx.addIssue({ code: 'custom', message });
+    }
+  });
+}
+
+/** ProductLine.Check: every product line rule the server checks, with its message. */
+export const productLineSchema = z.object({
+  isActive: z.boolean(),
+  title: lineText(LINE.titleRequired, LINE_TITLE_MAX, LINE.titleTooLong),
+  shortName: lineText(LINE.shortNameRequired, LINE_SHORT_NAME_MAX, LINE.shortNameTooLong),
+  number: lineNumberField,
+  cardText: lineText(LINE.cardTextRequired, LINE_CARD_TEXT_MAX, LINE.cardTextTooLong),
+  description: lineText(LINE.descriptionRequired, LINE_DESCRIPTION_MAX, LINE.descriptionTooLong),
+  fabricText: lineCustomizeText('fabricText'),
+  collarText: lineCustomizeText('collarText'),
+  cutText: lineCustomizeText('cutText'),
+  namesText: lineCustomizeText('namesText'),
+  logosText: lineCustomizeText('logosText'),
+  startsAtPrice: lineChecked(linePriceError),
+  minimumQuantity: lineChecked(lineMinimumError),
+  productTypeIds: z.array(z.string()),
+});
+
+/** What the product line form holds while it is edited. */
+export type ProductLineInput = z.input<typeof productLineSchema>;
+
+/** A saved price as money text with two decimals ("650.00"); empty for none. */
+function priceTextOf(price: number | string | null): string {
+  if (price === null) {
+    return '';
+  }
+  const centavos = Math.round(Number(price) * 100);
+  return Number.isSafeInteger(centavos) && centavos >= 0 && centavos <= 99_999_999_999
+    ? centavosToMoneyText(centavos)
+    : String(price);
+}
+
+/** The form values of a saved line, or of a new one (null): hidden, every text empty, no price and no product type. */
+export function productLineValuesOf(line: ProductLineDetail | null): ProductLineInput {
+  if (line === null) {
+    return {
+      isActive: false,
+      title: '',
+      shortName: '',
+      number: '',
+      cardText: '',
+      description: '',
+      fabricText: '',
+      collarText: '',
+      cutText: '',
+      namesText: '',
+      logosText: '',
+      startsAtPrice: '',
+      minimumQuantity: '',
+      productTypeIds: [],
+    };
+  }
+  return {
+    isActive: line.isActive,
+    title: line.title,
+    shortName: line.shortName,
+    number: line.number,
+    cardText: line.cardText,
+    description: line.description,
+    fabricText: line.fabricText,
+    collarText: line.collarText,
+    cutText: line.cutText,
+    namesText: line.namesText,
+    logosText: line.logosText,
+    startsAtPrice: priceTextOf(line.startsAtPrice),
+    minimumQuantity: line.minimumQuantity === null ? '' : String(Number(line.minimumQuantity)),
+    productTypeIds: [...line.productTypeIds],
+  };
+}
+
+/**
+ * The save request for the form's values: texts trimmed, the price and minimum as numbers (null for none), and the version an edit was opened
+ * with (null for an add). The product type list is the whole set, so the form keeps the ids of types its checklist does not show (retired
+ * ones) in `productTypeIds` and they stay filed.
+ */
+export function toProductLineRequest(values: ProductLineInput, version: string | null): ProductLineRequest {
+  const price = values.startsAtPrice.trim();
+  const minimum = values.minimumQuantity.trim();
+  return {
+    version,
+    title: values.title.trim(),
+    shortName: values.shortName.trim(),
+    number: values.number.trim(),
+    cardText: values.cardText.trim(),
+    description: values.description.trim(),
+    fabricText: values.fabricText.trim(),
+    collarText: values.collarText.trim(),
+    cutText: values.cutText.trim(),
+    namesText: values.namesText.trim(),
+    logosText: values.logosText.trim(),
+    startsAtPrice: price === '' || price === '.' ? null : Number(price),
+    minimumQuantity: minimum === '' ? null : Number(minimum),
+    isActive: values.isActive,
+    productTypeIds: [...values.productTypeIds],
   };
 }

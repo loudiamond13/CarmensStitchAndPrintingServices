@@ -459,6 +459,66 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(button).not.toHaveAttribute('aria-controls');
   });
 
+  it('an actions column with `flowActions` (plan 11-20) sits in the phone card under the other cells instead of pinned over the title', () => {
+    const wide: readonly ResponsiveTableColumn<User>[] = COLUMNS.map((column) =>
+      column.actions === true ? { ...column, flowActions: true } : column,
+    );
+    const { container, rerender } = render(table({ columns: wide }));
+    const flowing = container.querySelector('td[data-label="Actions"]');
+    expect(tokens(flowing?.className)).not.toContain('pg-phone:absolute');
+    expect(tokens(flowing?.className)).toEqual(
+      expect.arrayContaining(['pg-phone:w-full', 'pg-phone:before:hidden', 'text-right']),
+    );
+
+    // Without the flag the cell stays pinned to the card's top right.
+    rerender(table());
+    const pinned = container.querySelector('td[data-label="Actions"]');
+    expect(tokens(pinned?.className)).toEqual(
+      expect.arrayContaining(['pg-phone:absolute', 'pg-phone:top-1.5', 'pg-phone:right-1.5']),
+    );
+  });
+
+  it('RowAction `disabled` (plan 11-20, WEB-09): aria-disabled, still focusable, ignores a press and shows the dimmed look', async () => {
+    const onClick = vi.fn();
+    render(<RowAction icon="chevron-up" label="Move Polo up" disabled onClick={onClick} />);
+    const button = screen.getByRole('button', { name: 'Move Polo up' });
+
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    expect(tokens(button.className)).toEqual(
+      expect.arrayContaining(['aria-disabled:cursor-not-allowed', 'aria-disabled:text-line-strong']),
+    );
+    act(() => {
+      button.focus();
+    });
+    expect(button).toHaveFocus();
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+    await expectNoAxeViolations(button.parentElement ?? button);
+  });
+
+  it('RowAction `busy` (plan 11-20, WEB-09): aria-busy and aria-disabled on the pressed control, no press goes through', () => {
+    const onClick = vi.fn();
+    render(<RowAction icon="eye-off" label="Hide Polo" busy onClick={onClick} />);
+    const button = screen.getByRole('button', { name: 'Hide Polo' });
+
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('RowAction without `disabled` or `busy` has neither aria-disabled nor aria-busy and still presses', () => {
+    const onClick = vi.fn();
+    render(<RowAction icon="pencil" label="Edit Polo" onClick={onClick} />);
+    const button = screen.getByRole('button', { name: 'Edit Polo' });
+
+    expect(button).not.toHaveAttribute('aria-disabled');
+    expect(button).not.toHaveAttribute('aria-busy');
+    fireEvent.click(button);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('RowAction with `to`: a router link in the same icon-button look, named for its row, with no button', () => {
     render(
       <MemoryRouter>
