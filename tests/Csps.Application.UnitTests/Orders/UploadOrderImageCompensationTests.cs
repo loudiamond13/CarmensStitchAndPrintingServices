@@ -15,7 +15,8 @@ namespace Csps.Application.UnitTests.Orders;
 
 /// <summary>
 /// IMG-01, JOB-02: once the file has reached storage, any way the photo row fails to save queues the file for removal as UploadUndone
-/// on its own context, and a refusal before storage queues nothing. A failing queue write never replaces the original answer.
+/// on its own context, and a refusal before storage queues nothing. A failing queue write never replaces the original answer. A check
+/// before storage that sees the order change while it is read is read again once, like a save that loses a race.
 /// </summary>
 public sealed class UploadOrderImageCompensationTests
 {
@@ -83,6 +84,42 @@ public sealed class UploadOrderImageCompensationTests
 
         result.Error.ShouldBe(EditErrors.Stale);
         harness.Queue.Calls.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ACheckThatSeesTheOrderChangeWhileItIsReadReadsAgainAndAnswersThePhotoLimitBeforeAnyFileIsStored()
+    {
+        var harness = new Harness();
+        var full = Harness.NewOrder();
+        for (var number = 0; number < OrderImageRules.MaxImagesPerOrder; number++)
+        {
+            full.AddImage(new NewOrderImage($"csps-test/orders/{full.Id:D}/photo{number}", 640, 480, 1000, "jpg", null), Now).IsSuccess.ShouldBeTrue();
+        }
+
+        harness.Orders.FindAsync(harness.Order.Id, false, Arg.Any<CancellationToken>()).Returns(
+            _ => Task.FromException<Order?>(new ConcurrencyConflictException(new InvalidOperationException("The order was changed while it was being read."))),
+            _ => Task.FromResult<Order?>(full));
+
+        var result = await harness.Handler.HandleAsync(harness.Order.Id, new UploadOrderImageRequest(Photo, "p.jpg", null), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderImageRules.TooMany);
+        harness.StoredIds.ShouldBeEmpty();
+        harness.Queue.Calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ACheckThatSeesTheOrderChangeTwiceAnswersTheConflictBeforeAnyFileIsStored()
+    {
+        var harness = new Harness();
+        harness.Orders.FindAsync(harness.Order.Id, false, Arg.Any<CancellationToken>()).Returns(
+            _ => Task.FromException<Order?>(new ConcurrencyConflictException(new InvalidOperationException("The order was changed while it was being read."))));
+
+        var result = await harness.Handler.HandleAsync(harness.Order.Id, new UploadOrderImageRequest(Photo, "p.jpg", null), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(EditErrors.Stale);
+        harness.StoredIds.ShouldBeEmpty();
+        harness.Queue.Calls.ShouldBeEmpty();
+        await harness.Orders.Received(2).FindAsync(harness.Order.Id, false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
