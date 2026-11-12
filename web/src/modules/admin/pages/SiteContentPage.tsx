@@ -27,6 +27,7 @@ import { profilePageClasses } from '@/modules/admin/components/profile.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { SITE_CONTENT_TABS, useSiteContentTab, type SiteContentTab } from '@/modules/admin/hooks/useSiteContentTab';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
+import { AdminNotFoundPage } from '@/modules/admin/pages/AdminNotFoundPage';
 import { ProductLineRoute } from '@/modules/admin/pages/ProductLinePage';
 import { SITE_CONTENT_COPY } from '@/modules/admin/siteContentCopy';
 
@@ -128,8 +129,19 @@ export function SiteContentPage({ panels }: { panels: SiteContentPanels }) {
   );
 }
 
-/** The Site Content route: the tabs page, or, under `products/:lineId`, the product line editor (`new` or the id of a line). */
+/** What follows `site-content/` for the product line editor: `products/new` or `products/{id}`. */
+const PRODUCT_LINE_PATH = /^products\/([^/]+)\/?$/;
+
+/**
+ * The Site Content route (`site-content/*`): the tabs page at `site-content`, the product line editor at `site-content/products/new` and
+ * `site-content/products/{id}`, and the in-shell Page not found screen for any other address under it. One splat route keeps the shared
+ * entry from growing for the editor's two addresses (PERF-01: public Contact has almost no room left).
+ */
 export function SiteContentRoute() {
-  const { lineId } = useParams();
-  return lineId === undefined ? <SiteContentPage panels={BUILT_PANELS} /> : <ProductLineRoute />;
+  const rest = useParams()['*'] ?? '';
+  if (rest === '') {
+    return <SiteContentPage panels={BUILT_PANELS} />;
+  }
+  const lineId = PRODUCT_LINE_PATH.exec(rest)?.[1];
+  return lineId === undefined ? <AdminNotFoundPage /> : <ProductLineRoute lineId={lineId} />;
 }

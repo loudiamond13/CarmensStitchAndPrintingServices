@@ -459,6 +459,25 @@ describe('list cells (App. E.7/E.12)', () => {
     expect(button).not.toHaveAttribute('aria-controls');
   });
 
+  it('an actions column with `flowActions` (plan 11-20) sits in the phone card under the other cells instead of pinned over the title', () => {
+    const wide: readonly ResponsiveTableColumn<User>[] = COLUMNS.map((column) =>
+      column.actions === true ? { ...column, flowActions: true } : column,
+    );
+    const { container, rerender } = render(table({ columns: wide }));
+    const flowing = container.querySelector('td[data-label="Actions"]');
+    expect(tokens(flowing?.className)).not.toContain('pg-phone:absolute');
+    expect(tokens(flowing?.className)).toEqual(
+      expect.arrayContaining(['pg-phone:w-full', 'pg-phone:before:hidden', 'text-right']),
+    );
+
+    // Without the flag the cell stays pinned to the card's top right.
+    rerender(table());
+    const pinned = container.querySelector('td[data-label="Actions"]');
+    expect(tokens(pinned?.className)).toEqual(
+      expect.arrayContaining(['pg-phone:absolute', 'pg-phone:top-1.5', 'pg-phone:right-1.5']),
+    );
+  });
+
   it('RowAction `disabled` (plan 11-20, WEB-09): aria-disabled, still focusable, ignores a press and shows the dimmed look', async () => {
     const onClick = vi.fn();
     render(<RowAction icon="chevron-up" label="Move Polo up" disabled onClick={onClick} />);

@@ -142,9 +142,14 @@ test('@site-content-products at 390px the list is row cards, at 768px it scrolls
   // Tablet: the columns stay and the frame scrolls on its own, a named region a keyboard can reach.
   await page.setViewportSize({ width: 768, height: 900 });
   await expect(page.locator('thead')).toBeVisible();
-  const frame = page.getByRole('region', { name: 'Product lines' });
+  const frame = page.locator('div[role="region"][aria-label="Product lines"]');
   await expect(frame).toHaveAttribute('tabindex', '0');
-  expect(await frame.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true);
+  // The frame may be wider inside than it shows (that is the scrolling), but the page itself never scrolls sideways.
+  expect(
+    await frame.evaluate(
+      (element: { scrollWidth: number; clientWidth: number }) => element.scrollWidth >= element.clientWidth,
+    ),
+  ).toBe(true);
   expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
 
   await page.setViewportSize({ width: 320, height: 640 });
@@ -171,30 +176,32 @@ test('@site-content-products a Manager hides E2E-Shorts, shows it again and dele
       await expect(page.getByText("It's on the website now.")).toBeVisible({ timeout: SAVE_WAIT_MS });
       expect(await publicShortNames(request)).toContain('E2E-Shorts');
 
-      await page.getByRole('link', { name: 'Site Content' }).click();
+      await page.locator('a[href="/admin/site-content?tab=products"]').click();
       await expect(page.getByRole('table', { name: 'Product lines' })).toBeVisible();
       const row = page.getByRole('row').filter({ hasText: 'E2E-Shorts' });
       await expect(row.getByText('Shown', { exact: true })).toBeVisible();
 
+      // The row actions are pressed from the keyboard (press): on a phone the toasts of the earlier steps can sit over the last card, and a
+      // pointer click would wait for them to go. This is also how the focus rules below are proved.
       // Hide: no question, the toast, the badge, and focus stays on the toggle, now Show.
-      await page.getByRole('button', { name: 'Hide E2E-Shorts' }).click();
+      await press(page, page.getByRole('button', { name: 'Hide E2E-Shorts' }));
       await expect(page.getByText('E2E-Shorts hidden')).toBeVisible({ timeout: SAVE_WAIT_MS });
       await expect(row.getByText('Hidden', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Show E2E-Shorts' })).toBeFocused();
       expect(await publicShortNames(request)).not.toContain('E2E-Shorts');
 
-      await page.getByRole('button', { name: 'Show E2E-Shorts' }).click();
+      await press(page, page.getByRole('button', { name: 'Show E2E-Shorts' }));
       await expect(page.getByText('E2E-Shorts shown')).toBeVisible({ timeout: SAVE_WAIT_MS });
       await expect(row.getByText('Shown', { exact: true })).toBeVisible();
       expect(await publicShortNames(request)).toContain('E2E-Shorts');
 
       // Move: the new line is last; Move up puts it one place higher and focus stays on Move up.
-      await page.getByRole('button', { name: 'Move E2E-Shorts up' }).click();
+      await press(page, page.getByRole('button', { name: 'Move E2E-Shorts up' }));
       await expect(page.getByText('E2E-Shorts moved to position 6 of 7.')).toBeAttached({ timeout: SAVE_WAIT_MS });
       await expect(page.getByRole('button', { name: 'Move E2E-Shorts up' })).toBeFocused();
 
       // Delete: the question focuses Cancel first, and the line is gone for good.
-      await page.getByRole('button', { name: 'Delete E2E-Shorts' }).click();
+      await press(page, page.getByRole('button', { name: 'Delete E2E-Shorts' }));
       const question = page.getByRole('dialog', { name: 'Delete E2E-Shorts?' });
       await expect(question.getByRole('button', { name: 'Cancel' })).toBeFocused();
       await press(page, question.getByRole('button', { name: 'Delete Product Line' }));

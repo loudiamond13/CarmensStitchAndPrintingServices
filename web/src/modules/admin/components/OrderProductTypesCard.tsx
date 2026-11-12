@@ -4,7 +4,8 @@
 //   - A type that belongs to another line says so in muted words, " (now under Volleyball Jerseys)"; ticking it moves it here on save.
 //   - The ids of types the checklist does not draw (a retired type filed here) stay in the form's list, so a save never frees them.
 //   - With no product types the card says so and links to Settings, where they are added.
-//   - The card reads the product types and the line list itself, with its own loading and error states.
+//   - The product types and the line list come from the editor, which reads them (useProductTypesQuery); the card has its own loading and error states.
+import type { UseQueryResult } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { Controller, type Control } from 'react-hook-form';
 import { hitAreaClasses, UiLink } from '@/components/actions';
@@ -12,14 +13,14 @@ import { Checkbox } from '@/components/entry';
 import { ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
 import { SiteContentCard } from '@/modules/admin/components/SiteContentCard';
 import {
-  lineTitleLinkClasses,
+  lineInlineLinkClasses,
   lineTypeNoteClasses,
   lineTypesFieldsetClasses,
   lineTypesHintClasses,
   lineTypesLegendClasses,
 } from '@/modules/admin/components/siteContent.recipe';
-import { useProductLineListQuery } from '@/modules/admin/hooks/useProductLineQueries';
-import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
+import type { ProductLineListItem } from '@/modules/admin/services/productLinesService';
+import type { ProductTypeListItem } from '@/modules/admin/services/productTypesService';
 import { SITE_CONTENT_COPY } from '@/modules/admin/siteContentCopy';
 import type { ProductLineInput } from '@/modules/admin/siteContentSchemas';
 
@@ -31,15 +32,16 @@ export interface OrderProductTypesCardProps {
   control: Control<ProductLineInput>;
   /** The line being edited, or null for a new one: a type filed under any other line is named. */
   lineId: string | null;
+  /** The order product types (useProductTypesQuery). */
+  types: Pick<UseQueryResult<ProductTypeListItem[]>, 'data' | 'isPending' | 'isError' | 'error' | 'refetch'>;
+  /** Every product line, so a type filed under another line can be named; undefined until the list has arrived. */
+  lines: readonly ProductLineListItem[] | undefined;
 }
 
-export function OrderProductTypesCard({ control, lineId }: OrderProductTypesCardProps) {
-  const types = useProductTypesQuery();
-  const lines = useProductLineListQuery();
-
+export function OrderProductTypesCard({ control, lineId, types, lines }: OrderProductTypesCardProps) {
   /** The title of the line another line holds this type under, or null when it is free or filed here. */
   const otherLineOf = (typeId: string): string | null =>
-    lines.data?.find((line) => line.id !== lineId && line.productTypeIds.includes(typeId))?.title ?? null;
+    lines?.find((line) => line.id !== lineId && line.productTypeIds.includes(typeId))?.title ?? null;
 
   const active = (types.data ?? [])
     .filter((type) => type.status === 'active')
@@ -62,7 +64,7 @@ export function OrderProductTypesCard({ control, lineId }: OrderProductTypesCard
     body = (
       <p className={lineTypesHintClasses}>
         {COPY.types.none.before}
-        <UiLink to={SETTINGS_PATH} className={clsx(lineTitleLinkClasses, hitAreaClasses)}>
+        <UiLink to={SETTINGS_PATH} className={clsx(lineInlineLinkClasses, hitAreaClasses)}>
           {COPY.types.none.link}
         </UiLink>
         {COPY.types.none.after}

@@ -279,13 +279,31 @@ describe('Move up and Move down (S3, D-51)', () => {
     const rows = bodyRows(screen.getByRole('table', { name: 'Product lines' }));
     expect(rows.map((row) => cellText(row, 'Product line').slice(0, 10))).toEqual([
       'Basketball',
-      'Moto and Ri',
+      'Moto and R',
       'Volleyball',
       'Long Sleev',
       'Polo Shirt',
       'Custom Des',
     ]);
     expect(screen.getByText('Moto and Riding Jerseys moved to position 2 of 6.')).toHaveAttribute('role', 'status');
+  });
+
+  it('moves focus once per action, never again when the list finishes reading, so a person who moved on keeps their place', async () => {
+    productLinesBackend();
+    const user = userEvent.setup();
+    await openTab();
+    const spy = vi.spyOn(action('Move Moto and Riding Jerseys up'), 'focus');
+
+    await user.click(action('Move Moto and Riding Jerseys up'));
+    expect(await screen.findByText('Moto and Riding Jerseys moved to position 2 of 6.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(spy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+    // The press itself focuses the button once and the list moves it once. Let the refetch finish and render: no third call. (The order of the
+    // read and the settled mark is a race that this test cannot force, so it guards the count; the e2e journey found the stolen focus.)
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 
   it('after a move to the first place, Move up is aria-disabled and focus goes to the Move down of the same row', async () => {
@@ -334,7 +352,7 @@ describe('Move up and Move down (S3, D-51)', () => {
     expect(backend.moves).toHaveLength(0);
   });
 
-  it('while one row saves, that row other actions are aria-disabled and keep focus, and other rows stay available', async () => {
+  it('while one row saves, the pressed control is busy and keeps focus, and every other row action is aria-disabled and ignores a press (one move changes the places of the others)', async () => {
     const gate = createDeferred<undefined>();
     const backend = productLinesBackend(undefined, {
       onMove: async () => {
@@ -354,9 +372,10 @@ describe('Move up and Move down (S3, D-51)', () => {
       expect(action(name)).toHaveAttribute('aria-disabled', 'true');
     }
     expect(screen.getByRole('link', { name: 'Edit Moto and Riding Jerseys' })).toBeVisible();
-    expect(action('Hide Polo Shirts')).not.toHaveAttribute('aria-disabled');
+    expect(action('Hide Polo Shirts')).toHaveAttribute('aria-disabled', 'true');
     expect(action('Move Moto and Riding Jerseys up')).toHaveFocus();
     await user.click(action('Hide Moto and Riding Jerseys'));
+    await user.click(action('Hide Polo Shirts'));
     expect(backend.hides).toHaveLength(0);
 
     gate.resolve(undefined);

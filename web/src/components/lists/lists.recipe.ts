@@ -130,6 +130,10 @@ export const bodyCellKindClasses = {
   actions: tw(
     'text-right pg-phone:absolute pg-phone:top-1.5 pg-phone:right-1.5 pg-phone:w-auto pg-phone:border-b-0 pg-phone:p-0 pg-phone:before:hidden',
   ),
+  // `flowActions` (many actions): the cell stays in the card, a full-width row under the other cells; the caller's RowActions pushes itself to the end.
+  flowActions: tw(
+    'text-right pg-phone:w-full pg-phone:border-b-0 pg-phone:px-0 pg-phone:pt-2 pg-phone:pb-0 pg-phone:before:hidden',
+  ),
 } as const;
 
 /**
@@ -159,6 +163,7 @@ export const footCellKindClasses = {
   actions: tw(
     'text-right pg-phone:absolute pg-phone:top-1.5 pg-phone:right-1.5 pg-phone:w-auto pg-phone:border-0 pg-phone:p-0 pg-phone:before:hidden',
   ),
+  flowActions: tw('text-right pg-phone:w-full pg-phone:border-0 pg-phone:px-0 pg-phone:py-1 pg-phone:before:hidden'),
 } as const;
 
 /** `.s-rt .r.m`: a money cell, end-aligned, tabular, 600, on one line. */

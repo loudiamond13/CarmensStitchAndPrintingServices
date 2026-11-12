@@ -48,9 +48,11 @@ import { hoursPreviewClasses, lineCustomizeLabelClasses } from '@/modules/admin/
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import {
   useCreateProductLine,
+  useProductLineListQuery,
   useProductLineQuery,
   useUpdateProductLine,
 } from '@/modules/admin/hooks/useProductLineQueries';
+import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
 import type { ProductLineDetail } from '@/modules/admin/services/productLinesService';
 import { describeHttpError } from '@/utils/describeHttpError';
@@ -206,6 +208,9 @@ function ProductLineForm({ line, reload }: ProductLineFormProps) {
   } = form;
   const [priceText, minimumText] = useWatch({ control, name: ['startsAtPrice', 'minimumQuantity'] });
   const guard = useUnsavedChangesGuard({ isDirty });
+  // The order product types the checklist draws, and the lines they may already be filed under.
+  const productTypes = useProductTypesQuery();
+  const lineList = useProductLineListQuery();
 
   const title = saved === null ? COPY.newTitle : saved.title;
   useEffect(() => {
@@ -474,7 +479,12 @@ function ProductLineForm({ line, reload }: ProductLineFormProps) {
               <Note icon="info">{COPY.cards.photos.saveFirst}</Note>
             </SiteContentCard>
           )}
-          <OrderProductTypesCard control={control} lineId={saved === null ? null : saved.id} />
+          <OrderProductTypesCard
+            control={control}
+            lineId={saved === null ? null : saved.id}
+            types={productTypes}
+            lines={lineList.data}
+          />
           {saved !== null && (
             <RecordMeta
               recordedBy={null}
@@ -611,9 +621,15 @@ function NewProductLinePage() {
 /** The segment of `/admin/site-content/products/new`. It is no GUID, so it can never be the id of a line. */
 const NEW_SEGMENT = 'new';
 
+export interface ProductLineRouteProps {
+  /** The last segment of the address: `new` or the id of a line. Without it the route's own `lineId` parameter is read (no segment: a new line). */
+  lineId?: string | undefined;
+}
+
 /** The product line editor: `products/new` opens the form for a new line, `products/{id}` the form for a line that exists. */
-export function ProductLineRoute() {
-  const { lineId } = useParams();
+export function ProductLineRoute({ lineId: given }: ProductLineRouteProps = {}) {
+  const params = useParams();
+  const lineId = given ?? params.lineId;
   return lineId === undefined || lineId === NEW_SEGMENT ? (
     <NewProductLinePage />
   ) : (

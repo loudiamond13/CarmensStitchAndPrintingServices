@@ -280,6 +280,21 @@ describe('Manager-only routes (USER-08)', () => {
 });
 
 describe('an unknown admin address (D-89)', () => {
+  it.each(['/admin/site-content/no-such-page', '/admin/site-content/products', '/admin/site-content/products/a/b'])(
+    'shows the in-shell Page not found screen for %s under Site Content, for a Manager',
+    async (path) => {
+      answerRefresh(sessionResponse());
+      const router = createMemoryRouter(routes, { initialEntries: [path] });
+      render(<RouterProvider router={router} />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 10_000 }),
+      ).toBeVisible();
+      expect(router.state.location.pathname).toBe(path);
+    },
+    30_000,
+  );
+
   it('shows the in-shell Page not found screen, not the public 404 page', async () => {
     answerRefresh(sessionResponse());
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/no-such-page'] });

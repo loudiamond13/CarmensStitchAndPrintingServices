@@ -50,16 +50,25 @@ export const hoursPreviewClasses = tw('flex flex-col gap-0.5 text-[14px] leading
 /** The lead cell of the product line table: the 44px photo, then the title over the short name. */
 export const lineCellClasses = tw('flex min-w-0 items-center gap-3');
 
+/** The row actions of a product line: on a phone the cell is a full-width row under the other cells, and the buttons sit at its end. */
+export const lineActionsClasses = tw('pg-phone:ml-auto');
+
 /** The 44 x 44 main photo, or its placeholder. */
 export const lineThumbClasses = tw('size-11 shrink-0 overflow-hidden rounded-sm bg-surface-2');
 
 /** The title and the short name under it. */
 export const lineTextClasses = tw('flex min-w-0 flex-col');
 
-/** The title as a link to the editor (`--accent-ink`). */
+/**
+ * The title as a link to the editor (`--accent-ink`). It is at least 24px tall and as wide as its text, so the link is a big enough target
+ * (WCAG 2.5.8) beside the short name under it; the 44px tap area comes from the hit area class.
+ */
 export const lineTitleLinkClasses = tw(
-  'font-semibold wrap-anywhere text-accent-ink hover:underline hover:underline-offset-4',
+  'inline-flex min-h-6 items-center self-start font-semibold wrap-anywhere text-accent-ink hover:underline hover:underline-offset-4',
 );
+
+/** A link inside a sentence (`--accent-ink`): it keeps the line of the text around it. */
+export const lineInlineLinkClasses = tw('font-semibold text-accent-ink hover:underline hover:underline-offset-4');
 
 /** The short name under the title (12px muted). */
 export const lineShortNameClasses = tw('text-[12px] leading-4 text-ink-muted');
