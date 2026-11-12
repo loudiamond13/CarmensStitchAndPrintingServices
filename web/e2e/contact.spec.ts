@@ -123,3 +123,27 @@ test('@contact at 320px the map actions wrap under the address and the page has 
     expect(overflow).toBeLessThanOrEqual(0);
   });
 });
+
+test('@contact-hours the hours card shows the demo week and the status the server gives right now', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/contact');
+
+    const card = page.locator('[data-hours-card]');
+    await expect(card.getByRole('heading', { level: 2, name: 'Business hours' })).toBeVisible();
+    await expect(card.getByText('Monday to Saturday', { exact: true })).toBeVisible();
+    await expect(card.getByText('9:00 AM - 6:00 PM', { exact: true })).toBeVisible();
+    await expect(card.getByText('Sunday', { exact: true })).toBeVisible();
+    await expect(card.getByText('Closed', { exact: true })).toBeVisible();
+
+    const answer = await request.get('/api/v1/public/open-status');
+    expect(answer.status()).toBe(200);
+    const status = (await answer.json()) as { isOpen: boolean };
+    await expect(card.getByText(status.isOpen ? 'Open now' : 'Closed now', { exact: true })).toBeVisible();
+    await expect(card.getByText(status.isOpen ? 'Closed now' : 'Open now', { exact: true })).toHaveCount(0);
+    await expectNoAxeViolations(page);
+  });
+});

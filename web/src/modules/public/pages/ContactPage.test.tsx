@@ -7,7 +7,16 @@ import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
-import { putBootBlock, demoSite, siteFailureHandler, siteHandler, siteWithThreePhones } from '@/test/publicFixtures';
+import {
+  answerOpenStatus,
+  demoSite,
+  openStatusAt0900,
+  openStatusFailureHandler,
+  putBootBlock,
+  siteFailureHandler,
+  siteHandler,
+  siteWithThreePhones,
+} from '@/test/publicFixtures';
 
 /** The real route tree at /contact, settled once the h1 is on screen. */
 async function renderContact() {
@@ -88,8 +97,41 @@ describe('ContactPage content from the stored facts (PUB-02, PUB-06, D-18, D-20,
   it('has no axe violations when populated', async () => {
     putBootBlock(demoSite);
     const { container } = await renderContact();
+    await screen.findByText('Open now');
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('ContactPage hours and open status (PUB-05, D-21, D-22)', { timeout: 20_000 }, () => {
+  it('puts the hours card first in the aside, with the server status and the weekly rows', async () => {
+    putBootBlock(demoSite);
+    answerOpenStatus(openStatusAt0900);
+    await renderContact();
+    const main = screen.getByRole('main');
+
+    expect(await within(main).findByText('Open now')).toBeInTheDocument();
+    expect(within(main).getByText('Closes 6:00 PM.')).toBeInTheDocument();
+    expect(within(main).getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'Message us',
+      'Business hours',
+      'Call or text',
+    ]);
+    expect(within(main).getByText('Monday to Saturday')).toBeInTheDocument();
+  });
+
+  it('keeps the hours rows and leaves the pill and line out when the status read fails', async () => {
+    putBootBlock(demoSite);
+    server.use(openStatusFailureHandler(404));
+    await renderContact();
+    const main = screen.getByRole('main');
+
+    expect(await within(main).findByRole('heading', { level: 2, name: 'Business hours' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(main).getByText('Monday to Saturday')).toBeInTheDocument();
+    });
+    expect(within(main).queryByText('Open now')).not.toBeInTheDocument();
+    expect(within(main).queryByText('Closed now')).not.toBeInTheDocument();
   });
 });
 

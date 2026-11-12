@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { isHttpError } from '@/core/api/errors';
 import { createFakeFetch } from '@/test/fakeFetch';
-import { demoSite } from '@/test/publicFixtures';
+import { demoSite, openStatusAt0900 } from '@/test/publicFixtures';
 import { createSiteService } from './siteService';
 
 describe('siteService.getSite', () => {
@@ -33,5 +33,19 @@ describe('siteService.getSite', () => {
       );
 
     expect(isHttpError(error)).toBe(true);
+  });
+});
+
+describe('siteService.getOpenStatus', () => {
+  it('calls GET /api/v1/public/open-status once and resolves the typed body', async () => {
+    const fake = createFakeFetch([{ body: openStatusAt0900 }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const status = await createSiteService(client).getOpenStatus(new AbortController().signal);
+
+    expect(status).toEqual(openStatusAt0900);
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe('/api/v1/public/open-status');
   });
 });
