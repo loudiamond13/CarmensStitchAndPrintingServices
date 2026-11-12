@@ -38,6 +38,10 @@ test('@home / shows six category cards with the seeded card texts, with no home 
 });
 
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
+const FOCUS_RING =
+  '(() => { const style = getComputedStyle(document.activeElement); return `${style.outlineStyle} ${parseFloat(style.outlineWidth)}`; })()';
+const REGION_OVERFLOW =
+  '(() => { const region = document.querySelector(\'[role="region"][aria-label="Testimonials"]\'); return region === null ? -1 : region.scrollWidth - region.clientWidth; })()';
 
 test('@home / shows the demo testimonials in order and the typed turnaround line', async ({ page, request }) => {
   await withSiteContentLock(async () => {
@@ -74,11 +78,9 @@ test('@home at 390px the testimonials are a focusable region with a visible ring
     await region.scrollIntoViewIfNeeded();
     await region.focus();
     await expect(region).toBeFocused();
-    const ring = await region.evaluate(
-      '(element) => { const style = getComputedStyle(element); return { style: style.outlineStyle, width: parseFloat(style.outlineWidth) }; }',
-    );
-    expect(ring, 'a visible focus ring').toEqual({ style: 'solid', width: 2 });
-    const inner = await region.evaluate('(element) => element.scrollWidth - element.clientWidth');
+    const ring = await page.evaluate<string>(FOCUS_RING);
+    expect(ring, 'a visible focus ring on the focused region').toBe('solid 2');
+    const inner = await page.evaluate<number>(REGION_OVERFLOW);
     expect(inner, 'the cards are wider than the row, so it scrolls inside itself').toBeGreaterThan(0);
     expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
   });
@@ -96,3 +98,41 @@ for (const width of [320, 768, 1024, 1280, 1920]) {
     });
   });
 }
+
+// The number of columns a grid draws: the Why CSPS grid is the third parent of an item title, the testimonial row the parent of a card.
+const WHY_COLUMNS =
+  "(() => { const title = [...document.querySelectorAll('main h3')].find((h) => h.textContent === 'Team orders'); const grid = title?.parentElement?.parentElement?.parentElement; return grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : -1; })()";
+const TESTIMONIAL_COLUMNS =
+  "(() => { const grid = document.querySelector('main figure')?.parentElement; return grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : -1; })()";
+
+for (const [width, why, testimonials] of [
+  [1400, 5, 3],
+  [1100, 3, 3],
+  [900, 3, 2],
+] as const) {
+  test(`@home at ${String(width)}px Why CSPS has ${String(why)} columns and the testimonials ${String(testimonials)}`, async ({
+    page,
+    request,
+  }) => {
+    await withSiteContentLock(async () => {
+      await seedDemoSiteContent(request);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      await expect(page.getByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeVisible();
+
+      expect(await page.evaluate<number>(WHY_COLUMNS)).toBe(why);
+      expect(await page.evaluate<number>(TESTIMONIAL_COLUMNS)).toBe(testimonials);
+    });
+  });
+}
+
+test('@home at 390px Why CSPS is one column of rows', async ({ page, request }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeVisible();
+
+    expect(await page.evaluate<number>(WHY_COLUMNS)).toBe(1);
+  });
+});

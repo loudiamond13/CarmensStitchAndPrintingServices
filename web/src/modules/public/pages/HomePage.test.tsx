@@ -47,15 +47,21 @@ describe('HomePage at / (PUB-01, UI-SPEC H1 item 1)', { timeout: 20_000 }, () =>
   it('takes "Get a Quote" to /contact and "View Our Work" to /gallery (D-19)', async () => {
     await renderHome();
     const main = within(screen.getByRole('main'));
-    expect(main.getByRole('link', { name: 'Get a Quote' })).toHaveAttribute('href', '/contact');
+    // The hero's button and the final call to action's button (11-25) both go to /contact.
+    const quotes = main.getAllByRole('link', { name: 'Get a Quote' });
+    expect(quotes).toHaveLength(2);
+    for (const quote of quotes) {
+      expect(quote).toHaveAttribute('href', '/contact');
+    }
     expect(main.getByRole('link', { name: 'View Our Work' })).toHaveAttribute('href', '/gallery');
   });
 
   it('shows the three chips', async () => {
     await renderHome();
     const main = within(screen.getByRole('main'));
+    // Two chips share their words with a Why CSPS card title (an h3); the chip is the span.
     for (const chip of ['Full sublimation', 'Names & numbers', 'Team orders welcome']) {
-      expect(main.getByText(chip)).toBeInTheDocument();
+      expect(main.getAllByText(chip).some((element) => element.tagName === 'SPAN')).toBe(true);
     }
   });
 
