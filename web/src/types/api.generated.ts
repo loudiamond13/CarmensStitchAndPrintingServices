@@ -1581,6 +1581,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/product-lines/{lineId}/photos/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Puts one photo into a slot of a product line as a multipart form with the file in the `file` part. The type is read from the
+         *     first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use,
+         *     is over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The photo is
+         *     stored under a random id the client never chooses, in the line's own content folder. A slot that already holds a photo is
+         *     replaced, and the old file is queued for removal in the same save. The slot is `main`, `back` or `fabric`; any
+         *     other word answers 404. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and adds nothing more. Who added the photo and when come from the
+         *     token and the clock. The change is recorded in the audit log with the slot and never the address, and the public pages show it at
+         *     once.
+         */
+        post: operations["UploadProductLinePhoto"];
+        /**
+         * Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal
+         *     in the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The
+         *     change is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.
+         */
+        delete: operations["RemoveProductLinePhoto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/product-types": {
         parameters: {
             query?: never;
@@ -4256,6 +4288,8 @@ export interface components {
             namesText: string;
             /** @description The number on the drawing; empty for none. */
             number: string;
+            /** @description The photos of the three slots; a slot with no photo is null. */
+            photos: components["schemas"]["ProductLinePhotosDto"];
             /** @description The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
             placeholderArt: string;
             /**
@@ -4332,6 +4366,31 @@ export interface components {
             title: string;
             /** @description The text an edit must send back. */
             version: string;
+        };
+        /** @description One photo of a product line as the Manager's screens read it (D-02). */
+        ProductLinePhotoDto: {
+            /**
+             * Format: int32
+             * @description The upright height in pixels.
+             */
+            height: number | string;
+            /** @description The place on the line: `main`, `back` or `fabric`. */
+            slot: string;
+            /** @description The address of the preview at a size that fits the slot. */
+            src: string;
+            /** @description The `srcset` text with the smaller and larger candidates. */
+            srcSet: string;
+            /**
+             * Format: int32
+             * @description The upright width in pixels.
+             */
+            width: number | string;
+        };
+        /** @description The three photo slots of a product line as the Manager's editor reads them; a slot with no photo is null. */
+        ProductLinePhotosDto: {
+            back: null | components["schemas"]["ProductLinePhotoDto"];
+            fabric: null | components["schemas"]["ProductLinePhotoDto"];
+            main: null | components["schemas"]["ProductLinePhotoDto"];
         };
         /**
          * @description The product line form (CONT-02, SEC-07), for adding and for editing. Any other member in the body is ignored: the key, the order, the
@@ -10584,6 +10643,171 @@ export interface operations {
             path: {
                 /** @description The line id. */
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadProductLinePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product line id. */
+                lineId: string;
+                /** @description The slot: `main`, `back` or `fabric`. */
+                slot: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLinePhotoDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    RemoveProductLinePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product line id. */
+                lineId: string;
+                /** @description The slot: `main`, `back` or `fabric`. */
+                slot: string;
             };
             cookie?: never;
         };

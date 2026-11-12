@@ -19,7 +19,8 @@ namespace Csps.Infrastructure.Content;
 /// <param name="cache">The cache.</param>
 /// <param name="contextFactory">Makes the short-lived contexts the cache factory reads with.</param>
 /// <param name="time">The clock, for the business-calendar year.</param>
-internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<CspsDbContext> contextFactory, TimeProvider time) : IPublicContentReader
+/// <param name="delivery">Makes the photo addresses.</param>
+internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<CspsDbContext> contextFactory, TimeProvider time, IImageDelivery delivery) : IPublicContentReader
 {
     internal const string SiteCacheKey = "csps:public:site:v1";
 
@@ -125,6 +126,7 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .OrderBy(row => row.Position)
                 .ThenBy(row => row.Id)
                 .Select(row => new LineRow(
+                    row.Id,
                     row.Key,
                     row.Number,
                     row.Title,
@@ -143,7 +145,16 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            // The photos and the gallery flag arrive with the plans that add photos and gallery items.
+            // The gallery flag arrives with the plan that adds gallery items.
+            var lineIds = rows.Select(row => row.Id).ToList();
+            var photos = await db.ProductLinePhotos
+                .AsNoTracking()
+                .Where(photo => lineIds.Contains(photo.LineId))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            PublicPhotoDto? PhotoOf(Guid lineId, ProductLinePhotoSlot slot) =>
+                photos.Find(photo => photo.LineId == lineId && photo.Slot == slot) is { } found ? ProductLinePhotoMapper.ToPublic(found, delivery) : null;
+
             var lines = new PublicProductLinesDto(
             [
                 .. rows.Select(row => new PublicProductLineDto(
@@ -157,14 +168,29 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                     row.StartsAtPrice,
                     row.MinimumQuantity,
                     ArtName(row.PlaceholderArt),
-                    new PublicLinePhotosDto(null, null, null),
+                    new PublicLinePhotosDto(PhotoOf(row.Id, ProductLinePhotoSlot.Main), PhotoOf(row.Id, ProductLinePhotoSlot.Back), PhotoOf(row.Id, ProductLinePhotoSlot.Fabric)),
                     HasGalleryItems: false)),
             ]);
             var json = JsonSerializer.Serialize(lines, JsonOptions);
             var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
-            var lastChanged = rows.Select(row => row.ChangedAtUtc).DefaultIfEmpty(DateTimeOffset.MinValue).Max();
-            return new PublicProductLinesSnapshot(lines, new PublicJsonSnapshot(json, etag, lastChanged));
+            var lastChanged = rows.Select(row => row.ChangedAtUtc)
+                .Concat(photos.Select(photo => photo.UpdatedAtUtc ?? photo.CreatedAtUtc))
+                .DefaultIfEmpty(DateTimeOffset.MinValue)
+                .Max();
+            return new PublicProductLinesSnapshot(lines, new PublicJsonSnapshot(json, etag, lastChanged), ShareImageOf(rows, photos));
         }
+    }
+
+    // The first shown line's main photo as the link preview picture; none when it has no main photo or the delivery has no address.
+    private string? ShareImageOf(List<LineRow> rows, List<ProductLinePhoto> photos)
+    {
+        if (rows.Count == 0 || photos.Find(photo => photo.LineId == rows[0].Id && photo.Slot == ProductLinePhotoSlot.Main) is not { } main)
+        {
+            return null;
+        }
+
+        var address = delivery.ForShare(main.PublicId);
+        return address.Length == 0 ? null : address;
     }
 
     // "LongSleeves" is sent as "longSleeves", like every other JSON name.
@@ -232,6 +258,7 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         DateTimeOffset ChangedAtUtc);
 
     private sealed record LineRow(
+        Guid Id,
         string Key,
         string Number,
         string Title,

@@ -27,6 +27,16 @@ public sealed class TestingImageDelivery : IImageDelivery
         return ImageCandidates.ForCover(width, height, size => Address(id, size));
     }
 
+    /// <inheritdoc />
+    public LinePhotoUrls ForLinePhoto(string publicId, int width, int height)
+    {
+        var id = IdOf(publicId);
+        return ImageCandidates.ForLinePhoto(width, height, size => Address(id, size));
+    }
+
+    /// <inheritdoc />
+    public string ForShare(string publicId) => Address(IdOf(publicId), ImageNamedSizes.Share);
+
     private static string IdOf(string publicId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(publicId);

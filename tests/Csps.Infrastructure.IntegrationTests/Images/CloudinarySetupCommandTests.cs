@@ -6,7 +6,7 @@ using Csps.Infrastructure.Images;
 namespace Csps.Infrastructure.IntegrationTests.Images;
 
 /// <summary>
-/// IMG-04, D-03, D-33: the one-time setup command lists, creates and reports the 13 named sizes, and never changes an existing
+/// IMG-04, D-03, D-33, D-44: the one-time setup command lists, creates and reports the 34 named sizes, and never changes an existing
 /// one. Everything runs against the stub (no network, D-07); keys and names are fake.
 /// </summary>
 public sealed class CloudinarySetupCommandTests
@@ -98,14 +98,14 @@ public sealed class CloudinarySetupCommandTests
         var (exit, output) = await RunAsync(command, checkOnly: true);
 
         exit.ShouldBe(0);
-        output.ShouldContain("10 exist, 3 missing");
+        output.ShouldContain("31 exist, 3 missing");
         output.ShouldContain("csps_sq_44: exists");
         foreach (var name in ThreeMissing)
         {
             output.ShouldContain($"{name}: missing");
         }
 
-        handler.Requests.Count.ShouldBe(11);
+        handler.Requests.Count.ShouldBe(32);
         handler.Requests.ShouldAllBe(request => request.Method == HttpMethod.Get);
         handler.Requests[0].Uri.AbsolutePath.ShouldBe("/v1_1/demo-cloud/transformations");
         handler.Requests[0].Uri.Query.ShouldContain("named=true");
@@ -144,7 +144,7 @@ public sealed class CloudinarySetupCommandTests
     }
 
     [Fact]
-    public async Task ARunWithNothingMissingCreatesNothingAndSaysAllThirteenExist()
+    public async Task ARunWithNothingMissingCreatesNothingAndSaysAllThirtyFourExist()
     {
         var (command, handler) = Build();
         QueueExisting(handler, []);
@@ -152,9 +152,31 @@ public sealed class CloudinarySetupCommandTests
         var (exit, output) = await RunAsync(command, checkOnly: false);
 
         exit.ShouldBe(0);
-        output.ShouldContain("13 exist");
+        output.ShouldContain("34 exist");
         output.ShouldNotContain("created");
         handler.Requests.ShouldAllBe(request => request.Method == HttpMethod.Get);
+    }
+
+    [Fact]
+    public async Task WithTheThirteenOldSizesPresentOnlyTheTwentyOneNewOnesAreCreatedAndNoOldOneIsChanged()
+    {
+        var (command, handler) = Build();
+        var added = ImageNamedSizes.Phase11.Select(size => size.Name).ToList();
+        QueueExisting(handler, added);
+        foreach (var unused in added)
+        {
+            handler.Reply(HttpStatusCode.OK, """{"message":"created"}""");
+            handler.Reply(HttpStatusCode.OK, """{"message":"updated"}""");
+        }
+
+        var (exit, output) = await RunAsync(command, checkOnly: false);
+
+        exit.ShouldBe(0);
+        output.ShouldContain("13 exist, 21 created");
+        handler.Requests.Where(request => request.Method == HttpMethod.Post).Select(request => request.Fields["name"]).ShouldBe(added);
+        var oldNames = ImageNamedSizes.All.Select(size => size.Name).Except(added).ToList();
+        handler.Requests.Where(request => request.Method != HttpMethod.Get).SelectMany(request => request.Fields.Values).ShouldNotContain(value => oldNames.Contains(value));
+        handler.Requests.ShouldNotContain(request => request.Method == HttpMethod.Delete);
     }
 
     [Fact]
@@ -167,7 +189,7 @@ public sealed class CloudinarySetupCommandTests
 
         exit.ShouldBe(1);
         output.ShouldContain("csps_sq_44: different");
-        output.ShouldContain("12 exist, 1 different");
+        output.ShouldContain("33 exist, 1 different");
         handler.Requests.ShouldAllBe(request => request.Method == HttpMethod.Get);
     }
 
@@ -202,7 +224,7 @@ public sealed class CloudinarySetupCommandTests
 
         exit.ShouldBe(1);
         output.ShouldContain("csps_full_2000: different");
-        output.ShouldContain("12 exist, 1 different");
+        output.ShouldContain("33 exist, 1 different");
         handler.Requests.ShouldAllBe(request => request.Method == HttpMethod.Get);
     }
 
@@ -219,7 +241,7 @@ public sealed class CloudinarySetupCommandTests
         var (exit, output) = await RunAsync(command, checkOnly: true);
 
         exit.ShouldBe(0);
-        output.ShouldContain("13 exist");
+        output.ShouldContain("34 exist");
     }
 
     [Fact]
@@ -249,7 +271,7 @@ public sealed class CloudinarySetupCommandTests
         var (exit, output) = await RunAsync(command, checkOnly: true);
 
         exit.ShouldBe(0);
-        output.ShouldContain("13 exist");
+        output.ShouldContain("34 exist");
         handler.Requests[1].Uri.Query.ShouldContain("cursor-two");
     }
 

@@ -3,10 +3,11 @@ using Csps.Application.Ports;
 namespace Csps.Application.Maintenance;
 
 /// <summary>
-/// Reconciles the photo storage with the database once a month (JOB-02, D-23): it lists this environment's own orders folder, and
+/// Reconciles the photo storage with the database once a month (JOB-02, D-23): it lists this environment's own orders folder and then its
+/// own content folder (the photos of the public pages, RESEARCH P-9), and
 /// queues every file that no photo row and no removal row knows and that is older than 2 days, up to <see cref="MaxStraysPerRun"/> files
-/// per run; when it finds more, it queues the first ones and the run turns red (D-52). The removal job in the same run then removes them. A photo of a soft-deleted order is known, so it is kept. The job never looks outside the folder
-/// <c>{RootFolder}/orders/</c>, and it does nothing when the storage is not set up. Lines hold counts and fixed sentences only, never a
+/// per run for both folders together; when it finds more, it queues the first ones and the run turns red (D-52). The removal job in the same run then removes them. A photo of a soft-deleted order is known, so it is kept. The job never looks outside the folders
+/// <c>{RootFolder}/orders/</c> and <c>{RootFolder}/content/</c>, and it does nothing when the storage is not set up. Lines hold counts and fixed sentences only, never a
 /// file id.
 /// </summary>
 /// <param name="storage">The photo storage.</param>
@@ -41,6 +42,9 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
     /// <summary>A file younger than this is never swept: an upload may still be saving its photo row.</summary>
     public static readonly TimeSpan MinimumAge = TimeSpan.FromDays(2);
 
+    /// <summary>The name the content folder pass keeps its place under, apart from the orders pass.</summary>
+    public const string ContentCursorName = "stray-sweep-content";
+
     /// <inheritdoc />
     public int Order => 20;
 
@@ -57,14 +61,35 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
             return new MaintenanceJobReport([new MaintenanceLine(NotRunLabel, null, false, NotRunText)], false);
         }
 
-        // The trailing slash keeps "csps" from matching "csps-dev" (D-07).
-        var folder = $"{storage.RootFolder}/orders/";
         var cutOff = time.GetUtcNow() - MinimumAge;
-        long queued = 0;
-        var more = false;
-        var unreadable = false;
-        var overCap = false;
-        var saved = await cursors.GetAsync(Name, cancellationToken).ConfigureAwait(false);
+        var run = new SweepRun();
+
+        // The trailing slash keeps "csps" from matching "csps-dev" (D-07). The orders pass keeps its own place, then the content pass
+        // (the photos of the public pages) keeps its own; either stops the run when the budget is spent, the cap is passed or the storage cannot be read.
+        await SweepFolderAsync($"{storage.RootFolder}/orders/", Name, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
+        if (!run.Stopped)
+        {
+            await SweepFolderAsync($"{storage.RootFolder}/content/", ContentCursorName, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
+        }
+
+        var lines = new List<MaintenanceLine> { new(StrayLabel, run.Queued, false, null) };
+        if (run.OverCap)
+        {
+            lines.Add(new MaintenanceLine(LimitLabel, null, true, LimitText));
+        }
+
+        if (run.Unreadable)
+        {
+            lines.Add(new MaintenanceLine(CloudinaryUsageJob.FailedLabel, null, true, UnreadableText));
+        }
+
+        return new MaintenanceJobReport(lines, run.More);
+    }
+
+    // One folder from its saved place to its last page. A pass that stops early (spent budget, passed cap, unreadable storage) says why on the run.
+    private async Task SweepFolderAsync(string folder, string cursorName, MaintenanceBudget budget, DateTimeOffset cutOff, SweepRun run, CancellationToken cancellationToken)
+    {
+        var saved = await cursors.GetAsync(cursorName, cancellationToken).ConfigureAwait(false);
         var cursor = saved;
 
         // Where the next run starts; null means a new pass from page 1.
@@ -76,7 +101,7 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
             {
                 if (budget.IsSpent)
                 {
-                    more = true;
+                    run.More = true;
                     resumeAt = cursor;
                     break;
                 }
@@ -84,16 +109,16 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
                 var pageStart = cursor;
                 var page = await storage.ListAsync(folder, cursor, cancellationToken).ConfigureAwait(false);
                 var strays = await FindStraysAsync(page, folder, cutOff, cancellationToken).ConfigureAwait(false);
-                var take = (int)Math.Min(strays.Count, MaxStraysPerRun - queued);
+                var take = (int)Math.Min(strays.Count, MaxStraysPerRun - run.Queued);
                 if (take > 0)
                 {
                     await queue.EnqueueManyNowAsync(strays.GetRange(0, take), ImageDeletionReason.Stray, cancellationToken).ConfigureAwait(false);
-                    queued += take;
+                    run.Queued += take;
                 }
 
                 if (strays.Count > take)
                 {
-                    overCap = true;
+                    run.OverCap = true;
                     resumeAt = pageStart;
                     break;
                 }
@@ -105,40 +130,27 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         catch (ImageStorageException failure)
         {
             log.StorageReadFailed(Name, failure.FailureCode);
-            unreadable = true;
+            run.Unreadable = true;
 
             // A busy storage or a wrong key says nothing about the place, so it is kept. Any other refusal may mean the cursor is no longer valid.
             resumeAt = failure.FailureCode is ImageFailureCodes.Transient or ImageFailureCodes.Unauthorized ? cursor : null;
         }
 
-        await RememberPlaceAsync(saved, resumeAt, cancellationToken).ConfigureAwait(false);
-
-        var lines = new List<MaintenanceLine> { new(StrayLabel, queued, false, null) };
-        if (overCap)
-        {
-            lines.Add(new MaintenanceLine(LimitLabel, null, true, LimitText));
-        }
-
-        if (unreadable)
-        {
-            lines.Add(new MaintenanceLine(CloudinaryUsageJob.FailedLabel, null, true, UnreadableText));
-        }
-
-        return new MaintenanceJobReport(lines, more);
+        await RememberPlaceAsync(cursorName, saved, resumeAt, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task RememberPlaceAsync(string? saved, string? resumeAt, CancellationToken cancellationToken)
+    private async Task RememberPlaceAsync(string cursorName, string? saved, string? resumeAt, CancellationToken cancellationToken)
     {
         if (resumeAt is null)
         {
             if (saved is not null)
             {
-                await cursors.ClearAsync(Name, cancellationToken).ConfigureAwait(false);
+                await cursors.ClearAsync(cursorName, cancellationToken).ConfigureAwait(false);
             }
         }
         else if (resumeAt != saved)
         {
-            await cursors.SaveAsync(Name, resumeAt, cancellationToken).ConfigureAwait(false);
+            await cursors.SaveAsync(cursorName, resumeAt, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -157,5 +169,19 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
 
         var known = await inventory.KnownAsync(candidates, cancellationToken).ConfigureAwait(false);
         return [.. candidates.Where(candidate => !known.Contains(candidate))];
+    }
+
+    // What one run found so far, across both folders: the cap and the stop reasons belong to the run, not to a folder.
+    private sealed class SweepRun
+    {
+        public long Queued { get; set; }
+
+        public bool More { get; set; }
+
+        public bool Unreadable { get; set; }
+
+        public bool OverCap { get; set; }
+
+        public bool Stopped => More || Unreadable || OverCap;
     }
 }

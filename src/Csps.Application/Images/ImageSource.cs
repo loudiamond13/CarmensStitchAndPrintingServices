@@ -15,3 +15,10 @@ public sealed record PhotoUrls(ImageSource Thumb, ImageSource Viewer, string Ful
 /// <param name="Card">The 16:10 card cover, with width candidates.</param>
 /// <param name="Table">The 44 px table thumb, with a 2x candidate.</param>
 public sealed record CoverUrls(ImageSource Card, ImageSource Table);
+
+/// <summary>The addresses of one product line photo, one per display slot (Phase 11).</summary>
+/// <param name="Card">The 4:5 category card, with width candidates.</param>
+/// <param name="Large">The product large cell, the whole photo limited by width, with width candidates.</param>
+/// <param name="Small">The 1:1 product small cell, with width candidates.</param>
+/// <param name="Thumb">The address of the 44 px square thumb of the Manager's list.</param>
+public sealed record LinePhotoUrls(ImageSource Card, ImageSource Large, ImageSource Small, string Thumb);

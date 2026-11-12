@@ -33,6 +33,8 @@ public static class ContentApplicationRegistration
         services.AddScoped<MoveProductLineHandler>();
         services.AddScoped<SetProductLineShownHandler>();
         services.AddScoped<DeleteProductLineHandler>();
+        services.AddScoped<UploadProductLinePhotoHandler>();
+        services.AddScoped<RemoveProductLinePhotoHandler>();
         services.AddSingleton<IValidator<ProductLineRequest>, ProductLineRequestValidator>();
         services.AddSingleton<IValidator<MoveProductLineRequest>, MoveProductLineRequestValidator>();
         return services;

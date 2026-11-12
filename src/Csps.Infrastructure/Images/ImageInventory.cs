@@ -53,11 +53,13 @@ internal sealed class ImageInventory(CspsDbContext context) : IImageInventory
             return found;
         }
 
+        // Order photos and product line photos in one command: a photo row of either kind names its file.
         var photos = await context.Set<OrderImage>()
             .IgnoreQueryFilters([SoftDeleteFilter])
             .AsNoTracking()
             .Where(image => wanted.Contains(image.PublicId))
             .Select(image => image.PublicId)
+            .Union(context.ProductLinePhotos.AsNoTracking().Where(photo => wanted.Contains(photo.PublicId)).Select(photo => photo.PublicId))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         found.UnionWith(photos);

@@ -157,6 +157,22 @@ internal sealed class ProductLineRig : IAsyncDisposable
 
     public Task<HttpResponseMessage> DeleteAsync(Guid id, StartedSession? who = null) => SendAsync(HttpMethod.Delete, $"{Route}/{id:D}", who ?? Manager);
 
+    /// <summary>Uploads a file as one photo slot of a line with the multipart form the editor sends.</summary>
+    public async Task<HttpResponseMessage> UploadPhotoAsync(Guid id, string slot, byte[] file, StartedSession? who = null, string? idempotencyKey = null, string fileName = "photo.jpg")
+    {
+        const string boundary = "csps-line-photo-boundary";
+        using var client = Factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{id:D}/photos/{slot}", (who ?? Manager).AccessToken);
+        request.Headers.Add("Idempotency-Key", idempotencyKey ?? Guid.NewGuid().ToString("D"));
+        using var content = new ByteArrayContent(MultipartBodies.Build(boundary, [MultipartPart.Upload("file", file, fileName)]));
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("multipart/form-data") { Parameters = { new System.Net.Http.Headers.NameValueHeaderValue("boundary", boundary) } };
+        request.Content = content;
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    public Task<HttpResponseMessage> RemovePhotoAsync(Guid id, string slot, StartedSession? who = null) =>
+        SendAsync(HttpMethod.Delete, $"{Route}/{id:D}/photos/{slot}", who ?? Manager);
+
     public async Task<List<LineListItem>> ListAsync()
     {
         using var response = await GetListAsync();

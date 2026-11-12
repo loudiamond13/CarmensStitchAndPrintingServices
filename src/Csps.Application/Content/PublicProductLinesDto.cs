@@ -57,5 +57,9 @@ public sealed record PublicProductLinesDto(IReadOnlyList<PublicProductLineDto> L
 /// <summary>The product lines as one cached value: the typed data and the JSON the API and the boot data block send.</summary>
 /// <param name="Lines">The typed data.</param>
 /// <param name="Json">The same data as JSON with its ETag.</param>
+/// <param name="ShareImageUrl">
+/// The 1200 x 630 link preview address of the first shown line's main photo, for the Products page head; null when that line has no main
+/// photo (D-26). It is not part of the JSON the page reads.
+/// </param>
 [ImmutableObject(true)]
-public sealed record PublicProductLinesSnapshot(PublicProductLinesDto Lines, PublicJsonSnapshot Json);
+public sealed record PublicProductLinesSnapshot(PublicProductLinesDto Lines, PublicJsonSnapshot Json, string? ShareImageUrl = null);

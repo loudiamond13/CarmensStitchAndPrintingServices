@@ -23,13 +23,15 @@ namespace Csps.Application.Content;
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="time">The clock.</param>
 /// <param name="validator">The form rules.</param>
+/// <param name="delivery">Makes the photo addresses of the answer.</param>
 public sealed class CreateProductLineHandler(
     IProductLines lines,
     ISiteContentLock siteLock,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
     TimeProvider time,
-    IValidator<ProductLineRequest> validator)
+    IValidator<ProductLineRequest> validator,
+    IImageDelivery delivery)
 {
     /// <summary>Adds the line.</summary>
     /// <param name="request">The form.</param>
@@ -67,7 +69,7 @@ public sealed class CreateProductLineHandler(
         var row = await lines.GetDetailAsync(outcome.Value, cancellationToken).ConfigureAwait(false);
         return row is null
             ? Result.Failure<ProductLineDetailDto>(SiteContentErrors.LineNotFound)
-            : Result.Success(ProductLineDetailDto.From(row));
+            : Result.Success(ProductLineDetailDto.From(row, delivery));
     }
 
     private async Task<Result<Guid>> AttemptAsync(ProductLineRequest request, CancellationToken cancellationToken)

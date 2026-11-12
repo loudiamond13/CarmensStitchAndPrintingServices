@@ -4615,6 +4615,10 @@
             "description": "The number on the drawing; empty for none.",
             "type": "string"
           },
+          "photos": {
+            "$ref": "#/components/schemas/ProductLinePhotosDto",
+            "description": "The photos of the three slots; a slot with no photo is null."
+          },
           "placeholderArt": {
             "description": "The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
             "type": "string"
@@ -4693,6 +4697,7 @@
           "position",
           "placeholderArt",
           "productTypeIds",
+          "photos",
           "version",
           "updatedByName",
           "createdAtUtc",
@@ -4810,6 +4815,93 @@
           "photoCount",
           "canDelete",
           "version"
+        ],
+        "type": "object"
+      },
+      "ProductLinePhotoDto": {
+        "description": "One photo of a product line as the Manager's screens read it (D-02).",
+        "properties": {
+          "height": {
+            "description": "The upright height in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "slot": {
+            "description": "The place on the line: `main`, `back` or `fabric`.",
+            "type": "string"
+          },
+          "src": {
+            "description": "The address of the preview at a size that fits the slot.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The `srcset` text with the smaller and larger candidates.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "slot",
+          "src",
+          "srcSet",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "ProductLinePhotosDto": {
+        "description": "The three photo slots of a product line as the Manager's editor reads them; a slot with no photo is null.",
+        "properties": {
+          "back": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductLinePhotoDto",
+                "description": "The back view."
+              }
+            ]
+          },
+          "fabric": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductLinePhotoDto",
+                "description": "The fabric detail."
+              }
+            ]
+          },
+          "main": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductLinePhotoDto",
+                "description": "The main photo."
+              }
+            ]
+          }
+        },
+        "required": [
+          "main",
+          "back",
+          "fabric"
         ],
         "type": "object"
       },
@@ -15024,6 +15116,216 @@
         ]
       }
     },
+    "/api/v1/product-lines/{lineId}/photos/{slot}": {
+      "delete": {
+        "operationId": "RemoveProductLinePhoto",
+        "parameters": [
+          {
+            "description": "The product line id.",
+            "in": "path",
+            "name": "lineId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The slot: `main`, `back` or `fabric`.",
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal\nin the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The\nchange is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.",
+        "tags": [
+          "ProductLinePhotos"
+        ]
+      },
+      "post": {
+        "operationId": "UploadProductLinePhoto",
+        "parameters": [
+          {
+            "description": "The product line id.",
+            "in": "path",
+            "name": "lineId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The slot: `main`, `back` or `fabric`.",
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLinePhotoDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Puts one photo into a slot of a product line as a multipart form with the file in the `file` part. The type is read from the\nfirst bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use,\nis over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The photo is\nstored under a random id the client never chooses, in the line's own content folder. A slot that already holds a photo is\nreplaced, and the old file is queued for removal in the same save. The slot is `main`, `back` or `fabric`; any\nother word answers 404. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with the same\n`Idempotency-Key` and body answers with the stored answer and adds nothing more. Who added the photo and when come from the\ntoken and the clock. The change is recorded in the audit log with the slot and never the address, and the public pages show it at\nonce.",
+        "tags": [
+          "ProductLinePhotos"
+        ]
+      }
+    },
     "/api/v1/product-types": {
       "get": {
         "operationId": "ListProductTypes",
@@ -18365,6 +18667,9 @@
     },
     {
       "name": "PaymentMethods"
+    },
+    {
+      "name": "ProductLinePhotos"
     },
     {
       "name": "ProductLines"

@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Domain.Content;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Identity;
@@ -18,6 +19,8 @@ public sealed class ImageInventoryTests(CspsDatabase database) : IClassFixture<C
     private const string DeletedPhoto = "csps-test/orders/deleted/photo-deleted";
     private const string QueuedOnly = "csps-test/orders/gone/photo-queued";
     private const string Unknown = "csps-test/orders/none/photo-unknown";
+    private static readonly Guid LineId = ProductLineSeed.All[0].Id;
+    private static readonly string LinePhoto = $"csps-test/content/lines/{LineId:D}/linephotolinephotolinephot2";
 
     private static readonly DateTimeOffset Now = new(2026, 11, 3, 12, 0, 0, TimeSpan.Zero);
     private static readonly DateOnly Today = new(2026, 11, 3);
@@ -42,6 +45,34 @@ public sealed class ImageInventoryTests(CspsDatabase database) : IClassFixture<C
 
         (await inventory.KnownAsync([DeletedPhoto], TestContext.Current.CancellationToken)).ShouldBe([DeletedPhoto]);
         (await inventory.NamedByPhotosAsync([DeletedPhoto], TestContext.Current.CancellationToken)).ShouldBe([DeletedPhoto]);
+    }
+
+    [Fact]
+    public async Task AProductLinePhotoIsKnownAndNamedByAPhotoAndTheOrderPhotosStillAre()
+    {
+        await SeedAsync();
+        await using var context = database.CreateContext();
+        var inventory = new ImageInventory(context);
+
+        var known = await inventory.KnownAsync([LinePhoto, LivePhoto, Unknown], TestContext.Current.CancellationToken);
+        var named = await inventory.NamedByPhotosAsync([LinePhoto, LivePhoto, QueuedOnly, Unknown], TestContext.Current.CancellationToken);
+
+        known.OrderBy(id => id, StringComparer.Ordinal).ShouldBe([LinePhoto, LivePhoto]);
+        named.OrderBy(id => id, StringComparer.Ordinal).ShouldBe([LinePhoto, LivePhoto]);
+    }
+
+    [Fact]
+    public async Task AReplacedLinePhotosOldIdIsKnownOnlyWhileItsQueueRowIsHeldAndNeverNamedByAPhoto()
+    {
+        await SeedAsync();
+        var oldId = $"csps-test/content/lines/{LineId:D}/oldoldoldoldoldoldoldoldol2";
+        await using var context = database.CreateContext();
+        context.Set<ImageDeletion>().Add(ImageDeletion.Queue(oldId, "private", ImageDeletionReason.PhotoReplaced, Now));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var inventory = new ImageInventory(context);
+
+        (await inventory.KnownAsync([oldId], TestContext.Current.CancellationToken)).ShouldBe([oldId]);
+        (await inventory.NamedByPhotosAsync([oldId], TestContext.Current.CancellationToken)).ShouldBeEmpty();
     }
 
     [Fact]
@@ -134,6 +165,7 @@ public sealed class ImageInventoryTests(CspsDatabase database) : IClassFixture<C
         context.Orders.Add(NewOrder(callerId, "ORD-2026-0001", LivePhoto, deleted: false));
         context.Orders.Add(NewOrder(callerId, "ORD-2026-0002", DeletedPhoto, deleted: true));
         context.Set<ImageDeletion>().Add(ImageDeletion.Queue(QueuedOnly, "private", ImageDeletionReason.PhotoDeleted, Now));
+        context.ProductLinePhotos.Add(ProductLinePhoto.Create(LineId, ProductLinePhotoSlot.Main, new LinePhotoFile(LinePhoto, 800, 600, 50_000, "jpg"), Now));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
