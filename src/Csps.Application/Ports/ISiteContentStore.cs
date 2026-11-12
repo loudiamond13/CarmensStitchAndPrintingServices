@@ -24,7 +24,32 @@ public interface ISiteContentStore
     /// <returns>The settings, the phones, the version and who last changed them.</returns>
     /// <exception cref="InvalidOperationException">The singleton row is missing (the migrations were not applied).</exception>
     Task<SiteSettingsView> GetViewAsync(CancellationToken cancellationToken);
+
+    /// <summary>Loads the seven opening-hours rows as tracked rows, Monday first, so a change to them is saved by the unit of work.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The rows in day order, 1 for Monday to 7 for Sunday.</returns>
+    /// <exception cref="InvalidOperationException">A row is missing (the migrations were not applied).</exception>
+    Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken);
+
+    /// <summary>Reads the week as the Hours tab shows it, straight from the database.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The seven days, their versions and who last changed them.</returns>
+    /// <exception cref="InvalidOperationException">A row is missing (the migrations were not applied).</exception>
+    Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken);
 }
+
+/// <summary>One day of the week as the read port returns it.</summary>
+/// <param name="Day">The weekday, 1 for Monday to 7 for Sunday.</param>
+/// <param name="OpensAt">The opening time; null on a closed day.</param>
+/// <param name="ClosesAt">The closing time; null on a closed day.</param>
+/// <param name="RowVersion">The eight-byte version of this day's row.</param>
+public sealed record OpeningHoursRowView(int Day, TimeOnly? OpensAt, TimeOnly? ClosesAt, byte[] RowVersion);
+
+/// <summary>The week as the read port returns it.</summary>
+/// <param name="Rows">The seven days, Monday first.</param>
+/// <param name="UpdatedByName">The name of the person who last changed any day; null when no person did.</param>
+/// <param name="UpdatedAtUtc">When any day was last changed; null until a change.</param>
+public sealed record OpeningHoursView(IReadOnlyList<OpeningHoursRowView> Rows, string? UpdatedByName, DateTimeOffset? UpdatedAtUtc);
 
 /// <summary>The tracked settings row and its tracked phone rows.</summary>
 /// <param name="Settings">The settings singleton.</param>

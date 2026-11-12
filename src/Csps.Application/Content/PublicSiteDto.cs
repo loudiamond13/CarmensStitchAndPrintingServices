@@ -31,6 +31,7 @@ public sealed record PublicAddressDto(string? Street, string? TownOrCity, string
 /// <param name="DirectionsUrl">The directions link.</param>
 /// <param name="MapEmbedUrl">The map embed link.</param>
 /// <param name="Year">The current business-calendar year, for the footer's copyright line.</param>
+/// <param name="Hours">The weekly hours, seven days with Monday (1) first; a closed day has no times.</param>
 public sealed record PublicSiteDto(
     string BusinessName,
     string Tagline,
@@ -44,4 +45,5 @@ public sealed record PublicSiteDto(
     string? TiktokUrl,
     string? DirectionsUrl,
     string? MapEmbedUrl,
-    int Year);
+    int Year,
+    IReadOnlyList<DayHoursDto> Hours);

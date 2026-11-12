@@ -34,7 +34,7 @@ public sealed class OpenStatusEndpointTests(CspsDatabase database) : IClassFixtu
         using var response = await client.GetAsync(new Uri(StatusRoute, UriKind.Relative), TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Headers.CacheControl.ShouldNotBeNull().ToString().ShouldBe("max-age=60, public");
+        response.Headers.GetValues("Cache-Control").ShouldBe(["public, max-age=60"]);
         response.Headers.ETag.ShouldBeNull();
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var root = document.RootElement;

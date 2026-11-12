@@ -14,6 +14,9 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
     internal const string MissingRowMessage =
         "The SiteSettings singleton row (Id = 1) is missing. Apply the EF migrations.";
 
+    internal const string MissingHoursMessage =
+        "The seven OpeningHours rows are missing. Apply the EF migrations.";
+
     public async Task<SiteSettingsForUpdate> GetSettingsForUpdateAsync(CancellationToken cancellationToken)
     {
         var settings = await context.SiteSettings
@@ -85,5 +88,38 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
             settingsRow.RowVersion,
             row.ChangerFirst is null ? null : $"{row.ChangerFirst} {row.ChangerLast}",
             settingsRow.UpdatedAtUtc);
+    }
+
+    public async Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken)
+    {
+        var rows = await context.OpeningHours.OrderBy(row => row.DayOfWeek).ToListAsync(cancellationToken).ConfigureAwait(false);
+        return rows.Count == OpeningHours.DayCount ? rows : throw new InvalidOperationException(MissingHoursMessage);
+    }
+
+    // The last changer is the user of the most recently changed day.
+    public async Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken)
+    {
+        var rows = await context.OpeningHours.AsNoTracking().OrderBy(row => row.DayOfWeek).ToListAsync(cancellationToken).ConfigureAwait(false);
+        if (rows.Count != OpeningHours.DayCount)
+        {
+            throw new InvalidOperationException(MissingHoursMessage);
+        }
+
+        var latest = rows.Where(row => row.UpdatedAtUtc is not null).MaxBy(row => row.UpdatedAtUtc);
+        string? changerName = null;
+        if (latest?.UpdatedById is { } changerId)
+        {
+            var changer = await context.Users.AsNoTracking()
+                .Where(user => user.Id == changerId)
+                .Select(user => new { user.FirstName, user.LastName })
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            changerName = changer is null ? null : $"{changer.FirstName} {changer.LastName}";
+        }
+
+        return new OpeningHoursView(
+            [.. rows.Select(row => new OpeningHoursRowView(row.DayOfWeek, row.OpensAt, row.ClosesAt, row.RowVersion))],
+            changerName,
+            latest?.UpdatedAtUtc);
     }
 }

@@ -20,7 +20,7 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
     private static readonly string[] DtoPropertyNames =
     [
         "businessName", "tagline", "aboutText", "turnaroundLine", "address", "phones", "messengerUrl", "facebookUrl", "instagramUrl",
-        "tiktokUrl", "directionsUrl", "mapEmbedUrl", "year",
+        "tiktokUrl", "directionsUrl", "mapEmbedUrl", "year", "hours",
     ];
 
     [Fact]

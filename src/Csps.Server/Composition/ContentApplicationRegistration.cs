@@ -16,6 +16,10 @@ public static class ContentApplicationRegistration
         services.AddScoped<GetPublicSiteHandler>();
         services.AddScoped<UpdateSiteSettingsHandler>();
         services.AddSingleton<IValidator<UpdateSiteSettingsRequest>, UpdateSiteSettingsRequestValidator>();
+        services.AddScoped<GetOpenStatusHandler>();
+        services.AddScoped<GetOpeningHoursHandler>();
+        services.AddScoped<UpdateOpeningHoursHandler>();
+        services.AddSingleton<IValidator<UpdateOpeningHoursRequest>, UpdateOpeningHoursRequestValidator>();
         return services;
     }
 }

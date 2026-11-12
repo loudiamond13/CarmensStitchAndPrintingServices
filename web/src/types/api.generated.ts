@@ -673,6 +673,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/opening-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the seven days, Monday (1) first, each with its opening and closing time as "HH:mm" or none for a closed day, the version a
+         *     save must send back, and who last changed the hours and when. Until a Manager saves hours every day is closed.
+         */
+        get: operations["GetOpeningHours"];
+        /**
+         * Saves all seven days at once. An open day needs both times, and the closing time must be after the opening time. A `version`
+         *     that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A save with no change
+         *     stores nothing, writes no audit entry and keeps the version. The next public read, open-status read and page show the change.
+         *     Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateOpeningHours"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/order-expense-categories": {
         parameters: {
             query?: never;
@@ -1651,6 +1677,28 @@ export interface paths {
         put?: never;
         /** Changes the caller's password after checking the current one. Every other device is signed out; this one stays signed in. */
         post: operations["ChangePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/open-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` ("HH:mm")
+         *     when open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and
+         *     `when` of "today", "tomorrow" or "weekday") when closed and the shop opens within 14 days. The answer is public and may be
+         *     kept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.
+         */
+        get: operations["GetOpenStatus"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2776,6 +2824,18 @@ export interface components {
              */
             today: string;
         };
+        /** @description One weekday's hours as people send and read them. A closed day has no times. */
+        DayHoursDto: {
+            /** @description The closing time as "HH:mm" (24 hours); null on a closed day. */
+            closesAt: null | string;
+            /**
+             * Format: int32
+             * @description The weekday, 1 for Monday to 7 for Sunday.
+             */
+            day: number | string;
+            /** @description The opening time as "HH:mm" (24 hours); null on a closed day. */
+            opensAt: null | string;
+        };
         /** @description One deleted expense in the deleted list. It carries no notes (D-19). */
         DeletedExpenseListItem: {
             /**
@@ -3248,6 +3308,49 @@ export interface components {
             position: null | number | string;
             /** @description The base64 of the eight-byte row version of the order the page was opened with. */
             version: null | string;
+        };
+        /** @description When the shop opens next, as facts the page turns into words (D-22). */
+        NextOpeningDto: {
+            /** @description The business date of the opening, "yyyy-MM-dd". */
+            date: string;
+            /**
+             * Format: int32
+             * @description The weekday of that date, 1 for Monday to 7 for Sunday.
+             */
+            day: number | string;
+            /** @description The opening time as "HH:mm" (24 hours). */
+            opensAt: string;
+            /** @description "today", "tomorrow" or "weekday". */
+            when: string;
+        };
+        /** @description Whether the shop is open now, worked out by the server in business time (PUB-05, D-22). The page only turns these facts into words. */
+        OpenStatusDto: {
+            /** @description True when a closure covers today. */
+            closedToday: boolean;
+            /** @description The closing time today as "HH:mm" when open; otherwise null. */
+            closesAt: null | string;
+            /** @description True when the shop is open at this instant. */
+            isOpen: boolean;
+            nextOpening: null | components["schemas"]["NextOpeningDto"];
+            /** @description The note of the closure that covers today; null when none or no note. */
+            todayClosureNote: null | string;
+        };
+        /**
+         * @description The staff view of the weekly hours (CONT-01, D-21): seven days, Monday first, the version a save must send back and who last changed
+         *     any day. The version belongs to the hours alone, so a Business Info save never makes it stale (P-8).
+         */
+        OpeningHoursDto: {
+            /** @description The seven days, Monday first. */
+            days: components["schemas"]["DayHoursDto"][];
+            /**
+             * Format: date-time
+             * @description When any day was last changed; null until a change.
+             */
+            updatedAtUtc: null | string;
+            /** @description The name of the person who last changed any day; null when no person did. */
+            updatedByName: null | string;
+            /** @description The text a save must send back (409 on a stale one). */
+            version: string;
         };
         /** @description An order's cover photo in the list (ORD-04, IMG-04). The addresses are built when the list is read and are never stored. */
         OrderCoverResponse: {
@@ -3984,6 +4087,8 @@ export interface components {
             directionsUrl: null | string;
             /** @description The Facebook page link. */
             facebookUrl: null | string;
+            /** @description The weekly hours, seven days with Monday (1) first; a closed day has no times. */
+            hours: components["schemas"]["DayHoursDto"][];
             /** @description The Instagram link. */
             instagramUrl: null | string;
             /** @description The map embed link. */
@@ -4337,6 +4442,16 @@ export interface components {
             /** @description One of `neutral`, `accent`, `info`, `mockup`, `warning`, `success`. */
             tone: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */
+            version: null | string;
+        };
+        /**
+         * @description The weekly hours form (CONT-01, SEC-07). All seven days are sent every time. Any other member in the body is ignored: who changed the
+         *     hours and when come from the token and the clock (SEC-08).
+         */
+        UpdateOpeningHoursRequest: {
+            /** @description The seven days, each once, in any order; a closed day has no times. */
+            days: null | components["schemas"]["DayHoursDto"][];
+            /** @description The week version the form was opened with; required. */
             version: null | string;
         };
         /**
@@ -6644,6 +6759,107 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOpeningHours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningHoursDto"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOpeningHours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOpeningHoursRequest"];
+                "application/json": null | components["schemas"]["UpdateOpeningHoursRequest"];
+                "text/json": null | components["schemas"]["UpdateOpeningHoursRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningHoursDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10248,6 +10464,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOpenStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenStatusDto"];
                 };
             };
             /** @description Too Many Requests */

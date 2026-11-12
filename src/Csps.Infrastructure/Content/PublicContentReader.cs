@@ -23,6 +23,9 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 {
     internal const string SiteCacheKey = "csps:public:site:v1";
 
+    internal const string MissingHoursMessage =
+        "The seven OpeningHours rows are missing. Apply the EF migrations.";
+
     internal const string MissingRowMessage =
         "The SiteSettings singleton row (Id = 1) is missing. Apply the EF migrations.";
 
@@ -68,6 +71,17 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .ConfigureAwait(false)
                 ?? throw new InvalidOperationException(MissingRowMessage);
 
+            var hours = await db.OpeningHours
+                .AsNoTracking()
+                .OrderBy(row => row.DayOfWeek)
+                .Select(row => new HoursRow(row.DayOfWeek, row.OpensAt, row.ClosesAt, row.UpdatedAtUtc ?? row.CreatedAtUtc))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (hours.Count != OpeningHours.DayCount)
+            {
+                throw new InvalidOperationException(MissingHoursMessage);
+            }
+
             var phones = await db.SitePhoneNumbers
                 .AsNoTracking()
                 .OrderByDescending(row => row.IsMain)
@@ -76,11 +90,11 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return Build(settings, phones);
+            return Build(settings, phones, hours);
         }
     }
 
-    private PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones)
+    private PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours)
     {
         var (zone, source) = TimeZoneResolver.Resolve(settings.TimeZoneId);
         var year = new BusinessClock(zone, source, time.GetUtcNow()).Year;
@@ -97,11 +111,12 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
             settings.TikTokUrl,
             settings.DirectionsUrl,
             settings.MapEmbedUrl,
-            year);
+            year,
+            [.. hours.Select(day => new DayHoursDto(day.Day, DayHoursDto.FormatTime(day.OpensAt), DayHoursDto.FormatTime(day.ClosesAt)))]);
 
         var json = JsonSerializer.Serialize(site, JsonOptions);
         var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
-        var lastChanged = phones.Select(phone => phone.ChangedAtUtc).Append(settings.ChangedAtUtc).Max();
+        var lastChanged = phones.Select(phone => phone.ChangedAtUtc).Concat(hours.Select(day => day.ChangedAtUtc)).Append(settings.ChangedAtUtc).Max();
         return new PublicSiteSnapshot(site, new PublicJsonSnapshot(json, etag, lastChanged));
     }
 
@@ -127,6 +142,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         string? MapEmbedUrl,
         string TimeZoneId,
         DateTimeOffset ChangedAtUtc);
+
+    private sealed record HoursRow(int Day, TimeOnly? OpensAt, TimeOnly? ClosesAt, DateTimeOffset ChangedAtUtc);
 
     private sealed record PhoneRow(string Number, string? Label, bool IsMain, DateTimeOffset ChangedAtUtc);
 }

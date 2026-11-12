@@ -30,6 +30,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The public phone numbers of the shop, at most four, one of them main (D-23).</summary>
     public DbSet<SitePhoneNumber> SitePhoneNumbers => Set<SitePhoneNumber>();
 
+    /// <summary>The weekly opening hours: seven rows, Monday (1) to Sunday (7), created closed by the migration (D-21).</summary>
+    public DbSet<OpeningHours> OpeningHours => Set<OpeningHours>();
+
     /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 

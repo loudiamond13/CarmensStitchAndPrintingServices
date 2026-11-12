@@ -86,6 +86,47 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.OpeningHours", b =>
+                {
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly?>("ClosesAt")
+                        .HasColumnType("time(0)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly?>("OpensAt")
+                        .HasColumnType("time(0)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("DayOfWeek");
+
+                    b.ToTable("OpeningHours", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OpeningHours_BothOrNone", "([OpensAt] IS NULL AND [ClosesAt] IS NULL) OR ([OpensAt] IS NOT NULL AND [ClosesAt] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_OpeningHours_ClosesAfterOpens", "[OpensAt] IS NULL OR [ClosesAt] > [OpensAt]");
+
+                            t.HasCheckConstraint("CK_OpeningHours_Day", "[DayOfWeek] BETWEEN 1 AND 7");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Content.SitePhoneNumber", b =>
                 {
                     b.Property<Guid>("Id")
