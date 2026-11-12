@@ -84,7 +84,10 @@ describe('check.mjs (the D-16 drift check)', () => {
   it('writes nothing to the committed types file', () => {
     const before = readFileSync(generated, 'utf8');
     const edited = join(scratch, 'retitled.json');
-    writeFileSync(edited, readFileSync(snapshot, 'utf8').replace('"Formatting locale."', '"Changed."'));
+    const original = readFileSync(snapshot, 'utf8');
+    const retitled = original.replace('"Formatting locale; read-only."', '"Changed."');
+    assert.notEqual(retitled, original, 'the snapshot no longer holds the text this test edits');
+    writeFileSync(edited, retitled);
 
     assert.equal(runCheck(['--snapshot', edited]).status, 1);
     runCheck([]);
