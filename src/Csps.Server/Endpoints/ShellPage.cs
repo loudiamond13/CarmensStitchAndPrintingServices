@@ -1,6 +1,7 @@
 using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
+using Csps.Application.Content;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Email;
 using Csps.Server.Http;
@@ -156,7 +157,7 @@ internal sealed partial class ShellRenderer(
         // Weak: the body is compressed after the tag is set, so br, gzip and identity are not byte-identical.
         var etag = new EntityTagHeaderValue($"\"{Convert.ToHexString(SHA256.HashData(bytes))[..32]}\"", isWeak: true);
         response.GetTypedHeaders().ETag = etag;
-        if (found && Matches(context.Request, etag))
+        if (found && EntityTags.Matches(context.Request, etag))
         {
             response.StatusCode = StatusCodes.Status304NotModified;
             response.ContentType = null;
@@ -167,12 +168,6 @@ internal sealed partial class ShellRenderer(
         {
             await response.Body.WriteAsync(bytes, context.RequestAborted).ConfigureAwait(false);
         }
-    }
-
-    private static bool Matches(HttpRequest request, EntityTagHeaderValue etag)
-    {
-        var candidates = request.GetTypedHeaders().IfNoneMatch;
-        return candidates.Any(candidate => candidate.Equals(EntityTagHeaderValue.Any) || candidate.Compare(etag, useStrongComparison: false));
     }
 
     private async Task<string> HeadAsync(HttpContext context, PublicRouteMatch match, ShellTemplateParts parts)
@@ -214,12 +209,11 @@ internal sealed partial class ShellRenderer(
     // Null when the settings cannot be read: the caller then sends the template's own head.
     private async Task<PublicHeadModel?> PageModelAsync(HttpContext context, PublicRouteMatch match)
     {
-        string siteName;
+        PublicSiteDto site;
         try
         {
-            var settings = await context.RequestServices.GetRequiredService<ISiteSettingsReader>()
-                .GetAsync(context.RequestAborted).ConfigureAwait(false);
-            siteName = settings.BusinessName;
+            site = (await context.RequestServices.GetRequiredService<IPublicContentReader>()
+                .GetSiteAsync(context.RequestAborted).ConfigureAwait(false)).Site;
             Interlocked.Exchange(ref _settingsFailing, 0);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -233,8 +227,8 @@ internal sealed partial class ShellRenderer(
         }
 
         var origin = links.Value.PublicBaseUrl.TrimEnd('/');
-        var head = PublicPageHeads.For(match.Page!.Value);
-        return new PublicHeadModel(head.Title, head.Description, origin + match.CanonicalPath, siteName, NoIndex: false);
+        var head = PublicPageHeads.For(match.Page!.Value, site.Tagline);
+        return new PublicHeadModel(head.Title, head.Description, origin + match.CanonicalPath, site.BusinessName, NoIndex: false);
     }
 
     private static Task WriteMissingTemplateAsync(HttpContext context)

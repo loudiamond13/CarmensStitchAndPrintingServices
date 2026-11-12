@@ -78,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<SiteSettingsReader>();
         services.AddScoped<ISiteSettingsReader>(provider => provider.GetRequiredService<SiteSettingsReader>());
         services.AddScoped<ISiteSettingsCache>(provider => provider.GetRequiredService<SiteSettingsReader>());
+        services.AddCspsContent();
 
         // Time comes only from TimeProvider (RS0030 bans the clock statics); tests replace it with a fake clock.
         services.TryAddSingleton(TimeProvider.System);

@@ -108,7 +108,7 @@ public sealed partial class SiteContactDetailsMigrationTests(CspsDatabase databa
     [InlineData(false, EmailPlaceholder, FacebookPlaceholder, "", "")]
     [InlineData(true, EmailPlaceholder, FacebookPlaceholder, "", "")]
     [InlineData(false, "owner@example.test", "https://facebook.example.test/real", "owner@example.test", "https://facebook.example.test/real")]
-    [InlineData(true, "owner@example.test", EmailPlaceholder, "owner@example.test", "")]
+    [InlineData(true, "owner@example.test", FacebookPlaceholder, "owner@example.test", "")]
     [InlineData(false, EmailPlaceholder, "https://facebook.example.test/real", "", "https://facebook.example.test/real")]
     public async Task OnlyTheValuesThatStillHoldTheBracketPlaceholdersAreBlanked(
         bool throughTheReviewedScript, string email, string facebook, string expectedEmail, string expectedFacebook)

@@ -86,10 +86,63 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.SitePhoneNumber", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsMain")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsMain")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SitePhoneNumbers_Main")
+                        .HasFilter("[IsMain] = 1");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SitePhoneNumbers_Number");
+
+                    b.ToTable("SitePhoneNumbers", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Domain.Content.SiteSettings", b =>
                 {
                     b.Property<int>("Id")
                         .HasColumnType("int");
+
+                    b.Property<string>("AboutText")
+                        .HasMaxLength(600)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(600)");
 
                     b.Property<string>("AddressLine")
                         .IsRequired()
@@ -118,8 +171,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("CreatedByUserId");
 
                     b.Property<string>("CurrencyCode")
                         .IsRequired()
@@ -127,8 +181,18 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(3)");
 
+                    b.Property<string>("DirectionsUrl")
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
                     b.Property<string>("FacebookUrl")
                         .IsRequired()
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("InstagramUrl")
                         .HasMaxLength(300)
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(300)");
@@ -139,11 +203,47 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(16)");
 
+                    b.Property<string>("MapEmbedUrl")
+                        .HasMaxLength(1000)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("MessengerUrl")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(4)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(4)");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<string>("Street")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Tagline")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("TikTokUrl")
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("TimeZoneId")
                         .IsRequired()
@@ -151,11 +251,22 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("TownOrCity")
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("TurnaroundLine")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid?>("UpdatedByUserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("UpdatedByUserId");
 
                     b.HasKey("Id");
 
@@ -170,12 +281,13 @@ namespace Csps.Infrastructure.Persistence.Migrations
                             Id = 1,
                             AddressLine = "[Shop address], [City], Philippines",
                             BusinessName = "Carmen's Stitch & Printing Services",
-                            ContactEmail = "[hello@yourdomain.ph]",
+                            ContactEmail = "",
                             ContactPhone = "[0917 000 0000]",
                             CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 7, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             CurrencyCode = "PHP",
-                            FacebookUrl = "[Facebook page URL]",
+                            FacebookUrl = "",
                             Locale = "en-PH",
+                            Tagline = "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.",
                             TimeZoneId = "Asia/Manila"
                         });
                 });

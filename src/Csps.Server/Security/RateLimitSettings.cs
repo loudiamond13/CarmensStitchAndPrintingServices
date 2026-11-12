@@ -26,6 +26,40 @@ public static class RateLimitPolicies
 
     /// <summary>Uploading an order photo (IMG-02, T-09-27): a per-address window on top of the app-wide two-at-a-time cap.</summary>
     public const string ImageUpload = "images-upload";
+
+    /// <summary>Anonymous reads of <c>/api/v1/public/*</c> (SEC-03, P-10): a generous per-address window. The shell, robots.txt and sitemap.xml have no limit.</summary>
+    public const string PublicRead = "public-read";
+}
+
+/// <summary>The per-address limit on the public reads, read from <c>RateLimits:PublicRead</c>: 600 reads per minute by default.</summary>
+public static class PublicReadRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:PublicRead";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) };
+
+    /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
+    /// <param name="rule">The rule to check.</param>
+    /// <returns>One message per problem; empty when the rule is usable.</returns>
+    public static IReadOnlyList<string> Validate(RateLimitRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        var problems = new List<string>();
+        if (rule.PermitLimit < 1)
+        {
+            problems.Add($"{SectionName}:PermitLimit must be at least 1.");
+        }
+
+        if (rule.Window < RateLimitRule.MinWindow)
+        {
+            problems.Add($"{SectionName}:Window must be at least 6 seconds.");
+        }
+
+        return problems;
+    }
 }
 
 /// <summary>The per-address limit on photo uploads, read from <c>RateLimits:Images</c>: 30 uploads per 10 minutes by default.</summary>

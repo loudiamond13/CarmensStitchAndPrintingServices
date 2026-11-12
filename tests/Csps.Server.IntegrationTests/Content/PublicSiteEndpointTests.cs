@@ -116,7 +116,7 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
 
         body.ShouldNotContain("shop-private@example.test", Case.Insensitive);
         body.ShouldNotContain("@");
-        body.ShouldNotContain("[");
+        StringValues(body).ShouldNotContain(value => value.Contains('[', StringComparison.Ordinal));
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
 
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
             var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-            body.ShouldNotContain("[");
+            StringValues(body).ShouldNotContain(value => value.Contains('[', StringComparison.Ordinal));
             body.ShouldNotContain("@");
             using var document = JsonDocument.Parse(body);
             var site = document.RootElement;
@@ -172,6 +172,41 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
 
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         document.RootElement.GetProperty("year").GetInt32().ShouldBe(2027);
+    }
+
+    // Every string value in the JSON, whatever its depth. A bracket inside a value is a leaked placeholder; the array brackets are not.
+    private static List<string> StringValues(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var values = new List<string>();
+        Collect(document.RootElement, values);
+        return values;
+    }
+
+    private static void Collect(JsonElement element, List<string> values)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                values.Add(element.GetString()!);
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    Collect(item, values);
+                }
+
+                break;
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    Collect(property.Value, values);
+                }
+
+                break;
+            default:
+                break;
+        }
     }
 
     [Theory]

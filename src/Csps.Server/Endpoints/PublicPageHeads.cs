@@ -7,15 +7,11 @@ internal sealed record PageHead(string Title, string Description);
 
 /// <summary>
 /// The title and description each public page sends in its first response (UI-SPEC Document titles and Meta
-/// descriptions). The client sets the same strings on navigation. Home's description is the approved tagline until the
-/// stored one is read.
+/// descriptions). The client sets the same strings on navigation. Home's description is the stored tagline.
 /// </summary>
 internal static class PublicPageHeads
 {
-    /// <summary>The approved shop tagline.</summary>
-    public const string HomeTagline = "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.";
-
-    private static readonly PageHead Home = new("CSPS · Custom Team Jerseys and Tailoring", HomeTagline);
+    private const string HomeTitle = "CSPS · Custom Team Jerseys and Tailoring";
 
     private static readonly PageHead Products = new(
         "Products and Prices · CSPS",
@@ -34,10 +30,11 @@ internal static class PublicPageHeads
 
     /// <summary>Returns the head of a public page.</summary>
     /// <param name="page">The page.</param>
+    /// <param name="tagline">The stored tagline, which is Home's description.</param>
     /// <returns>Its title and description.</returns>
-    public static PageHead For(PublicPage page) => page switch
+    public static PageHead For(PublicPage page, string tagline) => page switch
     {
-        PublicPage.Home => Home,
+        PublicPage.Home => new PageHead(HomeTitle, tagline),
         PublicPage.Products => Products,
         PublicPage.Gallery => Gallery,
         PublicPage.Contact => Contact,
