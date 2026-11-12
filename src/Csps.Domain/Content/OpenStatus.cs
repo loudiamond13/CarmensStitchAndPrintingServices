@@ -31,14 +31,44 @@ public sealed record OpenStatus(
     {
         var now = TimeOnly.FromDateTime(clock.LocalNow.DateTime);
         var today = clock.Today;
-        var closedToday = closures.Any(c => c.Covers(today));
-        var hours = week.FirstOrDefault(d => d.Day == today.DayOfWeek);
+        var todayClosure = closures.FirstOrDefault(c => c.Covers(today));
 
-        if (!closedToday && hours is { OpensAt: { } opensAt, ClosesAt: { } closesAt } && now >= opensAt && now < closesAt)
+        if (todayClosure is null && OpenHoursOn(week, today.DayOfWeek) is (var opens, var closes) && now >= opens && now < closes)
         {
-            return new OpenStatus(true, closesAt, false, null, null);
+            return new OpenStatus(true, closes, false, null, null);
         }
 
-        return new OpenStatus(false, null, closedToday, null, null);
+        return new OpenStatus(false, null, todayClosure is not null, todayClosure?.Note, FindNextOpening(today, now, week, closures));
     }
+
+    private static NextOpening? FindNextOpening(DateOnly today, TimeOnly now, IReadOnlyList<DayHours> week, IReadOnlyList<ClosureSpan> closures)
+    {
+        for (var offset = 0; offset <= LookAheadDays; offset++)
+        {
+            var day = today.AddDays(offset);
+            if (closures.Any(c => c.Covers(day)) || OpenHoursOn(week, day.DayOfWeek) is not (var opens, _))
+            {
+                continue;
+            }
+
+            // Today only counts when the shop has not opened yet; once it is open or past closing, look ahead.
+            if (offset == 0 && now >= opens)
+            {
+                continue;
+            }
+
+            var when = offset switch
+            {
+                0 => NextOpeningWhen.Today,
+                1 => NextOpeningWhen.Tomorrow,
+                _ => NextOpeningWhen.Weekday,
+            };
+            return new NextOpening(day, day.DayOfWeek, opens, when);
+        }
+
+        return null;
+    }
+
+    private static (TimeOnly Opens, TimeOnly Closes)? OpenHoursOn(IReadOnlyList<DayHours> week, DayOfWeek day) =>
+        week.FirstOrDefault(d => d.Day == day) is { OpensAt: { } opens, ClosesAt: { } closes } ? (opens, closes) : null;
 }
