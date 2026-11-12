@@ -8,8 +8,13 @@
 // .csp-media-ph-label { display: none }` parent rule as a prop, plan 02-18); it is named "No image yet", and the
 // link keeps the title, the description and "Customize" in its name.
 // SPEC-DEVIATION: exactOptionalPropertyTypes; the optional props also accept an explicit undefined (same output).
+// SPEC-DEVIATION: D-34 (plan 11-25) the optional `photo` prop shows the line's delivered Main photo as a LazyImage in the
+// 4:5 box (srcSet and sizes from the server, decorative because the link text names the card). On hover the photo scales
+// 1.04 only: the translateY(-52%) of the plain image is the number's rise, and would lift a photo out of its box. With no
+// photo and no image the card is exactly as before.
 import { UiLink } from '@/components/actions';
 import { Icon, MediaPlaceholder } from '@/components/brand';
+import { LazyImage } from '@/components/states/LazyImage';
 import {
   categoryBodyClasses,
   categoryCardClasses,
@@ -18,23 +23,45 @@ import {
   categoryLinkClasses,
   categoryLinkIconClasses,
   categoryMediaClasses,
+  categoryPhotoClasses,
   categoryPlaceholderClasses,
   categoryTitleClasses,
 } from './marketing.recipe';
+
+/** A delivered photo: the address, the `srcset` text, how wide it shows and its own size. */
+export interface CategoryCardPhoto {
+  src: string;
+  srcSet: string;
+  sizes: string;
+  width: number;
+  height: number;
+}
 
 export interface CategoryCardProps {
   title: string;
   description: string;
   number?: string | undefined;
   image?: string | undefined;
+  photo?: CategoryCardPhoto | undefined;
   href?: string | undefined;
 }
 
-export function CategoryCard({ title, description, number, image, href = '/products' }: CategoryCardProps) {
+export function CategoryCard({ title, description, number, image, photo, href = '/products' }: CategoryCardProps) {
   return (
     <UiLink to={href} className={categoryCardClasses}>
       <div className={categoryMediaClasses}>
-        {image ? (
+        {photo ? (
+          <LazyImage
+            src={photo.src}
+            srcSet={photo.srcSet}
+            sizes={photo.sizes}
+            width={photo.width}
+            height={photo.height}
+            alt=""
+            ratio="4 / 5"
+            className={categoryPhotoClasses}
+          />
+        ) : image ? (
           <img src={image} alt="" className={categoryImageClasses} />
         ) : (
           <MediaPlaceholder label={false} number={number} ratio="4 / 5" className={categoryPlaceholderClasses} />

@@ -54,6 +54,7 @@ export function PublicLayout() {
   const site = useSiteQuery();
   const outletContext: PublicOutletContext = {
     messengerUrl: site.status === 'success' ? site.data.messengerUrl : null,
+    turnaroundLine: site.status === 'success' ? site.data.turnaroundLine : null,
   };
   const fullFooter = link === 'Home' || link === 'Products';
   const loading = useNavigation().state === 'loading';

@@ -14,6 +14,9 @@ export type OpenStatusFixture = components['schemas']['OpenStatusDto'];
 export type PublicProductLinesFixture = components['schemas']['PublicProductLinesDto'];
 export type PublicProductLineFixture = components['schemas']['PublicProductLineDto'];
 export type PublicPhotoFixture = components['schemas']['PublicPhotoDto'];
+export type PublicHomeFixture = components['schemas']['PublicHomeDto'];
+export type PublicHomeLineFixture = components['schemas']['PublicHomeLineDto'];
+export type PublicTestimonialFixture = components['schemas']['PublicTestimonialDto'];
 
 /** Seven closed days, Monday (1) to Sunday (7): what a shop with no saved hours answers. */
 export const closedWeek: PublicSiteFixture['hours'] = [1, 2, 3, 4, 5, 6, 7].map((day) => ({
@@ -183,13 +186,21 @@ export function answerOpenStatus(status: OpenStatusFixture): void {
   server.use(openStatusHandler(status));
 }
 
-/** Puts the server's boot block into the document, as the shell carries it; /products also carries the product lines. */
-export function putBootBlock(site: PublicSiteFixture, productLines?: PublicProductLinesFixture): void {
+/** Puts the server's boot block into the document, as the shell carries it; /products also carries the product lines and / the home data. */
+export function putBootBlock(
+  site: PublicSiteFixture,
+  productLines?: PublicProductLinesFixture,
+  home?: PublicHomeFixture,
+): void {
   removeBootBlock();
   const block = document.createElement('script');
   block.type = 'application/json';
   block.id = 'csps-boot';
-  block.textContent = JSON.stringify(productLines === undefined ? { site } : { site, productLines });
+  block.textContent = JSON.stringify({
+    site,
+    ...(productLines === undefined ? {} : { productLines }),
+    ...(home === undefined ? {} : { home }),
+  });
   document.head.append(block);
 }
 
@@ -345,4 +356,98 @@ export function productLinesFailureHandler(status = 500) {
 /** Answers the product lines read with `lines` for the rest of the test. */
 export function answerProductLines(lines: PublicProductLinesFixture): void {
   server.use(productLinesHandler(lines));
+}
+
+const HOME_CARD_TEXTS: Readonly<Record<string, string>> = {
+  basketball: 'Full sublimation tops and shorts, any colorway, names and numbers included.',
+  volleyball: 'Lightweight, stretch-fit cuts for indoor and beach teams.',
+  moto: 'Breathable long-sleeve riding tops with club crests and sponsor logos.',
+  longsleeves: 'Warm-ups, shooting shirts and dri-fit long sleeves for training days.',
+  polo: 'Sublimated or plain polos for coaches, staff, events and offices.',
+  custom: 'Bring a sketch or just an idea. Our artists build the full design.',
+};
+
+/** A Home card for a line, as GET /api/v1/public/home answers it; every part can be overridden. */
+export function makeHomeLine(
+  line: PublicProductLineFixture,
+  overrides: Partial<PublicHomeLineFixture> = {},
+): PublicHomeLineFixture {
+  return {
+    key: line.key,
+    number: line.number,
+    title: line.title,
+    cardText: HOME_CARD_TEXTS[line.key] ?? line.cardText,
+    placeholderArt: line.placeholderArt,
+    cardPhoto: null,
+    ...overrides,
+  };
+}
+
+/** A testimonial as the Home read answers it. Made-up names. */
+export function makeTestimonial(overrides: Partial<PublicTestimonialFixture> = {}): PublicTestimonialFixture {
+  return {
+    quote: 'Seventeen pieces, names and numbers perfect.',
+    name: 'Juan Dela Cruz',
+    teamOrRole: 'Captain, Brgy. Sample Ballers',
+    stars: 5,
+    ...overrides,
+  };
+}
+
+/** Three shown testimonials: five, five and four stars. */
+export const demoTestimonials: readonly PublicTestimonialFixture[] = [
+  makeTestimonial(),
+  makeTestimonial({
+    quote: 'The mockup came back in a day and the colors matched our crest.',
+    name: 'Ana Reyes',
+    teamOrRole: 'Coach, Sample City Spikers',
+  }),
+  makeTestimonial({
+    quote: 'Light jerseys, and the sponsor logos printed sharp.',
+    name: 'Ben Santos',
+    teamOrRole: 'President, Sample Riders MC',
+    stars: 4,
+  }),
+];
+
+/** The demo Home: the six lines as cards (no photos), three testimonials, no recent work and no hero tag. */
+export const demoHome: PublicHomeFixture = {
+  lines: demoLines.lines.map((line) => makeHomeLine(line)),
+  lineCount: demoLines.lines.length,
+  testimonials: [...demoTestimonials],
+  recentWork: [],
+  heroTag: null,
+};
+
+/** Every line hidden: no category section. */
+export const homeNoLines: PublicHomeFixture = { ...demoHome, lines: [], lineCount: 0 };
+
+/** No testimonial shown: no testimonial section. */
+export const homeNoTestimonials: PublicHomeFixture = { ...demoHome, testimonials: [] };
+
+/** One shown line only. */
+export const homeOneLine: PublicHomeFixture = {
+  ...demoHome,
+  lines: demoHome.lines.slice(0, 1),
+  lineCount: 1,
+};
+
+/** An MSW handler that answers GET /api/v1/public/home with `home`. */
+export function homeHandler(home: PublicHomeFixture) {
+  return http.get('*/api/v1/public/home', () => HttpResponse.json(home));
+}
+
+/** An MSW handler that answers GET /api/v1/public/home with a failure. */
+export function homeFailureHandler(status = 500) {
+  return http.get('*/api/v1/public/home', () =>
+    HttpResponse.json(
+      { title: 'Something went wrong.', status },
+      { status, headers: { 'Content-Type': 'application/problem+json' } },
+    ),
+  );
+}
+
+/** Answers the Home read with `home` for the rest of the test. */
+export function answerHome(home: PublicHomeFixture): void {
+  server.use(homeHandler(home));
 }
