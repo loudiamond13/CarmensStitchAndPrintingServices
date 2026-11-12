@@ -1442,7 +1442,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         }
 
         var detailFields = new List<string>();
-        Guid? lineOverride = values.ProductLineId is { } chosen && chosen != autoLineId ? chosen : null;
+        var lineOverride = values.ProductLineId == autoLineId ? null : values.ProductLineId;
         if (lineOverride != PublicProductLineId)
         {
             PublicProductLineId = lineOverride;

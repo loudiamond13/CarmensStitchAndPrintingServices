@@ -15,6 +15,7 @@ public sealed class OrderPublicSettingsTests
     private static readonly Guid Manager = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
     private static readonly Guid Basketball = Guid.Parse("a5e3b9c1-0d74-4e28-8f16-3c2a7d5b9e40");
     private static readonly Guid Volleyball = Guid.Parse("b6f4c0d2-1e85-4f39-9a27-4d3b8e6c0f51");
+    private static readonly Guid Moto = Guid.Parse("c7a5d1e3-2f96-4a4a-8b38-5e4c9f7d1a62");
 
     private static readonly OrderPublicSettings Shown = new(true, true, null, null);
 
@@ -279,6 +280,32 @@ public sealed class OrderPublicSettingsTests
 
         order.PublicProductLineId.ShouldBeNull();
         back.Value.DetailFields.ShouldBe(["line"]);
+    }
+
+    [Fact]
+    public void WithNoAutoLineAndNoChoiceTheOkIsRecordedAndNoLineIsStored()
+    {
+        var order = NewOrder();
+
+        var result = order.SetPublicSettings(new OrderPublicSettings(true, false, null, null), Admin, null, Later);
+
+        result.IsSuccess.ShouldBeTrue();
+        order.PublicProductLineId.ShouldBeNull();
+        result.Value.DetailFields.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AnOverrideSavedAgainIsNoChangeAndAnotherOverrideReplacesIt()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(new OrderPublicSettings(true, false, Volleyball, null), Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+
+        var same = order.SetPublicSettings(new OrderPublicSettings(true, false, Volleyball, null), Admin, Basketball, Latest);
+        var other = order.SetPublicSettings(new OrderPublicSettings(true, false, Moto, null), Admin, Basketball, Latest);
+
+        same.Value.HasAny.ShouldBeFalse();
+        other.Value.DetailFields.ShouldBe(["line"]);
+        order.PublicProductLineId.ShouldBe(Moto);
     }
 
     [Fact]
