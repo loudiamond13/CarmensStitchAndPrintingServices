@@ -136,6 +136,29 @@ public sealed class ProductLinePhotoEndpointTests(CspsDatabase database) : IClas
     }
 
     [Fact]
+    public async Task AnUploadAndARemovalClearTheCachedProductsHeadSoTheLinkPreviewFollowsAtOnce()
+    {
+        await using var rig = await ProductLineRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+
+        var before = await client.GetStringAsync(new Uri("/products", UriKind.Relative), TestContext.Current.CancellationToken);
+        using var uploaded = await rig.UploadPhotoAsync(Basketball, "main", Photo);
+        uploaded.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var publicId = await StoredIdAsync("main");
+        var lastSegment = publicId[(publicId.LastIndexOf('/') + 1)..];
+        var during = await client.GetStringAsync(new Uri("/products", UriKind.Relative), TestContext.Current.CancellationToken);
+        using var removed = await rig.RemovePhotoAsync(Basketball, "main");
+        var after = await client.GetStringAsync(new Uri("/products", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        removed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        before.ShouldNotContain("og:image\"");
+        during.ShouldContain($"content=\"https://localhost/api/testing/images/{lastSegment}?size=csps_share_1200\"");
+        during.ShouldContain("content=\"summary_large_image\"");
+        after.ShouldNotContain("og:image\"");
+        after.ShouldContain("content=\"summary\"");
+    }
+
+    [Fact]
     public async Task RemovingFromAnEmptySlotAnUnknownSlotOrAMissingLineAnswers404AndWritesNothing()
     {
         await using var rig = await ProductLineRig.StartAsync(database);
