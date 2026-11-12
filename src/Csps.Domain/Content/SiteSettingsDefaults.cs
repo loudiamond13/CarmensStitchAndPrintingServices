@@ -10,6 +10,9 @@ public static class SiteSettingsDefaults
     /// <summary>The real business name.</summary>
     public const string BusinessName = "Carmen's Stitch & Printing Services";
 
+    /// <summary>The approved tagline (D-36).</summary>
+    public const string Tagline = "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.";
+
     /// <summary>The business time zone (IANA id, D-02).</summary>
     public const string TimeZoneId = "Asia/Manila";
 
