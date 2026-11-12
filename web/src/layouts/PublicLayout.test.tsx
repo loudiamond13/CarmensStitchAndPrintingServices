@@ -144,6 +144,38 @@ describe('PublicLayout skip link (A11Y-02)', () => {
   });
 });
 
+describe('PublicLayout Contact sticky bar (PUB-06)', () => {
+  it('shows the bar on /contact once the facts are in, after the footer', async () => {
+    putBootBlock(demoSite);
+    const { container } = await renderAt('/contact');
+
+    const call = screen.getByRole('link', { name: 'Call us' });
+    expect(call).toHaveAttribute('href', 'tel:+639171234567');
+    expect(screen.getByRole('link', { name: 'Messenger' })).toHaveAttribute('href', 'https://m.me/cspsdemo');
+    const bar = container.querySelector('[data-contact-bar]');
+    expect(bar).toContainElement(call);
+    expect(screen.getByRole('contentinfo').compareDocumentPosition(bar as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('shows no bar on the other public pages', async () => {
+    putBootBlock(demoSite);
+    for (const path of ['/', '/products', '/gallery', '/nope']) {
+      const { unmount } = await renderAt(path);
+      expect(screen.queryByRole('link', { name: 'Call us' })).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('keeps a bottom scroll padding for the bar at 767px and below on /contact only', async () => {
+    const contact = await renderAt('/contact');
+    expect(screen.getByRole('main').className).toMatch(/max-\[767px\]:.*scroll-pb-/);
+    contact.unmount();
+
+    await renderAt('/products');
+    expect(screen.getByRole('main').className).not.toContain('scroll-pb-');
+  });
+});
+
 describe('PublicLayout footer (App. E.1, D-33, PUB-02)', () => {
   it('names the social links from the stored links, "FB, CSPS on Facebook" and "IG, CSPS on Instagram"', async () => {
     putBootBlock(demoSite);
