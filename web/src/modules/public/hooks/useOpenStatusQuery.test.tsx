@@ -2,15 +2,18 @@
 // once when the tab comes back. The browser never decides open or closed.
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { server } from '@/test/msw';
-import { openStatusAt0900, openStatusAt1800, openStatusFailureHandler } from '@/test/publicFixtures';
-import { useOpenStatusQuery } from './useOpenStatusQuery';
-
-const FIVE_MINUTES = 5 * 60 * 1000;
+import {
+  openStatusAt0900,
+  openStatusAt1800,
+  openStatusFailureHandler,
+  type OpenStatusFixture,
+} from '@/test/publicFixtures';
+import { OPEN_STATUS_REFRESH_MS, useOpenStatusQuery } from './useOpenStatusQuery';
 
 /** Counts the reads and answers each with the next fixture (the last one repeats). */
-function countReads(answers: readonly (typeof openStatusAt0900)[]) {
+function countReads(answers: readonly OpenStatusFixture[]) {
   const state = { reads: 0 };
   server.use(
     http.get('*/api/v1/public/open-status', () => {
@@ -22,16 +25,47 @@ function countReads(answers: readonly (typeof openStatusAt0900)[]) {
   return state;
 }
 
+/**
+ * Catches the hook's five-minute timer and lets a test fire it by hand. Any other timer (the test library's own polling)
+ * runs for real, so waiting for an answer still works.
+ */
+function catchRefreshTimer() {
+  const realSet = globalThis.setInterval.bind(globalThis);
+  const realClear = globalThis.clearInterval.bind(globalThis);
+  const caught = new Map<number, () => void>();
+  let next = 1_000_000;
+  vi.spyOn(globalThis, 'setInterval').mockImplementation(((handler: () => void, delay?: number) => {
+    if (delay !== OPEN_STATUS_REFRESH_MS) {
+      return realSet(handler, delay);
+    }
+    next += 1;
+    caught.set(next, handler);
+    return next;
+  }) as unknown as typeof setInterval);
+  vi.spyOn(globalThis, 'clearInterval').mockImplementation(((id?: number) => {
+    if (id !== undefined && caught.delete(id)) {
+      return;
+    }
+    realClear(id);
+  }) as typeof clearInterval);
+  return {
+    running: () => caught.size,
+    fire: () => {
+      act(() => {
+        for (const handler of caught.values()) {
+          handler();
+        }
+      });
+    },
+  };
+}
+
 function setVisibility(value: 'visible' | 'hidden'): void {
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
 }
 
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-});
-
 afterEach(() => {
-  vi.useRealTimers();
+  vi.restoreAllMocks();
   setVisibility('visible');
 });
 
@@ -48,16 +82,16 @@ describe('useOpenStatusQuery', () => {
     expect(state.reads).toBe(1);
   });
 
-  it('reads again after five minutes while the page is visible', async () => {
+  it('reads again at each five-minute tick while the page is visible', async () => {
+    const timer = catchRefreshTimer();
     const state = countReads([openStatusAt0900, openStatusAt1800]);
     const { result } = renderHook(() => useOpenStatusQuery());
     await waitFor(() => {
       expect(result.current.status).toBe('success');
     });
+    expect(timer.running()).toBe(1);
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(FIVE_MINUTES);
-    });
+    timer.fire();
 
     await waitFor(() => {
       expect(result.current).toEqual({ status: 'success', data: openStatusAt1800 });
@@ -65,7 +99,8 @@ describe('useOpenStatusQuery', () => {
     expect(state.reads).toBe(2);
   });
 
-  it('does not read while the page is hidden', async () => {
+  it('does not read at a tick while the page is hidden', async () => {
+    const timer = catchRefreshTimer();
     const state = countReads([openStatusAt0900]);
     const { result } = renderHook(() => useOpenStatusQuery());
     await waitFor(() => {
@@ -73,14 +108,14 @@ describe('useOpenStatusQuery', () => {
     });
     setVisibility('hidden');
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(FIVE_MINUTES * 3);
-    });
+    timer.fire();
+    timer.fire();
 
     expect(state.reads).toBe(1);
   });
 
-  it('reads once more when the page becomes visible again', async () => {
+  it('reads once more when the page becomes visible again, and not when it is hidden', async () => {
+    catchRefreshTimer();
     const state = countReads([openStatusAt0900, openStatusAt1800]);
     const { result } = renderHook(() => useOpenStatusQuery());
     await waitFor(() => {
@@ -103,7 +138,8 @@ describe('useOpenStatusQuery', () => {
     expect(state.reads).toBe(2);
   });
 
-  it('a failed read is an error, and the next five-minute read tries again', async () => {
+  it('a failed read is an error, and the next tick tries again', async () => {
+    const timer = catchRefreshTimer();
     server.use(openStatusFailureHandler(404));
     const { result } = renderHook(() => useOpenStatusQuery());
     await waitFor(() => {
@@ -111,16 +147,15 @@ describe('useOpenStatusQuery', () => {
     });
     countReads([openStatusAt0900]);
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(FIVE_MINUTES);
-    });
+    timer.fire();
 
     await waitFor(() => {
       expect(result.current.status).toBe('success');
     });
   });
 
-  it('stops the timer when the page goes away', async () => {
+  it('stops the timer and the listener when the page goes away', async () => {
+    const timer = catchRefreshTimer();
     const state = countReads([openStatusAt0900]);
     const { result, unmount } = renderHook(() => useOpenStatusQuery());
     await waitFor(() => {
@@ -128,10 +163,10 @@ describe('useOpenStatusQuery', () => {
     });
     unmount();
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(FIVE_MINUTES * 2);
+    expect(timer.running()).toBe(0);
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
     });
-
     expect(state.reads).toBe(1);
   });
 });

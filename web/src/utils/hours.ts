@@ -11,6 +11,11 @@ const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
 const LONG_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 
+/** The full weekday for the server's day number (1 is Monday, 7 is Sunday); any other number gives null. */
+export function dayName(day: number): string | null {
+  return LONG_DAYS[day - 1] ?? null;
+}
+
 const TIME_24H = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /** "9:00 AM" for "09:00", "12:00 AM" for "00:00". Text that is not a 24-hour time gives null. */

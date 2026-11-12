@@ -24,8 +24,8 @@ export interface PublicResource<T> {
 }
 
 export interface PublicResourceOptions<T> {
-  /** The part of the boot block that primes this resource. */
-  readonly key: BootKey;
+  /** The part of the boot block that primes this resource; a resource the server never writes there has none. */
+  readonly key?: BootKey;
   readonly load: (signal: AbortSignal) => Promise<T>;
   /** How long loaded data counts as fresh. */
   readonly staleMs: number;
@@ -94,7 +94,7 @@ export function createPublicResource<T>({ key, load, staleMs }: PublicResourceOp
   function snapshot(): PublicResourceState<T> {
     if (!primedFromBoot) {
       primedFromBoot = true;
-      const boot = readBootData(key) as T | undefined;
+      const boot = key === undefined ? undefined : (readBootData(key) as T | undefined);
       if (boot !== undefined) {
         fetchedAt = Date.now();
         state = { status: 'success', data: boot };

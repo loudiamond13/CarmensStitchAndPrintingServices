@@ -112,11 +112,11 @@ describe('ContactPage hours and open status (PUB-05, D-21, D-22)', { timeout: 20
 
     expect(await within(main).findByText('Open now')).toBeInTheDocument();
     expect(within(main).getByText('Closes 6:00 PM.')).toBeInTheDocument();
-    expect(within(main).getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
-      'Message us',
-      'Business hours',
-      'Call or text',
-    ]);
+    expect(
+      within(main)
+        .getAllByRole('heading', { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(['Message us', 'Business hours', 'Call or text']);
     expect(within(main).getByText('Monday to Saturday')).toBeInTheDocument();
   });
 
