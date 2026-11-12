@@ -86,6 +86,10 @@ export const MAIN_ENTRY = 'index.html';
 /** The route module the public site renders on first load: the D-17 holding page (PublicLayout returns with Phase 11). */
 export const PUBLIC_ROUTE: readonly string[] = Object.freeze(['src/modules/public/pages/HoldingPage.tsx']);
 
+// Skeleton for the RED commit of plan 11-08.
+export const PUBLIC_PRELOAD_ROUTE: readonly string[] = PUBLIC_ROUTE;
+export const PUBLIC_ROUTES: Readonly<Record<string, readonly string[]>> = Object.freeze({});
+
 /** The shipped modules a signed-in `/admin` visit loads first: the query client route, the guard, the admin layout, the URL-state layout and the devices page. */
 export const ADMIN_ROUTE: readonly string[] = Object.freeze([
   'src/core/routes/QueryRoot.tsx',
