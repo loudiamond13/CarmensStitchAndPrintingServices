@@ -58,15 +58,16 @@ public static class SpaCaching
         ["text/html", "text/css", "text/javascript", "application/javascript", "image/svg+xml"];
 
     /// <summary>
-    /// Builds the static file options: the web root without <c>index.html</c>, so the shell is reachable only through
-    /// the shaped endpoint and never as the raw template (PUB-04), and <see cref="Apply"/> for the cache headers.
+    /// Builds the static file options: the web root without the files the server writes itself (<c>index.html</c>,
+    /// <c>robots.txt</c>, <c>sitemap.xml</c>), so each is reachable only through its endpoint and a stale copy in the web
+    /// root can never shadow it (PUB-04), and <see cref="Apply"/> for the cache headers.
     /// </summary>
     /// <param name="webRoot">The (already wrapped) web-root file provider.</param>
     /// <returns>The options for <c>UseStaticFiles</c>.</returns>
     public static StaticFileOptions CreateStaticFileOptions(IFileProvider webRoot)
     {
         ArgumentNullException.ThrowIfNull(webRoot);
-        return new StaticFileOptions { FileProvider = new ShellExcludedFileProvider(webRoot), OnPrepareResponse = Apply };
+        return new StaticFileOptions { FileProvider = new ServerWrittenFileProvider(webRoot), OnPrepareResponse = Apply };
     }
 
     /// <summary>
@@ -84,17 +85,22 @@ public static class SpaCaching
     }
 }
 
-/// <summary>Hides the shell template from the static file middleware; every other file passes through.</summary>
+/// <summary>Hides the files the server writes itself from the static file middleware; every other file passes through.</summary>
 /// <param name="inner">The web-root file provider.</param>
-internal sealed class ShellExcludedFileProvider(IFileProvider inner) : IFileProvider
+internal sealed class ServerWrittenFileProvider(IFileProvider inner) : IFileProvider
 {
+    private static readonly string[] Hidden = [SpaHosting.ShellFile, "robots.txt", "sitemap.xml"];
+
     public IFileInfo GetFileInfo(string subpath) =>
-        IsShell(subpath) ? new NotFoundFileInfo(subpath) : inner.GetFileInfo(subpath);
+        IsServerWritten(subpath) ? new NotFoundFileInfo(subpath) : inner.GetFileInfo(subpath);
 
     public IDirectoryContents GetDirectoryContents(string subpath) => inner.GetDirectoryContents(subpath);
 
     public IChangeToken Watch(string filter) => inner.Watch(filter);
 
-    private static bool IsShell(string subpath) =>
-        string.Equals(subpath.Replace('\\', '/').Trim('/'), SpaHosting.ShellFile, StringComparison.OrdinalIgnoreCase);
+    private static bool IsServerWritten(string subpath)
+    {
+        var name = subpath.Replace('\\', '/').Trim('/');
+        return Hidden.Any(hidden => string.Equals(name, hidden, StringComparison.OrdinalIgnoreCase));
+    }
 }

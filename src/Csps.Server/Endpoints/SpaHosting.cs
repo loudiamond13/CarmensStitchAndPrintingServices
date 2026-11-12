@@ -49,6 +49,8 @@ public static class SpaHosting
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        app.MapSeoEndpoints();
+
         app.MapFallback(FilePattern, NotFound).AllowAnonymous().ExcludeFromDescription();
 
         if (!app.Environment.IsDevelopment())
