@@ -235,8 +235,11 @@ describe('budgetPlugin (PERF-01)', () => {
     const plugin = budgetPlugin({ build: 'production', reportDir });
     await expect(generate(plugin, 'production', bundle(incompressible(200_000)), { info: [] })).rejects.toThrow();
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
-    expect(summary.errors).toHaveLength(1);
+    // The 200 KB entry is part of every public page, so each of the five pages is over its limit.
+    expect(summary.errors).toHaveLength(5);
+    expect(summary.errors.every((error) => error.startsWith('public JS ('))).toBe(true);
   });
+
   it('fails the production build when a shipped admin entry has no chunk (the admin limit must be measurable)', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
     const output = Object.fromEntries(

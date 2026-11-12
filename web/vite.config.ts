@@ -4,7 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
-import { PUBLIC_ROUTE } from './scripts/budget.ts';
+import { PUBLIC_PRELOAD_ROUTE } from './scripts/budget.ts';
 import { budgetPlugin, type BudgetBuild } from './scripts/vite-budget-plugin.ts';
 import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
 import { routePreloadPlugin } from './scripts/vite-route-preload-plugin.ts';
@@ -76,7 +76,7 @@ export default defineConfig(({ mode }) => {
       // SPEC-DEVIATION: PERF-02 route preload (plan 02-35). Production only: `<link rel="modulepreload">` for the lazy
       // public layout and page chunks, so a phone fetches them with the entry script instead of one round trip later.
       // The dev-route builds put those modules in shared chunks with no facade, and nothing measures them for speed.
-      ...(devRoutes ? [] : [routePreloadPlugin(PUBLIC_ROUTE)]),
+      ...(devRoutes ? [] : [routePreloadPlugin(PUBLIC_PRELOAD_ROUTE)]),
     ],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     // SPEC-DEVIATION: dev-only routes (showcase, admin preview) exist in development and in the e2e and budget

@@ -97,6 +97,7 @@ function writeReport(reportDir: string, mode: string, report: BudgetReport): voi
     devRoutes: report.devRoutes,
     limits: BUDGETS,
     publicJs: report.publicJs,
+    publicRoutes: report.publicRoutes,
     adminJs: report.adminJs,
     css: report.css,
     measurements: report.measurements,
