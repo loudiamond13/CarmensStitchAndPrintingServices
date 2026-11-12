@@ -99,6 +99,51 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
         (await OpenNowAsync(client)).ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task AddingEditingAndDeletingAClosureEachChangeTheSiteETagOnTheNextRead()
+    {
+        var today = PublicContentSeeding.ManilaToday();
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveClosuresAsync(database, []);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var contexts = factory.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+        var etags = new List<string> { await ETagAsync(client) };
+
+        await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+        {
+            await PublicContentSeeding.SaveClosuresAsync(context, [(today.AddDays(5), null, "Holiday")]);
+        }
+
+        etags.Add(await ETagAsync(client));
+        await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+        {
+            var closure = await context.ShopClosures.SingleAsync(TestContext.Current.CancellationToken);
+            closure.Change(today.AddDays(5), today.AddDays(6), "Holiday", today).IsSuccess.ShouldBeTrue();
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        etags.Add(await ETagAsync(client));
+        await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+        {
+            context.ShopClosures.Remove(await context.ShopClosures.SingleAsync(TestContext.Current.CancellationToken));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        etags.Add(await ETagAsync(client));
+        etags.Distinct().Count().ShouldBe(3, "an add and a delete of the same closure end where they started; each step must move the ETag");
+        etags[3].ShouldBe(etags[0]);
+        etags[1].ShouldNotBe(etags[0]);
+        etags[2].ShouldNotBe(etags[1]);
+        etags[3].ShouldNotBe(etags[2]);
+    }
+
+    private static async Task<string> ETagAsync(HttpClient client)
+    {
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+        return response.Headers.ETag.ShouldNotBeNull().ToString();
+    }
+
     private static async Task<bool> OpenNowAsync(HttpClient client)
     {
         using var response = await client.GetAsync(new Uri("/api/v1/public/open-status", UriKind.Relative), TestContext.Current.CancellationToken);

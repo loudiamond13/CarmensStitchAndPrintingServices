@@ -104,6 +104,59 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
     }
 
     [Fact]
+    public async Task AClosureInFortyFiveDaysIsAClosedDayInTheSpecialHoursAndOneInSeventyDaysIsLeftOut()
+    {
+        var today = PublicContentSeeding.ManilaToday();
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveClosuresAsync(database, [(today.AddDays(70), null, "Too far"), (today.AddDays(45), today.AddDays(47), "Holiday")]);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/contact");
+        await PublicContentSeeding.SaveClosuresAsync(database, []);
+
+        using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
+        var special = document.RootElement.GetProperty("specialOpeningHoursSpecification").EnumerateArray().ShouldHaveSingleItem();
+        special.GetProperty("@type").GetString().ShouldBe("OpeningHoursSpecification");
+        special.GetProperty("opens").GetString().ShouldBe("00:00");
+        special.GetProperty("closes").GetString().ShouldBe("00:00");
+        special.GetProperty("validFrom").GetString().ShouldBe(today.AddDays(45).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        special.GetProperty("validThrough").GetString().ShouldBe(today.AddDays(47).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        body.ShouldNotContain("Holiday", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task ClosuresAreListedByFirstDayAndASingleDayHasTheSameValidFromAndValidThrough()
+    {
+        var today = PublicContentSeeding.ManilaToday();
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveClosuresAsync(database, [(today.AddDays(30), null, null), (today.AddDays(5), today.AddDays(6), null)]);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/");
+        await PublicContentSeeding.SaveClosuresAsync(database, []);
+
+        using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
+        var specials = document.RootElement.GetProperty("specialOpeningHoursSpecification").EnumerateArray().ToList();
+        specials.Select(special => special.GetProperty("validFrom").GetString()).ShouldBe(
+            [today.AddDays(5).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), today.AddDays(30).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)]);
+        specials[1].GetProperty("validThrough").GetString().ShouldBe(specials[1].GetProperty("validFrom").GetString());
+    }
+
+    [Fact]
+    public async Task WithNoClosuresTheJsonLdHasNoSpecialOpeningHoursSpecification()
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/contact");
+
+        using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
+        document.RootElement.TryGetProperty("specialOpeningHoursSpecification", out _).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task TheAboutTextIsTheJsonLdDescriptionWhenItIsSet()
     {
         await using var factory = FactoryFor(Site(tagline: "Sample tagline") with { AboutText = "About the sample shop." });
