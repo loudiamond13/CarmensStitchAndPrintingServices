@@ -3,7 +3,7 @@
 // number" the Call buttons dial. Each row has a Number (tel), an optional Label, one radio of a native radio group, and, from the
 // second row on, Remove. It reads and writes the `phones` list of the surrounding form (FormProvider).
 //   - The first row starts as the main number (the saved settings put the main number first).
-//   - Removing the main row makes the first remaining row the main number and says so in a polite line.
+//   - Removing the main row makes the first remaining row the main number and says so in a polite line ("{number} is now the main number.").
 //   - Add Number focuses the new Number; a removal focuses the next row's Number, else the previous one, else Add Number.
 //   - At four rows Add Number is hidden and a note says you can list up to 4 numbers.
 //   - A row reads its own number and main flag as single values (useWatch on the field), never through the list's row objects, which the
