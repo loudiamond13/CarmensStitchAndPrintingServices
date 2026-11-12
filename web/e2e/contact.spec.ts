@@ -89,6 +89,7 @@ test('@contact the map loads from Google only after Show Map, with no CSP report
     await expect(page.getByRole('button', { name: 'Show Map' })).toBeVisible();
     await expect(page.locator('iframe')).toHaveCount(0);
     expect(googleRequests).toEqual([]);
+    await expectNoAxeViolations(page);
 
     await page.getByRole('button', { name: 'Show Map' }).click();
 
@@ -97,7 +98,8 @@ test('@contact the map loads from Google only after Show Map, with no CSP report
     await expect(page.frameLocator('iframe').getByText('Map stub')).toBeVisible();
     expect(googleRequests).toHaveLength(1);
     await expect(frame).toBeFocused();
-    await expectNoAxeViolations(page);
+    // Axe cannot enter the cross-origin Google frame (it logs a postMessage warning), so after the tap it checks the label card.
+    await expectNoAxeViolations(page, '[data-map-label]');
   });
 });
 

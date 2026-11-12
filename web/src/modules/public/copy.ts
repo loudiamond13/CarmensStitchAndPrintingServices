@@ -236,7 +236,12 @@ export const PUBLIC_COPY = {
       closed: 'Closed now',
       closedOn: 'Closed on',
     },
-    phones: { title: 'Call or text', main: 'Main' },
+    phones: {
+      title: 'Call or text',
+      main: 'Main',
+      callName: (display: string, label: string | null) =>
+        label === null ? `Call ${display}` : `Call ${display}, ${label}`,
+    },
     map: {
       placeholder: 'Map placeholder showing the shop location',
       shopName: 'CSPS Shop',

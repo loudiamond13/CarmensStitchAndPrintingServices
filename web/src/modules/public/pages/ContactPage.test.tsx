@@ -66,7 +66,7 @@ describe('ContactPage content from the stored facts (PUB-02, PUB-06, D-18, D-20,
     putBootBlock(demoSite);
     await renderContact();
 
-    const bar = screen.getByRole('link', { name: 'Call us' });
+    const bar = await screen.findByRole('link', { name: 'Call us' });
     expect(bar).toHaveAttribute('href', 'tel:+639171234567');
     expect(screen.getByRole('link', { name: 'Messenger' })).toHaveAttribute('href', 'https://m.me/cspsdemo');
   });

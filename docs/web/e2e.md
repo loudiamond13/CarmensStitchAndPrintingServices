@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-11T21:30:00-06:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-11T23:50:00-06:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -110,6 +110,7 @@ Put the tag at the start of the test title so `--grep` can select it.
 | `@smoke` | The home page loads clean under the strict CSP in all five projects | plans 02-09, 03-09 |
 | `@fixture` | Self-tests that prove each guard fires: a console error, a CSP violation (an injected `<style>` element), an unlabelled image (axe `image-alt`), and an undeclared 404; and that the axe check finishes in under 10 s on a page with a 3,000-option picker; and the two bar self-tests: a target only a sticky bar partly covers passes the axe check once scrolled clear (the scroll position is kept), and one still covered after the scroll fails | plan 02-09, debug `expenses-add-save-slow`, quick 261026-ooe |
 | `@public` | Each public path (`/`, `/products`, `/gallery`, `/contact`) answers 200 with its page inside the public layout (one h1, the document title the server sends, one banner, one main, one contentinfo), and an unknown path (`/nope`, a deep path) answers 404 with the "Out of bounds." page; the skip link first in the keyboard order, a footer link that opens Products and sets its title, no sideways scroll and a fitting h1 from 320 to 1920 px, and page-level axe | plans 02-29, 03-09, 11-02, 11-08 |
+| `@contact` | The footer shows the stored tagline and main phone from the server's first HTML with no `/api/v1/public/site` request; on Contact at 390px the sticky bar shows Messenger and Call us and does not cover the last focusable element, at 1440px it is absent; Show Map loads a routed stub of the Google embed only after the tap, with no CSP report; at 320px the map actions wrap under the address with no sideways scroll. Each test runs under `withSiteContentLock` after `seedDemoSiteContent` | plan 11-10 |
 | `@admin`, `@showcase` | The admin shell and the Component Showcase, with page-level axe | plans 02-31, 02-34 |
 | `@keyboard` | Keyboard-only paths and focus order: skip link, Tabs, SegmentedControl, dialog traps, toast Dismiss, the phone drawer and the user menu | plans 02-32, 02-35 |
 | `@responsive` | 320 to 1920 px in portrait and landscape: no horizontal scroll, one h1, the skip link, labelled landmarks, axe, 16px phone inputs | plan 02-35 |
@@ -192,6 +193,10 @@ The Testing environment keeps order photos in memory, so no test or browser run 
 - `POST /api/testing/images/fail-next` with `{ "count": 1 }` makes the next `count` photo uploads fail, so each answers 503 `images.storage-failed` ("The photo couldn't be saved. Try again."). The upload after that works again. `{ "count": 0 }` clears the switch. A missing or out-of-range count (0 to 50) is a 400. The switch is shared by the whole host, and the Playwright projects run side by side, so a failure armed in one project can be used up by an upload in another. Run the photo uploads of a test inside `withPhotoHost` from `web/e2e/photo-host-lock.ts` (a lock across projects and workers), arm the switch right before the upload you want to fail, and clear it with `{ "count": 0 }` at the end.
 
 Both routes follow the rule above: Debug builds only, Testing environment only, and a Release build contains neither.
+
+### Shared public site content (plan 11-10)
+
+The business info and the phone list are singleton content shared by all five projects. A spec that reads or changes them calls `seedDemoSiteContent(request)` (`POST /api/testing/site-content`, 204, the demo shop facts and two demo numbers) and runs under `withSiteContentLock` from `web/e2e/site-content-lock.ts`, the photo host lock with its own lock directory, so two specs never reset the facts under each other.
 
 ### Cookie attributes and the WebKit jar (plan 04-27)
 

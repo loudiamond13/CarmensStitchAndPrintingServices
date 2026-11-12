@@ -149,7 +149,7 @@ describe('PublicLayout Contact sticky bar (PUB-06)', () => {
     putBootBlock(demoSite);
     const { container } = await renderAt('/contact');
 
-    const call = screen.getByRole('link', { name: 'Call us' });
+    const call = await screen.findByRole('link', { name: 'Call us' });
     expect(call).toHaveAttribute('href', 'tel:+639171234567');
     expect(screen.getByRole('link', { name: 'Messenger' })).toHaveAttribute('href', 'https://m.me/cspsdemo');
     const bar = container.querySelector('[data-contact-bar]');
@@ -168,7 +168,7 @@ describe('PublicLayout Contact sticky bar (PUB-06)', () => {
 
   it('keeps a bottom scroll padding for the bar at 767px and below on /contact only', async () => {
     const contact = await renderAt('/contact');
-    expect(screen.getByRole('main').className).toMatch(/max-\[767px\]:.*scroll-pb-/);
+    expect(screen.getByRole('main').className).toMatch(/vp-lt-md:.*scroll-pb-/);
     contact.unmount();
 
     await renderAt('/products');

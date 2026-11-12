@@ -158,7 +158,7 @@ describe('MapCard (D-20)', () => {
   it('opens Directions in a new tab with rel noopener noreferrer and a hidden note', () => {
     inRouter(<MapCard site={demoSite} />);
 
-    const link = screen.getByRole('link', { name: 'Directions (opens in a new tab)' });
+    const link = screen.getByRole('link', { name: /^Directions\s*\(opens in a new tab\)$/ });
     expect(link).toHaveAttribute('href', 'https://maps.app.goo.gl/cspsdemo');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
@@ -207,6 +207,9 @@ describe('MapCard (D-20)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Show Map' }));
 
+    // jsdom has no frame to talk to, so axe checks the card without the frame; the frame's title is asserted above and the
+    // Playwright page check runs axe over the real frame.
+    container.querySelector('iframe')?.remove();
     await expectNoAxeViolations(container);
   });
 });
