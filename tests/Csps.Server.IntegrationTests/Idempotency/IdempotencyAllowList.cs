@@ -57,6 +57,7 @@ public static class IdempotencyAllowList
             new("POST /api/testing/staff", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/expenses", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/orders", "Testing-only test data, compiled out of Release.", Decision),
+            new("POST /api/testing/site-content", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/images/fail-next", "Testing-only test switch, compiled out of Release.", Decision),
         ]
         : [];

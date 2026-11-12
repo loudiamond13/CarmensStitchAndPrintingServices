@@ -2,15 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Csps.Application.Content;
-using Csps.Application.Ports;
 using Csps.Domain.Content;
-using Csps.Infrastructure.IntegrationTests.Auditing;
-using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Infrastructure.IntegrationTests.Content;
@@ -30,9 +24,9 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
         {
             Phones = [new BusinessPhone("02 8123 4567", null, false), new BusinessPhone("0917 123 4567", "Globe", true)],
         });
-        await using var services = BuildServices(database.ConnectionString);
+        await using var services = PublicContentServices.Build(database.ConnectionString);
 
-        var site = (await ReadAsync(services)).Site;
+        var site = (await PublicContentServices.ReadAsync(services)).Site;
 
         site.BusinessName.ShouldBe("Sample Shop");
         site.Tagline.ShouldBe("Sample tagline");
@@ -57,11 +51,11 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
     {
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
         var counter = new CommandCounter();
-        await using var services = BuildServices(database.ConnectionString, counter);
+        await using var services = PublicContentServices.Build(database.ConnectionString, counter);
 
-        var first = await ReadAsync(services);
+        var first = await PublicContentServices.ReadAsync(services);
         counter.Reset();
-        var second = await ReadAsync(services);
+        var second = await PublicContentServices.ReadAsync(services);
 
         counter.Count.ShouldBe(0);
         second.ShouldBeSameAs(first);
@@ -71,9 +65,9 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
     public async Task AnEmptyRowReadsWithNoPhonesAndNullFields()
     {
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Bare());
-        await using var services = BuildServices(database.ConnectionString);
+        await using var services = PublicContentServices.Build(database.ConnectionString);
 
-        var site = (await ReadAsync(services)).Site;
+        var site = (await PublicContentServices.ReadAsync(services)).Site;
 
         site.Phones.ShouldBeEmpty();
         site.Address.ShouldBe(new PublicAddressDto(null, null, null, null));
@@ -86,9 +80,9 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
     public async Task TheShopEmailIsNotInTheSnapshotOrItsJson()
     {
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
-        await using var services = BuildServices(database.ConnectionString);
+        await using var services = PublicContentServices.Build(database.ConnectionString);
 
-        var snapshot = await ReadAsync(services);
+        var snapshot = await PublicContentServices.ReadAsync(services);
 
         snapshot.Json.Json.ShouldNotContain(PrivateEmail, Case.Insensitive);
         snapshot.Json.Json.ShouldNotContain("@");
@@ -99,9 +93,9 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
     public async Task TheJsonUsesCamelCaseNamesAndHoldsTheSameFactsAsTheTypedData()
     {
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
-        await using var services = BuildServices(database.ConnectionString);
+        await using var services = PublicContentServices.Build(database.ConnectionString);
 
-        var snapshot = await ReadAsync(services);
+        var snapshot = await PublicContentServices.ReadAsync(services);
 
         using var document = JsonDocument.Parse(snapshot.Json.Json);
         var root = document.RootElement;
@@ -118,11 +112,11 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
     public async Task TheETagIsAStrongHashOfTheExactBytesAndChangesWithTheContent()
     {
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo("First line"));
-        await using var services = BuildServices(database.ConnectionString);
-        var first = (await ReadAsync(services)).Json;
+        await using var services = PublicContentServices.Build(database.ConnectionString);
+        var first = (await PublicContentServices.ReadAsync(services)).Json;
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo("Second line"));
-        await using var other = BuildServices(database.ConnectionString);
-        var second = (await ReadAsync(other)).Json;
+        await using var other = PublicContentServices.Build(database.ConnectionString);
+        var second = (await PublicContentServices.ReadAsync(other)).Json;
 
         first.ETag.ShouldBe($"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(first.Json)))}\"");
         first.ETag.ShouldStartWith("\"");
@@ -139,9 +133,9 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
             await PublicContentSeeding.SaveAsync(context, PublicContentSeeding.Demo("A line"), later);
         }
 
-        await using var services = BuildServices(database.ConnectionString);
+        await using var services = PublicContentServices.Build(database.ConnectionString);
 
-        (await ReadAsync(services)).Json.LastChangedUtc.ShouldBe(later);
+        (await PublicContentServices.ReadAsync(services)).Json.LastChangedUtc.ShouldBe(later);
     }
 
     [Fact]
@@ -149,9 +143,9 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
     {
         await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
         var newYearInManila = new FakeTimeProvider(new DateTimeOffset(2026, 12, 31, 16, 30, 0, TimeSpan.Zero));
-        await using var services = BuildServices(database.ConnectionString, time: newYearInManila);
+        await using var services = PublicContentServices.Build(database.ConnectionString, time: newYearInManila);
 
-        (await ReadAsync(services)).Site.Year.ShouldBe(2027);
+        (await PublicContentServices.ReadAsync(services)).Site.Year.ShouldBe(2027);
     }
 
     [Fact]
@@ -162,41 +156,12 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
         {
             await using var context = adHoc.CreateContext();
             await context.SiteSettings.ExecuteDeleteAsync(TestContext.Current.CancellationToken);
-            await using var services = BuildServices(adHoc.ConnectionString);
+            await using var services = PublicContentServices.Build(adHoc.ConnectionString);
 
-            var error = await Should.ThrowAsync<InvalidOperationException>(async () => await ReadAsync(services));
+            var error = await Should.ThrowAsync<InvalidOperationException>(async () => await PublicContentServices.ReadAsync(services));
 
             error.Message.ShouldContain("SiteSettings");
             error.Message.ShouldContain("migrations");
         }
-    }
-
-    private static ServiceProvider BuildServices(string connectionString, CommandCounter? counter = null, TimeProvider? time = null)
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Csps"] = connectionString })
-            .Build();
-
-        var services = new ServiceCollection();
-        services.AddSingleton<IRequestContext>(new FixedRequestContext());
-        if (time is not null)
-        {
-            services.AddSingleton(time);
-        }
-
-        services.AddInfrastructure(configuration, new HostingEnvironment { EnvironmentName = CspsApiFactory.EnvironmentName });
-        if (counter is not null)
-        {
-            services.ConfigureDbContext<CspsDbContext>(options => options.AddInterceptors(counter));
-        }
-
-        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
-    }
-
-    // Each read runs in its own scope, like separate HTTP requests sharing the singleton cache.
-    private static async Task<PublicSiteSnapshot> ReadAsync(ServiceProvider services)
-    {
-        await using var scope = services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<IPublicContentReader>().GetSiteAsync(TestContext.Current.CancellationToken);
     }
 }
