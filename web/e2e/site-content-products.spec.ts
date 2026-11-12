@@ -3,10 +3,12 @@
 // for every project, so a test that reads or changes them runs under the site content lock and puts the demo lines back at the end
 // (seedDemoSiteContent also deletes every line whose short name starts with "E2E-"). Signing in takes the longest, so every test signs in
 // before it takes the lock. Every test runs under the shared guard (console, page errors, CSP, failed responses).
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
+import { withPhotoHost } from './photo-host-lock.ts';
+import { apiToken, drawJpeg, type PickedFile } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedDemoSiteContent } from './testing-api.ts';
 
@@ -210,6 +212,90 @@ test('@site-content-products a Manager hides E2E-Shorts, shows it again and dele
       await expect(page.getByRole('link', { name: 'Edit E2E-Shorts' })).toHaveCount(0);
       expect(await publicShortNames(request)).not.toContain('E2E-Shorts');
     } finally {
+      await seedDemoSiteContent(request);
+    }
+  });
+});
+
+/** The slots of a line photo. */
+const PHOTO_SLOTS = ['main', 'back', 'fabric'] as const;
+
+/** The line id at the end of an editor address (/admin/site-content/products/{id}). */
+function lineIdOf(url: string): string {
+  const id = /\/products\/([0-9a-f-]{36})$/.exec(new URL(url).pathname)?.[1];
+  if (id === undefined) {
+    throw new Error(`No line id in ${url}`);
+  }
+  return id;
+}
+
+/**
+ * Takes every photo off a line through the API as the signed-in Manager of this page. The demo reset does not touch the photos of the six
+ * demo lines, so a test that adds one removes it here whatever happened. A slot that is already empty answers 404, which is fine.
+ */
+async function clearLinePhotos(page: Page, lineId: string): Promise<void> {
+  const authorization = `Bearer ${await apiToken(page)}`;
+  for (const slot of PHOTO_SLOTS) {
+    const removed = await page.request.delete(`/api/v1/product-lines/${lineId}/photos/${slot}`, {
+      headers: { 'X-CSPS-CSRF': '1', Authorization: authorization },
+    });
+    expect([204, 404], `DELETE photos/${slot}`).toContain(removed.status());
+  }
+}
+
+/** The photo of a slot on the Polo editor: its group, by the slot's label. */
+function slotOf(page: Page, label: 'Main photo' | 'Back view' | 'Fabric detail'): Locator {
+  return page.getByRole('group', { name: label });
+}
+
+/** Picks a file in a slot (the hidden input of the group; a phone's camera input is the other one). */
+async function pickIn(slot: Locator, file: PickedFile): Promise<void> {
+  await slot.locator('input[type="file"]:not([capture])').setInputFiles(file);
+}
+
+/** The natural width of an image once the browser has decoded it; 0 while it has not (a broken image stays 0). */
+const decodedWidth = (image: { complete: boolean; naturalWidth: number }): number =>
+  image.complete ? image.naturalWidth : 0;
+
+test('@site-content-photos a Manager picks a main photo for Polo, it uploads, and /products shows it', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const front = await drawJpeg(page, 'polo-front.jpg', 30);
+  await withSiteContentLock(async () => {
+    let lineId: string | null = null;
+    try {
+      await seedDemoSiteContent(request);
+      await openProductsTab(page);
+      await page.getByRole('link', { name: 'Edit Polo Shirts' }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Polo Shirts' })).toBeVisible();
+      lineId = lineIdOf(page.url());
+
+      const main = slotOf(page, 'Main photo');
+      await expect(main.getByRole('img', { name: 'Drawn jersey (no photo yet)' })).toBeVisible();
+      await withPhotoHost(async () => {
+        await pickIn(main, front);
+        await expect(page.getByText('Photo saved')).toBeVisible({ timeout: SAVE_WAIT_MS });
+        await expect(page.getByText('It shows on the website now.')).toBeVisible();
+      });
+      await expect(main.getByRole('status')).toContainText('Saved');
+      await expect(main.getByRole('button', { name: 'Replace Photo' })).toBeVisible();
+      await expect(main.getByRole('img', { name: 'Main photo of Polo Shirts' })).toBeVisible();
+
+      await page.goto('/products');
+      const polo = page.getByRole('article', { name: 'Polo Shirts' });
+      const image = polo.getByRole('img', { name: 'Polo Shirts, front' });
+      await image.scrollIntoViewIfNeeded();
+      await expect(image).toBeVisible();
+      await expect.poll(() => image.evaluate(decodedWidth)).toBeGreaterThan(0);
+    } finally {
+      if (lineId !== null) {
+        await page.goto('/admin');
+        await clearLinePhotos(page, lineId);
+      }
       await seedDemoSiteContent(request);
     }
   });

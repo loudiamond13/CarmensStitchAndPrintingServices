@@ -99,7 +99,7 @@ export function savedSettings(
 /** A problem+json answer with a machine code and, for a 400, the server's field errors. */
 export function problemAnswer(
   status: number,
-  extra: { code?: string; errors?: Record<string, string[]> } = {},
+  extra: { code?: string; detail?: string; errors?: Record<string, string[]> } = {},
 ): Response {
   return new HttpResponse(JSON.stringify({ title: 'x', status, ...extra }), {
     status,
@@ -685,6 +685,100 @@ export function productLinesBackend(
         return answer;
       }
       backend.lines = renumbered(backend.lines.filter((line) => line.id !== id));
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return backend;
+}
+
+export type LinePhotoSlotName = 'main' | 'back' | 'fabric';
+export type LinePhotoFixture = Schemas['ProductLinePhotoDto'];
+
+/** One line photo as the Manager's detail reads it, on the Testing image address. */
+export function linePhoto(
+  lineId: string,
+  slot: LinePhotoSlotName,
+  overrides: Partial<LinePhotoFixture> = {},
+): LinePhotoFixture {
+  const address = (size: string): string => `/api/testing/images/csps/content/lines/${lineId}/${slot}?size=${size}`;
+  return {
+    slot,
+    src: address('csps_sq_400'),
+    srcSet: `${address('csps_sq_200')} 200w, ${address('csps_sq_400')} 400w`,
+    width: 1600,
+    height: 2000,
+    ...overrides,
+  };
+}
+
+/** A demo line that already has photos in the given slots (all three by default). */
+export function lineWithPhotos(
+  key: keyof typeof LINE_IDS = 'polo',
+  slots: readonly LinePhotoSlotName[] = ['main', 'back', 'fabric'],
+  overrides: Partial<ProductLineDetailFixture> = {},
+): ProductLineDetailFixture {
+  const id = LINE_IDS[key];
+  const photo = (slot: LinePhotoSlotName): LinePhotoFixture | null =>
+    slots.includes(slot) ? linePhoto(id, slot) : null;
+  return demoLineDetail(key, {
+    photos: { main: photo('main'), back: photo('back'), fabric: photo('fabric') },
+    ...overrides,
+  });
+}
+
+export interface LinePhotosBackend {
+  uploads: { lineId: string; slot: string; key: string | null; contentType: string | null }[];
+  removals: { lineId: string; slot: string }[];
+}
+
+type PhotoAnswer = Response | undefined | Promise<Response | undefined>;
+
+export interface LinePhotosBackendOptions {
+  onUpload?: (lineId: string, slot: string, backend: ProductLinesBackend) => PhotoAnswer;
+  onRemove?: (lineId: string, slot: string, backend: ProductLinesBackend) => PhotoAnswer;
+}
+
+/**
+ * Answers POST and DELETE /api/v1/product-lines/{id}/photos/{slot} on top of `lines`: an upload fills the slot, a removal empties it, and
+ * every call is recorded. The upload body is not read (the form is jsdom's, not Node's); the tests spy on the service for the file.
+ */
+export function linePhotosBackend(
+  lines: ProductLinesBackend,
+  options: LinePhotosBackendOptions = {},
+): LinePhotosBackend {
+  const backend: LinePhotosBackend = { uploads: [], removals: [] };
+  const setSlot = (lineId: string, slot: LinePhotoSlotName, photo: LinePhotoFixture | null): void => {
+    lines.lines = lines.lines.map((line) =>
+      line.id === lineId ? { ...line, photos: { ...line.photos, [slot]: photo } } : line,
+    );
+  };
+  server.use(
+    http.post('*/api/v1/product-lines/:id/photos/:slot', async ({ request, params }) => {
+      const lineId = String(params.id);
+      const slot = String(params.slot);
+      backend.uploads.push({
+        lineId,
+        slot,
+        key: request.headers.get('Idempotency-Key'),
+        contentType: request.headers.get('Content-Type'),
+      });
+      const answer = await options.onUpload?.(lineId, slot, lines);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const made = linePhoto(lineId, slot as LinePhotoSlotName);
+      setSlot(lineId, slot as LinePhotoSlotName, made);
+      return HttpResponse.json(made);
+    }),
+    http.delete('*/api/v1/product-lines/:id/photos/:slot', async ({ params }) => {
+      const lineId = String(params.id);
+      const slot = String(params.slot);
+      backend.removals.push({ lineId, slot });
+      const answer = await options.onRemove?.(lineId, slot, lines);
+      if (answer !== undefined) {
+        return answer;
+      }
+      setSlot(lineId, slot as LinePhotoSlotName, null);
       return new HttpResponse(null, { status: 204 });
     }),
   );

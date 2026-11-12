@@ -171,3 +171,51 @@ describe('productLinesService.remove (CONT-02, D-08)', () => {
     });
   });
 });
+
+describe('productLinesService.uploadPhoto (CONT-02, D-02)', () => {
+  it('posts a multipart form with the file part to /product-lines/{id}/photos/{slot} under the given key', async () => {
+    const photo = { slot: 'main', src: '/a', srcSet: '/a 1w', width: 1600, height: 2000 };
+    const { fake, service } = clientFor([{ body: photo }]);
+    const file = new Blob(['jpeg bytes'], { type: 'image/jpeg' });
+
+    await expect(service.uploadPhoto(line.id, 'main', file, 'front.jpg', 'key-9')).resolves.toEqual(photo);
+
+    const call = fake.calls[0];
+    expect(call?.method).toBe('POST');
+    expect(call?.url).toBe(`/api/v1/product-lines/${line.id}/photos/main`);
+    expect(call?.headers.get('Idempotency-Key')).toBe('key-9');
+    expect(call?.body).toBeInstanceOf(FormData);
+    const part = (call?.body as FormData).get('file');
+    expect(part).toBeInstanceOf(Blob);
+    expect((part as File).name).toBe('front.jpg');
+  });
+
+  it('a refused photo rejects with the 400 HttpError and its code', async () => {
+    const { service } = clientFor([problem(400, { code: 'images.type' })]);
+
+    expect(await rejection(service.uploadPhoto(line.id, 'back', new Blob(['x']), 'a.svg', 'key-1'))).toMatchObject({
+      kind: 'http',
+      status: 400,
+      code: 'images.type',
+    });
+  });
+});
+
+describe('productLinesService.removePhoto (CONT-02, D-02)', () => {
+  it('calls DELETE /product-lines/{id}/photos/{slot} with no body and no Idempotency-Key', async () => {
+    const { fake, service } = clientFor([{ status: 204 }]);
+
+    await service.removePhoto(line.id, 'fabric');
+
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/product-lines/${line.id}/photos/fabric`);
+    expect(fake.calls[0]?.body).toBeNull();
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+  });
+
+  it('an empty slot rejects with a 404 HttpError', async () => {
+    const { service } = clientFor([problem(404, { code: 'product-lines.photo-not-found' })]);
+
+    expect(await rejection(service.removePhoto(line.id, 'main'))).toMatchObject({ kind: 'http', status: 404 });
+  });
+});

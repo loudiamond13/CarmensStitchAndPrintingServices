@@ -16,6 +16,7 @@ import {
   LINE_IDS,
   LINE_TYPE_IDS,
   lineProductTypesAre,
+  lineWithPhotos,
   problemAnswer,
   productLinesBackend,
 } from '@/test/siteContentFixtures';
@@ -217,11 +218,21 @@ describe('adding a line (D-01, CONT-02)', () => {
     expect(screen.queryByText('Hidden')).toBeNull();
   });
 
-  it('shows no Photos card and no note on a line that exists (the photos arrive with plan 11-22)', async () => {
-    productLinesBackend();
+  it('shows the Photos card with its three slots and no save-first note on a line that exists (plan 11-22)', async () => {
+    productLinesBackend([lineWithPhotos('polo', ['main'])]);
     await openLine(LINE_IDS.polo);
 
+    expect(screen.getByRole('heading', { level: 2, name: 'Photos' })).toBeVisible();
     expect(screen.queryByText('Save the product line first, then add photos.')).toBeNull();
+    const main = screen.getByRole('group', { name: 'Main photo' });
+    expect(within(main).getByRole('img', { name: 'Main photo of Polo Shirts' })).toBeVisible();
+    expect(within(main).getByRole('button', { name: 'Replace Photo' })).toBeVisible();
+    expect(
+      within(screen.getByRole('group', { name: 'Back view' })).getByRole('button', { name: 'Choose Photo' }),
+    ).toBeVisible();
+    expect(
+      within(screen.getByRole('group', { name: 'Fabric detail' })).getByRole('button', { name: 'Choose Photo' }),
+    ).toBeVisible();
   });
 
   it('saves a new line with POST, no version and one Idempotency-Key, then replaces the address with the new line editor and says it is hidden', async () => {
