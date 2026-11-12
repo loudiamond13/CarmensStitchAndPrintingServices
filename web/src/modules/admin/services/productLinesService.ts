@@ -11,8 +11,17 @@ export type ProductLineListItem = Schemas['ProductLineListItemDto'];
 export type ProductLineDetail = Schemas['ProductLineDetailDto'];
 /** The line form as the API takes it: the texts, the price and minimum, the filed product types and, for an edit, the version. */
 export type ProductLineRequest = Schemas['ProductLineRequest'];
+/** One photo of a line as the Manager's screens read it. */
+export type ProductLinePhoto = Schemas['ProductLinePhotoDto'];
+/** The three photo slots of a line; a slot with no photo is null. */
+export type ProductLinePhotos = Schemas['ProductLinePhotosDto'];
+/** The place of a photo on a line. */
+export type LinePhotoSlot = 'main' | 'back' | 'fabric';
 /** Which way a move goes. */
 export type MoveDirection = 'up' | 'down';
+
+/** A photo upload may take a while on a slow mobile connection (D-31). */
+const UPLOAD_TIMEOUT_MS = 120_000;
 
 export interface ProductLinesService {
   /** `GET /api/v1/product-lines`: every line in display order, hidden ones included, each with its version. */
@@ -37,9 +46,25 @@ export interface ProductLinesService {
   show(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
   /** `DELETE /api/v1/product-lines/{id}`: removes a line nothing is filed under. No version, no Idempotency-Key. 422 `product-lines.in-use`, 404. */
   remove(id: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `POST /api/v1/product-lines/{id}/photos/{slot}`: puts one photo into a slot as a multipart form (part `file`) and answers the photo. A slot
+   * that holds one is replaced. One Idempotency-Key per file. 400 `images.type`, `images.too-large`, `images.too-big`, 404, 413, 429, 503. A keyed
+   * form upload is never retried by the client.
+   */
+  uploadPhoto(
+    id: string,
+    slot: LinePhotoSlot,
+    file: Blob,
+    fileName: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ): Promise<ProductLinePhoto>;
+  /** `DELETE /api/v1/product-lines/{id}/photos/{slot}`: takes the photo out. No body, no Idempotency-Key. 404 when the slot is already empty. */
+  removePhoto(id: string, slot: LinePhotoSlot, signal?: AbortSignal): Promise<void>;
 }
 
 const linePath = (id: string): string => `/product-lines/${encodeURIComponent(id)}`;
+const photoPath = (id: string, slot: LinePhotoSlot): string => `${linePath(id)}/photos/${slot}`;
 
 export function createProductLinesService(client: HttpClient): ProductLinesService {
   return {
@@ -53,6 +78,16 @@ export function createProductLinesService(client: HttpClient): ProductLinesServi
     hide: (id, idempotencyKey, signal) => client.post(`${linePath(id)}/hide`, undefined, { idempotencyKey, signal }),
     show: (id, idempotencyKey, signal) => client.post(`${linePath(id)}/show`, undefined, { idempotencyKey, signal }),
     remove: (id, signal) => client.delete(linePath(id), { signal }),
+    uploadPhoto: (id, slot, file, fileName, idempotencyKey, signal) => {
+      const form = new FormData();
+      form.append('file', file, fileName);
+      return client.post<ProductLinePhoto>(photoPath(id, slot), form, {
+        idempotencyKey,
+        signal,
+        timeoutMs: UPLOAD_TIMEOUT_MS,
+      });
+    },
+    removePhoto: (id, slot, signal) => client.delete(photoPath(id, slot), { signal }),
   };
 }
 

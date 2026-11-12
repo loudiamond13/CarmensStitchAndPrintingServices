@@ -294,6 +294,31 @@ export const SITE_CONTENT_COPY = {
       price: { label: 'Starts at, per piece' },
       minimum: { label: 'Minimum order, pieces' },
     },
+    /** The three photo slots of the Photos card (D-02). The remove words are the UI-SPEC's "Remove the {main photo}?" / "{The drawn jersey} shows instead.". */
+    photos: {
+      hint: 'JPG, PNG, WEBP or HEIC · up to 10 MB',
+      slots: {
+        main: {
+          label: 'Main photo',
+          remove: { title: 'Remove the main photo?', message: 'The drawn jersey shows instead.' },
+        },
+        back: {
+          label: 'Back view',
+          remove: { title: 'Remove the back view?', message: 'The empty box shows instead.' },
+        },
+        fabric: {
+          label: 'Fabric detail',
+          remove: { title: 'Remove the fabric detail?', message: 'The empty box shows instead.' },
+        },
+      },
+      removeAction: 'Remove Photo',
+      /** The label and name of the empty Main photo: the drawing of the line shows there. */
+      drawnJersey: 'Drawn jersey (no photo yet)',
+      toast: {
+        saved: { title: 'Photo saved', message: 'It shows on the website now.' },
+        removed: { title: 'Photo removed', message: 'The drawing shows instead.' },
+      },
+    },
     /** The five fixed customize cards, in the order the public page draws them. */
     customize: {
       fabricText: 'Fabric',
@@ -362,6 +387,23 @@ export const SITE_CONTENT_COPY = {
       priceTooHigh: 'Enter a price up to ₱999,999.99.',
       minimum: 'Enter a whole number from 1 to 9,999.',
     },
+  },
+  /**
+   * One photo place (PhotoSlot; plan 11-22), shared by the line photos, the link preview picture and the gallery window. The noun is "Photo" or
+   * "Picture". SPEC-GAP: the UI-SPEC names the buttons, the status line and the toasts; the rest is new wording the owner reviews.
+   */
+  photoSlot: {
+    choose: (noun: string): string => `Choose ${noun}`,
+    take: (noun: string): string => `Take ${noun}`,
+    replace: (noun: string): string => `Replace ${noun}`,
+    remove: (noun: string): string => `Remove ${noun}`,
+    /** The status line while the file is prepared and sent, and once it is saved. */
+    uploading: 'Uploading',
+    saved: 'Saved',
+    /** The confirm button's words while the photo is taken off. */
+    removing: 'Removing',
+    /** The name of the preview of a slot with a photo, for a screen reader: "Main photo of Polo Shirts". */
+    previewAlt: (label: string, title: string): string => `${label} of ${title}`,
   },
   /** Inline errors: the server's own words (UI-SPEC Validation). */
   errors: {

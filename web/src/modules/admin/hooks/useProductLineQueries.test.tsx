@@ -13,16 +13,21 @@ import {
   useMoveProductLine,
   useProductLineListQuery,
   useProductLineQuery,
+  useRemoveLinePhoto,
   useSetProductLineShown,
   useUpdateProductLine,
+  useUploadLinePhoto,
 } from '@/modules/admin/hooks/useProductLineQueries';
-import type { ProductLineRequest } from '@/modules/admin/services/productLinesService';
+import { HttpError } from '@/core/api/errors';
+import { productLinesService, type ProductLineRequest } from '@/modules/admin/services/productLinesService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
   demoLineDetail,
   LINE_IDS,
+  linePhotosBackend,
+  lineWithPhotos,
   lineVersionAfter,
   problemAnswer,
   productLinesBackend,
@@ -47,6 +52,7 @@ afterEach(() => {
   queryClient.clear();
   clearSession();
   vi.mocked(invalidatePublicContent).mockClear();
+  vi.restoreAllMocks();
 });
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -246,5 +252,127 @@ describe('useMoveProductLine, useSetProductLineShown and useDeleteProductLine', 
     });
     expect(onFailure.mock.calls[0]?.[1]).toMatchObject({ status: 422, code: 'product-lines.in-use' });
     expect(invalidatePublicContent).toHaveBeenCalledOnce();
+  });
+});
+
+describe('useUploadLinePhoto (CONT-02, PUB-03; plan 11-22)', () => {
+  const file = () => new File(['jpeg'], 'front.jpg', { type: 'image/jpeg' });
+
+  it('posts to the slot with one key, puts the photo in the line cache, clears the public data and reads the list again', async () => {
+    const lines = productLinesBackend();
+    const photos = linePhotosBackend(lines);
+    queryClient.setQueryData(productLineKey(LINE_IDS.polo), polo);
+    queryClient.setQueryData(productLinesKey, []);
+    const { result } = renderHook(() => useUploadLinePhoto(LINE_IDS.polo, 'main'), { wrapper });
+
+    await act(async () => {
+      await result.current.submit(file());
+    });
+
+    expect(photos.uploads).toHaveLength(1);
+    expect(photos.uploads[0]).toMatchObject({ lineId: LINE_IDS.polo, slot: 'main' });
+    expect(photos.uploads[0]?.key).toMatch(/\S/);
+    expect(queryClient.getQueryData<typeof polo>(productLineKey(LINE_IDS.polo))?.photos.main?.slot).toBe('main');
+    expect(queryClient.getQueryData<typeof polo>(productLineKey(LINE_IDS.polo))?.photos.back).toBeNull();
+    expect(queryClient.getQueryState(productLinesKey)?.isInvalidated).toBe(true);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+  });
+
+  it('a refused upload clears nothing and hands the failure on', async () => {
+    // The refusal is raised by the service: a refusal sent before the browser's form body is out ends as a transport error in this test run.
+    vi.spyOn(productLinesService, 'uploadPhoto').mockRejectedValue(
+      new HttpError({
+        kind: 'http',
+        status: 400,
+        problem: {
+          type: undefined,
+          title: 'x',
+          status: 400,
+          detail: undefined,
+          instance: undefined,
+          traceId: undefined,
+          code: 'images.type',
+          errors: {},
+        },
+      }),
+    );
+    const onFailure = vi.fn();
+    const { result } = renderHook(() => useUploadLinePhoto(LINE_IDS.polo, 'back', { onFailure }), { wrapper });
+
+    await act(async () => {
+      await result.current.submit(file());
+    });
+
+    expect(onFailure.mock.calls[0]?.[1]).toMatchObject({ status: 400, code: 'images.type' });
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+
+  it('the same file again after a success is a new upload under a new key', async () => {
+    const lines = productLinesBackend();
+    const photos = linePhotosBackend(lines);
+    const { result } = renderHook(() => useUploadLinePhoto(LINE_IDS.polo, 'fabric'), { wrapper });
+    const again = file();
+
+    await act(async () => {
+      await result.current.submit(again);
+    });
+    await act(async () => {
+      await result.current.submit(again);
+    });
+
+    expect(photos.uploads).toHaveLength(2);
+    expect(photos.uploads[0]?.key).not.toBe(photos.uploads[1]?.key);
+  });
+});
+
+describe('useRemoveLinePhoto (CONT-02, PUB-03; plan 11-22)', () => {
+  const withPhotos = lineWithPhotos('polo');
+
+  it('deletes the slot, empties it in the line cache, clears the public data and reads the list again', async () => {
+    const lines = productLinesBackend([withPhotos]);
+    const photos = linePhotosBackend(lines);
+    queryClient.setQueryData(productLineKey(LINE_IDS.polo), withPhotos);
+    queryClient.setQueryData(productLinesKey, []);
+    const { result } = renderHook(() => useRemoveLinePhoto(LINE_IDS.polo, 'back'), { wrapper });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(photos.removals).toEqual([{ lineId: LINE_IDS.polo, slot: 'back' }]);
+    const cached = queryClient.getQueryData<typeof polo>(productLineKey(LINE_IDS.polo));
+    expect(cached?.photos.back).toBeNull();
+    expect(cached?.photos.main?.slot).toBe('main');
+    expect(queryClient.getQueryState(productLinesKey)?.isInvalidated).toBe(true);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+  });
+
+  it('a slot that is already empty (404) clears nothing and hands the failure on', async () => {
+    const lines = productLinesBackend();
+    linePhotosBackend(lines, { onRemove: () => problemAnswer(404, { code: 'product-lines.photo-not-found' }) });
+    const onFailure = vi.fn();
+    const { result } = renderHook(() => useRemoveLinePhoto(LINE_IDS.polo, 'main', { onFailure }), { wrapper });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(onFailure.mock.calls[0]?.[1]).toMatchObject({ status: 404 });
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+
+  it('removing the same slot again after a success is a new removal', async () => {
+    const lines = productLinesBackend([withPhotos]);
+    const photos = linePhotosBackend(lines);
+    const { result } = renderHook(() => useRemoveLinePhoto(LINE_IDS.polo, 'fabric'), { wrapper });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(photos.removals).toHaveLength(2);
   });
 });
