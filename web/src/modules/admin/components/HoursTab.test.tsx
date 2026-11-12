@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
@@ -9,14 +9,24 @@ import { HoursTab } from '@/modules/admin/components/HoursTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoOpeningHours, openingHoursBackend } from '@/test/siteContentFixtures';
+import {
+  businessTodayIs,
+  demoClosures,
+  demoOpeningHours,
+  openingHoursBackend,
+  problemAnswer,
+  shopClosuresBackend,
+} from '@/test/siteContentFixtures';
 
 vi.mock('@/lib/public-data/publicResource', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/public-data/publicResource')>()),
   invalidatePublicContent: vi.fn(),
 }));
 
-// S2 Hours & Closures tab (CONT-01, CONT-04, PUB-03, OR-3; plan 11-16): the weekly hours card and what a save does for the public site.
+// S2 Hours & Closures tab (CONT-01, CONT-04, PUB-03, OR-3; plan 11-16): the weekly hours card, the closures card and what a save does for the public site.
+
+// axe over the seven day rows takes longer than the 5 second default on a busy machine.
+vi.setConfig({ testTimeout: 15_000 });
 
 let queryClient: QueryClient;
 
@@ -24,6 +34,8 @@ beforeEach(() => {
   clearSession();
   acceptSession(sessionResponse());
   queryClient = createQueryClient();
+  shopClosuresBackend();
+  businessTodayIs('2026-11-12');
 });
 
 afterEach(() => {
@@ -215,5 +227,265 @@ describe('ticking Sunday open and saving (D-21, CONT-01, PUB-03)', () => {
     expect(await screen.findByText('Closing time must be after opening time.')).toBeVisible();
     expect(closes('Monday')).toHaveFocus();
     expect(backend.puts).toHaveLength(0);
+  });
+});
+
+// Card B: the Holidays and closures (CONT-04, D-22).
+
+const [CHRISTMAS, NEW_YEAR] = demoClosures;
+if (CHRISTMAS === undefined || NEW_YEAR === undefined) {
+  throw new Error('The demo closures are empty.');
+}
+
+/** Opens the tab and waits until both cards have their data. */
+async function openBoth(onDirtyChange?: (dirty: boolean) => void) {
+  const view = await openTab(onDirtyChange);
+  await screen.findByRole('table', { name: 'Upcoming closures' });
+  return view;
+}
+
+const addButton = (): HTMLElement => screen.getByRole('button', { name: 'Add Closure' });
+const editOn = (day: string): HTMLElement => screen.getByRole('button', { name: `Edit closure on ${day}` });
+const deleteOn = (day: string): HTMLElement => screen.getByRole('button', { name: `Delete closure on ${day}` });
+
+describe('the Holidays and closures card (CONT-04)', () => {
+  it('has the heading, the hint and an Add Closure button in the head', async () => {
+    openingHoursBackend();
+    await openBoth();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Holidays and closures' })).toBeVisible();
+    expect(
+      screen.getByText(
+        'Days the shop is closed. The Contact page lists them, and the open or closed status follows them.',
+      ),
+    ).toBeVisible();
+    expect(addButton()).toBeVisible();
+  });
+
+  it('lists the upcoming closures by first day: one day with its note, a range with the note empty', async () => {
+    openingHoursBackend();
+    await openBoth();
+
+    const table = screen.getByRole('table', { name: 'Upcoming closures' });
+    const [, christmas, newYear] = within(table).getAllByRole('row');
+    expect(within(christmas ?? table).getByText('Dec 25, 2026')).toBeVisible();
+    expect(within(christmas ?? table).getByText('Christmas')).toBeVisible();
+    expect(within(newYear ?? table).getByText('Dec 30, 2026 to Jan 1, 2027')).toBeVisible();
+    expect(within(newYear ?? table).getByText('Not set')).toBeInTheDocument();
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Date', 'Public note', 'Actions']);
+  });
+
+  it('names each row action by its date: Edit closure on Dec 25, 2026 and Delete closure on Dec 25, 2026', async () => {
+    openingHoursBackend();
+    await openBoth();
+
+    expect(editOn('Dec 25, 2026')).toBeVisible();
+    expect(deleteOn('Dec 25, 2026')).toBeVisible();
+    expect(editOn('Dec 30, 2026 to Jan 1, 2027')).toBeVisible();
+    expect(deleteOn('Dec 30, 2026 to Jan 1, 2027')).toBeVisible();
+  });
+
+  it('shows the empty state with no extra button when no closure is coming up', async () => {
+    openingHoursBackend();
+    shopClosuresBackend([]);
+    renderTab();
+
+    expect(await screen.findByRole('heading', { name: 'No closures coming up' })).toBeVisible();
+    expect(screen.getByText("Add holidays and special closures so visitors know when you're closed.")).toBeVisible();
+    expect(screen.getAllByRole('button', { name: 'Add Closure' })).toHaveLength(1);
+  });
+
+  it('has no axe violations with closures listed or with none', async () => {
+    openingHoursBackend();
+    const { container, unmount } = await openBoth();
+    await expectNoAxeViolations(container);
+    unmount();
+
+    shopClosuresBackend([]);
+    const empty = renderTab();
+    await screen.findByRole('heading', { name: 'No closures coming up' });
+    await expectNoAxeViolations(empty.container);
+  });
+});
+
+describe('adding a closure (CONT-04, PUB-03)', () => {
+  it('opens the window from Add Closure with the business today as the first day', async () => {
+    openingHoursBackend();
+    const { user } = await openBoth();
+
+    await user.click(addButton());
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Closure' });
+    await waitFor(() => {
+      expect(within(dialog).getByLabelText(/^First day/)).toHaveValue('2026-11-12');
+    });
+  });
+
+  it('saves, closes, shows the toast, reads the list again, clears the public data and moves focus to the new row Edit', async () => {
+    openingHoursBackend();
+    const backend = shopClosuresBackend();
+    const { user } = await openBoth();
+    await user.click(addButton());
+    const dialog = await screen.findByRole('dialog', { name: 'Add Closure' });
+    const first = within(dialog).getByLabelText(/^First day/);
+    await waitFor(() => {
+      expect(first).toHaveValue('2026-11-12');
+    });
+    fireEvent.change(first, { target: { value: '2026-12-31' } });
+    await user.type(within(dialog).getByLabelText(/^Public note/), 'New Year');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save Closure' }));
+
+    expect(await screen.findByText('Closure added')).toBeVisible();
+    expect(screen.getByText('Dec 31, 2026 shows as closed.')).toBeVisible();
+    expect(screen.queryByRole('dialog', { name: 'Add Closure' })).toBeNull();
+    expect(backend.posts).toHaveLength(1);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(editOn('Dec 31, 2026')).toHaveFocus();
+    });
+    expect(backend.gets).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('editing a closure (CONT-04)', () => {
+  it('opens the window with the closure, saves, shows "Closure saved" and returns focus to the row Edit', async () => {
+    openingHoursBackend();
+    const backend = shopClosuresBackend();
+    const { user } = await openBoth();
+    await user.click(editOn('Dec 25, 2026'));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Closure' });
+    const note = within(dialog).getByLabelText(/^Public note/);
+    expect(note).toHaveValue('Christmas');
+    await user.clear(note);
+    await user.type(note, 'Christmas Day');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save Closure' }));
+
+    expect(await screen.findByText('Closure saved')).toBeVisible();
+    expect(screen.getByText('The Contact page shows the change.')).toBeVisible();
+    expect(backend.puts).toHaveLength(1);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+    expect(await screen.findByText('Christmas Day')).toBeVisible();
+    await waitFor(() => {
+      expect(editOn('Dec 25, 2026')).toHaveFocus();
+    });
+  });
+});
+
+describe('deleting a closure (CONT-04)', () => {
+  it('asks "Delete this closure?" with the date and the normal-hours line, and Cancel is focused first', async () => {
+    openingHoursBackend();
+    const { user } = await openBoth();
+
+    await user.click(deleteOn('Dec 25, 2026'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this closure?' });
+    expect(within(dialog).getByText('Dec 25, 2026. The shop shows its normal hours that day.')).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Delete Closure' })).toBeVisible();
+  });
+
+  it('Cancel deletes nothing and returns focus to the Delete button', async () => {
+    openingHoursBackend();
+    const backend = shopClosuresBackend();
+    const { user } = await openBoth();
+    await user.click(deleteOn('Dec 25, 2026'));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this closure?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Delete this closure?' })).toBeNull();
+    });
+    expect(backend.deletes).toHaveLength(0);
+    expect(deleteOn('Dec 25, 2026')).toHaveFocus();
+  });
+
+  it('removes the row, shows "Closure deleted", clears the public data and moves focus to the next row Edit', async () => {
+    openingHoursBackend();
+    const backend = shopClosuresBackend();
+    const { user } = await openBoth();
+    await user.click(deleteOn('Dec 25, 2026'));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this closure?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Closure' }));
+
+    expect(await screen.findByText('Closure deleted')).toBeVisible();
+    expect(screen.getByText('Dec 25, 2026 shows normal hours.')).toBeVisible();
+    expect(backend.deletes).toEqual([CHRISTMAS.id]);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Edit closure on Dec 25, 2026' })).toBeNull();
+    });
+    await waitFor(() => {
+      expect(editOn('Dec 30, 2026 to Jan 1, 2027')).toHaveFocus();
+    });
+  });
+
+  it('moves focus to the previous row Edit when the last row is deleted', async () => {
+    openingHoursBackend();
+    shopClosuresBackend();
+    const { user } = await openBoth();
+    await user.click(deleteOn('Dec 30, 2026 to Jan 1, 2027'));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this closure?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Closure' }));
+
+    await waitFor(() => {
+      expect(editOn('Dec 25, 2026')).toHaveFocus();
+    });
+  });
+
+  it('moves focus to Add Closure when the only row is deleted, and shows the empty state', async () => {
+    openingHoursBackend();
+    shopClosuresBackend([CHRISTMAS]);
+    const { user } = await openBoth();
+    await user.click(deleteOn('Dec 25, 2026'));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this closure?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Closure' }));
+
+    expect(await screen.findByRole('heading', { name: 'No closures coming up' })).toBeVisible();
+    await waitFor(() => {
+      expect(addButton()).toHaveFocus();
+    });
+  });
+
+  it('on a 404 closes the question, says "Already deleted" and reads the list again', async () => {
+    openingHoursBackend();
+    const backend = shopClosuresBackend(demoClosures, {
+      onDelete: (id, current) => {
+        current.current = current.current.filter((closure) => closure.id !== id);
+        return problemAnswer(404, { code: 'shop-closures.not-found' });
+      },
+    });
+    const { user } = await openBoth();
+    await user.click(deleteOn('Dec 25, 2026'));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this closure?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Closure' }));
+
+    expect(await screen.findByText('Already deleted')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Delete this closure?' })).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Edit closure on Dec 25, 2026' })).toBeNull();
+    });
+    expect(backend.gets).toBeGreaterThanOrEqual(2);
+  });
+
+  it('has no axe violations with the question open', async () => {
+    openingHoursBackend();
+    const { user, baseElement } = await openBoth();
+    await user.click(deleteOn('Dec 25, 2026'));
+    await screen.findByRole('dialog', { name: 'Delete this closure?' });
+
+    await expectNoAxeViolations(baseElement);
   });
 });

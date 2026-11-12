@@ -234,7 +234,10 @@ export interface ShopClosuresBackend {
 }
 
 export interface ShopClosuresBackendOptions {
-  onPost?: (body: ShopClosureBody, backend: ShopClosuresBackend) => Response | undefined | Promise<Response | undefined>;
+  onPost?: (
+    body: ShopClosureBody,
+    backend: ShopClosuresBackend,
+  ) => Response | undefined | Promise<Response | undefined>;
   onPut?: (
     id: string,
     body: ShopClosureBody,

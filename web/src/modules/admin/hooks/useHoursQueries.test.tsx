@@ -10,11 +10,25 @@ import {
   useOpeningHoursQuery,
   useUpdateOpeningHours,
 } from '@/modules/admin/hooks/useOpeningHoursQuery';
+import {
+  shopClosuresKey,
+  useCreateShopClosure,
+  useDeleteShopClosure,
+  useShopClosuresQuery,
+  useUpdateShopClosure,
+} from '@/modules/admin/hooks/useShopClosuresQuery';
 import type { UpdateOpeningHoursRequest } from '@/modules/admin/services/openingHoursService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoOpeningHours, hoursVersionAfter, openingHoursBackend, problemAnswer } from '@/test/siteContentFixtures';
+import {
+  demoClosures,
+  demoOpeningHours,
+  hoursVersionAfter,
+  openingHoursBackend,
+  problemAnswer,
+  shopClosuresBackend,
+} from '@/test/siteContentFixtures';
 
 vi.mock('@/lib/public-data/publicResource', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/public-data/publicResource')>()),
@@ -102,5 +116,107 @@ describe('useUpdateOpeningHours', () => {
     expect(onFailure.mock.calls[0]?.[1]).toMatchObject({ status: 409, code: 'edit.stale' });
     expect(queryClient.getQueryData(openingHoursKey)).toEqual(demoOpeningHours);
     expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('useShopClosuresQuery', () => {
+  it('reads GET /api/v1/shop-closures once under the shop-closures key', async () => {
+    const backend = shopClosuresBackend();
+    const { result } = renderHook(() => useShopClosuresQuery(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(result.current.data).toEqual(demoClosures);
+    expect(backend.gets).toBe(1);
+    expect(shopClosuresKey).toEqual(['shop-closures']);
+  });
+});
+
+const newClosure = { firstDay: '2031-03-10', lastDay: null, note: 'Christmas', version: null };
+
+describe('the closure writes (CONT-04, PUB-03)', () => {
+  it('an add sends one Idempotency-Key, reads the list again and clears the public data in this browser', async () => {
+    const backend = shopClosuresBackend();
+    const list = renderHook(() => useShopClosuresQuery(), { wrapper });
+    await waitFor(() => {
+      expect(list.result.current.isSuccess).toBe(true);
+    });
+    const onSuccess = vi.fn();
+    const { result } = renderHook(() => useCreateShopClosure({ onSuccess }), { wrapper });
+
+    await act(async () => {
+      await result.current.submit(newClosure);
+    });
+
+    expect(backend.posts).toHaveLength(1);
+    expect(backend.posts[0]?.body).toEqual(newClosure);
+    expect(backend.posts[0]?.key).toMatch(/\S/);
+    expect(onSuccess).toHaveBeenCalledOnce();
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(backend.gets).toBe(2);
+    });
+  });
+
+  it('an edit sends the closure id and body, reads the list again and clears the public data', async () => {
+    const backend = shopClosuresBackend();
+    const list = renderHook(() => useShopClosuresQuery(), { wrapper });
+    await waitFor(() => {
+      expect(list.result.current.isSuccess).toBe(true);
+    });
+    const { result } = renderHook(() => useUpdateShopClosure(), { wrapper });
+    const first = demoClosures[0];
+
+    await act(async () => {
+      await result.current.submit({ id: first?.id ?? '', body: { ...newClosure, version: first?.version ?? null } });
+    });
+
+    expect(backend.puts).toEqual([{ id: first?.id, body: { ...newClosure, version: first?.version } }]);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(backend.gets).toBe(2);
+    });
+  });
+
+  it('a delete sends the closure id, reads the list again and clears the public data', async () => {
+    const backend = shopClosuresBackend();
+    const list = renderHook(() => useShopClosuresQuery(), { wrapper });
+    await waitFor(() => {
+      expect(list.result.current.isSuccess).toBe(true);
+    });
+    const { result } = renderHook(() => useDeleteShopClosure(), { wrapper });
+    const first = demoClosures[0]?.id ?? '';
+
+    await act(async () => {
+      await result.current.submit(first);
+    });
+
+    expect(backend.deletes).toEqual([first]);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(backend.gets).toBe(2);
+    });
+  });
+
+  it('a refused add reads nothing again, clears nothing and hands the failure on', async () => {
+    const backend = shopClosuresBackend(demoClosures, {
+      onPost: () => problemAnswer(400, { errors: { firstDay: ['Pick today or a later date.'] } }),
+    });
+    const list = renderHook(() => useShopClosuresQuery(), { wrapper });
+    await waitFor(() => {
+      expect(list.result.current.isSuccess).toBe(true);
+    });
+    const onFailure = vi.fn();
+    const { result } = renderHook(() => useCreateShopClosure({ onFailure }), { wrapper });
+
+    await act(async () => {
+      await result.current.submit(newClosure);
+    });
+
+    expect(onFailure).toHaveBeenCalledOnce();
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+    expect(backend.gets).toBe(1);
   });
 });
