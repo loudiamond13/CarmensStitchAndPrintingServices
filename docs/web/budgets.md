@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-11T21:40:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-12T12:35:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -68,6 +68,27 @@ Figures from plan 11-08 (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for ever
 | Not found | 138.22 KB | 137.95 KB |
 
 The Gallery page is the largest because it also loads nuqs. The data sections of later plans must fit in the room that is left (about 12 KB on Home and 7 KB on Gallery), or load lazily.
+
+## Chunk file names
+
+The entry chunk holds a list of every lazy chunk's file name, so the browser can preload a route's chunks when it opens the route. Every public page downloads that list, and it grows with each admin chunk. To keep it short, `chunkFileNames` in `web/vite.config.ts` names chunks this way (pinned in `src/test/build-config.node.test.ts`):
+
+- a lazy route chunk (a page or layout reached through a dynamic `import()`) keeps its module name: `assets/ContactPage-<hash>.js`,
+- a shared chunk is named by its content hash only: `assets/<hash>.js`.
+
+The hash is the same 8 characters as before, so `/assets/*` files stay safe to cache as immutable. Nothing loads differently: the same chunks, the same preloads, only shorter names. In `budget.json` a shared chunk therefore shows as a bare hash; to see what it holds, open the file in the build output.
+
+Measured on 2026-11-12, before and after this change (gzip -9, 1 KB = 1000 B):
+
+| Measure | `build:budget` before | `build:budget` after | `build` (production) before | `build` (production) after |
+|---|---|---|---|---|
+| Home | 142.40 KB | 141.25 KB | 142.20 KB | 141.04 KB |
+| Products | 146.35 KB | 145.07 KB | 146.16 KB | 144.86 KB |
+| Gallery | 147.76 KB | 146.56 KB | 147.57 KB | 146.35 KB |
+| Contact | 150.02 KB (over) | 148.74 KB | 149.82 KB | 148.53 KB |
+| Not found | 142.96 KB | 141.76 KB | 142.76 KB | 141.55 KB |
+| Admin | 221.41 KB | 219.37 KB | 219.20 KB | 217.24 KB |
+| CSS | 18.17 KB | 18.17 KB | 18.17 KB | 18.17 KB |
 
 ## The builds
 

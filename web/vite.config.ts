@@ -105,6 +105,11 @@ export default defineConfig(({ mode }) => {
         // take most of the build time, which the React Compiler (babel) and Tailwind always do in the dev-route builds;
         // it reports speed, not a defect, and nothing here can act on it.
         checks: { bundlerTimings: false },
+        // PERF-01: the entry carries the file name of every lazy chunk for preloading, so shared chunks are named by
+        // their content hash only (about 1.3 KB gzip off every public page). Lazy route chunks keep their module name.
+        output: {
+          chunkFileNames: (chunk) => (chunk.facadeModuleId === null ? 'assets/[hash].js' : 'assets/[name]-[hash].js'),
+        },
         // SPEC-DEVIATION: D-20 / CWE-489. Only the parity build of `npm run parity` (and development) adds the
         // look-equality page, parity.html (WEB-02, D-33). The production, e2e and budget builds keep index.html as their
         // only entry: the page never reaches wwwroot, and its imports never shape the chunks the budgets measure.
