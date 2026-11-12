@@ -118,8 +118,8 @@ describe('an empty slot', () => {
     const { container } = renderSlot();
 
     const take = screen.getByRole('button', { name: 'Take Photo' });
-    expect(take.className).toMatch(/\bhidden\b/);
-    expect(take.className).toMatch(/no-hover:/);
+    expect(take.parentElement?.className).toMatch(/\bhidden\b/);
+    expect(take.parentElement?.className).toMatch(/no-hover:/);
     const input = fileInput(container);
     expect(input).not.toHaveAttribute('multiple');
     expect(input).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp,image/heic,image/heif');

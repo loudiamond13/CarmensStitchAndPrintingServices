@@ -159,7 +159,8 @@ describe('adding a main photo (CONT-02, PUB-03)', () => {
     const [lineId, slot, blob, name, key] = upload.mock.calls[0] ?? [];
     expect(lineId).toBe(LINE_IDS.polo);
     expect(slot).toBe('main');
-    expect(await (blob as Blob).text()).toBe('prepared');
+    if (blob === undefined) throw new Error('No file was sent');
+    expect(await blob.text()).toBe('prepared');
     expect(name).toBe('front.jpg');
     expect(key).toBe(photos.uploads[0]?.key);
     expect(invalidatePublicContent).toHaveBeenCalledTimes(1);
@@ -177,7 +178,7 @@ describe('adding a main photo (CONT-02, PUB-03)', () => {
     linePhotosBackend(lines);
     vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
     const { user } = renderCard();
-    await queryClient.fetchQuery({ queryKey: ['product-lines'], queryFn: () => ['stale'] });
+    queryClient.setQueryData(['product-lines'], []);
 
     await user.upload(inputOf('Back view'), new File(['jpeg'], 'back.jpg', { type: 'image/jpeg' }));
 

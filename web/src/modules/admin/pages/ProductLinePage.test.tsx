@@ -104,7 +104,8 @@ describe('opening a line (D-34)', () => {
     expect(screen.getByLabelText(/^Card text/)).toHaveValue('Card text of Basketball Jerseys.');
     expect(screen.getByLabelText(/^Description/)).toHaveValue('Description of Basketball Jerseys.');
     for (const label of ['Fabric', 'Collar style', 'Cut & fit', 'Names & numbers', 'Logos & sponsors']) {
-      expect(screen.getByLabelText(new RegExp(`^${label}`))).toBeVisible();
+      // By role: the empty Fabric detail box of the Photos card also carries a name that starts with "Fabric".
+      expect(screen.getByRole('textbox', { name: new RegExp(`^${label}`) })).toBeVisible();
     }
     expect(screen.getByLabelText(PRICE)).toHaveValue('650.00');
     expect(screen.getByLabelText(MINIMUM)).toHaveValue('10');

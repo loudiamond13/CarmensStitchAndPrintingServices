@@ -43,6 +43,7 @@ import {
   profileCardBodyClasses,
   profileFormGridClasses,
 } from '@/modules/admin/components/profile.recipe';
+import { ProductLinePhotosCard } from '@/modules/admin/components/ProductLinePhotosCard';
 import { SiteContentCard } from '@/modules/admin/components/SiteContentCard';
 import { hoursPreviewClasses, lineCustomizeLabelClasses } from '@/modules/admin/components/siteContent.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
@@ -54,7 +55,7 @@ import {
 } from '@/modules/admin/hooks/useProductLineQueries';
 import { useProductTypesQuery } from '@/modules/admin/hooks/useProductTypesQuery';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
-import type { ProductLineDetail } from '@/modules/admin/services/productLinesService';
+import type { LinePhotoSlot, ProductLineDetail, ProductLinePhoto } from '@/modules/admin/services/productLinesService';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { SITE_CONTENT_COPY } from '@/modules/admin/siteContentCopy';
 import {
@@ -284,6 +285,11 @@ function ProductLineForm({ line, reload }: ProductLineFormProps) {
 
   const pending = create.pending || update.pending;
 
+  /** A photo was saved or taken off: the line shown keeps the photos, and its version stays (a photo does not change the line's version). */
+  const onPhotoChange = (slot: LinePhotoSlot, photo: ProductLinePhoto | null): void => {
+    setSaved((current) => (current === null ? current : { ...current, photos: { ...current.photos, [slot]: photo } }));
+  };
+
   const onValid = async (values: ProductLineInput): Promise<void> => {
     if (saved === null) {
       await create.submit(toProductLineRequest(values, null));
@@ -473,11 +479,20 @@ function ProductLineForm({ line, reload }: ProductLineFormProps) {
               <p className={clsx(hoursPreviewClasses, expensesFullRowClasses)}>{previewOf(priceText, minimumText)}</p>
             </div>
           </SiteContentCard>
-          {/* SPEC-GAP: product line editor. The three photo slots arrive with plan 11-22; a new line says to save first. */}
-          {saved === null && (
+          {/* SPEC-GAP: product line editor. A new line has no photo slots yet: it says to save first (D-02). */}
+          {saved === null ? (
             <SiteContentCard title={COPY.cards.photos.title} hint={COPY.cards.photos.hint}>
               <Note icon="info">{COPY.cards.photos.saveFirst}</Note>
             </SiteContentCard>
+          ) : (
+            <ProductLinePhotosCard
+              lineId={saved.id}
+              title={saved.title}
+              number={saved.number}
+              placeholderArt={saved.placeholderArt}
+              photos={saved.photos}
+              onPhotoChange={onPhotoChange}
+            />
           )}
           <OrderProductTypesCard
             control={control}

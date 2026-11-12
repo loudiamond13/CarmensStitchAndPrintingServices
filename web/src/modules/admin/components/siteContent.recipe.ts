@@ -79,6 +79,9 @@ export const linePriceCellClasses = tw('flex flex-col items-end');
 /** "min. 10 pcs" under the price. */
 export const linePriceMinimumClasses = tw('text-[12px] leading-4 font-normal text-ink-muted');
 
+/** The three photo slots of a line: a row from a tablet up (D-02), one column on a phone (767px and below). */
+export const lineSlotsClasses = tw('grid grid-cols-1 gap-6 min-[768px]:grid-cols-3');
+
 /** One customize field's label: the 18px icon and the card title. */
 export const lineCustomizeLabelClasses = tw('inline-flex items-center gap-2');
 

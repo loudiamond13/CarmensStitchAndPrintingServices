@@ -17,7 +17,8 @@ import {
   useUpdateProductLine,
   useUploadLinePhoto,
 } from '@/modules/admin/hooks/useProductLineQueries';
-import type { ProductLineRequest } from '@/modules/admin/services/productLinesService';
+import { HttpError } from '@/core/api/errors';
+import { productLinesService, type ProductLineRequest } from '@/modules/admin/services/productLinesService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
@@ -49,6 +50,7 @@ afterEach(() => {
   queryClient.clear();
   clearSession();
   vi.mocked(invalidatePublicContent).mockClear();
+  vi.restoreAllMocks();
 });
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -275,8 +277,23 @@ describe('useUploadLinePhoto (CONT-02, PUB-03; plan 11-22)', () => {
   });
 
   it('a refused upload clears nothing and hands the failure on', async () => {
-    const lines = productLinesBackend();
-    linePhotosBackend(lines, { onUpload: () => problemAnswer(400, { code: 'images.type' }) });
+    // The refusal is raised by the service: a refusal sent before the browser's form body is out ends as a transport error in this test run.
+    vi.spyOn(productLinesService, 'uploadPhoto').mockRejectedValue(
+      new HttpError({
+        kind: 'http',
+        status: 400,
+        problem: {
+          type: undefined,
+          title: 'x',
+          status: 400,
+          detail: undefined,
+          instance: undefined,
+          traceId: undefined,
+          code: 'images.type',
+          errors: {},
+        },
+      }),
+    );
     const onFailure = vi.fn();
     const { result } = renderHook(() => useUploadLinePhoto(LINE_IDS.polo, 'back', { onFailure }), { wrapper });
 

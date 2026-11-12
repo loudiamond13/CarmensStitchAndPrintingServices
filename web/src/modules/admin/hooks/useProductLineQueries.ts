@@ -1,14 +1,16 @@
 // The staff view of the product lines (CONT-02) and their writes (PUB-03; plan 11-20). Every write that went through reads the list again
 // and clears the public data held in this browser, so the public pages read the new lines next (the server clears its own cache itself).
 // A refused write changes neither.
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { useSubmission, type SubmissionOptions } from '@/lib/forms/useSubmission';
 import { invalidatePublicContent } from '@/lib/public-data/publicResource';
 import {
   productLinesService,
+  type LinePhotoSlot,
   type MoveDirection,
   type ProductLineDetail,
+  type ProductLinePhoto,
   type ProductLineRequest,
 } from '@/modules/admin/services/productLinesService';
 
@@ -109,6 +111,46 @@ function useRowAction<TData extends { readonly id: string }>(
         generation.current += 1;
         afterWrite();
         options.onSuccess?.(result, data);
+      },
+      ...(options.onFailure === undefined ? {} : { onFailure: options.onFailure }),
+    },
+  );
+}
+
+/** Puts one slot's photo (or null) into the cached line, if it is cached, so a reopened editor never starts from an old copy. */
+function patchLinePhoto(
+  queryClient: QueryClient,
+  lineId: string,
+  slot: LinePhotoSlot,
+  photo: ProductLinePhoto | null,
+): void {
+  queryClient.setQueryData<ProductLineDetail>(productLineKey(lineId), (line) =>
+    line === undefined ? line : { ...line, photos: { ...line.photos, [slot]: photo } },
+  );
+}
+
+/**
+ * Puts a photo into one slot of a line (plan 11-22): one Idempotency-Key per file, one file at a time. A finished upload is a new intent
+ * the next time, so choosing the same file again sends it again. The line's version is not touched by a photo.
+ */
+export function useUploadLinePhoto(
+  lineId: string,
+  slot: LinePhotoSlot,
+  options: WriteOptions<File, ProductLinePhoto> = {},
+) {
+  const queryClient = useQueryClient();
+  const generation = useRef(0);
+  const afterWrite = useAfterWrite();
+  return useSubmission<File, ProductLinePhoto>(
+    (key, file) => productLinesService.uploadPhoto(lineId, slot, file, file.name, key),
+    {
+      identity: (file) =>
+        `${file.name}:${String(file.size)}:${String(file.lastModified)}:${String(generation.current)}`,
+      onSuccess: (photo, file) => {
+        generation.current += 1;
+        patchLinePhoto(queryClient, lineId, slot, photo);
+        afterWrite();
+        options.onSuccess?.(photo, file);
       },
       ...(options.onFailure === undefined ? {} : { onFailure: options.onFailure }),
     },
