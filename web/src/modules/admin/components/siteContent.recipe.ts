@@ -96,3 +96,29 @@ export const lineTypesHintClasses = tw('m-0 text-[14px] leading-5 text-ink-muted
 
 /** " (now under Volleyball Jerseys)" after a type's name (muted). */
 export const lineTypeNoteClasses = tw('text-[12px] leading-4 font-normal text-ink-muted');
+
+// ---- Testimonials tab (S5; plan 11-24) ----
+
+/** The quote cell: small text clamped to two lines, a long word breaks anywhere. The whole quote is in the edit window. */
+export const testimonialQuoteClasses = tw('line-clamp-2 text-[13px] leading-5 wrap-anywhere');
+
+/** The name over the team or role. */
+export const testimonialPersonClasses = tw('flex min-w-0 flex-col');
+
+/** The person's name (the label look). */
+export const testimonialNameClasses = tw('text-[14px] leading-5 font-semibold wrap-anywhere');
+
+/** The team or role under the name (12px muted). */
+export const testimonialTeamClasses = tw('text-[12px] leading-4 wrap-anywhere text-ink-muted');
+
+/** The stars cell: the one star, then "5 stars". */
+export const testimonialStarsClasses = tw('inline-flex items-center gap-1.5');
+
+/** The one decorative star, filled in the orange ink. */
+export const testimonialStarClasses = tw('shrink-0 fill-current text-accent-ink');
+
+/** The status cell: the badge, and "On the Home page" under it. */
+export const testimonialStatusClasses = tw('flex flex-col items-start gap-1');
+
+/** "On the Home page" under the badge (12px muted). */
+export const testimonialHomeNoteClasses = tw('text-[12px] leading-4 text-ink-muted');

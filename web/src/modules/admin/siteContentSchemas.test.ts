@@ -7,6 +7,7 @@ import {
   demoLineDetail,
   demoOpeningHours,
   demoSiteSettings,
+  demoTestimonials,
   LINE_TYPE_IDS,
 } from '@/test/siteContentFixtures';
 import {
@@ -35,11 +36,15 @@ import {
   toClosureRequest,
   toOpeningHoursRequest,
   toProductLineRequest,
+  testimonialSchema,
+  testimonialValuesOf,
   toSiteSettingsRequest,
+  toTestimonialRequest,
   weekOfValues,
   type BusinessInfoInput,
   type ClosureInput,
   type HoursInput,
+  type TestimonialInput,
 } from './siteContentSchemas';
 
 // The Business Info form schema (OR-3; CONT-01, D-23, D-24; plan 11-12): it mirrors the server's validator, so the browser checks
@@ -850,5 +855,105 @@ describe('productLineSchema: every ProductLine.Check rule with the server messag
       'shortName',
       'title',
     ]);
+  });
+});
+
+describe('testimonialSchema: every Testimonial.Check rule with the server message (OR-3, CONT-03; plan 11-24)', () => {
+  const [juan] = demoTestimonials();
+  if (juan === undefined) {
+    throw new Error('The demo testimonials are empty.');
+  }
+  const good = testimonialValuesOf(juan);
+
+  /** The first message per field for these values, by field name. */
+  function messagesOf(overrides: Partial<TestimonialInput>): Record<string, string> {
+    const result = testimonialSchema.safeParse({ ...good, ...overrides });
+    const messages: Record<string, string> = {};
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        messages[String(issue.path[0])] ??= issue.message;
+      }
+    }
+    return messages;
+  }
+
+  it('accepts a saved testimonial and one with no team or role', () => {
+    expect(messagesOf({})).toEqual({});
+    expect(messagesOf({ teamOrRole: '' })).toEqual({});
+  });
+
+  it('quote: required, and at most 300 characters counted after the trim', () => {
+    expect(messagesOf({ quote: '' }).quote).toBe('Enter the quote.');
+    expect(messagesOf({ quote: '   ' }).quote).toBe('Enter the quote.');
+    expect(messagesOf({ quote: 'a'.repeat(301) }).quote).toBe('Keep the quote to 300 characters or fewer.');
+    expect(messagesOf({ quote: 'a'.repeat(300) })).toEqual({});
+    expect(messagesOf({ quote: `  ${'a'.repeat(300)}  ` })).toEqual({});
+  });
+
+  it('name: required, and at most 60 characters', () => {
+    expect(messagesOf({ name: '' }).name).toBe('Enter the name.');
+    expect(messagesOf({ name: 'a'.repeat(61) }).name).toBe('Keep the name to 60 characters or fewer.');
+    expect(messagesOf({ name: 'a'.repeat(60) })).toEqual({});
+  });
+
+  it('team or role: optional, and at most 80 characters', () => {
+    expect(messagesOf({ teamOrRole: 'a'.repeat(81) }).teamOrRole).toBe('Keep this to 80 characters or fewer.');
+    expect(messagesOf({ teamOrRole: 'a'.repeat(80) })).toEqual({});
+  });
+
+  it('stars: a whole number from 1 to 5', () => {
+    for (const stars of ['1', '2', '3', '4', '5']) {
+      expect(messagesOf({ stars }), stars).toEqual({});
+    }
+    for (const stars of ['', '0', '6', '2.5', 'five', '-1']) {
+      expect(messagesOf({ stars }).stars, stars).toBe('Choose 1 to 5 stars.');
+    }
+  });
+
+  it('flags the quote and the name of a new, empty form, and nothing else', () => {
+    expect(Object.keys(messagesOf(testimonialValuesOf(null))).sort()).toEqual(['name', 'quote']);
+  });
+});
+
+describe('the testimonial form values and request (CONT-03; plan 11-24)', () => {
+  const [juan] = demoTestimonials();
+  if (juan === undefined) {
+    throw new Error('The demo testimonials are empty.');
+  }
+
+  it('starts an add with 5 stars, shown, and every text empty', () => {
+    expect(testimonialValuesOf(null)).toEqual({ quote: '', name: '', teamOrRole: '', stars: '5', isShown: true });
+  });
+
+  it('shows a saved testimonial as text, a missing team or role as an empty text', () => {
+    expect(testimonialValuesOf(juan)).toEqual({
+      quote: 'Seventeen pieces, names and numbers perfect.',
+      name: 'Juan Dela Cruz',
+      teamOrRole: 'Captain, Brgy. Sample Ballers',
+      stars: '5',
+      isShown: true,
+    });
+    const hidden = demoTestimonials()[3];
+    expect(hidden && testimonialValuesOf(hidden)).toMatchObject({ teamOrRole: '', stars: '1', isShown: false });
+  });
+
+  it('sends the texts trimmed, the stars as a number, an empty team or role as null and the version of an edit', () => {
+    expect(
+      toTestimonialRequest(
+        { quote: '  Great.  ', name: ' Ana ', teamOrRole: '   ', stars: '4', isShown: false },
+        'AAAAAAAAG01=',
+      ),
+    ).toEqual({ quote: 'Great.', name: 'Ana', teamOrRole: null, stars: 4, isShown: false, version: 'AAAAAAAAG01=' });
+    expect(
+      toTestimonialRequest({ quote: 'Q', name: 'N', teamOrRole: ' Captain ', stars: '5', isShown: true }, null),
+    ).toEqual({ quote: 'Q', name: 'N', teamOrRole: 'Captain', stars: 5, isShown: true, version: null });
+  });
+
+  it('keeps the words inside the quote exactly as typed', () => {
+    const typed = 'Two  spaces,\nand a new line, “curly” quotes & <b>tags</b>.';
+
+    expect(
+      toTestimonialRequest({ quote: typed, name: 'N', teamOrRole: '', stars: '5', isShown: true }, null).quote,
+    ).toBe(typed);
   });
 });

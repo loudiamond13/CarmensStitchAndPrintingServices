@@ -24,6 +24,7 @@ import { HoursTab } from '@/modules/admin/components/HoursTab';
 import { ProductLinesTab } from '@/modules/admin/components/ProductLinesTab';
 import { expensesHeadActionsClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
 import { profilePageClasses } from '@/modules/admin/components/profile.recipe';
+import { TestimonialsTab } from '@/modules/admin/components/TestimonialsTab';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { SITE_CONTENT_TABS, useSiteContentTab, type SiteContentTab } from '@/modules/admin/hooks/useSiteContentTab';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
@@ -37,11 +38,15 @@ const ID_BASE = 'content';
 /** How one tab's panel is drawn: it receives the callback that reports unsaved changes. */
 export type SiteContentPanels = Partial<Record<SiteContentTab, (onDirtyChange: (dirty: boolean) => void) => ReactNode>>;
 
-/** The tabs that are built so far: 'business', 'hours' and 'products'. The Products tab edits nothing itself, so it reports no unsaved changes. */
+/**
+ * The tabs that are built so far: 'business', 'hours', 'products' and 'testimonials'. The Products and Testimonials tabs edit nothing in the tab
+ * itself (a testimonial is edited in its own window, which asks before it drops changes), so they report no unsaved changes.
+ */
 const BUILT_PANELS: SiteContentPanels = {
   business: (onDirtyChange) => <BusinessInfoTab onDirtyChange={onDirtyChange} />,
   hours: (onDirtyChange) => <HoursTab onDirtyChange={onDirtyChange} />,
   products: () => <ProductLinesTab />,
+  testimonials: () => <TestimonialsTab />,
 };
 
 export function SiteContentPage({ panels }: { panels: SiteContentPanels }) {

@@ -11,6 +11,7 @@ import type { OpeningHours, UpdateOpeningHoursRequest } from '@/modules/admin/se
 import type { ProductLineDetail, ProductLineRequest } from '@/modules/admin/services/productLinesService';
 import type { ShopClosure, ShopClosureRequest } from '@/modules/admin/services/shopClosuresService';
 import type { SiteSettings, UpdateSiteSettingsRequest } from '@/modules/admin/services/siteSettingsService';
+import type { Testimonial, TestimonialRequest } from '@/modules/admin/services/testimonialsService';
 import { isCalendarDate } from '@/lib/url-state/parsers';
 import { centavosToMoneyText } from '@/utils/format';
 import { formatTime, type WeekDayHours } from '@/utils/hours';
@@ -808,5 +809,67 @@ export function toProductLineRequest(values: ProductLineInput, version: string |
     minimumQuantity: minimum === '' ? null : Number(minimum),
     isActive: values.isActive,
     productTypeIds: [...values.productTypeIds],
+  };
+}
+
+// ---- The testimonial form (CONT-03, D-05; plans 11-21 and 11-24) ----------------------------------------------------------------------
+// It mirrors Testimonial.Check (the rules the request validator and the domain share) with the server's own messages: a quote of 1 to 300
+// characters, a name of 1 to 60, an optional team or role of at most 80, and a whole number of stars from 1 to 5, all counted after the trim.
+
+const TESTIMONIAL = SITE_CONTENT_COPY.testimonials.errors;
+
+export const TESTIMONIAL_QUOTE_MAX = 300;
+export const TESTIMONIAL_NAME_MAX = 60;
+export const TESTIMONIAL_TEAM_MAX = 80;
+
+/** The stars as the form's radio group holds them: a text from "1" to "5". */
+const TESTIMONIAL_STARS = /^[1-5]$/;
+
+/** Every testimonial rule the server checks, with its message. The stars are the one control that is not free text. */
+export const testimonialSchema = z.object({
+  quote: lineText(TESTIMONIAL.quoteRequired, TESTIMONIAL_QUOTE_MAX, TESTIMONIAL.quoteTooLong),
+  name: lineText(TESTIMONIAL.nameRequired, TESTIMONIAL_NAME_MAX, TESTIMONIAL.nameTooLong),
+  teamOrRole: z.string().superRefine((value, ctx) => {
+    if (value.trim().length > TESTIMONIAL_TEAM_MAX) {
+      ctx.addIssue({ code: 'custom', message: TESTIMONIAL.teamTooLong });
+    }
+  }),
+  stars: z.string().superRefine((value, ctx) => {
+    if (!TESTIMONIAL_STARS.test(value)) {
+      ctx.addIssue({ code: 'custom', message: TESTIMONIAL.stars });
+    }
+  }),
+  isShown: z.boolean(),
+});
+
+/** What the testimonial form holds while it is edited. */
+export type TestimonialInput = z.input<typeof testimonialSchema>;
+
+/** The form values of a saved testimonial, or of a new one (null): 5 stars, shown, every text empty. */
+export function testimonialValuesOf(testimonial: Testimonial | null): TestimonialInput {
+  if (testimonial === null) {
+    return { quote: '', name: '', teamOrRole: '', stars: '5', isShown: true };
+  }
+  return {
+    quote: testimonial.quote,
+    name: testimonial.name,
+    teamOrRole: testimonial.teamOrRole ?? '',
+    stars: String(Number(testimonial.stars)),
+    isShown: testimonial.isShown,
+  };
+}
+
+/**
+ * The save request for the form's values: the texts trimmed at both ends (the words inside the quote are sent as typed), the stars as a number,
+ * an empty team or role as null, and the version an edit was opened with (null for an add).
+ */
+export function toTestimonialRequest(values: TestimonialInput, version: string | null): TestimonialRequest {
+  return {
+    quote: values.quote.trim(),
+    name: values.name.trim(),
+    teamOrRole: optional(values.teamOrRole),
+    stars: Number(values.stars),
+    isShown: values.isShown,
+    version,
   };
 }

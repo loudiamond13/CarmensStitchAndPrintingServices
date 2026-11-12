@@ -388,6 +388,97 @@ export const SITE_CONTENT_COPY = {
       minimum: 'Enter a whole number from 1 to 9,999.',
     },
   },
+  /** S5 Testimonials tab: the ordered list, its row actions, the add and edit window and the delete question (plan 11-24). */
+  testimonials: {
+    /** "Loading testimonials…", "Testimonials loaded." and "Couldn't load testimonials." */
+    things: 'testimonials',
+    card: {
+      title: 'Testimonials',
+      hint: 'The first 3 shown testimonials appear on the Home page, in this order.',
+    },
+    add: 'Add Testimonial',
+    table: {
+      caption: 'Testimonials',
+      quote: 'Quote',
+      name: 'Name',
+      stars: 'Stars',
+      status: 'Status',
+      actions: 'Actions',
+    },
+    status: { shown: 'Shown', hidden: 'Hidden' },
+    /** Under the badge of each of the first 3 shown rows. */
+    onHome: 'On the Home page',
+    /** "5 stars" and "1 star": the Stars column and the options of the Stars group. */
+    stars: (count: number): string => `${String(count)} ${count === 1 ? 'star' : 'stars'}`,
+    /** The polite line after a move. SPEC-GAP wording: "Testimonial from Ana Reyes moved to position 2 of 4." */
+    moved: (name: string, position: number, total: number): string =>
+      `Testimonial from ${name} moved to position ${String(position)} of ${String(total)}.`,
+    rowActions: {
+      up: (name: string): string => `Move testimonial from ${name} up`,
+      down: (name: string): string => `Move testimonial from ${name} down`,
+      edit: (name: string): string => `Edit testimonial from ${name}`,
+      hide: (name: string): string => `Hide testimonial from ${name}`,
+      show: (name: string): string => `Show testimonial from ${name}`,
+      remove: (name: string): string => `Delete testimonial from ${name}`,
+    },
+    empty: {
+      title: 'No testimonials yet',
+      message: 'Add what customers say about you. The Home page shows the first 3.',
+    },
+    toast: {
+      added: { title: 'Testimonial added', message: 'The Home page shows the change.' },
+      saved: { title: 'Testimonial saved', message: 'The Home page shows the change.' },
+      hidden: { title: 'Testimonial hidden', message: 'The Home page shows the change.' },
+      shown: { title: 'Testimonial shown', message: 'The Home page shows the change.' },
+      deleted: { title: 'Testimonial deleted', message: 'The Home page shows the change.' },
+      alreadyDeleted: 'Already deleted',
+    },
+    /** The danger toast of an immediate action that failed (SPEC-GAP); its message is the shared error line. */
+    failed: {
+      move: (name: string): string => `Couldn't move the testimonial from ${name}`,
+      hide: (name: string): string => `Couldn't hide the testimonial from ${name}`,
+      show: (name: string): string => `Couldn't show the testimonial from ${name}`,
+    },
+    remove: {
+      title: 'Delete this testimonial?',
+      /** "Juan Dela Cruz: “Seventeen pieces, names and numbers perfect…” It's removed for good." The start of the quote is cut at 50 characters. */
+      message: (name: string, quoteStart: string): string => `${name}: “${quoteStart}” It's removed for good.`,
+      confirm: 'Delete Testimonial',
+      pending: 'Deleting',
+    },
+    window: {
+      addTitle: 'Add Testimonial',
+      editTitle: 'Edit Testimonial',
+      quote: { label: 'Quote', hint: 'Write it the way the customer said it.' },
+      name: { label: 'Name' },
+      team: { label: 'Team or role', placeholder: 'e.g. Captain, Brgy. San Roque Ballers' },
+      stars: 'Stars',
+      show: 'Show on the website',
+      cancel: 'Cancel',
+      save: 'Save Testimonial',
+      saving: 'Saving',
+      /** The polite line after Load Latest. */
+      latestLoaded: 'Latest testimonial loaded. Make your changes again.',
+      /** A save or Load Latest finds the testimonial gone (SPEC-GAP). */
+      gone: "This testimonial wasn't found. It may have been deleted.",
+    },
+    /** The "Discard changes?" dialog over a changed window (08 D-58), the order windows' own words. */
+    discard: {
+      title: 'Discard changes?',
+      message: "What you typed in this window hasn't been saved. If you close it now, it's lost.",
+      keep: 'Keep Editing',
+      discard: 'Discard Changes',
+    },
+    /** The server's own words (UI-SPEC Validation), so the browser and the API say the same thing. */
+    errors: {
+      quoteRequired: 'Enter the quote.',
+      quoteTooLong: 'Keep the quote to 300 characters or fewer.',
+      nameRequired: 'Enter the name.',
+      nameTooLong: 'Keep the name to 60 characters or fewer.',
+      teamTooLong: 'Keep this to 80 characters or fewer.',
+      stars: 'Choose 1 to 5 stars.',
+    },
+  },
   /**
    * One photo place (PhotoSlot; plan 11-22), shared by the line photos, the link preview picture and the gallery window. The noun is "Photo" or
    * "Picture". SPEC-GAP: the UI-SPEC names the buttons, the status line and the toasts; the rest is new wording the owner reviews.
