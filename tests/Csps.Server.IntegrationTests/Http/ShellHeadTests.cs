@@ -221,8 +221,90 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
 
         var boot = Boot(body).ShouldHaveSingleItem();
         using var document = JsonDocument.Parse(boot);
-        document.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site"]);
+        document.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(path == "/products" ? ["site", "productLines"] : ["site"]);
         document.RootElement.GetProperty("site").GetRawText().ShouldBe(api, path);
+    }
+
+    [Fact]
+    public async Task TheProductsShellCarriesTheSameProductLinesJsonAsTheApi()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/products");
+        var api = await client.GetStringAsync(new Uri("/api/v1/public/product-lines", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
+        document.RootElement.GetProperty("productLines").GetRawText().ShouldBe(api);
+        document.RootElement.GetProperty("productLines").GetProperty("lines").GetArrayLength().ShouldBeGreaterThan(0);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/gallery")]
+    [InlineData("/contact")]
+    [InlineData("/nope")]
+    public async Task OtherPagesCarryNoProductLinesKey(string path)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path, allowNotFound: path == "/nope");
+
+        using var document = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
+        document.RootElement.TryGetProperty("productLines", out _).ShouldBeFalse(path);
+    }
+
+    [Fact]
+    public async Task AfterAProductLineTitleChangeTheNextProductsShellShowsItBecauseTheShellCacheWasCleared()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var contexts = factory.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+        (await TitlesInBootAsync(client)).ShouldContain("Basketball Jerseys");
+
+        try
+        {
+            await SetBasketballTitleAsync(contexts, "Basketball Kits");
+
+            (await TitlesInBootAsync(client)).ShouldContain("Basketball Kits");
+        }
+        finally
+        {
+            await SetBasketballTitleAsync(contexts, "Basketball Jerseys");
+        }
+    }
+
+    [Fact]
+    public async Task WhenOnlyTheProductLinesReadThrowsTheProductsPageStillCarriesTheSiteAndTheFailureIsNotCached()
+    {
+        var reader = new StubPublicContentReader("Sample Shop") { LinesFailure = new InvalidOperationException("lines are down") };
+        await using var factory = new ShellTestFactory(reader);
+        using var client = factory.CreateClient();
+
+        var failing = await GetBodyAsync(client, "/products");
+        reader.LinesFailure = null;
+        var recovered = await GetBodyAsync(client, "/products");
+
+        using var withoutLines = JsonDocument.Parse(Boot(failing).ShouldHaveSingleItem());
+        withoutLines.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site"]);
+        using var withLines = JsonDocument.Parse(Boot(recovered).ShouldHaveSingleItem());
+        withLines.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site", "productLines"]);
+    }
+
+    private static async Task<List<string>> TitlesInBootAsync(HttpClient client)
+    {
+        var body = await GetBodyAsync(client, "/products");
+        using var document = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
+        return [.. document.RootElement.GetProperty("productLines").GetProperty("lines").EnumerateArray().Select(line => line.GetProperty("title").GetString()!)];
+    }
+
+    private static async Task SetBasketballTitleAsync(IDbContextFactory<CspsDbContext> contexts, string title)
+    {
+        await using var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var line = await context.ProductLines.SingleAsync(row => row.Key == "basketball", TestContext.Current.CancellationToken);
+        context.Entry(line).Property(row => row.Title).CurrentValue = title;
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
