@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { invalidatePublicContent } from '@/lib/public-data/publicResource';
@@ -9,6 +10,7 @@ import { BusinessInfoTab } from '@/modules/admin/components/BusinessInfoTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { createDeferred } from '@/test/fakeFetch';
+import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { demoSiteSettings, problemAnswer, siteSettingsBackend, versionAfter } from '@/test/siteContentFixtures';
 
@@ -479,6 +481,202 @@ describe('what the server says wins (400)', () => {
     await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
 
     expect(await screen.findByText('The version is not valid.')).toBeVisible();
+  });
+});
+
+/** The save answers 409 once, with the settings changed by someone else in the meantime. */
+function staleOnce() {
+  let refused = false;
+  return siteSettingsBackend(demoSiteSettings, {
+    onPut: (_body, backend) => {
+      if (refused) {
+        return undefined;
+      }
+      refused = true;
+      backend.current = {
+        ...demoSiteSettings,
+        tagline: 'Changed by another Manager.',
+        version: versionAfter(7),
+        updatedByName: 'Lito Santos',
+      };
+      return problemAnswer(409, { code: 'edit.stale' });
+    },
+  });
+}
+
+describe('a stale save (409, SEC-07, 05 D-20)', () => {
+  it('shows the conflict banner at the top of the panel and keeps every typed value', async () => {
+    staleOnce();
+    const { user, container } = await openTab();
+    await typeInto(user, /^Tagline/, 'My own tagline.');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    const banner = await screen.findByRole('alert');
+    expect(within(banner).getByText('This was changed by someone else.')).toBeVisible();
+    expect(screen.getByLabelText(/^Tagline/)).toHaveValue('My own tagline.');
+    expect(screen.queryByText('Business info saved')).toBeNull();
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+    // The banner comes before the first card.
+    expect(banner.compareDocumentPosition(screen.getByRole('heading', { level: 2, name: 'Business' }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(container).toContainElement(banner);
+  });
+
+  it('puts focus on Load Latest', async () => {
+    staleOnce();
+    const { user } = await openTab();
+    await typeInto(user, /^Tagline/, 'My own tagline.');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    expect(await screen.findByRole('button', { name: 'Load Latest' })).toHaveFocus();
+  });
+
+  it('asks Discard changes? before Load Latest replaces what was typed, and Keep Editing leaves it all as it was', async () => {
+    const backend = staleOnce();
+    const { user } = await openTab();
+    await typeInto(user, /^Tagline/, 'My own tagline.');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Editing' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.getByLabelText(/^Tagline/)).toHaveValue('My own tagline.');
+    expect(screen.getByRole('button', { name: 'Load Latest' })).toBeVisible();
+    expect(backend.gets).toBe(1);
+  });
+
+  it('shows the latest values after Discard Changes, drops the banner and sends the next save with the new version', async () => {
+    const backend = staleOnce();
+    const { user } = await openTab();
+    await typeInto(user, /^Tagline/, 'My own tagline.');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Discard changes?' })).getByRole('button', {
+        name: 'Discard Changes',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Tagline/)).toHaveValue('Changed by another Manager.');
+    });
+    expect(screen.queryByText('This was changed by someone else.')).toBeNull();
+    expect(screen.getByText('Latest version loaded. Make your changes again.')).toBeInTheDocument();
+
+    await typeInto(user, /^Tagline/, 'Third tagline.');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    await screen.findByText('Business info saved');
+    expect(backend.puts).toHaveLength(2);
+    expect(backend.puts[1]?.version).toBe(versionAfter(7));
+  });
+
+  it('has no axe violations while the banner shows', async () => {
+    staleOnce();
+    const { user, container } = await openTab();
+    await typeInto(user, /^Tagline/, 'My own tagline.');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    await screen.findByRole('button', { name: 'Load Latest' });
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('Undo Changes', () => {
+  it('is aria-disabled while nothing changed and does nothing when pressed', async () => {
+    siteSettingsBackend();
+    const { user } = await openTab();
+    const undo = screen.getByRole('button', { name: 'Undo Changes' });
+
+    expect(undo).toHaveAttribute('aria-disabled', 'true');
+    await user.click(undo);
+
+    expect(screen.getByLabelText(/^Tagline/)).toHaveValue(demoSiteSettings.tagline);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('resets every field, the phone rows included, to the saved values with no question asked', async () => {
+    siteSettingsBackend();
+    const { user } = await openTab();
+    await typeInto(user, /^Tagline/, 'Another tagline.');
+    await typeInto(user, /^Street and barangay/, 'Somewhere else');
+    await user.click(screen.getByRole('button', { name: 'Add Number' }));
+    expect(screen.getAllByLabelText(/^Number/)).toHaveLength(3);
+    const undo = screen.getByRole('button', { name: 'Undo Changes' });
+    expect(undo).not.toHaveAttribute('aria-disabled');
+
+    await user.click(undo);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByLabelText(/^Tagline/)).toHaveValue(demoSiteSettings.tagline);
+    expect(screen.getByLabelText(/^Street and barangay/)).toHaveValue('12 Sample St., Poblacion');
+    expect(screen.getAllByLabelText(/^Number/)).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Undo Changes' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('clears the messages of fields that were wrong', async () => {
+    siteSettingsBackend();
+    const { user } = await openTab();
+    await user.clear(screen.getByLabelText(/^Business name/));
+    await user.tab();
+    await screen.findByText('Enter the business name.');
+
+    await user.click(screen.getByRole('button', { name: 'Undo Changes' }));
+
+    expect(screen.queryByText('Enter the business name.')).toBeNull();
+    expect(screen.getByLabelText(/^Business name/)).toHaveValue('Sample Shop');
+  });
+});
+
+describe('loading and failing (S0: one failing tab never blanks the others)', () => {
+  it('says Loading the business info while the settings are on their way', async () => {
+    const gate = createDeferred<undefined>();
+    server.use(
+      http.get('*/api/v1/site-settings', async () => {
+        await gate.promise;
+        return HttpResponse.json(demoSiteSettings);
+      }),
+    );
+    renderTab();
+
+    expect(await screen.findByText('Loading the business info…')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Tagline/)).toBeNull();
+
+    gate.resolve(undefined);
+    await screen.findByLabelText(/^Tagline/);
+    expect(screen.getByText('The business info loaded.')).toBeInTheDocument();
+  });
+
+  it("shows Couldn't load the business info with Try Again, and Try Again reads it again", async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/site-settings', () => {
+        calls += 1;
+        return calls === 1 ? problemAnswer(500) : HttpResponse.json(demoSiteSettings);
+      }),
+    );
+    const { user } = renderTab();
+
+    expect(await screen.findByText("Couldn't load the business info.")).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Save Business Info' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByLabelText(/^Tagline/)).toHaveValue(demoSiteSettings.tagline);
+    expect(calls).toBe(2);
+  });
+
+  it('has no axe violations in the error state', async () => {
+    server.use(http.get('*/api/v1/site-settings', () => problemAnswer(500)));
+    const { container } = renderTab();
+    await screen.findByText("Couldn't load the business info.");
+
+    await expectNoAxeViolations(container);
   });
 });
 
