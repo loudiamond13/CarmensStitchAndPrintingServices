@@ -11,7 +11,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixSevenAndEleventhCodes()
     {
-        AuditActions.All.Count.ShouldBe(103);
+        AuditActions.All.Count.ShouldBe(106);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -29,6 +29,16 @@ public sealed class AuditActionsTests
     {
         AuditActions.All.ShouldContain("opening-hours.changed");
         AuditActions.SelfService.ShouldNotContain("opening-hours.changed");
+    }
+
+    [Theory]
+    [InlineData("shop-closure.added")]
+    [InlineData("shop-closure.changed")]
+    [InlineData("shop-closure.deleted")]
+    public void TheShopClosureCodesAreInTheCatalog(string code)
+    {
+        AuditActions.All.ShouldContain(code);
+        AuditActions.SelfService.ShouldNotContain(code);
     }
 
     [Fact]
