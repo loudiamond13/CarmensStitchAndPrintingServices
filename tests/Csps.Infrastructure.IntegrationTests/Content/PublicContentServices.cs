@@ -17,8 +17,9 @@ internal static class PublicContentServices
     /// <param name="connectionString">The database connection string.</param>
     /// <param name="counter">Counts every SQL command the contexts run; none when null.</param>
     /// <param name="time">Replaces the clock; the system clock when null.</param>
+    /// <param name="actor">The signed-in user the stamps use; nobody (System) when null.</param>
     /// <returns>The provider. The caller disposes it.</returns>
-    public static ServiceProvider Build(string connectionString, CommandCounter? counter = null, TimeProvider? time = null)
+    public static ServiceProvider Build(string connectionString, CommandCounter? counter = null, TimeProvider? time = null, ICurrentActor? actor = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Csps"] = connectionString })
@@ -29,6 +30,11 @@ internal static class PublicContentServices
         if (time is not null)
         {
             services.AddSingleton(time);
+        }
+
+        if (actor is not null)
+        {
+            services.AddSingleton(actor);
         }
 
         services.AddInfrastructure(configuration, new HostingEnvironment { EnvironmentName = CspsApiFactory.EnvironmentName });

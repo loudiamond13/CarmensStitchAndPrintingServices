@@ -210,6 +210,31 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         second.Headers.ETag.ShouldNotBe(first.Headers.ETag);
     }
 
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/products")]
+    [InlineData("/gallery")]
+    [InlineData("/contact")]
+    [InlineData("/nope")]
+    [InlineData("/robots.txt")]
+    [InlineData("/sitemap.xml")]
+    [InlineData("/api/v1/public/site")]
+    public async Task NoPublicBodyHoldsTheShopEmailOrAnAtSign(string path)
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        // The only "@" a public body may hold is in the JSON-LD keywords "@context" and "@type".
+        var withoutKeywords = body.Replace("\"@context\"", string.Empty, StringComparison.Ordinal).Replace("\"@type\"", string.Empty, StringComparison.Ordinal);
+        body.ShouldNotContain("shop-private@example.test", Case.Insensitive, path);
+        body.ShouldNotContain("mailto:", Case.Insensitive, path);
+        withoutKeywords.ShouldNotContain("@", Case.Sensitive, path);
+    }
+
     [Fact]
     public async Task AnEmptySettingsRowStillGivesAPageWithNoPlaceholder()
     {
