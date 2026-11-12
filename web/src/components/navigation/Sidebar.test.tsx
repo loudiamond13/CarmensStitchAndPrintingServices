@@ -11,6 +11,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import {
   ADMIN_NAV,
   AUDIT_NAV_ITEM,
+  CONTENT_NAV_ITEM,
   MONEY_NAV_ITEM,
   SETTINGS_NAV_ITEM,
   Sidebar,
@@ -237,6 +238,7 @@ describe('Sidebar Audit Log item (USER-08, OQ-2)', () => {
       'UsersManager',
       'Audit LogManager',
       'SettingsManager',
+      'Site ContentManager',
       'My Profile',
     ]);
     expect(link('Audit Log').getAttribute('href')).toBe('/admin/audit-log');
@@ -347,6 +349,67 @@ describe('Sidebar Settings item (D-14, OQ-3)', () => {
   });
 });
 
+// SPEC-DEVIATION: D-27 (plan 11-12) the Manager-only Site Content item follows Settings, in the sidebar and the phone drawer and not in the tab bar.
+describe('Sidebar Site Content item (D-27, D-37)', () => {
+  it('defines the Site Content item beside ADMIN_NAV, Manager only, with the globe icon', () => {
+    expect(ADMIN_NAV.map((item) => item.id)).not.toContain('content');
+    expect(CONTENT_NAV_ITEM).toEqual({
+      id: 'content',
+      label: 'Site Content',
+      icon: 'globe',
+      to: '/admin/site-content',
+      manager: true,
+    });
+  });
+
+  it('shows a Manager Site Content right after Settings, with the Manager tag and the globe icon', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog />));
+
+    const labels = navLinks().map((item) => item.textContent);
+    expect(labels.indexOf('Site ContentManager')).toBe(labels.indexOf('SettingsManager') + 1);
+    expect(link('Site Content').getAttribute('href')).toBe('/admin/site-content');
+    expect(link('Site Content').querySelector('svg.lucide-globe')).not.toBeNull();
+    expect(within(link('Site Content')).getByText('Manager')).toBeInTheDocument();
+  });
+
+  it('never shows an Admin Site Content, with or without the prop', () => {
+    const { rerender } = render(inRouter(<Sidebar role={ADMIN} withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Site Content/ })).toBeNull();
+
+    rerender(inRouter(<Sidebar withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Site Content/ })).toBeNull();
+  });
+
+  it('leaves the sidebar as it was without the prop (the parity scenarios stay equal)', () => {
+    render(inRouter(<Sidebar role={MANAGER} />));
+    expect(screen.queryByRole('link', { name: /^Site Content/ })).toBeNull();
+    expect(navLinks()).toHaveLength(5);
+  });
+
+  it('marks Site Content current for active "content" and hides its Manager tag on that row', () => {
+    const active: AdminSection = 'content';
+    render(inRouter(<Sidebar role={MANAGER} active={active} withAuditLog />));
+    const content = link('Site Content');
+
+    expect(content.getAttribute('aria-current')).toBe('page');
+    expect(within(content).getByText('Manager').classList.contains('group-aria-[current=page]/nav:hidden')).toBe(true);
+    expect(navLinks().filter((item) => item.getAttribute('aria-current') === 'page')).toEqual([content]);
+  });
+
+  it('names the item on the collapsed rail by its title and its label', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog defaultCollapsed />));
+
+    const content = link('Site Content');
+    expect(content.getAttribute('title')).toBe('Site Content');
+    expect(content).toHaveAccessibleName('Site Content');
+  });
+
+  it('has no axe violations with the item', async () => {
+    const { container } = render(inRouter(<Sidebar role={MANAGER} user={CARMEN} active="content" withAuditLog />));
+    await expectNoAxeViolations(container);
+  });
+});
+
 // SPEC-DEVIATION: D-39, D-40 the My Money item follows Company Expenses for both roles (plan 10-13); the tab bar keeps its four items.
 describe('Sidebar My Money item (D-39, D-40)', () => {
   it('defines the My Money item beside ADMIN_NAV, for both roles, with the wallet icon', () => {
@@ -366,7 +429,7 @@ describe('Sidebar My Money item (D-39, D-40)', () => {
     expect(within(link('My Money')).queryByText('Manager')).toBeNull();
   });
 
-  it('keeps the order with the Audit Log and Settings added: Company Expenses, My Money, Users, Audit Log, Settings, My Profile', () => {
+  it('keeps the order with the Audit Log, Settings and Site Content added: Company Expenses, My Money, Users, Audit Log, Settings, Site Content, My Profile', () => {
     render(inRouter(<Sidebar role={MANAGER} withAuditLog withMoney />));
 
     expect(navLinks().map((item) => item.textContent)).toEqual([

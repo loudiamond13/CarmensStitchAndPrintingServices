@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIT_NAV_ITEM, MONEY_NAV_ITEM, SETTINGS_NAV_ITEM } from '@/components/navigation';
+import { AUDIT_NAV_ITEM, CONTENT_NAV_ITEM, MONEY_NAV_ITEM, SETTINGS_NAV_ITEM } from '@/components/navigation';
 import { adminNavItemForPath } from './sections';
 
 // adminNavItemForPath (plan 02-31) names the section the shell marks current; the Audit Log joined it in plan 05-32 (OQ-2).
@@ -20,6 +20,21 @@ describe('adminNavItemForPath', () => {
   it('finds the Settings item for /admin/settings, so the shell marks it current and no tab is', () => {
     expect(adminNavItemForPath('/admin/settings')).toBe(SETTINGS_NAV_ITEM);
     expect(adminNavItemForPath('/admin/settings/')?.id).toBe('settings');
+  });
+
+  it('finds the Site Content item for /admin/site-content and every product line page under it (D-27)', () => {
+    const id = '0b0f6c1e-0000-4000-8000-000000000001';
+    expect(adminNavItemForPath('/admin/site-content')).toBe(CONTENT_NAV_ITEM);
+    expect(adminNavItemForPath('/admin/site-content/')?.id).toBe('content');
+    expect(adminNavItemForPath('/admin/site-content/products/new')).toBe(CONTENT_NAV_ITEM);
+    expect(adminNavItemForPath(`/admin/site-content/products/${id}`)).toBe(CONTENT_NAV_ITEM);
+    expect(adminNavItemForPath(`/admin/site-content/products/${id}/`)?.id).toBe('content');
+  });
+
+  it('does not take the bare products path or another path under Site Content for the item', () => {
+    expect(adminNavItemForPath('/admin/site-content/products')).toBeUndefined();
+    expect(adminNavItemForPath('/admin/site-content/other')).toBeUndefined();
+    expect(adminNavItemForPath('/admin/site-contents')).toBeUndefined();
   });
 
   it('finds the Company Expenses item for /admin/expenses/deleted, so the sidebar and tab bar keep it current (UI-SPEC routes)', () => {
