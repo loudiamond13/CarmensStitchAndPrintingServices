@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T07:40:00-06:00
+updated: 2026-11-12T09:35:00-06:00
 ---
 
 # The site content API
@@ -385,6 +385,66 @@ Each change writes entries in the same save. A product line entry has target typ
 | `product-type.line-linked` | target type `ProductType`, the type id as target id, `line=old title>new title`; an empty side means no line |
 
 A flip of `isActive` in an edit writes `product-line.shown` or `product-line.hidden`.
+
+## Product line photos
+
+A line has three photo places, called slots: `main` (the large front photo), `back` (the back view) and `fabric` (the fabric detail).
+A slot holds at most one photo. Only a Manager can put a photo in or take it out. An Admin gets `403` and no token gets `401`.
+
+| Method and path | Who | Answers |
+|---|---|---|
+| `POST /api/v1/product-lines/{lineId}/photos/{slot}` | Manager | `200` the photo below; `400` no file or a file that is not a photo we can use; `401`; `403`; `404` for a line or a slot word that does not exist; `409` when two saves lost a race; `413` for a body over the limit; `429`; `503` when photo storage is not set up. Needs an `Idempotency-Key`. |
+| `DELETE /api/v1/product-lines/{lineId}/photos/{slot}` | Manager | `204`; `401`; `403`; `404` for a line or a slot word that does not exist, or a slot that is already empty; `409` when two saves lost a race. |
+
+The slot in the path is `main`, `back` or `fabric`; any other word is `404`.
+
+### Putting a photo in
+
+`POST` takes a multipart form with the file in the `file` part. The same rules as the order photos apply, with the same messages: the
+type is read from the first bytes (JPG, PNG, WEBP or HEIC, never SVG), the file is at most 10 MB and 25 megapixels, and the location and
+camera data are removed before the file is stored. The photo is stored under a random id in this environment's content folder,
+`{root}/content/lines/{lineId}/`, never in the orders folder, and the client never chooses the id. A slot that already holds a photo is
+replaced: the row stays, and the old file is queued for removal in the same save and leaves the storage on the next monthly cleanup run.
+Nothing calls the storage to delete during the request.
+
+```json
+{
+  "slot": "main",
+  "src": "https://res.cloudinary.com/example/image/private/t_csps_cat_640/v1/csps/content/lines/3a48a1d6-c812-4481-a6be-d7d7412484a0/abcdefghijklmnopqrstuvwxyz",
+  "srcSet": "... 320w, ... 480w, ... 640w",
+  "width": 1600,
+  "height": 1200
+}
+```
+
+`src` and `srcSet` are a preview for the editor: the 4:5 card sizes for `main`, the square sizes for `back` and `fabric`. `width` and
+`height` are the stored upright size. Every address comes from the server; a screen never builds one.
+
+### Where the photos show
+
+- `GET /api/v1/product-lines` fills `mainPhotoThumb` with the 44 px square address of the main photo, and `photoCount` counts the slots in use.
+- `GET /api/v1/product-lines/{id}` has a `photos` object with `main`, `back` and `fabric`; a slot with no photo is `null`.
+- `GET /api/v1/public/product-lines` fills `photos.main` (the large product cell sizes, 400 to 1280 wide), `photos.back` and `photos.fabric`
+  (the square sizes, 200 to 720 wide) for shown lines only, each with `src`, `srcSet`, `width` and `height`. A slot with no photo is `null`
+  and the page draws the placeholder.
+- The Products page head uses the first shown line's main photo as the link preview picture: `og:image` at the 1200 x 630 size
+  (`csps_share_1200`), `og:image:width` `1200`, `og:image:height` `630`, `og:image:alt` the business name, and `twitter:card`
+  `summary_large_image`. When that line has no main photo the picture tags are left out and `twitter:card` is `summary`.
+
+### Rules that hold together
+
+- A line with a photo cannot be deleted: `422 product-lines.in-use`. The delete and the photo writes take the same `site-content`
+  lock, so an upload and a delete of the same line at the same moment end as a `422` for the delete or a `404` for the upload, never a
+  `500`. A file uploaded just before the line vanished is queued for removal.
+- Every upload is rate limited with the same cap as the order photo upload (30 in 10 minutes for one address) and bounded by the
+  same body limit.
+- Photo addresses are never written to the audit log or the server log.
+
+### The photo audit entry
+
+Each add, replace or removal writes `product-line.photo-changed` in the same save. The target type is `ProductLine` and the target id is
+the line id. The detail is `key=basketball;title=Basketball Jerseys;slot=main;change=added`, where the change is `added`, `replaced` or
+`removed`. It never holds an address or a file id.
 
 ## The audit entry
 

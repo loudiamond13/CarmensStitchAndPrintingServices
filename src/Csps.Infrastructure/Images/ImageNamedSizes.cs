@@ -66,8 +66,8 @@ public static class ImageNamedSizes
     /// <summary>Gets the 21 sizes Phase 11 adds.</summary>
     public static IReadOnlyList<ImageNamedSize> Phase11 { get; } = [.. CategoryCards, .. Strips, .. Widths, .. ProductSquares, Share, .. SharePreviews];
 
-    /// <summary>Gets all 13 sizes.</summary>
-    public static IReadOnlyList<ImageNamedSize> All { get; } = [.. Squares, .. Cards, .. Views, Full];
+    /// <summary>Gets all 34 sizes: the 13 of Phase 9 first, then the 21 of Phase 11. The setup command creates the ones the account lacks.</summary>
+    public static IReadOnlyList<ImageNamedSize> All { get; } = [.. Squares, .. Cards, .. Views, Full, .. Phase11];
 
     /// <summary>Finds the square size of a width.</summary>
     /// <param name="side">The side in pixels: 44, 88 or 176.</param>

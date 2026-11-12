@@ -22,7 +22,7 @@ public sealed class ImageNamedSizesTests
     {
         ImageNamedSizes.All.Count.ShouldBe(34);
         ImageNamedSizes.All.Select(size => size.Name).Distinct(StringComparer.Ordinal).Count().ShouldBe(34);
-        ImageNamedSizes.All.Select(size => size.Transformation).Distinct(StringComparer.Ordinal).Count().ShouldBe(34);
+        ImageNamedSizes.Phase11.ShouldAllBe(size => ImageNamedSizes.All.Count(listed => ReferenceEquals(listed, size)) == 1);
         ImageNamedSizes.All.Skip(13).ShouldBe(ImageNamedSizes.Phase11);
     }
 

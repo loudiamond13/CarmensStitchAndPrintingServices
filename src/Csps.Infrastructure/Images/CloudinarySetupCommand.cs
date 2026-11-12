@@ -7,7 +7,7 @@ using Newtonsoft.Json.Linq;
 namespace Csps.Infrastructure.Images;
 
 /// <summary>
-/// The owner's one-time command (IMG-04, D-03, D-33): makes sure the account holds the 13 named sizes of <see cref="ImageNamedSizes"/>,
+/// The owner's one-time command (IMG-04, D-03, D-33, D-44): makes sure the account holds the 34 named sizes of <see cref="ImageNamedSizes"/>,
 /// the step before strict transformations are turned on. It creates a missing size, allowed for strict mode, and never changes or
 /// deletes one that already exists, because live photos use it (T-09-65). It prints size names and counts only (T-09-66).
 /// Exit codes: 0 done, 1 a size exists with another definition, 2 the keys are not set, 3 Cloudinary did not accept the calls.
@@ -62,7 +62,7 @@ public sealed class CloudinarySetupCommand(CloudinarySettings settings, IHttpCli
         return args.Length == 0 || checkOnly;
     }
 
-    /// <summary>Looks at the 13 sizes and, unless this is a check, creates the missing ones.</summary>
+    /// <summary>Looks at the 34 sizes and, unless this is a check, creates the missing ones.</summary>
     /// <param name="checkOnly">True to change nothing.</param>
     /// <param name="output">Receives the report: size names and counts only.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
