@@ -4,7 +4,15 @@ import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { installConsoleGuard } from './consoleGuard';
 import { server } from './msw';
-import { demoSite, openStatusAt0900, openStatusHandler, resetPublicData, siteHandler } from './publicFixtures';
+import {
+  demoLines,
+  demoSite,
+  openStatusAt0900,
+  openStatusHandler,
+  productLinesHandler,
+  resetPublicData,
+  siteHandler,
+} from './publicFixtures';
 
 // jsdom has no matchMedia (research Pitfall 20). The mock reports "no match" and its listeners do nothing. Node-env
 // tests (*.node.test.ts) have no window, so they skip it.
@@ -49,7 +57,7 @@ if (typeof window !== 'undefined') {
     server.listen({ onUnhandledFrame: 'error' });
   });
   beforeEach(() => {
-    server.use(siteHandler(demoSite), openStatusHandler(openStatusAt0900));
+    server.use(siteHandler(demoSite), openStatusHandler(openStatusAt0900), productLinesHandler(demoLines));
   });
   afterEach(() => {
     server.resetHandlers();

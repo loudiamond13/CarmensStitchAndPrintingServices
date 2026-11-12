@@ -25,7 +25,7 @@ export interface PageHeadProps {
   headline: { readonly plain: string; readonly accent: string };
   /** The current page's name; with it, a "Home / {crumb}" breadcrumb shows above the eyebrow. */
   crumb?: string;
-  lead?: string;
+  lead?: string | undefined;
   /** The buttons under the lead. */
   actions?: ReactNode;
   /** Bottom padding 48px instead of 48px plus the cut angle. */

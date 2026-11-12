@@ -110,8 +110,20 @@ describe('PublicLayout landmarks and page root (A11Y-01, D-14)', () => {
   it('gives the page top scroll padding for the sticky header, one value at every width', async () => {
     await renderAt('/');
     expect(screen.getByRole('main').className.split(' ')).toContain(
-      '[:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6))]',
+      '[:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6)+var(--bar-top,0px))]',
     );
+  });
+
+  it('adds the 69px pill bar to the top scroll padding on /products only (focus not obscured)', async () => {
+    const products = await renderAt('/products');
+    expect(screen.getByRole('main').className.split(' ')).toContain('[:root:has(&)]:[--bar-top:69px]');
+    products.unmount();
+
+    for (const path of ['/', '/gallery', '/contact']) {
+      const { unmount } = await renderAt(path);
+      expect(screen.getByRole('main').className).not.toContain('--bar-top:69px');
+      unmount();
+    }
   });
 
   it('has no axe violations', async () => {
