@@ -8,9 +8,11 @@ namespace Csps.Infrastructure.Content;
 
 /// <summary>
 /// Puts the demo business info, the two demo phone numbers, the demo week (Monday to Saturday 09:00 to 18:00, Sunday closed) and one demo
-/// closure (20 days after the business today, note "Demo holiday") in place for E2E specs (QUAL-05). Every value is clearly fake. It saves
-/// through the context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans
-/// extend it for their own tables, deleting rows whose name starts with "E2E-"; this plan's tables have no such rows.
+/// closure (20 days after the business today, note "Demo holiday") in place for E2E specs (QUAL-05). It puts the six product lines back to
+/// their seeded text (shown, no price), gives basketball the demo price 650.00 with a minimum of 10, and deletes the lines whose short
+/// name starts with "E2E-" with their photos and links. Every value is clearly fake. It saves through the context's interceptors, so the
+/// public cache is cleared like after any real change. Debug builds only. Later plans extend it for their own tables, deleting rows whose
+/// name starts with "E2E-".
 /// </summary>
 /// <param name="context">The database context.</param>
 /// <param name="time">The clock.</param>
@@ -21,6 +23,14 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
     private const int DemoClosureDaysAhead = 20;
 
     private const string DemoClosureNote = "Demo holiday";
+
+    private const string E2EPrefix = "E2E-";
+
+    private const string DemoPricedLineKey = "basketball";
+
+    private const decimal DemoLinePrice = 650.00m;
+
+    private const int DemoLineMinimum = 10;
 
     private static readonly TimeOnly DemoOpens = new(9, 0);
 
@@ -74,11 +84,45 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             context.ShopClosures.RemoveRange(await context.ShopClosures.ToListAsync(cancellationToken).ConfigureAwait(false));
             context.ShopClosures.Add(ShopClosure.Create(today.AddDays(DemoClosureDaysAhead), null, DemoClosureNote, today, time.GetUtcNow()).Value);
 
+            await ResetProductLinesAsync(cancellationToken).ConfigureAwait(false);
+
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             Gate.Release();
+        }
+    }
+
+    // The six seeded lines go back to the approved text, shown, with no price; basketball gets the demo price. A seeded line that was deleted is put back.
+    private async Task ResetProductLinesAsync(CancellationToken cancellationToken)
+    {
+        var lines = await context.ProductLines.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var e2eIds = lines.Where(line => line.ShortName.StartsWith(E2EPrefix, StringComparison.Ordinal)).Select(line => line.Id).ToList();
+        if (e2eIds.Count > 0)
+        {
+            context.ProductLinePhotos.RemoveRange(await context.ProductLinePhotos.Where(photo => e2eIds.Contains(photo.LineId)).ToListAsync(cancellationToken).ConfigureAwait(false));
+            foreach (var type in await context.ProductTypes.Where(type => e2eIds.Contains(type.ProductLineId!.Value)).ToListAsync(cancellationToken).ConfigureAwait(false))
+            {
+                context.Entry(type).Property(row => row.ProductLineId).CurrentValue = null;
+            }
+
+            context.ProductLines.RemoveRange(lines.Where(line => e2eIds.Contains(line.Id)));
+        }
+
+        foreach (var entry in ProductLineSeed.All)
+        {
+            var priced = entry.Key == DemoPricedLineKey;
+            var price = priced ? DemoLinePrice : (decimal?)null;
+            var minimum = priced ? DemoLineMinimum : (int?)null;
+            if (lines.SingleOrDefault(line => line.Id == entry.Id) is { } existing)
+            {
+                existing.ResetToSeed(entry, price, minimum);
+            }
+            else
+            {
+                context.ProductLines.Add(ProductLine.FromSeed(entry, price, minimum, time.GetUtcNow()));
+            }
         }
     }
 }
