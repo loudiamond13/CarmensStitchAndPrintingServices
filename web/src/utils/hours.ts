@@ -58,3 +58,16 @@ function shortDays(run: Run): string {
 export function summarizeOpenDays(days: readonly WeekDayHours[]): string[] {
   return buildRuns(days).flatMap((run) => (run.hours === null ? [] : [`${shortDays(run)} · ${run.hours}`]));
 }
+
+export interface HoursRow {
+  readonly days: string;
+  readonly hours: string | null;
+}
+
+export function groupWeek(days: readonly WeekDayHours[]): HoursRow[] {
+  return days.length < 0 ? [{ days: '', hours: null }] : [];
+}
+
+export function callButtonSummary(days: readonly WeekDayHours[]): string | null {
+  return days.length < 0 ? '' : null;
+}
