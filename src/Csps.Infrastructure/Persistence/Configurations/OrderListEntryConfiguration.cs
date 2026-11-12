@@ -16,7 +16,7 @@ namespace Csps.Infrastructure.Persistence.Configurations;
 internal abstract class OrderListEntryConfiguration<TEntry>(string table, IReadOnlyList<OrderListSeedRow> seed) : IEntityTypeConfiguration<TEntry>
     where TEntry : OrderListEntry
 {
-    public void Configure(EntityTypeBuilder<TEntry> builder)
+    public virtual void Configure(EntityTypeBuilder<TEntry> builder)
     {
         var tones = string.Join(", ", CategoryTones.All.Select(tone => $"N'{tone}'"));
         builder.ToTable(table, check => check.HasCheckConstraint($"CK_{table}_Tone", $"[Tone] IN ({tones})"));

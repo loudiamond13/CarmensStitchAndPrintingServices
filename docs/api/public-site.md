@@ -1,12 +1,12 @@
 ---
 created: 2026-11-11T20:07:28-06:00
-updated: 2026-11-12T03:56:00-06:00
+updated: 2026-11-12T05:30:00-06:00
 ---
 
 # The public site
 
-This page says what the server sends to visitors and crawlers for the public website. Later Phase 11 plans add the public JSON
-reads (product lines and gallery) to this page.
+This page says what the server sends to visitors and crawlers for the public website. Later Phase 11 plans add the public gallery
+read to this page.
 
 ## In plain words
 
@@ -78,8 +78,12 @@ encoder, which escapes `<`, `>` and `&`, so typed text can never close the scrip
 ### The boot data block
 
 Every public page and the 404 shell carry `<script type="application/json" id="csps-boot">` holding `{ "site": ... }`, where the
-value is the same JSON as `GET /api/v1/public/site` (below). The browser does not run a data block, so the first visit needs no
-request. `/admin` and `/dev` pages carry no boot block.
+value is the same JSON as `GET /api/v1/public/site` (below). The `/products` page also carries `"productLines"`, the same JSON as
+`GET /api/v1/public/product-lines` (below), so the Products page needs no request on the first visit. No other page has that key. The
+browser does not run a data block, so the first visit needs no request. `/admin` and `/dev` pages carry no boot block.
+
+If the product lines cannot be read, `/products` is still sent with the `site` data and no `productLines` key, and that answer is not
+cached, so the next visit tries again. The page then fetches the lines from the API.
 
 ### Caching
 
@@ -163,6 +167,60 @@ after the commit, never before it and never on a rollback, so the first read aft
 `/api/v1/public/*` allows 600 reads a minute per address (a sliding window of six parts; `RateLimits:PublicRead`). The next read
 gets `429` with `Retry-After`. The page shell, `robots.txt` and `sitemap.xml` have no limit, so a crawler or a widely shared link is
 never refused.
+
+## GET /api/v1/public/product-lines
+
+The product lines a visitor sees on the Home and Products pages, in display order. Anonymous, never compressed, limited per address like
+the site read. Operation name `GetPublicProductLines`.
+
+```json
+{
+  "lines": [
+    {
+      "key": "basketball",
+      "number": "23",
+      "title": "Basketball Jerseys",
+      "shortName": "Basketball",
+      "cardText": "Full sublimation tops and shorts, any colorway, names and numbers included.",
+      "description": "Game-ready tops and shorts, printed edge to edge in any colorway. Built for full-court runs and summer liga heat.",
+      "customize": {
+        "fabric": "Dri-fit mesh, aircool or spandex blend",
+        "collar": "V-neck, round or layered",
+        "cut": "Standard, slim, women's fit and kids",
+        "names": "Any font: front, back and shorts",
+        "logos": "Team crest, sponsors and barangay seal in full color"
+      },
+      "startsAtPrice": null,
+      "minimumQuantity": null,
+      "placeholderArt": "basketball",
+      "photos": { "main": null, "back": null, "fabric": null },
+      "hasGalleryItems": false
+    }
+  ]
+}
+```
+
+- **Only shown lines.** A line a Manager has hidden is left out. With no line shown the answer is `{ "lines": [] }` with status `200`.
+- **Order.** Lines come in their position order, and lines that share a position come in a fixed order, so the list never shuffles.
+- **Price.** `startsAtPrice` is the price per piece in pesos as a number, or `null`. A line with no price reads "Message us for a
+  price" on the page; the server never sends a placeholder or an invented price. `minimumQuantity` is a whole number of pieces, or `null`.
+- **`customize`** holds the five "what you can customize" texts, in the order the page shows them: Fabric, Collar style, Cut and fit,
+  Names and numbers, Logos and sponsors.
+- **`placeholderArt`** names the drawing the page shows until the line has photos: `basketball`, `volleyball`, `moto`, `longSleeves`,
+  `polo` or `custom`.
+- **`photos`** has the three slots `main`, `back` and `fabric`. A slot is `null` until a photo is added (a later plan), or an object
+  `{ src, srcSet, width, height }`.
+- **`hasGalleryItems`** is `false` until the Gallery plan lists items under the line.
+- **Caching and limit** are the same as the site read: a strong `ETag`, `Cache-Control: no-cache`, `304` on a match, one cached
+  snapshot under the `public-content` tag, and 600 reads a minute per address. A committed change to a line or its photos clears the
+  snapshot after the commit.
+
+### The six starting lines
+
+A new database gets six lines from the `AddProductLines` migration, once: basketball, volleyball, moto, long sleeves, polo and custom,
+shown, with no price and no minimum. Production gets them through the reviewed idempotent migration script, which holds the six
+inserts and runs them only when the migration is not yet recorded. The model has no `HasData` for them, nothing seeds or migrates at
+startup, and a later deploy never overwrites a Manager's edits. A Manager adds the prices before the site goes live.
 
 ## GET /api/v1/public/open-status
 

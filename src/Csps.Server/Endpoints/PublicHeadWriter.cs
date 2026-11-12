@@ -140,15 +140,19 @@ internal static class PublicHeadWriter
     }
 
     /// <summary>
-    /// Wraps the site JSON the API serves as <c>{ "site": ... }</c> for the boot data block. The site JSON is already written by the
-    /// default JSON encoder, so it holds no raw <c>&lt;</c>.
+    /// Wraps the site JSON the API serves as <c>{ "site": ... }</c> for the boot data block, and the product lines JSON as
+    /// <c>"productLines"</c> when the page needs it (the Products page). Both texts are already written by the default JSON encoder, so
+    /// they hold no raw <c>&lt;</c>.
     /// </summary>
     /// <param name="siteJson">The site JSON text.</param>
+    /// <param name="productLinesJson">The product lines JSON text; the key is left out when null.</param>
     /// <returns>The boot data text.</returns>
-    public static string BootData(string siteJson)
+    public static string BootData(string siteJson, string? productLinesJson = null)
     {
         ArgumentNullException.ThrowIfNull(siteJson);
-        return "{\"site\":" + siteJson + "}";
+        return productLinesJson is null
+            ? "{\"site\":" + siteJson + "}"
+            : "{\"site\":" + siteJson + ",\"productLines\":" + productLinesJson + "}";
     }
 
     private static void AppendMeta(StringBuilder head, string attribute, string key, string value) =>

@@ -23,6 +23,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 {
     internal const string SiteCacheKey = "csps:public:site:v1";
 
+    internal const string LinesCacheKey = "csps:public:lines:v1";
+
     internal const string MissingHoursMessage =
         "The seven OpeningHours rows are missing. Apply the EF migrations.";
 
@@ -41,6 +43,9 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 
     public ValueTask<PublicSiteSnapshot> GetSiteAsync(CancellationToken cancellationToken) =>
         cache.GetOrCreateAsync(SiteCacheKey, LoadSiteAsync, EntryOptions, Tags, cancellationToken);
+
+    public ValueTask<PublicProductLinesSnapshot> GetProductLinesAsync(CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(LinesCacheKey, LoadLinesAsync, EntryOptions, Tags, cancellationToken);
 
     private async ValueTask<PublicSiteSnapshot> LoadSiteAsync(CancellationToken cancellationToken)
     {
@@ -108,6 +113,67 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         }
     }
 
+    private async ValueTask<PublicProductLinesSnapshot> LoadLinesAsync(CancellationToken cancellationToken)
+    {
+        var db = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            // Position first, then the id of the row, so lines that share a position always come in the same order.
+            var rows = await db.ProductLines
+                .AsNoTracking()
+                .Where(row => row.IsActive)
+                .OrderBy(row => row.Position)
+                .ThenBy(row => row.Id)
+                .Select(row => new LineRow(
+                    row.Key,
+                    row.Number,
+                    row.Title,
+                    row.ShortName,
+                    row.CardText,
+                    row.Description,
+                    row.FabricText,
+                    row.CollarText,
+                    row.CutText,
+                    row.NamesText,
+                    row.LogosText,
+                    row.StartsAtPrice,
+                    row.MinimumQuantity,
+                    row.PlaceholderArt,
+                    row.UpdatedAtUtc ?? row.CreatedAtUtc))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            // The photos and the gallery flag arrive with the plans that add photos and gallery items.
+            var lines = new PublicProductLinesDto(
+            [
+                .. rows.Select(row => new PublicProductLineDto(
+                    row.Key,
+                    row.Number,
+                    row.Title,
+                    row.ShortName,
+                    row.CardText,
+                    row.Description,
+                    new PublicCustomizeDto(row.FabricText, row.CollarText, row.CutText, row.NamesText, row.LogosText),
+                    row.StartsAtPrice,
+                    row.MinimumQuantity,
+                    ArtName(row.PlaceholderArt),
+                    new PublicLinePhotosDto(null, null, null),
+                    HasGalleryItems: false)),
+            ]);
+            var json = JsonSerializer.Serialize(lines, JsonOptions);
+            var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+            var lastChanged = rows.Select(row => row.ChangedAtUtc).DefaultIfEmpty(DateTimeOffset.MinValue).Max();
+            return new PublicProductLinesSnapshot(lines, new PublicJsonSnapshot(json, etag, lastChanged));
+        }
+    }
+
+    // "LongSleeves" is sent as "longSleeves", like every other JSON name.
+    private static string ArtName(PlaceholderArt art)
+    {
+        var name = art.ToString();
+        return char.ToLowerInvariant(name[0]) + name[1..];
+    }
+
     private static PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours, List<ClosureRow> closures, BusinessClock clock)
     {
         var site = new PublicSiteDto(
@@ -163,6 +229,23 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         string? DirectionsUrl,
         string? MapEmbedUrl,
         string TimeZoneId,
+        DateTimeOffset ChangedAtUtc);
+
+    private sealed record LineRow(
+        string Key,
+        string Number,
+        string Title,
+        string ShortName,
+        string CardText,
+        string Description,
+        string FabricText,
+        string CollarText,
+        string CutText,
+        string NamesText,
+        string LogosText,
+        decimal? StartsAtPrice,
+        int? MinimumQuantity,
+        PlaceholderArt PlaceholderArt,
         DateTimeOffset ChangedAtUtc);
 
     private sealed record ClosureRow(DateOnly FirstDay, DateOnly LastDay, string? Note, DateTimeOffset ChangedAtUtc);

@@ -83,6 +83,7 @@ public static class AuthorizationMatrix
         new("PUT", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 403, Manager: 400),
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),
         // The weekly opening hours (CONT-01, D-21): Managers only. With no body a Manager meets the 400 field errors.
         new("GET", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 200),
         new("PUT", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 400),
@@ -352,6 +353,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/maintenance/run",
             "GET /api/v1/public/site",
             "GET /api/v1/public/open-status",
+            "GET /api/v1/public/product-lines",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

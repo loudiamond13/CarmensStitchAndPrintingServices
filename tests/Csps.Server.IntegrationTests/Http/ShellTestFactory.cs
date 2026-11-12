@@ -76,4 +76,20 @@ internal sealed class StubPublicContentReader : IPublicContentReader
 
     public ValueTask<PublicSiteSnapshot> GetSiteAsync(CancellationToken cancellationToken) =>
         _failure is not null ? throw _failure : ValueTask.FromResult(_snapshot!);
+
+    /// <summary>The product lines the stub returns; none by default.</summary>
+    public PublicProductLinesDto ProductLines { get; set; } = new([]);
+
+    /// <summary>When set, only the product lines read throws it; the site read still works.</summary>
+    public Exception? LinesFailure { get; set; }
+
+    public ValueTask<PublicProductLinesSnapshot> GetProductLinesAsync(CancellationToken cancellationToken) =>
+        (_failure ?? LinesFailure) is { } failure ? throw failure : ValueTask.FromResult(Lines(ProductLines));
+
+    public static PublicProductLinesSnapshot Lines(PublicProductLinesDto lines)
+    {
+        var json = JsonSerializer.Serialize(lines, JsonOptions);
+        var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+        return new PublicProductLinesSnapshot(lines, new PublicJsonSnapshot(json, etag, new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero)));
+    }
 }

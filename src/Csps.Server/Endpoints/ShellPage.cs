@@ -144,6 +144,9 @@ internal sealed partial class ShellRenderer(
     // 1 while the last content read failed, so an outage logs one event, not one per request.
     private int _settingsFailing;
 
+    // The same for the product lines read.
+    private int _linesFailing;
+
     public async Task WriteAsync(HttpContext context)
     {
         var parts = template.Get();
@@ -213,19 +216,34 @@ internal sealed partial class ShellRenderer(
         }
 
         var origin = links.Value.PublicBaseUrl.TrimEnd('/');
+
+        // The Products page also carries the product lines. When they cannot be read, the page keeps the site data and the head is
+        // not cached, so the next visit tries again.
+        string? linesJson = null;
+        if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Products)
+        {
+            var lines = await ReadLinesAsync(context).ConfigureAwait(false);
+            if (lines is null)
+            {
+                return ShapedHead(snapshot, match, origin, linesJson: null);
+            }
+
+            linesJson = lines.Json.Json;
+        }
+
         var key = $"csps:shell:{(match.Kind == PublicRouteKind.Page ? match.Page!.Value.ToString().ToLowerInvariant() : NotFoundKey)}:v1";
         return await cache.GetOrCreateAsync(
             key,
-            (snapshot, match, origin),
-            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin)),
+            (snapshot, match, origin, linesJson),
+            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson)),
             HeadCacheOptions,
             Tags,
             context.RequestAborted).ConfigureAwait(false);
     }
 
-    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin)
+    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson)
     {
-        var boot = PublicHeadWriter.BootData(snapshot.Json.Json);
+        var boot = PublicHeadWriter.BootData(snapshot.Json.Json, linesJson);
         if (match.Kind == PublicRouteKind.NotFound)
         {
             return NotFoundHead(boot);
@@ -275,6 +293,26 @@ internal sealed partial class ShellRenderer(
         }
     }
 
+    // Null when the product lines cannot be read.
+    private async Task<PublicProductLinesSnapshot?> ReadLinesAsync(HttpContext context)
+    {
+        try
+        {
+            var snapshot = await reader.GetProductLinesAsync(context.RequestAborted).ConfigureAwait(false);
+            Interlocked.Exchange(ref _linesFailing, 0);
+            return snapshot;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (Interlocked.Exchange(ref _linesFailing, 1) == 0)
+            {
+                LogLinesFailed(exception);
+            }
+
+            return null;
+        }
+    }
+
     private static Task WriteMissingTemplateAsync(HttpContext context)
     {
         if (HttpMethods.IsHead(context.Request.Method))
@@ -289,4 +327,7 @@ internal sealed partial class ShellRenderer(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The site settings could not be read, so the shell page is sent with the plain template head")]
     private partial void LogSettingsFailed(Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The product lines could not be read, so the Products page is sent without them")]
+    private partial void LogLinesFailed(Exception exception);
 }

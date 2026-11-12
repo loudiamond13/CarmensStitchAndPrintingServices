@@ -127,6 +127,191 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.ProductLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CardText")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(140)");
+
+                    b.Property<string>("CollarText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CutText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("FabricText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("LogosText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("MinimumQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NamesText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.Property<string>("PlaceholderArt")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ShortName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("StartsAtPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProductLines_Key");
+
+                    b.HasIndex("ShortName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProductLines_ShortName");
+
+                    b.HasIndex("Position", "Id")
+                        .HasDatabaseName("IX_ProductLines_Position");
+
+                    b.ToTable("ProductLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductLines_Minimum", "[MinimumQuantity] BETWEEN 1 AND 9999");
+
+                            t.HasCheckConstraint("CK_ProductLines_Price", "[StartsAtPrice] > 0 AND [StartsAtPrice] <= 999999.99");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.ProductLinePhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Bytes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("LineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublicId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LineId", "Slot")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProductLinePhotos_LineSlot");
+
+                    b.ToTable("ProductLinePhotos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductLinePhotos_Slot", "[Slot] BETWEEN 0 AND 2");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Domain.Content.ShopClosure", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1146,6 +1331,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(40)");
 
+                    b.Property<Guid?>("ProductLineId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset?>("RetiredAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -1174,6 +1362,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasIndex("NormalizedName")
                         .IsUnique()
                         .HasDatabaseName("IX_ProductTypes_NormalizedName");
+
+                    b.HasIndex("ProductLineId")
+                        .HasDatabaseName("IX_ProductTypes_ProductLineId");
 
                     b.HasIndex("UpdatedById");
 
@@ -2683,6 +2874,15 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.ProductLinePhoto", b =>
+                {
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("LineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Csps.Domain.Expenses.CompanyExpense", b =>
                 {
                     b.HasOne("Csps.Domain.Expenses.ExpenseCategory", null)
@@ -2833,6 +3033,11 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("ProductLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()

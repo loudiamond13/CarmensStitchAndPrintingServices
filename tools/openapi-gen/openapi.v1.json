@@ -4656,6 +4656,83 @@
         ],
         "type": "object"
       },
+      "PublicCustomizeDto": {
+        "description": "The five \"what you can customize\" texts of a product line, always in this order on the page.",
+        "properties": {
+          "collar": {
+            "description": "What the Collar style card says.",
+            "type": "string"
+          },
+          "cut": {
+            "description": "What the Cut and fit card says.",
+            "type": "string"
+          },
+          "fabric": {
+            "description": "What the Fabric card says.",
+            "type": "string"
+          },
+          "logos": {
+            "description": "What the Logos and sponsors card says.",
+            "type": "string"
+          },
+          "names": {
+            "description": "What the Names and numbers card says.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fabric",
+          "collar",
+          "cut",
+          "names",
+          "logos"
+        ],
+        "type": "object"
+      },
+      "PublicLinePhotosDto": {
+        "description": "The three photo slots of a product line; a slot with no photo is null and the page shows the drawing.",
+        "properties": {
+          "back": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The back view."
+              }
+            ]
+          },
+          "fabric": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The fabric detail."
+              }
+            ]
+          },
+          "main": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The main photo."
+              }
+            ]
+          }
+        },
+        "required": [
+          "main",
+          "back",
+          "fabric"
+        ],
+        "type": "object"
+      },
       "PublicPhoneDto": {
         "description": "One public phone number.",
         "properties": {
@@ -4684,6 +4761,140 @@
           "e164",
           "label",
           "isMain"
+        ],
+        "type": "object"
+      },
+      "PublicPhotoDto": {
+        "description": "One photo of a product line, as the public page draws it.",
+        "properties": {
+          "height": {
+            "description": "The upright height in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "src": {
+            "description": "The address of the photo at its largest size.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The `srcset` text with the smaller sizes.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "src",
+          "srcSet",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "PublicProductLineDto": {
+        "description": "One product line a visitor sees (PUB-02).",
+        "properties": {
+          "cardText": {
+            "description": "The Home card text.",
+            "type": "string"
+          },
+          "customize": {
+            "$ref": "#/components/schemas/PublicCustomizeDto",
+            "description": "The five \"what you can customize\" texts."
+          },
+          "description": {
+            "description": "The Products page description.",
+            "type": "string"
+          },
+          "hasGalleryItems": {
+            "description": "True when the Gallery has a photo under this line, so \"See {short name} work\" has something to show.",
+            "type": "boolean"
+          },
+          "key": {
+            "description": "The key the page anchors and gallery filters use, such as \"basketball\".",
+            "type": "string"
+          },
+          "minimumQuantity": {
+            "description": "The minimum order in pieces; null when there is none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number drawn on the jersey and the empty photo boxes, such as \"23\".",
+            "type": "string"
+          },
+          "photos": {
+            "$ref": "#/components/schemas/PublicLinePhotosDto",
+            "description": "The photos; each slot is null until a Manager adds one."
+          },
+          "placeholderArt": {
+            "description": "The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name, such as \"Basketball\".",
+            "type": "string"
+          },
+          "startsAtPrice": {
+            "description": "The starting price per piece in pesos; null means \"Message us for a price\".",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title, such as \"Basketball Jerseys\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "title",
+          "shortName",
+          "cardText",
+          "description",
+          "customize",
+          "startsAtPrice",
+          "minimumQuantity",
+          "placeholderArt",
+          "photos",
+          "hasGalleryItems"
+        ],
+        "type": "object"
+      },
+      "PublicProductLinesDto": {
+        "description": "The shown product lines in display order; empty when the Manager has hidden all of them (CONT-02).",
+        "properties": {
+          "lines": {
+            "description": "The lines.",
+            "items": {
+              "$ref": "#/components/schemas/PublicProductLineDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
         ],
         "type": "object"
       },
@@ -14871,6 +15082,43 @@
           }
         },
         "summary": "Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` (\"HH:mm\")\nwhen open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and\n`when` of \"today\", \"tomorrow\" or \"weekday\") when closed and the shop opens within 14 days. The answer is public and may be\nkept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
+    "/api/v1/public/product-lines": {
+      "get": {
+        "operationId": "GetPublicProductLines",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProductLinesDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): `lines`, each with its `key`, `number`,\n`title`, `shortName`, `cardText`, `description`, the five `customize` texts, `startsAtPrice` and\n`minimumQuantity` (null when not set), `placeholderArt`, `photos` (`main`, `back` and `fabric`, each\nnull until a photo is added) and `hasGalleryItems`. A hidden line is left out; with none shown the list is empty. A request\nwhose `If-None-Match` matches the current ETag gets 304.",
         "tags": [
           "PublicSite"
         ]

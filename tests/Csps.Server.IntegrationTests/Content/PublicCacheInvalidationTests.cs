@@ -138,6 +138,43 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
         etags[3].ShouldNotBe(etags[2]);
     }
 
+    [Fact]
+    public async Task ChangingAProductLineTitleShowsOnTheNextLinesReadWithANewETagAndTheOldETagGetsNo304()
+    {
+        const string LinesRoute = "/api/v1/public/product-lines";
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        using var first = await client.GetAsync(new Uri(LinesRoute, UriKind.Relative), TestContext.Current.CancellationToken);
+        var oldEtag = first.Headers.ETag.ShouldNotBeNull();
+        var contexts = factory.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+
+        try
+        {
+            await SetTitleAsync(contexts, "Basketball Jerseys", "Basketball Kits");
+
+            using var second = await client.GetAsync(new Uri(LinesRoute, UriKind.Relative), TestContext.Current.CancellationToken);
+            using var document = JsonDocument.Parse(await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            document.RootElement.GetProperty("lines")[0].GetProperty("title").GetString().ShouldBe("Basketball Kits");
+            second.Headers.ETag.ShouldNotBeNull().ShouldNotBe(oldEtag);
+            using var stale = ApiRequests.Get(LinesRoute);
+            stale.Headers.TryAddWithoutValidation("If-None-Match", oldEtag.ToString());
+            using var response = await client.SendAsync(stale, TestContext.Current.CancellationToken);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+        finally
+        {
+            await SetTitleAsync(contexts, "Basketball Kits", "Basketball Jerseys");
+        }
+    }
+
+    private static async Task SetTitleAsync(IDbContextFactory<CspsDbContext> contexts, string from, string to)
+    {
+        await using var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var line = await context.ProductLines.SingleAsync(row => row.Title == from, TestContext.Current.CancellationToken);
+        context.Entry(line).Property(row => row.Title).CurrentValue = to;
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
     private static async Task<string> ETagAsync(HttpClient client)
     {
         using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);

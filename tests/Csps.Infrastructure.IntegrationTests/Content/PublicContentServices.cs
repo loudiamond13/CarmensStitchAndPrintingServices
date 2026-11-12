@@ -54,4 +54,13 @@ internal static class PublicContentServices
         await using var scope = services.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<IPublicContentReader>().GetSiteAsync(TestContext.Current.CancellationToken);
     }
+
+    /// <summary>Reads the product lines snapshot in its own scope, like a separate HTTP request sharing the singleton cache.</summary>
+    /// <param name="services">The provider.</param>
+    /// <returns>The snapshot.</returns>
+    public static async Task<PublicProductLinesSnapshot> ReadLinesAsync(ServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IPublicContentReader>().GetProductLinesAsync(TestContext.Current.CancellationToken);
+    }
 }

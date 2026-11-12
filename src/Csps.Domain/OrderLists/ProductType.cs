@@ -14,6 +14,9 @@ public sealed class ProductType : OrderListEntry
     {
     }
 
+    /// <summary>The public product line orders of this type are filed under (D-09); null until a Manager links it.</summary>
+    public Guid? ProductLineId { get; private set; }
+
     /// <inheritdoc />
     private protected override string ErrorPrefix => Prefix;
 
