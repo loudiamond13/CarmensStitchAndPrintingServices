@@ -12,9 +12,9 @@ public sealed class SecurityHeadersTests(CspsDatabase database) : IClassFixture<
     /// <summary>The Content-Security-Policy header name.</summary>
     internal const string CspHeader = "Content-Security-Policy";
 
-    /// <summary>PRD section 11.3, verbatim.</summary>
+    /// <summary>PRD section 11.3, plus the one frame line for the tap-to-load Google map (D-20).</summary>
     internal const string StrictCsp =
-        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests";
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com; connect-src 'self'; font-src 'self'; frame-src https://www.google.com/maps/embed; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests";
 
     internal const string PermissionsPolicy =
         "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()";
@@ -31,6 +31,22 @@ public sealed class SecurityHeadersTests(CspsDatabase database) : IClassFixture<
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         AssertStrictHeaderSet(response, expectHsts: true);
+    }
+
+    [Fact]
+    public async Task CspAllowsOnlyTheGoogleMapEmbedFrameAndNothingNewForScripts()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        var csp = Single(response, CspHeader);
+        csp.ShouldContain("frame-src https://www.google.com/maps/embed;");
+        csp.ShouldContain("script-src 'self';");
+        csp.ShouldNotContain("unsafe-inline");
+        csp.ShouldNotContain("unsafe-eval");
+        csp.Split(';').Count(directive => directive.Trim().StartsWith("frame-src", StringComparison.Ordinal)).ShouldBe(1);
     }
 
     [Fact]

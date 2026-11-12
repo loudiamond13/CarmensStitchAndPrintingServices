@@ -1,9 +1,13 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { delay, http } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { putBootBlock, demoSite, siteFailureHandler, siteHandler, siteWithThreePhones } from '@/test/publicFixtures';
 
 /** The real route tree at /contact, settled once the h1 is on screen. */
 async function renderContact() {
@@ -38,9 +42,96 @@ describe('ContactPage at /contact (PUB-01, UI-SPEC C1 item 1, D-18)', { timeout:
     await renderContact();
     expect(document.title).toBe('Contact Us and Get a Quote · CSPS');
   });
+});
 
-  it('has no axe violations', async () => {
+describe('ContactPage content from the stored facts (PUB-02, PUB-06, D-18, D-20, D-25)', { timeout: 20_000 }, () => {
+  it('shows the Message us card, Call or text and the map card, with no email or "@" anywhere on the page', async () => {
+    putBootBlock(demoSite);
     const { container } = await renderContact();
+    const main = screen.getByRole('main');
+
+    expect(within(main).getByRole('heading', { level: 2, name: 'Message us' })).toBeInTheDocument();
+    expect(within(main).getByRole('link', { name: /^Message us on Messenger/ })).toHaveAttribute(
+      'href',
+      'https://m.me/cspsdemo',
+    );
+    expect(within(main).getByRole('link', { name: 'Call 0917 123 4567' })).toHaveAttribute('href', 'tel:+639171234567');
+    expect(within(main).getByRole('heading', { level: 2, name: 'Call or text' })).toBeInTheDocument();
+    expect(within(main).getByRole('img', { name: 'Map placeholder showing the shop location' })).toBeInTheDocument();
+    expect(container.textContent).not.toContain('@');
+    expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
+  });
+
+  it('shows the sticky bar with Messenger and Call us once the facts are in', async () => {
+    putBootBlock(demoSite);
+    await renderContact();
+
+    const bar = await screen.findByRole('link', { name: 'Call us' });
+    expect(bar).toHaveAttribute('href', 'tel:+639171234567');
+    expect(screen.getByRole('link', { name: 'Messenger' })).toHaveAttribute('href', 'https://m.me/cspsdemo');
+  });
+
+  it('lists three numbers in Call or text', async () => {
+    server.use(siteHandler(siteWithThreePhones));
+    await renderContact();
+
+    expect(await screen.findByRole('link', { name: 'Call 0918 765 4321, Globe' })).toBeInTheDocument();
+  });
+
+  it('loads the facts from the API when the page carries no boot block', async () => {
+    await renderContact();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Message us' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Call us' })).toBeInTheDocument();
+  });
+
+  it('has no axe violations when populated', async () => {
+    putBootBlock(demoSite);
+    const { container } = await renderContact();
+
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('ContactPage loading and failure (UI states)', { timeout: 20_000 }, () => {
+  it('while the facts load, shows the card title, the skeletons, the loading line and no sticky bar', async () => {
+    server.use(
+      http.get('*/api/v1/public/site', async () => {
+        await delay('infinite');
+      }),
+    );
+    const { container } = await renderContact();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Message us' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading our contact details…');
+    expect(screen.queryByRole('link', { name: 'Call us' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Messenger/ })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('when the read fails, shows "Couldn\'t load our contact details." with Try Again and no sticky bar', async () => {
+    server.use(siteFailureHandler(404));
+    const { container } = await renderContact();
+
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText("Couldn't load our contact details.")).toBeInTheDocument();
+    expect(within(alert).getByText('Check your internet connection and try again.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Call us' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Message us' })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('Try Again reads the facts again and shows the page', async () => {
+    server.use(siteFailureHandler(404));
+    await renderContact();
+    const retry = await screen.findByRole('button', { name: 'Try Again' });
+    server.use(siteHandler(demoSite));
+
+    await userEvent.click(retry);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'Message us' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

@@ -255,3 +255,9 @@ export async function latestEmail(
   }
   return found.email;
 }
+
+/** Puts the demo shop facts back (POST /api/testing/site-content, plan 11-07): the settings and the two demo numbers. Call it under withSiteContentLock. */
+export async function seedDemoSiteContent(request: APIRequestContext): Promise<void> {
+  const response = await request.post('/api/testing/site-content');
+  expect(response.status(), 'POST /api/testing/site-content').toBe(204);
+}

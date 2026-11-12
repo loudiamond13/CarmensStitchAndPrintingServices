@@ -8,15 +8,27 @@
 //     it is `aria-busy` until the chunk lands (UI consideration: loading, route chunks).
 //   - While the layout is shown, the page (html) gets top scroll padding for the sticky header, one value at every width,
 //     so a focused control stops 24px below it (WCAG 2.4.11).
+//   - Home and Products show the full footer; Gallery, Contact and the 404 page show the base row (UI-SPEC Footer).
+//   - On /contact the phone-only ContactBar sits after the footer (sticky to the bottom of the page root), and the page gets
+//     a bottom scroll padding at 767px and below, so a focused control stops clear of the bar (PUB-06, WCAG 2.4.11).
 //   - PERF-01: the components come from their own modules, not the `@/components/*` barrels. A barrel re-exports admin-only
 //     parts (Sidebar, Topbar, MoneyInput, ...), and once a build uses them, importing the barrel here put them in the
 //     chunks the public route loads (docs/web/budgets.md, "Public route imports").
+import clsx from 'clsx';
+import { lazy, Suspense } from 'react';
 import { Outlet, useLocation, useNavigation } from 'react-router';
 import { SkipLink } from '@/components/entry/SkipLink';
 import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { SITE_LINKS, SiteHeader } from '@/components/navigation/SiteHeader';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { tw } from '@/ui/tw';
+
+// The sticky bar loads as its own chunk, only on /contact, so the other pages never carry it (public bundle budget, PERF-01).
+const ContactBarSlot = lazy(() => import('@/modules/public/components/ContactBarSlot'));
+
+/** The bottom scroll padding for the bar at 767px and below: the bar's 77px plus 24px, so focus never hides under it. */
+const contactScrollPaddingClasses = tw('vp-lt-md:[:root:has(&)]:scroll-pb-[calc(77px+var(--space-6))]');
 
 /** The label of the header link for `pathname`, or '' (no link current) for any other path. */
 function currentSiteLink(pathname: string): string {
@@ -26,21 +38,32 @@ function currentSiteLink(pathname: string): string {
 
 export function PublicLayout() {
   const { pathname } = useLocation();
+  const link = currentSiteLink(pathname);
+  const onContact = link === 'Contact';
+  const fullFooter = link === 'Home' || link === 'Products';
   const loading = useNavigation().state === 'loading';
   return (
     <div data-theme="light" data-fill="viewport" className={pageRootClasses}>
       <ToastProvider>
         <SkipLink />
-        <SiteHeader active={currentSiteLink(pathname)} />
+        <SiteHeader active={link} />
         <main
           id="main"
           tabIndex={-1}
           aria-busy={loading ? true : undefined}
-          className="min-h-[calc(100dvh-var(--header-height))] [:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6))]"
+          className={clsx(
+            'min-h-[calc(100dvh-var(--header-height))] [:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6))]',
+            onContact && contactScrollPaddingClasses,
+          )}
         >
           <Outlet />
         </main>
-        <SiteFooter />
+        <SiteFooter variant={fullFooter ? 'full' : 'base'} />
+        {onContact && (
+          <Suspense fallback={null}>
+            <ContactBarSlot />
+          </Suspense>
+        )}
       </ToastProvider>
     </div>
   );
