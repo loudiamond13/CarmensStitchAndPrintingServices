@@ -104,11 +104,11 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return Build(settings, phones, hours, closures, clock.Year);
+            return Build(settings, phones, hours, closures, clock);
         }
     }
 
-    private static PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours, List<ClosureRow> closures, int year)
+    private static PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours, List<ClosureRow> closures, BusinessClock clock)
     {
         var site = new PublicSiteDto(
             settings.BusinessName,
@@ -123,9 +123,11 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
             settings.TikTokUrl,
             settings.DirectionsUrl,
             settings.MapEmbedUrl,
-            year,
+            clock.Year,
             [.. hours.Select(day => new DayHoursDto(day.Day, DayHoursDto.FormatTime(day.OpensAt), DayHoursDto.FormatTime(day.ClosesAt)))],
-            []);
+            [.. closures
+                .Where(closure => closure.FirstDay <= clock.Today.AddDays(ShopClosure.PublicWindowDays))
+                .Select(closure => new PublicClosureDto(ShopClosureDto.FormatDay(closure.FirstDay), ShopClosureDto.FormatDay(closure.LastDay), closure.Note))]);
 
         var json = JsonSerializer.Serialize(site, JsonOptions);
         var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";

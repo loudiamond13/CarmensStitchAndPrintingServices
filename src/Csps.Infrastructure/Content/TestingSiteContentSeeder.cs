@@ -1,13 +1,14 @@
 #if CSPS_TESTING
 using Csps.Domain.Content;
+using Csps.Domain.Time;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Content;
 
 /// <summary>
-/// Puts the demo business info, the two demo phone numbers and the demo week (Monday to Saturday 09:00 to 18:00, Sunday closed) in place
-/// for E2E specs (QUAL-05). Every value is clearly fake. It saves
+/// Puts the demo business info, the two demo phone numbers, the demo week (Monday to Saturday 09:00 to 18:00, Sunday closed) and one demo
+/// closure (20 days after the business today, note "Demo holiday") in place for E2E specs (QUAL-05). Every value is clearly fake. It saves
 /// through the context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans
 /// extend it for their own tables, deleting rows whose name starts with "E2E-"; this plan's tables have no such rows.
 /// </summary>
@@ -16,6 +17,10 @@ namespace Csps.Infrastructure.Content;
 public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider time)
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
+
+    private const int DemoClosureDaysAhead = 20;
+
+    private const string DemoClosureNote = "Demo holiday";
 
     private static readonly TimeOnly DemoOpens = new(9, 0);
 
@@ -62,6 +67,12 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
                 // The demo hours are always valid, so the result carries no error to handle.
                 _ = day.SetHours(day.DayOfWeek <= 6 ? DemoOpens : null, day.DayOfWeek <= 6 ? DemoCloses : null);
             }
+
+            // Exactly one demo closure, 20 days after the business today, so the Contact page has one to list.
+            var (zone, source) = TimeZoneResolver.Resolve(settings.TimeZoneId);
+            var today = new BusinessClock(zone, source, time.GetUtcNow()).Today;
+            context.ShopClosures.RemoveRange(await context.ShopClosures.ToListAsync(cancellationToken).ConfigureAwait(false));
+            context.ShopClosures.Add(ShopClosure.Create(today.AddDays(DemoClosureDaysAhead), null, DemoClosureNote, today, time.GetUtcNow()).Value);
 
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }

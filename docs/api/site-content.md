@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T03:13:00-05:00
+updated: 2026-11-12T03:55:00-06:00
 ---
 
 # The site content API
@@ -11,8 +11,8 @@ Android app will use. Everything here is under `/api/v1`. The OpenAPI document (
 (`web/src/types/api.generated.ts`). Sign-in and the access token are in [auth.md](auth.md). What visitors read is in
 [public-site.md](public-site.md).
 
-Right now this page covers the Business Info save and the weekly opening hours. The closures, product lines, testimonials and
-gallery routes join this page in later plans.
+Right now this page covers the Business Info save, the weekly opening hours and the holidays and closures. The product lines,
+testimonials and gallery routes join this page in later plans.
 
 ## In plain words
 
@@ -29,6 +29,10 @@ gallery routes join this page in later plans.
 | `PUT /api/v1/site-settings` | Manager | `200` the settings as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
 | `GET /api/v1/opening-hours` | Manager | `200` the seven days below; `401`; `403` for an Admin. |
 | `PUT /api/v1/opening-hours` | Manager | `200` the hours as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
+| `GET /api/v1/shop-closures` | Manager | `200` the upcoming closures below; `401`; `403` for an Admin. |
+| `POST /api/v1/shop-closures` | Manager | `201` the new closure; `400` field errors or an overlap; `401`; `403` for an Admin; `409` when the shop is busy saving another closure. Needs an `Idempotency-Key`. |
+| `PUT /api/v1/shop-closures/{id}` | Manager | `200` the closure as saved; `400` field errors or an overlap; `401`; `403` for an Admin; `404`; `409 edit.stale` or busy. |
+| `DELETE /api/v1/shop-closures/{id}` | Manager | `204`; `401`; `403` for an Admin; `404` when it is already gone. |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. An `Admin` can read the settings
 but cannot save them. No token is `401`.
@@ -206,6 +210,78 @@ head show the new hours, because the server clears the public cache after the co
 Each save that changes something writes one entry with the action `opening-hours.changed` (target type `OpeningHours`, target id
 `week`), in the same save. The detail lists each changed day, Monday first, with its old and new times, for example
 `monday=closed>09:00-18:00;saturday=09:00-17:00>closed`. A closed day reads `closed`. No person's name is copied.
+
+## Holidays and closures
+
+A closure is a run of days when the shop is closed whatever its weekly hours say. Only a Manager can list, add, edit or delete them.
+Each closure is stored with the Manager's stamps and a row version, never a trigger. The database guards each row with two CHECK
+constraints: the last day is on or after the first, and a closure is at most 31 days.
+
+### Reading the closures
+
+`GET /api/v1/shop-closures` lists every closure whose last day is today or later in business time (Asia/Manila), earliest first. Past
+closures are not listed.
+
+```json
+[
+  { "id": "01a199fc-2100-780b-893d-eb7a88419f29", "firstDay": "2026-12-24", "lastDay": "2026-12-26", "note": "Christmas", "version": "AAAAAAAAJxQ=" }
+]
+```
+
+`firstDay` and `lastDay` are `"yyyy-MM-dd"`; a one-day closure has the same value in both. `note` is `null` when there is none.
+`version` is what an edit must send back.
+
+### Adding and editing
+
+`POST` and `PUT` take the same form: `{ "firstDay": "2026-12-24", "lastDay": "2026-12-26", "note": "Christmas" }`, and `PUT` adds
+`"version"`. Anything else in the body, such as who changed it or when, is ignored: the server stamps the row from the token and the clock.
+
+| Field | Rule | Message |
+|---|---|---|
+| `firstDay` | Required | "Enter the first day." |
+| `firstDay` | A real `yyyy-MM-dd` date | "Enter a real date." |
+| `firstDay` | Today or later in business time. An edit may keep a first day that is already past, so the note of a closure that is running can still be fixed; moving it into the past is refused. | "Pick today or a later date." |
+| `lastDay` | Optional; left out means one day. A real date. | "Enter a real date." |
+| `lastDay` | On or after the first day | "The last day must be on or after the first day." |
+| `lastDay` | At most 31 days in all | "A closure can be up to 31 days. Add another one for longer." |
+| `note` | At most 80 characters after trimming; an empty note means none | "Keep the note to 80 characters or fewer." |
+| `version` | Required on `PUT` | "Reload the form and try again." |
+
+These rules are the same in the browser, which checks them before it sends anything. One rule only the server can check:
+
+**An overlap is a `400` on `firstDay`.** A closure that shares a day with another one is refused with the first shared day, written in
+the Philippine short form, for example `"There's already a closure on Dec 25, 2026."`. Closures that only touch (one ends on Dec 25
+and the next starts on Dec 26) are fine. When an edit is checked, the closure being edited is left out of the comparison.
+
+**The shop can be busy.** The overlap check runs under the `site-content` lock, one lock for the whole list, so two Managers adding
+overlapping closures at the same moment end with one closure stored and one `400`. A request that cannot get the lock within 10
+seconds, or that loses a deadlock twice, answers `409` with "Something changed at the same time. Try again." and stores nothing.
+
+A `version` that is not the stored one answers `409` with the code `edit.stale` and changes nothing. A save with no change stores
+nothing, writes no audit entry and keeps the version. An unknown id on `PUT` or `DELETE` is `404 shop-closures.not-found`, so
+deleting twice gives `204` and then `404`.
+
+### What visitors see
+
+After any add, edit or delete, the server clears the public cache once the change commits. Then:
+
+- `GET /api/v1/public/open-status` treats a closure day as closed: `closedToday` is `true`, `todayClosureNote` holds the note, and
+  `nextOpening` skips every closure day.
+- `GET /api/v1/public/site` lists the closures that touch the next 30 days in `upcomingClosures`, earliest first.
+- The page head's JSON-LD lists the closures that touch the next 60 days as `specialOpeningHoursSpecification` closed days. The note is
+  never written there.
+
+### The closure audit entries
+
+Each change writes one entry in the same save, with target type `ShopClosure` and the closure id as target id:
+
+| Action | Detail |
+|---|---|
+| `shop-closure.added` | `first=2026-12-24;last=2026-12-26`, plus `fields=note` when a note was set |
+| `shop-closure.changed` | `first=` and `last=` as the value, or `old>new` when it moved, plus `fields=note` when the note changed |
+| `shop-closure.deleted` | `first=2026-12-24;last=2026-12-26` |
+
+The note text is never copied into the audit log: `fields=note` is the whole record of it, and the audit screen reads it as "Note changed".
 
 ## The audit entry
 
