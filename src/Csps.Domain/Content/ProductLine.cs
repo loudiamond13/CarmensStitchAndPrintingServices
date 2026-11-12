@@ -32,10 +32,10 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
     public const int CustomizeTextMaxLength = 120;
 
     /// <summary>The lowest starting price.</summary>
-    public const decimal MinPrice = 0.01m;
+    public static readonly decimal MinPrice = 0.01m;
 
     /// <summary>The highest starting price.</summary>
-    public const decimal MaxPrice = 999_999.99m;
+    public static readonly decimal MaxPrice = 999_999.99m;
 
     /// <summary>The lowest minimum order, in pieces.</summary>
     public const int MinQuantity = 1;
