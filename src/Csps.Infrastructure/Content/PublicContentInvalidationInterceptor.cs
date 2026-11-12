@@ -2,7 +2,9 @@ using System.Data.Common;
 using System.Runtime.CompilerServices;
 using Csps.Application.Ports;
 using Csps.Domain.Content;
+using Csps.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,7 +14,7 @@ namespace Csps.Infrastructure.Content;
 /// Clears the public cache once a save of a public record is committed (PUB-03, CONT-05): after the save when it owns its transaction,
 /// after the commit when the caller opened one. A rollback or a failed save clears nothing, so a cache filled before the commit can
 /// never hold data that was not stored. It looks the cache up when it flushes, so a host with no cache registered (a tool) saves as
-/// before.
+/// before. A save of an order that is shown on the website, or was shown when it was loaded, counts as a public change too.
 /// </summary>
 /// <param name="services">The root provider, used to find <see cref="IPublicContentCache"/> when a flush is due.</param>
 internal sealed class PublicContentInvalidationInterceptor(IServiceProvider services) : SaveChangesInterceptor, IDbTransactionInterceptor
@@ -96,10 +98,24 @@ internal sealed class PublicContentInvalidationInterceptor(IServiceProvider serv
     private void MarkIfPublicRowsChanged(DbContext? context)
     {
         if (context is not null
-            && context.ChangeTracker.Entries<IPublicContentRecord>().Any(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            && (context.ChangeTracker.Entries<IPublicContentRecord>().Any(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+                || context.ChangeTracker.Entries<Order>().Any(IsShownOrderWrite)))
         {
             _pending.AddOrUpdate(context, true);
         }
+    }
+
+    // A save of an order that is shown on the website, or was when it was loaded, is a public change: the public site reads shown
+    // orders, so any edit, cancel, delete or restore must show at once (D-15, PUB-03). Orders never shown are not public data.
+    private static bool IsShownOrderWrite(EntityEntry<Order> entry)
+    {
+        var shown = entry.Property(order => order.ShownOnWebsiteSinceUtc);
+        return entry.State switch
+        {
+            EntityState.Added => shown.CurrentValue is not null,
+            EntityState.Modified or EntityState.Deleted => shown.CurrentValue is not null || shown.OriginalValue is not null,
+            _ => false,
+        };
     }
 
     private void FlushUnlessInTransaction(DbContext? context)

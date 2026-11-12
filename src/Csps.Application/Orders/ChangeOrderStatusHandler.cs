@@ -14,11 +14,14 @@ namespace Csps.Application.Orders;
 /// 409. That is what keeps an order from being completed while a new discount or payment has just left it owing or in credit. The
 /// status key is checked first (400); the owner's table then decides (422). A move adds a history row and one
 /// <c>order.status-changed</c> entry, a reopen from Completed or Cancelled one <c>order.reopened</c> entry, in the same save
-/// (D-31). A request for the status the order already has saves nothing, records nothing and keeps the version.
+/// (D-31). A request for the status the order already has saves nothing, records nothing and keeps the version. A move to Cancelled
+/// on an order shown on the website also takes it off: its gallery entry goes in the same save and one <c>order.taken-off-website</c>
+/// entry is added (D-41); the customer's OK stays and a reopen does not put the order back.
 /// </summary>
 public sealed class ChangeOrderStatusHandler(
     IOrders orders,
     IOrderReader reader,
+    IGalleryEntries gallery,
     IBusinessCalendar calendar,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
@@ -57,11 +60,23 @@ public sealed class ChangeOrderStatusHandler(
                 unitOfWork,
                 orderId,
                 version: null,
-                (order, _) =>
+                async (order, token) =>
                 {
                     var from = order.Status;
+                    var wasShown = order.IsShownOnWebsite;
                     var moved = order.ChangeStatus(target, callerId, clock.UtcNow);
-                    return Task.FromResult(moved.IsFailure ? Result.Failure<OrderChildAudit?>(moved.Error) : Result.Success(Entry(moved.Value, from, target)));
+                    if (moved.IsFailure)
+                    {
+                        return Result.Failure<OrderChildAudit?>(moved.Error);
+                    }
+
+                    var takenOff = wasShown && !order.IsShownOnWebsite;
+                    if (takenOff && await gallery.FindForOrderAsync(order.Id, token).ConfigureAwait(false) is { } entry)
+                    {
+                        gallery.Remove(entry);
+                    }
+
+                    return Result.Success(Entry(moved.Value, from, target, takenOff ? order : null));
                 },
                 cancellationToken),
             Result.Failure<bool>(EditErrors.Stale)).ConfigureAwait(false);
@@ -70,10 +85,17 @@ public sealed class ChangeOrderStatusHandler(
             : await OrderChildWrite.ReadAsync(reader, orderId, cancellationToken).ConfigureAwait(false);
     }
 
-    private static OrderChildAudit? Entry(OrderStatusMove move, OrderStatus from, OrderStatus to) => move switch
+    // A second entry names the order that was taken off the website by a cancel (D-41); it never names the customer.
+    private static OrderChildAudit? Entry(OrderStatusMove move, OrderStatus from, OrderStatus to, Order? takenOff)
     {
-        OrderStatusMove.Reopen => new OrderChildAudit(AuditActions.OrderReopened, OrderAuditDetail.StatusChanged(from, to)),
-        OrderStatusMove.Move => new OrderChildAudit(AuditActions.OrderStatusChanged, OrderAuditDetail.StatusChanged(from, to)),
-        _ => null,
-    };
+        var entry = move switch
+        {
+            OrderStatusMove.Reopen => new OrderChildAudit(AuditActions.OrderReopened, OrderAuditDetail.StatusChanged(from, to)),
+            OrderStatusMove.Move => new OrderChildAudit(AuditActions.OrderStatusChanged, OrderAuditDetail.StatusChanged(from, to)),
+            _ => null,
+        };
+        return entry is not null && takenOff is not null
+            ? entry with { Then = new OrderChildAudit(AuditActions.OrderTakenOffWebsite, OrderAuditDetail.PublicSetting(takenOff)) }
+            : entry;
+    }
 }

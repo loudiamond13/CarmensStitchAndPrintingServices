@@ -4937,6 +4937,30 @@
         ],
         "type": "object"
       },
+      "ProductLineOptionDto": {
+        "description": "One product line the order window offers (D-09, D-16).",
+        "properties": {
+          "id": {
+            "description": "The line id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name.",
+            "type": "string"
+          },
+          "title": {
+            "description": "The title.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "shortName"
+        ],
+        "type": "object"
+      },
       "ProductLinePhotoDto": {
         "description": "One photo of a product line as the Manager's screens read it (D-02).",
         "properties": {
@@ -15212,6 +15236,40 @@
         ]
       }
     },
+    "/api/v1/product-lines/options": {
+      "get": {
+        "operationId": "ListProductLineOptions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductLineOptionDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists the active product lines in display order, each with its id, title and short name. Hidden lines are not listed.",
+        "tags": [
+          "ProductLineOptions"
+        ]
+      }
+    },
     "/api/v1/product-lines/{id}": {
       "delete": {
         "operationId": "DeleteProductLine",
@@ -19916,6 +19974,9 @@
     },
     {
       "name": "PaymentMethods"
+    },
+    {
+      "name": "ProductLineOptions"
     },
     {
       "name": "ProductLinePhotos"

@@ -27,6 +27,7 @@ public static class ContentApplicationRegistration
         services.AddScoped<DeleteShopClosureHandler>();
         services.AddSingleton<IValidator<ShopClosureRequest>, ShopClosureRequestValidator>();
         services.AddScoped<ListProductLinesHandler>();
+        services.AddScoped<ListProductLineOptionsHandler>();
         services.AddScoped<GetProductLineHandler>();
         services.AddScoped<CreateProductLineHandler>();
         services.AddScoped<UpdateProductLineHandler>();

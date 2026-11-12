@@ -1516,6 +1516,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/product-lines/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the active product lines in display order, each with its id, title and short name. Hidden lines are not listed. */
+        get: operations["ListProductLineOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/product-lines/{id}": {
         parameters: {
             query?: never;
@@ -4572,6 +4589,18 @@ export interface components {
             title: string;
             /** @description The text an edit must send back. */
             version: string;
+        };
+        /** @description One product line the order window offers (D-09, D-16). */
+        ProductLineOptionDto: {
+            /**
+             * Format: uuid
+             * @description The line id.
+             */
+            id: string;
+            /** @description The short name. */
+            shortName: string;
+            /** @description The title. */
+            title: string;
         };
         /** @description One photo of a product line as the Manager's screens read it (D-02). */
         ProductLinePhotoDto: {
@@ -10722,6 +10751,35 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListProductLineOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineOptionDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-12T14:08:00-06:00
+updated: 2026-11-12T15:25:00-06:00
 ---
 
 # The orders API
@@ -218,6 +218,23 @@ write that is not Manager only (D-16). It works on a Completed order, because th
   retried. A save that changes nothing answers `200`, keeps the `version` and writes no audit entry.
 - **The lock.** The save takes the site-content lock, so a delete of the line it files the order under is decided before or after it.
   A line that an order has chosen cannot be deleted: `422 product-lines.in-use`.
+
+### When a shown order leaves the website (D-15, D-41, PUB-03)
+
+| What staff do | What happens to the website |
+|---|---|
+| Cancel the order (`POST /orders/{id}/status`, `cancelled`) | The order is taken off at once: `shownOnWebsite` turns false, its gallery entry is removed, and one `order.taken-off-website` entry follows the `order.status-changed` entry in the same save. The customer's OK stays. A reopen does not put it back; staff show it again on purpose. |
+| Delete the order (`DELETE /orders/{id}`) | The order is off the public site at once, because a deleted order is never read for it and the public cache is cleared. The stored settings are not changed. |
+| Restore the order (`POST /orders/{id}/restore`) | The order keeps the website settings it had when it was deleted, so one that was shown is shown again. This is the current behaviour and it waits for an owner ruling (parked as P11-BL-29). |
+| Delete the order for good (`DELETE /orders/{id}/permanent`) | The order and its gallery entry are gone, and the public cache is cleared after the commit. |
+| Any other write to an order that is shown (items, team name, photos, cover, the public settings, a status move) | The public cache is cleared after the commit, so the public site reads the new values on its next request. |
+
+An order that was never shown is not public data, so writes to it do not clear the cache.
+
+### The line options (`GET /api/v1/product-lines/options`)
+
+The order window lists the lines to choose from. Admin and Manager can both read it (`401` without a token). The answer is a list of
+`{ id, title, shortName }` for the active lines only, in display order. A hidden line is not offered. It is never cached.
 
 ## Items (`/api/v1/orders/{id}/items`)
 
