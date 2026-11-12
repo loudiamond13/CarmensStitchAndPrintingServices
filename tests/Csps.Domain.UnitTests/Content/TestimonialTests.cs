@@ -71,9 +71,9 @@ public sealed class TestimonialTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData(0)]
-    [InlineData(6)]
-    [InlineData(-1)]
+    [InlineData(0d)]
+    [InlineData(6d)]
+    [InlineData(-1d)]
     [InlineData(2.5)]
     public void StarsOutsideOneToFiveOrNotWholeAreRefused(double? stars)
     {

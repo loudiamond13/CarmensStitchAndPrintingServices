@@ -121,14 +121,16 @@ public sealed class Testimonial : IAttributedRecord, IPublicContentRecord
         ArgumentNullException.ThrowIfNull(values);
 
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
-        if (string.IsNullOrWhiteSpace(values.Quote))
+        CheckText(errors, "quote", values.Quote, QuoteMaxLength, QuoteRequiredMessage, QuoteTooLongMessage);
+        CheckText(errors, "name", values.Name, NameMaxLength, NameRequiredMessage, NameTooLongMessage);
+        if (values.TeamOrRole?.Trim().Length > TeamMaxLength)
         {
-            errors["quote"] = [QuoteRequiredMessage];
+            errors["teamOrRole"] = [TeamTooLongMessage];
         }
 
-        if (string.IsNullOrWhiteSpace(values.Name))
+        if (values.Stars is not { } stars || stars != decimal.Truncate(stars) || stars < MinStars || stars > MaxStars)
         {
-            errors["name"] = [NameRequiredMessage];
+            errors["stars"] = [StarsInvalidMessage];
         }
 
         return errors;
@@ -208,6 +210,20 @@ public sealed class Testimonial : IAttributedRecord, IPublicContentRecord
     {
         ArgumentNullException.ThrowIfNull(other);
         (Position, other.Position) = (other.Position, Position);
+    }
+
+    // A text is required, and at most max characters after trimming.
+    private static void CheckText(Dictionary<string, string[]> errors, string field, string? text, int max, string required, string tooLong)
+    {
+        var length = text?.Trim().Length ?? 0;
+        if (length == 0)
+        {
+            errors[field] = [required];
+        }
+        else if (length > max)
+        {
+            errors[field] = [tooLong];
+        }
     }
 
     private static bool Differs(string? current, string? typed, out string? next)

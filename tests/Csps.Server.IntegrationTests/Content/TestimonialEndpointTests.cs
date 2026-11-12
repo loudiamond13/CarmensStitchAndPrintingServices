@@ -214,7 +214,7 @@ public sealed class TestimonialEndpointTests(CspsDatabase database) : IClassFixt
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         await using var context = database.CreateContext();
-        var changed = await context.AuditLog.AsNoTracking().SingleAsync(row => row.Action == "testimonial.changed", TestContext.Current.CancellationToken);
+        var changed = await context.AuditLog.AsNoTracking().SingleAsync(row => row.ActorUserId == rig.Manager.UserId && row.Action == "testimonial.changed", TestContext.Current.CancellationToken);
         changed.Detail.ShouldBe("fields=quote");
     }
 
@@ -229,7 +229,7 @@ public sealed class TestimonialEndpointTests(CspsDatabase database) : IClassFixt
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await rig.ListAsync()).ShouldHaveSingleItem().Version.ShouldBe(added.Version);
         await using var context = database.CreateContext();
-        (await context.AuditLog.AsNoTracking().CountAsync(row => row.TargetType == "Testimonial" && row.Action == "testimonial.changed", TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.AsNoTracking().CountAsync(row => row.ActorUserId == rig.Manager.UserId && row.TargetType == "Testimonial" && row.Action == "testimonial.changed", TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]
@@ -250,7 +250,7 @@ public sealed class TestimonialEndpointTests(CspsDatabase database) : IClassFixt
         after.Dispose();
         newEtag.ShouldNotBe(oldEtag);
         await using var context = database.CreateContext();
-        var moved = await context.AuditLog.AsNoTracking().SingleAsync(row => row.Action == "testimonial.moved", TestContext.Current.CancellationToken);
+        var moved = await context.AuditLog.AsNoTracking().SingleAsync(row => row.ActorUserId == rig.Manager.UserId && row.Action == "testimonial.moved", TestContext.Current.CancellationToken);
         moved.ActorUserId.ShouldBe(rig.Manager.UserId);
         moved.TargetId.ShouldBe(ben.Id.ToString("D"));
         moved.Detail.ShouldBe("name=Ben;position=2>1");
@@ -270,7 +270,7 @@ public sealed class TestimonialEndpointTests(CspsDatabase database) : IClassFixt
         last.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await rig.ListAsync()).Select(item => item.Name).ShouldBe(["Ana", "Ben"]);
         await using var context = database.CreateContext();
-        (await context.AuditLog.AsNoTracking().CountAsync(row => row.Action == "testimonial.moved", TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AuditLog.AsNoTracking().CountAsync(row => row.ActorUserId == rig.Manager.UserId && row.Action == "testimonial.moved", TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]
@@ -288,7 +288,7 @@ public sealed class TestimonialEndpointTests(CspsDatabase database) : IClassFixt
         repeat.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await rig.ListAsync()).Select(item => item.Name).ShouldBe(["Ben", "Ana"]);
         await using var context = database.CreateContext();
-        (await context.AuditLog.AsNoTracking().CountAsync(row => row.Action == "testimonial.moved", TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.AuditLog.AsNoTracking().CountAsync(row => row.ActorUserId == rig.Manager.UserId && row.Action == "testimonial.moved", TestContext.Current.CancellationToken)).ShouldBe(1);
     }
 
     [Fact]
@@ -327,7 +327,7 @@ public sealed class TestimonialEndpointTests(CspsDatabase database) : IClassFixt
         after.Select(item => item.Position).Order().ShouldBe([1, 2, 3]);
         after.Select(item => item.Name).Order().ShouldBe(["Ana", "Ben", "Cara"]);
         await using var context = database.CreateContext();
-        (await context.AuditLog.AsNoTracking().CountAsync(row => row.Action == "testimonial.moved", TestContext.Current.CancellationToken)).ShouldBe(2);
+        (await context.AuditLog.AsNoTracking().CountAsync(row => row.Action == "testimonial.moved" && (row.TargetId == ben.Id.ToString("D") || row.TargetId == cara.Id.ToString("D")), TestContext.Current.CancellationToken)).ShouldBe(2);
     }
 
     [Fact]
@@ -383,7 +383,7 @@ public sealed class TestimonialEndpointTests(CspsDatabase database) : IClassFixt
         (await rig.ListAsync()).ShouldBeEmpty();
         (await rig.PublicNamesAsync()).ShouldBeEmpty();
         await using var context = database.CreateContext();
-        var deleted = await context.AuditLog.AsNoTracking().SingleAsync(row => row.Action == "testimonial.deleted", TestContext.Current.CancellationToken);
+        var deleted = await context.AuditLog.AsNoTracking().SingleAsync(row => row.ActorUserId == rig.Manager.UserId && row.Action == "testimonial.deleted", TestContext.Current.CancellationToken);
         deleted.TargetId.ShouldBe(juan.Id.ToString("D"));
         deleted.Detail.ShouldBe("name=Juan Dela Cruz");
     }

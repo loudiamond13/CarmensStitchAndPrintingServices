@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using FluentValidation;
 
@@ -10,12 +11,15 @@ namespace Csps.Application.Content;
 /// Use case: a Manager edits a testimonial with the version the form was opened with (CONT-03, SEC-07). The steps run in this order and
 /// stop at the first failure: the form is checked (400), then in one transaction the testimonial is found (404), the version is the
 /// stored one (409) and the values are checked against the domain rules (400). A form save never retries on a conflict. A form with no
-/// change saves nothing and keeps the version.
+/// change saves nothing, writes no audit entry and keeps the version. A change writes <c>testimonial.changed</c> (the changed fields,
+/// never the quote or the team line), and a flip of the shown flag writes <c>testimonial.shown</c> or <c>testimonial.hidden</c>, in the
+/// same save.
 /// </summary>
 /// <param name="testimonials">The testimonial store.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="validator">The form rules.</param>
-public sealed class UpdateTestimonialHandler(ITestimonials testimonials, IUnitOfWork unitOfWork, IValidator<TestimonialRequest> validator)
+public sealed class UpdateTestimonialHandler(ITestimonials testimonials, IAuditTrail audit, IUnitOfWork unitOfWork, IValidator<TestimonialRequest> validator)
 {
     /// <summary>Saves the edit.</summary>
     /// <param name="id">The testimonial to edit.</param>
@@ -64,8 +68,20 @@ public sealed class UpdateTestimonialHandler(ITestimonials testimonials, IUnitOf
             return Result.Failure<TestimonialDto>(changed.Error);
         }
 
-        if (changed.Value.HasChange)
+        var change = changed.Value;
+        if (change.HasChange)
         {
+            var key = AuditKey.Of(testimonial.Id);
+            if (change.Fields.Count > 0)
+            {
+                audit.Record(AuditActions.TestimonialChanged, TestimonialAuditDetail.TargetType, key, TestimonialAuditDetail.Changed(change));
+            }
+
+            if (change.NowShown is { } shown)
+            {
+                audit.Record(shown ? AuditActions.TestimonialShown : AuditActions.TestimonialHidden, TestimonialAuditDetail.TargetType, key, TestimonialAuditDetail.Named(testimonial));
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 

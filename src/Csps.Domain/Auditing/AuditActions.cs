@@ -183,6 +183,24 @@ public static class AuditActions
     /// <summary>A Manager added, replaced or removed a photo of a product line; the detail holds the line key and title, the slot and the change, never the address (D-02).</summary>
     public const string ProductLinePhotoChanged = "product-line.photo-changed";
 
+    /// <summary>A Manager added a testimonial (CONT-03). The detail names the person, never the words.</summary>
+    public const string TestimonialAdded = "testimonial.added";
+
+    /// <summary>A Manager changed a testimonial. The detail names the changed fields and never copies the quote or the team line.</summary>
+    public const string TestimonialChanged = "testimonial.changed";
+
+    /// <summary>A Manager moved a testimonial in the order.</summary>
+    public const string TestimonialMoved = "testimonial.moved";
+
+    /// <summary>A Manager took a testimonial off the Home page.</summary>
+    public const string TestimonialHidden = "testimonial.hidden";
+
+    /// <summary>A Manager put a testimonial back on the Home page.</summary>
+    public const string TestimonialShown = "testimonial.shown";
+
+    /// <summary>A Manager deleted a testimonial.</summary>
+    public const string TestimonialDeleted = "testimonial.deleted";
+
     /// <summary>A Manager filed an order product type under a product line, moved it to another line or took it off its line; the detail holds the old and new line titles (D-09).</summary>
     public const string ProductTypeLineLinked = "product-type.line-linked";
 
@@ -578,5 +596,11 @@ public static class AuditActions
         ProductLineDeleted,
         ProductTypeLineLinked,
         ProductLinePhotoChanged,
+        TestimonialAdded,
+        TestimonialChanged,
+        TestimonialMoved,
+        TestimonialHidden,
+        TestimonialShown,
+        TestimonialDeleted,
     ];
 }
