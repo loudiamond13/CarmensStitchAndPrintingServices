@@ -180,6 +180,9 @@ public static class AuditActions
     /// <summary>A Manager deleted an unused product line (CONT-02, D-08).</summary>
     public const string ProductLineDeleted = "product-line.deleted";
 
+    /// <summary>A Manager added, replaced or removed a photo of a product line; the detail holds the line key and title, the slot and the change, never the address (D-02).</summary>
+    public const string ProductLinePhotoChanged = "product-line.photo-changed";
+
     /// <summary>A Manager filed an order product type under a product line, moved it to another line or took it off its line; the detail holds the old and new line titles (D-09).</summary>
     public const string ProductTypeLineLinked = "product-type.line-linked";
 

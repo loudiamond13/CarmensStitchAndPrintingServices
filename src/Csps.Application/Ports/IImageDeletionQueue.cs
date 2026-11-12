@@ -16,6 +16,9 @@ public enum ImageDeletionReason
 
     /// <summary>The storage sweep found a file no photo row names.</summary>
     Stray = 4,
+
+    /// <summary>A Manager put a new file in the place of a content photo, so the old file is no longer named by any row.</summary>
+    PhotoReplaced = 5,
 }
 
 /// <summary>One queued removal that a run now holds the lease on. The public id is the file's key, so it is never logged.</summary>

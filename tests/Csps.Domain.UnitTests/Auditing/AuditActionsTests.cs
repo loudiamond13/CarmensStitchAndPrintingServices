@@ -11,7 +11,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixSevenAndEleventhCodes()
     {
-        AuditActions.All.Count.ShouldBe(113);
+        AuditActions.All.Count.ShouldBe(114);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -48,6 +48,7 @@ public sealed class AuditActionsTests
     [InlineData("product-line.hidden")]
     [InlineData("product-line.shown")]
     [InlineData("product-line.deleted")]
+    [InlineData("product-line.photo-changed")]
     [InlineData("product-type.line-linked")]
     public void TheProductLineCodesAreInTheCatalog(string code)
     {
