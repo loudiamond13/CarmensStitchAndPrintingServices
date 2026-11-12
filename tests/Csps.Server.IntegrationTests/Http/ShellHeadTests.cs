@@ -84,7 +84,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
         document.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(
             ["@context", "@type", "name", "description", "url"], ignoreOrder: true);
-        body.ShouldNotContain("[");
+        LdJson(body).ShouldHaveSingleItem().ShouldNotContain("[");
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using Csps.Application.Content;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Email;
 using Csps.Server.Http;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
@@ -123,11 +124,24 @@ internal sealed partial class ShellRenderer(
     ShellTemplate template,
     IOptions<AppLinksOptions> links,
     IWebHostEnvironment environment,
+    IPublicContentReader reader,
+    HybridCache cache,
     ILogger<ShellRenderer> logger)
 {
     private const string RobotsHeader = "X-Robots-Tag";
 
-    // 1 while the last settings read failed, so an outage logs one event, not one per request.
+    private const string NotFoundKey = "notfound";
+
+    private static readonly string[] Tags = [PublicCacheTags.PublicContent];
+
+    // Within the hour, so date-relative parts (the year in the boot data) refresh without a write; a content change clears the entries at once.
+    private static readonly HybridCacheEntryOptions HeadCacheOptions = new()
+    {
+        Expiration = TimeSpan.FromHours(1),
+        LocalCacheExpiration = TimeSpan.FromHours(1),
+    };
+
+    // 1 while the last content read failed, so an outage logs one event, not one per request.
     private int _settingsFailing;
 
     public async Task WriteAsync(HttpContext context)
@@ -172,49 +186,83 @@ internal sealed partial class ShellRenderer(
 
     private async Task<string> HeadAsync(HttpContext context, PublicRouteMatch match, ShellTemplateParts parts)
     {
-        var head = new StringBuilder();
         switch (match.Kind)
         {
             case PublicRouteKind.Page:
-                var model = await PageModelAsync(context, match).ConfigureAwait(false);
-                if (model is null)
-                {
-                    head.Append(parts.DefaultHead);
-                }
-                else
-                {
-                    PublicHeadWriter.Write(head, model);
-                }
-
-                break;
-
             case PublicRouteKind.NotFound:
-                var notFound = PublicPageHeads.NotFound;
-                PublicHeadWriter.Write(head, new PublicHeadModel(notFound.Title, notFound.Description, null, null, NoIndex: true));
-                break;
+                return await PublicHeadAsync(context, match, parts).ConfigureAwait(false);
 
             case PublicRouteKind.Admin:
-                head.Append(parts.DefaultHead);
+                var head = new StringBuilder(parts.DefaultHead);
                 PublicHeadWriter.AppendRobots(head);
-                break;
+                return head.ToString();
 
             default:
-                head.Append(parts.DefaultHead);
-                break;
+                return parts.DefaultHead;
+        }
+    }
+
+    // A public page or the 404 shell. The shaped head is cached per page under the public-content tag. When the content cannot be read,
+    // a page is sent with the template's own head and the 404 with its own title; neither carries data blocks, and the failure is never cached.
+    private async Task<string> PublicHeadAsync(HttpContext context, PublicRouteMatch match, ShellTemplateParts parts)
+    {
+        var snapshot = await ReadSiteAsync(context).ConfigureAwait(false);
+        if (snapshot is null)
+        {
+            return match.Kind == PublicRouteKind.Page ? parts.DefaultHead : NotFoundHead(boot: null);
         }
 
+        var origin = links.Value.PublicBaseUrl.TrimEnd('/');
+        var key = $"csps:shell:{(match.Kind == PublicRouteKind.Page ? match.Page!.Value.ToString().ToLowerInvariant() : NotFoundKey)}:v1";
+        return await cache.GetOrCreateAsync(
+            key,
+            (snapshot, match, origin),
+            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin)),
+            HeadCacheOptions,
+            Tags,
+            context.RequestAborted).ConfigureAwait(false);
+    }
+
+    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin)
+    {
+        var boot = PublicHeadWriter.BootData(snapshot.Json.Json);
+        if (match.Kind == PublicRouteKind.NotFound)
+        {
+            return NotFoundHead(boot);
+        }
+
+        var site = snapshot.Site;
+        var page = PublicPageHeads.For(match.Page!.Value, site.Tagline);
+        var head = new StringBuilder();
+        PublicHeadWriter.Write(
+            head,
+            new PublicHeadModel(
+                page.Title,
+                page.Description,
+                origin + match.CanonicalPath,
+                site.BusinessName,
+                NoIndex: false,
+                JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, origin),
+                BootJson: boot));
         return head.ToString();
     }
 
-    // Null when the settings cannot be read: the caller then sends the template's own head.
-    private async Task<PublicHeadModel?> PageModelAsync(HttpContext context, PublicRouteMatch match)
+    private static string NotFoundHead(string? boot)
     {
-        PublicSiteDto site;
+        var notFound = PublicPageHeads.NotFound;
+        var head = new StringBuilder();
+        PublicHeadWriter.Write(head, new PublicHeadModel(notFound.Title, notFound.Description, null, null, NoIndex: true, BootJson: boot));
+        return head.ToString();
+    }
+
+    // Null when the content cannot be read.
+    private async Task<PublicSiteSnapshot?> ReadSiteAsync(HttpContext context)
+    {
         try
         {
-            site = (await context.RequestServices.GetRequiredService<IPublicContentReader>()
-                .GetSiteAsync(context.RequestAborted).ConfigureAwait(false)).Site;
+            var snapshot = await reader.GetSiteAsync(context.RequestAborted).ConfigureAwait(false);
             Interlocked.Exchange(ref _settingsFailing, 0);
+            return snapshot;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -225,10 +273,6 @@ internal sealed partial class ShellRenderer(
 
             return null;
         }
-
-        var origin = links.Value.PublicBaseUrl.TrimEnd('/');
-        var head = PublicPageHeads.For(match.Page!.Value, site.Tagline);
-        return new PublicHeadModel(head.Title, head.Description, origin + match.CanonicalPath, site.BusinessName, NoIndex: false);
     }
 
     private static Task WriteMissingTemplateAsync(HttpContext context)
