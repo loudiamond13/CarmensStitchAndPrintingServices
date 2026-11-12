@@ -124,10 +124,8 @@ describe('TypeScript alias pair (D-15)', () => {
 });
 
 describe('web/public/robots.txt', () => {
-  it('allows every crawler', () => {
-    const lines = readText(join(webDir, 'public/robots.txt'))
-      .split(/\r?\n/)
-      .filter((line) => line.trim() !== '');
-    expect(lines).toEqual(['User-agent: *', 'Allow: /']);
+  // The server writes /robots.txt from the configured origin (PUB-04); a static copy would shadow it.
+  it('is not shipped as a static file', () => {
+    expect(existsSync(join(webDir, 'public/robots.txt'))).toBe(false);
   });
 });
