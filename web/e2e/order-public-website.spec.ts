@@ -203,3 +203,73 @@ test('@order-public-website a Cancelled order says it cannot be shown and offers
   await expect(page.getByText('Public website settings saved')).toBeVisible();
   await expect(valueOf(page, 'Customer OK')).toContainText(/^Yes, recorded /);
 });
+
+test('@order-public-website at 320px the window is a bottom sheet with a footer that fits, the page does not scroll sideways and focus returns to Edit', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const { id, number } = await seedOrder(
+    request,
+    { prefix: 'ORD-2083', label: 'Public Narrow', itemDescription: 'E2E narrow jersey' },
+    manager.userId,
+  );
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openOrder(page, request, manager, id, number);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+
+  const edit = card(page).getByRole('button', { name: 'Edit public website settings' });
+  await press(page, edit);
+  const dialog = page.getByRole('dialog', { name: 'Public Website' });
+  await expect(dialog).toBeVisible();
+  // A bottom sheet: it spans the width of the screen and rests on its bottom edge (UI-SPEC: 639px and below).
+  const box = await dialog.boundingBox();
+  expect(box, 'the window has a box').not.toBeNull();
+  expect(Math.round(box?.width ?? 0)).toBe(320);
+  expect(Math.round((box?.y ?? 0) + (box?.height ?? 0))).toBe(640);
+  // The footer fits: both buttons sit inside the sheet.
+  for (const name of ['Cancel', 'Save Changes']) {
+    const button = await dialog.getByRole('button', { name }).boundingBox();
+    expect(button, `${name} has a box`).not.toBeNull();
+    expect((button?.x ?? 0) + (button?.width ?? 0)).toBeLessThanOrEqual(320);
+    expect(button?.x ?? -1).toBeGreaterThanOrEqual(0);
+  }
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(edit).toBeFocused();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+});
+
+test('@order-public-website at 820px the card joins the side grid after Customer, as wide as the grid', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const { id, number } = await seedOrder(
+    request,
+    { prefix: 'ORD-2082', label: 'Public Tablet', itemDescription: 'E2E tablet jersey' },
+    manager.userId,
+  );
+  await page.setViewportSize({ width: 820, height: 1100 });
+  await openOrder(page, request, manager, id, number);
+
+  const customer = await page.getByRole('region', { name: 'Customer' }).boundingBox();
+  const publicCard = await card(page).boundingBox();
+  const history = await page.getByRole('region', { name: 'Status history' }).boundingBox();
+  expect(customer && publicCard && history, 'the three cards have boxes').toBeTruthy();
+  // After Customer, before Status history, and across both columns of the side grid.
+  expect(publicCard?.y ?? 0).toBeGreaterThanOrEqual((customer?.y ?? 0) + (customer?.height ?? 0) - 1);
+  expect(history?.y ?? 0).toBeGreaterThanOrEqual((publicCard?.y ?? 0) + (publicCard?.height ?? 0) - 1);
+  expect(Math.round(publicCard?.width ?? 0)).toBe(Math.round(history?.width ?? -1));
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});

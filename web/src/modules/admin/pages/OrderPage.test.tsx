@@ -22,6 +22,7 @@ import {
   order0151,
   orderProblem,
   orderRefund,
+  publicWebsiteBlock,
   useOrderHandlers,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
@@ -1022,6 +1023,35 @@ describe('the Public website card', () => {
       .filter((text) => text === 'Customer' || text === 'Public website' || text === 'Status history');
 
     expect(sideHeadings).toEqual(['Customer', 'Public website', 'Status history']);
+  });
+
+  const SHOWN = buildOrderDetail({
+    publicWebsite: publicWebsiteBlock({
+      customerConsent: true,
+      consentRecordedAtUtc: '2026-10-06T02:00:00Z',
+      consentRecordedByName: 'Liza Mercado',
+      shownOnWebsite: true,
+      shownSinceUtc: '2026-10-08T02:00:00Z',
+      productLineId: '8c1f4a20-0000-4000-8000-000000000001',
+      productLineTitle: 'Basketball Jerseys',
+      hasPhoto: false,
+    }),
+  });
+  const CANCELLED = buildOrderDetail({
+    ...cancelledOrderWithRefunds,
+    publicWebsite: publicWebsiteBlock({ canShow: false }),
+  });
+
+  it.each([
+    ['never shown', order0148],
+    ['shown with no photo', SHOWN],
+    ['on a Cancelled order', CANCELLED],
+  ])('has no axe violations on the page with the card %s', async (_state, detail) => {
+    useOrderHandlers({ detail });
+    const { container } = renderOrder({ order: detail });
+
+    expect(await screen.findByRole('region', { name: 'Public website' })).toBeVisible();
+    await expectNoAxeViolations(container);
   });
 
   it('shows the card with its Edit button on an order that is Completed', async () => {
