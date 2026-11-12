@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T07:03:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T08:29:10-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -111,6 +111,60 @@ The closure window shows "This closure wasn't found. It may have been deleted."
 
 - **A (built, recommended):** keep that line.
 - **B:** reuse the "Already deleted" words from the delete question.
+
+## P11-BL-12 · Moving a product line up or down when hidden lines sit between (plan 11-17, owner item 1)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+The plan said a move swaps a line with its "visible neighbour". The Manager's list shows hidden lines too, so the build swaps with the next line in that list.
+
+- **A (built, recommended):** swap with the next line in the Manager's list, hidden or not. What the Manager sees moves one step.
+- **B:** skip hidden lines, so the public order always changes by one step.
+
+## P11-BL-13 · Two rare product line messages reuse existing words (plan 11-17, owner item 2)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+Only a stale or hand-made request can trigger these: "Reload the form and try again." for a product type that no longer exists, and "Check the highlighted fields." for a bad move direction.
+
+- **A (built, recommended):** keep the existing words. No new wording.
+- **B:** write a specific line for each.
+
+## P11-BL-14 · The number on the jersey drawing (plan 11-17, owner item 3)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+Each product line card shows a number on its drawing. It accepts up to 2 plain letters or digits (A to Z, 0 to 9).
+
+- **A (built, recommended):** keep letters and digits only, up to 2.
+- **B:** allow other characters, such as accented letters.
+
+## P11-BL-15 · Where a product jumps to on the Products page (plan 11-18, owner item 1)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+The UI-SPEC sets two scroll gaps (one on the page, one on each product). Browsers add them together, so a tapped product would stop about 300 px down the screen.
+
+- **A (built, recommended):** keep the page gap and set each product's own gap to 16 px, so the product title lands just under the bar.
+- **B:** follow the spec numbers exactly.
+
+## P11-BL-16 · Side padding of the product pill bar (plan 11-18, owner item 2)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+The UI-SPEC sets no side padding on the row of product pills.
+
+- **A (built, recommended):** use the page's side padding, so the first pill lines up with the text.
+- **B:** no side padding, as the spec says.
+
+## P11-BL-17 · Duplicated loading and error parts on the Products page (plan 11-18, owner item 3)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+Using the shared loading, error and button parts on the Products page pushed the Contact page over its 150 KB size limit, because of how the build groups shared code. So about 100 lines are copied into the Products page.
+
+- **A (built, recommended):** keep the copies for now and plan a later fix to how the build groups shared code.
+- **B:** use the shared parts and raise or rework the size limit.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
