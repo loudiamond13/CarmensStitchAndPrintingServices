@@ -186,10 +186,11 @@ public sealed class SpaHostTests
 
     [Theory]
     [InlineData("/robots.txt")]
+    [InlineData("/sitemap.xml")]
     [InlineData("/")]
     public async Task OtherResponsesWithoutAContentHashRevalidate(string path)
     {
-        // The shell and robots.txt carry no content hash, so they are revalidated on every use and a deploy
+        // The shell, robots.txt and sitemap.xml carry no content hash, so they are revalidated on every use and a deploy
         // is seen at once (T-02-10).
         await using var factory = new CspsApiFactory();
         using var client = factory.CreateClient();

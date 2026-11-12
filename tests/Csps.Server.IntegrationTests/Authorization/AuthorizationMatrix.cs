@@ -299,9 +299,15 @@ public static class AuthorizationMatrix
         // The maintenance run (JOB-01) is anonymous but needs the X-Maintenance-Key header. The matrix sends none, so every caller meets the same 401.
         new("POST", "/api/v1/maintenance/run", "/api/v1/maintenance/run", Anonymous: 401, Admin: 401, Manager: 401),
 
-        // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
+        // The SPA shell (WEB-01, PUB-04). The shaped shell endpoint carries GET and HEAD metadata only, so it has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),
+
+        // robots.txt and sitemap.xml (PUB-04): anonymous GET and HEAD for crawlers, never rate limited.
+        new("GET", "/robots.txt", "/robots.txt", Anonymous: 200, Admin: 200, Manager: 200),
+        new("HEAD", "/robots.txt", "/robots.txt", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
+        new("HEAD", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
 
         // A missing file is a 404 for everyone (research Pitfall 11). The matrix host runs in the Testing environment,
         // not Development, so the two reserved API-doc prefixes are mapped as 404 fallbacks too (D-29).
@@ -334,6 +340,10 @@ public static class AuthorizationMatrix
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
+            "GET /robots.txt",
+            "HEAD /robots.txt",
+            "GET /sitemap.xml",
+            "HEAD /sitemap.xml",
             "* {*path:file}",
             "* /openapi/{**path}",
             "* /scalar/{**path}",
