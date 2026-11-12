@@ -19,10 +19,9 @@ describe('HomePage at / (PUB-01, UI-SPEC H1 item 1)', { timeout: 20_000 }, () =>
     expect(screen.getAllByRole('banner')).toHaveLength(1);
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
-    expect(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Home' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(
+      within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Home' }),
+    ).toHaveAttribute('aria-current', 'page');
   });
 
   it('has one h1, "Built for the whole team.", with "whole team." in the em', async () => {

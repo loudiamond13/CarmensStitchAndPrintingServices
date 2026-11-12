@@ -380,7 +380,7 @@ describe('the real source', () => {
   it('lists src files without tests, src/test or declaration files', () => {
     const files = listSourceFiles();
     expect(files).toContain('src/main.tsx');
-    expect(files).toContain('src/modules/public/pages/PublicPlaceholderPage.tsx');
+    expect(files).toContain('src/modules/public/pages/NotFoundPage.tsx');
     expect(files.filter((file) => /\.test\.tsx?$|^src\/test\/|\.d\.ts$/.test(file))).toEqual([]);
   });
 

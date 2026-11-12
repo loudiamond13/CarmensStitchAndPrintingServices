@@ -9,7 +9,7 @@
 //   - The index is the dashboard (DASH-01).
 //   - The sign-in screens (`admin/login`, `admin/login/verify`, `admin/forgot-password`, `admin/reset-password`, `admin/accept-invite`, the email-change confirm screen and `admin/login/new-password`) sit in a pathless
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
-//   - An unknown `/admin/...` address is the splat route inside the shell (D-89), not the public holding page.
+//   - An unknown `/admin/...` address is the splat route inside the shell (D-89), not the public 404 page.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
 //   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the same Component Showcase at /dev/components,
 //     inside the same AdminLayout with a placeholder user (Pitfall 11), and /dev/public, the real PublicLayout around a
