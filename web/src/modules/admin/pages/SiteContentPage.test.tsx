@@ -12,7 +12,12 @@ import { SiteContentPage, SiteContentRoute, type SiteContentPanels } from '@/mod
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoSiteSettings, openingHoursBackend, siteSettingsBackend } from '@/test/siteContentFixtures';
+import {
+  demoSiteSettings,
+  openingHoursBackend,
+  shopClosuresBackend,
+  siteSettingsBackend,
+} from '@/test/siteContentFixtures';
 
 // S0 Site Content, /admin/site-content (D-27, WEB-10; plan 11-12): the Manager's header and tabs.
 
@@ -103,6 +108,7 @@ describe('the tabs (WEB-10)', () => {
 
   it('opens the Hours & Closures tab from ?tab=hours and shows the Opening hours card in its panel', async () => {
     openingHoursBackend();
+    shopClosuresBackend();
     renderPage('?tab=hours');
 
     const panel = await screen.findByRole('tabpanel', { name: 'Hours & Closures' });

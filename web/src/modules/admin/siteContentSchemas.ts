@@ -7,7 +7,9 @@
 import { z } from 'zod';
 import { isEmailShaped } from '@/modules/admin/authSchemas';
 import type { OpeningHours, UpdateOpeningHoursRequest } from '@/modules/admin/services/openingHoursService';
+import type { ShopClosure, ShopClosureRequest } from '@/modules/admin/services/shopClosuresService';
 import type { SiteSettings, UpdateSiteSettingsRequest } from '@/modules/admin/services/siteSettingsService';
+import { isCalendarDate } from '@/lib/url-state/parsers';
 import { formatTime, type WeekDayHours } from '@/utils/hours';
 import { SITE_CONTENT_COPY } from './siteContentCopy';
 
@@ -512,4 +514,88 @@ export function weekOfValues(values: HoursInput): WeekDayHours[] {
 /** True when the two forms would send the same week: a closed day's leftover times do not count. */
 export function sameWeek(a: HoursInput, b: HoursInput): boolean {
   return JSON.stringify(toOpeningHoursRequest(a, '').days) === JSON.stringify(toOpeningHoursRequest(b, '').days);
+}
+
+// ---- The closure form (CONT-04, D-22; plan 11-16) -----------------------------------------------------------------------------------
+// It mirrors ShopClosureRequestValidator and ShopClosure.Check with the server's own messages: a real first day that is today or later, a
+// last day on or after it, at most 31 days in all, and a note of at most 80 characters. The business today comes from the server. An edit
+// keeps a first day that is already past (a closure that is running can still have its note fixed); moving it is checked like an add (owner
+// item OI-1 of plan 11-13, built as option A). An overlap with another closure is the one rule only the server can check.
+
+const CLOSURE = SITE_CONTENT_COPY.closures.errors;
+
+export const CLOSURE_NOTE_MAX = 80;
+export const CLOSURE_MAX_DAYS = 31;
+
+const MS_PER_DAY = 86_400_000;
+
+/** The number of the day in a running count, for counting the days between two real `YYYY-MM-DD` dates. */
+function dayNumberOf(day: string): number {
+  const [year, month, date] = day.split('-').map(Number) as [number, number, number];
+  return Math.round(Date.UTC(year, month - 1, date) / MS_PER_DAY);
+}
+
+/** The schema of the closure form for this business today (null while it is not known) and, for an edit, the first day it was opened with. */
+export function closureSchema(today: string | null, savedFirstDay: string | null = null) {
+  return z
+    .object({
+      firstDay: z.string(),
+      lastDay: z.string(),
+      note: z.string(),
+    })
+    .superRefine((values, ctx) => {
+      const first = values.firstDay.trim();
+      const last = values.lastDay.trim();
+      const firstRead = isCalendarDate(first);
+      if (first === '') {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.firstRequired, path: ['firstDay'] });
+      } else if (!firstRead) {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.notADate, path: ['firstDay'] });
+      } else if (today !== null && first < today && first !== savedFirstDay) {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.firstInPast, path: ['firstDay'] });
+      }
+
+      if (last !== '') {
+        if (!isCalendarDate(last)) {
+          ctx.addIssue({ code: 'custom', message: CLOSURE.notADate, path: ['lastDay'] });
+        } else if (firstRead && last < first) {
+          ctx.addIssue({ code: 'custom', message: CLOSURE.lastBeforeFirst, path: ['lastDay'] });
+        } else if (firstRead && dayNumberOf(last) - dayNumberOf(first) + 1 > CLOSURE_MAX_DAYS) {
+          ctx.addIssue({ code: 'custom', message: CLOSURE.spanTooLong, path: ['lastDay'] });
+        }
+      }
+
+      if (values.note.trim().length > CLOSURE_NOTE_MAX) {
+        ctx.addIssue({ code: 'custom', message: CLOSURE.noteTooLong, path: ['note'] });
+      }
+    });
+}
+
+/** What the closure form holds while it is edited: every control is text, an empty optional value is "". */
+export interface ClosureInput {
+  firstDay: string;
+  lastDay: string;
+  note: string;
+}
+
+/** The form values: an add starts on the business today (empty while it is not known); an edit shows the saved closure, a one day closure with no last day. */
+export function closureValuesOf(closure: ShopClosure | null, today: string | null): ClosureInput {
+  if (closure === null) {
+    return { firstDay: today ?? '', lastDay: '', note: '' };
+  }
+  return {
+    firstDay: closure.firstDay,
+    lastDay: closure.lastDay === closure.firstDay ? '' : closure.lastDay,
+    note: closure.note ?? '',
+  };
+}
+
+/** The save request: trimmed, an empty last day or note as null, and the version an edit was opened with (null for an add). */
+export function toClosureRequest(values: ClosureInput, version: string | null): ShopClosureRequest {
+  return {
+    firstDay: values.firstDay.trim(),
+    lastDay: optional(values.lastDay),
+    note: optional(values.note),
+    version,
+  };
 }

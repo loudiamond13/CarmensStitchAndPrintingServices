@@ -1,6 +1,7 @@
 // SPEC-GAP: hours and closures
 // S2 Hours & Closures tab, /admin/site-content?tab=hours (CONT-01, CONT-04, D-21, D-22; plan 11-16): the weekly hours card, and below it the
 // holidays and closures card. Each card loads its own data with its own loading and error states, so one failing card never blanks the other.
+import { ClosuresCard } from '@/modules/admin/components/ClosuresCard';
 import { OpeningHoursCard } from '@/modules/admin/components/OpeningHoursCard';
 import { siteContentStackClasses } from '@/modules/admin/components/siteContent.recipe';
 
@@ -13,6 +14,7 @@ export function HoursTab({ onDirtyChange }: HoursTabProps) {
   return (
     <div className={siteContentStackClasses}>
       <OpeningHoursCard onDirtyChange={onDirtyChange} />
+      <ClosuresCard />
     </div>
   );
 }

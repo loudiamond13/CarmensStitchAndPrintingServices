@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { invalidatePublicContent } from '@/lib/public-data/publicResource';
@@ -8,6 +9,7 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { HoursTab } from '@/modules/admin/components/HoursTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
   businessTodayIs,
@@ -299,16 +301,20 @@ describe('the Holidays and closures card (CONT-04)', () => {
     expect(screen.getAllByRole('button', { name: 'Add Closure' })).toHaveLength(1);
   });
 
-  it('has no axe violations with closures listed or with none', async () => {
+  it('has no axe violations with closures listed', async () => {
     openingHoursBackend();
-    const { container, unmount } = await openBoth();
-    await expectNoAxeViolations(container);
-    unmount();
+    const { container } = await openBoth();
 
+    await expectNoAxeViolations(container);
+  });
+
+  it('has no axe violations with no closure coming up', async () => {
+    openingHoursBackend();
     shopClosuresBackend([]);
-    const empty = renderTab();
+    const { container } = renderTab();
     await screen.findByRole('heading', { name: 'No closures coming up' });
-    await expectNoAxeViolations(empty.container);
+
+    await expectNoAxeViolations(container);
   });
 });
 
