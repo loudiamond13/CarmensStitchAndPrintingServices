@@ -1,22 +1,27 @@
-// S2 Hours & Closures, card A "Opening hours" (CONT-01, PUB-03, OR-3, D-21; plan 11-16). One form of seven day rows, saved by one "Save Hours"
+// S2 Hours & Closures, card A "Opening hours" (CONT-01, PUB-03, OR-3, D-21, SEC-07; plan 11-16). One form of seven day rows, saved by one "Save Hours"
 // with the week version it was opened with.
 //   - A day is a checkbox (ticked = open). An open day has Opens and Closes selects every 30 minutes from 5:00 AM to 11:30 PM; a closed
 //     day says Closed. A day that is ticked with no times of its own starts at 9:00 AM to 6:00 PM.
 //   - Under the rows, "Visitors see" reads the current choices the way the website's footer does (summarizeOpenDays).
 //   - Every rule the server checks is checked here first (hoursSchema, OR-3); nothing is sent while a rule is broken, and focus goes to the
-//     first invalid select.
+//     first invalid select. A server 400 lands under the time it names and wins.
 //   - The version a save sends is the one the form was opened with, never the live query data (SEC-07). A save that goes through shows the
 //     toast, puts the saved week in the query cache and clears the public data held in this browser (invalidatePublicContent).
+//   - A stale save (409 edit.stale) shows the shared ConflictBanner at the top of the card with every typed choice kept. Load Latest asks
+//     "Discard changes?" first (08 D-58), then reads the week again and replaces the choices and the version (05 D-20).
+//   - Undo Changes puts every day back to the saved week at once; it is aria-disabled while nothing changed.
 //   - The card tells its tab whether the week differs from the saved one (`onDirtyChange`), so the page can ask before a tab change or a leave.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { Controller, useForm, useWatch, type Control, type UseFormReturn } from 'react-hook-form';
+import { Controller, useForm, useWatch, type Control, type Path, type UseFormReturn } from 'react-hook-form';
 import { Button } from '@/components/actions';
 import { Checkbox } from '@/components/entry';
 import { useToast } from '@/components/feedback';
 import { Select } from '@/components/forms';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { LoadingRegion, SkeletonText } from '@/components/states';
+import { ConfirmDialog } from '@/components/overlays';
+import { ConflictBanner, ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
+import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
 import { SiteContentCard } from '@/modules/admin/components/SiteContentCard';
 import {
@@ -40,9 +45,16 @@ import {
   weekOfValues,
   type HoursInput,
 } from '@/modules/admin/siteContentSchemas';
+import { describeHttpError } from '@/utils/describeHttpError';
 import { formatTime, summarizeOpenDays } from '@/utils/hours';
 
 const COPY = SITE_CONTENT_COPY.hours;
+
+/** The machine code of a save made against an old edit version (SEC-07). */
+const EDIT_STALE = 'edit.stale';
+
+/** A time's key in the server's answer: `Days[6].ClosesAt`, by the day's place in the request (Monday first). */
+const TIME_KEY = /^days\[(\d)\]\.(opensAt|closesAt)$/i;
 
 const DAY_INDEXES = [0, 1, 2, 3, 4, 5, 6] as const;
 
@@ -51,6 +63,15 @@ type DayField = 'open' | 'opensAt' | 'closesAt';
 /** The form path of one field of one day. */
 function pathOf<F extends DayField>(index: number, field: F): `days.${number}.${F}` {
   return `days.${String(index)}.${field}` as `days.${number}.${F}`;
+}
+
+/** The form field a server error key belongs to (the server keys in its own casing), or null when this form draws no such field. */
+function formPathOf(key: string): Path<HoursInput> | null {
+  const match = TIME_KEY.exec(key);
+  if (match?.[1] === undefined || match[2] === undefined) {
+    return null;
+  }
+  return pathOf(Number(match[1]), match[2].toLowerCase() === 'opensat' ? 'opensAt' : 'closesAt');
 }
 
 /** The saved time is always one of the choices; a time the list does not hold (an old value) is kept as one more, in its place. */
@@ -180,18 +201,29 @@ function HoursPreview({ week }: { week: HoursInput }) {
   );
 }
 
+/** The latest week from the server, or why it could not be read. */
+type ReloadResult = { readonly hours: OpeningHours } | { readonly error: unknown };
+
 interface OpeningHoursFormProps {
   hours: OpeningHours;
   onDirtyChange: ((dirty: boolean) => void) | undefined;
+  /** Reads the week from the server again (Load Latest). */
+  reload: () => Promise<ReloadResult>;
 }
 
-function OpeningHoursForm({ hours, onDirtyChange }: OpeningHoursFormProps) {
+function OpeningHoursForm({ hours, onDirtyChange, reload }: OpeningHoursFormProps) {
   const toast = useToast();
   const formRef = useRef<HTMLFormElement>(null);
-  // The week version this form was opened with: changed only by a save of this form.
+  // The week version this form was opened with: changed only by a save of this form or by Load Latest.
   const [version, setVersion] = useState(hours.version);
-  // What the form was last saved or opened with: the week "unsaved" is measured against.
+  // What the form was last saved or opened with: the week "unsaved" is measured against, and what Undo Changes goes back to.
   const [baseline, setBaseline] = useState(() => hoursValuesOf(hours));
+  // How many stale saves the server has refused since the form was last current; the banner shows from the first.
+  const [conflicts, setConflicts] = useState(0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // The polite line read out after Load Latest.
+  const [status, setStatus] = useState('');
   // Counts the times focus should move to the first flagged field once its message is on screen.
   const [focusTick, setFocusTick] = useState(0);
   const form = useForm<HoursInput>({
@@ -199,7 +231,7 @@ function OpeningHoursForm({ hours, onDirtyChange }: OpeningHoursFormProps) {
     mode: 'onBlur',
     defaultValues: baseline,
   });
-  const { control, handleSubmit, reset } = form;
+  const { control, handleSubmit, reset, setError } = form;
   const week = useWeek(control);
   const dirty = !sameWeek(week, baseline);
 
@@ -224,45 +256,136 @@ function OpeningHoursForm({ hours, onDirtyChange }: OpeningHoursFormProps) {
       const savedValues = hoursValuesOf(saved);
       setVersion(saved.version);
       setBaseline(savedValues);
+      setConflicts(0);
       reset(savedValues);
       toast.show({ title: COPY.toast.title, message: COPY.toast.message });
     },
-    onFailure: (copy) => {
+    onFailure: (copy, error) => {
+      if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
+        setConflicts((count) => count + 1);
+        return;
+      }
+      if (isHttpError(error) && error.status === 400) {
+        let placed = 0;
+        let other: string | undefined;
+        for (const [key, messages] of Object.entries(error.fieldErrors)) {
+          const message = messages[0];
+          if (message === undefined) {
+            continue;
+          }
+          const path = formPathOf(key);
+          if (path === null) {
+            other ??= message;
+          } else {
+            setError(path, { type: 'server', message });
+            placed += 1;
+          }
+        }
+        if (placed > 0) {
+          setFocusTick((tick) => tick + 1);
+          return;
+        }
+        // No shown time matches: say what the server said.
+        toast.show({ tone: 'danger', title: other ?? copy.title, message: other === undefined ? copy.body : '' });
+        return;
+      }
       toast.show({ tone: 'danger', title: copy.title, message: copy.body });
     },
   });
+
+  /** Load Latest, once the person has agreed to lose what was chosen: the choices are replaced only when the latest week has arrived. */
+  const loadLatest = async (): Promise<void> => {
+    setLoadingLatest(true);
+    const result = await reload();
+    setLoadingLatest(false);
+    if ('error' in result) {
+      const copy = describeHttpError(result.error);
+      if (copy !== null) {
+        toast.show({ tone: 'danger', title: copy.title, message: copy.body });
+      }
+      return;
+    }
+    const latest = hoursValuesOf(result.hours);
+    setVersion(result.hours.version);
+    setBaseline(latest);
+    setConflicts(0);
+    reset(latest);
+    setStatus(COPY.latestLoaded);
+    formRef.current?.querySelector<HTMLElement>('input')?.focus();
+  };
 
   const onValid = async (values: HoursInput): Promise<void> => {
     await submit(toOpeningHoursRequest(values, version));
   };
 
   return (
-    <form
-      ref={formRef}
-      noValidate
-      onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
-        void handleSubmit(onValid, () => {
-          setFocusTick((tick) => tick + 1);
-        })(event);
-      }}
-    >
-      <SiteContentCard
-        title={COPY.card.title}
-        hint={COPY.card.hint}
-        footer={
-          <Button type="submit" variant="primary" icon="check" pending={pending}>
-            {pending ? COPY.actions.saving : COPY.actions.save}
-          </Button>
-        }
+    <>
+      <form
+        ref={formRef}
+        noValidate
+        onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
+          void handleSubmit(onValid, () => {
+            setFocusTick((tick) => tick + 1);
+          })(event);
+        }}
       >
-        <div className={hoursListClasses}>
-          {DAY_INDEXES.map((index) => (
-            <DayRow key={index} form={form} index={index} />
-          ))}
-        </div>
-        <HoursPreview week={week} />
-      </SiteContentCard>
-    </form>
+        <SiteContentCard
+          title={COPY.card.title}
+          hint={COPY.card.hint}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                aria-disabled={!dirty || pending}
+                onClick={() => {
+                  if (dirty && !pending) {
+                    reset(baseline);
+                  }
+                }}
+              >
+                {COPY.actions.undo}
+              </Button>
+              <Button type="submit" variant="primary" icon="check" pending={pending}>
+                {pending ? COPY.actions.saving : COPY.actions.save}
+              </Button>
+            </>
+          }
+        >
+          {conflicts > 0 && (
+            <ConflictBanner
+              key={conflicts}
+              pending={loadingLatest}
+              onLoadLatest={() => {
+                setAsking(true);
+              }}
+            />
+          )}
+          <div className={hoursListClasses}>
+            {DAY_INDEXES.map((index) => (
+              <DayRow key={index} form={form} index={index} />
+            ))}
+          </div>
+          <HoursPreview week={week} />
+        </SiteContentCard>
+      </form>
+      <div role="status" aria-live="polite" className={srOnlyClasses}>
+        {status}
+      </div>
+      <ConfirmDialog
+        open={asking}
+        title={SITE_CONTENT_COPY.discard.title}
+        message={SITE_CONTENT_COPY.discard.loadLatestMessage}
+        cancelLabel={SITE_CONTENT_COPY.discard.keep}
+        confirmLabel={SITE_CONTENT_COPY.discard.discard}
+        onConfirm={() => {
+          setAsking(false);
+          void loadLatest();
+        }}
+        onCancel={() => {
+          setAsking(false);
+        }}
+      />
+    </>
   );
 }
 
@@ -283,13 +406,32 @@ export interface OpeningHoursCardProps {
 export function OpeningHoursCard({ onDirtyChange }: OpeningHoursCardProps) {
   const query = useOpeningHoursQuery();
   const hours = query.data;
+  const reload = async (): Promise<ReloadResult> => {
+    const result = await query.refetch();
+    return result.isError || result.data === undefined ? { error: result.error } : { hours: result.data };
+  };
+  let content;
+  if (hours !== undefined) {
+    content = <OpeningHoursForm hours={hours} onDirtyChange={onDirtyChange} reload={reload} />;
+  } else if (query.isError) {
+    content = (
+      <SiteContentCard title={COPY.card.title} hint={COPY.card.hint}>
+        <ErrorState
+          things={COPY.things}
+          error={query.error}
+          align="start"
+          onRetry={() => {
+            void query.refetch();
+          }}
+        />
+      </SiteContentCard>
+    );
+  } else {
+    content = <OpeningHoursSkeleton />;
+  }
   return (
     <LoadingRegion loading={query.isPending} failed={query.isError} things={COPY.things}>
-      {hours === undefined ? (
-        <OpeningHoursSkeleton />
-      ) : (
-        <OpeningHoursForm hours={hours} onDirtyChange={onDirtyChange} />
-      )}
+      {content}
     </LoadingRegion>
   );
 }

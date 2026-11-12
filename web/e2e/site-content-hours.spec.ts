@@ -4,14 +4,20 @@
 // signs in before it takes the lock. Every test runs under the shared guard (console, page errors, CSP, failed responses).
 import type { APIRequestContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
-import { manilaDate, press } from './helpers.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedDemoSiteContent } from './testing-api.ts';
+
+/** A save goes through the host and the shared database, which other test runs on this machine may be using: give its toast longer than the 5 second default. */
+const SAVE_WAIT_MS = 20_000;
 
 /** Opens Site Content from the navigation (the sidebar, or the drawer on a phone) and then its Hours & Closures tab. */
 async function openHoursTab(page: Page): Promise<void> {
   const menu = page.getByRole('button', { name: 'Open navigation' });
+  const sidebarLink = page.locator('aside nav[aria-label="Admin"]').getByRole('link', { name: /^Site Content/ });
+  // The shell may still be laying out: wait for whichever navigation this width shows before choosing.
+  await expect(menu.or(sidebarLink)).toBeVisible();
   if (await menu.isVisible()) {
     await menu.click();
     await page
@@ -19,10 +25,7 @@ async function openHoursTab(page: Page): Promise<void> {
       .getByRole('link', { name: /^Site Content/ })
       .click();
   } else {
-    await page
-      .locator('aside nav[aria-label="Admin"]')
-      .getByRole('link', { name: /^Site Content/ })
-      .click();
+    await sidebarLink.click();
   }
   await expect(page.getByRole('heading', { level: 1, name: 'Site Content' })).toBeVisible();
   await page.getByRole('tab', { name: 'Hours & Closures' }).click();
@@ -50,7 +53,7 @@ test('@site-content-hours a Manager ticks Sunday open 10 to 3, saves, and the pu
       await expect(page.getByText('Sun · 10:00 AM - 3:00 PM')).toBeVisible();
       await press(page, page.getByRole('button', { name: 'Save Hours' }));
 
-      await expect(page.getByText('Opening hours saved')).toBeVisible();
+      await expect(page.getByText('Opening hours saved')).toBeVisible({ timeout: SAVE_WAIT_MS });
       await expect(page.getByText('The Contact page and the open status use them now.')).toBeVisible();
 
       // The public site read the Contact page and the open status draw from: Sunday now has its hours.
@@ -103,7 +106,7 @@ test('@site-content-hours a Manager adds a closure for next week, the public sit
       await dialog.getByLabel(/^Public note/).fill('E2E-holiday');
       await press(page, dialog.getByRole('button', { name: 'Save Closure' }));
 
-      await expect(page.getByText('Closure added')).toBeVisible();
+      await expect(page.getByText('Closure added')).toBeVisible({ timeout: SAVE_WAIT_MS });
       await expect(page.getByText(`${label} shows as closed.`)).toBeVisible();
       await expect(page.getByRole('button', { name: `Edit closure on ${label}` })).toBeVisible();
       expect(await publicClosures(request)).toContainEqual({ firstDay: day, lastDay: day, note: 'E2E-holiday' });
@@ -113,11 +116,41 @@ test('@site-content-hours a Manager adds a closure for next week, the public sit
       await expect(question.getByRole('button', { name: 'Cancel' })).toBeFocused();
       await press(page, question.getByRole('button', { name: 'Delete Closure' }));
 
-      await expect(page.getByText('Closure deleted')).toBeVisible();
+      await expect(page.getByText('Closure deleted')).toBeVisible({ timeout: SAVE_WAIT_MS });
       await expect(page.getByRole('button', { name: `Edit closure on ${label}` })).toHaveCount(0);
       expect((await publicClosures(request)).map((closure) => closure.note)).not.toContain('E2E-holiday');
     } finally {
       await seedDemoSiteContent(request);
     }
   });
+});
+
+// This one only looks at the layout, which any saved hours give, so it does not take the lock.
+test('@site-content-hours at 320px a day row stacks with Opens and Closes side by side, the page has no sideways scroll and axe finds nothing, window open or not', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(480_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openHoursTab(page);
+  await expect(page.getByRole('table', { name: 'Upcoming closures' })).toBeVisible();
+
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+  // Monday is open: the checkbox is on top, Opens and Closes are side by side under it and inside the window.
+  const day = await page.getByRole('checkbox', { name: 'Monday' }).boundingBox();
+  const opens = await page.getByLabel('Monday opens').boundingBox();
+  const closes = await page.getByLabel('Monday closes').boundingBox();
+  expect((opens?.y ?? 0) >= (day?.y ?? 0) + (day?.height ?? 0) - 1).toBe(true);
+  expect(Math.abs((closes?.y ?? 0) - (opens?.y ?? 0)) <= 2).toBe(true);
+  expect((closes?.x ?? 0) > (opens?.x ?? 0) + (opens?.width ?? 0) - 1).toBe(true);
+  expect((closes?.x ?? 0) + (closes?.width ?? 0) <= 320).toBe(true);
+  await expectNoAxeViolations(page);
+
+  await page.getByRole('button', { name: 'Add Closure' }).click();
+  await expect(page.getByRole('dialog', { name: 'Add Closure' })).toBeVisible();
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
 });

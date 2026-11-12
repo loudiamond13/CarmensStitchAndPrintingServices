@@ -36,4 +36,10 @@ describe('siteContent recipe', () => {
     expect(blockOf('pg-phone:col-span-2')).toBe('@container pg (max-width: 767px) ');
     expect(blockOf('pg-phone:pt-0')).toBe('@container pg (max-width: 767px) ');
   });
+
+  it('draws a day row of the hours card as a 160px day column and two shares, and stacks it in the phone page container (plan 11-16)', () => {
+    expect(css).toContain('160px minmax(0,1fr) minmax(0,1fr)');
+    expect(blockOf('pg-phone:grid-cols-2')).toBe('@container pg (max-width: 767px) ');
+    expect(blockOf('pg-phone:col-span-2')).toBe('@container pg (max-width: 767px) ');
+  });
 });

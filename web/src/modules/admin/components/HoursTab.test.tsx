@@ -626,7 +626,7 @@ describe('Undo Changes (S2 card A)', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
     await user.selectOptions(opens('Monday'), '07:00');
     const undo = screen.getByRole('button', { name: 'Undo Changes' });
-    expect(undo).toHaveAttribute('aria-disabled', 'false');
+    expect(undo).not.toHaveAttribute('aria-disabled', 'true');
 
     await user.click(undo);
 
