@@ -251,11 +251,11 @@ public sealed class AuditActionsTests
     }
 
     [Fact]
-    public void ThePhaseSevenCodesComeAfterThePhaseSixCodesInThisOrder()
+    public void ThePhaseSevenCodesComeAfterThePhaseSixCodesInThisOrderAndTheEleventhPhaseCodeComesLast()
     {
         PhaseSeven.Length.ShouldBe(43);
         AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
-        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over"]);
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed"]);
     }
 
     [Theory]

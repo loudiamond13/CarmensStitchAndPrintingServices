@@ -529,5 +529,6 @@ public static class AuditActions
         MoneyTransferDeleted,
         MoneyTransferPermanentlyDeleted,
         MoneyHandedOver,
+        SiteSettingsChanged,
     ];
 }

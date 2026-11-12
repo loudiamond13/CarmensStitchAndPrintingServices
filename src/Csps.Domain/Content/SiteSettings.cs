@@ -301,7 +301,7 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
     /// last-modified date all follow a save that only changed the phones.
     /// </summary>
     /// <param name="now">The current instant.</param>
-    public void MarkPhonesChanged(DateTimeOffset now) => throw new NotImplementedException();
+    public void MarkPhonesChanged(DateTimeOffset now) => UpdatedAtUtc = now;
 
     /// <summary>
     /// Puts every <see cref="SiteSettingsDefaults"/> value back (business name, tagline, zone, currency, locale and the

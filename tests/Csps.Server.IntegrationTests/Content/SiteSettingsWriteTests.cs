@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Csps.Application.Security;
+using Csps.Domain.Content;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task AManagersNewTaglineShowsOnTheNextPublicReadWithANewETagAndAsTheHomeDescription()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -46,7 +47,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task AnAdminGets403AndNothingIsStored()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var admin = await TestSessions.StartAsync(factory, Roles.Admin);
@@ -72,7 +73,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task TwoManagersReadTheSameVersionTheFirstSaveWinsAndTheSecondGets409AndChangesNothing()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var first = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -95,7 +96,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task StampFieldsSentByTheClientAreIgnoredAndTheServerStampsTheManagerAndTheClock()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -123,7 +124,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task ASaveThatChangesTheNameAndTaglineWritesOneAuditEntryWithTheNameButNotTheTagline()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo("Audit tagline before"));
+        await PublicContentSeeding.SaveAsync(database, Seed("Audit tagline before"));
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -143,7 +144,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task ASaveWithNoChangeWritesNoAuditEntryAndKeepsTheVersion()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -164,7 +165,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task TwoSavesInARowEachGiveADistinctPublicETag()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -183,7 +184,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task ChangingOnlyThePhonesShowsOnThePublicReadMovesTheVersionAndAuditsPhonesWithoutTheNumbers()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -215,7 +216,7 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     [Fact]
     public async Task ABadFormIs400OnItsFieldsWithTheApprovedMessagesAndChangesNothing()
     {
-        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveAsync(database, Seed());
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
@@ -240,6 +241,16 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
         (await context.AuditLog.AsNoTracking().CountAsync(row => row.ActorUserId == manager.UserId, TestContext.Current.CancellationToken)).ShouldBe(0);
         (await context.SiteSettings.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken)).Tagline.ShouldBe("Sample tagline");
     }
+
+    // The stored values start equal to what Body sends, so a test changes only what it means to change.
+    private static BusinessInfo Seed(string tagline = "Sample tagline") => PublicContentSeeding.Demo(tagline) with
+    {
+        DirectionsUrl = "https://maps.app.goo.gl/abc123",
+        MapEmbedUrl = "https://www.google.com/maps/embed?pb=sample",
+        FacebookUrl = "https://www.facebook.com/cspsdemo",
+        InstagramUrl = "https://www.instagram.com/cspsdemo",
+        TikTokUrl = "https://www.tiktok.com/@cspsdemo",
+    };
 
     internal static object Body(string version, string tagline) => new
     {
